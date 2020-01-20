@@ -49,8 +49,6 @@ class ComicspiderSpiderMiddleware(object):
         # Called with the start requests of the spider, and works
         # similarly to the process_spider_output() method, except
         # that it doesn’t have a response associated.
-
-        # Must return only requests (not items).
         for r in start_requests:
             yield r
 
@@ -59,14 +57,7 @@ class ComicspiderSpiderMiddleware(object):
 
 
 class ComicspiderDownloaderMiddleware(object):
-    USER_AGENTS = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0",
-                   r'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:64.0) Gecko/20100101 Firefox/64.0',
-                   r'Mozilla/5.0 (Windows NT 6.2; WOW64; rv:63.0) Gecko/20100101 Firefox/63.0',
-                   r'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ',
-                   r'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/44.0.2403.155 Safari/537.36',
-                   r'Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14',
-                   r'Mozilla/5.0 (Windows NT 6.0; rv:2.0) Gecko/20100101 Firefox/4.0 Opera 12.14'
-                   ]
+    USER_AGENTS = settings.UA
     PROXIES = settings.PROXY_CUST
 
     @classmethod
@@ -79,16 +70,20 @@ class ComicspiderDownloaderMiddleware(object):
     def process_request(self, request, spider):
         # Called for each request that goes through the downloader
         # middleware.
-
-        user_agent = random.choice(self.USER_AGENTS)
-        request.headers['User-Agent'] = user_agent
-        if self.PROXIES is not None:
-            proxy = random.choice(self.PROXIES)
-            request.meta['proxy'] = proxy
+        if len(self.USER_AGENTS):
+            request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
+            # print('---------this is UA ----------:' + user_agent)
         return None
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.
+
+        if response.status != 200:
+            if len(self.PROXIES):
+                proxy = random.choice(self.PROXIES)
+                print(f'---------replace to proxy ip:{proxy} ----------:')
+                request.meta['proxy'] = f"http://{proxy}"
+            return request
 
         # Must either;
         # - return a Response object

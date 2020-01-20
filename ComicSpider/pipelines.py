@@ -2,13 +2,21 @@
 import os
 from scrapy.pipelines.images import ImagesPipeline
 from ComicSpider import settings
+# from tqdm import tqdm
 
 
-class H90comicPipeline(ImagesPipeline):
+class ComicPipeline(ImagesPipeline):
+    page = 0
+
     # 下载请求前附加item配料
     def get_media_requests(self, item, info):
-        request_objs = super(H90comicPipeline, self).get_media_requests(item, info)
+        request_objs = super(ComicPipeline, self).get_media_requests(item, info)
+
         for request_obj in request_objs:
+            self.page += 1
+            sign = {1: '→', 2: '↘', 3: '↓', 4: '↙', 5: '←', 6: '↖', 7: '↑', 0: '↗', 999: '\n'}
+            p = sign[self.page % (len(sign.keys()) - 1)] if self.page % 50 else sign[999]
+            print(p, end='', flush=True)
             request_obj.item = item
         return request_objs
 
@@ -23,5 +31,4 @@ class H90comicPipeline(ImagesPipeline):
             path = os.path.join(origin_path, target)
             os.mkdir(path) if not os.path.exists(path) else None
             return path
-
         return os.path.join(_path(_path(_path(images_store), title), section), page)
