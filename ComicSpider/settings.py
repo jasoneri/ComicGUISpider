@@ -10,6 +10,7 @@
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 import os
 import re
+from datetime import datetime
 
 BOT_NAME = 'ComicSpider'
 
@@ -29,7 +30,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.05
+DOWNLOAD_DELAY = 0.3
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -54,9 +55,9 @@ DEFAULT_REQUEST_HEADERS = {
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'ComicSpider.middlewares.ComicspiderDownloaderMiddleware': 543,
-#}
+DOWNLOADER_MIDDLEWARES = {
+   'ComicSpider.middlewares.ComicspiderDownloaderMiddleware': 5,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -67,16 +68,16 @@ DEFAULT_REQUEST_HEADERS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   'ComicSpider.pipelines.H90comicPipeline': 1
+   'ComicSpider.pipelines.ComicPipeline': 50
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-#AUTOTHROTTLE_ENABLED = True
+# AUTOTHROTTLE_ENABLED = True
 # The initial download delay
-#AUTOTHROTTLE_START_DELAY = 5
+# AUTOTHROTTLE_START_DELAY = 5
 # The maximum download delay to be set in case of high latencies
-#AUTOTHROTTLE_MAX_DELAY = 60
+# AUTOTHROTTLE_MAX_DELAY = 60
 # The average number of requests Scrapy should be sending in parallel to
 # each remote server
 #AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
@@ -93,24 +94,37 @@ ITEM_PIPELINES = {
 
 
 # 图片储存原始路径
-def proxy_and_path():
+def images_store_and_proxy():
     if os.path.exists(r'.\setting.txt'):
         with open(r'.\setting.txt', 'r', encoding='utf-8') as fp:
             text = fp.read()
             try:
-                proxies_text: str = re.search(r'proxies=\[([\s\S]*)\]', text).group(1)
-                proxies = re.findall(r'[\"\'](.*)[\"\']', proxies_text)
-            except Exception:
-                proxies = None
-            try:
+                proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
                 path = re.search(r'path=[\"\']([\s\S]*)[\"\']$', text).group(1)
             except Exception:
+                proxies = None
                 path = r'D:\comic'
     else:
         proxies = None
         path = r'D:\comic'
-    return [path, proxies]
+    return path, proxies
 
 
-IMAGES_STORE = proxy_and_path()[0]
-PROXY_CUST = proxy_and_path()[1]
+IMAGES_STORE, PROXY_CUST = images_store_and_proxy()
+
+UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0",
+      r'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:64.0) Gecko/20100101 Firefox/64.0',
+      r'Mozilla/5.0 (Windows NT 6.2; WOW64; rv:63.0) Gecko/20100101 Firefox/63.0',
+      r'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ',
+      r'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML like Gecko) Chrome/44.0.2403.155 Safari/537.36',
+      r'Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14',
+      r'Mozilla/5.0 (Windows NT 6.0; rv:2.0) Gecko/20100101 Firefox/4.0 Opera 12.14'
+      ]
+
+today = datetime.now()
+os.mkdir('log') if not os.path.exists('log') else None
+log_file_path = "log/scrapy_{}_{}_{}.log".format(today.year, today.month, today.day)
+
+# 日志输出
+LOG_LEVEL = 'INFO'
+LOG_FILE = log_file_path

@@ -1,7 +1,8 @@
 # m90h_comic_spider
- python3.7, scrapy
+ python3.7, scrapy win10x64
 此代码仅为学习使用(问下github怎么收集反馈？)
-(32位系统用不了)
+
++ ( now exe & zip didn't contain new func，as future will make GUI instead )
 
 程序使用方法参考[1图流示例.jpg]
 setting.txt、scrapy.cfg和exe程序要放一起，切记
@@ -11,7 +12,7 @@ setting.txt、scrapy.cfg和exe程序要放一起，切记
 + 1、设置或更改代理IP：
 (响应失败多数换IP能破，要求5个左右，可从此网找几个用 【 https://www.kuaidaili.com/free 】 或自行百度免费代理IP)
 
-将示例中的IP更改后整段扔进去setting.txt（半角英文）
+IP示例： 192.168.1.1：9999 （ 必须有端口 ）
 
 ------------------------------------------
     proxies=['aaa.aaa.aaa.aaa:61234',
