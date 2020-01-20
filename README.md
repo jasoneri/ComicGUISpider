@@ -1,13 +1,15 @@
 # m90h_comic_spider
  python3.7, scrapy win10x64
-此代码仅为学习使用(问下github怎么收集反馈？)
+
+此代码仅为学习使用
 
 + ( now exe & zip didn't contain new func，as future will make GUI instead )
 
-程序使用方法参考[1图流示例.jpg]
+程序使用方法参考![【image】](https://github.com/jasoneri/ComicSpider/blob/master/1%E5%9B%BE%E6%B5%81%E7%A4%BA%E4%BE%8B.jpg) or 压缩包内【1图流实例.jpg】
+
 setting.txt、scrapy.cfg和exe程序要放一起，切记
 
-可在本文件目录下创建【 setting.txt 】更改IP或下载地址
+可在exe所在目录下创建【 setting.txt 】更改IP或下载地址
 -
 + 1、设置或更改代理IP：
 (响应失败多数换IP能破，要求5个左右，可从此网找几个用 【 https://www.kuaidaili.com/free 】 或自行百度免费代理IP)
