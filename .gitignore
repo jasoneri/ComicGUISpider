@@ -43,6 +43,10 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# GUI related
+*.ui
+source/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -95,14 +99,12 @@ comic/
 
 ##----------Python----------
 *_origin.py
-*.spec
-__pycache__/
-dist/
 setting.txt
 *.pyc
 *_info.txt
 private_*.json
 *test*.py
+
 # Sphinx documentation
 docs/_build/
 log/

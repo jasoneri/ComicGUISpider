@@ -1,9 +1,23 @@
 # -*- coding: utf-8 -*-
-from scrapy import cmdline
-from scrapy.crawler import CrawlerProcess
-from scrapy.utils.project import get_project_settings
+import sys
 
-# 这里是必须引入的
+from multiprocessing import freeze_support
+# from multiprocessing.managers import RemoteError
+
+# GUI
+# from PyQt5.QtGui import QPixmap, QColor, QPalette, QBrush
+from PyQt5.QtWidgets import QApplication
+import requests
+import material_ct
+import PyQt5.sip
+
+from PyQt5.QtCore import Qt, QSize, QMetaObject, QCoreApplication
+from PyQt5.QtGui import QFont, QPixmap, QIcon, QCursor
+from PyQt5.QtWidgets import QDialogButtonBox, QSizePolicy, QCommandLinkButton, QVBoxLayout, QFrame, QSpacerItem, \
+    QLineEdit, QHBoxLayout, QCheckBox, QComboBox, QGroupBox, QTextBrowser, QWidget, QStatusBar, QProgressBar, \
+    QPushButton, QToolButton, QTextEdit
+
+# scrapy 打包相关
 # import robotparser
 
 import scrapy.spiderloader
@@ -53,37 +67,23 @@ import scrapy.spidermiddlewares.referer
 import scrapy.spidermiddlewares.urllength
 
 import scrapy.pipelines
-
+import scrapy.core.downloader.handlers.datauri
+import scrapy.core.downloader.handlers.file
+import scrapy.core.downloader.handlers.ftp
+import scrapy.core.downloader.handlers.s3
 import scrapy.core.downloader.handlers.http
 import scrapy.core.downloader.contextfactory
 import scrapy.pipelines.images
 
 # 自己项目用到的
-from ComicSpider.settings import IMAGES_STORE
-import json
-import time
-import os
-import re
+from gui import SpiderGUI
 # requirement.txt
-
-text = ('{:=^70}'.format('message'),'\n此程序可搜索网站的漫画并进行下载\n',
-        '{:-^60}'.format('仅为学习使用'),'\n响应出错可参考README.md设置代理IP\n','{:=^70}'.format('message'))
-
+# sys.setrecursionlimit(5000)
 
 if __name__ == '__main__':
-    print(''.join(text))
-    _list = ['comic90mh', 'comickukudm']
-    # try:while True:
-    choose = input('现有两网站 1、90mh网； 2、kuku动漫网\t请进行选择(输入其他视为退出exe)： ')
-    spider = _list[int(choose)-1]
-    print(f'\nyou choose the """{spider}"""')
-    time.sleep(1.5)
-    process = CrawlerProcess(get_project_settings())
-    process.crawl(spider)
-    process.start()
-    os.system(f"explorer.exe {IMAGES_STORE}")
-    # except Exception as e:
-    #     print(f'\n{"="*20} wrong happen "{e}", later will quit')
-    #     time.sleep(3)
-#     finally：process.stop()
-
+    freeze_support()
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    ui = SpiderGUI()
+    QApplication.processEvents()
+    sys.exit(app.exec_())

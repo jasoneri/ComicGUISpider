@@ -72,7 +72,9 @@ class ComicspiderDownloaderMiddleware(object):
         # middleware.
         if len(self.USER_AGENTS):
             request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
-            # print('---------this is UA ----------:' + user_agent)
+        if len(self.PROXIES):
+            proxy = random.choice(self.PROXIES)
+            request.meta['proxy'] = f"http://{proxy}"
         return None
 
     def process_response(self, request, response, spider):
@@ -81,7 +83,6 @@ class ComicspiderDownloaderMiddleware(object):
         if response.status != 200:
             if len(self.PROXIES):
                 proxy = random.choice(self.PROXIES)
-                print(f'---------replace to proxy ip:{proxy} ----------:')
                 request.meta['proxy'] = f"http://{proxy}"
             return request
 
