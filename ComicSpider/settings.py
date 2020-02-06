@@ -30,7 +30,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.3
+DOWNLOAD_DELAY = 0.15
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -95,18 +95,18 @@ ITEM_PIPELINES = {
 
 # 图片储存原始路径
 def images_store_and_proxy():
+    path = r'D:\comic'
     if os.path.exists(r'.\setting.txt'):
         with open(r'.\setting.txt', 'r', encoding='utf-8') as fp:
             text = fp.read()
             try:
-                proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
+                _proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
                 path = re.search(r'path=[\"\']([\s\S]*)[\"\']$', text).group(1)
-            except Exception:
-                proxies = None
-                path = r'D:\comic'
-    else:
-        proxies = None
-        path = r'D:\comic'
+            except AttributeError:
+                # logging.info("haven't create dir")
+                pass
+
+    proxies = _proxies if len(_proxies) else []
     return path, proxies
 
 
@@ -122,9 +122,11 @@ UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefo
       ]
 
 today = datetime.now()
-os.mkdir('log') if not os.path.exists('log') else None
+os.makedirs('log', exist_ok=True)
 log_file_path = "log/scrapy_{}_{}_{}.log".format(today.year, today.month, today.day)
 
 # 日志输出
-LOG_LEVEL = 'INFO'
+# LOG_LEVEL = 'INFO'
+LOG_LEVEL = 'DEBUG'
 LOG_FILE = log_file_path
+
