@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 from scrapy.pipelines.images import ImagesPipeline
-# from ComicSpider import settings
 
 
 class ComicPipeline(ImagesPipeline):
@@ -9,10 +8,11 @@ class ComicPipeline(ImagesPipeline):
     percent = 0.0
     threshold = 70
 
-    def __init__(self, store_uri, IMAGES_STORE):
-        super(ComicPipeline, self).__init__(store_uri)
-        self.IMAGES_STORE = IMAGES_STORE
+    def __init__(self, store_uri, download_func=None, settings=None):
+        super(ComicPipeline, self).__init__(store_uri, settings=settings, download_func=download_func)
+        self.IMAGES_STORE = store_uri
 
+    # item process bar
     def process_item(self, item, spider):
         if int(self.percent) < 97:
             if self.total<40:
@@ -35,19 +35,11 @@ class ComicPipeline(ImagesPipeline):
             request_obj.item = item
         return request_objs
 
-    @classmethod
-    def from_crawler(cls, crawler):
-        settings = crawler.settings
-        IMAGES_STORE = settings.get('IMAGES_STORE')
-        return cls(IMAGES_STORE)
-
     # 图片存储前调用
     def file_path(self, request, response=None, info=None):
         title = request.item.get('title').replace('\\', ' ').replace('/', ' ')
         section = '%s' % request.item.get('section').replace('\\', ' ').replace('/', ' ')
         page = '第%s页.jpg' % request.item.get('page')
-        # images_store = settings.IMAGES_STORE
-        images_store = self.IMAGES_STORE
-        path = r"{}\{}\{}".format(images_store, title, section)
+        path = r"{}\{}\{}".format(self.IMAGES_STORE, title, section)
         os.makedirs(path, exist_ok=True)
         return os.path.join(path, page)
