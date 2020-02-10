@@ -95,18 +95,17 @@ ITEM_PIPELINES = {
 
 # 图片储存原始路径
 def images_store_and_proxy():
-    path = r'D:\comic'
-    if os.path.exists(r'.\setting.txt'):
-        with open(r'.\setting.txt', 'r', encoding='utf-8') as fp:
+    proxies = []
+    if os.path.exists(r'./setting.txt'):
+        with open(r'./setting.txt', 'r', encoding='utf-8') as fp:
             text = fp.read()
             try:
-                _proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
+                proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
                 path = re.search(r'path=[\"\']([\s\S]*)[\"\']$', text).group(1)
             except AttributeError:
                 # logging.info("haven't create dir")
+                path = r'D:\comic'
                 pass
-
-    proxies = _proxies if len(_proxies) else []
     return path, proxies
 
 

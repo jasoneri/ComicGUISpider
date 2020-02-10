@@ -2,15 +2,15 @@ import os
 from multiprocessing import Manager, Process, freeze_support
 from multiprocessing.managers import RemoteError
 
-from PyQt5.QtCore import QThread, Qt, QRect, pyqtSignal
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QDialog, QMainWindow, QLabel
+from PyQt5.QtCore import QThread, Qt, pyqtSignal
+from PyQt5.QtWidgets import QDialog, QMainWindow
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
+from GUI.ui_helplabel import Ui_HelpLabel
 from utils import judge_input, clear_queue, log_GUI
 
 from ComicSpider.settings import IMAGES_STORE
@@ -39,12 +39,10 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.helpbtn.setFocus()
         self.textBrowser.setText(''.join(text))
 
-        self.helplabel = QLabel(self.centralwidget)
-        self.helplabel.setGeometry(QRect(10, 8, 680, 390))
-        self.helplabel.setPixmap(QPixmap(":/help.jpg"))
-        self.helplabel.setScaledContents(True)
-        self.helplabel.setObjectName("helplabel")
-        self.helplabel.hide()
+        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
+                                       r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
+
+        self.helplabel = Ui_HelpLabel(self.centralwidget)
 
         # self.palette = QPalette()
         # brush = QBrush(QColor(255, 0, 0))
@@ -124,7 +122,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.p.terminate()
                 self.bThread.quit()  # 关闭线程
             except (FileNotFoundError, RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
-                self.log.warning(f'when retry_all haven raise error {e}')
+                self.log.warning(f'when retry_all haven raise error {e.args}')
             self.setupUi(self)
 
         retry_do_what = {'search': retry_all,
@@ -139,10 +137,10 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.retrybtn.setDisabled(True)
         if self.step == 'parse section':
             if self.book_num > 1 or self.book_choose == [0]:
-                self.textBrowser.append(self.warning_(f'\n{"*"*20}警告！！检测到选择多本书的情况下retry，'
-                                                      f' 已选并确认的可能成功了，但程序仍重新启动, 请等候'))
+                self.textBrowser.append(self.warning_(f'\n{"*"*20}警告！！检测到选择多本书的情况下retry会产生重复操作，'
+                                                      f'已选并确认的可能成功了，但为避免错误程序仍重新启动, 请等候'))
                 self.log.warning(f' ! choose many book also click retry ')
-                QThread.msleep(1000)
+                QThread.msleep(1500)
                 self.close()
                 retry_all()
         self.log.debug('===--→ retry_schedule end\n')
@@ -188,7 +186,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.log.info('notice!! book_num > 1') if self.book_num>1 else None
                 self.textBrowser.append(self.warning_(f'\n{"*"*20}警告！！多选书本时不要随意使用 retry') if self.book_num>1 else None)
             self.chooseinput.clear()
-            # 逻辑 交由3个btn的schedule控制
+            # choose逻辑 交由crawl, next,retry3个btn的schedule控制
             self.params_send({'choose': choose})
             self.log.debug(f'send choose success')
 
@@ -229,9 +227,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.bThread.print_signal.connect(self.textbrowser_load)
 
         if self.book_num == 0:
-            self.crawl_btn.setDisabled(True)
-            self.funcGroupBox.setDisabled(True)
             self.bThread.item_count_signal.connect(self.processbar_load)
+            self.helplabel.re_pic()
+            self.textBrowser.append(self.warning_("<br> >>>>> 说明页的内容已更新后续事项，可以点击查看"))
+            self.crawl_btn.setDisabled(True)
+            # self.funcGroupBox.setDisabled(True)
+            self.input_yield.setDisabled(True)
         else:
             self.chooseinput.clear()
             self.retrybtn.setEnabled(True)
@@ -244,19 +245,18 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # self.bThread.quit()    # 关闭线程--------------
         # self.bThread.wait()
         # self.p.close()
-
-        self.crawl_btn.setDisabled(True)
-        self.next_btn.setDisabled(True)
-        self.chooseBox.setDisabled(True)
+        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
+                                       r'QProgressBar::chunk { background-color: #00ff00;}')
         self.chooseinput.setDisabled(True)
-        
-        self.funcGroupBox.setEnabled(True)
+        self.next_btn.setDisabled(True)
         self.retrybtn.setEnabled(True)
-        # self.bThread.item_count_signal.disconnect()
+        self.input_yield.setEnabled(True)
+        # self.funcGroupBox.setEnabled(True)
 
         self.step = 'fin'
-        self.textBrowser.append("…… <s>也可以用 retry 再开</s> (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:...")
+        self.textBrowser.append(" …… <s>用 retry 继续搜也行</s> (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:...")
         os.startfile(IMAGES_STORE) if self.checkisopen.isChecked() else None
+        self.checkisopen.clicked.connect(lambda: os.startfile(IMAGES_STORE))
         self.log.info(f"===--→ crawl_end finish ( spider closed \n")
 
     def textbrowser_load(self, _str):
@@ -275,9 +275,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.textBrowser.setStyleSheet('background-color: pink;')
 
 
-text = ('{:=^60}\n'.format('message'),
-        '\t此程序可搜索网站的漫画并进行下载,  响应出错可参考README.md\n',
-        '{:-^88}\n\n'.format('仅为学习使用'))
+text = ('{:=^65}\n'.format('message'),
+        '\t此程序可搜索网站的漫画并进行下载, 软件有个说明按钮注意到了吗\n',
+        '{:-^97}\n\n'.format('仅为学习使用'))
 
 
 def crawl_what(index, print_Q, bar, current_Q, step_Q):
@@ -305,15 +305,16 @@ class WorkThread(QThread):
     def run(self):
 
         while True:
+            self.msleep(10)
             if not self.gui.print_Q.empty():
                 self.print_signal.emit(str(self.gui.print_Q.get()))
-                self.msleep(10)
             if not self.gui.bar.empty():
                 self.item_count_signal.emit(self.gui.bar.get())
-                self.msleep(5)
+                # self.msleep(10)
             if '完成任务' in self.gui.textBrowser.toPlainText():
                 self.item_count_signal.emit(100)
                 break
+        self.msleep(10)
         self.finishSignal.emit(IMAGES_STORE)
 
     # def __del__(self):
