@@ -14,8 +14,7 @@ from ComicSpider.spiders.basecomicspider import BaseComicSpider
 class ComickukudmSpider(BaseComicSpider):
     name = 'comickukudm'
     allowed_domains = ['m.kukudm.com']
-    num = 0
-    
+
     def start_requests(self):
         start_search = self.search
         self.start_search = deepcopy(start_search)
@@ -53,7 +52,7 @@ class ComickukudmSpider(BaseComicSpider):
             self.print_Q.put(example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288)))
             frame_results[x + 1] = [title, url]
         self.print_Q.put('✈' * 20 + '什么意思呢？ 唔……就是你的搜索在放✈(飞机)，retry拯救') if not len(frame_results) else None
-        self.print_Q.put(''.join(self.exp_txt) + ' →_→ 选book时可多选，但最好不要用 0 全选\n')
+        self.print_Q.put(''.join(self.exp_txt) + ' →_→ 选book时可多选，但禁止用 0 全选\n')
         return frame_results
 
     def frame_section(self, response):
@@ -102,8 +101,6 @@ class ComickukudmSpider(BaseComicSpider):
         short_url = re.search(r"""<IMG SRC='"(.*?)"(.*?kuku.*?\.(jpg|png))'>?""", response.text)[2]
         transfer_url = "".join(('https://s1.kukudm.com/', quote(f'{short_url}'.encode('utf-8'))))
         image_urls = [f"{transfer_url}"]
-        self.bar.put(self.num)
-        self.num = 1 if self.num > 100 else self.num + 1
         item['image_urls'] = image_urls
         yield item
 

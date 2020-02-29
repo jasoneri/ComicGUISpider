@@ -6,7 +6,6 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
-from ComicSpider import settings
 import random
 
 
@@ -57,13 +56,15 @@ class ComicspiderSpiderMiddleware(object):
 
 
 class ComicspiderDownloaderMiddleware(object):
-    USER_AGENTS = settings.UA
-    PROXIES = settings.PROXY_CUST
+    def __init__(self, USER_AGENTS, PROXIES):
+        self.USER_AGENTS = USER_AGENTS
+        self.PROXIES = PROXIES
 
     @classmethod
     def from_crawler(cls, crawler):
         # This method is used by Scrapy to create your spiders.
-        s = cls()
+        USER_AGENTS, PROXIES = crawler.settings.get('UA'), crawler.settings.get('PROXY_CUST')
+        s = cls(USER_AGENTS, PROXIES)
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
 

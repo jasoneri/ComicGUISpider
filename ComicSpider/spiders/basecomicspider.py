@@ -3,6 +3,7 @@ from copy import deepcopy
 import scrapy
 from scrapy import Request
 from utils import clear_queue
+from time import sleep
 
 
 class BaseComicSpider(scrapy.Spider):
@@ -58,7 +59,7 @@ class BaseComicSpider(scrapy.Spider):
                     yield scrapy.Request(url=result[0], callback=self.parse_section, meta=result[1], dont_filter=True)
 
     def frame_book(self, response):
-        raise ValueError(f'class {self.__class__.__name__} haven\'t been define frame_func')
+        raise NotImplementedError
 
     # ==============================================
     def parse_section(self, response):
@@ -103,11 +104,11 @@ class BaseComicSpider(scrapy.Spider):
                 self.step_put(self.step)
 
     def frame_section(self, response):
-        raise ValueError(f'class {self.__class__.__name__} haven\'t been define frame_func')
+        raise NotImplementedError
 
     # ==============================================
     def parse_fin_page(self, response):
-        raise ValueError(f'class {self.__class__.__name__} haven\'t been define fin_parse_func')
+        raise NotImplementedError
 
     def middle_utils(self, _type='listurl', *arg, **kw):
         # do something schedule..then
@@ -127,11 +128,12 @@ class BaseComicSpider(scrapy.Spider):
             for i in _input:
                 result.append([eval(kw['yield_url_frame']), eval(kw['meta_frame']), ])
         except Exception as e:
-            self.print_error_text(e, *kw['error_text'])
+            self.print_error_text(e.args, *kw['error_text'])
             logging.error(f'input error from yield_what : {e}')
         finally:
             return result
 
     def close(spider, reason):
         clear_queue((spider.print_Q, spider.step_Q, spider.current_Q))
-        spider.print_Q.put('\n~~~spider（后台）完成任务光荣死去了 ヾ(￣▽￣)Bye~Bye~\n\n')
+        sleep(0.5)
+        spider.print_Q.put('\n~~~spider（后台）完成任务光荣死去了 ヾ(￣▽￣)Bye~Bye~\n')

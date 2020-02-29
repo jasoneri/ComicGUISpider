@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import ast
-import os
 import re
 from copy import deepcopy
 
@@ -14,7 +13,6 @@ from .basecomicspider import BaseComicSpider
 class Comic90mhSpider(BaseComicSpider):
     name = 'comic90mh'
     allowed_domains = ['m.90mh.com']
-    num = 0
 
     def start_requests(self):
         start_search = self.search
@@ -43,7 +41,7 @@ class Comic90mhSpider(BaseComicSpider):
             self.print_Q.put(example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288)))
             frame_results[x + 1] = [title, url]
         self.print_Q.put('✈' * 20 + '什么意思呢？ 唔……就是你的搜索在放✈(飞机)，retry拯救') if not len(frame_results) else None
-        self.print_Q.put(''.join(self.exp_txt)+' →_→ 选book时可多选，但最好不要用 0 全选\n')
+        self.print_Q.put(''.join(self.exp_txt)+' →_→ 选book时可多选，但禁止用 0 全选\n')
         return frame_results
 
     def frame_section(self, response):
@@ -82,9 +80,6 @@ class Comic90mhSpider(BaseComicSpider):
         item['section'] = response.meta.get('info')[1]
         item['page'] = response.xpath('//span[@id="k_page"]/text()').get()
         item['image_urls'] = target.xpath('.//mip-img/@src').getall()
-        self.num += 1
-        self.bar.put(self.num)
-        self.num = 1 if self.num > 100 else self.num + 1
         yield item
         # if re.match(r'.*?-[\d]+\.html', next_url):
         #     yield response.follow(next_url, callback=self.parse_page, meta={'info': [item['title'], item['section']]})
