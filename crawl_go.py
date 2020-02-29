@@ -83,7 +83,7 @@ from gui import SpiderGUI
 if __name__ == '__main__':
     freeze_support()
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")
+    # app.setStyle("Fusion")
     ui = SpiderGUI()
     QApplication.processEvents()
     sys.exit(app.exec_())
