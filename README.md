@@ -5,7 +5,7 @@
 
 功能：搜索漫画，多选下载到本地，免去一些网站一页一页加载看<br>
 --------------------------------------------------
-程序内置帮助说明，点击说明查看即可，压缩包解压即可用，点它下载→   [ (*￣ω￣)](https://pan.baidu.com/s/1TAsVQioA76tyJ24PKyjmoA) 验证码【31pf】
+程序内置帮助说明，点击说明查看即可，压缩包解压即可用，点它下载→   [ pan.baidu.com/s/(*￣ω￣)](https://pan.baidu.com/s/1TAsVQioA76tyJ24PKyjmoA) 验证码【31pf】
 
 PS：setting.txt、scrapy.cfg和exe程序要放一起！
 
