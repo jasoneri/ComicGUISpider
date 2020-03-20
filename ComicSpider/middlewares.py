@@ -9,52 +9,6 @@ from scrapy import signals
 import random
 
 
-class ComicspiderSpiderMiddleware(object):
-    # Not all methods need to be defined. If a method is not defined,
-    # scrapy acts as if the spider middleware does not modify the
-    # passed objects.
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        # This method is used by Scrapy to create your spiders.
-        s = cls()
-        crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-        return s
-
-    def process_spider_input(self, response, spider):
-        # Called for each response that goes through the spider
-        # middleware and into the spider.
-
-        # Should return None or raise an exception.
-        return None
-
-    def process_spider_output(self, response, result, spider):
-        # Called with the results returned from the Spider, after
-        # it has processed the response.
-
-        # Must return an iterable of Request, dict or Item objects.
-        for i in result:
-            yield i
-
-    def process_spider_exception(self, response, exception, spider):
-        # Called when a spider or process_spider_input() method
-        # (from other spider middleware) raises an exception.
-
-        # Should return either None or an iterable of Request, dict
-        # or Item objects.
-        pass
-
-    def process_start_requests(self, start_requests, spider):
-        # Called with the start requests of the spider, and works
-        # similarly to the process_spider_output() method, except
-        # that it doesn’t have a response associated.
-        for r in start_requests:
-            yield r
-
-    def spider_opened(self, spider):
-        spider.logger.info('Spider opened: %s' % spider.name)
-
-
 class ComicspiderDownloaderMiddleware(object):
     def __init__(self, USER_AGENTS, PROXIES):
         self.USER_AGENTS = USER_AGENTS
@@ -71,20 +25,16 @@ class ComicspiderDownloaderMiddleware(object):
     def process_request(self, request, spider):
         # Called for each request that goes through the downloader
         # middleware.
-        if len(self.USER_AGENTS):
-            request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
-        if len(self.PROXIES):
-            proxy = random.choice(self.PROXIES)
-            request.meta['proxy'] = f"http://{proxy}"
         return None
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.
 
         if response.status != 200:
-            if len(self.PROXIES):
-                proxy = random.choice(self.PROXIES)
-                request.meta['proxy'] = f"http://{proxy}"
+            request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
+            head = 'https://' if request.url.split(':')[0]=='https' else 'http://'
+            proxy = random.choice(self.PROXIES)
+            request.meta['proxy'] = head + proxy
             return request
 
         # Must either;

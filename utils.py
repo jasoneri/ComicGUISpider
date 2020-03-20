@@ -1,14 +1,19 @@
 import os
 import re
-from datetime import datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
 
 def judge_input(_input):
-    # 6 return [6]
-    # 1+3+5 return [1,3,5]
-    # 4-6 return [4,5,6] | 1-4+6 return [1,4,5,6]
+    """
+    6 return [6]
+    1+3+5 return [1,3,5]
+    4-6 return [4,5,6] | 1-4+6 return [1,4,5,6]
+
+    :param _input: _str
+    :return: list[int(_str)]
+    """
+
     def f(s):                                           # example '4-8' turn to [4,5,6,7,8]
         l = []
         ranges = s.split(r'-')
@@ -40,10 +45,13 @@ def clear_queue(queues):
 
 
 def log_GUI(level='DEBUG', **kw):
+    """
+    :param level:
+    :return: customize obj(log)
+    """
     LEVEL = {'DEBUG':logging.DEBUG, 'INFO':logging.INFO, 'WARNING':logging.WARNING}
-    today = datetime.now()
     os.makedirs('log', exist_ok=True)
-    log_name = "log/GUI_{}_{}_{}.log".format(today.year, today.month, today.day)
+    log_name = "log/GUI.log"
     format = '%(asctime)s [GUI] %(levelname)s: %(message)s'
     datefmt = '%Y-%m-%d %H:%M:%S '
     formatter = logging.Formatter(fmt=format, datefmt=datefmt)

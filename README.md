@@ -5,16 +5,12 @@
 
 功能：搜索漫画，多选下载到本地，免去一些网站一页一页加载看<br>
 --------------------------------------------------
-程序内置帮助说明，点击说明查看即可，压缩包解压即可用，点它下载→   [ (*￣ω￣)](https://pan.baidu.com/s/1TAsVQioA76tyJ24PKyjmoA) 验证码【31pf】
-
+程序内置帮助说明，点击说明查看即可，压缩包解压即可用，转到此页面下载最新版本zip →  [http://…(*￣ω￣)…](https://github.com/jasoneri/ComicSpider/releases/latest)<br>
 PS：setting.txt、scrapy.cfg和exe程序要放一起！
+<s>
+zip [SHA1]: zip暂不上传更新  <br>
+zip [MD5]: zip暂不上传更新  <br></s>
 
-scrapy.cfg [SHA1]: 374afa103c2c94be92d6bf3f09fdbc39d36fec98  <br>
-scrapy.cfg [MD5]: 139676f1785e3af51666538981629a24  <br>
-exe [SHA1]: 6969cc0b336a21a8ebde69e1fd52e71fc801c72c  <br>
-exe [MD5]: 74f5ccbe1feff04eabef9ed3032b631d  <br>
-
-    （ MD5校验：Ctrl+Alt+C开管理台→ certutil -hashfile 私人路径/ComicSpider.exe MD5
 
 可在exe所在目录下创建【 setting.txt 】更改IP或下载目录
 -----------------------------------------------

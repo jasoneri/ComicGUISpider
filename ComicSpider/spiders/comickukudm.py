@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-import ast
+# import ast
+import time
+from asyncio import wait, get_event_loop, ensure_future
+from aiohttp import ClientSession
 import re
 from copy import deepcopy
-
 import requests
 from lxml import etree
 from urllib.parse import quote
@@ -32,25 +34,34 @@ class ComickukudmSpider(BaseComicSpider):
         return response
 
     def frame_book(self, response):
-        frame_results = {}
-        # example = '{0:^3}\t{1:{5}<25}\t{2:{5}<18}\t{3:^10}\t{4:{5}^20}'
-        example_b = '-{}   《{}》   【{}】   /{}/   <{}>'
-        self.print_Q.put(example_b.format('序号', '漫画名', '作者', '更新时间', '最新章节') + '\n')
-        targets = response.xpath('//div[@class="imgBox"]//li')  # sign -*-
+        async def fetch(session, url):
+            async with session.get(url) as resp:
+                return await resp.text()
 
-        for x in range(len(targets)):
-            title = targets[x].xpath('.//a[@class="txtA"]/text()').get().strip()
-            url = targets[x].xpath('.//a[contains(@class, "ImgA")]/@href').get()
-            resp = requests.get(url)
-            # resp = scrapy.Request(url=url, callback=self.parse_book, dont_filter=True)
-            resp.raise_for_status()
-            resp.encoding = "gbk"
-            _resp = etree.HTML(resp.text)
-            author = _resp.xpath('.//p[@class="txtItme"]/text()')[0].strip()
-            refresh_time = _resp.xpath('.//span[@class="date"]/text()')[0].strip()
-            refresh_section = _resp.xpath('.//div[@id="list"]//a/text()')[0].strip()
-            self.print_Q.put(example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288)))
-            frame_results[x + 1] = [title, url]
+        async def main(x, url):
+            async with ClientSession() as session:
+                html = await fetch(session, url)
+                _resp = etree.HTML(html)
+                title = _resp.xpath('.//div[@id="comicName"]/text()')[0].strip()
+                author = _resp.xpath('.//p[@class="txtItme"]/text()')[0].strip()
+                refresh_time = _resp.xpath('.//span[@class="date"]/text()')[0].strip()
+                refresh_section = _resp.xpath('.//div[@id="list"]//a/text()')[0].strip()
+                sort_print.append([x, example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288))])
+                frame_results[x + 1] = [title, url]
+
+        sort_print = []
+        frame_results = {}
+        example_b = '| {} |   《{}》   【{}】   /{}/   <{}>'
+        self.print_Q.put(example_b.format('序号', '漫画名', '作者', '更新时间', '最新章节') + '\n')
+        urls = response.xpath('//div[@class="imgBox"]//li//a[contains(@class, "ImgA")]/@href').getall()
+        tasks = [ensure_future(main(x, urls[x])) for x in range(len(urls))]
+        loop = get_event_loop()
+        loop.run_until_complete(wait(tasks))
+
+        sort_print = sorted(sort_print, key=lambda x: x[0])
+        for show in sort_print:
+            self.print_Q.put(show[1])
+
         self.print_Q.put('✈' * 20 + '什么意思呢？ 唔……就是你的搜索在放✈(飞机)，retry拯救') if not len(frame_results) else None
         self.print_Q.put(''.join(self.exp_txt) + ' →_→ 选book时可多选，但禁止用 0 全选\n')
         return frame_results

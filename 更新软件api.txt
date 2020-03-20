@@ -1,0 +1,2 @@
+api接口：
+https://api.github.com/repos/jasoneri/ComicSpider/releases/latest
