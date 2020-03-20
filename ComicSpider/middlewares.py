@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import time
-
+from asyncio import sleep
 from scrapy import signals
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
 from utils import get_proxy
@@ -43,6 +43,6 @@ class ComicspiderDownloaderMiddleware(RetryMiddleware):
             request = self.guise_proxy(request)
 
         if isinstance(exception, self.EXCEPTIONS_TO_RETRY) and not request.meta.get('dont_retry', False):
-            time.sleep(random.randint(1, 3))
+            sleep(random.randint(1, 2))
             self.logger.warning('连接异常,进行重试......')
             return self._retry(request, exception, spider)
