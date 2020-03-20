@@ -3,6 +3,7 @@ import asyncio
 import aiohttp
 from loguru import logger
 import re
+from lxml import etree
 from ComicSpider.items import ComicspiderItem
 from scrapy.http import Request
 from scrapy_redis.spiders import RedisSpider
@@ -13,12 +14,7 @@ import base64
 class Comic90mhSpider(RedisSpider):
     name = 'comic90mh'
     allowed_domains = ['m.90mh.com']
-    cs_exp_txt = ('\n',
-                  '{:=^70}'.format('message'),
-                  '\n{:-^63}\n'.format('关于输入移步参考[1图流示例.jpg]\n'
-                                       '用‘-’号识别的，别漏了打！ \t用‘-’号识别的，别漏了打！ \t用‘-’号识别的，别漏了打！ \t'),
-                  '{:=^70}'.format('message'),)
-
+    cs_exp_txt = ('\n''{:=^70}'.format('another book dividing line'),)
     # start_urls = ['http://m.90mh.com/search/?keywords=eros', ]
     # redis_key = "comic_queue"
 
@@ -63,11 +59,24 @@ class Comic90mhSpider(RedisSpider):
                     yield Request(c_s[i][1], callback=self.parse_page, meta={'info': [title, c_s[i][0]]})
             else:
                 for i in list(c_s.keys()):
-                    section = c_s[i][0]
-                    logger.debug(f'爬的《{title}》的章节：{section}')
-                    yield Request(c_s[i][1], callback=self.parse_page, meta={'info': [title, section]})
+                    section, section_url = c_s[i]
+                    pic_urls = self.loop.run_until_complete(self.find_urls(url=section_url))
+                    logger.debug(f"yield《{title}》's section：{section}")
+                    for url in pic_urls:
+                        yield Request(url, callback=self.parse_page, meta={'info': [title, section]})
         except Exception as e:
-            logger.error(f'parse book 出错：{e.args}')
+            logger.error(f'parse section 出错：{e.args}')
+
+    async def find_urls(self, url):
+        async def pic_fetch(session, url):
+            async with session.get(url) as resp:
+                return await resp.text()
+        async with aiohttp.ClientSession() as session:
+            html = await pic_fetch(session, url)
+            total_page = int(etree.HTML(html).xpath('//span[@id="k_total"]/text()')[0])  # sign -*-
+            compile = re.compile(r'(-[\d])*\.html')
+            url_list = list(map(lambda x: compile.sub(f'-{x}.html', url), range(total_page + 1)[1:]))
+        return url_list
 
     def choose_section(self, response, *args):
         targets = response.xpath('//ul[contains(@id, "chapter")]/li')  # sign -*-
@@ -76,34 +85,30 @@ class Comic90mhSpider(RedisSpider):
             section_url = targets[x].xpath('./a/@href').get()
             section = targets[x].xpath('.//span/text()').get()
             c_s[x + 1] = [section, section_url]
-        logger.debug(''.join(self.cs_exp_txt))
+        logger.debug(f'section dict info: {c_s}')
         return c_s
 
     @logger.catch
     def parse_page(self, response):
         item = ComicspiderItem()
         target = response.xpath('//div[@class="UnderPage"]/div/mip-link')  # sign -*-
-        next_url = target.xpath('./@href').get()
+        # next_url = target.xpath('./@href').get()
         item['title'] = response.meta.get('info')[0]
         item['section'] = response.meta.get('info')[1]
         item['page'] = response.xpath('//span[@id="k_page"]/text()').get()
         image_url = target.xpath('.//mip-img/@src').get()
         item['image_urls'] = image_url
 
-        item = self.loop.run_until_complete(self.download(item))
-
+        item = self.loop.run_until_complete(self.pic_content_download(item))    # -*- run_until_complete -*-
         yield item
         # print(f'self.loop.is_closed: {self.loop.is_closed()}')
-        if re.match(r'.*?-[\d]+\.html', next_url):
-            yield response.follow(next_url, callback=self.parse_page, meta={'info': [item['title'], item['section']]})
 
-    async def fetch(self, session, url):
-        async with session.get(url) as resp:
-            return await resp.read()
-
-    async def download(self, item):
+    async def pic_content_download(self, item):
+        async def pic_fetch(session, url):
+            async with session.get(url) as resp:
+                return await resp.read()
         async with aiohttp.ClientSession() as session:
-            resp_content = await self.fetch(session, item['image_urls'])
+            resp_content = await pic_fetch(session, item['image_urls'])
             base_content = base64.b64encode(resp_content)
             item['images_base64_content'] = base_content
         return item
@@ -111,3 +116,4 @@ class Comic90mhSpider(RedisSpider):
     def close(spider, reason):
         spider.loop.stop()
         spider.loop.close()
+

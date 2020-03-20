@@ -63,7 +63,7 @@ ITEM_PIPELINES = {
 
 DOWNLOAD_DELAY = 0.2
 DOWNLOAD_TIMEOUT = 13
-RETRY_TIMES = 3
+RETRY_TIMES = 2
 
 # REDIS_HOST = '127.0.0.1'
 # REDIS_PORT = 6379
@@ -86,7 +86,7 @@ EXTENSIONS = {
 
 MONGO_URI = '127.0.0.1:27017'
 MONGO_DB = 'ComicTestDB'
-MONGO_COLL = 'comic_异世界三本'
+MONGO_COLL = 'comic_异世界三本_v2'
 
 
 UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0",
@@ -104,7 +104,7 @@ log_file_path = "log/scrapy.log"
 # 日志输出
 LOG_LEVEL = 'INFO'
 # LOG_LEVEL = 'DEBUG'
-LOG_FILE = log_file_path
+# LOG_FILE = log_file_path
 
 logger.add('log/runtime.log', level='DEBUG', rotation='1 week', retention='5 days')
 logger.add('log/error.log', level='ERROR', rotation='1 week')
