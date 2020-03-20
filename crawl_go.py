@@ -1,25 +1,12 @@
+from scrapy import cmdline
 # -*- coding: utf-8 -*-
-import sys
+from scrapy.crawler import CrawlerProcess
+from scrapy.utils.project import get_project_settings
 
-from multiprocessing import freeze_support
-# from multiprocessing.managers import RemoteError
-
-# GUI
-# from PyQt5.QtGui import QPixmap, QColor, QPalette, QBrush
-from PyQt5.QtWidgets import QApplication
-import requests
-import material_ct
-import PyQt5.sip
-
-from PyQt5.QtCore import Qt, QSize, QMetaObject, QCoreApplication
-from PyQt5.QtGui import QFont, QPixmap, QIcon, QCursor
-from PyQt5.QtWidgets import QDialogButtonBox, QSizePolicy, QCommandLinkButton, QVBoxLayout, QFrame, QSpacerItem, \
-    QLineEdit, QHBoxLayout, QCheckBox, QComboBox, QGroupBox, QTextBrowser, QWidget, QStatusBar, QProgressBar, \
-    QPushButton, QToolButton, QTextEdit
-
-# scrapy 打包相关
+# 这里是必须引入的
 # import robotparser
 
+import utils
 import scrapy.spiderloader
 import scrapy.statscollectors
 import scrapy.logformatter
@@ -67,23 +54,20 @@ import scrapy.spidermiddlewares.referer
 import scrapy.spidermiddlewares.urllength
 
 import scrapy.pipelines
-import scrapy.core.downloader.handlers.datauri
-import scrapy.core.downloader.handlers.file
-import scrapy.core.downloader.handlers.ftp
-import scrapy.core.downloader.handlers.s3
+
 import scrapy.core.downloader.handlers.http
 import scrapy.core.downloader.contextfactory
 import scrapy.pipelines.images
 
 # 自己项目用到的
-from gui import SpiderGUI
-# requirement.txt
-# sys.setrecursionlimit(5000)
+import json
+import time
+import os
+import re
+import loguru
+
 
 if __name__ == '__main__':
-    freeze_support()
-    app = QApplication(sys.argv)
-    # app.setStyle("Fusion")
-    ui = SpiderGUI()
-    QApplication.processEvents()
-    sys.exit(app.exec_())
+    process = CrawlerProcess(get_project_settings())
+    process.crawl('comic90mh')
+    process.start()  # the script will block here until the crawling is finished

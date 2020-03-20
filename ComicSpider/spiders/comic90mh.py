@@ -1,85 +1,113 @@
 # -*- coding: utf-8 -*-
-import ast
+import asyncio
+import aiohttp
+from loguru import logger
 import re
-from copy import deepcopy
-
-import requests
-from lxml import etree
-from scrapy.http import Request
 from ComicSpider.items import ComicspiderItem
-from .basecomicspider import BaseComicSpider
+from scrapy.http import Request
+from scrapy_redis.spiders import RedisSpider
+import base64
 
 
-class Comic90mhSpider(BaseComicSpider):
+# class Comic90mhSpider(scrapy.Spider):
+class Comic90mhSpider(RedisSpider):
     name = 'comic90mh'
     allowed_domains = ['m.90mh.com']
+    cs_exp_txt = ('\n',
+                  '{:=^70}'.format('message'),
+                  '\n{:-^63}\n'.format('关于输入移步参考[1图流示例.jpg]\n'
+                                       '用‘-’号识别的，别漏了打！ \t用‘-’号识别的，别漏了打！ \t用‘-’号识别的，别漏了打！ \t'),
+                  '{:=^70}'.format('message'),)
 
-    def start_requests(self):
-        start_search = self.search
-        self.start_search = deepcopy(start_search)
-        yield Request(start_search, dont_filter=True)
+    # start_urls = ['http://m.90mh.com/search/?keywords=eros', ]
+    # redis_key = "comic_queue"
 
-    @property
-    def search(self):
-        self.step = 'search'
-        self.step_put(self.step)
-        self.keyword = self.current_Q.get()['keyword']
-        return f'http://m.90mh.com/search/?keywords={self.keyword}'
+    def __init__(self, *args, **kwargs):
+        super(Comic90mhSpider, self).__init__(*args, **kwargs)
+        self.loop = asyncio.get_event_loop()
+        self.__book = [1,5,8]
+        self.__section = []
+        # self.__section = [60]
 
-    def frame_book(self, response):
-        frame_results = {}
-        # example_b = '{0:^3}\t{1:{5}<25}\t{2:{5}<18}\t{3:^10}\t{4:{5}^20}'
-        example_b = r' {}、   《{}》   【{}】    [{}]   <{}>'
-        self.print_Q.put(example_b.format('序号', '漫画名', '作者', '更新时间', '最新章节') + '\n')
-        targets = response.xpath('//div[@class="itemBox"]')                          # sign -*-
+    @logger.catch
+    def parse(self, response):
+        c_b = self.choose_book(response)
+        i_b = self.__book
+        try:
+            if len(i_b):
+                for i in i_b:
+                    yield Request(c_b[i][1], callback=self.parse_book, meta={'title': c_b[i][0]})
+            else:
+                for i in list(c_b.keys()):
+                    yield Request(c_b[i][1], callback=self.parse_book, meta={'title': c_b[i][0]})
+        except Exception as e:
+            logger.error(f'parse 出错：{e.args}')
+
+    def choose_book(self, response):
+        c_b = {}
+        targets = response.xpath('//div[@class="itemBox"]')  # sign -*-
         for x in range(len(targets)):
             title = targets[x].xpath('.//a[@class="title"]/text()').get().strip()
             url = targets[x].xpath('.//a[@class="title"]/@href').get()
-            author = targets[x].xpath('.//p[@class="txtItme"]/text()').get()
-            refresh_time = targets[x].xpath('.//span[@class="date"]/text()').get().strip()
-            refresh_section = targets[x].xpath('.//a[@class="coll"]/text()').get().strip()
-            self.print_Q.put(example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288)))
-            frame_results[x + 1] = [title, url]
-        self.print_Q.put('✈' * 20 + '什么意思呢？ 唔……就是你的搜索在放✈(飞机)，retry拯救') if not len(frame_results) else None
-        self.print_Q.put(''.join(self.exp_txt)+' →_→ 选book时可多选，但禁止用 0 全选\n')
-        return frame_results
+            c_b[x + 1] = [title, url]
+        return c_b
 
-    def frame_section(self, response):
-        example_s = ' -{}、<{}> '
+    @logger.catch
+    def parse_book(self, response):
+        title = response.meta.get('title')
+        c_s = self.choose_section(response, title)
+        i_s = self.__section
+        try:
+            if len(i_s):
+                for i in i_s:
+                    yield Request(c_s[i][1], callback=self.parse_page, meta={'info': [title, c_s[i][0]]})
+            else:
+                for i in list(c_s.keys()):
+                    section = c_s[i][0]
+                    logger.debug(f'爬的《{title}》的章节：{section}')
+                    yield Request(c_s[i][1], callback=self.parse_page, meta={'info': [title, section]})
+        except Exception as e:
+            logger.error(f'parse book 出错：{e.args}')
+
+    def choose_section(self, response, *args):
         targets = response.xpath('//ul[contains(@id, "chapter")]/li')  # sign -*-
-        self.print_Q.put(example_s.format('序号', '章节') + '\n')
-        frame_results = {}
-        print_npc = []
+        c_s = {}
         for x in range(len(targets)):
             section_url = targets[x].xpath('./a/@href').get()
             section = targets[x].xpath('.//span/text()').get()
-            frame_results[x + 1] = [section, section_url]
-            print_npc.append(example_s.format(str(x + 1), section))
-            print_len = 4
-            if (x + 1) % print_len==0:
-                self.print_Q.put(print_npc)
-                print_npc = []
-        self.print_Q.put(print_npc) if len(print_npc) else None
-        self.print_Q.put(''.join(self.exp_txt)+' ←_← 直接[点开爬][再点OK] == 不爬这本了\n')
-        return frame_results
+            c_s[x + 1] = [section, section_url]
+        logger.debug(''.join(self.cs_exp_txt))
+        return c_s
 
-    def middle_utils(self, _type='listurl', **kw):
-        todo = _type
-        if todo == 'listurl':
-            response = requests.get(kw['url'])
-            response.raise_for_status()
-            total_page = int(etree.HTML(response.text).xpath('//span[@id="k_total"]/text()')[0])
-            compile = re.compile(r'(-[\d])*\.html')
-            url_list = list(map(lambda x: compile.sub(f'-{x}.html', kw['url']), range(total_page + 1)[1:]))
-            return url_list
-
-    def parse_fin_page(self, response):
+    @logger.catch
+    def parse_page(self, response):
         item = ComicspiderItem()
         target = response.xpath('//div[@class="UnderPage"]/div/mip-link')  # sign -*-
+        next_url = target.xpath('./@href').get()
         item['title'] = response.meta.get('info')[0]
         item['section'] = response.meta.get('info')[1]
         item['page'] = response.xpath('//span[@id="k_page"]/text()').get()
-        item['image_urls'] = target.xpath('.//mip-img/@src').getall()
+        image_url = target.xpath('.//mip-img/@src').get()
+        item['image_urls'] = image_url
+
+        item = self.loop.run_until_complete(self.download(item))
+
         yield item
-        # if re.match(r'.*?-[\d]+\.html', next_url):
-        #     yield response.follow(next_url, callback=self.parse_page, meta={'info': [item['title'], item['section']]})
+        # print(f'self.loop.is_closed: {self.loop.is_closed()}')
+        if re.match(r'.*?-[\d]+\.html', next_url):
+            yield response.follow(next_url, callback=self.parse_page, meta={'info': [item['title'], item['section']]})
+
+    async def fetch(self, session, url):
+        async with session.get(url) as resp:
+            return await resp.read()
+
+    async def download(self, item):
+        async with aiohttp.ClientSession() as session:
+            resp_content = await self.fetch(session, item['image_urls'])
+            base_content = base64.b64encode(resp_content)
+            item['images_base64_content'] = base_content
+        return item
+
+    def close(spider, reason):
+        spider.loop.stop()
+        spider.loop.close()
