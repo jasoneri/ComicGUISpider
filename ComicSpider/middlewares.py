@@ -1,107 +1,46 @@
 # -*- coding: utf-8 -*-
-
-# Define here the models for your spider middleware
-#
-# See documentation in:
-# https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-
-from scrapy import signals
+import logging
+from asyncio import sleep
+from scrapy.downloadermiddlewares.retry import RetryMiddleware
+from ComicSpider.utils import get_proxy
 import random
 
 
-class ComicspiderSpiderMiddleware(object):
-    # Not all methods need to be defined. If a method is not defined,
-    # scrapy acts as if the spider middleware does not modify the
-    # passed objects.
+class ComicspiderUAMiddleware(object):
+    logger = logging.getLogger(__name__)
+
+    def __init__(self, crawler):
+        super(ComicspiderUAMiddleware, self).__init__()
+        self.UA = crawler.settings.get('USER_AGENT')
 
     @classmethod
     def from_crawler(cls, crawler):
-        # This method is used by Scrapy to create your spiders.
-        s = cls()
-        crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-        return s
-
-    def process_spider_input(self, response, spider):
-        # Called for each response that goes through the spider
-        # middleware and into the spider.
-
-        # Should return None or raise an exception.
-        return None
-
-    def process_spider_output(self, response, result, spider):
-        # Called with the results returned from the Spider, after
-        # it has processed the response.
-
-        # Must return an iterable of Request, dict or Item objects.
-        for i in result:
-            yield i
-
-    def process_spider_exception(self, response, exception, spider):
-        # Called when a spider or process_spider_input() method
-        # (from other spider middleware) raises an exception.
-
-        # Should return either None or an iterable of Request, dict
-        # or Item objects.
-        pass
-
-    def process_start_requests(self, start_requests, spider):
-        # Called with the start requests of the spider, and works
-        # similarly to the process_spider_output() method, except
-        # that it doesn’t have a response associated.
-        for r in start_requests:
-            yield r
-
-    def spider_opened(self, spider):
-        spider.logger.info('Spider opened: %s' % spider.name)
-
-
-class ComicspiderDownloaderMiddleware(object):
-    def __init__(self, USER_AGENTS, PROXIES):
-        self.USER_AGENTS = USER_AGENTS
-        self.PROXIES = PROXIES
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        # This method is used by Scrapy to create your spiders.
-        USER_AGENTS, PROXIES = crawler.settings.get('UA'), crawler.settings.get('PROXY_CUST')
-        s = cls(USER_AGENTS, PROXIES)
-        crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-        return s
+        return cls(crawler)
 
     def process_request(self, request, spider):
-        # Called for each request that goes through the downloader
-        # middleware.
-        if len(self.USER_AGENTS):
-            request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
-        if len(self.PROXIES):
-            proxy = random.choice(self.PROXIES)
-            request.meta['proxy'] = f"http://{proxy}"
-        return None
+        agent = random.choice(self.UA)
+        request.headers["User-Agent"] = agent
+
+
+class ComicspiderProxyMiddleware(RetryMiddleware):
+    logger = logging.getLogger(__name__)
+
+    def proxy_guise(self, request, *args):
+        request.meta['proxy'] = f"{request.url.split(':')[0]}://{get_proxy()}"
+        self.logger.info(f"switch proxy : {request.meta['proxy']} net url>>{request.url}")
+        return request
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.
-
         if response.status != 200:
-            if len(self.PROXIES):
-                proxy = random.choice(self.PROXIES)
-                request.meta['proxy'] = f"http://{proxy}"
-            return request
-
-        # Must either;
-        # - return a Response object
-        # - return a Request object
-        # - or raise IgnoreRequest
+            return self.proxy_guise(request)
         return response
 
     def process_exception(self, request, exception, spider):
-        # Called when a download handler or a process_request()
-        # (from other downloader middleware) raises an exception.
+        # if '10061' in str(exception) or '10060' in str(exception):
+        #     request = self.proxy_guise(request)
 
-        # Must either:
-        # - return None: continue processing this exception
-        # - return a Response object: stops process_exception() chain
-        # - return a Request object: stops process_exception() chain
-        pass
-
-    def spider_opened(self, spider):
-        spider.logger.info('Spider opened: %s' % spider.name)
+        if isinstance(exception, self.EXCEPTIONS_TO_RETRY) and not request.meta.get('dont_retry', False):
+            sleep(random.randint(1, 2))
+            self.logger.warning('connection exception occur, retrying ......')
+            return self._retry(self.proxy_guise(request), exception, spider)

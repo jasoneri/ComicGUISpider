@@ -2,9 +2,14 @@
 import scrapy
 
 
-class ComicspiderItem(scrapy.Item):
+class ComicspiderMasterItem(scrapy.Item):
+    urls = scrapy.Field()   # 1话里包含的urls
+
+
+class ComicspiderSalveItem(scrapy.Item):
     title = scrapy.Field()
     section = scrapy.Field()
     page = scrapy.Field()
     image_urls = scrapy.Field()
     images = scrapy.Field()
+    images_base64_content = scrapy.Field()
