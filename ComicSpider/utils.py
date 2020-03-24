@@ -3,7 +3,7 @@ import re
 
 
 def get_proxy():
-    resp = requests.get('http://127.0.0.1:5566/random')
+    resp = requests.get('http://192.168.199.223:5566/random')
     proxy = re.search(r'\d+.\d+.\d+.\d+:\d+', resp.text)[0]
     return proxy
 

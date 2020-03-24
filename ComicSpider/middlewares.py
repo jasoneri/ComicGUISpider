@@ -1,48 +1,46 @@
 # -*- coding: utf-8 -*-
 import logging
-import time
 from asyncio import sleep
-from scrapy import signals
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
-from utils import get_proxy
+from ComicSpider.utils import get_proxy
 import random
 
 
-class ComicspiderDownloaderMiddleware(RetryMiddleware):
+class ComicspiderUAMiddleware(object):
     logger = logging.getLogger(__name__)
 
-    def __init__(self, setting):
-        super(ComicspiderDownloaderMiddleware, self).__init__(setting)
-        self.USER_AGENTS = setting.get('UA')
+    def __init__(self, crawler):
+        super(ComicspiderUAMiddleware, self).__init__()
+        self.UA = crawler.settings.get('USER_AGENT')
 
-    def guise_proxy(self, request, *args):
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler)
+
+    def process_request(self, request, spider):
+        agent = random.choice(self.UA)
+        request.headers["User-Agent"] = agent
+
+
+class ComicspiderProxyMiddleware(RetryMiddleware):
+    logger = logging.getLogger(__name__)
+
+    def proxy_guise(self, request, *args):
         request.meta['proxy'] = f"{request.url.split(':')[0]}://{get_proxy()}"
-        self.logger.info(f"switch proxy : {request.meta['proxy']} net error url>>{request.url}")
+        self.logger.info(f"switch proxy : {request.meta['proxy']} net url>>{request.url}")
         return request
-
-    # @classmethod
-    # def from_crawler(cls, crawler):  # if not base on object then need to define this toget spider setting
-    #     # This method is used by Scrapy to create your spiders.
-    #     USER_AGENTS = crawler.settings.get('UA')
-    #     s = cls(USER_AGENTS)
-    #     crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-    #     return s
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.
         if response.status != 200:
-            user_agent = random.choice(self.USER_AGENTS)
-            request.headers['User-Agent'] = user_agent
-            return self.guise_proxy(request)
+            return self.proxy_guise(request)
         return response
 
     def process_exception(self, request, exception, spider):
-        # Called when a download handler or a process_request()
-        # (from other downloader middleware) raises an exception.
-        if '10061' in str(exception) or '10060' in str(exception):
-            request = self.guise_proxy(request)
+        # if '10061' in str(exception) or '10060' in str(exception):
+        #     request = self.proxy_guise(request)
 
         if isinstance(exception, self.EXCEPTIONS_TO_RETRY) and not request.meta.get('dont_retry', False):
             sleep(random.randint(1, 2))
-            self.logger.warning('连接异常,进行重试......')
-            return self._retry(request, exception, spider)
+            self.logger.warning('connection exception occur, retrying ......')
+            return self._retry(self.proxy_guise(request), exception, spider)

@@ -3,6 +3,7 @@
 # Define here the models for your scraped Extensions
 import logging
 import time
+import redis
 from scrapy import signals
 from scrapy.exceptions import NotConfigured
 
@@ -72,4 +73,36 @@ class RedisSpiderSmartIdleClosedExensions(object):
                         '\n idle start time: {},  close spider time: {}'.format(self.idle_number,
                                                                                 self.idle_list[0], self.idle_list[0]))
             # 执行关闭爬虫操作
+            self.crawler.engine.close_spider(spider, 'closespider_pagecount')
+
+
+class RedisSpiderClosedExensions(object):
+    def __init__(self, crawler, host, port, pwd, db):
+        self.crawler = crawler
+        self.r = redis.Redis(host=host, port=port, db=db, password=pwd, decode_responses=True)
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        ext = cls(crawler,
+                  host=crawler.settings.get("REDIS_HOST"),
+                  port=crawler.settings.get("REDIS_PORT"),
+                  pwd=crawler.settings.get("REDIS_PARAMS")['password'],
+                  db=crawler.settings.get("REDIS_PARAMS")['db']
+                  )
+        crawler.signals.connect(ext.spider_opened, signal=signals.spider_opened)
+        crawler.signals.connect(ext.spider_closed, signal=signals.spider_closed)
+        crawler.signals.connect(ext.spider_idle, signal=signals.spider_idle)
+        return ext
+
+    def spider_opened(self, spider):
+        print('-----spider开启-----')
+
+    def spider_closed(self, spider):
+        print('-----spider关闭-----')
+
+    def spider_idle(self, spider):
+        # 获取队列的长度
+        length = self.r.llen(spider.redis_key)
+        if length==0:
+            # 如果redis长度为0，则关闭该spider
             self.crawler.engine.close_spider(spider, 'closespider_pagecount')
