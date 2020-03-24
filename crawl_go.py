@@ -6,7 +6,7 @@ from scrapy.utils.project import get_project_settings
 # 这里是必须引入的
 # import robotparser
 
-import utils
+import ComicSpider.utils
 import scrapy.spiderloader
 import scrapy.statscollectors
 import scrapy.logformatter
