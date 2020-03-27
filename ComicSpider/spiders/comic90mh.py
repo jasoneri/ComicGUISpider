@@ -6,7 +6,7 @@ import aiohttp
 from loguru import logger
 from lxml import etree
 from scrapy import Spider
-from ComicSpider.items import ComicspiderMasterItem, ComicspiderSalveItem
+from ComicSpider.items import ComicspiderMasterItem, ComicspiderSlaveItem
 from scrapy.http import Request
 from scrapy_redis.spiders import RedisSpider
 
@@ -105,7 +105,7 @@ class BaseComicSpider(Spider):     # Base
 #
 #     def __init__(self, *args, **kwargs):
 #         super(Comic90mhSpider, self).__init__(*args, **kwargs)
-#         self.book = [1,5,8]
+#         self.book = [1,5]
 #         self.section = []
 #
 #     def choose_book(self, response):
@@ -134,10 +134,10 @@ class BaseComicSpider(Spider):     # Base
 #         return url_list
 
 
-class Comic90mhSpider(RedisSpider, BaseComicSpider):    # Salve
+class Comic90mhSpider(RedisSpider, BaseComicSpider):    # Slave
     name = 'comic90mh'
     redis_key = "comic90mh:start_urls"
-    redis_encoding = 'utf-8'
+    # redis_encoding = 'utf-8'
 
     from ComicSpider.CUST import settings
     custom_settings = settings
@@ -149,7 +149,7 @@ class Comic90mhSpider(RedisSpider, BaseComicSpider):    # Salve
 
     @logger.catch
     def parse(self, response):
-        item = ComicspiderSalveItem()
+        item = ComicspiderSlaveItem()
         item['title'] = response.xpath('//div[contains(@class, "title")]//a/text()').get()
         section = response.xpath('//div[contains(@class,"p10")]/h1/span/text()').get()
         item['section'] = re.sub("[^0-9A-Za-z\u4e00-\u9fa5]", "", section)

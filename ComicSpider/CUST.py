@@ -9,7 +9,7 @@ settings = {
                 'ComicSpider.extensions.RedisSpiderSmartIdleClosedExensions': 500,
         },
         'ITEM_PIPELINES': {
-                'ComicSpider.pipelines.ComicSalvePipeline': 300,
+                'ComicSpider.pipelines.ComicSlavePipeline': 300,
                 # 'scrapy_redis.pipelines.RedisPipeline': 301,
         },
         'DOWNLOAD_DELAY': 0.2,

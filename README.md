@@ -6,7 +6,7 @@
 
 ## scrapyd 分布式
 
-### master-salve mode
+### master-slave mode
 
 ~~~
   scrapyd: deploy, egg-packup<br>
