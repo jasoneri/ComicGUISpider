@@ -63,7 +63,7 @@ log_file_path = "log/scrapy.log"
 # 日志输出
 LOG_LEVEL = 'INFO'
 # LOG_LEVEL = 'DEBUG'
-LOG_FILE = log_file_path
+# LOG_FILE = log_file_path
 
 logger.add('log/run.log', level='DEBUG', rotation='1 week', retention='5 days')
 logger.add('log/error.log', level='ERROR', rotation='1 week')
