@@ -1,48 +1,35 @@
 # m90h_comic_spider
- python3.7, scrapy, pyqt5, win10x64
- 
-学习使用学习使用
+![](https://img.shields.io/badge/Python-3.7%2B-brightgreen.svg?style=social)
+![](https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef)<br>
+仅为学习使用学习使用
 
 更新
 -----
-V1.3 | 2020-09-13 <br>
-1、加了特殊网站…  ……
++ v1.3 | 2020-09-13 <br>
+ 1、加了特殊网站… ……
 
 
 一、功能：搜索漫画，多选下载到本地，免去一些网站一页一页加载看<br>
 --------------------------------------------------
-程序内置使用说明，点击说明按钮跟着按即可，解压EXE与scrapy.cfg（必须）即可用，转到此页面下载最新版本zip →  [http://…(*￣ω￣)…](https://pan.baidu.com/s/1cDeHa9SB-RFbjQP3hpH2tw) 提取码:z8si <br>
+程序内置使用说明，点击说明按钮跟着按即可，解压EXE与scrapy.cfg（必须）即可用<br>转到此页面下载最新版本zip →  [http://…(*￣ω￣)…](https://pan.baidu.com/s/1cDeHa9SB-RFbjQP3hpH2tw) 提取码:z8si <br>
 PS：配置文件setting.txt，跟EXE放一起就生效，懒得放也行<br><br>
 zip [SHA1]:  95a6c822d2422f07eb084b1f330e73f6198ecb75 <br>
 zip [MD5]: 3709fbd9a8a5ebbfcadd9c41b0ee19c3 <br>
 
-
-二、排错指导： 
-----------------------------------------------------------------------
-### 出错后首先！往setting.txt扔一个大写的 DEBUG 再去错一次能更好解答解决问题！
-
-后台有运行过才有log目录，里面一个GUI记录界面操作记录的，另一个scrapy记录后台的<br>
-通常情况下有报错后台日志就有记录<br>
-
---------------------------------------------------------------------------------------------------------------------------------
-    1、2020-09-12 19:49:10 [scrapy.core.scraper] ERROR: Spider error processing <GET https://wap.kukudm.com/top100.htm> (referer: None)
-    ERROR 看到了吧，是报错                  
-    https//：xxxx 看到了吧报错网址，自己先手动上浏览器看能不能开，不能打开的话按下面提示加代理
-                             
-    2、    raise InvalidURL(url)
-      aiohttp.client_exceptions.InvalidURL: /comiclist/3248/   <--- (这种什么url不是完整的http)
-        
-      refresh_section = target.xpath('.//a[@class="coll"]/text()').get().strip() <--- (这种xxx.xpath(xxxxxx)的）
-    这种一律日志扔错误那段上下报给我吧，八成网站改版了
---------------------------------------------------------------------------------------------------------------------------------
-
-
-三、配置setting.txt
+二、配置setting.txt
 -----------------------------------------------
 
->### 1、设置或更改代理IP：
+>### 1、更改默认下载目录：
 
-(下载量大有被封风险，报错先上边排查
+找个空行，在<>中放入自定义下载目录，如下，不设的话默认在 D:\comic  
+
+------------------------------------------
+    <D:\comic>
+------------------------------------------
+
+>### 2、设置代理IP：
+
+(下载量大有被封风险，报错先看下下面排查
 <br>代理IP可能很快失效，日志出现“主机积极拒绝”类似字样可能是代理IP失效，看是报错是IP还是网站自己判断下 )
 
 IP示例： 192.168.1.1：9999 （ IP:端口 ） 可一次扔几个，用空格或回车隔开就好
@@ -53,13 +40,27 @@ IP示例： 192.168.1.1：9999 （ IP:端口 ） 可一次扔几个，用空格�
 ------------------------------------------
 
 
->### 2、更改默认下载目录：
+三、排错指导： 
+----------------------------------------------------------------------
+### 出错后首先！往setting.txt扔一个大写的 DEBUG 再去错一次能更好解答解决问题！
 
-找个空行，在<>中放入自定义下载目录，不设的话默认在 D:\comic  
+后台有运行过才有log目录，里面一个GUI记录界面操作记录的，另一个scrapy记录后台的<br>
+通常情况下有报错后台日志就有记录<br>
 
-------------------------------------------
-    <D:\comic>
-------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+    1、2020-09-12 19:49:10 [scrapy.core.scraper] ERROR: Spider error processing <GET https://xxx.com/top100.htm> 
+    2020-09-14 17:41:30 [scrapy.pipelines.files] WARNING: File (unknown-error): Error downloading image from <GET https://xxxxx.com/galleries/1714000/8.jpg> referred in <None>: Cannot choose from an empty sequence
+   
+    https//：xxxx 这种有明确网址的，自己先手动上浏览器看能不能开，浏览器能开则这软件配置下IP
+                             
+    2、    raise InvalidURL(url)
+      aiohttp.client_exceptions.InvalidURL: /comiclist/3248/   <--- url不是完整的http
+        
+      refresh_section = target.xpath('.//a[@class="coll"]/text()').get().strip() <--- (这种xpath的）
+    这种八成网站改版了，有空就留下日志记录
+--------------------------------------------------------------------------------------------------------------------------------
+
+
 
 
 ------------------------------------------
