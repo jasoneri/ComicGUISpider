@@ -1,117 +1,105 @@
 # -*- coding: utf-8 -*-
-# import ast
-import time
-from asyncio import wait, get_event_loop, ensure_future
+from asyncio import run
 from aiohttp import ClientSession
 import re
-from copy import deepcopy
-import requests
 from lxml import etree
 from urllib.parse import quote
-from scrapy.http import Request
 from ComicSpider.items import ComicspiderItem
 from ComicSpider.spiders.basecomicspider import BaseComicSpider
 
 
 class ComickukudmSpider(BaseComicSpider):
     name = 'comickukudm'
-    allowed_domains = ['m.kukudm.com']
-
-    def start_requests(self):
-        start_search = self.search
-        self.start_search = deepcopy(start_search)
-        yield Request(start_search, dont_filter=True)
+    allowed_domains = ['m.kukudm.com', 'm.kkkkdm.com', 'wap.kukudm.com']
+    search_url_head = 'https://so.kukudm.com/m_search.asp?kw='
+    mappings = {'推荐': 'https://wap.kukudm.com/',
+                '更新': 'https://wap.kukudm.com/top100.htm'}
 
     @property
     def search(self):
-        self.step = 'search'
-        self.step_put(self.step)
-        keyword = self.current_Q.get()['keyword']
-        self.keyword = quote(f'{keyword}'.encode('gb2312'))
-        return f'http://so.kukudm.com/m_search.asp?kw={self.keyword}'
-
-    def parse_book(self, response):
-        return response
+        search_start = super(ComickukudmSpider, self).search
+        if 'm_search.asp' in search_start:
+            _keyword = search_start.split('kw=')[1]
+            search_start = f"{self.search_url_head}{quote(f'{_keyword}'.encode('gb2312'))}"
+        return search_start
 
     def frame_book(self, response):
         async def fetch(session, url):
-            async with session.get(url) as resp:
+            resp = await session.get(url)
+            try:
                 return await resp.text()
+            except UnicodeDecodeError:
+                return await resp.text('gbk')
 
-        async def main(x, url):
+        async def main(urls):
             async with ClientSession() as session:
-                html = await fetch(session, url)
-                _resp = etree.HTML(html)
-                title = _resp.xpath('.//div[@id="comicName"]/text()')[0].strip()
-                author = _resp.xpath('.//p[@class="txtItme"]/text()')[0].strip()
-                refresh_time = _resp.xpath('.//span[@class="date"]/text()')[0].strip()
-                refresh_section = _resp.xpath('.//div[@id="list"]//a/text()')[0].strip()
-                sort_print.append([x, example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288))])
-                frame_results[x + 1] = [title, url]
+                try:
+                    example_b = r' {}、   《{}》   【{}】    [{}]   [{}]'
+                    self.print_Q.put(
+                        '<br>' + example_b.format('序号', '漫画名', '作者', '更新时间', '最新章节') + ' ( 这网有点慢稍等几秒 )<br>')
+                    for x, url in enumerate(urls):
+                        if 'http' not in url:
+                            url = f'https://wap.kukudm.com{url}'
+                        html = await fetch(session, url)
+                        _resp = etree.HTML(html)
+                        title = _resp.xpath('.//div[@id="comicName"]/text()')[0].strip()
+                        author = _resp.xpath('.//p[@class="txtItme"]/text()')[0].strip()
+                        refresh_time = _resp.xpath('.//span[@class="date"]/text()')[0].strip()
+                        refresh_section = _resp.xpath('.//div[@id="list"]//a/text()')[0].strip()
+                        sort_print.append(
+                            [x, example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288))])
+                        frame_results[x + 1] = [title, url]
+                except Exception as e:
+                    self.logger.error(f'又是你出错喔kukudm: {str(type(e))}:: {str(e)}')
 
         sort_print = []
         frame_results = {}
-        example_b = '| {} |   《{}》   【{}】   /{}/   <{}>'
-        self.print_Q.put(example_b.format('序号', '漫画名', '作者', '更新时间', '最新章节') + '\n')
-        urls = response.xpath('//div[@class="imgBox"]//li//a[contains(@class, "ImgA")]/@href').getall()
-        tasks = [ensure_future(main(x, urls[x])) for x in range(len(urls))]
-        loop = get_event_loop()
-        loop.run_until_complete(wait(tasks))
+        target = '//div[@class="itemImg"]/a/@href' if 'top100' in self.search_start else '//div[@class="imgBox"]//li//a[contains(@class, "ImgA")]/@href'  # -*-
+        urls = response.xpath(target).getall()
+        run(main(urls))
 
         sort_print = sorted(sort_print, key=lambda x: x[0])
         for show in sort_print:
             self.print_Q.put(show[1])
 
-        self.print_Q.put('✈' * 20 + '什么意思呢？ 唔……就是你的搜索在放✈(飞机)，retry拯救') if not len(frame_results) else None
-        self.print_Q.put(''.join(self.exp_txt) + ' →_→ 选book时可多选，但禁止用 0 全选\n')
-        return frame_results
+        return self.frame_book_print(frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选<br>")
 
     def frame_section(self, response):
-        example_s = ' {}、<{}> '
-        targets = response.xpath('//div[@id="list"]//a')  # sign -*-
-        self.print_Q.put(example_s.format('序号', '章节') + '\n')
         frame_results = {}
-        print_npc = []
-        for x in range(len(targets)):
-            section_url = targets[x].xpath('./@href').get()
-            section_url = f"http://{self.allowed_domains[0]}/{section_url}"
-            section = targets[x].xpath('./text()').get()
+        example_s = ' -{}、【{}】'
+        self.print_Q.put(example_s.format('序号', '章节') + '<br>')
+        targets = response.xpath('//div[@id="list"]//a')  # sign -*-
+        for x, target in enumerate(targets):
+            _section_url = target.xpath('./@href').get()
+            section_url = f"https://m.kkkkdm.com/{_section_url}"
+            section = target.xpath('./text()').get()
             frame_results[x + 1] = [section, section_url]
-            print_npc.append(example_s.format(str(x + 1), section))
-            print_len = 4
-            if (x + 1) % print_len==0:
-                self.print_Q.put(print_npc)
-                print_npc = []
-        self.print_Q.put(print_npc) if len(print_npc) else None
-        self.print_Q.put(''.join(self.exp_txt))
-        return frame_results
+        return self.frame_section_print(frame_results, print_example=example_s, print_limit=4)
 
-    def middle_utils(self, _type='listurl', *args, **kw):
-        super(ComickukudmSpider, self).middle_utils(_type, *args, **kw)
-
-        def list_url(**kwargs):
-            _response = etree.HTML(requests.get(kwargs['url']).text)
+    def mk_page_tasks(self, **kw):
+        try:
+            _response = etree.HTML(kw['session'].get(kw['url']).content.decode('gbk'))
             total_page_div = _response.xpath('//ul[@class="subNav"]/li/following-sibling::li[1]/text()')[0]
             total_page = int(re.search(r'(\d+)/(\d+)', total_page_div).group(2))
             _compile = re.compile(r'[\\/][\d]+\.htm')
-            url_list = list(map(lambda x: _compile.sub(f'/{x}.htm', kwargs['url']), range(total_page + 1)[1:]))
+            url_list = list(map(lambda x: _compile.sub(f'/{x}.htm', kw['url']), range(total_page + 1)[1:]))
+        except Exception as e:
+            self.logger.error(f"可能是域名或者页面框架换了，手动看看能不能打开这页面{kw['url']}\ntraceback: {str(type(e))}:: {str(e)}")
+        else:
             return url_list
-        schedule = list_url if _type == 'listurl' else None
-        return schedule(*args, **kw)
             
     def parse_fin_page(self, response):
         item = ComicspiderItem()
-        title = response.meta.get('info')[0]
-        item['title'] = title
-        item['section'] = response.meta.get('info')[1]
+        item['title'] = response.meta.get('title')
+        item['section'] = response.meta.get('section')
 
-        page_div = response.xpath('//ul[@class="subNav"]/li/following-sibling::li[1]/text()').get()
+        page_div = response.xpath('//ul[@class="subNav"]/li/following-sibling::li[1]/text()').get()  # sign -*-
         item['page'] = re.search(r'(\d+)/(\d+)', page_div).group(1)
 
         # 该网站url规则：urlencode化
         short_url = re.search(r"""<IMG SRC='"(.*?)"(.*?kuku.*?\.(jpg|png))'>?""", response.text)[2]
         transfer_url = "".join(('https://s1.kukudm.com/', quote(f'{short_url}'.encode('utf-8'))))
-        image_urls = [f"{transfer_url}"]
-        item['image_urls'] = image_urls
+        item['image_urls'] = [f"{transfer_url}"]
+        self.total += 1
         yield item
 

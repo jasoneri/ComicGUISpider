@@ -32,9 +32,8 @@ class ComicspiderDownloaderMiddleware(object):
 
         if response.status != 200:
             request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
-            head = 'https://' if request.url.split(':')[0]=='https' else 'http://'
             proxy = random.choice(self.PROXIES)
-            request.meta['proxy'] = head + proxy
+            request.meta['proxy'] = f"{request.url.split(':')[0]}://{proxy}"
             return request
 
         # Must either;
@@ -54,4 +53,4 @@ class ComicspiderDownloaderMiddleware(object):
         pass
 
     def spider_opened(self, spider):
-        spider.logger.info('Spider opened: %s' % spider.name)
+        spider.logger.info(f'Spider opened: 【{spider.name}】')

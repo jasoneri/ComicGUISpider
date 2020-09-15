@@ -4,6 +4,31 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 
 
+def get_info():
+    sv_path, log_path, proxies, level = r'D:\Comic', './log', [], 'WARNING'
+    try:
+        with open(f'./setting.txt', 'r', encoding='utf-8') as fp:
+            text = fp.read()
+            try:
+                sv_path = re.findall(r'<([\s\S]*)>', text)[0]
+            except IndexError:
+                pass
+            try:
+                level = re.findall('(DEBUG|INFO|ERROR)', text)[0]
+            except IndexError:
+                pass
+            proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
+    except FileNotFoundError:
+        # print(f"occur exception: {str(type(e))}:: {str(e)}")
+        pass
+    return sv_path, log_path, proxies, level
+
+
+def font_color(string, colour='red', size=None):
+    size = f" size='{size}'" if size else None
+    return f"<font color='{colour}'{size}>{string}</font>"
+
+
 def judge_input(_input):
     """
     6 return [6]
@@ -11,7 +36,7 @@ def judge_input(_input):
     4-6 return [4,5,6] | 1-4+6 return [1,4,5,6]
 
     :param _input: _str
-    :return: list[int(_str)]
+    :return: [int，]
     """
 
     def f(s):                                           # example '4-8' turn to [4,5,6,7,8]
@@ -44,15 +69,20 @@ def clear_queue(queues):
             pass
 
 
-def log_GUI(level='DEBUG', **kw):
+def cLog(name, level='INFO', **kw):
     """
-    :param level:
     :return: customize obj(log)
     """
+    try:
+        with open(f'./setting.txt', 'r', encoding='utf-8') as fp:
+            text = fp.read()
+            level = re.search('(DEBUG|WARNING|ERROR)', text).group(1)
+    except:
+        pass
     LEVEL = {'DEBUG':logging.DEBUG, 'INFO':logging.INFO, 'WARNING':logging.WARNING}
     os.makedirs('log', exist_ok=True)
     log_name = "log/GUI.log"
-    format = '%(asctime)s [GUI] %(levelname)s: %(message)s'
+    format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
     datefmt = '%Y-%m-%d %H:%M:%S '
     formatter = logging.Formatter(fmt=format, datefmt=datefmt)
 

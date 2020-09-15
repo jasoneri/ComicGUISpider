@@ -8,6 +8,9 @@ from multiprocessing import freeze_support
 # from PyQt5.QtGui import QPixmap, QColor, QPalette, QBrush
 from PyQt5.QtWidgets import QApplication
 import requests
+import aiohttp
+import lxml
+import utils
 import material_ct
 import PyQt5.sip
 

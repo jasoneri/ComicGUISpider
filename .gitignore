@@ -95,7 +95,6 @@ comic/
 ====.rar
 ====.exe
 *.xml
-*.spec
 
 ##----------Python----------
 *_origin.py
@@ -161,3 +160,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# self
+analyze/
+*.py.d
+*.zip
+*demo*.py
+*.bat
+*.qrc
+*.ico

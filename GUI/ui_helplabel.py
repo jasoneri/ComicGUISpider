@@ -10,7 +10,7 @@ class Ui_HelpLabel(QLabel):
         self.setupUi()
 
     def setupUi(self):
-        self.setGeometry(QRect(10, 8, 680, 390))
+        self.setGeometry(QRect(10, 3, 820, 500))
         self.setPixmap(QPixmap(":/help.jpg"))
         self.setScaledContents(True)
         self.setObjectName("helplabel")

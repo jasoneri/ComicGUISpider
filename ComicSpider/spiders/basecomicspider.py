@@ -1,24 +1,41 @@
 import logging
-from copy import deepcopy
 import scrapy
-from scrapy import Request
-from utils import clear_queue
+from copy import deepcopy
+from utils import clear_queue, font_color
 from time import sleep
+import requests
 
 
 class BaseComicSpider(scrapy.Spider):
-    exp_txt = (f"""\n{'{:=^65}'.format('message')}\n
-            请于【 选择序号框输入要选的序号  """)
+    """ComicSpider基类
+    执行顺序为：： 1、GUI获得keyword >> 每个爬虫编写的mapping与search_url_head（网站搜索头）>>> 得到self.search_start开始常规scrapy\n
+    2、清洗，然后parse执行顺序为(1)parse -- frame_book --> (2)parse_section -- frame_section -->
+    (3)frame_section --> yield item\n
+    3、存文件：略（统一标题命名）"""
+    exp_txt = (f"""<br>{'{:=^80}'.format('message')}<br>请于【 选择序号框 】输入要选的序号  """)
     current_status = {}
 
     step = 'loop'
     print_Q = None
     current_Q = None
+    retry_Q = None
     step_Q = None
     bar = None
 
+    total = 0
+    search_url_head = NotImplementedError('需要自定义搜索网址')
+    # mappings自定义关键字对应网址
+    mappings = {'': ''}
+
     def print_error_text(self, *args):
-        self.print_Q.put('=' * 15, """进行{1}步骤时错误输入了： {0}\n也可能有一部分{2}了,接下来{3}""".format(*args))
+        self.print_Q.put('=' * 15, """选择{1}步骤时错误的输入：{0}<br> {2}""".format(*args))
+
+    def get_current(self, what=None):
+        try:
+            current = self.current_Q.get()
+            return current[what] if what else current
+        except (EOFError, TypeError, BrokenPipeError):
+            pass
 
     def step_put(self, step):
         if self.step_Q.full():
@@ -26,114 +43,148 @@ class BaseComicSpider(scrapy.Spider):
         self.step_Q.put_nowait(step)
 
     def start_requests(self):
-        start_search = self.search
-        self.start_search = deepcopy(start_search)
-        yield Request(start_search, dont_filter=True)
+        search_start = self.search
+        self.search_start = deepcopy(search_start)
+        yield scrapy.Request(self.search_start, dont_filter=True)
 
     @property
     def search(self):
         self.step = 'search'
         self.step_put(self.step)
-        self.keyword = self.current_Q.get()['keyword']
-        return f'sample/search.asp?kw={self.keyword}'
+        keyword = self.get_current('keyword')
+        normal_search = f'{self.search_url_head}{keyword}'
+        search_start = self.mappings[keyword] if keyword in self.mappings.keys() else normal_search
+        return search_start
 
     # ==============================================
     def parse(self, response):
         self.step = 'parse'  # parse_book == parse
         self.step_put(self.step)
-        frame_book = self.frame_book(response)
+        frame_book_results = self.frame_book(response)
 
-        if self.current_Q.get()['retry']:               # -*- 判断GUI的retry_btn与crawl/next_btn 分岔
+        # GUI交互产生的凌乱逻辑，待优化
+        # 每get一次阻塞scrapy，等GUI操作
+        if self.get_current('retry'):  # -*- 判断GUI的retry_btn与crawl/next_btn 分岔
             yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
         else:
-            self.choose = self.current_Q.get()['choose']
-            results = self.__yield_what(self.choose, frame_book, yield_url_frame='frame_[i][1]', meta_frame="{'title': frame_[i][0]}",
-                                        error_text=['漫画', '进入下一步选章节', '继续下一步骤选章节'], )
-            if not len(results) or results is None:
-                self.print_Q.put(f'\n{"=" * 10}info: 输入错了吧？无结果返回耶，点击retry拯救\n')
-                logging.info(f'no result return, choose_input is wrong: {self.choose}')
-                self.current_Q.get()
+            selected = self.get_current('choose')  # 阻塞scrapy，等GUI选择
+            results = self.elect_res(selected, frame_book_results, step='漫画')
+            if results is None or not len(results):
+                self.get_current()
                 yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
             else:
-                for result in results:
-                    yield scrapy.Request(url=result[0], callback=self.parse_section, meta=result[1], dont_filter=True)
+                for title, title_url in results:
+                    meta = {"title": title}
+                    yield scrapy.Request(url=title_url, callback=self.parse_section, meta=meta, dont_filter=True)
 
-    def frame_book(self, response):
+    def frame_book(self, response) -> dict:
+        """最终返回值按此数据格式返回
+        :return dict: {1: [title1, title1_url], 2: [title2, title2_url]……} 
+        """
         raise NotImplementedError
+
+    def frame_book_print(self, frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则<br>"):
+        self.print_Q.put(self.search_start)
+        self.print_Q.put(f"{''.join(self.exp_txt)}{font_color(extra, 'blue')}" if len(
+            frame_results) else f"{'✈' * 15}{font_color('什么意思？唔……就是你搜的在放✈(飞机)，retry拯救', 'red', size=5)}")
+        return frame_results
 
     # ==============================================
     def parse_section(self, response):
+        """ ！！！！ 解决非漫画无章节情况下直接下最终页面"""
         self.step = 'parse section'
         self.step_put(self.step)
-        self.print_Q.put(f'\n{"{:=^65}".format("message")}')
+        self.print_Q.put(f'<br>{"{:=^65}".format("message")}')
 
         title = response.meta.get('title')
-        self.print_Q.put(f'\n{"="*15} 《{title}》')
-        frame_section = self.frame_section(response)
+        self.print_Q.put(f'<br>{"=" * 15} 《{title}》')
+        frame_sec_result = self.frame_section(response)
 
-        if self.current_Q.get()['retry']:                # -*- 判断GUI的retry_btn与crawl/next_btn 分岔
-            self.print_Q.put('<br>notice !! 多选书的情况下重选相当于死亡， 单选书的话请无视')
-            yield scrapy.Request(url=self.start_search, callback=self.parse, dont_filter=True)
+        if self.get_current('retry'):  # -*- 判断GUI的retry_btn与crawl/next_btn 分岔
+            self.print_Q.put(font_color('<br>notice !! 多选书的情况下retry后台会相当复杂，单选无视此条信息<br>', size=5))
+            yield scrapy.Request(url=self.search_start, callback=self.parse, dont_filter=True)
         else:
-            self.choose = self.current_Q.get()['choose']
-            results = self.__yield_what(self.choose, frame_section, yield_url_frame='frame_[i][1]',
-                                        meta_frame="{'info': ['%s', frame_[i][0]]}" % title,
-                                        error_text=['章节', '开爬', '选对的章节将开爬'], )
-
-            if not len(results) or results is None:
-                self.print_Q.put(f'\n{"=" * 10}info: {self.choose} ? 输入错了吧？无结果返回耶 ~')
-                self.print_Q.put('<br><br><br>notice !! OK 视为放弃此步骤 / cancel 视为重选'*3)
-                logging.info(f'no result return, choose_input is wrong: {self.choose}')
-                if self.current_Q.get()['retry']:
+            choose = self.get_current('choose')
+            results = self.elect_res(choose, frame_sec_result, step='章节')
+            if results is None or not len(results):
+                self.print_Q.put('<br><br><br>notice !! OK 视为放弃此书 / cancel 视为重选' * 3)
+                logging.info(f'no result return, choose_input is wrong: {choose}')
+                if self.get_current('retry'):
                     yield scrapy.Request(url=response.url, callback=self.parse_section, dont_filter=True, meta={'title': title})
             else:
-                self.print_Q.put(f'{"{:*^55}".format("最后确认选择")}\n\n{"-"*10}《{title}》 所选序号: {self.choose}')
-                for result in list(results):
-                    self.print_Q.put(f"{'>'*7} {result[1]['info'][1]}")
-                self.print_Q.put(f"<br>notice !! OK 视为爬取上述内容 / cancel 视为放弃此步骤")
-                if self.current_Q.get()['retry']:                               # -*- ensure dia 分岔
+                self.print_Q.put(f'{"{:*^55}".format("最后确认选择")}<br>{"-" * 10}《{title}》 所选序号: {choose}')
+                for result in results:
+                    self.print_Q.put(f"{'>' * 7} {result[0]}")
+                self.print_Q.put(f"<br>notice !! OK 视为爬取上述内容 / cancel 视为放弃此步骤<br>")
+                if self.get_current('retry'):  # -*- ensure dia 分岔
                     # yield scrapy.Request(url=response.url, callback=self.parse_section, meta={'title': title}, dont_filter=True)
                     pass
                 else:
-                    for result in list(results):
-                        url_list = self.middle_utils(url=result[0])
-                        self.print_Q.put(f"\n{'=' * 15}\tnow start 爬取《{title}》章节：{result[1]['info'][1]}")
+                    self.session = requests.session()
+                    for section, section_url in results:
+                        url_list = self.mk_page_tasks(url=section_url, session=self.session)
+                        self.print_Q.put(
+                            font_color(f"<br>{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", 'blue', size=5))
+                        meta = {'title': title, 'section': section}
                         for url in url_list:
-                            yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=result[1])
+                            yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
                 self.step = 'fin'
                 self.step_put(self.step)
 
-    def frame_section(self, response):
+    def frame_section(self, response) -> dict:
+        """最终返回值按此数据格式返回
+        :return dict: {1: [section1, section1_url], 2: [section2, section2_url]……} 
+        """
         raise NotImplementedError
+
+    def frame_section_print(self, frame_results, print_example, print_limit=5, extra=' ←_← 点击【开始爬取！】 <br>'):
+        print_npc = []
+        for x, result in frame_results.items():
+            print_npc.append(print_example.format(str(x), result[0]).strip())
+            if x % print_limit==0:
+                self.print_Q.put(str(print_npc).replace("'", "").replace("[", "").replace("]", ""))
+                print_npc = []
+        self.print_Q.put(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(print_npc) else None
+        self.print_Q.put(''.join(self.exp_txt) + font_color(extra, "purple"))
+        return frame_results
 
     # ==============================================
     def parse_fin_page(self, response):
+        pass
+
+    def mk_page_tasks(self, *arg, **kw):
+        """做这个中间件预想是：1、每一话预请求第一页，从resp中直接清洗获取items信息;
+        2、设立规则处理response.follow也许可行"""
         raise NotImplementedError
+        # def list_url(**kw):
+        #     return list(kw['url'])
+        #
+        # middle_mappings = {'listurl': list_url}
+        # schedule = middle_mappings[func]
+        # return schedule(**kw)
 
-    def middle_utils(self, _type='listurl', *arg, **kw):
-        # do something schedule..then
-        # return params // yield scrapy.Request
-
-        def list_url(**kw):
-            return list(kw['url'])
-        utils = {'listurl': list_url}
-        schedule = utils[_type]
-        return schedule(**kw)
-
-    def __yield_what(self, _input, frame_, **kw):
-        result = list()
+    def elect_res(self, elect: list, frame_results: dict, **kw) -> list:
+        """简单判断elect，返回选择的frame
+        :param elect: [1,2,3,4,……]
+        :param frame_results: {1: [title1, title1_url], 2: [title2, title2_url]……}
+        :return: [[title1, title1_url], [title2, title2_url]……]
+        """
+        selected = frame_results.keys() if elect==[0] else elect
+        self.print_Q.put(kw['extra_info']) if 'extra_info' in kw else None
         try:
-            _input = frame_.keys() if _input == [0] else _input
-            self.print_Q.put(kw['extra_info']) if 'extra_info' in kw else None
-            for i in _input:
-                result.append([eval(kw['yield_url_frame']), eval(kw['meta_frame']), ])
+            results = [frame_results[i] for i in selected]
         except Exception as e:
-            self.print_error_text(e.args, *kw['error_text'])
-            logging.error(f'input error from yield_what : {e}')
-        finally:
-            return result
+            self.print_error_text(e.args, kw['step'], font_color("点击retry这步重来，不要选没得选的!", size=5))
+            logging.error(f'error elect: {e.args}, traceback:{str(type(e))}:: {str(e)}')
+        else:
+            return results
 
-    def close(spider, reason):
-        clear_queue((spider.print_Q, spider.step_Q, spider.current_Q))
-        sleep(0.5)
-        spider.print_Q.put('\n~~~spider（后台）完成任务光荣死去了 ヾ(￣▽￣)Bye~Bye~\n')
+    def close(self, reason):
+        clear_queue((self.print_Q, self.step_Q, self.current_Q))
+        try:
+            self.session.close()
+        except:
+            pass
+        sleep(0.3)
+        self.print_Q.put(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', 'green', size=6)
+                         if self.total!=0 else font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可去看日志文件报错', size=5))

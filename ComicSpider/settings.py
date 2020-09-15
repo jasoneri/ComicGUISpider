@@ -9,7 +9,7 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 import os
-import re
+from utils import get_info
 
 BOT_NAME = 'ComicSpider'
 
@@ -29,7 +29,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.15
+DOWNLOAD_DELAY = 0.5
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -48,23 +48,7 @@ ITEM_PIPELINES = {
    'ComicSpider.pipelines.ComicPipeline': 50
 }
 
-# 图片储存原始路径
-def images_store_and_proxy():
-    proxies = []
-    if os.path.exists(r'./setting.txt'):
-        with open(r'./setting.txt', 'r', encoding='utf-8') as fp:
-            text = fp.read()
-            try:
-                proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
-                path = re.search(r'path=[\"\']([\s\S]*)[\"\']$', text).group(1)
-            except AttributeError:
-                # logging.info("haven't create dir")
-                path = r'D:\comic'
-                pass
-    return path, proxies
-
-
-IMAGES_STORE, PROXY_CUST = images_store_and_proxy()
+IMAGES_STORE, log_path, PROXY_CUST, LOG_LEVEL = get_info()
 
 UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0",
       r'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:64.0) Gecko/20100101 Firefox/64.0',
@@ -75,11 +59,8 @@ UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefo
       r'Mozilla/5.0 (Windows NT 6.0; rv:2.0) Gecko/20100101 Firefox/4.0 Opera 12.14'
       ]
 
-os.makedirs('log', exist_ok=True)
-log_file_path = "log/scrapy.log"
+os.makedirs(f'{log_path}', exist_ok=True)
 
 # 日志输出
-LOG_LEVEL = 'INFO'
-# LOG_LEVEL = 'DEBUG'
-# LOG_FILE = log_file_path
-
+LOG_FILE = f"{log_path}/scrapy.log"
+YELLOW = ['joyhentai']
