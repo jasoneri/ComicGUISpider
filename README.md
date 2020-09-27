@@ -6,7 +6,6 @@
 + V1.3 | 2020-09-13  
 1、加了特殊网站…  ……
 
-
 ## 一、简述  
 ![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.py)
 
