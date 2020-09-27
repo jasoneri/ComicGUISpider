@@ -35,11 +35,12 @@ IP示例： 192.168.1.1：9999 （ IP:端口 ） 可一次扔几个，用空格�
     bbb.bbb.bbb.bbb:80
 ```
 
-### 3、排错功能： 
+### 3、排错功能：   
 
 出错可先往setting.txt扔一个大写的 DEBUG 重开，更改日志等级  
-后台有运行过有log目录，GUI记录界面操作记录默认为INFO，scrapy默认为WARNING  
-<br>
+后台有运行过有log目录，GUI记录界面操作记录默认为INFO，scrapy默认为WARNING   
+
+
 ------
 
 >## 【 bug记录 】
