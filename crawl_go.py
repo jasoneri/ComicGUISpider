@@ -1,19 +1,10 @@
 # -*- coding: utf-8 -*-
-import sys
-
-from multiprocessing import freeze_support
-# from multiprocessing.managers import RemoteError
-
 # GUI
 # from PyQt5.QtGui import QPixmap, QColor, QPalette, QBrush
 from PyQt5.QtWidgets import QApplication
-import requests
-import aiohttp
-import lxml
-import utils
 import material_ct
-import PyQt5.sip
 
+import PyQt5.sip
 from PyQt5.QtCore import Qt, QSize, QMetaObject, QCoreApplication
 from PyQt5.QtGui import QFont, QPixmap, QIcon, QCursor
 from PyQt5.QtWidgets import QDialogButtonBox, QSizePolicy, QCommandLinkButton, QVBoxLayout, QFrame, QSpacerItem, \
@@ -22,7 +13,6 @@ from PyQt5.QtWidgets import QDialogButtonBox, QSizePolicy, QCommandLinkButton, Q
 
 # scrapy 打包相关
 # import robotparser
-
 import scrapy.spiderloader
 import scrapy.statscollectors
 import scrapy.logformatter
@@ -80,7 +70,14 @@ import scrapy.pipelines.images
 
 # 自己项目用到的
 from gui import SpiderGUI
-# requirement.txt
+import requests
+import aiohttp
+import lxml
+import utils
+import sys
+from multiprocessing import freeze_support
+
+# from multiprocessing.managers import RemoteError
 # sys.setrecursionlimit(5000)
 
 if __name__ == '__main__':

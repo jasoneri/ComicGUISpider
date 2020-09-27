@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 from lxml import etree
-from ComicSpider.items import ComicspiderItem
-from .basecomicspider import BaseComicSpider
+from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 
 class Comic90mhSpider(BaseComicSpider):

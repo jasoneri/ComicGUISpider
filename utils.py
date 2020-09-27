@@ -29,16 +29,14 @@ def font_color(string, colour='red', size=None):
     return f"<font color='{colour}'{size}>{string}</font>"
 
 
-def judge_input(_input):
+def judge_input(_input: str) -> list:
     """
-    6 return [6]
-    1+3+5 return [1,3,5]
-    4-6 return [4,5,6] | 1-4+6 return [1,4,5,6]
+    "6" return [6]       |   "1+3+5" return [1,3,5]  |
+    "4-6" return [4,5,6] | "1+4-6" return [1,4,5,6]
 
     :param _input: _str
     :return: [int，]
     """
-
     def f(s):                                           # example '4-8' turn to [4,5,6,7,8]
         l = []
         ranges = s.split(r'-')
@@ -69,7 +67,7 @@ def clear_queue(queues):
             pass
 
 
-def cLog(name, level='INFO', **kw):
+def cLog(name: str, level: str = 'INFO', **kw) -> logging.Logger:
     """
     :return: customize obj(log)
     """
@@ -81,16 +79,16 @@ def cLog(name, level='INFO', **kw):
         pass
     LEVEL = {'DEBUG':logging.DEBUG, 'INFO':logging.INFO, 'WARNING':logging.WARNING}
     os.makedirs('log', exist_ok=True)
-    log_name = "log/GUI.log"
+    logfile = F"log/{name}.log"
     format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
     datefmt = '%Y-%m-%d %H:%M:%S '
     formatter = logging.Formatter(fmt=format, datefmt=datefmt)
 
-    log_file_handler = TimedRotatingFileHandler(filename=log_name, when="D", interval=1, backupCount=3)
+    log_file_handler = TimedRotatingFileHandler(filename=logfile, when="D", interval=1, backupCount=3)
     log_file_handler.setFormatter(formatter)
     log_file_handler.setLevel(LEVEL[level])
 
-    log = logging.getLogger(log_name)
+    log = logging.getLogger(logfile)
     log.addHandler(log_file_handler)
     log.setLevel(LEVEL[level])
     return log

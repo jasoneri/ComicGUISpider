@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-from asyncio import run
-from aiohttp import ClientSession
 import re
 from lxml import etree
+from asyncio import run
+from aiohttp import ClientSession
 from urllib.parse import quote
-from ComicSpider.items import ComicspiderItem
-from ComicSpider.spiders.basecomicspider import BaseComicSpider
+from ComicSpider.spiders.basecomicspider import BaseComicSpider, ComicspiderItem
 
 
 class ComickukudmSpider(BaseComicSpider):
@@ -102,4 +101,3 @@ class ComickukudmSpider(BaseComicSpider):
         item['image_urls'] = [f"{transfer_url}"]
         self.total += 1
         yield item
-

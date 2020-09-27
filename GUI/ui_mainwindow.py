@@ -299,8 +299,8 @@ class Ui_MainWindow(object):
         self.searchinput.setInputMask(_translate("MainWindow", f"输入关键字：{'x' * 25}"))
         self.searchinput.setText(_translate("MainWindow", "输入关键字："))
         self.chooseinput.setStatusTip(_translate("MainWindow", "示例： 0 表示全选(特殊)   |   1 表示单选 1 (类推)   |   7+9 →表示多选 7、9 (加号)   |   3-5 →多选 3、4、5 (减号)"))
-        self.chooseinput.setInputMask(_translate("MainWindow", f"选择序号：{'#' * 30}"))
-        self.chooseinput.setText(_translate("MainWindow", "选择序号："))
+        self.chooseinput.setInputMask(_translate("MainWindow", f"输入序号：{'#' * 30}"))
+        self.chooseinput.setText(_translate("MainWindow", "输入序号："))
         self.next_btn.setText(_translate("MainWindow", "搜索"))
         self.retrybtn.setToolTip(_translate("MainWindow", "对内容不满意时重做上一步"))
         self.retrybtn.setStatusTip(

@@ -1,9 +1,10 @@
-import logging
+from abc import abstractmethod
 import scrapy
+import requests
+from time import sleep
 from copy import deepcopy
 from utils import clear_queue, font_color
-from time import sleep
-import requests
+from ComicSpider.items import ComicspiderItem
 
 
 class BaseComicSpider(scrapy.Spider):
@@ -12,13 +13,12 @@ class BaseComicSpider(scrapy.Spider):
     2、清洗，然后parse执行顺序为(1)parse -- frame_book --> (2)parse_section -- frame_section -->
     (3)frame_section --> yield item\n
     3、存文件：略（统一标题命名）"""
-    exp_txt = (f"""<br>{'{:=^80}'.format('message')}<br>请于【 选择序号框 】输入要选的序号  """)
+    exp_txt = (f"""<br>{'{:=^80}'.format('message')}<br>请于【 输入序号 】框输入要选的序号  """)
     current_status = {}
 
     step = 'loop'
     print_Q = None
     current_Q = None
-    retry_Q = None
     step_Q = None
     bar = None
 
@@ -58,7 +58,7 @@ class BaseComicSpider(scrapy.Spider):
 
     # ==============================================
     def parse(self, response):
-        self.step = 'parse'  # parse_book == parse
+        self.step = 'parse'
         self.step_put(self.step)
         frame_book_results = self.frame_book(response)
 
@@ -77,11 +77,12 @@ class BaseComicSpider(scrapy.Spider):
                     meta = {"title": title}
                     yield scrapy.Request(url=title_url, callback=self.parse_section, meta=meta, dont_filter=True)
 
+    @abstractmethod
     def frame_book(self, response) -> dict:
         """最终返回值按此数据格式返回
         :return dict: {1: [title1, title1_url], 2: [title2, title2_url]……} 
         """
-        raise NotImplementedError
+        pass
 
     def frame_book_print(self, frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则<br>"):
         self.print_Q.put(self.search_start)
@@ -108,7 +109,7 @@ class BaseComicSpider(scrapy.Spider):
             results = self.elect_res(choose, frame_sec_result, step='章节')
             if results is None or not len(results):
                 self.print_Q.put('<br><br><br>notice !! OK 视为放弃此书 / cancel 视为重选' * 3)
-                logging.info(f'no result return, choose_input is wrong: {choose}')
+                self.logger.info(f'no result return, choose_input is wrong: {choose}')
                 if self.get_current('retry'):
                     yield scrapy.Request(url=response.url, callback=self.parse_section, dont_filter=True, meta={'title': title})
             else:
@@ -131,11 +132,12 @@ class BaseComicSpider(scrapy.Spider):
                 self.step = 'fin'
                 self.step_put(self.step)
 
+    @abstractmethod
     def frame_section(self, response) -> dict:
         """最终返回值按此数据格式返回
         :return dict: {1: [section1, section1_url], 2: [section2, section2_url]……} 
         """
-        raise NotImplementedError
+        pass
 
     def frame_section_print(self, frame_results, print_example, print_limit=5, extra=' ←_← 点击【开始爬取！】 <br>'):
         print_npc = []
@@ -155,13 +157,7 @@ class BaseComicSpider(scrapy.Spider):
     def mk_page_tasks(self, *arg, **kw):
         """做这个中间件预想是：1、每一话预请求第一页，从resp中直接清洗获取items信息;
         2、设立规则处理response.follow也许可行"""
-        raise NotImplementedError
-        # def list_url(**kw):
-        #     return list(kw['url'])
-        #
-        # middle_mappings = {'listurl': list_url}
-        # schedule = middle_mappings[func]
-        # return schedule(**kw)
+        pass
 
     def elect_res(self, elect: list, frame_results: dict, **kw) -> list:
         """简单判断elect，返回选择的frame
@@ -175,7 +171,7 @@ class BaseComicSpider(scrapy.Spider):
             results = [frame_results[i] for i in selected]
         except Exception as e:
             self.print_error_text(e.args, kw['step'], font_color("点击retry这步重来，不要选没得选的!", size=5))
-            logging.error(f'error elect: {e.args}, traceback:{str(type(e))}:: {str(e)}')
+            self.logger.error(f'error elect: {e.args}, traceback:{str(type(e))}:: {str(e)}')
         else:
             return results
 

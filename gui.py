@@ -13,8 +13,6 @@ from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
 from GUI.ui_helplabel import Ui_HelpLabel
 from utils import judge_input, clear_queue, cLog, font_color
-
-from ComicSpider.settings import IMAGES_STORE
 import traceback
 
 
@@ -131,7 +129,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.bThread.quit()  # 关闭线程
                 self.bThread.wait()
             except (FileNotFoundError, RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
-                self.log.error(str(traceback.extract_stack()))
+                self.log.error(str(traceback.format_exc()))
                 # self.log.warning(f'when retry_all occur {e.args}')
             self.setupUi(self)
 
@@ -340,6 +338,7 @@ class WorkThread(QThread):
                 self.msleep(20)
                 break
         if self.active:
+            from ComicSpider.settings import IMAGES_STORE
             self.finishSignal.emit(IMAGES_STORE)
 
     # def __del__(self):
