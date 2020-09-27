@@ -7,7 +7,7 @@
 1、加了特殊网站…  ……
 
 ## 一、简述  
-![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.py)
+![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.jpg)
 
 程序内置使用说明，点击说明按钮跟着按即可，此链下载zip →  [http://…(*￣ω￣)…](https://pan.baidu.com/s/1cDeHa9SB-RFbjQP3hpH2tw) 提取码:z8si   
 PS：配置文件setting.txt，跟EXE放一起就生效，可以不放  
