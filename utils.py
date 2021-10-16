@@ -24,9 +24,9 @@ def get_info():
     return sv_path, log_path, proxies, level
 
 
-def font_color(string, colour='red', size=None):
-    size = f" size='{size}'" if size else None
-    return f"<font color='{colour}'{size}>{string}</font>"
+def font_color(string, **attr):
+    attr = re.findall(r"'(.*?)': (.*?)[,\}]", str(attr))
+    return f"""<font {" ".join([f"{_[0]}={_[1]}" for _ in attr])}>{string}</font>"""
 
 
 def judge_input(_input: str) -> list:
@@ -37,25 +37,16 @@ def judge_input(_input: str) -> list:
     :param _input: _str
     :return: [int，]
     """
-    def f(s):                                           # example '4-8' turn to [4,5,6,7,8]
-        l = []
-        ranges = s.split(r'-')
-        if len(ranges)==1:
-            l.append(ranges[0])
-        else:
-            for i in range(int(ranges[0]), int(ranges[1]) + 1):
-                l.append(i)
-        return l
 
-    i_tnsfr = []
-    i_group = re.findall(r'(\d{1,4}-\d{1,4})', _input)  # filter out '/d-/d'
-    for i_g_s in i_group:
-        _input = _input.replace(i_g_s, '')
-        i_tnsfr.extend(f(i_g_s))                        # extract '/d-/d'
-    _input = re.findall(r'(\d{1,4})', _input)           # get except filter out of '/d-/d'
-    i_tnsfr.extend(_input)
-    i_fin = sorted(set(map(lambda x: int(x), i_tnsfr)))
-    return i_fin
+    def f(s):  # example '4-8' turn to {4,5,6,7,8}
+        ranges = s.split(r'-')
+        return set(range(int(ranges[0]), int(ranges[1]) + 1))
+
+    out1 = set(map(int, re.findall(r'(\d{1,4})', _input)))
+    out2 = set()
+    for i in re.findall(r'(\d{1,4}-\d{1,4})', _input):
+        out2 |= f(i)
+    return sorted(out1 | out2)
 
 
 def clear_queue(queues):
@@ -92,3 +83,8 @@ def cLog(name: str, level: str = 'INFO', **kw) -> logging.Logger:
     log.addHandler(log_file_handler)
     log.setLevel(LEVEL[level])
     return log
+
+
+if __name__=='__main__':
+    judge_input('1+4-5-10+15-18-20+25')
+    pass
