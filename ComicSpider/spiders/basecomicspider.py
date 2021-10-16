@@ -1,3 +1,4 @@
+import re
 from abc import abstractmethod
 import scrapy
 import requests
@@ -25,7 +26,8 @@ class BaseComicSpider(scrapy.Spider):
     total = 0
     search_url_head = NotImplementedError('需要自定义搜索网址')
     # mappings自定义关键字对应网址
-    mappings = {'': ''}
+    kind = {}
+    mappings = {}
 
     def print_error_text(self, *args):
         self.print_Q.put('=' * 15, """选择{1}步骤时错误的输入：{0}<br> {2}""".format(*args))
@@ -52,8 +54,13 @@ class BaseComicSpider(scrapy.Spider):
         self.step = 'search'
         self.step_put(self.step)
         keyword = self.get_current('keyword')
-        normal_search = f'{self.search_url_head}{keyword}'
-        search_start = self.mappings[keyword] if keyword in self.mappings.keys() else normal_search
+        kind = re.search(f"(({')|('.join(self.kind.keys())}))(.*)", keyword)
+        if keyword in self.mappings.keys():
+            search_start = self.mappings[keyword]
+        elif bool(kind):
+            search_start = f"{self.kind[kind.group(1)]}{kind.group(len(self.kind) + 2)}/"
+        else:
+            search_start = f'{self.search_url_head}{keyword}'
         return search_start
 
     # ==============================================
@@ -86,8 +93,8 @@ class BaseComicSpider(scrapy.Spider):
 
     def frame_book_print(self, frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则<br>"):
         self.print_Q.put(self.search_start)
-        self.print_Q.put(f"{''.join(self.exp_txt)}{font_color(extra, 'blue')}" if len(
-            frame_results) else f"{'✈' * 15}{font_color('什么意思？唔……就是你搜的在放✈(飞机)，retry拯救', 'red', size=5)}")
+        self.print_Q.put(f"{''.join(self.exp_txt)}{font_color(extra, color='blue')}" if len(
+            frame_results) else f"{'✈' * 15}{font_color('什么意思？唔……就是你搜的在放✈(飞机)，retry拯救', color='red', size=5)}")
         return frame_results
 
     # ==============================================
@@ -125,7 +132,7 @@ class BaseComicSpider(scrapy.Spider):
                     for section, section_url in results:
                         url_list = self.mk_page_tasks(url=section_url, session=self.session)
                         self.print_Q.put(
-                            font_color(f"<br>{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", 'blue', size=5))
+                            font_color(f"<br>{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", color='blue', size=5))
                         meta = {'title': title, 'section': section}
                         for url in url_list:
                             yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
@@ -147,7 +154,7 @@ class BaseComicSpider(scrapy.Spider):
                 self.print_Q.put(str(print_npc).replace("'", "").replace("[", "").replace("]", ""))
                 print_npc = []
         self.print_Q.put(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(print_npc) else None
-        self.print_Q.put(''.join(self.exp_txt) + font_color(extra, "purple"))
+        self.print_Q.put(''.join(self.exp_txt) + font_color(extra, color="purple"))
         return frame_results
 
     # ==============================================
@@ -182,5 +189,5 @@ class BaseComicSpider(scrapy.Spider):
         except:
             pass
         sleep(0.3)
-        self.print_Q.put(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', 'green', size=6)
+        self.print_Q.put(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
                          if self.total!=0 else font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可去看日志文件报错', size=5))

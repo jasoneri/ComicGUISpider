@@ -7,14 +7,10 @@
 1、加了特殊网站…  ……
 
 ## 一、简述  
-![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.py)
+![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.jpg)
 
 程序内置使用说明，点击说明按钮跟着按即可，此链下载zip →  [http://…(*￣ω￣)…](https://pan.baidu.com/s/1cDeHa9SB-RFbjQP3hpH2tw) 提取码:z8si   
 PS：配置文件setting.txt，跟EXE放一起就生效，可以不放  
-
-zip [SHA1]:  95a6c822d2422f07eb084b1f330e73f6198ecb75   
-zip [MD5]: 3709fbd9a8a5ebbfcadd9c41b0ee19c3   
-
 
 ## 二、配置setting.txt
 
@@ -44,9 +40,7 @@ IP示例： 192.168.1.1：9999 （ IP:端口 ） 可一次扔几个，用空格�
 
 >## 【 bug记录 】
 
-
-+ 1、缺页问题：少见，在第三个网站里某些页面会出现  
-观察发现原因在于每一张图有两层叠起来而其实可以下载的只有其中一层，所以下到本地就各种缺页，呃……这个放放以后再想  
-
-+ 2、retry部分搞不好有堆积内存问题，留了个脚本清内存 
+1. 缺页问题：少见，看了下好像是懒加载（？这个有无影响有待商榷）和叠层
+   图的标签有叠两层实际只有一层可以响应，目前只通配了一层所以可能性缺页，呃……这个放放以后再想  
+2. retry部分搞不好有堆积内存问题，留了个脚本清内存 
 

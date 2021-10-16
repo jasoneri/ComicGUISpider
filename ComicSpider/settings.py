@@ -62,5 +62,5 @@ UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefo
 os.makedirs(f'{log_path}', exist_ok=True)
 
 # 日志输出
-LOG_FILE = f"{log_path}/scrapy.log"
-SPECIAL = ['joyhentai']
+# LOG_FILE = f"{log_path}/scrapy.log"
+SPECIAL = ['erocool']
