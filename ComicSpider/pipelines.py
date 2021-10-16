@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 from re import sub
 
 from scrapy.pipelines.images import ImagesPipeline
@@ -9,6 +10,8 @@ class ComicPipeline(ImagesPipeline):
     now = 0
     threshold = 95
     err_flag = 0
+    _sub = re.compile(r'([|.:<>?*"\\/])')
+    _sub_index = re.compile(r"^\(.*?\)")
 
     # media_requests
     def get_media_requests(self, item, info):
@@ -19,13 +22,14 @@ class ComicPipeline(ImagesPipeline):
 
     # 图片存储前调用
     def file_path(self, request, response=None, info=None):
-        title = sub(r'([|.:<>?*"\\/])', '-', request.item.get('title'))
-        section = sub(r'([|.:<>?*"\\/])', '-', request.item.get('section'))
+        title = self._sub.sub('-', request.item.get('title'))
+        # section = sub(r'([|.:<>?*"\\/])', '-', request.item.get('section'))
+        section = self._sub.sub('-', request.item.get('section'))
         page = '第%s页.jpg' % request.item.get('page')
         spider = self.spiderinfo.spider
         basepath = spider.settings.get('IMAGES_STORE')
-        path = f"{basepath}\\本子\\{title}" if spider.name in spider.settings.get(
-            'YELLOW') else f"{basepath}\\{title}\\{section}\\"
+        path = f"{basepath}\\本子\\{self._sub_index.sub('', title)}" if spider.name in spider.settings.get(
+            'SPECIAL') else f"{basepath}\\{title}\\{section}\\"
         os.makedirs(path, exist_ok=True)  # 还有标题不能创建的话我吐血
         fin = os.path.join(path, page)
         return fin

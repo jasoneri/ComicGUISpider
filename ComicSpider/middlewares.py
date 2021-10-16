@@ -29,7 +29,6 @@ class ComicspiderDownloaderMiddleware(object):
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.
-
         if response.status != 200:
             request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
             proxy = random.choice(self.PROXIES)

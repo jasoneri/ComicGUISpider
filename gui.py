@@ -65,7 +65,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             text = {0: None,
                     1: '90MH网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名',
                     2: 'kukuM网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【推荐】..字如其名',
-                    3: 'joyhentai网：（1）输入【搜索词】返回搜索结果（2）可输入【最新】【日排名】【周排名】【月排名】..字如其名'}
+                    3: 'erocool网：（1）输入【搜索词】返回搜索结果（2）可输入【最新】【日排名】【周排名】【月排名】..字如其名'}
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
         self.chooseBox.currentIndexChanged.connect(status_tip)
 
@@ -238,7 +238,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         if self.book_num == 0:
             self.helplabel.re_pic()
-            self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", 'purple'))
+            self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", color='purple'))
             self.crawl_btn.setDisabled(True)
             # self.funcGroupBox.setDisabled(True)
             self.input_yield.setDisabled(True)
@@ -265,13 +265,15 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.step = 'fin'
         self.helplabel.re_pic()
         self.textbrowser_load(
-            font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", 'purple') + font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:...",
-                                                                               'Salmon'))
+            font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') + font_color(
+                "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:...",
+                'Salmon'))
         os.startfile(imgs_path) if self.checkisopen.isChecked() else None
         self.checkisopen.clicked.connect(lambda: os.startfile(imgs_path))
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def textbrowser_load(self, string):
+        # todo: v1.4 - (1)、每组图预览，图片缓存 (2)、勾选选项（改写choose逻辑）放textbrowser？
         if 'http' in string:
             self.textBrowser.setOpenExternalLinks(True)
             string = u'<a href="%s" ><b style="font-size:20px;"><br> 点击查看搜索结果</b></a><b><s><font color="WhiteSmoke"  size="4"> 懒得做预览图功能</font></s></b>' % string
@@ -295,15 +297,15 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
 
 text = (f"{'{:-^95}'.format('message')}<br>" +
-        font_color(" 不懂的： 1、右下点说明跟着走，2、首次使用去打开【运行必读.txt】看下", 'blue', size=5) +
-        font_color('别老问怎么错<br>', 'white') +
+        font_color(" 不懂的： 1、右下点说明跟着走，2、首次使用去打开【运行必读.txt】看下", color='blue', size=5) +
+        font_color('别老问怎么错<br>', color='white') +
         f"{'{:-^90}'.format('仅为学习使用')}")
 
 
 def crawl_what(index, print_Q, bar, current_Q, step_Q):
     spider_what = {1: 'comic90mh',
                    2: 'comickukudm',
-                   3: 'joyhentai'}
+                   3: 'erocool'}
 
     freeze_support()
     process = CrawlerProcess(get_project_settings())
