@@ -293,7 +293,7 @@ class Ui_MainWindow(object):
         self.chooseBox.setItemText(0, _translate("MainWindow", "点选一个网站"))
         self.chooseBox.setItemText(1, _translate("MainWindow", "1、90MH"))
         self.chooseBox.setItemText(2, _translate("MainWindow", "2、KUKUdm"))
-        self.chooseBox.setItemText(3, _translate("MainWindow", "3、erocool**"))
+        self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg**"))
         self.chooseBox.setToolTip(_translate("MainWindow", "选中网站后看状态栏有输入提示！"))
         self.checkisopen.setText(_translate("MainWindow", "下载完成后打开文件夹"))
         self.searchinput.setInputMask(_translate("MainWindow", f"输入关键字：{'x' * 50}"))
