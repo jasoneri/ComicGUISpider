@@ -12,8 +12,24 @@ from scrapy.utils.project import get_project_settings
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
 from GUI.ui_helplabel import Ui_HelpLabel
-from utils import judge_input, clear_queue, cLog, font_color
+from utils import judge_input, clear_queue, cLog, font_color, Queues, State
 import traceback
+
+
+class InputFieldState(State):
+    def __init__(self, keyword: str = None, selected: str = None, indexes: str = None):
+        self.keyword = keyword
+        self.selected = selected
+        self.indexes = indexes
+
+
+class TextBrowserState(State):
+    def __init__(self, text: str = None):
+        self.text = text
+
+
+class ProcessState(State):  # TODO(2024-05-21):
+    btn = None
 
 
 class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):
@@ -61,11 +77,19 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.step_Q = Manager().Queue(1)
         self.btn_logic()
 
+        # TODO(2024-05-21): Queues
+        self.queues = Queues('TextBrowser',
+                             'InputFieldState',
+                             'ProcessState',
+                             'Btn',
+                             'Bar')
+
         def status_tip(index):
+            index = 3
             text = {0: None,
                     1: '90MH网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名',
                     2: 'kukuM网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【推荐】..字如其名',
-                    3: 'erocool网：（1）输入【搜索词】返回搜索结果（2）可输入【最新】【日排名】【周排名】【月排名】..字如其名'}
+                    3: 'wnacg网：（1）输入【搜索词】返回搜索结果'}
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
         self.chooseBox.currentIndexChanged.connect(status_tip)
 
@@ -73,7 +97,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def btn_logic(self):
         def search_btn(text):
-            self.next_btn.setEnabled(len(text) > 6) if self.chooseBox.currentIndex() in [1, 2, 3] else None
+            self.next_btn.setEnabled(len(text) > 6)  # if self.chooseBox.currentIndex() in [1, 2, 3] else None
         self.searchinput.textChanged.connect(search_btn)
         # self.next_btn.setEnabled(True)
         self.crawl_btn.clicked.connect(self.crawl)
@@ -266,8 +290,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.helplabel.re_pic()
         self.textbrowser_load(
             font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') + font_color(
-                "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:...",
-                'Salmon'))
+                "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         os.startfile(imgs_path) if self.checkisopen.isChecked() else None
         self.checkisopen.clicked.connect(lambda: os.startfile(imgs_path))
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
@@ -305,7 +328,7 @@ text = (f"{'{:-^95}'.format('message')}<br>" +
 def crawl_what(index, print_Q, bar, current_Q, step_Q):
     spider_what = {1: 'comic90mh',
                    2: 'comickukudm',
-                   3: 'erocool'}
+                   3: 'wnacg'}
 
     freeze_support()
     process = CrawlerProcess(get_project_settings())
@@ -316,6 +339,7 @@ def crawl_what(index, print_Q, bar, current_Q, step_Q):
 
 
 class WorkThread(QThread):
+    """only for monitor signals"""
     item_count_signal = pyqtSignal(int)
     print_signal = pyqtSignal(str)
     finishSignal = pyqtSignal(str)
@@ -324,16 +348,17 @@ class WorkThread(QThread):
     def __init__(self, gui):
         super(WorkThread, self).__init__()
         self.gui = gui
+        self.queues = gui.queues
         self.flag = 1
 
     def run(self):
         while self.active:
             self.msleep(8)
-            if not self.gui.print_Q.empty():
+            if not self.queues.TextBrowser.empty():
                 self.msleep(8)
-                self.print_signal.emit(str(self.gui.print_Q.get()))
-            if not self.gui.bar.empty():
-                self.item_count_signal.emit(self.gui.bar.get())
+                self.print_signal.emit(str(self.queues.TextBrowser.get()))
+            if not self.queues.Bar.empty():
+                self.item_count_signal.emit(self.queues.Bar.get())
                 self.msleep(10)
             if '完成任务' in self.gui.textBrowser.toPlainText():
                 self.item_count_signal.emit(100)

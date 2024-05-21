@@ -4,7 +4,7 @@ import scrapy
 import requests
 from time import sleep
 from copy import deepcopy
-from utils import clear_queue, font_color
+from utils import clear_queue, font_color, Queues, State
 from ComicSpider.items import ComicspiderItem
 
 
@@ -15,7 +15,6 @@ class BaseComicSpider(scrapy.Spider):
     (3)frame_section --> yield item\n
     3、存文件：略（统一标题命名）"""
     exp_txt = (f"""<br>{'{:=^80}'.format('message')}<br>请于【 输入序号 】框输入要选的序号  """)
-    current_status = {}
 
     step = 'loop'
     print_Q = None
@@ -23,8 +22,10 @@ class BaseComicSpider(scrapy.Spider):
     step_Q = None
     bar = None
 
+    num_of_row = 5
     total = 0
     search_url_head = NotImplementedError('需要自定义搜索网址')
+    img_domain = None
     # mappings自定义关键字对应网址
     kind = {}
     mappings = {}
@@ -54,7 +55,7 @@ class BaseComicSpider(scrapy.Spider):
         self.step = 'search'
         self.step_put(self.step)
         keyword = self.get_current('keyword')
-        kind = re.search(f"(({')|('.join(self.kind.keys())}))(.*)", keyword)
+        kind = re.search(f"(({')|('.join(self.kind.keys())}))(.*)", keyword) if bool(self.kind) else None
         if keyword in self.mappings.keys():
             search_start = self.mappings[keyword]
         elif bool(kind):
@@ -191,3 +192,25 @@ class BaseComicSpider(scrapy.Spider):
         sleep(0.3)
         self.print_Q.put(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
                          if self.total!=0 else font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可去看日志文件报错', size=5))
+
+
+class BaseComicSpider2(BaseComicSpider):
+    """skip find page from book_page"""
+
+    def parse_section(self, response):
+        self.step = 'parse section'
+        self.step_put(self.step)
+
+        title = response.meta.get('title')
+        self.print_Q.put(f'<br>{"=" * 15} 《{title}》')
+        results = self.frame_section(response)  # {1: url1……}
+        for page, url in results.items():
+            item = ComicspiderItem()
+            item['title'] = title
+            item['page'] = str(page)
+            item['section'] = 'meaningless'
+            item['image_urls'] = [f'{url}']
+            self.total += 1
+            yield item
+        self.step = 'fin'
+        self.step_put(self.step)
