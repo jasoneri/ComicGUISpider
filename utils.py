@@ -2,10 +2,14 @@ import os
 import re
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from multiprocessing import SimpleQueue
+from dataclasses import dataclass, asdict
+from copy import deepcopy
 
 
 def get_info():
     sv_path, log_path, proxies, level = r'D:\Comic', './log', [], 'WARNING'
+    erocool_domain = []
     try:
         with open(f'./setting.txt', 'r', encoding='utf-8') as fp:
             text = fp.read()
@@ -18,10 +22,11 @@ def get_info():
             except IndexError:
                 pass
             proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
+            erocool_domain = re.findall(r"#([\s\S]*)#", text)
     except FileNotFoundError:
         # print(f"occur exception: {str(type(e))}:: {str(e)}")
         pass
-    return sv_path, log_path, proxies, level
+    return sv_path, log_path, proxies, level, erocool_domain
 
 
 def font_color(string, **attr):
@@ -85,6 +90,47 @@ def cLog(name: str, level: str = 'INFO', **kw) -> logging.Logger:
     return log
 
 
+class Queues:
+    def __init__(self, *args):
+        for k in args:
+            self.__setattr__(k, SimpleQueue())
+
+
+class State:
+    buffer: dict = None
+
+    def sv_cache(self):
+        """take snapshot when sth occur"""
+        # 应用：用来对比属性是否变化
+        self.buffer = asdict(self)
+        return self.buffer
+
+    def __eq__(self, other):
+        return asdict(self) == other.buffer
+
+
+@dataclass
+class InputFieldState(State):
+    keyword: str
+    selected: str
+    indexes: str
+
+
+@dataclass
+class TextBrowserState(State):
+    text: str
+
+
 if __name__=='__main__':
-    judge_input('1+4-5-10+15-18-20+25')
+    i = InputFieldState(keyword='1', selected='2', indexes='3')
+    # t = TextBrowserState(text='111')
+    ...  # 将i推进queue
+
+    ...  # 改变了操作
+    i.keyword = '1_change'
+    i.sv_cache()
+
+    ...  # 别的地方
+    else_i = InputFieldState(keyword='1', selected='2', indexes='3')
+    print(else_i == i)
     pass

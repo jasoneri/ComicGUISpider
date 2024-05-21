@@ -1,8 +1,8 @@
-chardet==3.0.4
-httpx==0.9.3
-loguru==0.4.1
+chardet
+httpx
+loguru
 aiohttp==3.6.2
-Scrapy==1.8.0
-lxml==4.5.0
-requests==2.22.0
-PyQt5==5.15.2
+Scrapy
+lxml
+requests
+PyQt5
