@@ -2,9 +2,9 @@ import os
 import re
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from multiprocessing import SimpleQueue
 from dataclasses import dataclass, asdict
 from copy import deepcopy
+import typing as t
 
 
 def get_info():
@@ -34,7 +34,7 @@ def font_color(string, **attr):
     return f"""<font {" ".join([f"{_[0]}={_[1]}" for _ in attr])}>{string}</font>"""
 
 
-def judge_input(_input: str) -> list:
+def transfer_input(_input: str) -> list:
     """
     "6" return [6]       |   "1+3+5" return [1,3,5]  |
     "4-6" return [4,5,6] | "1+4-6" return [1,4,5,6]
@@ -52,15 +52,6 @@ def judge_input(_input: str) -> list:
     for i in re.findall(r'(\d{1,4}-\d{1,4})', _input):
         out2 |= f(i)
     return sorted(out1 | out2)
-
-
-def clear_queue(queues):
-    for queue in queues:
-        try:
-            while True:
-                queue.get_nowait()
-        except:
-            pass
 
 
 def cLog(name: str, level: str = 'INFO', **kw) -> logging.Logger:
@@ -90,47 +81,69 @@ def cLog(name: str, level: str = 'INFO', **kw) -> logging.Logger:
     return log
 
 
-class Queues:
-    def __init__(self, *args):
-        for k in args:
-            self.__setattr__(k, SimpleQueue())
-
-
 class State:
     buffer: dict = None
 
     def sv_cache(self):
-        """take snapshot when sth occur"""
-        # 应用：用来对比属性是否变化
-        self.buffer = asdict(self)
-        return self.buffer
+        """take snapshot when sth occur
+        run before sent
+        """
+        try:
+            self.buffer = asdict(self)
+        except AttributeError:
+            ...
 
     def __eq__(self, other):
         return asdict(self) == other.buffer
 
-
-@dataclass
-class InputFieldState(State):
-    keyword: str
-    selected: str
-    indexes: str
+    def __setattr__(self, key, value):
+        super().__setattr__(key, value)
+        if key != 'buffer':
+            self.sv_cache()
 
 
-@dataclass
-class TextBrowserState(State):
-    text: str
+class Queues:
+    @staticmethod
+    def send(queues, queue_name, state: State):
+        try:
+            queue = getattr(queues, queue_name) if isinstance(queues, Queues) else queues
+            if not queue.empty():
+                queue.get()
+        except AttributeError as e:
+            print(f'queue not sexist: {queue_name}')
+            raise e
+        except Exception as e:
+            raise e
+        else:
+            queue.put(state)
+
+    @staticmethod
+    def recv(queues, queue_name) -> t.Optional[State]:
+        try:
+            queue = getattr(queues, queue_name)
+            if queue.empty():
+                return None
+            state = queue.get()
+            queue.put_nowait(state)
+        except AttributeError as e:
+            print(f'queue not sexist: {queue_name}')
+            raise e
+        except Exception as e:
+            raise e
+        else:
+            queue.task_done()
+        # QThread.msleep(3)
+        return state
+
+    @staticmethod
+    def clear(queues: iter):
+        for queue in queues:
+            try:
+                while True:
+                    queue.get_nowait()
+            except:
+                pass
 
 
-if __name__=='__main__':
-    i = InputFieldState(keyword='1', selected='2', indexes='3')
-    # t = TextBrowserState(text='111')
-    ...  # 将i推进queue
-
-    ...  # 改变了操作
-    i.keyword = '1_change'
-    i.sv_cache()
-
-    ...  # 别的地方
-    else_i = InputFieldState(keyword='1', selected='2', indexes='3')
-    print(else_i == i)
-    pass
+if __name__ == '__main__':
+    ...

@@ -34,7 +34,7 @@ class WnacgSpider(BaseComicSpider2):
     def frame_book(self, response):
         frame_results = {}
         example_b = r' [ {} ]、【 {} 】'
-        self.print_Q.put(example_b.format('序号', '漫画名') + '<br>')
+        self.text_browser.send(example_b.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//div[@class="info"]')
         title_xpath = './div[@class="title"]/a'
         for x, target in enumerate(targets):
@@ -42,8 +42,8 @@ class WnacgSpider(BaseComicSpider2):
             title = title_elem.xpath('./@title').get()
             pre_url = title_elem.xpath('./@href').get()
             url = f'https://{domain}{pre_url}'.replace('index', 'gallery')
-            self.print_Q.put(example_b.format(str(x + 1), title, chr(12288)))
-            self.print_Q.put('') if (x + 1) % self.num_of_row == 0 else None
+            self.text_browser.send(example_b.format(str(x + 1), title, chr(12288)))
+            self.text_browser.send('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [title, url]
         return self.frame_book_print(frame_results)
 
@@ -58,5 +58,5 @@ class WnacgSpider(BaseComicSpider2):
         for x, target in enumerate(targets):
             img_url = f"https:{target[0]}"
             frame_results[x + 1] = img_url
-        self.print_Q.put("===============" + font_color(' 本子网没章节的 这本已经扔进任务了', color='blue'))
+        self.text_browser.send("===============" + font_color(' 本子网没章节的 这本已经扔进任务了', color='blue'))
         return frame_results

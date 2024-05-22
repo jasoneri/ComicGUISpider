@@ -1,341 +1,29 @@
 import os
 import time
-from multiprocessing import Manager, Process, freeze_support
+from multiprocessing import Process, freeze_support
 from multiprocessing.managers import RemoteError
-
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
 from PyQt5.QtWidgets import QDialog, QMainWindow
-
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
 from GUI.ui_helplabel import Ui_HelpLabel
-from utils import judge_input, clear_queue, cLog, font_color, Queues, State
+from GUI.processed_class import *
+from utils import transfer_input, cLog, font_color, Queues, State
 import traceback
-
-
-class InputFieldState(State):
-    def __init__(self, keyword: str = None, selected: str = None, indexes: str = None):
-        self.keyword = keyword
-        self.selected = selected
-        self.indexes = indexes
-
-
-class TextBrowserState(State):
-    def __init__(self, text: str = None):
-        self.text = text
-
-
-class ProcessState(State):  # TODO(2024-05-21):
-    btn = None
+from loguru import logger
 
 
 class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):
+
     def __init__(self, parent=None):
         super(FinEnsureDialog, self).__init__(parent)
         self.setupUi(self)
 
     def setupUi(self, ensureDialog):
         super(FinEnsureDialog, self).setupUi(ensureDialog)
-
-
-class SpiderGUI(QMainWindow, Ui_MainWindow):
-    def __init__(self, parent=None):
-        super(SpiderGUI, self).__init__(parent)
-        self.dia = FinEnsureDialog()
-        self.log = cLog(name="GUI")
-        # self.log.debug(f'-*- 主进程id {os.getpid()}')
-        # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
-        self.setupUi(self)
-
-    def setupUi(self, MainWindow):
-        super(SpiderGUI, self).setupUi(MainWindow)
-        self.helpbtn.setFocus()
-        self.textBrowser.setText(''.join(text))
-
-        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
-                                       r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
-
-        self.helplabel = Ui_HelpLabel(self.centralwidget)
-
-        # self.palette = QPalette()
-        # brush = QBrush(QColor(255, 0, 0))
-        # brush.setStyle(Qt.SolidPattern)
-        # self.palette.setBrush(QPalette.Active, QPalette.Text, brush)
-
-        self.helpclickCnt = 0
-        self.nextclickCnt = 0
-        # 初始化与后端爬虫的通信管道
-        self.print_Q = Manager().Queue()
-        self.bar = Manager().Queue()
-        self.current_status = {'keyword':None, 'choose':None, 'retry':False}
-        self.current_Q = Manager().Queue(2)
-        self.retry_Q = Manager().Queue(1)
-        self.step = 'origin'
-        self.step_Q = Manager().Queue(1)
-        self.btn_logic()
-
-        # TODO(2024-05-21): Queues
-        self.queues = Queues('TextBrowser',
-                             'InputFieldState',
-                             'ProcessState',
-                             'Btn',
-                             'Bar')
-
-        def status_tip(index):
-            index = 3
-            text = {0: None,
-                    1: '90MH网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名',
-                    2: 'kukuM网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【推荐】..字如其名',
-                    3: 'wnacg网：（1）输入【搜索词】返回搜索结果'}
-            self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
-        self.chooseBox.currentIndexChanged.connect(status_tip)
-
-        self.show()
-
-    def btn_logic(self):
-        def search_btn(text):
-            self.next_btn.setEnabled(len(text) > 6)  # if self.chooseBox.currentIndex() in [1, 2, 3] else None
-        self.searchinput.textChanged.connect(search_btn)
-        # self.next_btn.setEnabled(True)
-        self.crawl_btn.clicked.connect(self.crawl)
-        self.retrybtn.clicked.connect(self.retry_schedule)
-        self.next_btn.clicked.connect(self.next_schedule)
-
-    def params_send(self, update_what):
-        self.current_status.update(update_what)
-        self.current_Q.put(self.current_status)
-
-    @staticmethod
-    def warning_(text):
-        return font_color(text)
-
-    def step_recv(self):
-        try:
-            self.step = self.step_Q.get(timeout=0.1)
-        except Exception as e:
-            # print(f"{e} text change conn… ")
-            pass
-        else:
-            self.step_Q.task_done()
-        QThread.msleep(5)
-        return self.step
-
-    def show_help(self):
-        self.helplabel.hide() if self.helpclickCnt%2 else self.helplabel.show()
-        self.helpclickCnt += 1
-
-    def judge_retry(self):
-        # 发出retry信号供后端爬虫识别，本GUI下判断spider的retry容易产生逻辑混乱
-        self.params_send({'retry': False})
-
-    def retry_schedule(self):
-        self.log.info(f'===--→ retrying…… after step: {self.step_recv()}')
-
-        def retry_middle():
-            self.chooseinput.setEnabled(True)
-            self.crawl_btn.setDisabled(True)
-
-        def retry_all():
-            self.textBrowser.setStyleSheet('background-color: red;')
-            self.textbrowser_load(font_color('…………重启爬虫中，会卡个几秒', size=6))
-            self.retrybtn.setToolTip(QCoreApplication.translate("MainWindow", "retry重启时会卡几秒，等等"))
-            QThread.msleep(200)
-            try:
-                clear_queue((self.step_Q, self.current_Q, self.print_Q))
-                time.sleep(0.8)
-                self.p.kill()
-                self.p.join()
-                self.p.close()
-                self.bThread.active = False
-                self.bThread.quit()  # 关闭线程
-                self.bThread.wait()
-            except (FileNotFoundError, RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
-                self.log.error(str(traceback.format_exc()))
-                # self.log.warning(f'when retry_all occur {e.args}')
-            self.setupUi(self)
-
-        retry_do_what = {'search': retry_all,
-                         'origin': retry_all,
-                         'parse': retry_middle,
-                         'parse section': lambda: self.chooseinput.setEnabled(True),
-                         'fin': retry_all}
-
-        self.params_send({'retry': True})
-        QThread.msleep(5)
-        self.log.debug(f"after retry spider'step : {self.step_recv()}")
-        retry_do_what[self.step]()
-        self.retrybtn.setDisabled(True)
-        if self.step == 'parse section':
-            if self.book_num > 1 or self.book_choose == [0]:
-                self.textBrowser.append(self.warning_(f'<br>{"*" * 20}警告！！检测到选择多本书的情况下retry会产生重复操作，已选并确认的可能成功了，<br>' +
-                                                      '但为避免错误程序仍重新启动, 请等候<br>'))
-                self.log.warning(f' ! choose many book also click retry ')
-                QThread.msleep(1500)
-                self.close()
-                retry_all()
-        self.log.debug('===--→ retry_schedule end\n')
-
-    def next_schedule(self):
-        def start_and_search():
-            self.log.debug('===--→ -*- searching')
-            self.next_btn.setText('Next')
-            keyword = self.searchinput.text()[6:].strip()
-            index = self.chooseBox.currentIndex()
-            # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
-
-            if self.nextclickCnt == 0:          # 从section步 回parse步 的话以免重开
-                self.bThread = WorkThread(self)
-
-                def crawl_btn(text):
-                    if len(text) > 5:
-                        self.crawl_btn.setEnabled(self.step_recv()=='parse section')
-                        self.next_btn.setDisabled(self.crawl_btn.isEnabled())
-                self.chooseinput.textChanged.connect(crawl_btn)
-
-                self.p = Process(target=crawl_what, args=(index, self.print_Q, self.bar, self.current_Q, self.step_Q))
-
-                self.bThread.print_signal.connect(self.textbrowser_load)
-                self.bThread.item_count_signal.connect(self.processbar_load)
-                self.bThread.finishSignal.connect(self.crawl_end)
-
-                self.p.start()
-                self.bThread.start()
-                self.log.info(f'-*-*- Background thread & spider starting')
-
-            self.chooseBox.setDisabled(True)
-            self.params_send({'keyword':keyword})
-            self.log.debug(f'website_index:[{index}], keyword [{keyword}] success ')
-
-        def _next():
-            self.log.debug('===--→ nexting')
-            self.judge_retry()                                  # 非retry的时候先把retry=Flase解锁spider的下一步
-            choose = judge_input(self.chooseinput.text()[5:].strip())
-            if self.nextclickCnt == 1:
-                self.book_choose = choose if choose!=[0] else [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
-                self.book_num = len(self.book_choose)
-                if self.book_num > 1:
-                    self.log.info('book_num > 1')
-                    self.textBrowser.append(self.warning_(f'<br>{"*" * 20}警告！！多选书本时不要随意使用 retry<br>'))
-            self.chooseinput.clear()
-            # choose逻辑 交由crawl, next,retry3个btn的schedule控制
-            self.params_send({'choose': choose})
-            self.log.debug(f'send choose: {choose} success')
-
-        self.retrybtn.setEnabled(True)
-        if self.next_btn.text()!='搜索':
-            _next()
-        else:
-            start_and_search()
-
-        self.nextclickCnt += 1
-        self.searchinput.setEnabled(False)
-        # self.next_btn.setEnabled(False)
-        self.chooseinput.setFocusPolicy(Qt.StrongFocus)
-
-        self.step_recv()
-        self.log.debug(f"===--→ next_schedule end (now step: {self.step})\n")
-
-    def crawl(self):
-        def dia_text(_str):
-            self.dia.textEdit.append(self.warning_(_str) if 'notice' in _str else _str)
-
-        choose = judge_input(self.chooseinput.text()[5:].strip())
-        self.log.debug(f'===--→ click down crawl_btn')
-        self.dia.textEdit.clear()
-        self.bThread.print_signal.disconnect(self.textbrowser_load)
-        self.bThread.print_signal.connect(dia_text)
-
-        self.judge_retry()
-        QThread.msleep(10)
-        self.params_send({'choose': choose})
-        self.log.debug(f'send choose success')
-
-        if self.dia.exec_() == QDialog.Accepted:    # important dia窗口确认为最后把关
-            self.params_send({'retry': False})
-            self.book_num -= 1
-        else:
-            self.params_send({'retry': True})       # -*- 看需求 确认框按错可重选section序号 /择其一/ 多选书时忽略部分不要的yield
-        self.bThread.print_signal.connect(self.textbrowser_load)
-
-        if self.book_num == 0:
-            self.helplabel.re_pic()
-            self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", color='purple'))
-            self.crawl_btn.setDisabled(True)
-            # self.funcGroupBox.setDisabled(True)
-            self.input_yield.setDisabled(True)
-        else:
-            self.chooseinput.clear()
-            self.retrybtn.setEnabled(True)
-        self.bThread.print_signal.disconnect(dia_text)
-        self.log.debug(f'book_num remain: {self.book_num}')
-        self.log.debug(f"===--→ crawl finish (now step: {self.step})\n")
-
-    def crawl_end(self, imgs_path):
-        clear_queue((self.step_Q, self.current_Q, self.print_Q))
-        # self.bThread.quit()    # 关闭线程--------------
-        # self.bThread.wait()
-        # self.p.close()
-        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
-                                       r'QProgressBar::chunk { background-color: #00ff00;}')
-        self.chooseinput.setDisabled(True)
-        self.next_btn.setDisabled(True)
-        self.retrybtn.setEnabled(True)
-        self.input_yield.setEnabled(True)
-        # self.funcGroupBox.setEnabled(True)
-
-        self.step = 'fin'
-        self.helplabel.re_pic()
-        self.textbrowser_load(
-            font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') + font_color(
-                "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
-        os.startfile(imgs_path) if self.checkisopen.isChecked() else None
-        self.checkisopen.clicked.connect(lambda: os.startfile(imgs_path))
-        self.log.info(f"-*-*- crawl_end finish, spider closed \n")
-
-    def textbrowser_load(self, string):
-        # todo: v1.4 - (1)、每组图预览，图片缓存 (2)、勾选选项（改写choose逻辑）放textbrowser？
-        if 'http' in string:
-            self.textBrowser.setOpenExternalLinks(True)
-            string = u'<a href="%s" ><b style="font-size:20px;"><br> 点击查看搜索结果</b></a><b><s><font color="WhiteSmoke"  size="4"> 懒得做预览图功能</font></s></b>' % string
-            self.textBrowser.append(string)
-        else:
-            string = r'<p>%s</p>' % string
-            self.textBrowser.append(string)
-
-        self.cursor = self.textBrowser.textCursor()
-        self.textBrowser.moveCursor(self.cursor.End)  # 光标移到最后，这样就会自动显示出来
-
-    def processbar_load(self, i):
-        # 发送item目前信号>更新进度条
-        self.progressBar.setValue(i)
-
-    def enterEvent(self, QEvent):
-        self.textBrowser.setStyleSheet('background-color: white;')
-
-    def leaveEvent(self, QEvent):
-        self.textBrowser.setStyleSheet('background-color: pink;')
-
-
-text = (f"{'{:-^95}'.format('message')}<br>" +
-        font_color(" 不懂的： 1、右下点说明跟着走，2、首次使用去打开【运行必读.txt】看下", color='blue', size=5) +
-        font_color('别老问怎么错<br>', color='white') +
-        f"{'{:-^90}'.format('仅为学习使用')}")
-
-
-def crawl_what(index, print_Q, bar, current_Q, step_Q):
-    spider_what = {1: 'comic90mh',
-                   2: 'comickukudm',
-                   3: 'wnacg'}
-
-    freeze_support()
-    process = CrawlerProcess(get_project_settings())
-    process.crawl(spider_what[index], print_Q=print_Q, bar=bar, current_Q=current_Q, step_Q=step_Q)
-    process.start()
-    process.join()
-    process.stop()
 
 
 class WorkThread(QThread):
@@ -354,6 +42,8 @@ class WorkThread(QThread):
     def run(self):
         while self.active:
             self.msleep(8)
+            if self.queues.InputFieldState.empty():
+                self.gui.send('InputFieldState', self.gui.input_state)
             if not self.queues.TextBrowser.empty():
                 self.msleep(8)
                 self.print_signal.emit(str(self.queues.TextBrowser.get()))
@@ -373,4 +63,325 @@ class WorkThread(QThread):
 
     def stop(self):
         self.flag = 0
+
+
+class SpiderGUI(QMainWindow, Ui_MainWindow):
+    input_state: InputFieldState = None
+    text_browser_state: TextBrowserState = None
+    process_state: ProcessState = None
+    queues: Queues = None
+    book_choose: list = []
+    book_num: int = 0
+    helpclickCnt = 0
+    nextclickCnt = 0
+
+    p = None
+    bThread: WorkThread = None
+    manager: MyManager = None
+
+    def __init__(self, parent=None):
+        super(SpiderGUI, self).__init__(parent)
+        self.dia = FinEnsureDialog()
+        # self.log = cLog(name="GUI")
+        self.log = logger
+        # self.log.debug(f'-*- 主进程id {os.getpid()}')
+        # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
+        self.setupUi(self)
+
+    def setupUi(self, MainWindow):
+        super(SpiderGUI, self).setupUi(MainWindow)
+        self.helpbtn.setFocus()
+        self.textBrowser.setText(''.join(TextUtils.description))
+
+        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
+                                       r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
+
+        self.helplabel = Ui_HelpLabel(self.centralwidget)
+
+        # self.palette = QPalette()
+        # brush = QBrush(QColor(255, 0, 0))
+        # brush.setStyle(Qt.SolidPattern)
+        # self.palette.setBrush(QPalette.Active, QPalette.Text, brush)
+
+        self.helpclickCnt = 0
+        self.nextclickCnt = 0
+        # 初始化与后端爬虫的通信管道
+        self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='')
+        self.text_browser_state = TextBrowserState(text='')
+        self.process_state = ProcessState(process='init')
+
+        self.manager = MyManager()
+        self.manager.start()
+        self.queues = self.manager.GuiQueues()
+        self.btn_logic()
+
+        def status_tip(index):
+            index = 3
+            text = {0: None,
+                    1: '90MH网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名',
+                    2: 'kukuM网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【推荐】..字如其名',
+                    3: 'wnacg网：（1）输入【搜索词】返回搜索结果'}
+            self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
+        self.chooseBox.currentIndexChanged.connect(status_tip)
+
+        self.show()
+
+    def btn_logic(self):
+        def search_btn(text):
+            self.next_btn.setEnabled(len(text) > 6)  # if self.chooseBox.currentIndex() in [1, 2, 3] else None
+        self.searchinput.textChanged.connect(search_btn)
+        # self.next_btn.setEnabled(True)
+        self.crawl_btn.clicked.connect(self.crawl)
+        # self.retrybtn.clicked.connect(self.retry_schedule)
+        self.next_btn.clicked.connect(self.next_schedule)
+
+    def send(self, queue_name, state: State):
+        # self.current_status.update(update_what)
+        # self.current_Q.put(self.current_status)
+        return Queues.send(self.queues, queue_name, state)
+
+    def recv(self, queue_name) -> State:
+        flag = False
+        while not flag:
+            flag = Queues.recv(self.queues, queue_name)
+            QThread.msleep(300)
+        return flag
+
+    def refresh_state(self, state_name, state):
+        _ = getattr(self, state_name)
+        if state != _:
+            self.__setattr__(state_name, state)
+
+    def show_help(self):
+        self.helplabel.hide() if self.helpclickCnt%2 else self.helplabel.show()
+        self.helpclickCnt += 1
+
+    # def judge_retry(self):
+    #     # 发出retry信号供后端爬虫识别，本GUI下判断spider的retry容易产生逻辑混乱
+    #     self.params_send({'retry': False})
+
+    def retry_schedule(self):  # 烂逻辑
+        self.refresh_state('process_state', self.recv('ProcessState'))
+        self.log.info(f'===--→ retrying…… after step: {self.process_state.process}')
+
+        def retry_middle():
+            self.chooseinput.setEnabled(True)
+            self.crawl_btn.setDisabled(True)
+
+        def retry_all():
+            self.textBrowser.setStyleSheet('background-color: red;')
+            self.textbrowser_load(font_color('…………重启爬虫中，会卡个几秒', size=6))
+            self.retrybtn.setToolTip(QCoreApplication.translate("MainWindow", "retry重启时会卡几秒，等等"))
+            QThread.msleep(200)
+            try:
+                Queues.clear(iter(self.queues))
+                time.sleep(0.8)
+                self.p.kill()
+                self.p.join()
+                self.p.close()
+                self.bThread.active = False
+                self.bThread.quit()  # 关闭线程
+                self.bThread.wait()
+            except (FileNotFoundError, RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
+                self.log.error(str(traceback.format_exc()))
+                # self.log.warning(f'when retry_all occur {e.args}')
+            self.setupUi(self)
+
+        retry_do_what = {'search': retry_all,
+                         'init': retry_all,
+                         'parse': retry_middle,
+                         'parse section': lambda: self.chooseinput.setEnabled(True),
+                         'fin': retry_all}
+
+        # self.params_send({'retry': True})
+        QThread.msleep(5)
+
+        self.refresh_state('process_state', self.recv('ProcessState'))
+        self.log.debug(f"after retry spider'step : {self.process_state.process}")
+        retry_do_what[self.process_state.process]()
+        self.retrybtn.setDisabled(True)
+        if self.process_state.process == 'parse section':
+            if self.book_num > 1 or self.book_choose == [0]:
+                self.textBrowser.append(TextUtils.warning_(
+                    f'<br>{"*" * 20}警告！！检测到选择多本书的情况下retry会产生重复操作，已选并确认的可能成功了，<br>' +
+                                                      '但为避免错误程序仍重新启动, 请等候<br>'))
+                self.log.warning(f' ! choose many book also click retry ')
+                QThread.msleep(1500)
+                self.close()
+                retry_all()
+        self.log.debug('===--→ retry_schedule end\n')
+
+    def next_schedule(self):
+        def start_and_search():
+            self.log.debug('===--→ -*- searching')
+            self.next_btn.setText('Next')
+
+            self.input_state.keyword = self.searchinput.text()[6:].strip()
+            self.input_state.bookSelected = self.chooseBox.currentIndex()
+            # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
+            self.send('InputFieldState', self.input_state)
+
+            if self.nextclickCnt == 0:          # 从section步 回parse步 的话以免重开
+                self.bThread = WorkThread(self)
+
+                def crawl_btn(text):
+                    if len(text) > 5:
+                        self.refresh_state('process_state', self.recv('ProcessState'))
+                        self.crawl_btn.setEnabled(self.process_state.process == 'parse section')
+                        self.next_btn.setDisabled(self.crawl_btn.isEnabled())
+                self.chooseinput.textChanged.connect(crawl_btn)
+
+                self.p = Process(target=crawl_what,
+                                 args=(self.input_state, self.process_state, self.text_browser_state,
+                                       self.queues))
+
+                self.bThread.print_signal.connect(self.textbrowser_load)
+                self.bThread.item_count_signal.connect(self.processbar_load)
+                self.bThread.finishSignal.connect(self.crawl_end)
+
+                self.p.start()
+                self.bThread.start()
+                self.log.info(f'-*-*- Background thread & spider starting')
+
+            self.chooseBox.setDisabled(True)
+            self.log.debug(
+                f'website_index:[{self.input_state.bookSelected}], keyword [{self.input_state.keyword}] success ')
+
+        def _next():
+            self.log.debug('===--→ nexting')
+            # self.judge_retry()                                  # 非retry的时候先把retry=Flase解锁spider的下一步
+            self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
+            if self.nextclickCnt == 1:
+                self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else [_ for _ in range(1,
+                                                                                                                      11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
+                self.book_num = len(self.book_choose)
+                if self.book_num > 1:
+                    self.log.info('book_num > 1')
+                    self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 20}警告！！多选书本时不要随意使用 retry<br>'))
+            self.chooseinput.clear()
+            # choose逻辑 交由crawl, next,retry3个btn的schedule控制
+            self.send('InputFieldState', self.input_state)
+            self.log.debug(f'send choose: {self.input_state.indexes} success')
+
+        self.retrybtn.setEnabled(True)
+        if self.next_btn.text()!='搜索':
+            _next()
+        else:
+            start_and_search()
+
+        self.nextclickCnt += 1
+        self.searchinput.setEnabled(False)
+        # self.next_btn.setEnabled(False)
+        self.chooseinput.setFocusPolicy(Qt.StrongFocus)
+
+        self.refresh_state('process_state', self.recv('ProcessState'))
+        self.log.debug(f"===--→ next_schedule end (now step: {self.process_state.process})\n")
+
+    def crawl(self):
+        def dia_text(_str):
+            self.dia.textEdit.append(TextUtils.warning_(_str) if 'notice' in _str else _str)
+
+        self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
+        self.log.debug(f'===--→ click down crawl_btn')
+        self.dia.textEdit.clear()
+        self.bThread.print_signal.disconnect(self.textbrowser_load)
+        self.bThread.print_signal.connect(dia_text)
+
+        # self.judge_retry()
+        QThread.msleep(10)
+        self.send('InputFieldState', self.input_state)
+        self.log.debug(f'send choose success')
+
+        if self.dia.exec_() == QDialog.Accepted:    # important dia窗口确认为最后把关
+            # self.params_send({'retry': False})
+            self.book_num -= 1
+        else:
+            ...
+            # self.params_send({'retry': True})       # -*- 看需求 确认框按错可重选section序号 /择其一/ 多选书时忽略部分不要的yield
+        self.bThread.print_signal.connect(self.textbrowser_load)
+
+        if self.book_num == 0:
+            self.helplabel.re_pic()
+            self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", color='purple'))
+            self.crawl_btn.setDisabled(True)
+            # self.funcGroupBox.setDisabled(True)
+            self.input_yield.setDisabled(True)
+        else:
+            self.chooseinput.clear()
+            self.retrybtn.setEnabled(True)
+        self.bThread.print_signal.disconnect(dia_text)
+        self.log.debug(f'book_num remain: {self.book_num}')
+        self.log.debug(f"===--→ crawl finish (now step: {self.process_state.process})\n")
+
+    def crawl_end(self, imgs_path):
+        Queues.clear(self.queues)
+        # self.bThread.quit()    # 关闭线程--------------
+        # self.bThread.wait()
+        # self.p.close()
+        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
+                                       r'QProgressBar::chunk { background-color: #00ff00;}')
+        self.chooseinput.setDisabled(True)
+        self.next_btn.setDisabled(True)
+        self.retrybtn.setEnabled(True)
+        self.input_yield.setEnabled(True)
+        # self.funcGroupBox.setEnabled(True)
+
+        self.process_state.process = 'fin'
+        self.helplabel.re_pic()
+        self.textbrowser_load(
+            font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') + font_color(
+                "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
+        os.startfile(imgs_path) if self.checkisopen.isChecked() else None
+        self.checkisopen.clicked.connect(lambda: os.startfile(imgs_path))
+        self.log.info(f"-*-*- crawl_end finish, spider closed \n")
+
+    def textbrowser_load(self, string):
+        # todo: v1.4 - (1)、每组图预览，图片缓存 (2)、勾选选项（改写choose逻辑）放textbrowser？
+        if 'http' in string:
+            self.textBrowser.setOpenExternalLinks(True)
+            string = u'<a href="%s" ><b style="font-size:20px;"><br> 点击查看搜索结果</b></a><b><s><font color="WhiteSmoke"  size="4"> 懒得做预览图功能</font></s></b>' % string
+            self.textBrowser.append(string)
+        else:
+            string = r'<p>%s</p>' % string
+            self.textBrowser.append(string)
+
+        cursor = self.textBrowser.textCursor()
+        self.textBrowser.moveCursor(cursor.End)  # 光标移到最后，这样就会自动显示出来
+
+    def processbar_load(self, i):
+        # 发送item目前信号>更新进度条
+        self.progressBar.setValue(i)
+
+    def enterEvent(self, QEvent):
+        self.textBrowser.setStyleSheet('background-color: white;')
+
+    def leaveEvent(self, QEvent):
+        self.textBrowser.setStyleSheet('background-color: pink;')
+
+
+class TextUtils:
+    description = (f"{'message':-^95}<br>" +
+                   font_color(" 不懂的： 1、右下点说明跟着走，2、首次使用去打开【运行必读.txt】看下", color='blue', size=5) +
+                   font_color('别老问怎么错<br>', color='white') +
+                   f"{'仅为学习使用':-^90}")
+
+    @staticmethod
+    def warning_(text):
+        return font_color(text)
+
+
+def crawl_what(input_state, process_state, text_browser_state, queues):
+    spider_what = {1: 'comic90mh',
+                   2: 'comickukudm',
+                   3: 'wnacg'}
+
+    freeze_support()
+    process = CrawlerProcess(get_project_settings())
+    # process.crawl(spider_what[input_state.bookSelected],
+    process.crawl(spider_what[3],
+                  input_state=input_state, process_state=process_state, text_browser_state=text_browser_state,
+                  queues=queues)
+    process.start()
+    process.join()
+    process.stop()
 
