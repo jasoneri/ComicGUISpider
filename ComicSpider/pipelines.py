@@ -41,7 +41,8 @@ class ComicPipeline(ImagesPipeline):
             percent = int((self.now / spider.total) * 100)
             if percent > self.threshold:
                 percent -= int((percent / self.threshold) * 100)  # 进度缓存
-            spider.bar.put(int(percent))  # 后台打印百分比进度扔回GUI界面
+            # spider.bar.put(int(percent))  # 后台打印百分比进度扔回GUI界面
+            spider.send('Bar', int(percent))
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
         # # 控制台专用
