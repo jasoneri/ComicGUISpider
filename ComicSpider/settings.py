@@ -48,7 +48,7 @@ ITEM_PIPELINES = {
    'ComicSpider.pipelines.ComicPipeline': 50
 }
 
-IMAGES_STORE, log_path, PROXY_CUST, LOG_LEVEL, erocool_domain = get_info()
+IMAGES_STORE, log_path, PROXY_CUST, LOG_LEVEL = get_info()
 
 UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0",
       r'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:64.0) Gecko/20100101 Firefox/64.0',

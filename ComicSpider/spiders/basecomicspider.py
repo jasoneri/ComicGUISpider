@@ -104,14 +104,9 @@ class BaseComicSpider(scrapy.Spider):
         self.Q('ProcessQueue').send(self.process_state)
         frame_book_results = self.frame_book(response)
 
-        # GUI交互产生的凌乱逻辑，待优化
-        # 每get一次阻塞scrapy，等GUI操作
-
-        # selected = self.get_current('choose')  # 阻塞scrapy，等GUI选择
         refresh_state(self, 'input_state', 'InputFieldQueue', monitor=True)
         results = self.elect_res(self.input_state.indexes, frame_book_results, step='漫画')
         if results is None or not len(results):
-            # self.get_current()
             yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
         else:
             for title, title_url in results:
@@ -131,45 +126,30 @@ class BaseComicSpider(scrapy.Spider):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
 
-        self.say(f'<br>{"{:=^65}".format("message")}')
-
         title = response.meta.get('title')
+        self.say(f'<br>{"{:=^65}".format("message")}')
         self.say(f'<br>{"=" * 15} 《{title}》')
         frame_sec_result = self.frame_section(response)
 
-        if None:  # -*- 判断GUI的retry_btn与crawl/next_btn 分岔
-            self.say(
-                font_color('<br>notice !! 多选书的情况下retry后台会相当复杂，单选无视此条信息<br>', size=5))
-            yield scrapy.Request(url=self.search_start, callback=self.parse, dont_filter=True)
+        refresh_state(self, 'input_state', self.Q('InputFieldQueue').recv(), monitor=True)
+        choose = self.input_state.indexes
+        results = self.elect_res(choose, frame_sec_result, step='章节')
+        if results is None or not len(results):
+            self.say('<br><br><br>没匹配到结果')
+            self.logger.info(f'no result return, choose_input is wrong: {choose}')
         else:
-            # choose = self.get_current('choose')
-            refresh_state(self, 'input_state', self.Q('InputFieldQueue').recv(), monitor=True)
-            choose = self.input_state.indexes
-            results = self.elect_res(choose, frame_sec_result, step='章节')
-            if results is None or not len(results):
-                self.say('<br><br><br>notice !! OK 视为放弃此书 / cancel 视为重选' * 3)
-                self.logger.info(f'no result return, choose_input is wrong: {choose}')
-                if None:  # self.get_current('retry'):
-                    yield scrapy.Request(url=response.url, callback=self.parse_section, dont_filter=True, meta={'title': title})
-            else:
-                self.say(f'{"{:*^55}".format("最后确认选择")}<br>{"-" * 10}《{title}》 所选序号: {choose}')
-                for result in results:
-                    self.say(f"{result[0]:>>55}")
-                self.say(f"<br>notice !! OK 视为爬取上述内容 / cancel 视为放弃此步骤<br>")
-                if None:  # self.get_current('retry'):  # -*- ensure dia 分岔
-                    # yield scrapy.Request(url=response.url, callback=self.parse_section, meta={'title': title}, dont_filter=True)
-                    pass
-                else:
-                    self.session = requests.session()
-                    for section, section_url in results:
-                        url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
-                        self.say(
-                            font_color(f"<br>{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", color='blue', size=5))
-                        meta = {'title': title, 'section': section}
-                        for url in url_list:
-                            yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
-                self.process_state.process = 'fin'
-                self.Q('ProcessQueue').send(self.process_state)
+            self.say(f'{"{:*^55}".format("最后确认选择")}<br>{"-" * 10}《{title}》 所选序号: {choose}')
+            for result in results:
+                self.say(f"{result[0]:>>55}")
+            self.session = requests.session()
+            for section, section_url in results:
+                url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
+                self.say(font_color(f"<br>{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", color='blue', size=5))
+                meta = {'title': title, 'section': section}
+                for url in url_list:
+                    yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
+            self.process_state.process = 'fin'
+            self.Q('ProcessQueue').send(self.process_state)
 
     @abstractmethod
     def frame_section(self, response) -> dict:
@@ -182,10 +162,10 @@ class BaseComicSpider(scrapy.Spider):
     def parse_fin_page(self, response):
         pass
 
-    def mk_page_tasks(self, *arg, **kw):
+    def mk_page_tasks(self, *arg, **kw) -> iter:
         """做这个中间件预想是：1、每一话预请求第一页，从resp中直接清洗获取items信息;
         2、设立规则处理response.follow也许可行"""
-        pass
+        ...
 
     def elect_res(self, elect: list, frame_results: dict, **kw) -> list:
         """简单判断elect，返回选择的frame

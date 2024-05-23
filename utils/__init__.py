@@ -7,13 +7,11 @@ import time
 from logging.handlers import TimedRotatingFileHandler
 from dataclasses import dataclass, asdict
 import multiprocessing.managers as m
-from copy import deepcopy
 import typing as t
 
 
-def get_info():
+def get_info():  # 脱敏，储存路径和代理等用外部文件读
     sv_path, log_path, proxies, level = r'D:\Comic', './log', [], 'WARNING'
-    erocool_domain = []
     try:
         with open(f'./setting.txt', 'r', encoding='utf-8') as fp:
             text = fp.read()
@@ -25,12 +23,11 @@ def get_info():
                 level = re.findall('(DEBUG|INFO|ERROR)', text)[0]
             except IndexError:
                 pass
-            proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+?)', text)
-            erocool_domain = re.findall(r"#([\s\S]*)#", text)
+            proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+)', text)
     except FileNotFoundError:
         # print(f"occur exception: {str(type(e))}:: {str(e)}")
         pass
-    return sv_path, log_path, proxies, level, erocool_domain
+    return sv_path, log_path, proxies, level
 
 
 def font_color(string, **attr):
