@@ -1,8 +1,12 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 import os
 import re
 import logging
+import time
 from logging.handlers import TimedRotatingFileHandler
 from dataclasses import dataclass, asdict
+import multiprocessing.managers as m
 from copy import deepcopy
 import typing as t
 
@@ -64,7 +68,7 @@ def cLog(name: str, level: str = 'INFO', **kw) -> logging.Logger:
             level = re.search('(DEBUG|WARNING|ERROR)', text).group(1)
     except:
         pass
-    LEVEL = {'DEBUG':logging.DEBUG, 'INFO':logging.INFO, 'WARNING':logging.WARNING}
+    LEVEL = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING}
     os.makedirs('log', exist_ok=True)
     logfile = F"log/{name}.log"
     format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
@@ -102,37 +106,40 @@ class State:
             self.sv_cache()
 
 
-class Queues:
-    @staticmethod
-    def send(queues, queue_name, state: State):
-        try:
-            queue = getattr(queues, queue_name) if isinstance(queues, Queues) else queues
-            if not queue.empty():
-                queue.get()
-        except AttributeError as e:
-            print(f'queue not sexist: {queue_name}')
-            raise e
-        except Exception as e:
-            raise e
-        else:
-            queue.put(state)
+class QueuesManager(m.BaseManager):
+    pass
 
     @staticmethod
-    def recv(queues, queue_name) -> t.Optional[State]:
+    def create_manager(*register_fields, **cls_kwargs):
+        for field in register_fields:
+            QueuesManager.register(field)
+        m = QueuesManager(**cls_kwargs)
+        return m
+
+
+class Queues:
+    @staticmethod
+    def send(queue, state: State, wait=False):
         try:
-            queue = getattr(queues, queue_name)
+            if wait:
+                while not queue.empty():
+                    time.sleep(0.01)
+            else:
+                if not queue.empty():
+                    queue.get()
+        except Exception as e:
+            raise e
+        queue.put(state)
+
+    @staticmethod
+    def recv(queue) -> t.Optional[State]:
+        try:
             if queue.empty():
                 return None
             state = queue.get()
             queue.put_nowait(state)
-        except AttributeError as e:
-            print(f'queue not sexist: {queue_name}')
-            raise e
         except Exception as e:
             raise e
-        else:
-            queue.task_done()
-        # QThread.msleep(3)
         return state
 
     @staticmethod
