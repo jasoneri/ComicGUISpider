@@ -22,10 +22,10 @@ class ComicPipeline(ImagesPipeline):
         return request_objs
 
     # 图片存储前调用
-    def file_path(self, request, response=None, info=None):
-        title = self._sub.sub('-', request.item.get('title'))
-        section = self._sub.sub('-', request.item.get('section'))
-        page = '第%s页.jpg' % request.item.get('page')
+    def file_path(self, request, response=None, info=None, *, item=None):
+        title = self._sub.sub('-', item.get('title'))
+        section = self._sub.sub('-', item.get('section'))
+        page = '第%s页.jpg' % item.get('page')
         spider = self.spiderinfo.spider
         basepath = spider.settings.get('IMAGES_STORE')
         path = f"{basepath}\\本子\\{self._sub_index.sub('', title)}" \
@@ -35,7 +35,7 @@ class ComicPipeline(ImagesPipeline):
         fin = os.path.join(path, page)
         return fin
 
-    def image_downloaded(self, response, request, info):
+    def image_downloaded(self, response, request, info, *, item=None):
         self.now += 1
         spider = self.spiderinfo.spider
         try:
@@ -51,4 +51,5 @@ class ComicPipeline(ImagesPipeline):
         # p = sign[self.now % (len(sign.keys()) - 1)] if self.now % 50 else sign[999]
         # print(p, end='', flush=True)
 
-        super(ComicPipeline, self).image_downloaded(response=response, request=request, info=info)
+        super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
+
