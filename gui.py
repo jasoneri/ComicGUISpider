@@ -1,19 +1,22 @@
 import os
 import time
 from multiprocessing import Process, freeze_support
-from multiprocessing.managers import RemoteError
+import multiprocessing.managers as m
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
 from PyQt5.QtWidgets import QDialog, QMainWindow
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
+import traceback
+from loguru import logger
 
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
 from GUI.ui_helplabel import Ui_HelpLabel
-from GUI.processed_class import *
-from utils import transfer_input, cLog, font_color, Queues, State
-import traceback
-from loguru import logger
+from utils import transfer_input, font_color, Queues, State, QueuesManager, cLog
+from utils.processed_class import (
+    InputFieldState, TextBrowserState, ProcessState,
+    startup_bg_queue_manager, QueueHandler, refresh_state
+)
 
 
 class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):
@@ -36,20 +39,18 @@ class WorkThread(QThread):
     def __init__(self, gui):
         super(WorkThread, self).__init__()
         self.gui = gui
-        self.queues = gui.queues
         self.flag = 1
 
     def run(self):
+        m = self.gui.manager
+        TextBrowser = m.TextBrowserQueue()
+        Bar = m.BarQueue()
         while self.active:
             self.msleep(8)
-            if self.queues.InputFieldState.empty():
-                self.gui.send('InputFieldState', self.gui.input_state)
-            if not self.queues.TextBrowser.empty():
-                self.msleep(8)
-                self.print_signal.emit(str(self.queues.TextBrowser.get()))
-            if not self.queues.Bar.empty():
-                self.item_count_signal.emit(self.queues.Bar.get())
-                self.msleep(10)
+            if not TextBrowser.empty():
+                self.print_signal.emit(str(TextBrowser.get().text))
+            if not Bar.empty():
+                self.item_count_signal.emit(Bar.get())
             if '完成任务' in self.gui.textBrowser.toPlainText():
                 self.item_count_signal.emit(100)
                 self.msleep(20)
@@ -77,13 +78,16 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     p = None
     bThread: WorkThread = None
-    manager: MyManager = None
+    manager: QueuesManager = None
+    Q = None
+    s: m.Server = None
 
     def __init__(self, parent=None):
+        self.p_qm = Process(target=startup_bg_queue_manager)
+        self.p_qm.start()
         super(SpiderGUI, self).__init__(parent)
         self.dia = FinEnsureDialog()
-        # self.log = cLog(name="GUI")
-        self.log = logger
+        self.log = cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
@@ -105,18 +109,18 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         self.helpclickCnt = 0
         self.nextclickCnt = 0
-        # 初始化与后端爬虫的通信管道
+        # 初始化通信管道相关
         self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='')
-        self.text_browser_state = TextBrowserState(text='')
-        self.process_state = ProcessState(process='init')
-
-        self.manager = MyManager()
-        self.manager.start()
-        self.queues = self.manager.GuiQueues()
+        self.manager = QueuesManager.create_manager(
+            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
+            address=('127.0.0.1', 50000), authkey=b'abracadabra'
+        )
+        QThread.msleep(2000)
+        self.manager.connect()
+        self.Q = QueueHandler(self.manager)
         self.btn_logic()
 
         def status_tip(index):
-            index = 3
             text = {0: None,
                     1: '90MH网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名',
                     2: 'kukuM网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【推荐】..字如其名',
@@ -135,23 +139,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
 
-    def send(self, queue_name, state: State):
-        # self.current_status.update(update_what)
-        # self.current_Q.put(self.current_status)
-        return Queues.send(self.queues, queue_name, state)
-
-    def recv(self, queue_name) -> State:
-        flag = False
-        while not flag:
-            flag = Queues.recv(self.queues, queue_name)
-            QThread.msleep(300)
-        return flag
-
-    def refresh_state(self, state_name, state):
-        _ = getattr(self, state_name)
-        if state != _:
-            self.__setattr__(state_name, state)
-
     def show_help(self):
         self.helplabel.hide() if self.helpclickCnt%2 else self.helplabel.show()
         self.helpclickCnt += 1
@@ -161,7 +148,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     #     self.params_send({'retry': False})
 
     def retry_schedule(self):  # 烂逻辑
-        self.refresh_state('process_state', self.recv('ProcessState'))
+        refresh_state(self, 'process_state', 'ProcessQueue')
         self.log.info(f'===--→ retrying…… after step: {self.process_state.process}')
 
         def retry_middle():
@@ -174,15 +161,17 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.retrybtn.setToolTip(QCoreApplication.translate("MainWindow", "retry重启时会卡几秒，等等"))
             QThread.msleep(200)
             try:
-                Queues.clear(iter(self.queues))
                 time.sleep(0.8)
                 self.p.kill()
                 self.p.join()
                 self.p.close()
+                self.p_qm.kill()
+                self.p_qm.join()
+                self.p_qm.close()
                 self.bThread.active = False
                 self.bThread.quit()  # 关闭线程
                 self.bThread.wait()
-            except (FileNotFoundError, RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
+            except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
                 # self.log.warning(f'when retry_all occur {e.args}')
             self.setupUi(self)
@@ -196,8 +185,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # self.params_send({'retry': True})
         QThread.msleep(5)
 
-        self.refresh_state('process_state', self.recv('ProcessState'))
-        self.log.debug(f"after retry spider'step : {self.process_state.process}")
+        refresh_state(self, 'process_state', 'ProcessQueue')
+        self.log.debug(f"after retry spider's step : {self.process_state.process}")
         retry_do_what[self.process_state.process]()
         self.retrybtn.setDisabled(True)
         if self.process_state.process == 'parse section':
@@ -219,26 +208,23 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.input_state.keyword = self.searchinput.text()[6:].strip()
             self.input_state.bookSelected = self.chooseBox.currentIndex()
             # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
-            self.send('InputFieldState', self.input_state)
+            self.Q('InputFieldQueue').send(self.input_state)
 
             if self.nextclickCnt == 0:          # 从section步 回parse步 的话以免重开
                 self.bThread = WorkThread(self)
 
                 def crawl_btn(text):
                     if len(text) > 5:
-                        self.refresh_state('process_state', self.recv('ProcessState'))
+                        refresh_state(self, 'process_state', 'ProcessQueue')
                         self.crawl_btn.setEnabled(self.process_state.process == 'parse section')
                         self.next_btn.setDisabled(self.crawl_btn.isEnabled())
                 self.chooseinput.textChanged.connect(crawl_btn)
-
-                self.p = Process(target=crawl_what,
-                                 args=(self.input_state, self.process_state, self.text_browser_state,
-                                       self.queues))
 
                 self.bThread.print_signal.connect(self.textbrowser_load)
                 self.bThread.item_count_signal.connect(self.processbar_load)
                 self.bThread.finishSignal.connect(self.crawl_end)
 
+                self.p = Process(target=crawl_what, args=(self.input_state.bookSelected,))
                 self.p.start()
                 self.bThread.start()
                 self.log.info(f'-*-*- Background thread & spider starting')
@@ -260,7 +246,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 20}警告！！多选书本时不要随意使用 retry<br>'))
             self.chooseinput.clear()
             # choose逻辑 交由crawl, next,retry3个btn的schedule控制
-            self.send('InputFieldState', self.input_state)
+            self.Q('InputFieldQueue').send(self.input_state)
             self.log.debug(f'send choose: {self.input_state.indexes} success')
 
         self.retrybtn.setEnabled(True)
@@ -274,7 +260,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # self.next_btn.setEnabled(False)
         self.chooseinput.setFocusPolicy(Qt.StrongFocus)
 
-        self.refresh_state('process_state', self.recv('ProcessState'))
+        refresh_state(self, 'process_state', 'ProcessQueue')
         self.log.debug(f"===--→ next_schedule end (now step: {self.process_state.process})\n")
 
     def crawl(self):
@@ -289,7 +275,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         # self.judge_retry()
         QThread.msleep(10)
-        self.send('InputFieldState', self.input_state)
+        self.Q('InputFieldQueue').send(self.input_state)
         self.log.debug(f'send choose success')
 
         if self.dia.exec_() == QDialog.Accepted:    # important dia窗口确认为最后把关
@@ -314,7 +300,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.log.debug(f"===--→ crawl finish (now step: {self.process_state.process})\n")
 
     def crawl_end(self, imgs_path):
-        Queues.clear(self.queues)
+        del self.manager
         # self.bThread.quit()    # 关闭线程--------------
         # self.bThread.wait()
         # self.p.close()
@@ -370,17 +356,14 @@ class TextUtils:
         return font_color(text)
 
 
-def crawl_what(input_state, process_state, text_browser_state, queues):
+def crawl_what(what):
     spider_what = {1: 'comic90mh',
                    2: 'comickukudm',
                    3: 'wnacg'}
-
     freeze_support()
     process = CrawlerProcess(get_project_settings())
-    # process.crawl(spider_what[input_state.bookSelected],
-    process.crawl(spider_what[3],
-                  input_state=input_state, process_state=process_state, text_browser_state=text_browser_state,
-                  queues=queues)
+    process.crawl(spider_what[what])
+    # process.crawl(spider_what[3])
     process.start()
     process.join()
     process.stop()
