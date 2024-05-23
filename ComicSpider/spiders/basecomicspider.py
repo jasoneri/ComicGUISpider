@@ -5,7 +5,10 @@ import scrapy
 import requests
 from time import sleep
 from copy import deepcopy
-from utils import font_color, Queues, State
+from utils import font_color, Queues, State, QueuesManager
+from utils.processed_class import (
+    TextBrowserState, ProcessState, QueueHandler, refresh_state
+)
 from ComicSpider.items import ComicspiderItem
 
 
@@ -18,9 +21,10 @@ class BaseComicSpider(scrapy.Spider):
     exp_txt = (f"""<br>{'{:=^80}'.format('message')}<br>请于【 输入序号 】框输入要选的序号  """)
 
     input_state = None
-    text_browser_state = None
-    process_state = None
-    queues = None
+    text_browser_state = TextBrowserState(text='')
+    process_state = ProcessState(process='init')
+    manager = None
+    Q = None
 
     num_of_row = 5
     total = 0
@@ -41,24 +45,9 @@ class BaseComicSpider(scrapy.Spider):
 
         def send(self, _text):
             self.state.text = _text
-            Queues.send(self.queue, '', self.state)
+            Queues.send(self.queue, self.state, wait=True)
 
     text_browser: TextBrowser = None
-
-    def send(self, queue_name, state: State):
-        return Queues.send(self.queues, queue_name, state)
-
-    def recv(self, queue_name) -> State:
-        flag = False
-        while not flag:
-            flag = Queues.recv(self.queues, queue_name)
-            time.sleep(1)
-        return flag
-
-    def refresh_state(self, state_name, state):
-        _ = getattr(self, state_name)
-        if state != _:
-            self.__setattr__(state_name, state)
 
     def start_requests(self):
         search_start = self.search
@@ -68,7 +57,7 @@ class BaseComicSpider(scrapy.Spider):
     @property
     def search(self):
         self.process_state.process = 'search'
-        self.send('ProcessState', self.process_state)
+        self.Q('ProcessQueue').send(self.process_state)
         keyword = self.input_state.keyword
         kind = re.search(f"(({')|('.join(self.kind.keys())}))(.*)", keyword) if bool(self.kind) else None
         if keyword in self.mappings.keys():
@@ -82,14 +71,14 @@ class BaseComicSpider(scrapy.Spider):
     # ==============================================
     def parse(self, response):
         self.process_state.process = 'parse'
-        self.send('ProcessState', self.process_state)
+        self.Q('ProcessQueue').send(self.process_state)
         frame_book_results = self.frame_book(response)
 
         # GUI交互产生的凌乱逻辑，待优化
         # 每get一次阻塞scrapy，等GUI操作
 
         # selected = self.get_current('choose')  # 阻塞scrapy，等GUI选择
-        self.refresh_state('input_state', self.recv('InputFieldState'))
+        refresh_state(self, 'input_state', 'InputFieldQueue', monitor=True)
         results = self.elect_res(self.input_state.indexes, frame_book_results, step='漫画')
         if results is None or not len(results):
             # self.get_current()
@@ -117,7 +106,7 @@ class BaseComicSpider(scrapy.Spider):
     def parse_section(self, response):
         """ ！！！！ 解决非漫画无章节情况下直接下最终页面"""
         self.process_state.process = 'parse section'
-        self.send('ProcessState', self.process_state)
+        self.Q('ProcessQueue').send(self.process_state)
 
         self.text_browser.send(f'<br>{"{:=^65}".format("message")}')
 
@@ -131,7 +120,7 @@ class BaseComicSpider(scrapy.Spider):
             yield scrapy.Request(url=self.search_start, callback=self.parse, dont_filter=True)
         else:
             # choose = self.get_current('choose')
-            self.refresh_state('input_state', self.recv('InputFieldState'))
+            refresh_state(self, 'input_state', self.Q('InputFieldQueue').recv(), monitor=True)
             choose = self.input_state.indexes
             results = self.elect_res(choose, frame_sec_result, step='章节')
             if results is None or not len(results):
@@ -157,7 +146,7 @@ class BaseComicSpider(scrapy.Spider):
                         for url in url_list:
                             yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
                 self.process_state.process = 'fin'
-                self.send('ProcessState', self.process_state)
+                self.Q('ProcessQueue').send(self.process_state)
 
     @abstractmethod
     def frame_section(self, response) -> dict:
@@ -208,12 +197,21 @@ class BaseComicSpider(scrapy.Spider):
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = cls(*args, **kwargs)
         spider._set_crawler(crawler)
-        spider.text_browser = spider.TextBrowser(getattr(spider.queues, 'TextBrowser'), spider.text_browser_state)
+
+        spider.manager = QueuesManager.create_manager(
+            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
+            address=('127.0.0.1', 50000), authkey=b'abracadabra'
+        )
+        spider.manager.connect()
+        q = getattr(spider.manager, 'TextBrowserQueue')()
+        spider.Q = QueueHandler(spider.manager)
+        spider.text_browser = spider.TextBrowser(q, spider.text_browser_state)
+        spider.input_state = spider.Q('InputFieldQueue').recv()
         return spider
 
     def close(self, reason):
-        Queues.clear(iter(self.queues))
         try:
+            del self.manager
             self.session.close()
         except:
             pass
@@ -227,7 +225,7 @@ class BaseComicSpider2(BaseComicSpider):
 
     def parse_section(self, response):
         self.process_state.process = 'parse section'
-        self.send('ProcessState', self.process_state)
+        self.Q('ProcessQueue').send(self.process_state)
 
         title = response.meta.get('title')
         self.text_browser.send(f'<br>{"=" * 15} 《{title}》')
@@ -241,4 +239,4 @@ class BaseComicSpider2(BaseComicSpider):
             self.total += 1
             yield item
         self.process_state.process = 'fin'
-        self.send('ProcessState', self.process_state)
+        self.Q('ProcessQueue').send(self.process_state)
