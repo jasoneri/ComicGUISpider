@@ -4,8 +4,6 @@ from .basecomicspider import BaseComicSpider2, font_color, ComicspiderItem
 from utils import get_info
 from urllib.parse import quote
 
-info = get_info()
-_domain = info[-1]
 domain = "wnacg.com"
 
 

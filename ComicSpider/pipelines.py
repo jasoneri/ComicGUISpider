@@ -28,8 +28,9 @@ class ComicPipeline(ImagesPipeline):
         page = '第%s页.jpg' % request.item.get('page')
         spider = self.spiderinfo.spider
         basepath = spider.settings.get('IMAGES_STORE')
-        path = f"{basepath}\\本子\\{self._sub_index.sub('', title)}" if spider.name in spider.settings.get(
-            'SPECIAL') else f"{basepath}\\{title}\\{section}\\"
+        path = f"{basepath}\\本子\\{self._sub_index.sub('', title)}" \
+            if spider.name in spider.settings.get('SPECIAL') \
+            else f"{basepath}\\{title}\\{section}\\"
         os.makedirs(path, exist_ok=True)  # 还有标题不能创建的话我吐血
         fin = os.path.join(path, page)
         return fin
@@ -42,7 +43,7 @@ class ComicPipeline(ImagesPipeline):
             if percent > self.threshold:
                 percent -= int((percent / self.threshold) * 100)  # 进度缓存
             # spider.bar.put(int(percent))  # 后台打印百分比进度扔回GUI界面
-            spider.send('Bar', int(percent))
+            spider.Q('Bar').send(int(percent))
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
         # # 控制台专用
