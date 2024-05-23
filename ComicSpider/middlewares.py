@@ -42,16 +42,16 @@ class ComicspiderDownloaderMiddleware(object):
 
 
 class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
-    """处理网页api需要over wall, 但图源cn能访问的情况"""
-    img_domain_regex: re.Pattern = None
+    """使用情况是“通常页需要over wall访问”，“图源cn就能访问”... 因此domain的都使用代理"""
+    domain_regex: re.Pattern = None
 
     @classmethod
     def from_crawler(cls, crawler):
         _ = super(ComicDlProxyMiddleware, cls).from_crawler(crawler)
-        _.img_domain_regex = re.compile(crawler.spider.img_domain)
+        _.domain_regex = re.compile(crawler.spider.domain)
         return _
 
     def process_request(self, request, spider):
-        if not bool(self.img_domain_regex.search(request.url)):
+        if bool(self.domain_regex.search(request.url)):
             proxy = random.choice(self.PROXIES)
             request.meta['proxy'] = f"http://{proxy}"
