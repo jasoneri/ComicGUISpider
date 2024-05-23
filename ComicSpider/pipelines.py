@@ -18,12 +18,12 @@ class ComicPipeline(ImagesPipeline):
         request_objs = super(ComicPipeline, self).get_media_requests(item, info)
         for request_obj in request_objs:
             request_obj.item = item
+            request_obj.meta['referer'] = item.get('referer')
         return request_objs
 
     # 图片存储前调用
     def file_path(self, request, response=None, info=None):
         title = self._sub.sub('-', request.item.get('title'))
-        # section = sub(r'([|.:<>?*"\\/])', '-', request.item.get('section'))
         section = self._sub.sub('-', request.item.get('section'))
         page = '第%s页.jpg' % request.item.get('page')
         spider = self.spiderinfo.spider
@@ -43,7 +43,7 @@ class ComicPipeline(ImagesPipeline):
             if percent > self.threshold:
                 percent -= int((percent / self.threshold) * 100)  # 进度缓存
             # spider.bar.put(int(percent))  # 后台打印百分比进度扔回GUI界面
-            spider.Q('Bar').send(int(percent))
+            spider.Q('BarQueue').send(int(percent))
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
         # # 控制台专用
