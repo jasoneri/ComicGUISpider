@@ -8,3 +8,4 @@ class ComicspiderItem(scrapy.Item):
     page = scrapy.Field()
     image_urls = scrapy.Field()
     images = scrapy.Field()
+    referer = scrapy.Field()

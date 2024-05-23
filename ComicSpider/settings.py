@@ -63,4 +63,4 @@ os.makedirs(f'{log_path}', exist_ok=True)
 
 # 日志输出
 # LOG_FILE = f"{log_path}/scrapy.log"
-SPECIAL = ['erocool', 'wnacg']
+SPECIAL = ['wnacg']
