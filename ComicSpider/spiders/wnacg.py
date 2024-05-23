@@ -3,13 +3,16 @@ import re
 from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "wnacg.com"
+domain2 = "www.wnacg.com"
+img_domain = 'img5.qy0.ru'
 
 
 class WnacgSpider(BaseComicSpider2):
+    custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.ComicDlProxyMiddleware': 5}}
     name = 'wnacg'
     num_of_row = 4
-    img_domain = 'img5.qy0.ru'  # TODO(2024-05-20): 加代理middleware
-    allowed_domains = [domain, 'img5.qy0.ru', 't4.qy0.ru']
+    img_domain = img_domain
+    allowed_domains = [domain, img_domain, domain2]
     search_url_head = f'https://{domain}/albums-index-tag-'
     index_regex = re.compile(r'aid-(\d+)\.html')
     mappings = {'更新': f'https://{domain}/albums.html',
@@ -22,10 +25,10 @@ class WnacgSpider(BaseComicSpider2):
         return f"{_}.html"
 
     @staticmethod
-    def rule_book_index(index: str) -> str:
-        len_index = len(index)
-        index = f"{(6 - len_index) * '0'}{index}" if len_index < 6 else index
-        return f"{index[:-2]}/{index[-2:]}"
+    def rule_book_index(book_index: str) -> str:
+        len_index = len(book_index)
+        book_index = f"{(6 - len_index) * '0'}{book_index}" if len_index < 6 else book_index
+        return f"{book_index[:-2]}/{book_index[-2:]}"
 
     def frame_book(self, response):
         frame_results = {}
@@ -45,12 +48,11 @@ class WnacgSpider(BaseComicSpider2):
 
     def frame_section(self, response):
         doc_wlns = re.split(r';[\n\s]+?document\.writeln', response.text)
-        selected_doc = next(filter(lambda x: "var imglist" in x, doc_wlns))
+        selected_doc = next(filter(lambda _: "var imglist" in _, doc_wlns))
         targets = re.findall(r'(//.*?(jp[e]?g|png|webp))', selected_doc)
-
         frame_results = {}
         for x, target in enumerate(targets):
             img_url = f"https:{target[0]}"
             frame_results[x + 1] = img_url
-        self.say("===============" + font_color(' 本子网没章节的 这本已经扔进任务了', color='blue'))
+        self.say("=" * 15 + font_color(' 本子网没章节的 这本已经扔进任务了', color='blue'))
         return frame_results
