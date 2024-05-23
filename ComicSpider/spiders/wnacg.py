@@ -3,16 +3,14 @@ import re
 from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "wnacg.com"
-domain2 = "www.wnacg.com"
-img_domain = 'img5.qy0.ru'
 
 
 class WnacgSpider(BaseComicSpider2):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.ComicDlProxyMiddleware': 5}}
     name = 'wnacg'
     num_of_row = 4
-    img_domain = img_domain
-    allowed_domains = [domain, img_domain, domain2]
+    domain = domain
+    # allowed_domains = [domain]
     search_url_head = f'https://{domain}/albums-index-tag-'
     index_regex = re.compile(r'aid-(\d+)\.html')
     mappings = {'更新': f'https://{domain}/albums.html',
@@ -40,7 +38,7 @@ class WnacgSpider(BaseComicSpider2):
             title_elem = target.xpath(title_xpath)
             title = title_elem.xpath('./@title').get()
             pre_url = title_elem.xpath('./@href').get()
-            url = f'https://{domain}{pre_url}'.replace('index', 'gallery')
+            url = f'https://{domain}{pre_url}'.replace('index', 'gallery')  # 此链直接返回该本全页uri
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [title, url]

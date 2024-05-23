@@ -74,7 +74,7 @@ class BaseComicSpider(scrapy.Spider):
     num_of_row = 5
     total = 0
     search_url_head = NotImplementedError('需要自定义搜索网址')
-    img_domain = None
+    domain = None
     # mappings自定义关键字对应网址
     kind = {}
     mappings = {}

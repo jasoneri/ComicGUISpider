@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import re
-from re import sub
 
 from scrapy.pipelines.images import ImagesPipeline
 
@@ -13,7 +12,6 @@ class ComicPipeline(ImagesPipeline):
     _sub = re.compile(r'([|.:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
 
-    # media_requests
     def get_media_requests(self, item, info):
         request_objs = super(ComicPipeline, self).get_media_requests(item, info)
         for request_obj in request_objs:
@@ -25,7 +23,7 @@ class ComicPipeline(ImagesPipeline):
     def file_path(self, request, response=None, info=None, *, item=None):
         title = self._sub.sub('-', item.get('title'))
         section = self._sub.sub('-', item.get('section'))
-        page = '第%s页.jpg' % item.get('page')
+        page = f'第{item.get('page')}页.jpg'
         spider = self.spiderinfo.spider
         basepath = spider.settings.get('IMAGES_STORE')
         path = f"{basepath}\\本子\\{self._sub_index.sub('', title)}" \
