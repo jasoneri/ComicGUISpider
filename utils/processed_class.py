@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import time
 import typing as t
+import socket
 from dataclasses import dataclass
 from multiprocessing import Queue
 
@@ -62,22 +63,36 @@ class QueueHandler:
 
 
 class GuiQueuesManger(QueuesManager):
-    grids = ['InputFieldQueue', 'RetryQueue', 'TextBrowser', 'ProcessQueue', 'BarQueue']
+    queue_port: int = None
 
-    def __iter__(self):
-        for i in self.grids:
-            yield getattr(self, i)
+    def create_server_manager(self):
+        InputFieldQueue = Queue()
+        TextBrowserQueue = Queue(2)
+        ProcessQueue = Queue()
+        BarQueue = Queue()
+        QueuesManager.register('InputFieldQueue', callable=lambda: InputFieldQueue)  # GUI > 爬虫
+        QueuesManager.register('TextBrowserQueue', callable=lambda: TextBrowserQueue)  # 爬虫 > GUI.thread
+        QueuesManager.register('ProcessQueue', callable=lambda: ProcessQueue)  # 爬虫 > GUI
+        QueuesManager.register('BarQueue', callable=lambda: BarQueue)  # 爬虫 > GUI.thread
+        manager = QueuesManager(address=('127.0.0.1', self.queue_port), authkey=b'abracadabra')
+        self.s = manager.get_server()
+        self.s.serve_forever()
 
-
-def startup_bg_queue_manager():
-    InputFieldQueue = Queue()
-    TextBrowserQueue = Queue(2)
-    ProcessQueue = Queue()
-    BarQueue = Queue()
-    QueuesManager.register('InputFieldQueue', callable=lambda: InputFieldQueue)  # GUI > 爬虫
-    QueuesManager.register('TextBrowserQueue', callable=lambda: TextBrowserQueue)  # 爬虫 > GUI.thread
-    QueuesManager.register('ProcessQueue', callable=lambda: ProcessQueue)  # 爬虫 > GUI
-    QueuesManager.register('BarQueue', callable=lambda: BarQueue)  # 爬虫 > GUI.thread
-    manager = QueuesManager(address=('127.0.0.1', 50000), authkey=b'abracadabra')
-    s = manager.get_server()
-    s.serve_forever()
+    def find_free_port(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(3)
+        for i in range(50000, 50010):
+            try:
+                result = sock.connect_ex(('localhost', i))
+                if result == 0:
+                    sock.close()
+                    continue
+                else:
+                    self.queue_port = i
+                    sock.close()
+                    break
+            except Exception as e:
+                sock.close()
+        else:
+            raise ConnectionError('no free port between 50000 and 50010 ')
+        return self.queue_port

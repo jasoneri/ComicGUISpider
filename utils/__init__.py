@@ -104,8 +104,6 @@ class State:
 
 
 class QueuesManager(m.BaseManager):
-    pass
-
     @staticmethod
     def create_manager(*register_fields, **cls_kwargs):
         for field in register_fields:

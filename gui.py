@@ -15,7 +15,7 @@ from GUI.ui_helplabel import Ui_HelpLabel
 from utils import transfer_input, font_color, Queues, State, QueuesManager, cLog
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
-    startup_bg_queue_manager, QueueHandler, refresh_state
+    GuiQueuesManger, QueueHandler, refresh_state
 )
 
 
@@ -77,20 +77,27 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     nextclickCnt = 0
 
     p = None
+    queue_port: int = None
     bThread: WorkThread = None
     manager: QueuesManager = None
+    guiQueuesManger: GuiQueuesManger = None
     Q = None
     s: m.Server = None
 
     def __init__(self, parent=None):
-        self.p_qm = Process(target=startup_bg_queue_manager)
-        self.p_qm.start()
+        self.init_queue()
         super(SpiderGUI, self).__init__(parent)
         self.dia = FinEnsureDialog()
         self.log = cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
+
+    def init_queue(self):
+        self.guiQueuesManger = GuiQueuesManger()
+        self.queue_port = self.guiQueuesManger.find_free_port()
+        self.p_qm = Process(target=self.guiQueuesManger.create_server_manager)
+        self.p_qm.start()
 
     def setupUi(self, MainWindow):
         super(SpiderGUI, self).setupUi(MainWindow)
@@ -113,7 +120,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='')
         self.manager = QueuesManager.create_manager(
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
-            address=('127.0.0.1', 50000), authkey=b'abracadabra'
+            address=('127.0.0.1', self.queue_port), authkey=b'abracadabra'
         )
         QThread.msleep(2000)
         self.manager.connect()
@@ -124,7 +131,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             text = {0: None,
                     1: '90MH网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名',
                     2: 'kukuM网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【推荐】..字如其名',
-                    3: 'wnacg网：（1）输入【搜索词】返回搜索结果'}
+                    3: 'wnacg网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【汉化】..字如其名'}
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
         self.chooseBox.currentIndexChanged.connect(status_tip)
 
@@ -224,7 +231,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.bThread.item_count_signal.connect(self.processbar_load)
                 self.bThread.finishSignal.connect(self.crawl_end)
 
-                self.p = Process(target=crawl_what, args=(self.input_state.bookSelected,))
+                self.p = Process(target=crawl_what, args=(self.input_state.bookSelected, self.queue_port))
                 self.p.start()
                 self.bThread.start()
                 self.log.info(f'-*-*- Background thread & spider starting')
@@ -301,6 +308,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def crawl_end(self, imgs_path):
         del self.manager
+        del self.guiQueuesManger
         # self.bThread.quit()    # 关闭线程--------------
         # self.bThread.wait()
         # self.p.close()
@@ -356,13 +364,13 @@ class TextUtils:
         return font_color(text)
 
 
-def crawl_what(what):
+def crawl_what(what, queue_port):
     spider_what = {1: 'comic90mh',
                    2: 'comickukudm',
                    3: 'wnacg'}
     freeze_support()
     process = CrawlerProcess(get_project_settings())
-    process.crawl(spider_what[what])
+    process.crawl(spider_what[what], queue_port=queue_port)
     # process.crawl(spider_what[3])
     process.start()
     process.join()
