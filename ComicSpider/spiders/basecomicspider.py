@@ -67,6 +67,7 @@ class BaseComicSpider(scrapy.Spider):
     input_state = None
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
+    queue_port: int = None
     manager = None
     Q = None
     say: SayToGui = None
@@ -191,7 +192,7 @@ class BaseComicSpider(scrapy.Spider):
 
         spider.manager = QueuesManager.create_manager(
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
-            address=('127.0.0.1', 50000), authkey=b'abracadabra'
+            address=('127.0.0.1', spider.queue_port), authkey=b'abracadabra'
         )
         spider.manager.connect()
         q = getattr(spider.manager, 'TextBrowserQueue')()
