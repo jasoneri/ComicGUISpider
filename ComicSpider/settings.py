@@ -22,7 +22,7 @@ NEWSPIDER_MODULE = 'ComicSpider.spiders'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
-
+REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
 

@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from multiprocessing import Process, freeze_support
 import multiprocessing.managers as m
@@ -12,7 +13,7 @@ from loguru import logger
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
 from GUI.ui_helplabel import Ui_HelpLabel
-from utils import transfer_input, font_color, Queues, State, QueuesManager, cLog
+from utils import transfer_input, font_color, Queues, State, QueuesManager, conf
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state
@@ -76,7 +77,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     helpclickCnt = 0
     nextclickCnt = 0
 
-    p = None
+    p_crawler: Process = None
+    p_qm: Process = None
     queue_port: int = None
     bThread: WorkThread = None
     manager: QueuesManager = None
@@ -85,7 +87,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     s: m.Server = None
 
     def __init__(self, parent=None):
-        self.init_queue()
         super(SpiderGUI, self).__init__(parent)
         self.dia = FinEnsureDialog()
         self.log = conf.cLog(name="GUI")
@@ -100,20 +101,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.p_qm.start()
 
     def setupUi(self, MainWindow):
+        self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
         self.helpbtn.setFocus()
         self.textBrowser.setText(''.join(TextUtils.description))
-
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
-
         self.helplabel = Ui_HelpLabel(self.centralwidget)
-
-        # self.palette = QPalette()
-        # brush = QBrush(QColor(255, 0, 0))
-        # brush.setStyle(Qt.SolidPattern)
-        # self.palette.setBrush(QPalette.Active, QPalette.Text, brush)
-
         self.helpclickCnt = 0
         self.nextclickCnt = 0
         # 初始化通信管道相关
@@ -134,7 +128,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     3: 'wnacg网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【汉化】..字如其名'}
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
         self.chooseBox.currentIndexChanged.connect(status_tip)
-
         self.show()
 
     def btn_logic_bind(self):
@@ -151,10 +144,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.helplabel.hide() if self.helpclickCnt%2 else self.helplabel.show()
         self.helpclickCnt += 1
 
-    # def judge_retry(self):
-    #     # 发出retry信号供后端爬虫识别，本GUI下判断spider的retry容易产生逻辑混乱
-    #     self.params_send({'retry': False})
-
     def retry_schedule(self):  # 烂逻辑
         refresh_state(self, 'process_state', 'ProcessQueue')
         self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
@@ -166,18 +155,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             QThread.msleep(200)
             try:
                 time.sleep(0.8)
-                self.p_crawler.kill()
-                self.p_crawler.join()
-                self.p_crawler.close()
-                self.p_qm.kill()
-                self.p_qm.join()
-                self.p_qm.close()
-                self.bThread.active = False
-                self.bThread.quit()  # 关闭线程
-                self.bThread.wait()
+                self.close_process()
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
-            self.init_queue()
             self.setupUi(self)
 
         retry_do_what = {'fin': retry_all}
@@ -257,24 +237,20 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.bThread.print_signal.disconnect(self.textbrowser_load)
         self.bThread.print_signal.connect(dia_text)
 
-        # self.judge_retry()
         QThread.msleep(10)
         self.Q('InputFieldQueue').send(self.input_state)
         self.log.debug(f'send choose success')
 
         if self.dia.exec_() == QDialog.Accepted:    # important dia窗口确认为最后把关
-            # self.params_send({'retry': False})
             self.book_num -= 1
         else:
             ...
-            # self.params_send({'retry': True})       # -*- 看需求 确认框按错可重选section序号 /择其一/ 多选书时忽略部分不要的yield
         self.bThread.print_signal.connect(self.textbrowser_load)
 
         if self.book_num == 0:
             self.helplabel.re_pic()
             self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", color='purple'))
             self.crawl_btn.setDisabled(True)
-            # self.funcGroupBox.setDisabled(True)
             self.input_yield.setDisabled(True)
         else:
             self.chooseinput.clear()
@@ -285,16 +261,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def crawl_end(self, imgs_path):
         del self.manager
         del self.guiQueuesManger
-        # self.bThread.quit()    # 关闭线程--------------
-        # self.bThread.wait()
-        # self.p.close()
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk { background-color: #00ff00;}')
         self.chooseinput.setDisabled(True)
         self.next_btn.setDisabled(True)
         self.retrybtn.setEnabled(True)
         self.input_yield.setEnabled(True)
-        # self.funcGroupBox.setEnabled(True)
 
         self.process_state.process = 'fin'
         self.helplabel.re_pic()
@@ -328,16 +300,21 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def leaveEvent(self, QEvent):
         self.textBrowser.setStyleSheet('background-color: pink;')
 
+    def close_process(self):
+        if self.bThread is not None:  # 线程停止
+            self.bThread.stop()
+        for _ in ['p_qm', 'p_crawler']:
+            p = getattr(self, _)
+            if p is not None:  # 进程停止
+                p.kill()
+                p.join()
+                p.close()
+                delattr(self, _)
+
     def closeEvent(self, event):
         event.accept()
         self.destroy()  # 窗口关闭销毁
-        if self.bThread is not None:  # 线程停止
-            self.bThread.stop()
-        if self.p_qm is not None:  # 线程停止
-            self.p_qm.kill()
-            self.p_qm.join()
-            self.p_qm.close()
-            del self.p_qm
+        self.close_process()
         sys.exit(0)
 
 

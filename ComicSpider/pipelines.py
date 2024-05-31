@@ -26,7 +26,7 @@ class ComicPipeline(ImagesPipeline):
         page = f'第{item.get('page')}页.jpg'
         spider = self.spiderinfo.spider
         basepath = spider.settings.get('IMAGES_STORE')
-        path = f"{basepath}\\本子\\{self._sub_index.sub('', title)}" \
+        path = f"{basepath}\\本子\\web\\{self._sub_index.sub('', title)}" \
             if spider.name in spider.settings.get('SPECIAL') \
             else f"{basepath}\\{title}\\{section}\\"
         os.makedirs(path, exist_ok=True)  # 还有标题不能创建的话我吐血
