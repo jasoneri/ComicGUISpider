@@ -86,4 +86,4 @@ if __name__ == '__main__':
     # app.setStyle("Fusion")
     ui = SpiderGUI()
     QApplication.processEvents()
-    sys.exit(app.exec_())
+    app.exec_()

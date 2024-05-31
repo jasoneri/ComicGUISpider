@@ -9,7 +9,7 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 import os
-from utils import get_info
+from utils import conf
 
 BOT_NAME = 'ComicSpider'
 
@@ -48,7 +48,7 @@ ITEM_PIPELINES = {
    'ComicSpider.pipelines.ComicPipeline': 50
 }
 
-IMAGES_STORE, log_path, PROXY_CUST, LOG_LEVEL = get_info()
+IMAGES_STORE, log_path, PROXY_CUST, LOG_LEVEL, CUSTOM_KIND = conf.settings
 
 UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0",
       r'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:64.0) Gecko/20100101 Firefox/64.0',
@@ -59,8 +59,6 @@ UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefo
       r'Mozilla/5.0 (Windows NT 6.0; rv:2.0) Gecko/20100101 Firefox/4.0 Opera 12.14'
       ]
 
-os.makedirs(f'{log_path}', exist_ok=True)
-
 # 日志输出
-# LOG_FILE = f"{log_path}/scrapy.log"
+# LOG_FILE = log_path.joinpath("scrapy.log")
 SPECIAL = ['wnacg']
