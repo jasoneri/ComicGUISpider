@@ -88,7 +88,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.init_queue()
         super(SpiderGUI, self).__init__(parent)
         self.dia = FinEnsureDialog()
-        self.log = cLog(name="GUI")
+        self.log = conf.cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
@@ -125,7 +125,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         QThread.msleep(2000)
         self.manager.connect()
         self.Q = QueueHandler(self.manager)
-        self.btn_logic()
+        self.btn_logic_bind()
 
         def status_tip(index):
             text = {0: None,
@@ -137,13 +137,14 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         self.show()
 
-    def btn_logic(self):
+    def btn_logic_bind(self):
         def search_btn(text):
             self.next_btn.setEnabled(len(text) > 6)  # if self.chooseBox.currentIndex() in [1, 2, 3] else None
         self.searchinput.textChanged.connect(search_btn)
         # self.next_btn.setEnabled(True)
         self.crawl_btn.clicked.connect(self.crawl)
-        # self.retrybtn.clicked.connect(self.retry_schedule)
+        self.retrybtn.setDisabled(1)
+        self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
 
     def show_help(self):
@@ -156,11 +157,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def retry_schedule(self):  # 烂逻辑
         refresh_state(self, 'process_state', 'ProcessQueue')
-        self.log.info(f'===--→ retrying…… after step: {self.process_state.process}')
-
-        def retry_middle():
-            self.chooseinput.setEnabled(True)
-            self.crawl_btn.setDisabled(True)
+        self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
 
         def retry_all():
             self.textBrowser.setStyleSheet('background-color: red;')
@@ -169,9 +166,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             QThread.msleep(200)
             try:
                 time.sleep(0.8)
-                self.p.kill()
-                self.p.join()
-                self.p.close()
+                self.p_crawler.kill()
+                self.p_crawler.join()
+                self.p_crawler.close()
                 self.p_qm.kill()
                 self.p_qm.join()
                 self.p_qm.close()
@@ -180,31 +177,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.bThread.wait()
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
-                # self.log.warning(f'when retry_all occur {e.args}')
+            self.init_queue()
             self.setupUi(self)
 
-        retry_do_what = {'search': retry_all,
-                         'init': retry_all,
-                         'parse': retry_middle,
-                         'parse section': lambda: self.chooseinput.setEnabled(True),
-                         'fin': retry_all}
-
-        # self.params_send({'retry': True})
+        retry_do_what = {'fin': retry_all}
         QThread.msleep(5)
-
-        refresh_state(self, 'process_state', 'ProcessQueue')
-        self.log.debug(f"after retry spider's step : {self.process_state.process}")
         retry_do_what[self.process_state.process]()
         self.retrybtn.setDisabled(True)
-        if self.process_state.process == 'parse section':
-            if self.book_num > 1 or self.book_choose == [0]:
-                self.textBrowser.append(TextUtils.warning_(
-                    f'<br>{"*" * 20}警告！！检测到选择多本书的情况下retry会产生重复操作，已选并确认的可能成功了，<br>' +
-                                                      '但为避免错误程序仍重新启动, 请等候<br>'))
-                self.log.warning(f' ! choose many book also click retry ')
-                QThread.msleep(1500)
-                self.close()
-                retry_all()
         self.log.debug('===--→ retry_schedule end\n')
 
     def next_schedule(self):
@@ -231,8 +210,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.bThread.item_count_signal.connect(self.processbar_load)
                 self.bThread.finishSignal.connect(self.crawl_end)
 
-                self.p = Process(target=crawl_what, args=(self.input_state.bookSelected, self.queue_port))
-                self.p.start()
+                self.p_crawler = Process(target=crawl_what, args=(self.input_state.bookSelected, self.queue_port))
+                self.p_crawler.start()
                 self.bThread.start()
                 self.log.info(f'-*-*- Background thread & spider starting')
 
@@ -242,7 +221,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         def _next():
             self.log.debug('===--→ nexting')
-            # self.judge_retry()                                  # 非retry的时候先把retry=Flase解锁spider的下一步
             self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
             if self.nextclickCnt == 1:
                 self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else [_ for _ in range(1,
@@ -256,7 +234,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.Q('InputFieldQueue').send(self.input_state)
             self.log.debug(f'send choose: {self.input_state.indexes} success')
 
-        self.retrybtn.setEnabled(True)
         if self.next_btn.text()!='搜索':
             _next()
         else:
@@ -301,7 +278,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.input_yield.setDisabled(True)
         else:
             self.chooseinput.clear()
-            self.retrybtn.setEnabled(True)
         self.bThread.print_signal.disconnect(dia_text)
         self.log.debug(f'book_num remain: {self.book_num}')
         self.log.debug(f"===--→ crawl finish (now step: {self.process_state.process})\n")
@@ -351,6 +327,18 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def leaveEvent(self, QEvent):
         self.textBrowser.setStyleSheet('background-color: pink;')
+
+    def closeEvent(self, event):
+        event.accept()
+        self.destroy()  # 窗口关闭销毁
+        if self.bThread is not None:  # 线程停止
+            self.bThread.stop()
+        if self.p_qm is not None:  # 线程停止
+            self.p_qm.kill()
+            self.p_qm.join()
+            self.p_qm.close()
+            del self.p_qm
+        sys.exit(0)
 
 
 class TextUtils:

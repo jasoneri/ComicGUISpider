@@ -4,30 +4,81 @@ import os
 import re
 import logging
 import time
+import pathlib as p
 from logging.handlers import TimedRotatingFileHandler
 from dataclasses import dataclass, asdict
 import multiprocessing.managers as m
 import typing as t
 
+ori_path = p.Path(__file__).parent.parent
 
-def get_info():  # 脱敏，储存路径和代理等用外部文件读
-    sv_path, log_path, proxies, level = r'D:\Comic', './log', [], 'WARNING'
-    try:
-        with open(f'./setting.txt', 'r', encoding='utf-8') as fp:
-            text = fp.read()
-            try:
-                sv_path = re.findall(r'<([\s\S]*)>', text)[0]
-            except IndexError:
-                pass
-            try:
-                level = re.findall('(DEBUG|INFO|ERROR)', text)[0]
-            except IndexError:
-                pass
-            proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+)', text)
-    except FileNotFoundError:
-        # print(f"occur exception: {str(type(e))}:: {str(e)}")
-        pass
-    return sv_path, log_path, proxies, level
+
+class Conf:
+    sv_path = r'D:\Comic'
+    log_path = ori_path.joinpath('log')
+    proxies = []
+    level = 'WARNING'
+    custom_kind = {}
+
+    def get_info(self):  # 脱敏，储存路径和代理等用外部文件读
+        try:
+            with open(ori_path.joinpath('setting.txt'), 'r', encoding='utf-8') as fp:
+                text = fp.read()
+                try:
+                    self.sv_path = re.findall(r'<([\s\S]*)>', text)[0]
+                except IndexError:
+                    pass
+                try:
+                    self.level = re.findall('(DEBUG|INFO|ERROR)', text)[0]
+                except IndexError:
+                    pass
+                self.proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+)', text)
+                # TODO(2024-05-31): custom_kind
+        except FileNotFoundError:
+            pass
+
+    def cLog(self, name: str, level: str = None, **kw) -> logging.Logger:
+        """
+        :return: customize obj(log)
+        """
+        LEVEL = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING}
+        os.makedirs(self.log_path, exist_ok=True)
+        logfile = self.log_path.joinpath(f"{name}.log")
+        format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
+        datefmt = '%Y-%m-%d %H:%M:%S '
+        formatter = logging.Formatter(fmt=format, datefmt=datefmt)
+
+        log_file_handler = TimedRotatingFileHandler(filename=logfile, when="D", interval=1, backupCount=3)
+        log_file_handler.setFormatter(formatter)
+        log_file_handler.setLevel(LEVEL[level or self.level])
+
+        log = logging.getLogger(str(logfile))
+        log.addHandler(log_file_handler)
+        log.setLevel(LEVEL[level or self.level])
+        return log
+
+    @property
+    def settings(self):
+        return self.sv_path, self.log_path, self.proxies, self.level, self.custom_kind
+
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(Conf, "_instance"):
+            Conf._instance = object.__new__(cls)
+            Conf._instance.get_info()
+        return Conf._instance
+
+
+conf = Conf()
+
+
+class PresetHtmlEl:
+    _rule = ['em', 'fuck']
+    _compile = '|'.join(map(lambda _: f"<[/]?{_}>", _rule))
+    regex = re.compile(_compile)
+
+    @classmethod
+    def sub(cls, string):
+        return cls.regex.sub('', string)
 
 
 def font_color(string, **attr):
@@ -53,33 +104,6 @@ def transfer_input(_input: str) -> list:
     for i in re.findall(r'(\d{1,4}-\d{1,4})', _input):
         out2 |= f(i)
     return sorted(out1 | out2)
-
-
-def cLog(name: str, level: str = 'INFO', **kw) -> logging.Logger:
-    """
-    :return: customize obj(log)
-    """
-    try:
-        with open(f'./setting.txt', 'r', encoding='utf-8') as fp:
-            text = fp.read()
-            level = re.search('(DEBUG|WARNING|ERROR)', text).group(1)
-    except:
-        pass
-    LEVEL = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING}
-    os.makedirs('log', exist_ok=True)
-    logfile = F"log/{name}.log"
-    format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
-    datefmt = '%Y-%m-%d %H:%M:%S '
-    formatter = logging.Formatter(fmt=format, datefmt=datefmt)
-
-    log_file_handler = TimedRotatingFileHandler(filename=logfile, when="D", interval=1, backupCount=3)
-    log_file_handler.setFormatter(formatter)
-    log_file_handler.setLevel(LEVEL[level])
-
-    log = logging.getLogger(logfile)
-    log.addHandler(log_file_handler)
-    log.setLevel(LEVEL[level])
-    return log
 
 
 class State:
