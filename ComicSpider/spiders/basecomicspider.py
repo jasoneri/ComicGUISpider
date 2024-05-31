@@ -5,7 +5,7 @@ import scrapy
 import requests
 from time import sleep
 from copy import deepcopy
-from utils import font_color, Queues, State, QueuesManager
+from utils import font_color, Queues, State, QueuesManager, PresetHtmlEl
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state
 )
@@ -77,13 +77,18 @@ class BaseComicSpider(scrapy.Spider):
     search_url_head = NotImplementedError('需要自定义搜索网址')
     domain = None
     # mappings自定义关键字对应网址
-    kind = {}
+    _kind = {}
     mappings = {}
 
     def start_requests(self):
         search_start = self.search
         self.search_start = deepcopy(search_start)
         yield scrapy.Request(self.search_start, dont_filter=True)
+
+    @property
+    def kind(self):
+        return self.settings.get('CUSTOM_KIND') or self._kind
+
 
     @property
     def search(self):
@@ -220,7 +225,7 @@ class BaseComicSpider2(BaseComicSpider):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
 
-        title = response.meta.get('title')
+        title = PresetHtmlEl.sub(response.meta.get('title'))
         self.say(f'<br>{"=" * 15} 《{title}》')
         results = self.frame_section(response)  # {1: url1……}
         referer = response.url
