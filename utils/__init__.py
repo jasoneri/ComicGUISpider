@@ -72,7 +72,7 @@ conf = Conf()
 
 
 class PresetHtmlEl:
-    _rule = ['em', 'fuck']
+    _rule = ['em', ]
     _compile = '|'.join(map(lambda _: f"<[/]?{_}>", _rule))
     regex = re.compile(_compile)
 
