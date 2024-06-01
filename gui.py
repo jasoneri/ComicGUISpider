@@ -50,11 +50,13 @@ class WorkThread(QThread):
             self.msleep(8)
             if not TextBrowser.empty():
                 self.print_signal.emit(str(TextBrowser.get().text))
+                self.msleep(10)
             if not Bar.empty():
                 self.item_count_signal.emit(Bar.get())
+                self.msleep(10)
             if '完成任务' in self.gui.textBrowser.toPlainText():
                 self.item_count_signal.emit(100)
-                self.msleep(20)
+                self.msleep(10)
                 break
         if self.active:
             from ComicSpider.settings import IMAGES_STORE
@@ -155,7 +157,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             QThread.msleep(200)
             try:
                 time.sleep(0.8)
-                self.close_process()
+                self.close_process()  # 考虑重开应该是可以减少重新实例化的数量
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
             self.setupUi(self)
