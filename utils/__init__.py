@@ -73,7 +73,7 @@ conf = Conf()
 
 class PresetHtmlEl:
     _rule = ['em', ]
-    _compile = '|'.join(map(lambda _: f"<[/]?{_}>", _rule))
+    _compile = '|'.join(map(lambda _: f"<[/]?{_}>", _rule)) + "|&nbsp;"
     regex = re.compile(_compile)
 
     @classmethod
@@ -169,7 +169,3 @@ class Queues:
                     queue.get_nowait()
             except:
                 pass
-
-
-if __name__ == '__main__':
-    ...
