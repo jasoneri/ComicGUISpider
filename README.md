@@ -1,16 +1,17 @@
 # ComicSpider
-![](https://img.shields.io/badge/Python-3.7%2B-brightgreen.svg?style=social) ![](https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef)  
+
+![](https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social) ![](https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef)  
 目前是一个交互式下漫画的项目  
 
 ## 更新
-+ V1.3 | 2020-09-13  
-1、加了特殊网站…  ……
+
++ V1.4 | # 2024-06-02
+  1、kuku不维护了，没兴趣搞那么多
 
 ## 一、简述  
 ![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.jpg)
 
-程序内置使用说明，点击说明按钮跟着按即可，此链下载zip →  [http://…(*￣ω￣)…](https://pan.baidu.com/s/1cDeHa9SB-RFbjQP3hpH2tw) 提取码:z8si   
-PS：配置文件setting.txt，跟EXE放一起就生效，可以不放  
+不打包了，有人看到issue我再说或者心血来潮搞github flow
 
 ## 二、配置setting.txt
 

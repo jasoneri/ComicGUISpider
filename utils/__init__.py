@@ -18,7 +18,7 @@ class Conf:
     log_path = ori_path.joinpath('log')
     proxies = []
     level = 'WARNING'
-    custom_kind = {}
+    custom_map = {}
 
     def get_info(self):  # 脱敏，储存路径和代理等用外部文件读
         try:
@@ -33,7 +33,12 @@ class Conf:
                 except IndexError:
                     pass
                 self.proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+)', text)
-                # TODO(2024-05-31): custom_kind
+                custom_map_scope = re.findall(r'{(.*?)}', re.sub('\n', '', text))
+                if custom_map_scope:
+                    self.custom_map = {
+                        g.split(': ')[0].strip(): g.split(': ')[1]
+                        for g in filter(lambda _: _.strip(), re.split(r'[,\n]', custom_map_scope[0]))
+                    }
         except FileNotFoundError:
             pass
 
@@ -59,7 +64,7 @@ class Conf:
 
     @property
     def settings(self):
-        return self.sv_path, self.log_path, self.proxies, self.level, self.custom_kind
+        return self.sv_path, self.log_path, self.proxies, self.level, self.custom_map
 
     def __new__(cls, *args, **kwargs):
         if not hasattr(Conf, "_instance"):
