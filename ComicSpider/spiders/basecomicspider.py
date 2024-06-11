@@ -1,15 +1,16 @@
 import re
-import time
 from abc import abstractmethod
-import scrapy
-import requests
-from time import sleep
 from copy import deepcopy
-from utils import font_color, Queues, State, QueuesManager, PresetHtmlEl
+from time import sleep
+
+import requests
+import scrapy
+
+from ComicSpider.items import ComicspiderItem
+from utils import font_color, Queues, QueuesManager, PresetHtmlEl
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state
 )
-from ComicSpider.items import ComicspiderItem
 
 
 class SayToGui:
@@ -55,8 +56,8 @@ class SayToGui:
             print_npc) else None
         self(''.join(self.exp_txt) + font_color(extra, color="purple"))
         return frame_results
-    
-    
+
+
 class BaseComicSpider(scrapy.Spider):
     """ComicSpider基类
     执行顺序为：： 1、GUI获得keyword >> 每个爬虫编写的mapping与search_url_head（网站搜索头）>>> 得到self.search_start开始常规scrapy\n
@@ -68,17 +69,17 @@ class BaseComicSpider(scrapy.Spider):
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
     queue_port: int = None
-    manager = None
-    Q = None
+    manager: QueuesManager = None
+    Q: QueueHandler = None
     say: SayToGui = None
 
     num_of_row = 5
     total = 0
     search_url_head = NotImplementedError('需要自定义搜索网址')
     domain = None
-    # mappings自定义关键字对应网址
-    _kind = {}
-    mappings = {}
+    kind = {}
+    # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
+    mappings = {}  # mappings自定义关键字对应"固定"uri
 
     def start_requests(self):
         search_start = self.search
@@ -86,16 +87,11 @@ class BaseComicSpider(scrapy.Spider):
         yield scrapy.Request(self.search_start, dont_filter=True)
 
     @property
-    def kind(self):
-        return self.settings.get('CUSTOM_KIND') or self._kind
-
-
-    @property
     def search(self):
         self.process_state.process = 'search'
         self.Q('ProcessQueue').send(self.process_state)
         keyword = self.input_state.keyword
-        kind = re.search(f"(({')|('.join(self.kind.keys())}))(.*)", keyword) if bool(self.kind) else None
+        kind = re.search(rf"(({')|('.join(self.kind)}))(.*)", keyword) if bool(self.kind) else None
         if keyword in self.mappings.keys():
             search_start = self.mappings[keyword]
         elif bool(kind):
@@ -137,7 +133,7 @@ class BaseComicSpider(scrapy.Spider):
         self.say(f'<br>{"=" * 15} 《{title}》')
         frame_sec_result = self.frame_section(response)
 
-        refresh_state(self, 'input_state', self.Q('InputFieldQueue').recv(), monitor=True)
+        refresh_state(self, 'input_state', 'InputFieldQueue', monitor=True)
         choose = self.input_state.indexes
         results = self.elect_res(choose, frame_sec_result, step='章节')
         if results is None or not len(results):
@@ -154,8 +150,6 @@ class BaseComicSpider(scrapy.Spider):
                 meta = {'title': title, 'section': section}
                 for url in url_list:
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
-            self.process_state.process = 'fin'
-            self.Q('ProcessQueue').send(self.process_state)
 
     @abstractmethod
     def frame_section(self, response) -> dict:
@@ -179,13 +173,11 @@ class BaseComicSpider(scrapy.Spider):
         :param frame_results: {1: [title1, title1_url], 2: [title2, title2_url]……}
         :return: [[title1, title1_url], [title2, title2_url]……]
         """
-        selected = frame_results.keys() if elect==[0] else elect
+        selected = frame_results.keys() if elect == [0] else elect
         self.say(kw['extra_info']) if 'extra_info' in kw else None
         try:
             results = [frame_results[i] for i in selected]
         except Exception as e:
-            # self.print_error_text(e.args, kw['step'], font_color("点击retry这步重来，不要选没得选的!", size=5))
-            self.say.text_browser.error(e.args, kw['step'], font_color("点击retry这步重来，不要选没得选的!", size=5))
             self.logger.error(f'error elect: {e.args}, traceback:{str(type(e))}:: {str(e)}')
         else:
             return results
@@ -194,6 +186,7 @@ class BaseComicSpider(scrapy.Spider):
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = cls(*args, **kwargs)
         spider._set_crawler(crawler)
+        spider.mappings.update(spider.settings.get('CUSTOM_MAP') or {})
 
         spider.manager = QueuesManager.create_manager(
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
@@ -234,7 +227,7 @@ class BaseComicSpider2(BaseComicSpider):
             item['title'] = title
             item['page'] = str(page)
             item['section'] = 'meaningless'
-            item['image_urls'] = [f'{url}']
+            item['image_urls'] = [url]
             item['referer'] = referer
             self.total += 1
             yield item
