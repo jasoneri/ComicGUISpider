@@ -118,7 +118,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
             address=('127.0.0.1', self.queue_port), authkey=b'abracadabra'
         )
-        QThread.msleep(2000)
+        QThread.msleep(2300)
         self.manager.connect()
         self.Q = QueueHandler(self.manager)
         self.btn_logic_bind()
@@ -126,7 +126,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         def status_tip(index):
             text = {0: None,
                     1: '90MH网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名',
-                    2: 'kukuM网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【推荐】..字如其名',
+                    2: '拷贝漫画：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名 （2.1）排名扩展：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"',
                     3: 'wnacg网：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【汉化】..字如其名'}
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
         self.chooseBox.currentIndexChanged.connect(status_tip)
@@ -333,12 +333,11 @@ class TextUtils:
 
 def crawl_what(what, queue_port):
     spider_what = {1: 'comic90mh',
-                   2: 'comickukudm',
+                   2: 'manga_copy',
                    3: 'wnacg'}
     freeze_support()
     process = CrawlerProcess(get_project_settings())
     process.crawl(spider_what[what], queue_port=queue_port)
-    # process.crawl(spider_what[3])
     process.start()
     process.join()
     process.stop()
