@@ -9,7 +9,7 @@ class ComicPipeline(ImagesPipeline):
     now = 0
     threshold = 95
     err_flag = 0
-    _sub = re.compile(r'([|.:<>?*"\\/])')
+    _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
 
     def get_media_requests(self, item, info):
