@@ -1,12 +1,10 @@
 import os
 import sys
 import time
-from multiprocessing import Process, freeze_support
+from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
 from PyQt5.QtWidgets import QDialog, QMainWindow
-from scrapy.crawler import CrawlerProcess
-from scrapy.utils.project import get_project_settings
 import traceback
 from loguru import logger
 
@@ -16,7 +14,7 @@ from GUI.ui_helplabel import Ui_HelpLabel
 from utils import transfer_input, font_color, Queues, State, QueuesManager, conf
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
-    GuiQueuesManger, QueueHandler, refresh_state
+    GuiQueuesManger, QueueHandler, refresh_state, crawl_what
 )
 
 
@@ -48,15 +46,18 @@ class WorkThread(QThread):
         Bar = m.BarQueue()
         while self.active:
             self.msleep(8)
-            if not TextBrowser.empty():
-                self.print_signal.emit(str(TextBrowser.get().text))
-                self.msleep(10)
-            if not Bar.empty():
-                self.item_count_signal.emit(Bar.get())
-                self.msleep(10)
-            if '完成任务' in self.gui.textBrowser.toPlainText():
-                self.item_count_signal.emit(100)
-                self.msleep(10)
+            try:
+                if not TextBrowser.empty():
+                    self.print_signal.emit(str(TextBrowser.get().text))
+                    self.msleep(10)
+                if not Bar.empty():
+                    self.item_count_signal.emit(Bar.get())
+                    self.msleep(10)
+                if '完成任务' in self.gui.textBrowser.toPlainText():
+                    self.item_count_signal.emit(100)
+                    self.msleep(10)
+                    break
+            except ConnectionResetError:
                 break
         if self.active:
             from ComicSpider.settings import IMAGES_STORE
@@ -118,7 +119,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
             address=('127.0.0.1', self.queue_port), authkey=b'abracadabra'
         )
-        QThread.msleep(2300)
         self.manager.connect()
         self.Q = QueueHandler(self.manager)
         self.btn_logic_bind()
@@ -205,8 +205,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.log.debug('===--→ nexting')
             self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
             if self.nextclickCnt == 1:
-                self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else [_ for _ in range(1,
-                                                                                                                      11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
+                self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else \
+                    [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
                 self.book_num = len(self.book_choose)
                 if self.book_num > 1:
                     self.log.info('book_num > 1')
@@ -329,16 +329,3 @@ class TextUtils:
     @staticmethod
     def warning_(text):
         return font_color(text)
-
-
-def crawl_what(what, queue_port):
-    spider_what = {1: 'comic90mh',
-                   2: 'manga_copy',
-                   3: 'wnacg'}
-    freeze_support()
-    process = CrawlerProcess(get_project_settings())
-    process.crawl(spider_what[what], queue_port=queue_port)
-    process.start()
-    process.join()
-    process.stop()
-

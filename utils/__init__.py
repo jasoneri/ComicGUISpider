@@ -140,6 +140,15 @@ class QueuesManager(m.BaseManager):
         m = QueuesManager(**cls_kwargs)
         return m
 
+    def connect(self):
+        while 1:
+            try:
+                super(QueuesManager, self).connect()
+            except ConnectionRefusedError:
+                time.sleep(0.2)
+            else:
+                break
+
 
 class Queues:
     @staticmethod

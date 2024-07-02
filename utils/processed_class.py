@@ -4,7 +4,10 @@ import time
 import typing as t
 import socket
 from dataclasses import dataclass
-from multiprocessing import Queue
+from multiprocessing import Queue, freeze_support
+
+from scrapy.crawler import CrawlerProcess
+from scrapy.utils.project import get_project_settings
 
 from utils import State, QueuesManager, Queues
 
@@ -96,3 +99,17 @@ class GuiQueuesManger(QueuesManager):
         else:
             raise ConnectionError('no free port between 50000 and 50010 ')
         return self.queue_port
+
+
+def crawl_what(what, queue_port, **settings_kw):
+    spider_what = {1: 'comic90mh',
+                   2: 'manga_copy',
+                   3: 'wnacg'}
+    freeze_support()
+    s = get_project_settings()
+    s.update(settings_kw)
+    process = CrawlerProcess(s)
+    process.crawl(spider_what[what], queue_port=queue_port)
+    process.start()
+    process.join()
+    process.stop()
