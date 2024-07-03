@@ -20,18 +20,16 @@ class JmUtils:
             self.epsId = int(self.epsId)
 
             def get_num():
-                def _get_num(order_num: int):
+                def _get_num(__: int):
                     string = str(self.epsId) + self.scramble_id
                     string = string.encode()
                     string = hashlib.md5(string).hexdigest()
-                    num = ord(string[-1])
-                    num %= order_num
-                    return num * 2 + 2
+                    _ = ord(string[-1])
+                    _ %= __
+                    return _ * 2 + 2
 
-                if self.epsId < int(self.scramble_id):
+                if self.epsId < 268850:
                     return 0
-                elif self.epsId < 268850:
-                    return 10
                 elif self.epsId > 421926:
                     return _get_num(8)
                 else:
@@ -40,6 +38,8 @@ class JmUtils:
             num = get_num()
             img = BytesIO(img_content)
             srcImg = Image.open(img)
+            if not num:
+                return srcImg
             size = (width, height) = srcImg.size
             desImg = Image.new(srcImg.mode, size)
             rem = height % num
@@ -76,3 +76,25 @@ class JmUtils:
             return re.search(r"http[s]?://(.*)", str(resp.next_request.url)).group(1)
         else:
             raise ConnectionError(f"永久网址[{cls.forever_url}]似乎失效了，需要更新")
+
+
+chn_regex = re.compile(r"汉化|漢化|DL版|修正|中国|翻訳|翻译|翻譯|中文|後編|前編|カラー化|個人|" +
+                       r"重修|重嵌|机翻|機翻|整合|黑字|Chinese|Japanese|\[Digital]|vol|\[\d+]")
+
+
+def set_author_ahead(title: str) -> str:
+    author_ = re.findall(r"\[.*?]", title)
+    if bool(re.search(r"[(（]", "".join(author_))):  # 优先选标签内带括号
+        author_ = list(filter(lambda x: bool(re.search(r"[(（]", x)), author_))
+    else:  # 采用排除法筛选
+        author_ = list(filter(lambda x: not bool(chn_regex.search(x)), author_))
+    if len(author_) > 1:
+        if len(set(author_)) == 1:  # 去除重复标签
+            author_ = [author_[0]]
+        else:
+            # logger.warning(f"匹配待改善 {author_=}")
+            return title
+    elif not author_:
+        return title
+    author = author_[0]
+    return author + title.replace(author, '').replace("  ", " ")
