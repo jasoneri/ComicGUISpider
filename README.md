@@ -5,13 +5,16 @@
 
 ## 更新
 
-+ V1.4 | # 2024-06-02
-  1、kuku不维护了，没兴趣搞那么多
++ V1.5 | # 2024-07-03
+  1、新增jm-comic
+  > 注意点：gui显示的顺序是没错的，但网站缓存做得稀烂，需要每次浏览器清除该网cookies(用搜索时不用清也行)，确保gui顺序跟浏览器顺序一致再选
 
 ## 一、简述  
 ![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.jpg)
 
 不打包了，有人看到issue我再说或者心血来潮搞github flow
+
+> 入口是crawl_go.py 或 crawl_only.py
 
 ## 二、配置setting.txt
 

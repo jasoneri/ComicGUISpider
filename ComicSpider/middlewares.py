@@ -58,6 +58,23 @@ class KaobeiMiddleware(ComicspiderDownloaderMiddleware):
         return None
 
 
+class JmMiddleware(ComicspiderDownloaderMiddleware):
+    def process_request(self, request, spider):
+        request.headers.update({
+            'Host': spider.domain,
+            'User-Agent': 'Mozilla/5.0(WindowsNT10.0;Win64;x64;rv:127.0)Gecko/20100101Firefox/127.0',
+            'Accept': 'image/webp;application/xml;q=0.9;image/avif;application/xhtml+xml;text/html;*/*;q=0.8',
+            'Accept-Language': 'zh;q=0.8;en;q=0.2;zh-CN;zh-TW;q=0.7;zh-HK;q=0.5;en-US;q=0.3',
+            'Accept-Encoding': 'br;zstd;deflate;gzip',
+            'Alt-Used': spider.domain,
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
+            'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
+        })
+        return None
+
+
 class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
     """使用情况是“通常页需要over wall访问”，“图源cn就能访问”... 因此domain的都使用代理"""
     domain_regex: re.Pattern = None

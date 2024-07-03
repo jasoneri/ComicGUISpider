@@ -35,13 +35,13 @@ class Gui:
 
 if __name__ == '__main__':
     spider_choice = 2  # 选网站/爬虫，转crawl_what方法一目了然
-    keyword = '骑乘之王'  # 输入关键词    # FIXME(2024-06-18): debug 轻小说book请求
-    input_1 = "1"  # 选书
-    input_2 = "11-20"  # 选章节
+    keyword = '満开开花'  # 输入关键词    # FIXME(2024-06-18): debug kaobei轻小说book请求
+    input_1 = "10-12+22+26+"  # 选书
+    # input_2 = "11"  # 选章节
 
     state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='')
     state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_1))
-    state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2))
+    # state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2))
 
     guiQueuesManger = GuiQueuesManger()
     queue_port = guiQueuesManger.find_free_port()
@@ -60,8 +60,8 @@ if __name__ == '__main__':
     refresh_state(gui, 'process_state', 'ProcessQueue', monitor=True)
     gui.Q('InputFieldQueue').send(state_2)
     time.sleep(2)
-    refresh_state(gui, 'process_state', 'ProcessQueue', monitor=True)
-    gui.Q('InputFieldQueue').send(state_3)
+    # refresh_state(gui, 'process_state', 'ProcessQueue', monitor=True)
+    # gui.Q('InputFieldQueue').send(state_3)
 
     for p in [p_qm, p_bThread]:
         if p is not None:
