@@ -102,8 +102,8 @@ class GuiQueuesManger(QueuesManager):
 
 
 def crawl_what(what, queue_port, **settings_kw):
-    spider_what = {1: 'comic90mh',
-                   2: 'manga_copy',
+    spider_what = {2: 'jm',
+                   1: 'manga_copy',
                    3: 'wnacg'}
     freeze_support()
     s = get_project_settings()

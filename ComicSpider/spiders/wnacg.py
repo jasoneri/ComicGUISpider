@@ -12,7 +12,6 @@ class WnacgSpider(BaseComicSpider2):
     domain = domain
     # allowed_domains = [domain]
     search_url_head = f'https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q='
-    index_regex = re.compile(r'aid-(\d+)\.html')
     mappings = {'更新': f'https://{domain}/albums.html',
                 '汉化': f'https://{domain}/albums-index-cate-1.html',
                 }

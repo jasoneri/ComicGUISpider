@@ -291,8 +291,8 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "ComicSpider v1.3"))
         self.chooseBox.setItemText(0, _translate("MainWindow", "点选一个网站"))
-        self.chooseBox.setItemText(1, _translate("MainWindow", "1、90MH"))
-        self.chooseBox.setItemText(2, _translate("MainWindow", "2、拷贝漫画"))
+        self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))
+        self.chooseBox.setItemText(2, _translate("MainWindow", "2、jm**"))
         self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg**"))
         self.chooseBox.setToolTip(_translate("MainWindow", "选中网站后看状态栏有输入提示！"))
         self.checkisopen.setText(_translate("MainWindow", "下载完成后打开文件夹"))
