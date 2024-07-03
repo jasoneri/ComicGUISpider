@@ -9,7 +9,7 @@ from scrapy.pipelines.images import ImagesPipeline, ImageException
 from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.utils.python import get_func_args
 
-from utils.special import JmUtils
+from utils.special import JmUtils, set_author_ahead
 
 
 class ComicPipeline(ImagesPipeline):
@@ -34,14 +34,14 @@ class ComicPipeline(ImagesPipeline):
         spider = self.spiderinfo.spider
         basepath = spider.settings.get('IMAGES_STORE')
         path = self.file_folder(basepath, section, spider, title, request.meta)
+        os.makedirs(path, exist_ok=True)
         fin = os.path.join(path, page)
         return fin
 
     def file_folder(self, basepath, section, spider, title, meta: dict):
-        path = f"{basepath}\\本子\\web\\{self._sub_index.sub('', title)}" \
+        path = f"{basepath}\\本子\\web\\{self._sub_index.sub('', set_author_ahead(title))}" \
             if spider.name in spider.settings.get('SPECIAL') \
             else f"{basepath}\\{title}\\{section}\\"
-        os.makedirs(path, exist_ok=True)  # 还有标题不能创建的话我吐血
         return path
 
     def image_downloaded(self, response, request, info, *, item=None):
@@ -55,23 +55,16 @@ class ComicPipeline(ImagesPipeline):
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
         # # 控制台专用
-        # sign = {1: '→', 2: '↘', 3: '↓', 4: '↙', 5: '←', 6: '↖', 7: '↑', 0: '↗', 999: '\n'}
-        # p = sign[self.now % (len(sign.keys()) - 1)] if self.now % 50 else sign[999]
-        # print(p, end='', flush=True)
         super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
 
 
 class JmComicPipeline(ComicPipeline):
     def file_folder(self, basepath, section, spider, title, meta: dict):
-        path = f"{basepath}\\本子\\web\\{self._sub_index.sub('', title)}" \
-            if spider.name in spider.settings.get('SPECIAL') \
-            else f"{basepath}\\{title}\\{section}\\"
-        if p.Path(path).exists():
-            # jm上传者太多命名规范太杂有重名情况出现(例如'満开开花-催眠で')，重名时加上车号确保不重，忽略重复下载情况(很少发生)
-            _epsId = re.search(r"(\d+)$", meta.get("referer", ""))
-            if bool(_epsId):
-                path = f"{path}[{_epsId.group(1)}]"
-        os.makedirs(path, exist_ok=True)
+        path = super(JmComicPipeline, self).file_folder(basepath, section, spider, title, meta)
+        # jm上传者太多命名规范太杂有重名情况出现(例如'満开开花-催眠で')，重名时加上车号确保不重
+        _epsId = re.search(r"(\d+)$", meta.get("referer", ""))
+        if bool(_epsId):
+            path = f"{path}[{_epsId.group(1)}]"
         return path
 
     def get_images(self, response, request, info, *, item=None):
