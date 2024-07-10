@@ -82,9 +82,9 @@ class GuiQueuesManger(QueuesManager):
         self.s.serve_forever()
 
     def find_free_port(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(3)
-        for i in range(50000, 50010):
+        for i in range(50000, 50020):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
             try:
                 result = sock.connect_ex(('localhost', i))
                 if result == 0:
@@ -97,7 +97,8 @@ class GuiQueuesManger(QueuesManager):
             except Exception as e:
                 sock.close()
         else:
-            raise ConnectionError('no free port between 50000 and 50010 ')
+            raise ConnectionError('no free port between 50000 and 50020 ')
+        del sock
         return self.queue_port
 
 

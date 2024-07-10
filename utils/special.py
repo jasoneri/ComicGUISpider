@@ -78,8 +78,8 @@ class JmUtils:
             raise ConnectionError(f"永久网址[{cls.forever_url}]似乎失效了，需要更新")
 
 
-chn_regex = re.compile(r"汉化|漢化|DL版|修正|中国|翻訳|翻译|翻譯|中文|後編|前編|カラー化|個人|" +
-                       r"重修|重嵌|机翻|機翻|整合|黑字|Chinese|Japanese|\[Digital]|vol|\[\d+]")
+chn_regex = re.compile(r"汉化|漢化|粵化|DL版|修正|中国|翻訳|翻译|翻譯|中文|後編|前編|カラー化|個人|" +
+                       r"無修|重修|重嵌|机翻|機翻|整合|黑字|Chinese|Japanese|\[Digital]|vol|\[\d+]")
 
 
 def set_author_ahead(title: str) -> str:
@@ -98,3 +98,36 @@ def set_author_ahead(title: str) -> str:
         return title
     author = author_[0]
     return author + title.replace(author, '').replace("  ", " ")
+
+
+def get_one_extra():
+    import asyncio
+    import aiofiles
+    from lxml import etree
+    import pathlib as p
+    from tqdm.asyncio import tqdm
+    from utils import conf
+
+    name = "おもちゃの人生"  # dmkumh.com
+    book_html = r"../test/analyze/temp/temp.html"
+    tar_path = p.Path(conf.sv_path).joinpath(r"本子\web", name)
+
+    async def do(targets):
+        async def pic_fetch(sess, url):
+            resp = await sess.get(url)
+            return resp.content
+
+        async with httpx.AsyncClient() as sess:
+            for page, url in tqdm(targets.items()):
+                content = await pic_fetch(sess, url)
+                async with aiofiles.open(tar_path.joinpath(f"第{page}页.jpg"), 'wb') as f:
+                    await f.write(content)
+
+    tar_path.mkdir(exist_ok=True)
+    with open(book_html, 'r', encoding='utf-8') as f:
+        html = etree.HTML(f.read())
+    divs = html.xpath("//div[contains(@class, 'rd-article-wr')]/div")
+    targets = {div.xpath("./@data-index")[0]: div.xpath("./img/@data-original")[0]
+               for div in divs}
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(do(targets))
