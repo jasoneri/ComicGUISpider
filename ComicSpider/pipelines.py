@@ -3,7 +3,6 @@ import os
 import re
 import warnings
 from io import BytesIO
-import pathlib as p
 
 from scrapy.pipelines.images import ImagesPipeline, ImageException
 from scrapy.exceptions import ScrapyDeprecationWarning

@@ -72,6 +72,7 @@ class BaseComicSpider(scrapy.Spider):
     manager: QueuesManager = None
     Q: QueueHandler = None
     say: SayToGui = None
+    ua = {}
 
     num_of_row = 5
     total = 0

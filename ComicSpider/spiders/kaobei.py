@@ -42,8 +42,20 @@ class FrameBook:
 
 class KaobeiSpider(BaseComicSpider):
     name = 'manga_copy'
+    ua = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
+        "Accept-Encoding": "gzip",
+        "Content-Encoding": "gzip",
+        "platform": "1",
+        "version": "2024.01.08",
+        "webp": "1",
+        "region": "1",
+        "Origin": "https://www.mangacopy.com",
+    }
     domain = domain
-    custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.KaobeiMiddleware': 5},
+    custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5},
                        "REFERER_ENABLED": False}
     search_url_head = ''
 

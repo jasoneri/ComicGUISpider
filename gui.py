@@ -126,7 +126,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         def chooseBox_changed_handle(index):
             text = {0: None,
                     1: '拷贝漫画：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名 （2.1）排名扩展：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"',
-                    2: 'jm：（1）输入【搜索词】返回搜索结果（2）可输入【_】扩展：_+日/周/月/总+更新/点击/评分/评论/收藏，例如"_周收藏&page=2"',
+                    2: 'jm：（1）输入【搜索词】返回搜索结果（2）可输入【*】扩展：*+日/周/月/总+更新/点击/评分/评论/收藏，例如"*月收藏"，"*月收藏&page=2"',
                     3: 'wnacg：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【汉化】..字如其名'}
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
             if index and not getattr(self, 'p_crawler'):
@@ -134,7 +134,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.p_crawler = Process(target=crawl_what, args=(index, self.queue_port))
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
-
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
         self.show()
 

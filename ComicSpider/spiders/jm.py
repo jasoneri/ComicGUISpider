@@ -9,10 +9,22 @@ domain = JmUtils.get_domain()
 
 
 class JmSpider(BaseComicSpider2):
-    custom_settings = {"ITEM_PIPELINES": {'ComicSpider.pipelines.JmComicPipeline': 50},
-                       "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.JmMiddleware': 5}
-                       }
     name = 'jm'
+    ua = {
+        'Host': domain,
+        'User-Agent': 'Mozilla/5.0(WindowsNT10.0;Win64;x64;rv:127.0)Gecko/20100101Firefox/127.0',
+        'Accept': 'image/webp;application/xml;q=0.9;image/avif;application/xhtml+xml;text/html;*/*;q=0.8',
+        'Accept-Language': 'zh;q=0.8;en;q=0.2;zh-CN;zh-TW;q=0.7;zh-HK;q=0.5;en-US;q=0.3',
+        'Accept-Encoding': 'br;zstd;deflate;gzip',
+        'Alt-Used': domain,
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
+        'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
+    }
+    custom_settings = {"ITEM_PIPELINES": {'ComicSpider.pipelines.JmComicPipeline': 50},
+                       "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5}
+                       }
     num_of_row = 4
     domain = domain
     search_url_head = f'https://{domain}/search/photos?search_query='
@@ -28,7 +40,7 @@ class JmSpider(BaseComicSpider2):
     @property
     def search(self):
         keyword = self.input_state.keyword
-        if '_' not in keyword:
+        if '*' not in keyword:
             return f"{self.search_url_head}{keyword}"
         __t = self.time_regex.search(keyword)
         __k = self.kind_regex.search(keyword)
