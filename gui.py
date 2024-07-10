@@ -123,13 +123,19 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.Q = QueueHandler(self.manager)
         self.btn_logic_bind()
 
-        def status_tip(index):
+        def chooseBox_changed_handle(index):
             text = {0: None,
                     1: '拷贝漫画：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名 （2.1）排名扩展：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"',
                     2: 'jm：（1）输入【搜索词】返回搜索结果（2）可输入【_】扩展：_+日/周/月/总+更新/点击/评分/评论/收藏，例如"_周收藏&page=2"',
                     3: 'wnacg：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【汉化】..字如其名'}
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
-        self.chooseBox.currentIndexChanged.connect(status_tip)
+            if index and not getattr(self, 'p_crawler'):
+                # optimize backend scrapy start speed
+                self.p_crawler = Process(target=crawl_what, args=(index, self.queue_port))
+                self.p_crawler.start()
+                self.chooseBox.setDisabled(True)
+
+        self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
         self.show()
 
     def btn_logic_bind(self):
@@ -192,12 +198,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.bThread.item_count_signal.connect(self.processbar_load)
                 self.bThread.finishSignal.connect(self.crawl_end)
 
-                self.p_crawler = Process(target=crawl_what, args=(self.input_state.bookSelected, self.queue_port))
-                self.p_crawler.start()
                 self.bThread.start()
                 self.log.info(f'-*-*- Background thread & spider starting')
 
-            self.chooseBox.setDisabled(True)
             self.log.debug(
                 f'website_index:[{self.input_state.bookSelected}], keyword [{self.input_state.keyword}] success ')
 
