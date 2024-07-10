@@ -82,6 +82,7 @@ class BaseComicSpider(scrapy.Spider):
     mappings = {}  # mappings自定义关键字对应"固定"uri
 
     def start_requests(self):
+        refresh_state(self, 'input_state', 'InputFieldQueue')
         search_start = self.search
         self.search_start = deepcopy(search_start)
         yield scrapy.Request(self.search_start, dont_filter=True)
@@ -106,7 +107,7 @@ class BaseComicSpider(scrapy.Spider):
         self.Q('ProcessQueue').send(self.process_state)
         frame_book_results = self.frame_book(response)
 
-        refresh_state(self, 'input_state', 'InputFieldQueue', monitor=True)
+        refresh_state(self, 'input_state', 'InputFieldQueue', monitor_change=True)
         results = self.elect_res(self.input_state.indexes, frame_book_results, step='漫画')
         if results is None or not len(results):
             yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
@@ -133,7 +134,7 @@ class BaseComicSpider(scrapy.Spider):
         self.say(f'<br>{"=" * 15} 《{title}》')
         frame_sec_result = self.frame_section(response)
 
-        refresh_state(self, 'input_state', 'InputFieldQueue', monitor=True)
+        refresh_state(self, 'input_state', 'InputFieldQueue', monitor_change=True)
         choose = self.input_state.indexes
         results = self.elect_res(choose, frame_sec_result, step='章节')
         if results is None or not len(results):
@@ -195,7 +196,6 @@ class BaseComicSpider(scrapy.Spider):
         spider.manager.connect()
         q = getattr(spider.manager, 'TextBrowserQueue')()
         spider.Q = QueueHandler(spider.manager)
-        spider.input_state = spider.Q('InputFieldQueue').recv()
 
         spider.say = SayToGui(spider, q, spider.text_browser_state)
         return spider

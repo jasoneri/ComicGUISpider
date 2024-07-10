@@ -29,10 +29,10 @@ class ProcessState(State):
     process: str
 
 
-def refresh_state(self, state_name, queue_name, monitor=False):
+def refresh_state(self, state_name, queue_name, monitor_change=False):
     _ = getattr(self, state_name)
     state = self.Q(queue_name).recv()
-    while monitor:
+    while monitor_change:
         if state == _:
             state = self.Q(queue_name).recv()
         else:
