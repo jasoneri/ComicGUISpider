@@ -45,7 +45,7 @@ class WorkThread(QThread):
         TextBrowser = m.TextBrowserQueue()
         Bar = m.BarQueue()
         while self.active:
-            self.msleep(8)
+            self.msleep(6)
             try:
                 if not TextBrowser.empty():
                     self.print_signal.emit(str(TextBrowser.get().text))

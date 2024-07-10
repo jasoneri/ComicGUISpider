@@ -83,6 +83,8 @@ class KaobeiSpider(BaseComicSpider):
                 for attr_name, _path in self.preset_book_frame.rendering_map().items()
             }
             url = rf"""https://{domain}/api/v3/comic/{rendered.pop('book_path')}/group/default/chapters?limit=300&offset=0&_update=false"""
+            # url = rf"""https://{domain}/api/v3/comic/{rendered.pop('book_path')}/group/tankobon/chapters?limit=300&offset=0&_update=false"""
+            # todo: 额外卷请求，写req做到frame_section上合并
             self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
             frame_results[index + 1] = [rendered['漫画名'], url]
         return self.say.frame_book_print(frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选<br>")
