@@ -134,6 +134,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.p_crawler = Process(target=crawl_what, args=(index, self.queue_port))
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
+                self.retrybtn.setEnabled(True)
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
         self.show()
 
@@ -143,7 +144,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.searchinput.textChanged.connect(search_btn)
         # self.next_btn.setEnabled(True)
         self.crawl_btn.clicked.connect(self.crawl)
-        self.retrybtn.setDisabled(1)
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
 
@@ -167,9 +167,10 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.log.error(str(traceback.format_exc()))
             self.setupUi(self)
 
-        retry_do_what = {'fin': retry_all}
-        QThread.msleep(5)
-        retry_do_what[self.process_state.process]()
+        # retry_do_what = {'fin': retry_all}
+        # QThread.msleep(5)
+        # retry_do_what[self.process_state.process]()
+        retry_all()
         self.retrybtn.setDisabled(True)
         self.log.debug('===--→ retry_schedule end\n')
 

@@ -28,8 +28,10 @@ class JmUtils:
                     _ %= __
                     return _ * 2 + 2
 
-                if self.epsId < 268850:
+                if self.epsId < 220980:
                     return 0
+                elif self.epsId < 268850:
+                    return 10
                 elif self.epsId > 421926:
                     return _get_num(8)
                 else:
