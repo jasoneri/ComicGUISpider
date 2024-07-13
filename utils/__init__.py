@@ -4,41 +4,31 @@ import os
 import re
 import logging
 import time
+import yaml
 import pathlib as p
+import typing as t
 from logging.handlers import TimedRotatingFileHandler
 from dataclasses import dataclass, asdict
 import multiprocessing.managers as m
-import typing as t
 
 ori_path = p.Path(__file__).parent.parent
+yaml.warnings({'YAMLLoadWarning': False})
 
 
 class Conf:
     sv_path = r'D:\Comic'
     log_path = ori_path.joinpath('log')
     proxies = []
-    level = 'WARNING'
+    log_level = 'WARNING'
     custom_map = {}
 
-    def get_info(self):  # 脱敏，储存路径和代理等用外部文件读
+    def init_conf(self):  # 脱敏，储存路径和代理等用外部文件读
         try:
-            with open(ori_path.joinpath('setting.txt'), 'r', encoding='utf-8') as fp:
-                text = fp.read()
-                try:
-                    self.sv_path = re.findall(r'<([\s\S]*)>', text)[0]
-                except IndexError:
-                    pass
-                try:
-                    self.level = re.findall('(DEBUG|INFO|ERROR)', text)[0]
-                except IndexError:
-                    pass
-                self.proxies = re.findall(r'(\d+\.\d+\.\d+\.\d+:\d+)', text)
-                custom_map_scope = re.findall(r'{(.*?)}', re.sub('\n', '', text))
-                if custom_map_scope:
-                    self.custom_map = {
-                        g.split(': ')[0].strip(): g.split(': ')[1]
-                        for g in filter(lambda _: _.strip(), re.split(r'[,\n]', custom_map_scope[0]))
-                    }
+            with open(ori_path.joinpath('setting.yml'), 'r', encoding='utf-8') as fp:
+                cfg = fp.read()
+            yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
+            for _ in ('sv_path', 'proxies', 'log_level', 'custom_map'):
+                self.__setattr__(_, yml_config.get(_, getattr(self, _)))
         except FileNotFoundError:
             pass
 
@@ -55,21 +45,21 @@ class Conf:
 
         log_file_handler = TimedRotatingFileHandler(filename=logfile, when="D", interval=1, backupCount=3)
         log_file_handler.setFormatter(formatter)
-        log_file_handler.setLevel(LEVEL[level or self.level])
+        log_file_handler.setLevel(LEVEL[level or self.log_level])
 
         log = logging.getLogger(str(logfile))
         log.addHandler(log_file_handler)
-        log.setLevel(LEVEL[level or self.level])
+        log.setLevel(LEVEL[level or self.log_level])
         return log
 
     @property
     def settings(self):
-        return self.sv_path, self.log_path, self.proxies, self.level, self.custom_map
+        return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map
 
     def __new__(cls, *args, **kwargs):
         if not hasattr(Conf, "_instance"):
             Conf._instance = object.__new__(cls)
-            Conf._instance.get_info()
+            Conf._instance.init_conf()
         return Conf._instance
 
 

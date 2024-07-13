@@ -41,7 +41,7 @@ class SayToGui:
         self(
             f"{''.join(self.exp_txt)}{font_color(extra, color='blue')}"
             if len(frame_results) else
-            f"{'✈' * 15}{font_color('什么意思？唔……就是你搜的在放✈(飞机)，retry拯救', color='red', size=5)}"
+            f"{'✈' * 15}{font_color('什么意思？唔……就是你搜的在放✈(飞机)，点击retry重开', color='red', size=5)}"
         )
         return frame_results
 
