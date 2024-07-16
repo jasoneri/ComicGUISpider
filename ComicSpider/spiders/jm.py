@@ -31,7 +31,7 @@ class JmSpider(BaseComicSpider2):
     mappings = {}
 
     time_regex = re.compile(r".*?([日周月总])")
-    kind_regex = re.compile(r".*?(新|点击|评分|评论|收藏)")
+    kind_regex = re.compile(r".*?(更新|点击|评分|评论|收藏)")
     expand_map: t.Dict[str, dict] = {
         "日": {'t': 't'}, "周": {'t': 'w'}, "月": {'t': 'm'}, "总": {'t': 'a'},
         "更新": {'o': 'mr'}, "点击": {'o': 'mv'}, "评分": {'o': 'tr'}, "评论": {'o': 'md'}, "收藏": {'o': 'tf'}
@@ -40,10 +40,10 @@ class JmSpider(BaseComicSpider2):
     @property
     def search(self):
         keyword = self.input_state.keyword
-        if '*' not in keyword:
-            return f"{self.search_url_head}{keyword}"
         __t = self.time_regex.search(keyword)
         __k = self.kind_regex.search(keyword)
+        if not bool(__t) and not bool(__k):
+            return f"{self.search_url_head}{keyword}"
         _t = __t.group(1) if bool(__t) else '周'
         _k = __k.group(1) if bool(__k) else '点击'
         params = {**self.expand_map[_t], **self.expand_map[_k]}

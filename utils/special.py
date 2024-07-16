@@ -6,17 +6,21 @@ import re
 from PIL import Image
 from io import BytesIO
 import httpx
+from lxml import etree
 
 
 class JmUtils:
     forever_url = "https://jm365.work/3YeBdF"
+    publish_url = "https://jm365.work/mJ8rWd"
+    status_forever = True
+    status_publish = True
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")
         epsId = None  # 书id '536323'
         scramble_id = None  # 页数(带前缀0) '00020'
 
-        def convert_img(self, img_content: bytes):
+        def convert_img(self, img_content: bytes) -> Image:
             self.epsId = int(self.epsId)
 
             def get_num():
@@ -72,12 +76,53 @@ class JmUtils:
 
     @classmethod
     def get_domain(cls):
-        cli = httpx.Client()
-        resp = cli.get(cls.forever_url)
-        if str(resp.status_code).startswith('3'):
-            return re.search(r"http[s]?://(.*)", str(resp.next_request.url)).group(1)
+        def by_forever():
+            try:
+                resp = cli.get(cls.forever_url, follow_redirects=True)
+            except httpx.ConnectError:
+                cls.status_forever = False
+                print(f"永久网址[{cls.forever_url}]失效了")  # logger.warning()
+            else:
+                # return re.search(r"https?://(.*)", str(resp.next_request.url)).group(1)
+                return re.search(r"https?://(.*)/", str(resp.request.url)).group(1)
+
+        def by_publish():
+            resp = cli.get(cls.publish_url, follow_redirects=True)
+            if str(resp.status_code).startswith('2'):
+                return cls.parse_publish(resp.text)
+            else:
+                cls.status_publish = False
+                print(f"发布页获取[{cls.publish_url}]失效了")  # logger.warning()
+
+        cli = httpx.Client(headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Alt-Used": "jm365.work",
+            "Connection": "keep-alive",
+            "Priority": "u=0, i",
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+            "TE": "trailers"
+        })
+        domain = by_publish() or by_forever() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
+        if not cls.status_forever and not cls.status_publish:
+            raise ConnectionError(f"无法获取domain，方法均失效了，需要查看")
+        return domain
+
+    @classmethod
+    def parse_publish(cls, html_text):
+        html = etree.HTML(html_text)
+        ps = html.xpath('//div[@class="main"]/p')
+        order_p = list(filter(lambda p: '內地' in ''.join(p.xpath('.//text()')), ps))  # 小心这个"内"字是繁体
+        if order_p:
+            domain = order_p[0].xpath('.//text()')[-1].strip()
+            return domain
         else:
-            raise ConnectionError(f"永久网址[{cls.forever_url}]似乎失效了，需要更新")
+            cls.status_publish = False
+            print(f"发布页[{cls.publish_url}]清洗失效")  # logger.warning()
+            return None
 
 
 chn_regex = re.compile(r"汉化|漢化|粵化|DL版|修正|中国|翻訳|翻译|翻譯|中文|後編|前編|カラー化|個人|" +

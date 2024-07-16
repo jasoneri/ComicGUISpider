@@ -4,7 +4,7 @@ import time
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
-from PyQt5.QtWidgets import QDialog, QMainWindow, QMenu, QAction, QMessageBox
+from PyQt5.QtWidgets import QDialog, QMainWindow, QMenu, QAction, QMessageBox, QCompleter
 import traceback
 from loguru import logger
 
@@ -112,6 +112,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     book_num: int = 0
     helpclickCnt = 0
     nextclickCnt = 0
+    checkisopenCnt = 0
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -139,14 +140,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def setupUi(self, MainWindow):
         self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
-        self.tool_menu = ToolMenu(self)
         self.helpbtn.setFocus()
+        self.helplabel = Ui_HelpLabel(self.centralwidget)
         self.textBrowser.setText(''.join(TextUtils.description))
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
-        self.helplabel = Ui_HelpLabel(self.centralwidget)
-        self.helpclickCnt = 0
-        self.nextclickCnt = 0
         # 初始化通信管道相关
         self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='')
         self.manager = QueuesManager.create_manager(
@@ -155,13 +153,23 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         )
         self.manager.connect()
         self.Q = QueueHandler(self.manager)
+        # 按钮组
+        self.tool_menu = ToolMenu(self)
+        self.helpclickCnt = 0
+        self.nextclickCnt = 0
+        self.checkisopenCnt = 0
         self.btn_logic_bind()
 
         def chooseBox_changed_handle(index):
             text = {0: None,
-                    1: '拷贝漫画：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【排名】..字如其名 （2.1）排名扩展：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"',
-                    2: 'jm：（1）输入【搜索词】返回搜索结果（2）可输入【*】扩展：*+日/周/月/总+更新/点击/评分/评论/收藏，例如"*月收藏"，"*月收藏&page=2"',
-                    3: 'wnacg：（1）输入【搜索词】返回搜索结果（2）可输入【更新】【汉化】..字如其名'}
+                    1: '拷贝漫画：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"',
+                    2: 'jm：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（2.1）规则补充：更新/点击/评分/评论/收藏+日/周/月/总，例如"收藏月"，"收藏月&page=2"',
+                    3: 'wnacg：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设'}
+            completer_keywords_map = {
+                1: ['更新', '排名日', '排名周', '排名月', '排名总'],
+                2: ['更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
+                3: ['更新', '汉化'],
+            }
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
             if index and not getattr(self, 'p_crawler'):
                 # optimize backend scrapy start speed
@@ -172,6 +180,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             if index != 1:
                 self.toolButton.setDisabled(True)
                 self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} 仅当常规漫画网站能使用工具箱功能<br>'))
+            # 输入框联想补全
+            completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", completer_keywords_map[index])))
+            completer.setFilterMode(Qt.MatchStartsWith)
+            completer.setCompletionMode(QCompleter.PopupCompletion)
+            self.searchinput.setCompleter(completer)
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
         self.show()
 
@@ -183,6 +196,15 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.crawl_btn.clicked.connect(self.crawl)
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
+
+        def checkisopen_btn():
+            if self.checkisopenCnt > 0:
+                os.startfile(conf.sv_path)
+            self.checkisopen.setText("现在点击立刻打开存储目录")
+            self.checkisopen.setStatusTip('勾选状态下完成后也会自动打开目录的')
+            self.checkisopenCnt += 1
+
+        self.checkisopen.clicked.connect(checkisopen_btn)
 
     def show_help(self):
         self.helplabel.hide() if self.helpclickCnt%2 else self.helplabel.show()
@@ -196,7 +218,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         def retry_all():
             self.textBrowser.setStyleSheet('background-color: red;')
             self.textbrowser_load(font_color('…………重启爬虫中，会卡个几秒', size=6))
-            self.retrybtn.setToolTip(QCoreApplication.translate("MainWindow", "retry重启时会卡几秒，等等"))
             QThread.msleep(200)
             try:
                 time.sleep(0.8)
@@ -218,7 +239,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.next_btn.setText('Next')
 
             self.input_state.keyword = self.searchinput.text()[6:].strip()  # TODO(2024-07-16): 限制书本输入仅保留 list[0]
-            # TODO(2024-07-16): 预设输入
             self.input_state.bookSelected = self.chooseBox.currentIndex()
             # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
             self.Q('InputFieldQueue').send(self.input_state)
@@ -317,8 +337,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.textbrowser_load(
             font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') + font_color(
                 "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
-        os.startfile(imgs_path) if self.checkisopen.isChecked() else None  # TODO(2024-07-16): 做成全程可打开吧
-        self.checkisopen.clicked.connect(lambda: os.startfile(imgs_path))
+        os.startfile(imgs_path) if self.checkisopen.isChecked() else None
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def textbrowser_load(self, string):
