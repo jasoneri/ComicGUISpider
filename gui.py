@@ -4,7 +4,7 @@ import time
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
-from PyQt5.QtWidgets import QDialog, QMainWindow
+from PyQt5.QtWidgets import QDialog, QMainWindow, QMenu, QAction, QMessageBox
 import traceback
 from loguru import logger
 
@@ -16,6 +16,7 @@ from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what
 )
+from utils.script.combine_parent_floder_name import combine_then_mv, show_max
 
 
 class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):
@@ -60,14 +61,46 @@ class WorkThread(QThread):
             except ConnectionResetError:
                 break
         if self.active:
-            from ComicSpider.settings import IMAGES_STORE
-            self.finishSignal.emit(IMAGES_STORE)
+            self.finishSignal.emit(str(conf.sv_path))
 
     # def __del__(self):
     #     self.wait()
 
     def stop(self):
         self.flag = 0
+
+
+class ToolMenu(QMenu):
+    def __init__(self, gui, *args, **kwargs):
+        super(ToolMenu, self).__init__(*args, **kwargs)
+        self.gui = gui
+        self.init_actions()
+        gui.toolButton.setMenu(self)
+
+    def init_actions(self):
+        action_show_max = QAction("显示已阅最新话数记录", self.gui)
+        action_show_max.setObjectName("action_show_max")
+        self.addAction(action_show_max)
+        action_show_max.triggered.connect(self.show_max)
+
+        action_combine_then_mv = QAction("整合章节并移至web目录", self.gui)
+        action_combine_then_mv.setObjectName("action_combine_then_mv")
+        self.addAction(action_combine_then_mv)
+        action_combine_then_mv.triggered.connect(self.combine_then_mv)
+
+    def show_max(self):
+        record_txt = conf.sv_path.joinpath("web_handle/record.txt")
+        if record_txt.exists():
+            QMessageBox.information(self.gui, 'show_max', show_max(record_txt), QMessageBox.Ok)
+        else:
+            QMessageBox.information(self.gui, 'show_max',
+                                    f"未配合[comic_viewer]项目产生记录文件[{str(record_txt)}]，\n功能无法正常使用",
+                                    QMessageBox.Ok)
+
+    def combine_then_mv(self):
+        done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
+        QMessageBox.information(self.gui, 'combine_then_mv',
+                                f"已将{done}整合章节并转换至[{conf.sv_path.joinpath("web")}]", QMessageBox.Ok)
 
 
 class SpiderGUI(QMainWindow, Ui_MainWindow):
@@ -106,6 +139,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def setupUi(self, MainWindow):
         self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
+        self.tool_menu = ToolMenu(self)
         self.helpbtn.setFocus()
         self.textBrowser.setText(''.join(TextUtils.description))
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
@@ -135,6 +169,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
+            if index != 1:
+                self.toolButton.setDisabled(True)
+                self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} 仅当常规漫画网站能使用工具箱功能<br>'))
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
         self.show()
 
@@ -152,8 +189,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.helpclickCnt += 1
 
     def retry_schedule(self):  # 烂逻辑
-        refresh_state(self, 'process_state', 'ProcessQueue')
-        self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
+        if getattr(self, 'p_crawler', None):
+            refresh_state(self, 'process_state', 'ProcessQueue')
+            self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
 
         def retry_all():
             self.textBrowser.setStyleSheet('background-color: red;')
@@ -179,7 +217,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.log.debug('===--→ -*- searching')
             self.next_btn.setText('Next')
 
-            self.input_state.keyword = self.searchinput.text()[6:].strip()
+            self.input_state.keyword = self.searchinput.text()[6:].strip()  # TODO(2024-07-16): 限制书本输入仅保留 list[0]
+            # TODO(2024-07-16): 预设输入
             self.input_state.bookSelected = self.chooseBox.currentIndex()
             # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
             self.Q('InputFieldQueue').send(self.input_state)
@@ -256,7 +295,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.helplabel.re_pic()
             self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", color='purple'))
             self.crawl_btn.setDisabled(True)
-            self.input_yield.setDisabled(True)
+            self.input_field.setDisabled(True)
         else:
             self.chooseinput.clear()
         self.bThread.print_signal.disconnect(dia_text)
@@ -271,14 +310,14 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.chooseinput.setDisabled(True)
         self.next_btn.setDisabled(True)
         self.retrybtn.setEnabled(True)
-        self.input_yield.setEnabled(True)
+        self.input_field.setEnabled(True)
 
         self.process_state.process = 'fin'
         self.helplabel.re_pic()
         self.textbrowser_load(
             font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') + font_color(
                 "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
-        os.startfile(imgs_path) if self.checkisopen.isChecked() else None
+        os.startfile(imgs_path) if self.checkisopen.isChecked() else None  # TODO(2024-07-16): 做成全程可打开吧
         self.checkisopen.clicked.connect(lambda: os.startfile(imgs_path))
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
@@ -331,4 +370,4 @@ class TextUtils:
 
     @staticmethod
     def warning_(text):
-        return font_color(text)
+        return font_color(text, color='orange', size=5)

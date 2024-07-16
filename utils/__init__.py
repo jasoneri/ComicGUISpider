@@ -29,6 +29,7 @@ class Conf:
             yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
             for _ in ('sv_path', 'proxies', 'log_level', 'custom_map'):
                 self.__setattr__(_, yml_config.get(_, getattr(self, _)))
+            self.sv_path = p.Path(self.sv_path)
         except FileNotFoundError:
             pass
 
@@ -77,7 +78,7 @@ class PresetHtmlEl:
 
 
 def font_color(string, **attr):
-    attr = re.findall(r"'(.*?)': (.*?)[,\}]", str(attr))
+    attr = re.findall(r"'(.*?)': (.*?)[,\}]", str(attr))  # TODO(2024-07-16): 直接用items()不就行了？？？
     return f"""<font {" ".join([f"{_[0]}={_[1]}" for _ in attr])}>{string}</font>"""
 
 

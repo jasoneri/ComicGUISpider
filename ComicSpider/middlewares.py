@@ -29,8 +29,9 @@ class ComicspiderDownloaderMiddleware(object):
         # Called with the response returned from the downloader.
         if response.status != 200:
             request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
-            proxy = random.choice(self.PROXIES)
-            request.meta['proxy'] = f"{request.url.split(':')[0]}://{proxy}"
+            if self.PROXIES:
+                proxy = random.choice(self.PROXIES)
+                request.meta['proxy'] = f"{request.url.split(':')[0]}://{proxy}"
             return request
         return response
 

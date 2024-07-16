@@ -2,7 +2,7 @@
 # GUI
 # from PyQt5.QtGui import QPixmap, QColor, QPalette, QBrush
 from PyQt5.QtWidgets import QApplication
-import material_ct
+import GUI.material.material_ct
 
 import PyQt5.sip
 from PyQt5.QtCore import Qt, QSize, QMetaObject, QCoreApplication

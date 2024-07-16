@@ -83,7 +83,7 @@ class BaseComicSpider(scrapy.Spider):
     mappings = {}  # mappings自定义关键字对应"固定"uri
 
     def start_requests(self):
-        refresh_state(self, 'input_state', 'InputFieldQueue')
+        self.refresh_state('input_state', 'InputFieldQueue')
         search_start = self.search
         self.search_start = deepcopy(search_start)
         yield scrapy.Request(self.search_start, dont_filter=True)
@@ -108,7 +108,7 @@ class BaseComicSpider(scrapy.Spider):
         self.Q('ProcessQueue').send(self.process_state)
         frame_book_results = self.frame_book(response)
 
-        refresh_state(self, 'input_state', 'InputFieldQueue', monitor_change=True)
+        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         results = self.elect_res(self.input_state.indexes, frame_book_results, step='漫画')
         if results is None or not len(results):
             yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
@@ -135,7 +135,7 @@ class BaseComicSpider(scrapy.Spider):
         self.say(f'<br>{"=" * 15} 《{title}》')
         frame_sec_result = self.frame_section(response)
 
-        refresh_state(self, 'input_state', 'InputFieldQueue', monitor_change=True)
+        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         choose = self.input_state.indexes
         results = self.elect_res(choose, frame_sec_result, step='章节')
         if results is None or not len(results):
@@ -197,6 +197,8 @@ class BaseComicSpider(scrapy.Spider):
         spider.manager.connect()
         q = getattr(spider.manager, 'TextBrowserQueue')()
         spider.Q = QueueHandler(spider.manager)
+        spider.process_state.process = 'spider_init'
+        spider.Q('ProcessQueue').send(spider.process_state)
 
         spider.say = SayToGui(spider, q, spider.text_browser_state)
         return spider
@@ -208,8 +210,17 @@ class BaseComicSpider(scrapy.Spider):
         except:
             pass
         sleep(0.3)
+        if reason == "ConnectionResetError":
+            return
         self.say(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
                  if self.total != 0 else font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可去看日志文件报错', size=5))
+
+    def refresh_state(self, state_name, queue_name, monitor_change=False):
+        try:
+            refresh_state(self, state_name, queue_name, monitor_change)
+        except ConnectionResetError:
+            # logger.warning('gui非正常关闭停止爬虫(gui重启的话无视此信息)')
+            self.close('ConnectionResetError')
 
 
 class BaseComicSpider2(BaseComicSpider):
