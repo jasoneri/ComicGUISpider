@@ -46,7 +46,7 @@ class WorkThread(QThread):
         TextBrowser = m.TextBrowserQueue()
         Bar = m.BarQueue()
         while self.active:
-            self.msleep(6)
+            self.msleep(5)
             try:
                 if not TextBrowser.empty():
                     self.print_signal.emit(str(TextBrowser.get().text))
@@ -216,11 +216,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
 
         def retry_all():
-            self.textBrowser.setStyleSheet('background-color: red;')
-            self.textbrowser_load(font_color('…………重启爬虫中，会卡个几秒', size=6))
-            QThread.msleep(200)
             try:
-                time.sleep(0.8)
+                time.sleep(1)
                 self.close_process()  # 考虑重开应该是可以减少重新实例化的数量
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
@@ -238,7 +235,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.log.debug('===--→ -*- searching')
             self.next_btn.setText('Next')
 
-            self.input_state.keyword = self.searchinput.text()[6:].strip()  # TODO(2024-07-16): 限制书本输入仅保留 list[0]
+            self.input_state.keyword = self.searchinput.text()[6:].strip()
             self.input_state.bookSelected = self.chooseBox.currentIndex()
             # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
             self.Q('InputFieldQueue').send(self.input_state)
@@ -272,7 +269,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.book_num = len(self.book_choose)
                 if self.book_num > 1:
                     self.log.info('book_num > 1')
-                    self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 20}警告！！多选书本时不要随意使用 retry<br>'))
             self.chooseinput.clear()
             # choose逻辑 交由crawl, next,retry3个btn的schedule控制
             self.Q('InputFieldQueue').send(self.input_state)
@@ -385,7 +381,7 @@ class TextUtils:
     description = (f"{'message':-^95}<br>" +
                    font_color(" 不懂的： 1、右下点说明跟着走，2、首次使用去打开【运行必读.txt】看下", color='blue', size=5) +
                    font_color('别老问怎么错<br>', color='white') +
-                   f"{'仅为学习使用':-^90}")
+                   f"{'仅供学习使用':-^90}")
 
     @staticmethod
     def warning_(text):

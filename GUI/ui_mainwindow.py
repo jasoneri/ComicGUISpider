@@ -349,7 +349,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "ComicSpider v1.4"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "ComicSpider v1.5"))
         self.chooseBox.setToolTip(_translate("MainWindow", "选中网站后看状态栏有输入提示"))
         self.chooseBox.setItemText(0, _translate("MainWindow", "点选一个网站"))
         self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))
@@ -366,7 +366,7 @@ class Ui_MainWindow(object):
         self.chooseinput.setText(_translate("MainWindow", "输入序号："))
         self.next_btn.setText(_translate("MainWindow", "搜索"))
         self.toolButton.setText(_translate("MainWindow", "工具箱.."))
-        self.retrybtn.setStatusTip(_translate("MainWindow", "重启程序"))
+        self.retrybtn.setStatusTip(_translate("MainWindow", "重启程序（重启时，会卡个几秒）"))
         self.helpbtn.setToolTip(_translate("MainWindow", ">_<"))
         self.helpbtn.setStatusTip(_translate("MainWindow", "点击打开说明，再点击关闭"))
         self.helpbtn.setText(_translate("MainWindow", "我是说明\n"

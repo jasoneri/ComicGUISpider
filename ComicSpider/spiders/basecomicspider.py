@@ -212,8 +212,9 @@ class BaseComicSpider(scrapy.Spider):
         sleep(0.3)
         if reason == "ConnectionResetError":
             return
-        self.say(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
-                 if self.total != 0 else font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可去看日志文件报错', size=5))
+        elif 'init' not in self.process_state.process:
+            self.say(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
+                     if self.total != 0 else font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可去看日志文件报错', size=5))
 
     def refresh_state(self, state_name, queue_name, monitor_change=False):
         try:

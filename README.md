@@ -5,9 +5,13 @@
 
 ## 更新
 
-+ V1.5 | # 2024-07-03
-  1、新增jm-comic
-  > 注意点：gui显示的顺序是没错的，但网站缓存做得稀烂，需要每次浏览器清除该网cookies(用搜索时不用清也行)，确保gui顺序跟浏览器顺序一致再选
++ V1.5 | # 2024-07-16
+    1. 新增jm-comic
+       > 注意点：gui显示的顺序是没错的，但网站缓存做得稀烂，需要每次浏览器清除该网cookies(用搜索时不用清也行)
+       ，确保gui顺序跟浏览器顺序一致再选
+    2.
+    增加搜索输入框的联想功能（按空格弹出来预设），增加常规漫画工具箱功能（配合另一个项目用 -> [手机看漫画](https://github.com/jasoneri/comic_viewer)）
+    3. 常规漫画网站下（拷贝）避免选择多书，长链路下不稳定，若想同时下多本则开多个脚本分别搜索即可（可多开20进程）
 
 ## 一、简述  
 ![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/exe.jpg)
@@ -16,34 +20,32 @@
 
 > 入口是crawl_go.py 或 crawl_only.py
 
-## 二、配置setting.txt
+## 二、配置setting.yml
 
-### 1、更改默认下载目录：
+```yaml
+## 配置文件，使用方法详情至readme.md了解
 
-找个空行，在<>中放入自定义下载目录，不设默认在 D:\comic  
-
-```
-    <D:\comic>
-```
-
-### 2、代理IP功能：
-
-IP示例： 192.168.1.1:9999 （ IP:端口 ） 可一次扔几个，用空格或回车隔开就好
-
-```
-    aaa.aaa.aaa.aaa:61234
-    bbb.bbb.bbb.bbb:80
+sv_path: D:\Comic
+log_level: DEBUG  # DEBUG|INFO|ERROR 默认WARNING
+proxies:
+  - 127.0.0.1:10809
+custom_map:
+  更新4: https://wnacg.com/albums-index-page-4.html
+  杂志: https://wnacg.com/albums-index-cate-10.html
+  恥: https://wnacg.com/albums-index-tag-%E6%81%A5.html
 ```
 
-### 3、排错功能： 
+### 字段说明
 
-出错可先往setting.txt扔一个大写的 DEBUG 重开，更改日志等级  
-后台有运行过有log目录，GUI记录界面操作记录默认为INFO，scrapy默认为WARNING  
-<br>
++ sv_path -> 下载目录 默认为 D:\comic
++ proxies -> ip代理 使用wnacg时需要用到，jmcomic用的内地域名此项对其无效
++ custom_map -> 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，此时gui搜索框输入自定义键就会将对应网址结果输出
++ log_level -> 日志等级 后台有运行过会有log目录，GUI记录界面操作记录默认为INFO，scrapy默认为WARNING，未知错误使用DEBUG进行记录吧
+
+> 除 `sv_path` 其他均非必须，行首#注释掉即可
+
 ------
 
->## 【 bug记录 】
+## 【 bug记录 】
 
-1. 缺页问题：少见，看了下好像是懒加载（？这个有无影响有待商榷）和叠层
-   图的标签有叠两层实际只有一层可以响应，目前只通配了一层所以可能性缺页，呃……这个放放以后再想  
-
++ 拷贝有些漫画卷和话是分开的，只做了粗糙处理 -> ComicSpider/spiders/kaobei.py 98:13
