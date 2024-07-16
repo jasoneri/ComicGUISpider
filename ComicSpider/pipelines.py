@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import re
+import pathlib
 import warnings
 from io import BytesIO
 
@@ -31,16 +32,16 @@ class ComicPipeline(ImagesPipeline):
         section = self._sub.sub('-', item.get('section'))
         page = f'第{item.get('page')}页.jpg'
         spider = self.spiderinfo.spider
-        basepath = spider.settings.get('IMAGES_STORE')
+        basepath: pathlib.Path = spider.settings.get('IMAGES_STORE')
         path = self.file_folder(basepath, section, spider, title, request.meta)
         os.makedirs(path, exist_ok=True)
         fin = os.path.join(path, page)
         return fin
 
     def file_folder(self, basepath, section, spider, title, meta: dict):
-        path = f"{basepath}\\本子\\web\\{self._sub_index.sub('', set_author_ahead(title))}" \
+        path = basepath.joinpath(f"本子/web/{self._sub_index.sub('', set_author_ahead(title))}") \
             if spider.name in spider.settings.get('SPECIAL') \
-            else f"{basepath}\\{title}\\{section}\\"
+            else basepath.joinpath(f"{title}/{section}")
         return path
 
     def image_downloaded(self, response, request, info, *, item=None):

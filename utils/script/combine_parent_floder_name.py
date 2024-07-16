@@ -3,15 +3,16 @@
 import pathlib
 import re
 import shutil
-from pprint import pprint
+from pprint import pformat
 
 from tqdm import tqdm
 
 
-def combine_then_mv(root_dir, target_dir, order_book=None):
-    expect_dir = ('web', 'web_handle')
+def combine_then_mv(root_dir, target_dir, order_book=None) -> list:
+    expect_dir = ('web', 'web_handle', 'log', '本子')
     p = pathlib.Path(root_dir)
     target_p = pathlib.Path(target_dir)
+    done = []
     for order_dir in filter(lambda x: x.is_dir() and x.name not in expect_dir, p.iterdir()):
         for ordered_section in tqdm(order_dir.iterdir()):
             ___ = target_p.joinpath(f"{order_dir.name}_{ordered_section.name}")
@@ -19,6 +20,8 @@ def combine_then_mv(root_dir, target_dir, order_book=None):
                 shutil.rmtree(___)
             shutil.move(ordered_section, ___)
         shutil.rmtree(order_dir)
+        done.append(order_dir.name)
+    return done
 
 
 def restore(ori):
@@ -32,7 +35,7 @@ def restore(ori):
         shutil.move(i, book_p.joinpath(section))
 
 
-def show_max(record_file):
+def show_max(record_file) -> str:
     sec_regex = re.compile(r'.*?(\d+\.?\d?)')
     format_regex = re.compile('<(del|save|remove)>')
     temp = {}
@@ -45,7 +48,7 @@ def show_max(record_file):
     for book, sections in temp.items():
         temp[book] = max(temp[book],
                          key=lambda x: float(sec_regex.search(x).group(1)) if sec_regex.search(x) else 0)
-    pprint(temp)
+    return pformat(temp)
 
 
 if __name__ == '__main__':
