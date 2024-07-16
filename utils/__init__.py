@@ -78,7 +78,7 @@ class PresetHtmlEl:
 
 
 def font_color(string, **attr):
-    attr = re.findall(r"'(.*?)': (.*?)[,\}]", str(attr))  # TODO(2024-07-16): 直接用items()不就行了？？？
+    attr = re.findall(r"'(.*?)': (.*?)[,\}]", str(attr))  # 看正则group(2),将dict的value为str时的引号带进去了,dict.items()不行
     return f"""<font {" ".join([f"{_[0]}={_[1]}" for _ in attr])}>{string}</font>"""
 
 
