@@ -42,7 +42,7 @@ class JmSpider(BaseComicSpider2):
         keyword = self.input_state.keyword
         __t = self.time_regex.search(keyword)
         __k = self.kind_regex.search(keyword)
-        if not bool(__t) and not bool(__k):
+        if not bool(__k):  # 不好说标题匹配到关键字情况，视情况返至前置带*触发
             return f"{self.search_url_head}{keyword}"
         _t = __t.group(1) if bool(__t) else '周'
         _k = __k.group(1) if bool(__k) else '点击'
