@@ -73,4 +73,4 @@ custom_map:
 
 ## 免责声明
 
-详见[GPL License](https://github.com/jasoneri/ComicSpider/blob/GUI/LICENSE)，切勿进行盈利，所造成的后果与本人无关。
+详见[License](https://github.com/jasoneri/ComicSpider/blob/GUI/LICENSE)，切勿进行盈利，所造成的后果与本人无关。

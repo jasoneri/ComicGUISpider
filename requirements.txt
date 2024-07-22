@@ -1,7 +1,6 @@
 chardet
 httpx
 loguru
-aiohttp==3.6.2
 Scrapy
 lxml
 requests
