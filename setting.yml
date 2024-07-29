@@ -1,7 +1,0 @@
-## 配置文件，使用方法详情至readme.md了解
-
-sv_path: D:\Comic
-#log_level: DEBUG  # DEBUG|INFO|ERROR 默认WARNING
-#proxies:
-#  - 127.0.0.1:10809
-custom_map: { }

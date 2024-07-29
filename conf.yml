@@ -1,0 +1,10 @@
+## 配置文件，使用方法详情至readme.md了解
+
+sv_path: D:\Comic
+#log_level: DEBUG  # DEBUG|INFO|ERROR default: WARNING
+proxies:
+  - 127.0.0.1:12345
+custom_map:
+  更新4: https://wnacg.com/albums-index-page-4.html
+  杂志: https://wnacg.com/albums-index-cate-10.html
+  恥: https://wnacg.com/albums-index-tag-%E6%81%A5.html

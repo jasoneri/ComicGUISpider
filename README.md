@@ -41,7 +41,7 @@ crawl_only.py 则是无GUI纯脚本，可用于调试等
 
 > 没打包，没star没issue没推广成暂没mood
 
-### 配置setting.yml
+### 配置conf.yml
 
 ```yaml
 ## 配置文件，使用方法详情至readme.md了解
@@ -49,7 +49,7 @@ crawl_only.py 则是无GUI纯脚本，可用于调试等
 sv_path: D:\Comic
 log_level: DEBUG  # DEBUG|INFO|ERROR 默认WARNING
 proxies:
-  - 127.0.0.1:10809
+  - 127.0.0.1:12345
 custom_map:
   更新4: https://wnacg.com/albums-index-page-4.html
   杂志: https://wnacg.com/albums-index-cate-10.html
