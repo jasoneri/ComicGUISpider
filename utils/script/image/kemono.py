@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import datetime
 import json
+import os
+import shutil
 import pathlib as p
 import httpx
 import asyncio
@@ -9,8 +11,9 @@ import aiofiles
 from dataclasses import dataclass, asdict
 
 from loguru import logger
+import tqdm
 
-from utils.script import conf, AioRClient
+from utils.script import conf, AioRClient, BlackList
 
 domain = "kemono.su"
 headers = {'accept': 'application/json'}
@@ -55,6 +58,9 @@ class Kemono:
         self.conf = conf.kemono
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
+        self.sv_path = p.Path(self.conf.get('sv_path'))
+        self.blacklist_obj = BlackList(self.sv_path / 'blacklist.json')
+        self.blacklist = self.blacklist_obj.read()
 
     @staticmethod
     async def req(sess: httpx.AsyncClient, url, **kw):
@@ -84,13 +90,15 @@ class Kemono:
             """commonly values-of-attachments include value-of-file,
             special institution: value-of-file exist but values-of-attachments empty"""
             title = post.get('title')
+            published = datetime.datetime.strptime(post.get('published'), self.date_format)
             meta = asdict(_task_meta)
             tasks = post.get("attachments") or post.get("file") or []
             if isinstance(tasks, dict):
                 tasks = [tasks]
             tasks = [{"url": self.Api.file_prefix + task.get("path"),
-                      "meta": {**meta, "title": title, "file_name": task.get("name")}}
-                     for task in tasks]
+                      "meta": {**meta, "published": published.strftime("%Y-%m-%d"),
+                               "title": title, "file_name": task.get("name")}}
+                     for task in tqdm.tqdm(tasks)]
             if tasks:
                 await self.redis.rpush(self.redis_key, *tasks)
 
@@ -118,6 +126,20 @@ class Kemono:
         for favorite in favorites:
             await posts_of_creator(favorite)
 
+    def filter(self, u_s, p_t, f) -> bool:
+        """
+        :param u_s: user_service
+        :param p_t: published_title
+        """
+        flag = False
+        file = self.sv_path.joinpath(rf"{u_s}\{p_t}\{f}")
+        if (file.exists()
+                or u_s in self.blacklist
+                or rf"{u_s}/{p_t}" in self.blacklist
+                or rf"{u_s}/{p_t}/{f}" in self.blacklist):
+            flag = True
+        return flag
+
     async def step2_get_tasks(self):
         out_tasks = []
         per_take = 10
@@ -125,11 +147,11 @@ class Kemono:
             tasks = await self.redis.lpop(self.redis_key, per_take)
             for task in tasks:
                 meta = task['meta']
-                path = p.Path(self.conf.get('sv_path')) \
-                    .joinpath(f"{meta['user_name']}_{meta['service']}", meta['title'])
-                file = path.joinpath(meta['file_name'])
-                if file.exists():
-                    logger.debug(f"[existed] {file}")
+                user_service = f"{meta['user_name']}_{meta['service']}"
+                published_title = f"[{meta['published']}]{meta['title']}"
+                path = self.sv_path.joinpath(user_service, published_title)
+                if self.filter(user_service, published_title, meta['file_name']):
+                    logger.debug(rf"[filtered] {user_service}/{published_title}/{meta['file_name']}")
                     continue
                 path.mkdir(parents=True, exist_ok=True)
                 out_tasks.append(task)
@@ -137,21 +159,32 @@ class Kemono:
                 break
         return out_tasks
 
-    async def step2_run_task(self, _sem, task):
-        async with _sem:
+    async def step2_run_task(self, _sem, _tasks):
+        async def run_task(_file, _url):
+            async with _sem:
+                async with httpx.AsyncClient(headers=headers) as cli:
+                    resp = await self.req(cli, _url, follow_redirects=True)
+                async with aiofiles.open(_file, 'wb') as f:
+                    await f.write(resp.content)
+                return _file
+
+        tasks_future = []
+        for task in _tasks:
             url = task['url']
             meta = task['meta']
-            path = p.Path(self.conf.get('sv_path')) \
-                .joinpath(f"{meta['user_name']}_{meta['service']}", meta['title'])
+            user_service = f"{meta['user_name']}_{meta['service']}"
+            published_title = f"[{meta['published']}]{meta['title']}"
+            path = self.sv_path.joinpath(user_service, published_title)
             file = path.joinpath(meta['file_name'])
-            async with httpx.AsyncClient(headers=headers) as cli:
-                logger.debug(f"[crawling] {file}")
-                resp = await self.req(cli, url, follow_redirects=True)
-            async with aiofiles.open(file, 'wb') as f:
-                await f.write(resp.content)
-                logger.info(f"[success sv] {file}")
+            tasks_future.append(asyncio.ensure_future(run_task(file, url)))
+        tasks_iter = asyncio.as_completed(tasks_future)
+        fk_task_iter = tqdm.tqdm(tasks_iter, total=len(_tasks))
+        for coroutine in fk_task_iter:
+            res = await coroutine
+            logger.info(f"[success sv] {res}")
 
     async def temp_copy_vals(self, restore=False):
+        """redis"""
         a = self.redis_key
         b = f"{self.redis_key}_d"
         if restore:
@@ -164,6 +197,22 @@ class Kemono:
         # 将元素插入到新的列表
         await self.redis.rpush(b, *elements)
 
+    def delete(self, *args):
+        """
+        Notice! This way to delete file can let you never download again! As its blacklist system.
+            Or, you can manually append blacklist to blacklist.json,
+                format refers to Kemono().filter
+        """
+        blacklist = self.blacklist
+        len_parts = len(self.sv_path.parts)
+        for path in tqdm.tqdm(args):
+            blacklist.append("/".join(path.parts[len_parts:]))
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+        self.blacklist_obj.save(blacklist)
+
 
 if __name__ == '__main__':
     loop = asyncio.new_event_loop()
@@ -171,9 +220,12 @@ if __name__ == '__main__':
 
     obj = Kemono(AioRClient())
     # loop.run_until_complete(obj.step1_tasks_create('2024-06-01'))
-    loop.run_until_complete(obj.temp_copy_vals(True))
+    # loop.run_until_complete(obj.temp_copy_vals(False))
 
-    tasks = loop.run_until_complete(obj.step2_get_tasks())
-    sem = asyncio.Semaphore(5)
-    __tasks = [loop.create_task(obj.step2_run_task(sem, task)) for task in tasks]
-    loop.run_until_complete(asyncio.wait(__tasks))
+    # tasks = loop.run_until_complete(obj.step2_get_tasks())
+    # sem = asyncio.Semaphore(5)
+    # loop.run_until_complete(obj.step2_run_task(sem, tasks))
+
+    obj.delete(
+        *obj.sv_path.joinpath(r'MだSたろう_fanbox\[2024-06-16]フリーナっクス-アニメメーション版').glob('*動画*.zip')
+    )

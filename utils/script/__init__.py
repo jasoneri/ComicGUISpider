@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import json
 import typing as t
+import pathlib as p
 from functools import partial
 
 from redis import asyncio as aioredis
@@ -43,7 +44,7 @@ class AioRClient(aioredis.Redis):
         except (json.decoder.JSONDecodeError, TypeError):
             return result
 
-    async def rpush(self, name, *values):  # TODO(2024-07-29): json.dumps写在里面
+    async def rpush(self, name, *values):
         _values = tuple(map(partial(json.dumps, ensure_ascii=False), values))
         return await super(AioRClient, self).rpush(name, *_values)
 
@@ -54,3 +55,19 @@ class AioRClient(aioredis.Redis):
         elif results is None:
             results = []
         return list(map(json.loads, results))
+
+
+class BlackList:
+    def __init__(self, file: p.Path):
+        self.file = file
+
+    def read(self):
+        if not self.file.exists():
+            return []
+        with open(self.file, 'r', encoding='utf-8') as f:
+            _ = json.load(f)
+        return _ or []
+
+    def save(self, new_data):
+        with open(self.file, 'w', encoding='utf-8') as f:
+            json.dump(new_data, f, ensure_ascii=False)
