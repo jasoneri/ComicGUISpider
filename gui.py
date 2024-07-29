@@ -16,7 +16,7 @@ from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what
 )
-from utils.script.combine_parent_floder_name import combine_then_mv, show_max
+from utils.script.comic_viewer_tools import combine_then_mv, show_max
 
 
 class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):

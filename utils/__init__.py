@@ -22,13 +22,13 @@ class Conf:
     log_level = 'WARNING'
     custom_map = {}
 
-    def init_conf(self):  # 脱敏，储存路径和代理等用外部文件读
+    def init_conf(self, path):  # 脱敏，储存路径和代理等用外部文件读
         try:
-            with open(ori_path.joinpath('setting.yml'), 'r', encoding='utf-8') as fp:
+            with open((path or ori_path).joinpath('conf.yml'), 'r', encoding='utf-8') as fp:
                 cfg = fp.read()
             yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
-            for _ in ('sv_path', 'proxies', 'log_level', 'custom_map'):
-                self.__setattr__(_, yml_config.get(_, getattr(self, _)))
+            for k, v in yml_config.items():
+                self.__setattr__(k, v or getattr(self, k, None))
             self.sv_path = p.Path(self.sv_path)
         except FileNotFoundError:
             pass
@@ -57,11 +57,12 @@ class Conf:
     def settings(self):
         return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map
 
-    def __new__(cls, *args, **kwargs):
-        if not hasattr(Conf, "_instance"):
-            Conf._instance = object.__new__(cls)
-            Conf._instance.init_conf()
-        return Conf._instance
+    def __new__(cls, *args, path: t.Optional[p.Path] = None, **kwargs):
+        _instance = f"_instance_{path.name}" if path else "_instance"
+        if not hasattr(Conf, _instance):
+            setattr(Conf, _instance, object.__new__(cls))
+            getattr(Conf, _instance).init_conf(path)
+        return getattr(Conf, _instance)
 
 
 conf = Conf()
