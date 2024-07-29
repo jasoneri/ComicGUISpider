@@ -163,10 +163,12 @@ dmypy.json
 
 # self
 analyze/
-*.py.d
+*.d
 *.zip
 *demo*.py
 *.bat
 *.qrc
 *.ico
 temp
+
+conf.yml
