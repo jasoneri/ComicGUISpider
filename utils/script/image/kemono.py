@@ -19,6 +19,10 @@ domain = "kemono.su"
 headers = {'accept': 'application/json'}
 
 
+class OverSizeErr(Exception):
+    ...
+
+
 @dataclass
 class TaskMeta:
     user_name: str
@@ -46,6 +50,8 @@ class Kemono:
     ```
     """
     date_format = "%Y-%m-%dT%H:%M:%S"
+    file_size_limit = 100 * 1024 * 1024  # 100mb
+    suffixes = ['jpg', 'jpeg', 'png', 'gif', 'mp4']
 
     class Api:
         base = f"https://{domain}/api/v1"
@@ -63,9 +69,9 @@ class Kemono:
         self.blacklist = self.blacklist_obj.read()
 
     @staticmethod
-    async def req(sess: httpx.AsyncClient, url, **kw):
+    async def req(sess: httpx.AsyncClient, url, method="GET", **kw):
         """post almost not use, detail for /api/schema?logged_in=yes&role=consumer"""
-        resp = await sess.get(url, **kw)
+        resp = await sess.request(method, url, **kw)
         return resp
 
     async def get_favorites(self):
@@ -80,16 +86,17 @@ class Kemono:
         return resp.json()
 
     @logger.catch
-    async def step1_tasks_create(self, interrupt_date):
-        """
+    async def step1_tasks_create_by_favorites(self, interrupt_date, order_creators=None):
+        """only by favorites of your account
         :param interrupt_date: '%Y-%m-%d', prevent tasks too old and too large
+        :param order_creators: list
         :return:
         """
 
         async def create_task_of_post(post, _task_meta: TaskMeta):
             """commonly values-of-attachments include value-of-file,
             special institution: value-of-file exist but values-of-attachments empty"""
-            title = post.get('title')
+            title = post.get('title').strip()
             published = datetime.datetime.strptime(post.get('published'), self.date_format)
             meta = asdict(_task_meta)
             tasks = post.get("attachments") or post.get("file") or []
@@ -123,19 +130,22 @@ class Kemono:
 
         interrupt = datetime.datetime.strptime(interrupt_date, '%Y-%m-%d')
         favorites = await self.get_favorites()
+        order_creators = order_creators or list(map(lambda _: _.get('name'), favorites))
         for favorite in favorites:
-            await posts_of_creator(favorite)
+            if favorite.get('name') in order_creators:
+                await posts_of_creator(favorite)
 
     def filter(self, u_s, p_t, f) -> bool:
         """
         :param u_s: user_service
-        :param p_t: published_title
+        :param p_t: [published]title
         """
         flag = False
         file = self.sv_path.joinpath(rf"{u_s}\{p_t}\{f}")
         if (file.exists()
                 or u_s in self.blacklist
                 or rf"{u_s}/{p_t}" in self.blacklist
+                or p_t in self.blacklist  # not sure p_t whether recurring on other creator
                 or rf"{u_s}/{p_t}/{f}" in self.blacklist):
             flag = True
         return flag
@@ -148,7 +158,7 @@ class Kemono:
             for task in tasks:
                 meta = task['meta']
                 user_service = f"{meta['user_name']}_{meta['service']}"
-                published_title = f"[{meta['published']}]{meta['title']}"
+                published_title = f"[{meta['published']}]{meta['title']}".strip()
                 path = self.sv_path.joinpath(user_service, published_title)
                 if self.filter(user_service, published_title, meta['file_name']):
                     logger.debug(rf"[filtered] {user_service}/{published_title}/{meta['file_name']}")
@@ -163,7 +173,12 @@ class Kemono:
         async def run_task(_file, _url):
             async with _sem:
                 async with httpx.AsyncClient(headers=headers) as cli:
-                    resp = await self.req(cli, _url, follow_redirects=True)
+                    if _file.stem not in self.suffixes:
+                        resp_head = await self.req(cli, _url, method="HEAD", follow_redirects=True)
+                        if int(resp_head.headers.get("Content-Length", 0)) >= self.file_size_limit:
+                            raise OverSizeErr(
+                                f"{_file} size[{int(resp_head.headers.get("Content-Length", 0)) / 1024 / 1024} Mb] over limit]")
+                    resp = await self.req(cli, _url, follow_redirects=True, timeout=300)
                 async with aiofiles.open(_file, 'wb') as f:
                     await f.write(resp.content)
                 return _file
@@ -173,15 +188,18 @@ class Kemono:
             url = task['url']
             meta = task['meta']
             user_service = f"{meta['user_name']}_{meta['service']}"
-            published_title = f"[{meta['published']}]{meta['title']}"
+            published_title = f"[{meta['published']}]{meta['title']}".strip()
             path = self.sv_path.joinpath(user_service, published_title)
             file = path.joinpath(meta['file_name'])
             tasks_future.append(asyncio.ensure_future(run_task(file, url)))
         tasks_iter = asyncio.as_completed(tasks_future)
         fk_task_iter = tqdm.tqdm(tasks_iter, total=len(_tasks))
         for coroutine in fk_task_iter:
-            res = await coroutine
-            logger.info(f"[success sv] {res}")
+            try:
+                res = await coroutine
+                logger.info(f"[success sv] {res}")
+            except OverSizeErr as e:
+                logger.warning(f"{e}")
 
     async def temp_copy_vals(self, restore=False):
         """redis"""
@@ -219,13 +237,13 @@ if __name__ == '__main__':
     asyncio.set_event_loop(loop)
 
     obj = Kemono(AioRClient())
-    # loop.run_until_complete(obj.step1_tasks_create('2024-06-01'))
-    # loop.run_until_complete(obj.temp_copy_vals(False))
+    # loop.run_until_complete(obj.step1_tasks_create_by_favorites('2023-10-01', ['サインこす']))
+    loop.run_until_complete(obj.temp_copy_vals(False))
 
-    # tasks = loop.run_until_complete(obj.step2_get_tasks())
-    # sem = asyncio.Semaphore(5)
-    # loop.run_until_complete(obj.step2_run_task(sem, tasks))
+    tasks = loop.run_until_complete(obj.step2_get_tasks())
+    sem = asyncio.Semaphore(3)
+    loop.run_until_complete(obj.step2_run_task(sem, tasks))
 
-    obj.delete(
-        *obj.sv_path.joinpath(r'MだSたろう_fanbox\[2024-06-16]フリーナっクス-アニメメーション版').glob('*動画*.zip')
-    )
+    # obj.delete(
+    #     *obj.sv_path.joinpath(r'MだSたろう_fanbox\[2024-06-16]フリーナっクス-アニメメーション版').glob('*動画*.zip')
+    # )
