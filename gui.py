@@ -11,12 +11,12 @@ from loguru import logger
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
 from GUI.ui_helplabel import Ui_HelpLabel
-from utils import transfer_input, font_color, Queues, State, QueuesManager, conf
+from utils import transfer_input, font_color, Queues, QueuesManager, conf
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what
 )
-from utils.script.comic_viewer_tools import combine_then_mv, show_max
+from utils.comic_viewer_tools import combine_then_mv, show_max
 
 
 class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):
@@ -42,9 +42,9 @@ class WorkThread(QThread):
         self.flag = 1
 
     def run(self):
-        m = self.gui.manager
-        TextBrowser = m.TextBrowserQueue()
-        Bar = m.BarQueue()
+        manager = self.gui.manager
+        TextBrowser = manager.TextBrowserQueue()
+        Bar = manager.BarQueue()
         while self.active:
             self.msleep(5)
             try:

@@ -83,8 +83,7 @@ class JmUtils:
                 cls.status_forever = False
                 print(f"永久网址[{cls.forever_url}]失效了")  # logger.warning()
             else:
-                # return re.search(r"https?://(.*)", str(resp.next_request.url)).group(1)
-                return re.search(r"https?://(.*)/", str(resp.request.url)).group(1)
+                return re.search(r"https?://(.*)/?", str(resp.request.url)).group(1)
 
         def by_publish():
             resp = cli.get(cls.publish_url, follow_redirects=True)
@@ -106,7 +105,7 @@ class JmUtils:
             "Cache-Control": "no-cache",
             "TE": "trailers"
         })
-        domain = by_publish() or by_forever() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
+        domain = by_forever() or by_publish() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
         if not cls.status_forever and not cls.status_publish:
             raise ConnectionError(f"无法获取domain，方法均失效了，需要查看")
         return domain
