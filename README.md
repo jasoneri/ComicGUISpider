@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/jasoneri/ComicSpider" target="_blank">
-    <img src="GUI/material/icon.png" alt="logo">
+    <img src="assets/icon.png" alt="logo">
   </a>
   <h1 id="koishi">ComicGUISpider</h1>
 
@@ -12,7 +12,7 @@
 
 ## 项目介绍
 
-![EXE简图](https://github.com/jasoneri/ComicSpider/blob/GUI/GUI/material/interfaces.jpg)
+![EXE简图](./assets/interfaces.jpg)
 
 支持拷贝漫画，禁漫天堂，wnacg(需要代理)
 
@@ -35,7 +35,7 @@
 
 > 程序运行 `python crawl_go.py`
 
-> GUI使用指南 [点我前往GUI使用指南](https://github.com/jasoneri/ComicSpider/wiki)
+> GUI使用指南 [点我前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
 
 crawl_only.py 则是无GUI纯脚本，可用于调试等
 

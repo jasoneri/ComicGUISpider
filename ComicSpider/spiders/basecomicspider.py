@@ -3,7 +3,7 @@ from abc import abstractmethod
 from copy import deepcopy
 from time import sleep
 
-import requests
+import httpx
 import scrapy
 
 from ComicSpider.items import ComicspiderItem
@@ -145,7 +145,7 @@ class BaseComicSpider(scrapy.Spider):
             self.say(f'{"{:*^55}".format("最后确认选择")}<br>{"-" * 10}《{title}》 所选序号: {choose}')
             for result in results:
                 self.say(f"{result[0]:>>55}")
-            self.session = requests.session()
+            self.session = httpx.Client()
             for section, section_url in results:
                 url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
                 self.say(font_color(f"<br>{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", color='blue', size=5))

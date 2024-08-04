@@ -166,7 +166,6 @@ analyze/
 *.d
 *.zip
 *demo*.py
-*.bat
 *.qrc
 *.ico
 temp
