@@ -6,7 +6,6 @@ import multiprocessing.managers as m
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
 from PyQt5.QtWidgets import QDialog, QMainWindow, QMenu, QAction, QMessageBox, QCompleter
 import traceback
-from loguru import logger
 
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
@@ -380,8 +379,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
 class TextUtils:
     description = (f"{'message':-^95}<br>" +
-                   font_color(" 不懂的： 1、右下点说明跟着走，2、首次使用去打开【运行必读.txt】看下", color='blue', size=5) +
-                   font_color('别老问怎么错<br>', color='white') +
+                   font_color(
+                       " 首次使用: 1、用记事本等打开【README.md】(或scripts目录下)，内有配置/GUI视频使用指南等说明<br>",
+                       color='blue', size=5) +
+                   font_color(" 2、右下说明更新不及时，尽量参考视频使用指南", color='blue', size=5) +
+                   font_color(' 实在不懂到群问<br>', color='white') +
                    f"{'仅供学习使用':-^90}")
 
     @staticmethod
