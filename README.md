@@ -22,7 +22,9 @@
 
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 CGS.7z
 
-> GUI使用指南 [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
+>
+GUI使用指南 [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments) <br>
+注意看评论有补充链接（防挂）
 
 ## 更新
 
