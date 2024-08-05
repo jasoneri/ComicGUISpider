@@ -12,7 +12,7 @@
 
 ## 项目介绍
 
-![EXE简图](./assets/interfaces.jpg)
+![EXE简图](assets/interfaces.jpg)
 
 支持拷贝漫画，禁漫天堂，wnacg(需要代理)
 
@@ -20,26 +20,30 @@
 
 最后，拷门、禁门
 
+> 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 CGS.7z
+
+> GUI使用指南 [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
+
 ## 更新
 
 ### V1.5 | # 2024-07-16
 
 1. 新增jm-comic(禁漫天堂)
-   > 注意点：gui显示的顺序是没错的，但网站缓存做得稀烂，需要每次浏览器清除该网cookies(用搜索时不用清也行)
+   > 注意点：gui显示的顺序是没错的，但pc网站缓存做得有点。。如序号对应的标题跟肉眼所示对不上可尝试清除浏览器上该网的cookies(
+   用搜索时一般没事)
    ，确保gui顺序跟浏览器顺序一致再选
 2. 增加搜索输入框的联想功能（按空格弹出来预设），增加常规漫画工具箱功能
-   > 工具箱功能配合另一个项目用 -> [点我前往项目](https://github.com/jasoneri/comic_viewer)
+   > 工具箱功能配合另一个项目用 -> [点击前往项目](https://github.com/jasoneri/comic_viewer)
 3. 常规漫画网站下（拷贝漫画）避免选择多书，长链路下不稳定，若想同时下多本则开多个脚本分别搜索即可（可多开20进程）
 
 ## 使用
 
-> 程序运行 `python crawl_go.py`
+> 使用打包好的，直接看下面配置说明， 其中`conf.yml` 文件在 `scripts` 目录下
 
-> GUI使用指南 [点我前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
+> `python CGS.py` 正常GUI运行
 
-crawl_only.py 则是无GUI纯脚本，可用于调试等
+> `python crawl_only.py` 则是无GUI纯脚本，可用于调试等
 
-> 没打包，没star没issue没推广成暂没mood
 
 ### 配置conf.yml
 
@@ -61,11 +65,15 @@ custom_map:
 + custom_map -> 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出
 + log_level -> 日志等级 后台有运行过会有log目录，GUI记录界面操作记录默认为INFO，scrapy默认为WARNING，未知错误使用DEBUG进行记录吧
 
-> 除 `sv_path` 其他均非必须，行首#注释掉即可
+> 除 `sv_path` 其他均非必须，行首加#注释掉即可
 
 ## bug记录
 
 + 拷贝有些漫画卷和话是分开的，只做了粗糙处理 -> ComicSpider/spiders/kaobei.py 98:90
+
+## 其他
+
+> `utils.script` 内含 `kemono`, `saucenao` 等脚本，详情到 [script.md](utils/script/script.md) 查阅
 
 ## 交流
 
