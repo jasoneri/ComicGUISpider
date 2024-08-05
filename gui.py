@@ -167,8 +167,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     3: 'wnacg：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设'}
             completer_keywords_map = {
                 1: ['更新', '排名日', '排名周', '排名月', '排名总'],
-                2: ['更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
-                3: ['更新', '汉化'],
+                2: ['C104', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周',
+                    '收藏月'],
+                3: ['C104', '更新', '汉化'],
             }
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
             if index and not getattr(self, 'p_crawler'):

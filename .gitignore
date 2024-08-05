@@ -169,5 +169,5 @@ analyze/
 *.qrc
 *.ico
 temp
-
 conf.yml
+requirements-in.txt

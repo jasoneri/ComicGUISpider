@@ -90,7 +90,6 @@ class Kemono:
         """only by favorites of your account
         :param interrupt_date: '%Y-%m-%d', prevent tasks too old and too large
         :param order_creators: list
-        :return:
         """
 
         async def create_task_of_post(post, _task_meta: TaskMeta):
@@ -109,6 +108,13 @@ class Kemono:
             if tasks:
                 await self.redis.rpush(self.redis_key, *tasks)
 
+        async def _filter(posts):
+            valid_posts = list(filter(lambda _:
+                                      datetime.datetime.strptime(_.get('published'), self.date_format) >= interrupt,
+                                      posts))
+            # todo[2024-08-05] too many repeat title,take func duel it
+            return valid_posts
+
         async def posts_of_creator(info):
             creator_id = info.get('id')
             name = info.get('name')
@@ -120,8 +126,7 @@ class Kemono:
                 if o:
                     param = {"o": o}
                 posts = await self.get_creator_posts(creator_id, service, params=param)
-                valid_posts = list(filter(
-                    lambda _: datetime.datetime.strptime(_.get('published'), self.date_format) >= interrupt, posts))
+                valid_posts = await _filter(posts)
                 for post in valid_posts:
                     await create_task_of_post(post, task_meta)
                 if len(valid_posts) < 50:
@@ -238,7 +243,7 @@ if __name__ == '__main__':
 
     obj = Kemono(AioRClient())
     # loop.run_until_complete(obj.step1_tasks_create_by_favorites('2023-10-01', ['サインこす']))
-    loop.run_until_complete(obj.temp_copy_vals(False))
+    loop.run_until_complete(obj.temp_copy_vals(restore=False))
 
     tasks = loop.run_until_complete(obj.step2_get_tasks())
     sem = asyncio.Semaphore(3)
