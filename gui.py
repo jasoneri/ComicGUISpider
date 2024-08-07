@@ -383,7 +383,7 @@ class TextUtils:
                        " 首次使用: 1、用记事本等打开【README.md】(或scripts目录下)，内有配置/GUI视频使用指南等说明<br>",
                        color='blue', size=5) +
                    font_color(" 2、右下说明更新不及时，尽量参考视频使用指南", color='blue', size=5) +
-                   font_color(' 实在不懂到群问<br>', color='white') +
+                   font_color(' 有任何问题到群反映<br>', color='white') +
                    f"{'仅供学习使用':-^90}")
 
     @staticmethod
