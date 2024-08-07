@@ -246,7 +246,7 @@ if __name__ == '__main__':
     loop.run_until_complete(obj.temp_copy_vals(restore=False))
 
     tasks = loop.run_until_complete(obj.step2_get_tasks())
-    sem = asyncio.Semaphore(3)
+    sem = asyncio.Semaphore(7)
     loop.run_until_complete(obj.step2_run_task(sem, tasks))
 
     # obj.delete(
