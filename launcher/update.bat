@@ -10,3 +10,5 @@ set "_pyBin=%_root%\runtime"
 set "PATH=%_root%\site-packages;%_pyBin%;%PATH%"
 
 python scripts\deploy\update.py
+
+pause

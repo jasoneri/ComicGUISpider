@@ -98,13 +98,14 @@ class Clean:
         error_code = os.system(f"cd {path} && python fit.py")
 
     @staticmethod
-    def end_work():
+    def end_work(specified: iter = None):
         def delete(func, _path, execinfo):
             os.chmod(_path, stat.S_IWUSR)
             func(_path)
 
-        for p in tqdm(("site-packages_new", "fit.py", "white_files.json",
-                       "site-packages_文件移动清单.txt", "scripts/.git")):
+        waiting = specified or ("site-packages_new", "fit.py", "white_files.json",
+                                "site-packages_文件移动清单.txt", "scripts/.git")
+        for p in tqdm(waiting):
             _p = path.joinpath(p)
             if _p.exists():
                 shutil.rmtree(_p, onerror=delete) if _p.is_dir() else os.remove(_p)
@@ -121,8 +122,9 @@ class Packer:
 
     @classmethod
     def bat_to_exe(cls):
-        def _do(bat_file, exe_file, icon):
-            command = f"cd {path} && {cls.executor} /bat {bat_file} /exe {exe_file} /icon {icon} /x64 /invisible"
+        def _do(bat_file, exe_file, icon, *args):
+            args_str = " ".join(args)
+            command = f"cd {path} && {cls.executor} /bat {bat_file} /exe {exe_file} /icon {icon} /x64 {args_str}"
             error_code = os.system(command)
             if error_code:
                 logger.warning(f"[ failure packup {bat_file}], error_code: {error_code}")
@@ -130,7 +132,7 @@ class Packer:
                 logger.info(f"[ success {bat_file} ]")
 
         _do(path.joinpath(rf"scripts/launcher/{proj}.bat"), path.joinpath(rf"{proj}.exe"),
-            path.joinpath(rf"scripts/launcher/{proj}.ico"))
+            path.joinpath(rf"scripts/launcher/{proj}.ico"), "/invisible")
         _do(path.joinpath(rf"scripts/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
             path.joinpath(rf"scripts/launcher/{proj}.ico"))
 
@@ -187,7 +189,8 @@ def clean():
 
 if __name__ == '__main__':
     # clean()
-    # Packer.bat_to_exe()
+    Packer.bat_to_exe()
     packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe'))
-    # # packer.packup()
+    packer.packup()
     packer.upload('CGS.7z')
+    Clean.end_work((f'{proj}.exe', f'{proj}-更新.exe', 'CGS.7z'))
