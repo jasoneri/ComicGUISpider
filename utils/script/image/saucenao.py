@@ -12,7 +12,7 @@ from lxml import etree
 from utils import Conf, ori_path
 
 conf = Conf(path=ori_path.joinpath("utils/script"))
-# proxy = {"https://": f"http://{conf.get('proxies')[0]}"}
+# proxy = {"https://": f"http://{conf.proxies[0]}"}
 proxy = None
 
 

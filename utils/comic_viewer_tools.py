@@ -52,7 +52,6 @@ def show_max(record_file) -> str:
 
 
 if __name__ == '__main__':
-    # 破鞋神二世(怪怪守护神)
-    combine_then_mv(r"D:\Comic\后宫露营", r"D:\Comic\web")
-    # restore(r"D:\Comic\web")
-    # show_max(r"D:\Comic\web_handle\record.txt")
+    from utils import conf
+
+    restore(conf.sv_path.joinpath("web"))

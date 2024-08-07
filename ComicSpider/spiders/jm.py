@@ -58,7 +58,7 @@ class JmSpider(BaseComicSpider2):
         self.say(example_b.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//div[contains(@class,"thumb-overlay")]')
         for x, target in enumerate(targets):
-            title = target.xpath('.//img/@title').get()
+            title = target.xpath('.//img/@title').get().strip().replace("\n", "")
             pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
             url = f'https://{domain}{pre_url}'.replace('album', 'photo')
             self.say(example_b.format(str(x + 1), title, chr(12288)))

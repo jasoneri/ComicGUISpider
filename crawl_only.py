@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='')
     state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_1))
-    # state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2))
+    state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2))
 
     guiQueuesManger = GuiQueuesManger()
     queue_port = guiQueuesManger.find_free_port()
@@ -57,15 +57,17 @@ if __name__ == '__main__':
     p_bThread.start()
 
     gui.Q('InputFieldQueue').send(state_1)
-    refresh_state(gui, 'process_state', 'ProcessQueue', monitor=True)
+    refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
+    time.sleep(2)
     gui.Q('InputFieldQueue').send(state_2)
     time.sleep(2)
-    # refresh_state(gui, 'process_state', 'ProcessQueue', monitor=True)
-    # gui.Q('InputFieldQueue').send(state_3)
+    refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
+    gui.Q('InputFieldQueue').send(state_3)  # 测jm也不要注释这
 
     for p in [p_qm, p_bThread]:
         if p is not None:
-            p.kill()  # break point for it,no sleep, scrapy end then restore for all process end
+            time.sleep(2)
+            p.kill()  # break point for it, scrapy end then restore for all process end
             p.join()
             p.close()
     for p in [p_qm, p_bThread]:

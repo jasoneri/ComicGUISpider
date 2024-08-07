@@ -20,7 +20,8 @@
 
 最后，拷门、禁门
 
-> 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 CGS.7z
+> 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z` <br>
+> 内置更新程序 `CGS-更新.exe` 直接更新代码，一般情况下更新代码不必重新下载包
 
 >
 GUI使用指南 [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments) <br>
@@ -40,18 +41,16 @@ GUI使用指南 [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688
 
 ## 使用
 
-> 使用打包好的，直接看下面配置说明， 其中`conf.yml` 文件在 `scripts` 目录下
+> 使用打包的，需要看下面配置说明， 其中`conf.yml` 文件在 `scripts` 目录下
 
-> `python CGS.py` 正常GUI运行
+`python CGS.py` 正常GUI运行
 
-> `python crawl_only.py` 则是无GUI纯脚本，可用于调试等
+`python crawl_only.py` 则是无GUI纯脚本，可用于调试等
 
 
 ### 配置conf.yml
 
 ```yaml
-## 配置文件，使用方法详情至readme.md了解
-
 sv_path: D:\Comic
 log_level: DEBUG  # DEBUG|INFO|ERROR 默认WARNING
 proxies:
@@ -76,6 +75,11 @@ custom_map:
 ## 其他
 
 > `utils.script` 内含 `kemono`, `saucenao` 等脚本，详情到 [script.md](utils/script/script.md) 查阅
+
+> 建议打包使用者前往微软商店(开始菜单`Microsoft Store`)，搜索`windows terminal`并安装 <br>
+> 开始菜单搜`终端`打开，应用里打开设置 `快捷键 Ctrl + 逗号`，
+>  1. 启动 > 默认终端应用程序 > 选择 `windows终端`
+>  2. 启动 > 新建实例行为 > 选择 `附加到最近使用的窗口`
 
 ## 交流
 
