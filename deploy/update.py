@@ -16,6 +16,7 @@ init(autoreset=True)
 path = pathlib.Path(__file__).parent.parent.parent
 existed_proj_p = path.joinpath('scripts')
 temp_p = path.joinpath('temp')
+proxies = None
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
 }
@@ -25,7 +26,7 @@ class GitHandler:
     speedup_prefix = "https://gh.llkk.cc/"
 
     def __init__(self, owner, proj_name, branch):
-        self.sess = httpx.Client(proxies={"https://": f"http://127.0.0.1:10809"})
+        self.sess = httpx.Client(proxies=proxies)
         self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits"
         self.src_url = f"https://api.github.com/repos/{owner}/{proj_name}/zipball/{branch}"
 

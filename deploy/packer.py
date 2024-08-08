@@ -126,8 +126,8 @@ class Packer:
             args_str = " ".join(args)
             command = f"cd {path} && {cls.executor} /bat {bat_file} /exe {exe_file} /icon {icon} /x64 {args_str}"
             error_code = os.system(command)
-            if error_code:
-                logger.warning(f"[ failure packup {bat_file}], error_code: {error_code}")
+            if error_code:  # Unreliable, need raise error make next step run correctly
+                raise OSError(f"[ fail - packup {bat_file}], error_code: {error_code}")
             else:
                 logger.info(f"[ success {bat_file} ]")
 
@@ -162,6 +162,8 @@ class Packer:
     def upload(zip_file):
         date_now = datetime.datetime.now().strftime("%Y%m%d")
         repo = proj.name
+        if github_token.startswith("**create"):
+            raise ValueError("[ you forget to replace your github token ] ")
         auth = Auth.Token(github_token)
         g = Github(auth=auth)
         user = g.get_user()
@@ -188,9 +190,10 @@ def clean():
 
 
 if __name__ == '__main__':
-    # clean()
-    Packer.bat_to_exe()
+    # clean()                   # step 0
+    Packer.bat_to_exe()  # step 1
     packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe'))
-    packer.packup()
-    packer.upload('CGS.7z')
-    Clean.end_work((f'{proj}.exe', f'{proj}-更新.exe', 'CGS.7z'))
+    packer.packup()  # step 2
+    packer.upload('CGS.7z')  # step 3
+    Clean.end_work((f'{proj}.exe', f'{proj}-更新.exe', 'CGS.7z'))  # step 4
+    # If error occur, exegesis previous step and run again
