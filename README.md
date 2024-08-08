@@ -23,8 +23,7 @@
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z` <br>
 > 内置更新程序 `CGS-更新.exe` 直接更新代码，一般情况下更新代码不必重新下载包
 
->
-GUI使用指南 [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)<br>
+> [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
 > 注意看评论有补充链接（防挂）
 
 ## 更新
