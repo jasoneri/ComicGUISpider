@@ -92,6 +92,7 @@ class Proj:
         def move(src, dst):
             if src.is_dir() and dst.exists():
                 shutil.rmtree(dst, ignore_errors=True)
+                os.rmdir(dst)
             shutil.move(src, dst)
 
         if not self.first_flag and not self.changed_files:
@@ -101,8 +102,6 @@ class Proj:
         proj_zip = self.git_handler.download_src_code()
         with zipfile.ZipFile(proj_zip, 'r') as zip_f:
             zip_f.extractall(temp_p)
-        with open(existed_proj_p.joinpath('version'), 'w', encoding='utf-8') as f:
-            f.write(self.ver)
         temp_proj_p = next(temp_p.glob(f"{self.github_author}-{self.name}*"))
         # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
         if self.first_flag:  # when the first-time use this update(no version-file)
@@ -117,6 +116,8 @@ class Proj:
                                      ncols=80, ascii=True, desc=Fore.BLUE + "[ 更新代码中.. ]"):
                 move(temp_proj_p.joinpath(changed_file), existed_proj_p.joinpath(changed_file))
         shutil.rmtree(temp_p, onerror=delete)
+        with open(existed_proj_p.joinpath('version'), 'w', encoding='utf-8') as f:
+            f.write(self.ver)
 
 
 if __name__ == '__main__':
