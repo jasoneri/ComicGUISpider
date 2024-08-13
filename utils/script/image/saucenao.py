@@ -29,12 +29,12 @@ class SauceNAO:
 
     def __init__(self, imgurs):
         self.sess = httpx.AsyncClient(headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
             "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
             "Accept-Encoding": "gzip, deflate, br, zstd",
             "Origin": "https://saucenao.com",
-            # "Connection": "keep-alive",
+            "Connection": "keep-alive",
             "Referer": "https://saucenao.com/",
             "Upgrade-Insecure-Requests": "1",
             "Sec-Fetch-Dest": "document",
@@ -45,9 +45,7 @@ class SauceNAO:
             "Pragma": "no-cache",
             "Cache-Control": "no-cache",
             "TE": "trailers"
-        })
-        if proxy:
-            self.sess.proxies = proxy
+        }, proxies=proxy)
         self.imgurs = imgurs
 
     async def upload(self, file):
@@ -78,6 +76,12 @@ class Imgur:
         return getattr(resp, _type)
 
     @staticmethod
+    async def stream(sess: httpx.AsyncClient, _url, _type='content'):
+        req = sess.build_request("GET", _url)
+        resp = await sess.send(req, stream=True)
+        return resp
+
+    @staticmethod
     @abstractmethod
     def parse(html_text) -> str:
         ...
@@ -91,11 +95,12 @@ class Imgur:
         return
 
     async def main(self, url):
-        async with httpx.AsyncClient(proxies=proxy) as sess:
-            show_text = await self.req(sess, url, "text")
-            origin_img_url = self.parse(show_text)
-            filename = origin_img_url.split('/')[-1]  # db of booru commonly this
-            return await self.req(sess, origin_img_url), filename
+        sess = httpx.AsyncClient(proxies=proxy)
+        show_text = await self.req(sess, url, "text")
+        origin_img_url = self.parse(show_text)
+        filename = origin_img_url.split('/')[-1]  # db of booru commonly this
+        stream = await self.stream(sess, origin_img_url)
+        return stream, filename
 
 
 class Danbooru(Imgur):
@@ -186,10 +191,13 @@ def get_hd_img(path, first=None, imgur_module: list = None):
             imgur = eval(sure_imgur_module)()
             url = imgur.domain_replace(url)
             try:
-                content, file_name_from_imgur = await imgur.main(url)
+                stream, file_name_from_imgur = await imgur.main(url)
                 file_name = urlparse.unquote(file_name_from_imgur) or name
                 async with aiofiles.open(output_path.joinpath(file_name), 'wb') as f:
-                    await f.write(content)
+                    size = 100 * 1024
+                    async for chunk in atqdm(stream.aiter_bytes(size), ncols=80, ascii=True,
+                                             desc=Fore.BLUE + f"[ {name} downloading.. ]"):
+                        await f.write(chunk)
             except Exception as e:
                 logger.exception(str(e))
                 logger.warning(f'[{name}] {url}')

@@ -378,13 +378,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
 
 class TextUtils:
-    description = (f"{'message':-^95}<br>" +
+    description = (f"{'message':-^105}<br>" +
                    font_color(
-                       " 首次使用: 1、用记事本等打开【README.md】(或scripts目录下)，内有配置/GUI视频使用指南等说明<br>",
+                       " 首次使用: 1、打开`README.md`(绿色安装包的话打开`使用说明.html`)，内有配置/GUI视频使用指南等说明<br>",
                        color='blue', size=5) +
                    font_color(" 2、右下说明更新不及时，尽量参考视频使用指南", color='blue', size=5) +
                    font_color(' 有任何问题到群反映<br>', color='white') +
-                   f"{'仅供学习使用':-^90}")
+                   f"{'仅供学习使用':-^100}")
 
     @staticmethod
     def warning_(text):
