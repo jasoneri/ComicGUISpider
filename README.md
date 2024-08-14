@@ -3,22 +3,17 @@
     <img src="assets/icon.png" alt="logo">
   </a>
   <h1 id="koishi">ComicGUISpider</h1>
-
-![](https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social)
-![](https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef)
+  <img src="https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social" alt="tag">
+  <img src="https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef" alt="tag">
 </div>
 
 交互式下载漫画项目
 
 ## 项目介绍
 
-![EXE简图](assets/interfaces.jpg)
-
 支持拷贝漫画，禁漫天堂，wnacg(需要代理)
 
 使用请适度，以免加重对方服务器负担
-
-最后，拷门、禁门
 
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z` <br>
 > 内置更新程序 `CGS-更新.exe` 直接更新代码，一般情况下更新代码不必重新下载包
@@ -86,4 +81,4 @@ custom_map:
 
 ## 免责声明
 
-详见[License](https://github.com/jasoneri/ComicSpider/blob/GUI/LICENSE)，切勿进行盈利，所造成的后果与本人无关。
+详见[License](LICENSE)，切勿进行盈利，所造成的后果与本人无关。

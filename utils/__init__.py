@@ -8,23 +8,29 @@ import yaml
 import pathlib as p
 import typing as t
 from logging.handlers import TimedRotatingFileHandler
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 import multiprocessing.managers as m
 
 ori_path = p.Path(__file__).parent.parent
 yaml.warnings({'YAMLLoadWarning': False})
 
 
+@dataclass
 class Conf:
-    sv_path = r'D:\Comic'
+    sv_path: t.Union[p.Path, str] = r'D:\Comic'
     log_path = ori_path.joinpath('log')
-    proxies = []
-    log_level = 'WARNING'
-    custom_map = {}
+    proxies: list = field(default_factory=list)
+    log_level: str = 'WARNING'
+    custom_map: dict = field(default_factory=dict)
+    file = None
 
-    def init_conf(self, path):  # 脱敏，储存路径和代理等用外部文件读
+    def __init__(self):
+        super(Conf).__init__()
+        self.init_conf()
+
+    def init_conf(self):  # 脱敏，储存路径和代理等用外部文件读
         try:
-            with open((path or ori_path).joinpath('conf.yml'), 'r', encoding='utf-8') as fp:
+            with open(self.file, 'r', encoding='utf-8') as fp:
                 cfg = fp.read()
             yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
             for k, v in yml_config.items():
@@ -32,6 +38,15 @@ class Conf:
             self.sv_path = p.Path(self.sv_path)
         except FileNotFoundError:
             pass
+
+    def update(self, **kwargs):
+        for k, v in kwargs.items():
+            self.__setattr__(k, p.Path(v) if k == "sv_path" else v)
+        props = asdict(self)
+        props['sv_path'] = str(props['sv_path']) if isinstance(props['sv_path'], p.Path) else props['sv_path']
+        with open(self.file, 'w', encoding='utf-8') as fp:
+            yaml_data = yaml.dump(props, allow_unicode=True)
+            fp.write(yaml_data)
 
     def cLog(self, name: str, level: str = None, **kw) -> logging.Logger:
         """
@@ -61,7 +76,7 @@ class Conf:
         _instance = f"_instance_{path.name}" if path else "_instance"
         if not hasattr(Conf, _instance):
             setattr(Conf, _instance, object.__new__(cls))
-            getattr(Conf, _instance).init_conf(path)
+            getattr(Conf, _instance).file = (path or ori_path).joinpath('conf.yml')
         return getattr(Conf, _instance)
 
 
