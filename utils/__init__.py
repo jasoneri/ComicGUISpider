@@ -18,6 +18,7 @@ yaml.warnings({'YAMLLoadWarning': False})
 @dataclass
 class Conf:
     sv_path: t.Union[p.Path, str] = r'D:\Comic'
+    cv_proj_path: t.Union[p.Path, str] = r'D:\comic_viewer'
     log_path = ori_path.joinpath('log')
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
@@ -40,10 +41,13 @@ class Conf:
             pass
 
     def update(self, **kwargs):
+        def path_like_handle(_p):
+            return str(_p) if isinstance(_p, p.Path) else _p
         for k, v in kwargs.items():
             self.__setattr__(k, p.Path(v) if k == "sv_path" else v)
         props = asdict(self)
-        props['sv_path'] = str(props['sv_path']) if isinstance(props['sv_path'], p.Path) else props['sv_path']
+        props['sv_path'] = path_like_handle(props['sv_path'])
+        props['cv_proj_path'] = path_like_handle(props['cv_proj_path'])
         with open(self.file, 'w', encoding='utf-8') as fp:
             yaml_data = yaml.dump(props, allow_unicode=True)
             fp.write(yaml_data)
@@ -52,7 +56,7 @@ class Conf:
         """
         :return: customize obj(log)
         """
-        LEVEL = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING}
+        LEVEL = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, "ERROR": logging.ERROR}
         os.makedirs(self.log_path, exist_ok=True)
         logfile = self.log_path.joinpath(f"{name}.log")
         format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
@@ -116,6 +120,15 @@ def transfer_input(_input: str) -> list:
     for i in re.findall(r'(\d{1,4}-\d{1,4})', _input):
         out2 |= f(i)
     return sorted(out1 | out2)
+
+
+cn_character = r'，。！？；：（）《》【】“”\‘\’、'
+en_character = r',.!?;:()<>[]""\'\' '
+character_table = str.maketrans(cn_character, en_character)
+
+
+def convert_punctuation(text):
+    return text.translate(character_table)
 
 
 class State:

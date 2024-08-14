@@ -196,6 +196,25 @@ class Ui_MainWindow(object):
         self.toolButton.setArrowType(QtCore.Qt.UpArrow)
         self.toolButton.setObjectName("toolButton")
         self.verticalLayout.addWidget(self.toolButton)
+        self.confBtn = QtWidgets.QPushButton(self.frame2)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.confBtn.sizePolicy().hasHeightForWidth())
+        self.confBtn.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.confBtn.setFont(font)
+        self.confBtn.setStyleSheet("QPushButton {\n"
+                                   "    background-color: rgb(0, 255, 255);\n"
+                                   "    border-radius: 7px;\n"
+                                   "}")
+        self.confBtn.setAutoDefault(False)
+        self.confBtn.setObjectName("confBtn")
+        self.verticalLayout.addWidget(self.confBtn)
         self.retrybtn = QtWidgets.QDialogButtonBox(self.frame2)
         self.retrybtn.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -270,6 +289,7 @@ class Ui_MainWindow(object):
         self.next_btn.setStatusTip("")
         self.next_btn.setWhatsThis("")
         self.next_btn.setStyleSheet("QCommandLinkButton {\n"
+                                    "    background-image: url(:/search_btn2.png);\n"
                                     "    background-color: rgb(74, 222, 109); \n"
                                     "    text-align: center;\n"
                                     "}")
@@ -330,11 +350,6 @@ class Ui_MainWindow(object):
         self.statusbar.setFont(font)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-        self.toolBar = QtWidgets.QToolBar(MainWindow)
-        self.toolBar.setObjectName("toolBar")
-        MainWindow.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
-        self.actionfuck = QtWidgets.QAction(MainWindow)
-        self.actionfuck.setObjectName("actionfuck")
 
         self.retranslateUi(MainWindow)
         self.helpbtn.clicked.connect(MainWindow.show_help)  # type: ignore
@@ -351,6 +366,7 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "ComicSpider v1.5"))
         self.chooseBox.setToolTip(_translate("MainWindow", "选中网站后看状态栏有输入提示"))
+        self.chooseBox.setCurrentText(_translate("MainWindow", "点选一个网站"))
         self.chooseBox.setItemText(0, _translate("MainWindow", "点选一个网站"))
         self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))
         self.chooseBox.setItemText(2, _translate("MainWindow", "2、jm**"))
@@ -366,11 +382,13 @@ class Ui_MainWindow(object):
         self.chooseinput.setText(_translate("MainWindow", "输入序号："))
         self.next_btn.setText(_translate("MainWindow", "搜索"))
         self.toolButton.setText(_translate("MainWindow", "工具箱.."))
+        self.confBtn.setText(_translate("MainWindow", "更改配置"))
         self.retrybtn.setStatusTip(_translate("MainWindow", "重启程序（重启时，会卡个几秒）"))
         self.helpbtn.setToolTip(_translate("MainWindow", ">_<"))
         self.helpbtn.setStatusTip(_translate("MainWindow", "点击打开说明，再点击关闭"))
         self.helpbtn.setText(_translate("MainWindow", "我是说明\n"
                                                       ">_<"))
+        self.next_btn.setText(_translate("MainWindow", "搜索"))
         self.crawl_btn.setText(_translate("MainWindow", "开始爬取！"))
         self.progressBar.setStatusTip(_translate("MainWindow",
                                                  " >>>进度条解读 Ⅰ、进度条蓝色表示后台还在下载中（ 有时进度条会回跳的请无视 ） Ⅱ、 绿色100%表示完成"))

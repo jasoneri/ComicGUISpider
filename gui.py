@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import pathlib
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
@@ -9,8 +10,11 @@ import traceback
 
 from GUI.ui_mainwindow import Ui_MainWindow
 from GUI.ui_ensure_dia import Ui_FinEnsureDialog
+from GUI.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.ui_helplabel import Ui_HelpLabel
-from utils import transfer_input, font_color, Queues, QueuesManager, conf
+from utils import (
+    transfer_input, font_color, Queues, QueuesManager,
+    conf, yaml, convert_punctuation as cp)
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what
@@ -27,6 +31,51 @@ class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):
     def setupUi(self, ensureDialog):
         super(FinEnsureDialog, self).setupUi(ensureDialog)
 
+
+class ConfDialog(QDialog, Ui_ConfDialog):
+    def __init__(self, parent=None):
+        super(ConfDialog, self).__init__(parent)
+        self.setupUi(self)
+
+    def setupUi(self, Dialog):
+        super(ConfDialog, self).setupUi(Dialog)
+        self.buttonBox.accepted.connect(self.save_conf)
+
+    def show_self(self):  # can't naming `show`. If done, just run code once
+        for _ in ('sv_path', 'proxies', 'custom_map', 'cv_proj_path',):
+            getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
+        self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
+        super(ConfDialog, self).show()
+
+    @staticmethod
+    def transfer_to_gui(val) -> str:
+        if isinstance(val, list):
+            return ",".join(val)
+        elif isinstance(val, dict):
+            return yaml.dump(val, allow_unicode=True)
+        else:
+            return str(val)
+
+    def save_conf(self):
+        sv_path = getattr(self, f"sv_pathEdit").text()
+        cv_proj_path_str = getattr(self, f"cv_proj_pathEdit").text()
+        config = {
+            "sv_path": sv_path,
+            "cv_proj_path": cv_proj_path_str,
+            "custom_map": yaml.safe_load(cp(getattr(self, f"custom_mapEdit").toPlainText())),
+            "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
+            "log_level": getattr(self, "logLevelComboBox").currentText()}
+        conf.update(**config)
+
+        if cv_proj_path_str:  # 联动comic_viewer更改
+            cv_proj_path = pathlib.Path(cv_proj_path_str)
+            if cv_proj_path.joinpath("scripts").exists():
+                cv_proj_path = cv_proj_path.joinpath("scripts")
+            cv_conf = cv_proj_path.joinpath("backend/conf.yml")
+            with open(cv_conf, 'w', encoding='utf-8') as fp:
+                yaml_data = yaml.dump({"path": sv_path}, allow_unicode=True)
+                fp.write(yaml_data)
+        
 
 class WorkThread(QThread):
     """only for monitor signals"""
@@ -58,7 +107,7 @@ class WorkThread(QThread):
                     self.msleep(10)
                     break
             except ConnectionResetError:
-                break
+                self.active = False
         if self.active:
             self.finishSignal.emit(str(conf.sv_path))
 
@@ -124,7 +173,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def __init__(self, parent=None):
         super(SpiderGUI, self).__init__(parent)
-        self.dia = FinEnsureDialog()
+        self.ensure_dia = FinEnsureDialog()
+        self.conf_dia = ConfDialog()
         self.log = conf.cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
@@ -179,6 +229,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.retrybtn.setEnabled(True)
             if index != 1:
                 self.toolButton.setDisabled(True)
+                self.confBtn.setDisabled(True)
                 self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} 仅当常规漫画网站能使用工具箱功能<br>'))
             # 输入框联想补全
             completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", completer_keywords_map[index])))
@@ -190,12 +241,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def btn_logic_bind(self):
         def search_btn(text):
-            self.next_btn.setEnabled(len(text) > 6)  # if self.chooseBox.currentIndex() in [1, 2, 3] else None
+            self.next_btn.setEnabled(len(text) > 6 and self.chooseBox.currentIndex() != 0)  # else None
         self.searchinput.textChanged.connect(search_btn)
-        # self.next_btn.setEnabled(True)
+        self.next_btn.setDisabled(True)
         self.crawl_btn.clicked.connect(self.crawl)
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
+        self.confBtn.clicked.connect(self.conf_dia.show_self)
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
@@ -228,6 +280,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # retry_do_what[self.process_state.process]()
         retry_all()
         self.retrybtn.setDisabled(True)
+        self.confBtn.setDisabled(False)
         self.log.debug('===--→ retry_schedule end\n')
 
     def next_schedule(self):
@@ -289,11 +342,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def crawl(self):
         def dia_text(_str):
-            self.dia.textEdit.append(TextUtils.warning_(_str) if 'notice' in _str else _str)
+            self.ensure_dia.textEdit.append(TextUtils.warning_(_str) if 'notice' in _str else _str)
 
         self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
         self.log.debug(f'===--→ click down crawl_btn')
-        self.dia.textEdit.clear()
+        self.ensure_dia.textEdit.clear()
         self.bThread.print_signal.disconnect(self.textbrowser_load)
         self.bThread.print_signal.connect(dia_text)
 
@@ -301,7 +354,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.Q('InputFieldQueue').send(self.input_state)
         self.log.debug(f'send choose success')
 
-        if self.dia.exec_() == QDialog.Accepted:    # important dia窗口确认为最后把关
+        if self.ensure_dia.exec_() == QDialog.Accepted:  # important dia窗口确认为最后把关
             self.book_num -= 1
         else:
             ...
@@ -331,8 +384,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.process_state.process = 'fin'
         self.helplabel.re_pic()
         self.textbrowser_load(
-            font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') + font_color(
-                "…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
+            font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') +
+            font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         os.startfile(imgs_path) if self.checkisopen.isChecked() else None
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
