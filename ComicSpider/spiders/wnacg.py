@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 from .basecomicspider import BaseComicSpider2, font_color
+from utils.special import WnacgUtils
 
 domain = "wnacg.com"
 
@@ -11,10 +12,21 @@ class WnacgSpider(BaseComicSpider2):
     num_of_row = 4
     domain = domain
     # allowed_domains = [domain]
-    search_url_head = f'https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q='
-    mappings = {'更新': f'https://{domain}/albums.html',
-                '汉化': f'https://{domain}/albums-index-cate-1.html',
+
+    @property
+    def search_url_head(self):
+        return f'https://{self.domain}/search/?f=_all&s=create_time_DESC&syn=yes&q='
+
+    @property
+    def mappings(self):
+        return {'更新': f'https://{self.domain}/albums.html',
+                '汉化': f'https://{self.domain}/albums-index-cate-1.html',
                 }
+
+    def start_requests(self):
+        if self.settings.get("PROXY_CUST") is None:
+            self.domain = WnacgUtils.get_domain()
+        return super(WnacgSpider, self).start_requests()
 
     @staticmethod
     def rule_book_index(book_index: str) -> str:
@@ -32,7 +44,7 @@ class WnacgSpider(BaseComicSpider2):
             title_elem = target.xpath(title_xpath)
             title = title_elem.xpath('./@title').get()
             pre_url = title_elem.xpath('./@href').get()
-            url = f'https://{domain}{pre_url}'.replace('index', 'gallery')  # 此链直接返回该本全页uri
+            url = f'https://{self.domain}{pre_url}'.replace('index', 'gallery')  # 此链直接返回该本全页uri
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [title, url]

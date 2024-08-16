@@ -112,7 +112,7 @@ class Kemono:
             valid_posts = list(filter(lambda _:
                                       datetime.datetime.strptime(_.get('published'), self.date_format) >= interrupt,
                                       posts))
-            # todo[2024-08-05] too many repeat title,take func duel it
+            # TODO[9](2024-08-05):  too many repeat title,take func duel it
             return valid_posts
 
         async def posts_of_creator(info):
