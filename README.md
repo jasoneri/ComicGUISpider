@@ -76,7 +76,7 @@
 
 ## bug记录
 
-+ 拷贝有些漫画卷和话是分开的，只做了粗糙处理 -> ComicSpider/spiders/kaobei.py 97与98行注释互换
++ 拷贝有些漫画卷和话是分开的，只做了粗糙处理 -> ComicSpider/spiders/kaobei.py `frame_book`的注释`url`进行互换
 
 ## 其他
 

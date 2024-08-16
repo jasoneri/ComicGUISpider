@@ -71,9 +71,9 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             cv_proj_path = pathlib.Path(cv_proj_path_str)
             if cv_proj_path.joinpath("scripts").exists():
                 cv_proj_path = cv_proj_path.joinpath("scripts")
-            if not cv_proj_path.exists():
-                return
             cv_conf = cv_proj_path.joinpath("backend/conf.yml")
+            if not cv_conf.exists():
+                return
             with open(cv_conf, 'w', encoding='utf-8') as fp:
                 yaml_data = yaml.dump({"path": sv_path}, allow_unicode=True)
                 fp.write(yaml_data)

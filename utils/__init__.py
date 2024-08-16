@@ -15,6 +15,17 @@ ori_path = p.Path(__file__).parent.parent
 yaml.warnings({'YAMLLoadWarning': False})
 
 
+def yaml_update(_f, dic):
+    with open(_f, 'r+', encoding='utf-8') as fp:
+        cfg = fp.read()
+        ori_yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
+        ori_yml_config.update(dic)
+        fp.seek(0)
+        fp.truncate()
+        yaml_data = yaml.dump(ori_yml_config, allow_unicode=True)
+        fp.write(yaml_data)
+
+
 @dataclass
 class Conf:
     sv_path: t.Union[p.Path, str] = r'D:\Comic'
@@ -48,9 +59,7 @@ class Conf:
         props = asdict(self)
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['cv_proj_path'] = path_like_handle(props['cv_proj_path'])
-        with open(self.file, 'w', encoding='utf-8') as fp:
-            yaml_data = yaml.dump(props, allow_unicode=True)
-            fp.write(yaml_data)
+        yaml_update(self.file, props)
 
     def cLog(self, name: str, level: str = None, **kw) -> logging.Logger:
         """
