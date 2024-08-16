@@ -215,8 +215,17 @@ class BaseComicSpider(scrapy.Spider):
         if reason == "ConnectionResetError":
             return
         elif 'init' not in self.process_state.process:
-            self.say(font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
-                     if self.total != 0 else font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可去看日志文件报错', size=5))
+            self.say(
+                font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
+                if self.total != 0 else
+                font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可进行如下操作<br>', size=5) +
+                font_color('1、打开下方给的日志文件，应该能解决大部分疑惑<br>', color='blue', size=4) +
+                font_color(
+                    '2、第1步不足以解惑的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤<br>',
+                    color='blue', size=4) +
+                font_color('3、第2步得出的日志仍不以解惑的话，请到群反映或提issue<br>', color='blue', size=4) +
+                font_color(f'日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
+            )
 
     def refresh_state(self, state_name, queue_name, monitor_change=False):
         try:

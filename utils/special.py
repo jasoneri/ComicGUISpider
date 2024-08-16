@@ -52,6 +52,7 @@ class Utils:
 
 
 class JmUtils(Utils):
+    # TODO[9](2024-08-17): getattr(conf, "jm_forever_url") or ...  时序性需要引导
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     status_forever = True
