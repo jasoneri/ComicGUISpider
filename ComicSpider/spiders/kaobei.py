@@ -63,10 +63,7 @@ class KaobeiSpider(BaseComicSpider):
     search_url_head = ''
     mappings = {'更新': "byRefresh",
                 '排名': "byRank"}
-
-    @property
-    def preset_book_frame(self):
-        return FrameBook(self.domain)
+    preset_book_frame = FrameBook(domain)
 
     @property
     def search(self):
