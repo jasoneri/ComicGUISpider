@@ -59,6 +59,6 @@ class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
         return _
 
     def process_request(self, request, spider):
-        if bool(self.domain_regex.search(request.url)):
+        if bool(self.domain_regex.search(request.url)) and self.PROXIES:
             proxy = random.choice(self.PROXIES)
             request.meta['proxy'] = f"http://{proxy}"

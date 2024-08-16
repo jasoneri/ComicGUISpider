@@ -71,6 +71,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             cv_proj_path = pathlib.Path(cv_proj_path_str)
             if cv_proj_path.joinpath("scripts").exists():
                 cv_proj_path = cv_proj_path.joinpath("scripts")
+            if not cv_proj_path.exists():
+                return
             cv_conf = cv_proj_path.joinpath("backend/conf.yml")
             with open(cv_conf, 'w', encoding='utf-8') as fp:
                 yaml_data = yaml.dump({"path": sv_path}, allow_unicode=True)
@@ -86,7 +88,7 @@ class WorkThread(QThread):
 
     def __init__(self, gui):
         super(WorkThread, self).__init__()
-        self.gui = gui
+        self.gui: SpiderGUI = gui
         self.flag = 1
 
     def run(self):
@@ -384,13 +386,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.process_state.process = 'fin'
         self.helplabel.re_pic()
         self.textbrowser_load(
-            font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') +
+            # font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') +
             font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         os.startfile(imgs_path) if self.checkisopen.isChecked() else None
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def textbrowser_load(self, string):
-        # todo: v1.4 - (1)、每组图预览，图片缓存 (2)、勾选选项（改写choose逻辑）放textbrowser？
+        # todo[4]: v1.4 - (1)、每组图预览，图片缓存 (2)、勾选选项（改写choose逻辑）放textbrowser？
         if 'http' in string:
             self.textBrowser.setOpenExternalLinks(True)
             string = u'<a href="%s" ><b style="font-size:20px;"><br> 点击查看搜索结果</b></a><b><s><font color="WhiteSmoke"  size="4"> 懒得做预览图功能</font></s></b>' % string
@@ -431,13 +433,14 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
 
 class TextUtils:
-    description = (f"{'message':-^105}<br>" +
-                   font_color(
-                       " 首次使用: 1、打开`README.md`(绿色安装包的话打开`使用说明.html`)，内有配置/GUI视频使用指南等说明<br>",
-                       color='blue', size=5) +
-                   font_color(" 2、右下说明更新不及时，尽量参考视频使用指南", color='blue', size=5) +
-                   font_color(' 有任何问题到群反映<br>', color='white') +
-                   f"{'仅供学习使用':-^100}")
+    description = (
+            f"{'message':-^110}<br>" +
+            font_color(
+                " 首次使用: 1、打开`README.md`(绿色安装包的话打开`使用说明.html`)，内有配置/GUI视频使用指南等说明<br>",
+                color='blue', size=5) +
+            font_color(" 2、右下说明更新不及时，尽量参考视频使用指南", color='blue', size=5) +
+            font_color(' 有任何问题到群反映<br>', color='white') +
+            f"{'仅供学习使用':-^105}")
 
     @staticmethod
     def warning_(text):
