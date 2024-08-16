@@ -10,24 +10,11 @@ domain = JmUtils.get_domain()
 
 class JmSpider(BaseComicSpider2):
     name = 'jm'
-    ua = {
-        'Host': domain,
-        'User-Agent': 'Mozilla/5.0(WindowsNT10.0;Win64;x64;rv:127.0)Gecko/20100101Firefox/127.0',
-        'Accept': 'image/webp;application/xml;q=0.9;image/avif;application/xhtml+xml;text/html;*/*;q=0.8',
-        'Accept-Language': 'zh;q=0.8;en;q=0.2;zh-CN;zh-TW;q=0.7;zh-HK;q=0.5;en-US;q=0.3',
-        'Accept-Encoding': 'br;zstd;deflate;gzip',
-        'Alt-Used': domain,
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
-        'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
-    }
     custom_settings = {"ITEM_PIPELINES": {'ComicSpider.pipelines.JmComicPipeline': 50},
                        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5}
                        }
     num_of_row = 4
     domain = domain
-    search_url_head = f'https://{domain}/search/photos?search_query='
     mappings = {}
 
     time_regex = re.compile(r".*?([日周月总])")
@@ -36,6 +23,25 @@ class JmSpider(BaseComicSpider2):
         "日": {'t': 't'}, "周": {'t': 'w'}, "月": {'t': 'm'}, "总": {'t': 'a'},
         "更新": {'o': 'mr'}, "点击": {'o': 'mv'}, "评分": {'o': 'tr'}, "评论": {'o': 'md'}, "收藏": {'o': 'tf'}
     }
+
+    @property
+    def ua(self):
+        return {
+            'Host': self.domain,
+            'User-Agent': 'Mozilla/5.0(WindowsNT10.0;Win64;x64;rv:127.0)Gecko/20100101Firefox/127.0',
+            'Accept': 'image/webp;application/xml;q=0.9;image/avif;application/xhtml+xml;text/html;*/*;q=0.8',
+            'Accept-Language': 'zh;q=0.8;en;q=0.2;zh-CN;zh-TW;q=0.7;zh-HK;q=0.5;en-US;q=0.3',
+            'Accept-Encoding': 'br;zstd;deflate;gzip',
+            'Alt-Used': self.domain,
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
+            'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
+        }
+
+    @property
+    def search_url_head(self):
+        return f'https://{self.domain}/search/photos?search_query='
 
     @property
     def search(self):

@@ -60,7 +60,7 @@ class Conf:
         os.makedirs(self.log_path, exist_ok=True)
         logfile = self.log_path.joinpath(f"{name}.log")
         format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
-        datefmt = '%Y-%m-%d %H:%M:%S '
+        datefmt = '%Y-%m-%d %H:%M:%S'
         formatter = logging.Formatter(fmt=format, datefmt=datefmt)
 
         log_file_handler = TimedRotatingFileHandler(filename=logfile, when="D", interval=1, backupCount=3)
@@ -120,6 +120,14 @@ def transfer_input(_input: str) -> list:
     for i in re.findall(r'(\d{1,4}-\d{1,4})', _input):
         out2 |= f(i)
     return sorted(out1 | out2)
+
+
+domain_regex = re.compile("https?://(.*?)/")
+
+
+def correct_domain(spider_domain, url) -> str:
+    _domain = domain_regex.search(url).group(1)
+    return url.replace(_domain, spider_domain)
 
 
 cn_character = r'，。！？；：（）《》【】“”\‘\’、'

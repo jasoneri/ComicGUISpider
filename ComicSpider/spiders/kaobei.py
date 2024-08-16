@@ -11,24 +11,27 @@ domain = "api.mangacopy.com"
 
 
 class FrameBook:
-    url = f'https://{domain}/api/v3/search/comic?platform=1&limit=30&offset=0&q_type=&_update=false&q='
     example_b = ' {}、\t《{}》\t【{}】\t[{}]'
     print_head = ['book_path', '漫画名', '作者', '热度']
     target_json_path = ['path_word', 'name', 'author.[*].name', 'popular']
     expand_map = None
 
+    def __init__(self, _domain):
+        self.url = f'https://{_domain}/api/v3/search/comic?platform=1&limit=30&offset=0&q_type=&_update=false&q='
+        self.domain = _domain
+
     def rendering_map(self):
         return dict(zip(self.print_head, list(map(jsonp.parse, self.target_json_path))))
 
     def byRefresh(self):
-        self.url = f'https://{domain}/api/v3/update/newest?limit=30&offset=0&_update=false'
+        self.url = f'https://{self.domain}/api/v3/update/newest?limit=30&offset=0&_update=false'
         self.example_b = FrameBook.example_b + '\t[{}]\t[{}]'
         self.print_head = FrameBook.print_head + ['更新时间', '最新章节']
         self.target_json_path = ['comic.path_word', 'comic.name', 'comic.author.[*].name',
                                  'comic.popular', 'comic.datetime_updated', 'comic.last_chapter_name']
 
     def byRank(self):
-        self.url = f'https://{domain}/api/v3/ranks?offset=0&limit=30&_update=false'
+        self.url = f'https://{self.domain}/api/v3/ranks?offset=0&limit=30&_update=false'
         self.target_json_path = ['comic.path_word', 'comic.name', 'comic.author.[*].name', 'comic.popular']
         self.expand_map: t.Dict[str, dict] = {
             "日": {'date_type': 'day'}, "周": {'date_type': 'week'}, "月": {'date_type': 'month'},
@@ -58,10 +61,12 @@ class KaobeiSpider(BaseComicSpider):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5},
                        "REFERER_ENABLED": False}
     search_url_head = ''
-
-    preset_book_frame = FrameBook()
     mappings = {'更新': "byRefresh",
                 '排名': "byRank"}
+
+    @property
+    def preset_book_frame(self):
+        return FrameBook(self.domain)
 
     @property
     def search(self):
@@ -94,8 +99,8 @@ class KaobeiSpider(BaseComicSpider):
                 attr_name: ",".join(map(lambda __: str(__.value), _path.find(target)))
                 for attr_name, _path in self.preset_book_frame.rendering_map().items()
             }
-            url = rf"""https://{domain}/api/v3/comic/{rendered.pop('book_path')}/group/default/chapters?limit=300&offset=0&_update=false"""
-            # url = rf"""https://{domain}/api/v3/comic/{rendered.pop('book_path')}/group/tankobon/chapters?limit=300&offset=0&_update=false"""
+            url = rf"""https://{self.domain}/api/v3/comic/{rendered.pop('book_path')}/group/default/chapters?limit=300&offset=0&_update=false"""
+            # url = rf"""https://{self.domain}/api/v3/comic/{rendered.pop('book_path')}/group/tankobon/chapters?limit=300&offset=0&_update=false"""
             # todo[9]: 额外卷请求，写req做到frame_section上合并
             self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
             frame_results[index + 1] = [rendered['漫画名'], url]
@@ -107,7 +112,7 @@ class KaobeiSpider(BaseComicSpider):
         self.say(example_s.format('序号', '章节') + '<br>')
         targets = response.json().get('results', {}).get('list', [])
         for x, target in enumerate(targets):
-            section_url = rf"""https://{domain}/api/v3/comic/{target['comic_path_word']}/chapter2/{target['uuid']}?_update=false&format=json&platform=4"""
+            section_url = rf"""https://{self.domain}/api/v3/comic/{target['comic_path_word']}/chapter2/{target['uuid']}?_update=false&format=json&platform=4"""
             section = target['name']
             frame_results[x + 1] = [section, section_url]
         return self.say.frame_section_print(frame_results, print_example=example_s)

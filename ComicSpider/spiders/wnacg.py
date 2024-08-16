@@ -12,16 +12,12 @@ class WnacgSpider(BaseComicSpider2):
     num_of_row = 4
     domain = domain
     # allowed_domains = [domain]
+    mappings = {'更新': f'https://{domain}/albums.html',
+                '汉化': f'https://{domain}/albums-index-cate-1.html', }
 
     @property
     def search_url_head(self):
         return f'https://{self.domain}/search/?f=_all&s=create_time_DESC&syn=yes&q='
-
-    @property
-    def mappings(self):
-        return {'更新': f'https://{self.domain}/albums.html',
-                '汉化': f'https://{self.domain}/albums-index-cate-1.html',
-                }
 
     def start_requests(self):
         if self.settings.get("PROXY_CUST") is None:
