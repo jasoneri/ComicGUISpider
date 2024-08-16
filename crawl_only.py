@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     gui = Gui(queue_port)
     p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port),
-                        kwargs={"LOG_LEVEL": "DEBUG"})
+                        kwargs={"LOG_LEVEL": "DEBUG", "LOG_FILE": None})
     p_crawler.start()
 
     p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'),))
