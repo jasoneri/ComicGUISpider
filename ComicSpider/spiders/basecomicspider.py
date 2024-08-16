@@ -7,7 +7,7 @@ import httpx
 import scrapy
 
 from ComicSpider.items import ComicspiderItem
-from utils import font_color, Queues, QueuesManager, PresetHtmlEl
+from utils import font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state
 )
@@ -77,7 +77,7 @@ class BaseComicSpider(scrapy.Spider):
     num_of_row = 5
     total = 0
     search_url_head = NotImplementedError('需要自定义搜索网址')
-    domain = None
+    domain = None  # REMARK(2024-08-16): 使用时用self.domain, 保留作出更改的余地
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
     mappings = {}  # mappings自定义关键字对应"固定"uri
@@ -85,6 +85,8 @@ class BaseComicSpider(scrapy.Spider):
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
         search_start = self.search
+        if self.domain not in search_start:
+            search_start = correct_domain(self.domain, search_start)
         self.search_start = deepcopy(search_start)
         yield scrapy.Request(self.search_start, dont_filter=True)
 
