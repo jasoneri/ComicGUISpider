@@ -15,6 +15,7 @@ class JmSpider(BaseComicSpider2):
                        }
     num_of_row = 4
     domain = domain
+    search_url_head = f'https://{domain}/search/photos?search_query='
     mappings = {}
 
     time_regex = re.compile(r".*?([日周月总])")
@@ -38,10 +39,6 @@ class JmSpider(BaseComicSpider2):
             'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
             'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
         }
-
-    @property
-    def search_url_head(self):
-        return f'https://{self.domain}/search/photos?search_query='
 
     @property
     def search(self):
