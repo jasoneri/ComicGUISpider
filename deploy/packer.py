@@ -135,18 +135,8 @@ class Packer:
             path.joinpath(rf"scripts/launcher/{proj}.ico"), "/invisible", "/uac-user")
         _do(path.joinpath(rf"scripts/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
             path.joinpath(rf"scripts/launcher/{proj}.ico"), "/uac-user")
-
-    @staticmethod
-    def markdown_to_html(file_path, out_name):
-        import markdown
-        with open(path.joinpath(file_path), 'r', encoding='utf-8') as f:
-            md_content = f.read()
-        html = markdown.markdown(md_content.replace(r"![](", "![](scripts\\doc\\"))
-        html_style = f"""<!DOCTYPE html><html><head><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head><body><article class="markdown-body">
-            {html}
-            </article></body></html>"""
-        with open(path.joinpath(out_name), 'w', encoding='utf-8') as f:
-            f.write(html_style)
+        _do(path.joinpath(rf"scripts/launcher/update.bat"), path.joinpath(rf"{proj}-使用说明.exe"),
+            path.joinpath(rf"scripts/assets/icon.png"), "/uac-user")
 
     def packup(self, runtime_init=False):
         zip_file = self.zip_file
@@ -204,9 +194,8 @@ def clean():
 if __name__ == '__main__':
     # clean()                   # step 0
     Packer.bat_to_exe()  # step 1
-    Packer.markdown_to_html('scripts/README.md', '使用说明.html')  # step 2
-    packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe'))
+    packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe'))
     packer.packup()  # step 2
     packer.upload('CGS.7z')  # step 3
-    Clean.end_work((f'{proj}.exe', f'{proj}-更新.exe', 'CGS.7z'))  # step 4
+    # Clean.end_work((f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe', 'CGS.7z'))  # step 4
     # If error occur, exegesis previous step and run again
