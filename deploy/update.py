@@ -93,6 +93,7 @@ class Proj:
             if src.is_dir() and dst.exists():
                 shutil.rmtree(dst, ignore_errors=True)
                 os.rmdir(dst)
+            dst.parent.mkdir(exist_ok=True)
             shutil.move(src, dst)
 
         if not self.first_flag and not self.changed_files:
