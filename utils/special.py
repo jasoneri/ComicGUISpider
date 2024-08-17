@@ -41,7 +41,7 @@ class Utils:
 
     @classmethod
     def get_domain(cls):
-        domain = cls.by_forever() or cls.by_publish() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
+        domain = cls.by_publish() or cls.by_forever() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
         if not cls.status_forever and not cls.status_publish:
             raise ConnectionError(f"无法获取 {cls.__name__} domain，方法均失效了，需要查看")
         return domain
