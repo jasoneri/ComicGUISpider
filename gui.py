@@ -229,7 +229,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
-            if index != 1:
+            if index not in [1]:
                 self.toolButton.setDisabled(True)
                 self.confBtn.setDisabled(True)
                 self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} 仅当常规漫画网站能使用工具箱功能<br>'))
