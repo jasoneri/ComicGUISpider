@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """code update
 base on client, env-python: embed"""
+import argparse
 import os
 import shutil
 import stat
@@ -92,7 +93,8 @@ class Proj:
         def move(src, dst):
             if src.is_dir() and dst.exists():
                 shutil.rmtree(dst, ignore_errors=True)
-                os.rmdir(dst)
+                if dst.exists():  # fix
+                    os.rmdir(dst)
             dst.parent.mkdir(exist_ok=True)
             shutil.move(src, dst)
 
@@ -121,8 +123,42 @@ class Proj:
             f.write(self.ver)
 
 
-if __name__ == '__main__':
+def regular_update():
     proj = Proj()
     proj.check()
     proj.local_update()
     print(Fore.GREEN + "=" * 40 + "[ 更新完毕 ]" + "=" * 40)
+
+
+def create_desc():
+    try:
+        import markdown
+    except ModuleNotFoundError:
+        print(Fore.RED + "[ 当前环境无法使用此功能，需要重新下载绿色安装包 ]")
+    else:
+        file_path = 'scripts/README.md'
+        out_name = 'scripts/desc.html'
+        with open(path.joinpath(file_path), 'r', encoding='utf-8') as f:
+            md_content = f.read()
+        html = markdown.markdown(md_content)
+        html_style = f"""<!DOCTYPE html><html><head><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head><body><article class="markdown-body">
+            {html}
+            </article></body></html>"""
+        with open(path.joinpath(out_name), 'w', encoding='utf-8') as f:
+            f.write(html_style)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        add_help=False,
+        description="CGS updater",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    args = parser.add_argument_group("Arguments")
+    args.add_argument('-d', '--desc', action=argparse.BooleanOptionalAction, required=False,
+                      help=r'create scripts/desc.html from scripts/README.md')
+    parsed = parser.parse_args()
+    if parsed.desc:
+        create_desc()
+    else:
+        regular_update()
