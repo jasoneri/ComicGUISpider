@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css">
+</head>
+<body>
+<script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.min.js"></script>
+<script>
+  function scanChecked() {
+    var checkboxGroup = document.getElementsByName('img');
+    var selectedValues = [];
+    for (let i = 0; i < checkboxGroup.length; i++) {
+      if (checkboxGroup[i].checked) {
+        selectedValues.push(checkboxGroup[i].id);
+      }
+    }
+    return selectedValues
+  }
+</script>
+<div class="row">
+    {body}
+</div>
+</body>
+</html>

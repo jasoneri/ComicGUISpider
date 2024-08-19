@@ -4,8 +4,9 @@ import typing as t
 from urllib.parse import urlencode
 from .basecomicspider import BaseComicSpider2, font_color
 from utils.special import JmUtils
+from utils.processed_class import PreviewHtml
 
-domain = JmUtils.get_domain()
+domain = "18comic-zzz.xyz"
 
 
 class JmSpider(BaseComicSpider2):
@@ -29,11 +30,10 @@ class JmSpider(BaseComicSpider2):
     def ua(self):
         return {
             'Host': self.domain,
-            'User-Agent': 'Mozilla/5.0(WindowsNT10.0;Win64;x64;rv:127.0)Gecko/20100101Firefox/127.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0',
             'Accept': 'image/webp;application/xml;q=0.9;image/avif;application/xhtml+xml;text/html;*/*;q=0.8',
             'Accept-Language': 'zh;q=0.8;en;q=0.2;zh-CN;zh-TW;q=0.7;zh-HK;q=0.5;en-US;q=0.3',
             'Accept-Encoding': 'br;zstd;deflate;gzip',
-            'Alt-Used': self.domain,
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document',
             'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
@@ -42,6 +42,7 @@ class JmSpider(BaseComicSpider2):
 
     @property
     def search(self):
+        self.domain = JmUtils.get_domain()
         keyword = self.input_state.keyword
         __t = self.time_regex.search(keyword)
         __k = self.kind_regex.search(keyword)
@@ -59,14 +60,22 @@ class JmSpider(BaseComicSpider2):
         frame_results = {}
         example_b = r' [ {} ]、【 {} 】'
         self.say(example_b.format('序号', '漫画名') + '<br>')
+        preview = PreviewHtml()
         targets = response.xpath('//div[contains(@class,"thumb-overlay")]')
         for x, target in enumerate(targets):
             title = target.xpath('.//img/@title').get().strip().replace("\n", "")
             pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
-            url = f'https://{domain}{pre_url}'.replace('album', 'photo')
+            preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
+            url = preview_url.replace('album', 'photo')  # 压缩步骤，此链直接返回该本全页uri
+            img_preview = target.xpath('./a/img/@src | ./img/@src').get()
+            if (img_preview or "").endswith("blank.jpg"):
+                img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [title, url]
+            preview.add(x + 1, img_preview, title, preview_url)
+        self.say(preview.created_temp_html)
+        self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", color='purple'))
         return self.say.frame_book_print(frame_results)
 
     def frame_section(self, response):

@@ -6,6 +6,7 @@ from time import sleep
 import httpx
 import scrapy
 
+from variables import *
 from ComicSpider.items import ComicspiderItem
 from utils import font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain
 from utils.processed_class import (
@@ -15,9 +16,13 @@ from utils.processed_class import (
 
 class SayToGui:
     exp_txt = (f"""<br>{'{:=^80}'.format('message')}<br>请于【 输入序号 】框输入要选的序号  """)
+    exp_preview = font_color("<br>进预览页面能直接点击封面进行多选，与【 输入序号 】框的序号相叠加",
+                             color='chocolate') + "<br>请于"
 
     def __init__(self, spider, queue, state):
         self.spider = spider
+        if spider.name in SPECIAL_WEBSITES:
+            self.exp_txt = self.exp_txt.replace('<br>请于', self.exp_preview)
         self.text_browser = self.TextBrowser(queue, state)
 
     def __call__(self, *args, **kwargs):
@@ -144,13 +149,13 @@ class BaseComicSpider(scrapy.Spider):
             self.say('<br><br><br>没匹配到结果')
             self.logger.info(f'no result return, choose_input is wrong: {choose}')
         else:
-            self.say(f'{"{:*^55}".format("最后确认选择")}<br>{"-" * 10}《{title}》 所选序号: {choose}')
+            self.say(f'{"-" * 10}《{title}》 所选序号: {choose}')
             for result in results:
                 self.say(f"{result[0]:>>55}")
             self.session = httpx.Client()
             for section, section_url in results:
                 url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
-                self.say(font_color(f"<br>{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", color='blue', size=5))
+                self.say(font_color(f"{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", color='blue', size=5))
                 meta = {'title': title, 'section': section}
                 for url in url_list:
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)

@@ -8,7 +8,7 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-import os
+from variables import *
 from utils import conf
 
 BOT_NAME = 'ComicSpider'
@@ -56,4 +56,4 @@ UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefo
 
 # 日志输出
 LOG_FILE = log_path.joinpath("scrapy.log")
-SPECIAL = ['wnacg', 'jm']
+SPECIAL = SPECIAL_WEBSITES

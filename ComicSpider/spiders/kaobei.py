@@ -101,7 +101,8 @@ class KaobeiSpider(BaseComicSpider):
             # todo[9]: 额外卷请求，写req做到frame_section上合并
             self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
             frame_results[index + 1] = [rendered['漫画名'], url]
-        return self.say.frame_book_print(frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选<br>")
+        return self.say.frame_book_print(frame_results,
+                                         extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>")
 
     def frame_section(self, response):
         frame_results = {}

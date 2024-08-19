@@ -16,7 +16,8 @@
 
 > 首先说明:<br>
 >   + 三级跳转 表示 "搜索 > 书列表 > 书章节（例如第1卷/第1话）> 该章节的每一页"<br>
->   + 二级跳转 表示 "搜索 > 书列表 > 没有章节，直接给全书的页数"
+>   + 二级跳转 表示 "搜索 > 书列表 > 没有章节，直接给全书的页数"<br>
+      > 上述说的跳转并非人类行为操作，实则压缩了步骤，毕竟机器只需要效率
 
 [爬虫代码存放位置在此](../ComicSpider/spiders)，创建`py脚本`，命名同分支 <br>
 二级跳转模版参照`jm.py`,`wnacg.py`，继承类`BaseComicSpider2` <br>
@@ -50,13 +51,15 @@
 
 + self.say: 能将字符串(可使用部分html标签格式)打印在gui上
 + utils.font_color: 自定义\<font>标签，跟self.say配合使用
++ utils.processed_class.PreviewHtml: 通过`add`喂预览图链接，结束后用`created_temp_html`
+  生成临时html文件。实例详见`JmSpider.frame_book`
 
 ##### 爬虫代码开发最后
 
-[前往`utils.processed_class.py` ](../utils/processed_class.py)，在`crawl_what`里的`spider_what`加入新序号(
-方面下面理解设为序号`4`²)，值为爬虫名字`ehentai¹`
+[前往`variables` ](../variables/__init__.py)，在`SPIDERS`加入新序号(方面下面理解设为序号`4`²)，值为爬虫名字`ehentai¹`
 
-> 如目标网站为禁漫这类的，还需在`ComicSpider/settings.py`里的`SPECIAL`加进 爬虫名字`ehentai¹`，不然会影响存放位置
+> 如目标网站为禁漫这类的，还需在`SPECIAL_WEBSITES`加进 爬虫名字`ehentai¹` （此处影响存储位置）<br>
+> 在`SPECIAL_WEBSITES_IDXES`加进 序号`4`² （此处影响gui逻辑）
 
 #### 2.2 gui代码
 
@@ -64,8 +67,7 @@
     1. `text`: 该变量是下拉框选中后，鼠标悬停在搜索框时，最下状态栏会出现的文字。加上序号`4`²，和类似的描述即可
     2. `completer_keywords_map`: 该变量是预设值，类属性里`mappings`
        加入了多少什么就放什么，也可以放常用的搜索词。加上序号`4`²，和预设值列表
-    3. 如开发的`不是禁漫这种网站`，则需要 `index not in [1]`里加上序号，因为非常规网站不用工具箱
-2. [前往`GUI/ui_mainwindow.py` ](../GUI/ui_mainwindow.py) 搜索`self.chooseBox.setItemText`，在`wnacg`条目下方加入代码
+2. [前往`GUI/uic/ui_mainwindow.py` ](../GUI/uic/ui_mainwindow.py) 搜索`self.chooseBox.setItemText`，在`wnacg`条目下方加入代码
     ```python
     self.chooseBox.addItem("")
     self.chooseBox.setItemText(4, _translate("MainWindow", "4、ehentai**"))  # ** 是作为禁漫这类网站的标识，不影响任何代码
@@ -83,7 +85,9 @@
 
 #### GUI测试
 
-> 注意: 当`ComicSpider/settings.py`里的`LOG_FILE`不为空时，控制台不会打印任何信息，只会在日志`log/scrapy.log`中输出，无论什么日志等级
+> 注意: 当`ComicSpider/settings.py`里的`LOG_FILE`不为空时，控制台不会打印任何信息，只会在日志`log/scrapy.log`
+> 中输出，无论什么日志等级 <br>
+> 反之想让控制台输出时将其值置为空，在commit时需要改回来
 
 根目录运行`python CGS.py`，进GUI后先进行开发的网站流程是否正常，然后测试其他网站有没受影响
 

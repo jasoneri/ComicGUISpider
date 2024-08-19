@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # GUI
 from PyQt5.QtWidgets import QApplication
-from assets import material_ct
+import GUI.src.material_ct
 
 # 自己项目用到的
-from gui import SpiderGUI
+from GUI.gui import SpiderGUI
 import sys
 from multiprocessing import freeze_support
 
