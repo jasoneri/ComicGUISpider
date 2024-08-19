@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import tempfile
 import time
 import typing as t
 import socket
@@ -9,7 +10,8 @@ from multiprocessing import Queue, freeze_support
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from utils import State, QueuesManager, Queues
+from utils import State, QueuesManager, Queues, ori_path
+from variables import SPIDERS
 
 
 @dataclass
@@ -103,9 +105,7 @@ class GuiQueuesManger(QueuesManager):
 
 
 def crawl_what(what, queue_port, **settings_kw):
-    spider_what = {2: 'jm',
-                   1: 'manga_copy',
-                   3: 'wnacg'}
+    spider_what = SPIDERS
     freeze_support()
     s = get_project_settings()
     s.update(settings_kw)
@@ -114,3 +114,39 @@ def crawl_what(what, queue_port, **settings_kw):
     process.start()
     process.join()
     process.stop()
+
+
+class PreviewHtml:
+    format_path = ori_path.joinpath("GUI/src/preview_format")
+
+    class bootstrap:
+        @staticmethod
+        def create_element(idx, img_src, title, url):
+            max_width = 170
+            title_thumbnail = title[:18] + "..."
+            el = f"""<div class="col-md-3" style="max-width:{max_width}px"><div class="form-check">
+            <input class="form-check-input" type="checkbox" name="img" id="{idx}">
+            <label class="form-check-label" for="{idx}">
+              <img src="{img_src}" title="{title}" alt="{title}" class="img-thumbnail"/>
+            </label></div>
+            <a href="{url}"><p>[{idx}]、{title_thumbnail}</p></a>
+            </div>"""
+            return el
+
+    def __init__(self, html_style="bootstrap"):
+        self.contents = []
+        self.html_style = html_style
+
+    def add(self, *args):
+        self.contents.append(getattr(self, self.html_style).create_element(*args))
+
+    @property
+    def created_temp_html(self):
+        with open(self.format_path.joinpath(rf"{self.html_style}.html"), 'r', encoding='utf-8') as f:
+            format_text = f.read()
+        html = format_text.replace("{body}", "\n".join(self.contents))
+        tf = tempfile.TemporaryFile(suffix=".html", delete=False)
+        tf.write(bytes(html, 'utf-8'))
+        f = str(tf.name)
+        tf.close()
+        return f

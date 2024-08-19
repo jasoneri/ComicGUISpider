@@ -11,6 +11,7 @@ import shutil
 import pathlib
 import stat
 import datetime
+from itertools import chain
 
 import httpx
 import py7zr
@@ -98,13 +99,13 @@ class Clean:
         error_code = os.system(f"cd {path} && python fit.py")
 
     @staticmethod
-    def end_work(specified: iter = None):
+    def end_work(*specified: iter):
         def delete(func, _path, execinfo):
             os.chmod(_path, stat.S_IWUSR)
             func(_path)
 
-        waiting = specified or ("site-packages_new", "fit.py", "white_files.json",
-                                "site-packages_文件移动清单.txt", "scripts/.git")
+        waiting = chain(*specified) or ("site-packages_new", "fit.py", "white_files.json",
+                                        "site-packages_文件移动清单.txt", "scripts/.git")
         for p in tqdm(waiting):
             _p = path.joinpath(p)
             if _p.exists():
@@ -181,7 +182,7 @@ class Packer:
         release.upload_asset(str(path.joinpath(zip_file)), name=zip_file)
         # update release
         text = release_desc
-        release.update_release(name=f"{date_now} - v1.5.0", message=text)
+        release.update_release(name=f"{date_now} - v1.6.0", message=text)
 
 
 def clean():
@@ -193,6 +194,8 @@ def clean():
 
 if __name__ == '__main__':
     # clean()                   # step 0
+    Clean.end_work(path.joinpath("scripts").rglob("__pycache__"),
+                   (path.joinpath("scripts/log"), path.joinpath("scripts/version")))
     Packer.bat_to_exe()  # step 1
     packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe'))
     packer.packup()  # step 2

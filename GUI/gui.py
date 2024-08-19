@@ -1,83 +1,27 @@
 import os
 import sys
 import time
-import pathlib
 from multiprocessing import Process
 import multiprocessing.managers as m
-from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication
-from PyQt5.QtWidgets import QDialog, QMainWindow, QMenu, QAction, QMessageBox, QCompleter
+from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication, QRect
+from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QCompleter
 import traceback
 
-from GUI.ui_mainwindow import Ui_MainWindow
-from GUI.ui_ensure_dia import Ui_FinEnsureDialog
-from GUI.conf_dia import Ui_Dialog as Ui_ConfDialog
-from GUI.ui_helplabel import Ui_HelpLabel
+from GUI.uic.ui_mainwindow import Ui_MainWindow
+from GUI.conf_dialog import ConfDialog
+from GUI.fin_ensure_dialog import FinEnsureDialog
+from GUI.preview_window import PreviewWindow
+
+from variables import *
 from utils import (
     transfer_input, font_color, Queues, QueuesManager,
-    conf, yaml, convert_punctuation as cp)
+    conf, p)
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what
 )
 from utils.comic_viewer_tools import combine_then_mv, show_max
 
-
-class FinEnsureDialog(QDialog, Ui_FinEnsureDialog):
-
-    def __init__(self, parent=None):
-        super(FinEnsureDialog, self).__init__(parent)
-        self.setupUi(self)
-
-    def setupUi(self, ensureDialog):
-        super(FinEnsureDialog, self).setupUi(ensureDialog)
-
-
-class ConfDialog(QDialog, Ui_ConfDialog):
-    def __init__(self, parent=None):
-        super(ConfDialog, self).__init__(parent)
-        self.setupUi(self)
-
-    def setupUi(self, Dialog):
-        super(ConfDialog, self).setupUi(Dialog)
-        self.buttonBox.accepted.connect(self.save_conf)
-
-    def show_self(self):  # can't naming `show`. If done, just run code once
-        for _ in ('sv_path', 'proxies', 'custom_map', 'cv_proj_path',):
-            getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
-        self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
-        super(ConfDialog, self).show()
-
-    @staticmethod
-    def transfer_to_gui(val) -> str:
-        if isinstance(val, list):
-            return ",".join(val)
-        elif isinstance(val, dict):
-            return yaml.dump(val, allow_unicode=True)
-        else:
-            return str(val)
-
-    def save_conf(self):
-        sv_path = getattr(self, f"sv_pathEdit").text()
-        cv_proj_path_str = getattr(self, f"cv_proj_pathEdit").text()
-        config = {
-            "sv_path": sv_path,
-            "cv_proj_path": cv_proj_path_str,
-            "custom_map": yaml.safe_load(cp(getattr(self, f"custom_mapEdit").toPlainText())),
-            "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
-            "log_level": getattr(self, "logLevelComboBox").currentText()}
-        conf.update(**config)
-
-        if cv_proj_path_str:  # 联动comic_viewer更改
-            cv_proj_path = pathlib.Path(cv_proj_path_str)
-            if cv_proj_path.joinpath("scripts").exists():
-                cv_proj_path = cv_proj_path.joinpath("scripts")
-            cv_conf = cv_proj_path.joinpath("backend/conf.yml")
-            if not cv_conf.exists():
-                return
-            with open(cv_conf, 'w', encoding='utf-8') as fp:
-                yaml_data = yaml.dump({"path": sv_path}, allow_unicode=True)
-                fp.write(yaml_data)
-        
 
 class WorkThread(QThread):
     """only for monitor signals"""
@@ -99,7 +43,12 @@ class WorkThread(QThread):
             self.msleep(5)
             try:
                 if not TextBrowser.empty():
-                    self.print_signal.emit(str(TextBrowser.get().text))
+                    _ = str(TextBrowser.get().text)
+                    if "AppData" in _:  # C:/Users/xxxxx/AppData/Local/Temp/xxx.html
+                        self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己内部初始化
+                        self.gui.previewBtn.setEnabled(True)
+                    else:
+                        self.print_signal.emit(_)
                     self.msleep(10)
                 if not Bar.empty():
                     self.item_count_signal.emit(Bar.get())
@@ -160,9 +109,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     queues: Queues = None
     book_choose: list = []
     book_num: int = 0
-    helpclickCnt = 0
     nextclickCnt = 0
     checkisopenCnt = 0
+    PreviewWindow: PreviewWindow = None
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -191,8 +140,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def setupUi(self, MainWindow):
         self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
-        self.helpbtn.setFocus()
-        self.helplabel = Ui_HelpLabel(self.centralwidget)
         self.textBrowser.setText(''.join(TextUtils.description))
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
@@ -206,10 +153,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.Q = QueueHandler(self.manager)
         # 按钮组
         self.tool_menu = ToolMenu(self)
-        self.helpclickCnt = 0
         self.nextclickCnt = 0
         self.checkisopenCnt = 0
         self.btn_logic_bind()
+
+        self.tf = None
+        self.previewInit = True
 
         def chooseBox_changed_handle(index):
             text = {0: None,
@@ -229,10 +178,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
-            if index not in [1]:
+            if index in SPECIAL_WEBSITES_IDXES:
                 self.toolButton.setDisabled(True)
-                self.confBtn.setDisabled(True)
                 self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} 仅当常规漫画网站能使用工具箱功能<br>'))
+            if index == 3 and not conf.proxies:
+                self.textbrowser_load(font_color(
+                    "wancg 国内源有点慢哦，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" +
+                    "网络问题一般重启就好了，数次均无效的话 加群反映/提issue<br>", color='purple'))
             # 输入框联想补全
             completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", completer_keywords_map[index])))
             completer.setFilterMode(Qt.MatchStartsWith)
@@ -246,10 +198,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.next_btn.setEnabled(len(text) > 6 and self.chooseBox.currentIndex() != 0)  # else None
         self.searchinput.textChanged.connect(search_btn)
         self.next_btn.setDisabled(True)
+        self.previewBtn.setDisabled(True)
         self.crawl_btn.clicked.connect(self.crawl)
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
+        self.previewBtn.clicked.connect(self.show_preview)
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
@@ -260,9 +214,40 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         self.checkisopen.clicked.connect(checkisopen_btn)
 
-    def show_help(self):
-        self.helplabel.hide() if self.helpclickCnt%2 else self.helplabel.show()
-        self.helpclickCnt += 1
+    def set_preview(self):
+        proxies = None if self.chooseBox.currentIndex() != 3 else (conf.proxies or [None])[
+            0]  # only wnacg need proxies presently
+        if proxies:
+            PreviewWindow.set_proxies(proxies)
+        self.PreviewWindow = PreviewWindow(self.tf)
+        self.PreviewWindow.setGeometry(QRect(
+            self.x() + self.funcGroupBox.x(),
+            self.y() + self.funcGroupBox.y() - self.PreviewWindow.height() + 50,
+            self.PreviewWindow.width(), self.PreviewWindow.height()
+        ))
+        self.previewBtn.setEnabled(True)
+        self.previewBtn.setFocus()
+        self.PreviewWindow.ensureBtn.clicked.connect(self.ensure_preview)
+
+    def show_preview(self):
+        """prevent PreviewWindow is None when init"""
+        if self.previewInit:
+            self.set_preview()
+            self.previewInit = False
+        self.PreviewWindow.show()
+
+    def ensure_preview(self):
+        def callback():
+            self.previewBtn.setDisabled(True)
+            self._next()
+
+        self.PreviewWindow.ensure(callback)
+
+    def clean_preview(self):
+        if self.PreviewWindow:
+            if self.tf and p.Path(self.tf).exists():
+                os.remove(self.tf)
+            self.PreviewWindow.destroy()
 
     def retry_schedule(self):  # 烂逻辑
         if getattr(self, 'p_crawler', None):
@@ -315,22 +300,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.log.debug(
                 f'website_index:[{self.input_state.bookSelected}], keyword [{self.input_state.keyword}] success ')
 
-        def _next():
-            self.log.debug('===--→ nexting')
-            self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
-            if self.nextclickCnt == 1:
-                self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else \
-                    [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
-                self.book_num = len(self.book_choose)
-                if self.book_num > 1:
-                    self.log.info('book_num > 1')
-            self.chooseinput.clear()
-            # choose逻辑 交由crawl, next,retry3个btn的schedule控制
-            self.Q('InputFieldQueue').send(self.input_state)
-            self.log.debug(f'send choose: {self.input_state.indexes} success')
-
-        if self.next_btn.text()!='搜索':
-            _next()
+        if self.next_btn.text() != '搜索':
+            self._next()
         else:
             start_and_search()
 
@@ -342,34 +313,37 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         refresh_state(self, 'process_state', 'ProcessQueue')
         self.log.debug(f"===--→ next_schedule end (now step: {self.process_state.process})\n")
 
-    def crawl(self):
-        def dia_text(_str):
-            self.ensure_dia.textEdit.append(TextUtils.warning_(_str) if 'notice' in _str else _str)
+    def _next(self):
+        self.log.debug('===--→ nexting')
+        idxes = transfer_input(self.chooseinput.text()[5:].strip())
+        if self.PreviewWindow and self.PreviewWindow.output:
+            idxes = list(set(self.PreviewWindow.output) | set(idxes))
+        self.input_state.indexes = idxes
+        if self.nextclickCnt == 1:
+            self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else \
+                [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
+            self.book_num = len(self.book_choose)
+            if self.book_num > 1:
+                self.log.info('book_num > 1')
+        self.chooseinput.clear()
+        # choose逻辑 交由crawl, next,retry3个btn的schedule控制
+        self.Q('InputFieldQueue').send(self.input_state)
+        self.log.debug(f'send choose: {self.input_state.indexes} success')
 
+    def crawl(self):
         self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
         self.log.debug(f'===--→ click down crawl_btn')
-        self.ensure_dia.textEdit.clear()
-        self.bThread.print_signal.disconnect(self.textbrowser_load)
-        self.bThread.print_signal.connect(dia_text)
 
         QThread.msleep(10)
         self.Q('InputFieldQueue').send(self.input_state)
         self.log.debug(f'send choose success')
 
-        if self.ensure_dia.exec_() == QDialog.Accepted:  # important dia窗口确认为最后把关
-            self.book_num -= 1
-        else:
-            ...
-        self.bThread.print_signal.connect(self.textbrowser_load)
-
         if self.book_num == 0:
-            self.helplabel.re_pic()
             self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", color='purple'))
             self.crawl_btn.setDisabled(True)
             self.input_field.setDisabled(True)
         else:
             self.chooseinput.clear()
-        self.bThread.print_signal.disconnect(dia_text)
         self.log.debug(f'book_num remain: {self.book_num}')
         self.log.debug(f"===--→ crawl finish (now step: {self.process_state.process})\n")
 
@@ -384,19 +358,18 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.input_field.setEnabled(True)
 
         self.process_state.process = 'fin'
-        self.helplabel.re_pic()
         self.textbrowser_load(
-            # font_color(">>>>> 重申，说明按钮内容已更新，去点下看看吧<br>", color='purple') +
             font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         os.startfile(imgs_path) if self.checkisopen.isChecked() else None
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def textbrowser_load(self, string):
-        # todo[4]: v1.4 - (1)、每组图预览，图片缓存 (2)、勾选选项（改写choose逻辑）放textbrowser？
         if 'http' in string:
             self.textBrowser.setOpenExternalLinks(True)
-            string = u'<a href="%s" ><b style="font-size:20px;"><br> 点击查看搜索结果</b></a><b><s><font color="WhiteSmoke"  size="4"> 懒得做预览图功能</font></s></b>' % string
-            self.textBrowser.append(string)
+            if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
+                string = (u'<b><font size="5"><br>  内置预览：点击右下 "点我预览" </font></b> 或者 '
+                          u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>') % string
+                self.textBrowser.append(string)
         else:
             string = r'<p>%s</p>' % string
             self.textBrowser.append(string)
@@ -415,6 +388,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.textBrowser.setStyleSheet('background-color: pink;')
 
     def close_process(self):
+        self.clean_preview()
         if self.bThread is not None:  # 线程停止
             self.bThread.stop()
         for _ in ['p_qm', 'p_crawler']:
@@ -444,4 +418,4 @@ class TextUtils:
 
     @staticmethod
     def warning_(text):
-        return font_color(text, color='orange', size=5)
+        return font_color(text, color='orange', size=4)

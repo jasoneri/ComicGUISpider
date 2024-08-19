@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import re
+
 from .basecomicspider import BaseComicSpider2, font_color
+from utils import PresetHtmlEl
 from utils.special import WnacgUtils
+from utils.processed_class import PreviewHtml
 
 domain = "wnacg.com"
 
@@ -31,16 +34,21 @@ class WnacgSpider(BaseComicSpider2):
         frame_results = {}
         example_b = r' [ {} ]、【 {} 】'
         self.say(example_b.format('序号', '漫画名') + '<br>')
-        targets = response.xpath('//div[@class="info"]')
-        title_xpath = './div[@class="title"]/a'
+        preview = PreviewHtml()
+        targets = response.xpath('//li[contains(@class, "gallary_item")]')
+        title_xpath = './div[contains(@class, "pic")]/a'
         for x, target in enumerate(targets):
-            title_elem = target.xpath(title_xpath)
-            title = title_elem.xpath('./@title').get()
-            pre_url = title_elem.xpath('./@href').get()
-            url = f'https://{self.domain}{pre_url}'.replace('index', 'gallery')  # 此链直接返回该本全页uri
+            item_elem = target.xpath(title_xpath)
+            title = item_elem.xpath('./@title').get()
+            pre_url = item_elem.xpath('./@href').get()
+            preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
+            url = preview_url.replace('index', 'gallery')  # 压缩步骤，此链直接返回该本全页uri
+            img_preview = 'http:' + item_elem.xpath('./img/@src').get()
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [title, url]
+            preview.add(x + 1, img_preview, PresetHtmlEl.sub(title), preview_url)  # 其实title已兜底处理，但preview受其影响所以前置一下
+        self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results)
 
     def frame_section(self, response):
