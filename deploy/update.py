@@ -134,6 +134,10 @@ def regular_update():
 
 
 def create_desc():
+    def cdn_replace(md_str, author, repo, branch):
+        return (md_str.replace("raw.githubusercontent.com", "jsd.cdn.zzko.cn/gh")
+                .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
+
     try:
         import markdown
     except ModuleNotFoundError:
@@ -143,6 +147,7 @@ def create_desc():
         out_name = 'scripts/desc.html'
         with open(path.joinpath(file_path), 'r', encoding='utf-8') as f:
             md_content = f.read()
+        md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main")
         html = markdown.markdown(md_content)
         html_style = f"""<!DOCTYPE html><html><head><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head><body><article class="markdown-body">
             {html}

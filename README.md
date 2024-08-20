@@ -9,7 +9,7 @@
 
 交互式下载漫画项目，支持预览多选
 
-![](https://jsd.cdn.zzko.cn/gh/jasoneri/imgur@main/CGS/CGS-preview-usage.gif)
+![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/CGS-preview-usage.gif)
 
 ## 项目介绍
 
