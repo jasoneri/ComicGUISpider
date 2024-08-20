@@ -3,7 +3,7 @@
 from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
-from PyQt5.QtWebEngineWidgets import QWebEngineView  # TODO[4](2024-08-19): 测试runtime是否需要新增此包
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from GUI.uic.preview import Ui_preview
 
 
