@@ -89,7 +89,7 @@ class Clean:
     def fit():
         """execute this script, and let project work fully with package as much as possible"""
         if not path.joinpath("fit.py").exists():
-            script_url = "https://raw.githubusercontent.com/mengdeer589/PythonSizeCruncher/main/main.py"
+            script_url = "https://jsd.onmicrosoft.cn/gh/mengdeer589/PythonSizeCruncher@main/main.py"
             with httpx.Client(headers=headers, proxies=proxies) as sess:
                 r = sess.get(script_url)
                 with open(path.joinpath("fit.py"), 'w', encoding='utf-8') as f:
@@ -104,8 +104,9 @@ class Clean:
             os.chmod(_path, stat.S_IWUSR)
             func(_path)
 
-        waiting = chain(*specified) or ("site-packages_new", "fit.py", "white_files.json",
-                                        "site-packages_文件移动清单.txt", "scripts/.git")
+        waiting = chain(*specified) if specified else \
+            ("site-packages_new", "fit.py", "white_files.json",
+             "site-packages_文件移动清单.txt", "scripts/.git")
         for p in tqdm(waiting):
             _p = path.joinpath(p)
             if _p.exists():

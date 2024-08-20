@@ -8,7 +8,8 @@
 </div>
 
 交互式下载漫画项目，支持预览多选
-![](https://cdn.jsdelivr.net/gh/jasoneri/imgur@main/CGS/CGS-preview-usage.gif)
+
+![](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/CGS-preview-usage.gif)
 
 ## 项目介绍
 
