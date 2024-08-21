@@ -165,12 +165,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     1: '拷贝漫画：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"',
                     2: 'jm：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（2.1）规则补充：时间维度可选 日/周/月/总，例如"收藏总"（3）翻页：最后加上"&page=2" 等页数',
                     3: 'wnacg：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（3）翻页：搜索词翻页加入"&p=2" 例如 "C104&p=2" 固定页面如更新页则使用映射'}
-            completer_keywords_map = {
-                1: ['更新', '排名日', '排名周', '排名月', '排名总'],
-                2: ['C104', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周',
-                    '收藏月'],
-                3: ['C104', '更新', '汉化'],
-            }
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
             if index and not getattr(self, 'p_crawler'):
                 # optimize backend scrapy start speed
@@ -186,12 +180,19 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     "wancg 国内源有点慢哦，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" +
                     "网络问题一般重启就好了，数次均无效的话 加群反映/提issue<br>", color='purple'))
             # 输入框联想补全
-            completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", completer_keywords_map[index])))
-            completer.setFilterMode(Qt.MatchStartsWith)
-            completer.setCompletionMode(QCompleter.PopupCompletion)
-            self.searchinput.setCompleter(completer)
+            self.set_completer()
+
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
         self.show()
+
+    def set_completer(self):
+        idx = self.chooseBox.currentIndex()
+        if idx == 0:
+            return
+        completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", conf.completer[idx])))
+        completer.setFilterMode(Qt.MatchStartsWith)
+        completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.searchinput.setCompleter(completer)
 
     def btn_logic_bind(self):
         def search_btn(text):
@@ -204,6 +205,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.next_btn.clicked.connect(self.next_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.previewBtn.clicked.connect(self.show_preview)
+        self.conf_dia.buttonBox.accepted.connect(self.set_completer)
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
@@ -215,14 +217,15 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.checkisopen.clicked.connect(checkisopen_btn)
 
     def set_preview(self):
-        proxies = None if self.chooseBox.currentIndex() != 3 else (conf.proxies or [None])[
-            0]  # only wnacg need proxies presently
+        proxies = None if self.chooseBox.currentIndex() != 3 else \
+            (conf.proxies or [None])[0]  # only wnacg need proxies presently
         if proxies:
             PreviewWindow.set_proxies(proxies)
         self.PreviewWindow = PreviewWindow(self.tf)
+        preview_y = self.y() + self.funcGroupBox.y() - self.PreviewWindow.height() + 50
         self.PreviewWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
-            self.y() + self.funcGroupBox.y() - self.PreviewWindow.height() + 50,
+            preview_y if preview_y > 0 else 200,
             self.PreviewWindow.width(), self.PreviewWindow.height()
         ))
         self.previewBtn.setEnabled(True)
@@ -240,7 +243,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         def callback():
             self.previewBtn.setDisabled(True)
             self._next()
-
         self.PreviewWindow.ensure(callback)
 
     def clean_preview(self):
