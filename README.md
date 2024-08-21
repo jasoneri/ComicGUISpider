@@ -9,9 +9,9 @@
 
 交互式下载漫画项目，支持预览多选
 
-▼ 操作展示 ▼ (国内如果无法看到动图 [点这里](https://jsd.cdn.zzko.cn/gh/jasoneri/imgur@main/CGS/CGS-preview-usage.gif))
+▼ 操作展示 ▼ (国内如果无法看到动图 [点这里](https://jsd.cdn.zzko.cn/gh/jasoneri/imgur@main/CGS/preview-usage.gif))
 
-![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/CGS-preview-usage.gif)
+![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)
 
 ## 项目介绍
 
