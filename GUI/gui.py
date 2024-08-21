@@ -204,7 +204,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
-        self.previewBtn.clicked.connect(self.show_preview)
         self.conf_dia.buttonBox.accepted.connect(self.set_completer)
 
         def checkisopen_btn():
@@ -412,10 +411,11 @@ class TextUtils:
     description = (
             f"{'message':-^110}<br>" +
             font_color(
-                " 首次使用: 1、打开`README.md`(绿色安装包的话打开`使用说明.html`)，内有配置/GUI视频使用指南等说明<br>",
+                "1、首次使用请查阅`CGS-使用说明.exe`(内容与`scripts/README.md`一样)，内有配置/GUI视频使用指南等说明<br>",
                 color='blue', size=5) +
-            font_color(" 2、右下说明更新不及时，尽量参考视频使用指南", color='blue', size=5) +
-            font_color(' 有任何问题到群反映<br>', color='white') +
+            font_color("2、除非版本更新，一般bug修复/功能更新等，用户运行`CGS-更新.exe`即可<br>", color='blue', size=5) +
+            font_color("3、在 github wiki 上也有记录 Q & A，可以先查阅看能否解决疑惑", color='blue', size=5) +
+            font_color(' 若有其他问题到群反映/提issue<br>', color='white') +
             f"{'仅供学习使用':-^105}")
 
     @staticmethod
