@@ -11,6 +11,8 @@ from logging.handlers import TimedRotatingFileHandler
 from dataclasses import dataclass, asdict, field
 import multiprocessing.managers as m
 
+from variables import DEFAULT_COMPLETER
+
 ori_path = p.Path(__file__).parent.parent
 yaml.warnings({'YAMLLoadWarning': False})
 
@@ -22,7 +24,7 @@ def yaml_update(_f, dic):
         ori_yml_config.update(dic)
         fp.seek(0)
         fp.truncate()
-        yaml_data = yaml.dump(ori_yml_config, allow_unicode=True)
+        yaml_data = yaml.dump(ori_yml_config, allow_unicode=True, sort_keys=False)
         fp.write(yaml_data)
 
 
@@ -34,6 +36,7 @@ class Conf:
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
     custom_map: dict = field(default_factory=dict)
+    completer: dict = field(default_factory=dict)
     file = None
 
     def __init__(self):
@@ -48,6 +51,7 @@ class Conf:
             for k, v in yml_config.items():
                 self.__setattr__(k, v or getattr(self, k, None))
             self.sv_path = p.Path(self.sv_path)
+            self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
         except FileNotFoundError:
             pass
 

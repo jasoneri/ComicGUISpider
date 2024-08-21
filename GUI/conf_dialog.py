@@ -1,8 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import json
 import pathlib
+
+from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog
+
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
+from variables import SPIDERS
 from utils import conf, yaml, convert_punctuation as cp
 
 
@@ -14,9 +19,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
     def setupUi(self, Dialog):
         super(ConfDialog, self).setupUi(Dialog)
         self.buttonBox.accepted.connect(self.save_conf)
+        tip = QtCore.QCoreApplication.translate("Dialog", F"序号对应：{json.dumps(SPIDERS)}")
+        self.completerEdit.setToolTip(tip)
+        self.label_completer.setToolTip(tip)
 
     def show_self(self):  # can't naming `show`. If done, just run code once
-        for _ in ('sv_path', 'proxies', 'custom_map', 'cv_proj_path',):
+        for _ in ('sv_path', 'proxies', 'custom_map', 'cv_proj_path', "completer"):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         super(ConfDialog, self).show()
@@ -26,7 +34,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         if isinstance(val, list):
             return ",".join(val)
         elif isinstance(val, dict):
-            return yaml.dump(val, allow_unicode=True)
+            return "\n".join([f"{k}: {v}" for k, v in val.items()]).replace("'", "")
+            # return yaml.dump(val, allow_unicode=True)
         else:
             return str(val)
 
@@ -38,8 +47,10 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "cv_proj_path": cv_proj_path_str,
             "custom_map": yaml.safe_load(cp(getattr(self, f"custom_mapEdit").toPlainText())),
             # TODO[7](2024-08-19): gui进程出错时仍然没记录至log里，如上述yaml的格式保存错误
+            "completer": yaml.safe_load(cp(getattr(self, f"completerEdit").toPlainText())),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
-            "log_level": getattr(self, "logLevelComboBox").currentText()}
+            "log_level": getattr(self, "logLevelComboBox").currentText()
+        }
         conf.update(**config)
 
         if cv_proj_path_str:  # 联动comic_viewer更改

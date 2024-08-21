@@ -364,7 +364,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "ComicSpider v1.6.0"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v1.6.0"))
         self.chooseBox.setToolTip(_translate("MainWindow", "选中网站后看状态栏有输入提示"))
         self.chooseBox.setCurrentText(_translate("MainWindow", "点选一个网站"))
         self.chooseBox.setItemText(0, _translate("MainWindow", "点选一个网站"))
