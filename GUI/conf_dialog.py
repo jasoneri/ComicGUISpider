@@ -19,7 +19,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
     def setupUi(self, Dialog):
         super(ConfDialog, self).setupUi(Dialog)
         self.buttonBox.accepted.connect(self.save_conf)
-        tip = QtCore.QCoreApplication.translate("Dialog", F"序号对应：{json.dumps(SPIDERS)}")
+        tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
 

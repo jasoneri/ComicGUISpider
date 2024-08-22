@@ -13,6 +13,7 @@ from GUI.fin_ensure_dialog import FinEnsureDialog
 from GUI.preview_window import PreviewWindow
 
 from variables import *
+from assets import res
 from utils import (
     transfer_input, font_color, Queues, QueuesManager,
     conf, p)
@@ -49,11 +50,11 @@ class WorkThread(QThread):
                         self.gui.previewBtn.setEnabled(True)
                     else:
                         self.print_signal.emit(_)
-                    self.msleep(10)
+                    self.msleep(5)
                 if not Bar.empty():
                     self.item_count_signal.emit(Bar.get())
                     self.msleep(10)
-                if '完成任务' in self.gui.textBrowser.toPlainText():
+                if res.GUI.WorkThread_finish_flag in self.gui.textBrowser.toPlainText():
                     self.item_count_signal.emit(100)
                     self.msleep(10)
                     break
@@ -70,6 +71,8 @@ class WorkThread(QThread):
 
 
 class ToolMenu(QMenu):
+    res = res.GUI.ToolMenu
+
     def __init__(self, gui, *args, **kwargs):
         super(ToolMenu, self).__init__(*args, **kwargs)
         self.gui = gui
@@ -77,12 +80,12 @@ class ToolMenu(QMenu):
         gui.toolButton.setMenu(self)
 
     def init_actions(self):
-        action_show_max = QAction("显示已阅最新话数记录", self.gui)
+        action_show_max = QAction(self.res.action1, self.gui)
         action_show_max.setObjectName("action_show_max")
         self.addAction(action_show_max)
         action_show_max.triggered.connect(self.show_max)
 
-        action_combine_then_mv = QAction("整合章节并移至web目录", self.gui)
+        action_combine_then_mv = QAction(self.res.action2, self.gui)
         action_combine_then_mv.setObjectName("action_combine_then_mv")
         self.addAction(action_combine_then_mv)
         action_combine_then_mv.triggered.connect(self.combine_then_mv)
@@ -92,9 +95,7 @@ class ToolMenu(QMenu):
         if record_txt.exists():
             QMessageBox.information(self.gui, 'show_max', show_max(record_txt), QMessageBox.Ok)
         else:
-            QMessageBox.information(self.gui, 'show_max',
-                                    f"未配合[comic_viewer]项目产生记录文件[{str(record_txt)}]，\n功能无法正常使用",
-                                    QMessageBox.Ok)
+            QMessageBox.information(self.gui, 'show_max', self.res.action2_warning % record_txt, QMessageBox.Ok)
 
     def combine_then_mv(self):
         done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
@@ -103,6 +104,7 @@ class ToolMenu(QMenu):
 
 
 class SpiderGUI(QMainWindow, Ui_MainWindow):
+    res = res.GUI
     input_state: InputFieldState = None
     text_browser_state: TextBrowserState = None
     process_state: ProcessState = None
@@ -161,11 +163,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.previewInit = True
 
         def chooseBox_changed_handle(index):
-            text = {0: None,
-                    1: '拷贝漫画：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"',
-                    2: 'jm：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（2.1）规则补充：时间维度可选 日/周/月/总，例如"收藏总"（3）翻页：最后加上"&page=2" 等页数',
-                    3: 'wnacg：（1）输入【搜索词】返回搜索结果（2）按空格即可选择预设（3）翻页：搜索词翻页加入"&p=2" 例如 "C104&p=2" 固定页面如更新页则使用映射'}
-            self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", text[index]))
+            self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             if index and not getattr(self, 'p_crawler'):
                 # optimize backend scrapy start speed
                 self.p_crawler = Process(target=crawl_what, args=(index, self.queue_port))
@@ -174,11 +172,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.retrybtn.setEnabled(True)
             if index in SPECIAL_WEBSITES_IDXES:
                 self.toolButton.setDisabled(True)
-                self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} 仅当常规漫画网站能使用工具箱功能<br>'))
+                self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
             if index == 3 and not conf.proxies:
-                self.textbrowser_load(font_color(
-                    "wancg 国内源有点慢哦，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" +
-                    "网络问题一般重启就好了，数次均无效的话 加群反映/提issue<br>", color='purple'))
+                self.textbrowser_load(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
             # 输入框联想补全
             self.set_completer()
 
@@ -209,8 +205,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
                 os.startfile(conf.sv_path)
-            self.checkisopen.setText("现在点击立刻打开存储目录")
-            self.checkisopen.setStatusTip('勾选状态下完成后也会自动打开目录的')
+            self.checkisopen.setText(self.res.checkisopen_text_change)
+            self.checkisopen.setStatusTip(self.res.checkisopen_status_tip)
             self.checkisopenCnt += 1
 
         self.checkisopen.clicked.connect(checkisopen_btn)
@@ -340,7 +336,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.log.debug(f'send choose success')
 
         if self.book_num == 0:
-            self.textbrowser_load(font_color(">>>>> 说明按钮内容已更新，去点下看看吧<br>", color='purple'))
             self.crawl_btn.setDisabled(True)
             self.input_field.setDisabled(True)
         else:
@@ -368,8 +363,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         if 'http' in string:
             self.textBrowser.setOpenExternalLinks(True)
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
-                string = (u'<b><font size="5"><br>  内置预览：点击右下 "点我预览" </font></b> 或者 '
-                          u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>') % string
+                string = self.res.textbrowser_load_if_http % string
                 self.textBrowser.append(string)
         else:
             string = r'<p>%s</p>' % string
@@ -410,13 +404,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 class TextUtils:
     description = (
             f"{'message':-^110}<br>" +
-            font_color(
-                "1、首次使用请查阅`CGS-使用说明.exe`(内容与`scripts/README.md`一样)，内有配置/GUI视频使用指南等说明<br>",
-                color='blue', size=5) +
-            font_color("2、除非版本更新，一般bug修复/功能更新等，用户运行`CGS-更新.exe`即可<br>", color='blue', size=5) +
-            font_color("3、在 github wiki 上也有记录 Q & A，可以先查阅看能否解决疑惑", color='blue', size=5) +
-            font_color(' 若有其他问题到群反映/提issue<br>', color='white') +
-            f"{'仅供学习使用':-^105}")
+            font_color(res.GUI.DESC1, color='blue', size=5) +
+            font_color(res.GUI.DESC2, color='blue', size=5) +
+            font_color(res.GUI.DESC3, color='blue', size=5) +
+            font_color(res.GUI.DESC4, color='white') +
+            f"{'仅供学习使用/proj only for study':-^105}")
 
     @staticmethod
     def warning_(text):

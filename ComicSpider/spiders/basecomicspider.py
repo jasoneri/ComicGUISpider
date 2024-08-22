@@ -7,6 +7,7 @@ import httpx
 import scrapy
 
 from variables import *
+from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from utils import font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain
 from utils.processed_class import (
@@ -15,14 +16,14 @@ from utils.processed_class import (
 
 
 class SayToGui:
-    exp_txt = (f"""<br>{'{:=^80}'.format('message')}<br>请于【 输入序号 】框输入要选的序号  """)
-    exp_preview = font_color("<br>进预览页面能直接点击封面进行多选，与【 输入序号 】框的序号相叠加",
-                             color='chocolate') + "<br>请于"
+    res = ori_res.SPIDER.SayToGui
+    exp_txt = res.exp_txt
+    exp_preview = font_color(res.exp_preview, color='chocolate') + res.exp_replace_keyword
 
     def __init__(self, spider, queue, state):
         self.spider = spider
         if spider.name in SPECIAL_WEBSITES:
-            self.exp_txt = self.exp_txt.replace('<br>请于', self.exp_preview)
+            self.exp_txt = self.exp_txt.replace(self.res.exp_replace_keyword, self.exp_preview)
         self.text_browser = self.TextBrowser(queue, state)
 
     def __call__(self, *args, **kwargs):
@@ -34,23 +35,25 @@ class SayToGui:
             self.state = state
 
         def error(self, *args):
-            _ = """选择{1}步骤时错误的输入：{0}<br> {2}""".format(*args)
+            _ = SayToGui.res.TextBrowser_error.format(*args)
             self.send(f"{_:=>15}")
 
         def send(self, _text):
             self.state.text = _text
             Queues.send(self.queue, self.state, wait=True)
 
-    def frame_book_print(self, frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则<br>"):
+    def frame_book_print(self, frame_results, extra=None):
+        extra = extra or self.res.frame_book_print_extra
         self(self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         self(
             f"{''.join(self.exp_txt)}{font_color(extra, color='blue')}"
             if len(frame_results) else
-            f"{'✈' * 15}{font_color('什么意思？唔……就是你搜的在放✈(飞机)，点击retry重开', color='red', size=5)}"
+            f"{'✈' * 15}{font_color(self.res.frame_book_print_retry_tip, color='red', size=5)}"
         )
         return frame_results
 
-    def frame_section_print(self, frame_results, print_example, print_limit=5, extra=' ←_← 点击【开始爬取！】 <br>'):
+    def frame_section_print(self, frame_results, print_example, print_limit=5, extra=None):
+        extra = extra or self.res.frame_section_print_extra
         print_npc = []
         for x, result in frame_results.items():
             print_npc.append(print_example.format(str(x), result[0]).strip())
@@ -70,6 +73,7 @@ class BaseComicSpider(scrapy.Spider):
     (3)frame_section --> yield item\n
     3、存文件：略（统一标题命名）"""
 
+    __res = ori_res.SPIDER
     input_state = None
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
@@ -81,7 +85,7 @@ class BaseComicSpider(scrapy.Spider):
 
     num_of_row = 5
     total = 0
-    search_url_head = NotImplementedError('需要自定义搜索网址')
+    search_url_head = NotImplementedError(__res.search_url_head_NotImplementedError)
     domain = None  # REMARK(2024-08-16): 使用时用self.domain, 保留作出更改的余地
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
@@ -116,7 +120,7 @@ class BaseComicSpider(scrapy.Spider):
         frame_book_results = self.frame_book(response)
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        results = self.elect_res(self.input_state.indexes, frame_book_results, step='漫画')
+        results = self.elect_res(self.input_state.indexes, frame_book_results, step=self.__res.parse_step)
         if results is None or not len(results):
             yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
         else:
@@ -144,18 +148,19 @@ class BaseComicSpider(scrapy.Spider):
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         choose = self.input_state.indexes
-        results = self.elect_res(choose, frame_sec_result, step='章节')
+        results = self.elect_res(choose, frame_sec_result, step=self.__res.parse_sec_step)
         if results is None or not len(results):
-            self.say('<br><br><br>没匹配到结果')
+            self.say(f'<br><br><br>{self.__res.parse_sec_not_match}')
             self.logger.info(f'no result return, choose_input is wrong: {choose}')
         else:
-            self.say(f'{"-" * 10}《{title}》 所选序号: {choose}')
+            self.say(f'{"-" * 10}《{title}》 {self.__res.parse_sec_selected}: {choose}')
             for result in results:
                 self.say(f"{result[0]:>>55}")
             self.session = httpx.Client()
             for section, section_url in results:
                 url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
-                self.say(font_color(f"{'=' * 15}\tnow start 爬取《{title}》章节：{section}<br>", color='blue', size=5))
+                now_start_crawl_desc = self.__res.parse_sec_now_start_crawl_desc % title
+                self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
                 meta = {'title': title, 'section': section}
                 for url in url_list:
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
@@ -221,15 +226,13 @@ class BaseComicSpider(scrapy.Spider):
             return
         elif 'init' not in self.process_state.process:
             self.say(
-                font_color('<br>~~~后台完成任务了 ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
+                font_color(f'<br>~~~{self.__res.close_success} ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
                 if self.total != 0 else
-                font_color('~~~后台挂了…(￣┰￣*)………若非自己取消可进行如下操作<br>', size=5) +
-                font_color('1、打开下方给的日志文件，应该能解决大部分疑惑<br>', color='blue', size=4) +
-                font_color(
-                    '2、第1步不足以解惑的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤<br>',
-                    color='blue', size=4) +
-                font_color('3、第2步得出的日志仍不以解惑的话，请到群反映或提issue<br>', color='blue', size=4) +
-                font_color(f'日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
+                font_color(f'~~~…(￣┰￣*)………{self.__res.close_backend_error}<br>', size=5) +
+                font_color(self.__res.close_check_log_guide1, color='blue', size=4) +
+                font_color(self.__res.close_check_log_guide2, color='blue', size=4) +
+                font_color(self.__res.close_check_log_guide3, color='blue', size=4) +
+                font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
             )
 
     def refresh_state(self, state_name, queue_name, monitor_change=False):

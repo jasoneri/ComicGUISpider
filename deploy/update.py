@@ -13,6 +13,9 @@ import httpx
 from tqdm import tqdm
 from colorama import init, Fore
 
+from assets import res as ori_res
+
+res = ori_res.Updater
 init(autoreset=True)
 path = pathlib.Path(__file__).parent.parent.parent
 existed_proj_p = path.joinpath('scripts')
@@ -34,21 +37,22 @@ class GitHandler:
     # src_url = f"{self.speedup_prefix}https://github.com/{self.github_author}/{proj_name}/archive/refs/heads/{branch}.zip"
 
     def check_changed_files(self, ver):
-        print(Fore.BLUE + "[ 检查版本中.. ]")
+        print(Fore.BLUE + f"[ {res.ver_check}.. ]")
         resp = self.sess.get(self.commit_api, headers=headers)
         resp_json = resp.json()
         vers = list(map(lambda _: _["sha"], resp_json))
         if not ver:
-            print(Fore.RED + "[ 没有version文件，准备初始化.. ]")
+            print(Fore.RED + f"[ {res.ver_file_not_exist}.. ]")
             return vers[0], []
         ver_index = vers.index(ver)
         valid_vers = vers[:ver_index]
         files = []
-        for _ver in tqdm(valid_vers, total=len(valid_vers), ncols=80, ascii=True,
-                         desc=Fore.BLUE + "[ 检查需要更新的代码中.. ]"):
+        print(Fore.BLUE + f"[ {res.check_refresh_code}.. ]")
+        for _ver in valid_vers:
             resp = self.sess.get(f"{self.commit_api}/{_ver}", headers=headers)
             resp_json = resp.json()
             files.extend(list(map(lambda _: _["filename"], resp_json["files"])))
+            print(Fore.GREEN + f"[ {_ver[:8]} ] {resp_json['commit']['message']}")
         return vers[0], list(set(files))
 
     def download_src_code(self):
@@ -58,7 +62,8 @@ class GitHandler:
         with self.sess.stream("GET", self.src_url, follow_redirects=True) as resp:
             with open(zip_file, 'wb') as f:
                 size = 50 * 1024
-                for chunk in tqdm(resp.iter_bytes(size), ncols=80, ascii=True, desc=Fore.BLUE + "[ 下载代码文件中.. ]"):
+                for chunk in tqdm(resp.iter_bytes(size), ncols=80,
+                                  ascii=True, desc=Fore.BLUE + f"[ {res.code_downloading}.. ]"):
                     f.write(chunk)
         return zip_file
 
@@ -127,7 +132,7 @@ def regular_update():
     proj = Proj()
     proj.check()
     proj.local_update()
-    print(Fore.GREEN + "=" * 40 + "[ 更新完毕 ]" + "=" * 40)
+    print(Fore.GREEN + "=" * 40 + f"[ {res.finish} ]" + "=" * 40)
     print(Fore.RED + "[ 2024-08-20 重要通知！ ]" +
           "版本更新。 此次更新后环境发生变化，版本v1.5将无法使用，请尽快到release页面或群公告/群资料处下载最新绿色安装包")
     print(Fore.RED + "[ 2024-08-20 此通知将在几天后移除，请知悉 ]")
@@ -141,17 +146,19 @@ def create_desc():
     try:
         import markdown
     except ModuleNotFoundError:
-        print(Fore.RED + "[ 当前环境无法使用此功能，需要重新下载绿色安装包 ]")
+        print(Fore.RED + f"[ {res.not_pkg_markdown} ]")
     else:
         file_path = 'scripts/README.md'
         out_name = 'scripts/desc.html'
         with open(path.joinpath(file_path), 'r', encoding='utf-8') as f:
             md_content = f.read()
         md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main")
-        html = markdown.markdown(md_content)
-        html_style = f"""<!DOCTYPE html><html><head><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head><body><article class="markdown-body">
-            {html}
-            </article></body></html>"""
+        extensions = ['markdown.extensions.tables']
+        html = markdown.markdown(md_content, extensions=extensions)
+        html_style = """<!DOCTYPE html><html><head><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head>
+        <body><article class="markdown-body">
+            %s
+            </article></body></html>""" % html
         with open(path.joinpath(out_name), 'w', encoding='utf-8') as f:
             f.write(html_style)
 

@@ -133,11 +133,11 @@ class Packer:
             else:
                 logger.info(f"[ success {bat_file} ]")
 
-        _do(path.joinpath(rf"scripts/launcher/{proj}.bat"), path.joinpath(rf"{proj}.exe"),
-            path.joinpath(rf"scripts/launcher/{proj}.ico"), "/invisible", "/uac-user")
-        _do(path.joinpath(rf"scripts/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
-            path.joinpath(rf"scripts/launcher/{proj}.ico"), "/uac-user")
-        _do(path.joinpath(rf"scripts/launcher/update.bat"), path.joinpath(rf"{proj}-使用说明.exe"),
+        _do(path.joinpath(rf"scripts/deploy/launcher/{proj}.bat"), path.joinpath(rf"{proj}.exe"),
+            path.joinpath(rf"scripts/deploy/launcher/{proj}.ico"), "/invisible", "/uac-user")
+        _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
+            path.joinpath(rf"scripts/deploy/launcher/{proj}.ico"), "/uac-user")
+        _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-使用说明.exe"),
             path.joinpath(rf"scripts/assets/icon.png"), "/uac-user")
 
     def packup(self, runtime_init=False):
