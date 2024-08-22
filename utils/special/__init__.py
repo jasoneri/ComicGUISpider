@@ -135,12 +135,14 @@ class JmUtils(Utils):
         ps = html.xpath('//div[@class="main"]/p')
         order_p = list(filter(lambda p: '內地' in ''.join(p.xpath('.//text()')), ps))  # 小心这个"内"字是繁体
         if order_p:
-            domain = order_p[0].xpath('.//text()')[-1].strip()
-            return domain
-        else:
-            cls.status_publish = False
-            print(f"发布页[{cls.publish_url}]清洗失效")  # logger.warning()
-            return None
+            idx = ps.index(order_p[0])
+            for p in ps[idx:]:
+                domain = p.xpath('.//text()')[-1].strip()
+                if "." in domain:
+                    return domain
+        cls.status_publish = False
+        print(f"发布页[{cls.publish_url}]清洗失效")  # logger.warning()
+        return None
 
 
 class WnacgUtils(Utils):
