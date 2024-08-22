@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# GUI
+import sys
+from multiprocessing import freeze_support
+
 from PyQt5.QtWidgets import QApplication
-import GUI.src.material_ct
 
 # 自己项目用到的
 from GUI.gui import SpiderGUI
-import sys
-from multiprocessing import freeze_support
+import GUI.src.material_ct
 
 # from multiprocessing.managers import RemoteError
 # sys.setrecursionlimit(5000)

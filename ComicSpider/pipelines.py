@@ -10,6 +10,7 @@ from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.utils.python import get_func_args
 
 from utils.special import JmUtils, set_author_ahead
+from assets import res
 
 
 class ComicPipeline(ImagesPipeline):
@@ -30,7 +31,7 @@ class ComicPipeline(ImagesPipeline):
     def file_path(self, request, response=None, info=None, *, item=None):
         title = self._sub.sub('-', item.get('title'))
         section = self._sub.sub('-', item.get('section'))
-        page = f'第{item.get('page')}页.jpg'
+        page = res.SPIDER.PAGE_NAMING % item.get('page')
         spider = self.spiderinfo.spider
         basepath: pathlib.Path = spider.settings.get('IMAGES_STORE')
         path = self.file_folder(basepath, section, spider, title, request.meta)
@@ -39,7 +40,7 @@ class ComicPipeline(ImagesPipeline):
         return fin
 
     def file_folder(self, basepath, section, spider, title, meta: dict):
-        path = basepath.joinpath(f"本子/web/{self._sub_index.sub('', set_author_ahead(title))}") \
+        path = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web/{self._sub_index.sub('', set_author_ahead(title))}") \
             if spider.name in spider.settings.get('SPECIAL') \
             else basepath.joinpath(f"{title}/{section}")
         return path
