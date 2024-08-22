@@ -10,7 +10,7 @@ import traceback
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.fin_ensure_dialog import FinEnsureDialog
-from GUI.preview_window import PreviewWindow
+from GUI.browser_window import BrowserWindow
 
 from variables import *
 from assets import res
@@ -113,7 +113,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     book_num: int = 0
     nextclickCnt = 0
     checkisopenCnt = 0
-    PreviewWindow: PreviewWindow = None
+    PreviewWindow: BrowserWindow = None
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -215,8 +215,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         proxies = None if self.chooseBox.currentIndex() != 3 else \
             (conf.proxies or [None])[0]  # only wnacg need proxies presently
         if proxies:
-            PreviewWindow.set_proxies(proxies)
-        self.PreviewWindow = PreviewWindow(self.tf)
+            BrowserWindow.set_proxies(proxies)
+        self.PreviewWindow = BrowserWindow(self.tf)
         preview_y = self.y() + self.funcGroupBox.y() - self.PreviewWindow.height() + 50
         self.PreviewWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),

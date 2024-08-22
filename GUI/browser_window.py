@@ -4,12 +4,13 @@ from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from GUI.uic.preview import Ui_preview
+from GUI.uic.browser import Ui_browser
+from assets import res
 
 
-class PreviewWindow(QMainWindow, Ui_preview):
+class BrowserWindow(QMainWindow, Ui_browser):
     def __init__(self, tf, parent=None, proxies: str = None):
-        super(PreviewWindow, self).__init__(parent)
+        super(BrowserWindow, self).__init__(parent)
         if proxies:
             self.set_proxies(proxies)
         self.tf = tf
@@ -20,7 +21,7 @@ class PreviewWindow(QMainWindow, Ui_preview):
         self.setupUi(self)
 
     def setupUi(self, _window):
-        super(PreviewWindow, self).setupUi(_window)
+        super(BrowserWindow, self).setupUi(_window)
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.topHintBox.clicked.connect(self.keep_top_hint)
         # self.ensureBtn.clicked.connect(self.ensure)
@@ -29,7 +30,7 @@ class PreviewWindow(QMainWindow, Ui_preview):
     def ensure(self, after_callback):
         def callback(ret):
             if not ret:
-                QMessageBox.information(self, '警告', "需要返回选择页，并确保有选择的情况下使用", QMessageBox.Ok)
+                QMessageBox.information(self, 'Warning', res.GUI.BrowserWindow_ensure_warning, QMessageBox.Ok)
             else:
                 self.output = list(map(int, ret))
                 self.close()
