@@ -9,6 +9,8 @@
 
 交互式下载漫画项目，支持预览多选
 
+> 头大，才发现被杀软误杀是常规现象，临时可以将 `scripts/deploy/launcher/CGS.bat` 复制到解压的目录运行
+
 ▼ 操作展示 ▼ (国内如果无法看到动图 [点这里](https://jsd.cdn.zzko.cn/gh/jasoneri/imgur@main/CGS/preview-usage.gif))
 
 ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)
