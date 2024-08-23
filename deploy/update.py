@@ -133,9 +133,6 @@ def regular_update():
     proj.check()
     proj.local_update()
     print(Fore.GREEN + "=" * 40 + f"[ {res.finish} ]" + "=" * 40)
-    print(Fore.RED + "[ 2024-08-20 重要通知！ ]" +
-          "版本更新。 此次更新后环境发生变化，版本v1.5将无法使用，请尽快到release页面或群公告/群资料处下载最新绿色安装包")
-    print(Fore.RED + "[ 2024-08-20 此通知将在几天后移除，请知悉 ]")
 
 
 def create_desc():
