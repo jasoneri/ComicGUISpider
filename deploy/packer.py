@@ -124,6 +124,7 @@ class Packer:
 
     @classmethod
     def bat_to_exe(cls):
+        """最好只做一次，减少指定脚本的修改次数/生成 从而减少引发的风险"""
         def _do(bat_file, exe_file, icon, *args):
             args_str = " ".join(args)
             command = f"cd {path} && {cls.executor} /bat {bat_file} /exe {exe_file} /icon {icon} /x64 {args_str}"
@@ -133,12 +134,12 @@ class Packer:
             else:
                 logger.info(f"[ success {bat_file} ]")
 
-        _do(path.joinpath(rf"scripts/deploy/launcher/{proj}.bat"), path.joinpath(rf"{proj}.exe"),
-            path.joinpath(rf"scripts/deploy/launcher/{proj}.ico"), "/invisible", "/uac-user")
+        # 主运行使用 PyStand 壳，不再重复造exe了，容易被杀软误杀
         _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
-            path.joinpath(rf"scripts/deploy/launcher/{proj}.ico"), "/uac-user")
+            path.joinpath(rf"scripts/deploy/launcher/{proj}.ico"))
         _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-使用说明.exe"),
-            path.joinpath(rf"scripts/assets/icon.png"), "/uac-user")
+            path.joinpath(rf"scripts/assets/icon.png"))
+        # exe生成后需要扔到 https://habo.qq.com/ 做检测，必须是`未发现风险`
 
     def packup(self, runtime_init=False):
         zip_file = self.zip_file
@@ -197,9 +198,9 @@ if __name__ == '__main__':
     # clean()                   # step 0
     Clean.end_work(path.joinpath("scripts").rglob("__pycache__"),
                    (path.joinpath("scripts/log"), path.joinpath("scripts/version")))
-    Packer.bat_to_exe()  # step 1
-    packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe'))
+    # Packer.bat_to_exe()  # step 1
+    packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe', '_pystand_static.int'))
     packer.packup()  # step 2
-    packer.upload('CGS.7z')  # step 3
-    # Clean.end_work((f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe', 'CGS.7z'))  # step 4
+    # packer.upload('CGS.7z')  # step 3
+    # Clean.end_work(('CGS.7z',))  # step 4
     # If error occur, exegesis previous step and run again

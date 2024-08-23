@@ -46,7 +46,7 @@ class WorkThread(QThread):
                 if not TextBrowser.empty():
                     _ = str(TextBrowser.get().text)
                     if "AppData" in _:  # C:/Users/xxxxx/AppData/Local/Temp/xxx.html
-                        self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己内部初始化
+                        self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己进程/线程初始化
                         self.gui.previewBtn.setEnabled(True)
                     else:
                         self.print_signal.emit(_)
@@ -113,7 +113,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     book_num: int = 0
     nextclickCnt = 0
     checkisopenCnt = 0
-    PreviewWindow: BrowserWindow = None
+    BrowserWindow: BrowserWindow = None
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -216,35 +216,36 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             (conf.proxies or [None])[0]  # only wnacg need proxies presently
         if proxies:
             BrowserWindow.set_proxies(proxies)
-        self.PreviewWindow = BrowserWindow(self.tf)
-        preview_y = self.y() + self.funcGroupBox.y() - self.PreviewWindow.height() + 50
-        self.PreviewWindow.setGeometry(QRect(
+        self.BrowserWindow = BrowserWindow(self.tf)
+        preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() + 50
+        self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
             preview_y if preview_y > 0 else 200,
-            self.PreviewWindow.width(), self.PreviewWindow.height()
+            self.BrowserWindow.width(), self.BrowserWindow.height()
         ))
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
-        self.PreviewWindow.ensureBtn.clicked.connect(self.ensure_preview)
+        self.BrowserWindow.ensureBtn.clicked.connect(self.ensure_preview)
 
     def show_preview(self):
         """prevent PreviewWindow is None when init"""
         if self.previewInit:
             self.set_preview()
             self.previewInit = False
-        self.PreviewWindow.show()
+        self.BrowserWindow.show()
 
     def ensure_preview(self):
         def callback():
-            self.previewBtn.setDisabled(True)
+            self.BrowserWindow.ensureBtn.setDisabled(True)
             self._next()
-        self.PreviewWindow.ensure(callback)
+
+        self.BrowserWindow.ensure(callback)
 
     def clean_preview(self):
-        if self.PreviewWindow:
+        if self.BrowserWindow:
             if self.tf and p.Path(self.tf).exists():
                 os.remove(self.tf)
-            self.PreviewWindow.destroy()
+            self.BrowserWindow.destroy()
 
     def retry_schedule(self):  # 烂逻辑
         if getattr(self, 'p_crawler', None):
@@ -313,8 +314,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def _next(self):
         self.log.debug('===--→ nexting')
         idxes = transfer_input(self.chooseinput.text()[5:].strip())
-        if self.PreviewWindow and self.PreviewWindow.output:
-            idxes = list(set(self.PreviewWindow.output) | set(idxes))
+        if self.BrowserWindow and self.BrowserWindow.output:
+            idxes = list(set(self.BrowserWindow.output) | set(idxes))
         self.input_state.indexes = idxes
         if self.nextclickCnt == 1:
             self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else \
