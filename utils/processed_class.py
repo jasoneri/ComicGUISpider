@@ -142,10 +142,12 @@ class PreviewHtml:
 
     @property
     def created_temp_html(self):
+        temp_p = ori_path.joinpath("__temp")
+        temp_p.mkdir(exist_ok=True)
         with open(self.format_path.joinpath(rf"{self.html_style}.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
         html = format_text.replace("{body}", "\n".join(self.contents))
-        tf = tempfile.TemporaryFile(suffix=".html", delete=False)
+        tf = tempfile.TemporaryFile(suffix=".html", delete=False, dir=temp_p)
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)
         tf.close()

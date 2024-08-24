@@ -45,7 +45,7 @@ class WorkThread(QThread):
             try:
                 if not TextBrowser.empty():
                     _ = str(TextBrowser.get().text)
-                    if "AppData" in _:  # C:/Users/xxxxx/AppData/Local/Temp/xxx.html
+                    if "__temp" in _:
                         self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己进程/线程初始化
                         self.gui.previewBtn.setEnabled(True)
                     else:
@@ -164,6 +164,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         def chooseBox_changed_handle(index):
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
+            self.searchinput.setEnabled(True)
             if index and not getattr(self, 'p_crawler'):
                 # optimize backend scrapy start speed
                 self.p_crawler = Process(target=crawl_what, args=(index, self.queue_port))
@@ -338,7 +339,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         if self.book_num == 0:
             self.crawl_btn.setDisabled(True)
-            self.input_field.setDisabled(True)
         else:
             self.chooseinput.clear()
         self.log.debug(f'book_num remain: {self.book_num}')
@@ -352,7 +352,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.chooseinput.setDisabled(True)
         self.next_btn.setDisabled(True)
         self.retrybtn.setEnabled(True)
-        self.input_field.setEnabled(True)
 
         self.process_state.process = 'fin'
         self.textbrowser_load(

@@ -11,6 +11,7 @@ import shutil
 import pathlib
 import stat
 import datetime
+import zipfile
 from itertools import chain
 
 import httpx
@@ -57,8 +58,8 @@ release_desc = """开箱即用
 
 一般情况下，使用包内的更新程序 `CGS-更新.exe` 即可<br>
 特殊情况，如运行环境需要变化时，需要在此页面下绿色安装包 (包更新未必是最新，更新日期参照标题) 
-> 绿色包保证 `运行环境` 的更新，更新程序保证 `代码` 的更新，<br>
-> 所以会有包更新没跟上代码更新，优先以内置的`CGS-更新.exe` 为主
+> 绿色包保证 `运行环境` 的大更新，更新程序保证 `代码` 的更新、`环境`小更新<br>
+> 优先以内置的`CGS-更新.exe` 为主
 
 ---
 其他问题 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问"""
@@ -89,7 +90,7 @@ class Clean:
     def fit():
         """execute this script, and let project work fully with package as much as possible"""
         if not path.joinpath("fit.py").exists():
-            script_url = "https://jsd.cdn.zzko.cn/gh/mengdeer589/PythonSizeCruncher@main/main.py"
+            script_url = "https://cdn.jsdmirror.com/gh/mengdeer589/PythonSizeCruncher@main/main.py"
             with httpx.Client(headers=headers, proxies=proxies) as sess:
                 r = sess.get(script_url)
                 with open(path.joinpath("fit.py"), 'w', encoding='utf-8') as f:
@@ -194,13 +195,28 @@ def clean():
     Clean.end_work()
 
 
+def env_supplement():
+    manifest = [  # it will change, but user no need care it
+        r"site-packages\PIL\_webp.cp312-win_amd64.pyd",
+        r"site-packages\PIL\_imagingmath.cp312-win_amd64.pyd"
+    ]
+    zip_file = path.joinpath(f'env_supplement.7z')
+    with zipfile.ZipFile(zip_file, 'w') as zip_f:
+        for file in tqdm(tuple(manifest)):
+            if path.joinpath(file).exists():
+                zip_f.write(file)
+    ...
+
+
 if __name__ == '__main__':
-    # clean()                   # step 0
-    Clean.end_work(path.joinpath("scripts").rglob("__pycache__"),
-                   (path.joinpath("scripts/log"), path.joinpath("scripts/version")))
+    # clean()
+    Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
+                   (path.joinpath("scripts/log"), path.joinpath("scripts/version")))  # step 0 必清site-packages cache，太大了
     # Packer.bat_to_exe()  # step 1
-    packer = Packer(('scripts', f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe', '_pystand_static.int'))
-    packer.packup()  # step 2
+    packer = Packer(('scripts', f'{proj}.bat', f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe'))
+    packer.packup(runtime_init=True)  # step 2
     # packer.upload('CGS.7z')  # step 3
     # Clean.end_work(('CGS.7z',))  # step 4
     # If error occur, exegesis previous step and run again
+
+    # env_supplement()

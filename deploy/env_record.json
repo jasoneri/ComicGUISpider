@@ -1,0 +1,6 @@
+{
+  "env_supplement.zip": [
+    "site-packages/PIL/_webp.cp312-win_amd64.pyd",
+    "site-packages/PIL/_imagingmath.cp312-win_amd64.pyd"
+  ]
+}

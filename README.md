@@ -9,7 +9,7 @@
 
 交互式下载漫画项目，支持预览多选
 
-▼ 操作展示 ▼ (国内如果无法看到动图 [点这里](https://jsd.cdn.zzko.cn/gh/jasoneri/imgur@main/CGS/preview-usage.gif))
+▼ 操作展示 ▼ (国内如果无法看到动图 [点这里](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/preview-usage.gif))
 
 ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)
 
@@ -29,18 +29,16 @@
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z`
 > ，解压后目录树如下 <br>
 > `每次解压绿色包` 后，建议先更新一次保证代码最新 <br>
-> 注意: 如解压后文件缺少可能是被杀软当病毒清了，可从杀软恢复 or 联系开发者 or 临时解决：将`scripts/deploy/launcher`
-> 的所有`bat`文件放到解压根目录运行
 
 ```shell
   CGS
    ├── runtime
    ├── scripts
    ├── site-packages
+   ├── CGS.bat              # 等价于 CGS.exe  主程序 防被杀毒软件隔离 备用
    ├── CGS.exe              # 对应 CGS.bat  主程序
    ├── CGS-使用说明.exe      # 对应 desc.bat
-   ├── CGS-更新.exe         # 对应 update.bat
-   └── _pystand_static.int
+   └── CGS-更新.exe         # 对应 update.bat
 ```
 
 > [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
