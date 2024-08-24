@@ -135,15 +135,13 @@ class Proj:
         with open(existed_proj_p.joinpath('version'), 'w', encoding='utf-8') as f:
             f.write(self.ver)
         print(Fore.GREEN + "=" * 40 + f"[ {res.finish} ]" + "=" * 40)
-        print(
-            Fore.GREEN + f"[ 0825 通知 ] 当你看到此消息后，更新程序已具备环境补充能力，其中jm部分图片下载失败是环境所致，此次已解决")
 
     def env_check_and_replenish(self):
         def delete(func, _path, execinfo):
             os.chmod(_path, stat.S_IWUSR)
             func(_path)
 
-        record_file = path.joinpath("deploy/env_record.json")
+        record_file = path.joinpath("scripts/deploy/env_record.json")
         if not record_file.exists() or not self.local_ver:
             return
         with open(record_file, 'r', encoding='utf-8') as f:
