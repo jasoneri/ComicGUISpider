@@ -77,4 +77,4 @@ class Updater:
     code_is_latest = "代码已是最新.. 若有其他问题向群里反映"
     env_covering = "环境补充中"
     env_trigger_flag = "检测到需要补充环境"
-    env_is_latest = "小环境已是最新"
+    env_is_latest = "环境已是最新"

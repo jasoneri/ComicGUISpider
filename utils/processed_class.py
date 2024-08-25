@@ -10,7 +10,7 @@ from multiprocessing import Queue, freeze_support
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from utils import State, QueuesManager, Queues, ori_path
+from utils import State, QueuesManager, Queues, ori_path, re
 from variables import SPIDERS
 
 
@@ -19,6 +19,7 @@ class InputFieldState(State):
     keyword: str
     bookSelected: int
     indexes: t.Union[str, list]
+    pageTurn: t.Union[str, int]
 
 
 @dataclass
@@ -152,3 +153,64 @@ class PreviewHtml:
         f = str(tf.name)
         tf.close()
         return f
+
+
+class Url(str):
+    """class for next page
+    do not use fstring"""
+    page = 2  # if use it, always start on page2
+    step = 1
+    next_suffix = NotImplementedError("not support for next page")
+    replace_format: str = None
+    info = None
+
+    def __init__(self, _url):
+        self.url = _url
+
+    def set_next(self, *info):
+        """info support(keep sort):
+        next_suffix, replace_format, step
+        """
+        self.info = info
+        if info and len(info) == 2:
+            self.next_suffix, self.replace_format = info
+        elif info and len(info) == 3:
+            self.next_suffix, _, self.step = info
+        else:
+            self.next_suffix = info[0]
+        return self
+
+    def __str__(self):
+        return self.url
+
+    def __add__(self, _str):  # must before next/previous/jump
+        return Url(self.url + _str).set_next(*self.info)
+
+    @property
+    def next(self):
+        return self.turn_page(func=lambda page: page + self.step)
+
+    @property
+    def previous(self):
+        return self.turn_page(func=lambda page: page - self.step)
+
+    def jump(self, p):
+        return self.turn_page(_p=p)
+
+    def turn_page(self, func=None, _p: int = None):
+        if_next = re.search(self.next_suffix, self)
+        if if_next:
+            match = if_next.group()
+            current_page = int(re.search(r"\d+", match).group())
+            if self.step == 1 and current_page <= 0:
+                raise ValueError("current page is less than zero")
+            new = match.replace(str(current_page), str(_p or func(current_page)))
+            _url = self.url.replace(match, new)
+        else:
+            page2 = self.next_suffix.replace(r"\d+", str(_p or self.page))
+            if self.replace_format:
+                new = self.replace_format % page2
+                _url = self.replace(self.replace_format.replace("%s", ""), new)
+            else:
+                _url = self + f'&{page2}'
+        return Url(_url).set_next(*self.info)

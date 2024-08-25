@@ -146,7 +146,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
         # 初始化通信管道相关
-        self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='')
+        self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='', pageTurn='')
         self.manager = QueuesManager.create_manager(
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
             address=('127.0.0.1', self.queue_port), authkey=b'abracadabra'
@@ -244,9 +244,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def clean_preview(self):
         if self.BrowserWindow:
-            if self.tf and p.Path(self.tf).exists():
-                os.remove(self.tf)
+            self.clean_temp_file()
             self.BrowserWindow.destroy()
+
+    def clean_temp_file(self):
+        """when: 1. preview BrowserWindow destroy; 2. pageTurn btn group clicked"""
+        if self.tf and p.Path(self.tf).exists():
+            os.remove(self.tf)
 
     def retry_schedule(self):  # 烂逻辑
         if getattr(self, 'p_crawler', None):

@@ -4,7 +4,7 @@ import typing as t
 from urllib.parse import urlencode
 from .basecomicspider import BaseComicSpider2, font_color
 from utils.special import JmUtils
-from utils.processed_class import PreviewHtml
+from utils.processed_class import PreviewHtml, Url
 
 domain = "18comic-zzz.xyz"
 
@@ -25,6 +25,7 @@ class JmSpider(BaseComicSpider2):
         "日": {'t': 't'}, "周": {'t': 'w'}, "月": {'t': 'm'}, "总": {'t': 'a'},
         "更新": {'o': 'mr'}, "点击": {'o': 'mv'}, "评分": {'o': 'tr'}, "评论": {'o': 'md'}, "收藏": {'o': 'tf'}
     }
+    turn_page_info = (r"page=\d+",)
 
     @property
     def ua(self):
@@ -47,14 +48,14 @@ class JmSpider(BaseComicSpider2):
         __t = self.time_regex.search(keyword)
         __k = self.kind_regex.search(keyword)
         if not bool(__k):  # 不好说标题匹配到关键字情况，视情况返至前置带*触发
-            return f"{self.search_url_head}{keyword}"
+            return Url(f"{self.search_url_head}{keyword}").set_next(*self.turn_page_info)
         _t = __t.group(1) if bool(__t) else '周'
         _k = __k.group(1) if bool(__k) else '点击'
         params = {**self.expand_map[_t], **self.expand_map[_k]}
         url = f"https://{self.domain}/albums?{urlencode(params)}"
         if len(keyword) > 4:
             url += keyword[4:]
-        return url
+        return Url(url).set_next(*self.turn_page_info)
 
     def frame_book(self, response):
         frame_results = {}
@@ -76,7 +77,7 @@ class JmSpider(BaseComicSpider2):
             preview.add(x + 1, img_preview, title, preview_url)
         self.say(preview.created_temp_html)
         self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", color='purple'))
-        return self.say.frame_book_print(frame_results)
+        return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
         targets = response.xpath(".//img[contains(@id,'album_photo_')]")

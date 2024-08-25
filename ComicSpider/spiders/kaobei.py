@@ -5,6 +5,7 @@ import jsonpath_rw as jsonp
 from urllib.parse import urlencode
 
 from utils import font_color
+from utils.processed_class import Url
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 domain = "api.mangacopy.com"
@@ -64,6 +65,7 @@ class KaobeiSpider(BaseComicSpider):
     mappings = {'更新': "byRefresh",
                 '排名': "byRank"}
     preset_book_frame = FrameBook(domain)
+    turn_page_info = (r"offset=\d+", None, 30)
 
     @property
     def search(self):
@@ -84,7 +86,7 @@ class KaobeiSpider(BaseComicSpider):
             param.update(self.preset_book_frame.expand_map[time_search.group(1)] if bool(time_search) else
                          self.preset_book_frame.expand_map["日"])  # 默认日榜
             url = self.preset_book_frame.url + f"&{urlencode(param)}"
-        return url
+        return Url(url).set_next(*self.turn_page_info)
 
     def frame_book(self, response):
         frame_results = {}
@@ -101,8 +103,10 @@ class KaobeiSpider(BaseComicSpider):
             # todo[9]: 额外卷请求，写req做到frame_section上合并
             self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
             frame_results[index + 1] = [rendered['漫画名'], url]
-        return self.say.frame_book_print(frame_results,
-                                         extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>")
+        return self.say.frame_book_print(
+            frame_results, url=response.url,
+            extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>" +
+                  "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算<br>")
 
     def frame_section(self, response):
         frame_results = {}
