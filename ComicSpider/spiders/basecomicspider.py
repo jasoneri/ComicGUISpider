@@ -11,7 +11,7 @@ from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from utils import font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain
 from utils.processed_class import (
-    TextBrowserState, ProcessState, QueueHandler, refresh_state
+    TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
 )
 
 
@@ -42,9 +42,9 @@ class SayToGui:
             self.state.text = _text
             Queues.send(self.queue, self.state, wait=True)
 
-    def frame_book_print(self, frame_results, extra=None):
+    def frame_book_print(self, frame_results, url=None, extra=None):
         extra = extra or self.res.frame_book_print_extra
-        self(self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
+        self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         self(
             f"{''.join(self.exp_txt)}{font_color(extra, color='blue')}"
             if len(frame_results) else
@@ -90,27 +90,31 @@ class BaseComicSpider(scrapy.Spider):
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
     mappings = {}  # mappings自定义关键字对应"固定"uri
+    turn_page_search: str = None
+    turn_page_info: tuple = None
 
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
         search_start = self.search
         if self.domain not in search_start:
-            search_start = correct_domain(self.domain, search_start)
+            search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
         self.search_start = deepcopy(search_start)
-        yield scrapy.Request(self.search_start, dont_filter=True)
+        meta = {"Url": self.search_start}
+        yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
 
     @property
-    def search(self):
+    def search(self) -> Url:
         self.process_state.process = 'search'
         self.Q('ProcessQueue').send(self.process_state)
         keyword = self.input_state.keyword
-        kind = re.search(rf"(({')|('.join(self.kind)}))(.*)", keyword) if bool(self.kind) else None
+        # kind = re.search(rf"(({')|('.join(self.kind)}))(.*)", keyword) if bool(self.kind) else None
         if keyword in self.mappings.keys():
-            search_start = self.mappings[keyword]
-        elif bool(kind):
-            search_start = f"{self.kind[kind.group(1)]}{kind.group(len(self.kind) + 2)}/"
+            search_start = Url(self.mappings[keyword]).set_next(*self.turn_page_info)
+        # elif bool(kind):    # not use? 20240825
+        #     search_start = f"{self.kind[kind.group(1)]}{kind.group(len(self.kind) + 2)}/"
         else:
-            search_start = f'{self.search_url_head}{keyword}'
+            __next_info = (self.turn_page_search,) if self.turn_page_search else self.turn_page_info
+            search_start = Url(self.search_url_head + keyword).set_next(*__next_info)
         return search_start
 
     # ==============================================
@@ -122,7 +126,17 @@ class BaseComicSpider(scrapy.Spider):
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         results = self.elect_res(self.input_state.indexes, frame_book_results, step=self.__res.parse_step)
         if results is None or not len(results):
-            yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
+            if not self.input_state.pageTurn:
+                yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
+            elif 'next' in self.input_state.pageTurn:
+                url = response.meta['Url'].next
+                yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
+            elif 'previous' in self.input_state.pageTurn:
+                url = response.meta['Url'].previous
+                yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
+            elif self.input_state.pageTurn:
+                url = response.meta['Url'].jump(int(self.input_state.pageTurn))
+                yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
         else:
             for title, title_url in results:
                 meta = {"title": title}
@@ -150,7 +164,7 @@ class BaseComicSpider(scrapy.Spider):
         choose = self.input_state.indexes
         results = self.elect_res(choose, frame_sec_result, step=self.__res.parse_sec_step)
         if results is None or not len(results):
-            self.say(f'<br><br><br>{self.__res.parse_sec_not_match}')
+            self.say(font_color(f'<br><br>{self.__res.parse_sec_not_match}<br>', color="red"))
             self.logger.info(f'no result return, choose_input is wrong: {choose}')
         else:
             self.say(f'{"-" * 10}《{title}》 {self.__res.parse_sec_selected}: {choose}')

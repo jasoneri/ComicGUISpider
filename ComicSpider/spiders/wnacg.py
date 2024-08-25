@@ -16,8 +16,10 @@ class WnacgSpider(BaseComicSpider2):
     domain = domain
     # allowed_domains = [domain]
     search_url_head = f'https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q='
-    mappings = {'更新': f'https://{domain}/albums.html',
+    mappings = {'更新': f'https://{domain}/albums-index.html',
                 '汉化': f'https://{domain}/albums-index-cate-1.html', }
+    turn_page_search = r"p=\d+"
+    turn_page_info = (r"-page-\d+", "albums-index%s")
 
     def start_requests(self):
         if self.settings.get("PROXY_CUST") is None:
@@ -49,7 +51,7 @@ class WnacgSpider(BaseComicSpider2):
             frame_results[x + 1] = [title, url]
             preview.add(x + 1, img_preview, PresetHtmlEl.sub(title), preview_url)  # 其实title已兜底处理，但preview受其影响所以前置一下
         self.say(preview.created_temp_html)
-        return self.say.frame_book_print(frame_results)
+        return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
         doc_wlns = re.split(r';[\n\s]+?document\.writeln', response.text)
