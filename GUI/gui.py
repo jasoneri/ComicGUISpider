@@ -112,6 +112,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     book_choose: list = []
     book_num: int = 0
     nextclickCnt = 0
+    pageFrameClickCnt = 0
     checkisopenCnt = 0
     BrowserWindow: BrowserWindow = None
 
@@ -156,6 +157,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # 按钮组
         self.tool_menu = ToolMenu(self)
         self.nextclickCnt = 0
+        self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
         self.btn_logic_bind()
 
@@ -176,6 +178,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
             if index == 3 and not conf.proxies:
                 self.textbrowser_load(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
+            if index == 1:
+                self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
             # 输入框联想补全
             self.set_completer()
 
@@ -211,6 +215,27 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.checkisopenCnt += 1
 
         self.checkisopen.clicked.connect(checkisopen_btn)
+
+        self.page_turn_frame()
+
+    def page_turn_frame(self):
+        def page_turn(_p):
+            self.previewInit = True
+            self.pageFrameClickCnt += 1
+            self.clean_temp_file()
+            self.input_state.pageTurn = _p
+            self.Q('InputFieldQueue').send(self.input_state)
+
+        self.nextPageBtn.clicked.connect(lambda: page_turn(f"next{self.pageFrameClickCnt}"))
+        self.previousPageBtn.clicked.connect(lambda: page_turn(f"previous{self.pageFrameClickCnt}"))
+        self.pageJumpBtn.clicked.connect(lambda: page_turn(self.pageEdit.text()))
+
+        def page_edit(text):
+            self.pageEdit.setText(text.strip())
+            self.pageEdit.setCursorPosition(len(text))
+            self.pageJumpBtn.setEnabled(len(text) > 0)
+
+        self.pageEdit.textChanged.connect(page_edit)
 
     def set_preview(self):
         proxies = None if self.chooseBox.currentIndex() != 3 else \
@@ -310,6 +335,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         self.nextclickCnt += 1
         self.searchinput.setEnabled(False)
+        self.pageFrame.setEnabled(True)
         # self.next_btn.setEnabled(False)
         self.chooseinput.setFocusPolicy(Qt.StrongFocus)
 
@@ -318,6 +344,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def _next(self):
         self.log.debug('===--→ nexting')
+        self.pageFrame.setEnabled(False)
         idxes = transfer_input(self.chooseinput.text()[5:].strip())
         if self.BrowserWindow and self.BrowserWindow.output:
             idxes = list(set(self.BrowserWindow.output) | set(idxes))

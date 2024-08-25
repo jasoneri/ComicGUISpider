@@ -20,6 +20,7 @@ class GUI:
     textbrowser_load_if_http = (u'<b><font size="5"><br>  内置预览：点击右下 "点我预览" </font></b> 或者 '
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
     WorkThread_finish_flag = "完成任务"  # related to SPIDER.close_success
+    copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
 
     class ToolMenu:
         action1 = "显示已阅最新话数记录"
