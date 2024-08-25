@@ -127,7 +127,7 @@ class BaseComicSpider(scrapy.Spider):
         results = self.elect_res(self.input_state.indexes, frame_book_results, step=self.__res.parse_step)
         if results is None or not len(results):
             if not self.input_state.pageTurn:
-                yield scrapy.Request(url=self.search, callback=self.parse, dont_filter=True)
+                yield scrapy.Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
             elif 'next' in self.input_state.pageTurn:
                 url = response.meta['Url'].next
                 yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
