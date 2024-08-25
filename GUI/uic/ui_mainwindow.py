@@ -275,7 +275,8 @@ class Ui_MainWindow(object):
         self.toolButton.setFont(font)
         self.toolButton.setStyleSheet("QToolButton {\n"
                                       "    background-color: rgb(255, 170, 0);\n"
-                                      "   border-radius: 7px;\n"
+                                      "    border-radius: 7px;\n"
+                                      "    padding-left: 2px;\n"
                                       "}")
         icon4 = QtGui.QIcon()
         icon4.addPixmap(QtGui.QPixmap(":/toolbox_icon.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -285,7 +286,7 @@ class Ui_MainWindow(object):
         self.toolButton.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.toolButton.setObjectName("toolButton")
         self.verticalLayout.addWidget(self.toolButton)
-        self.confBtn = QtWidgets.QToolButton(self.frame2)
+        self.confBtn = QtWidgets.QPushButton(self.frame2)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -297,15 +298,14 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setWeight(75)
         self.confBtn.setFont(font)
-        self.confBtn.setStyleSheet("QToolButton {\n"
+        self.confBtn.setStyleSheet("QPushButton {\n"
                                    "    background-color: rgb(0, 255, 255);\n"
                                    "     border-radius: 7px;\n"
                                    "}")
         icon5 = QtGui.QIcon()
         icon5.addPixmap(QtGui.QPixmap(":/config_icon.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.confBtn.setIcon(icon5)
-        self.confBtn.setIconSize(QtCore.QSize(20, 20))
-        self.confBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.confBtn.setIconSize(QtCore.QSize(18, 18))
         self.confBtn.setObjectName("confBtn")
         self.verticalLayout.addWidget(self.confBtn)
         self.retrybtn = QtWidgets.QDialogButtonBox(self.frame2)
