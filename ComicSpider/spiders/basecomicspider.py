@@ -18,12 +18,14 @@ from utils.processed_class import (
 class SayToGui:
     res = ori_res.SPIDER.SayToGui
     exp_txt = res.exp_txt
-    exp_preview = font_color(res.exp_preview, color='chocolate') + res.exp_replace_keyword
+    exp_turn_page = font_color(res.exp_turn_page, color='darkgreen')
+    exp_preview = font_color(res.exp_preview, color='chocolate')
+    exp_extra = exp_turn_page + exp_preview + res.exp_replace_keyword
 
     def __init__(self, spider, queue, state):
         self.spider = spider
         if spider.name in SPECIAL_WEBSITES:
-            self.exp_txt = self.exp_txt.replace(self.res.exp_replace_keyword, self.exp_preview)
+            self.exp_txt = self.exp_txt.replace(self.res.exp_replace_keyword, self.exp_extra)
         self.text_browser = self.TextBrowser(queue, state)
 
     def __call__(self, *args, **kwargs):
@@ -90,6 +92,7 @@ class BaseComicSpider(scrapy.Spider):
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
     mappings = {}  # mappings自定义关键字对应"固定"uri
+    frame_book_format = ['title']
     turn_page_search: str = None
     turn_page_info: tuple = None
 
@@ -138,8 +141,9 @@ class BaseComicSpider(scrapy.Spider):
                 url = response.meta['Url'].jump(int(self.input_state.pageTurn))
                 yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
         else:
-            for title, title_url in results:
-                meta = {"title": title}
+            for result in results:
+                title_url = result[0]
+                meta = dict(zip(self.frame_book_format, result[1:]))
                 yield scrapy.Request(url=title_url, callback=self.parse_section, meta=meta, dont_filter=True)
 
     @abstractmethod

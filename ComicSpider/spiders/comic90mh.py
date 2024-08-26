@@ -24,7 +24,7 @@ class Comic90mhSpider(BaseComicSpider):
             refresh_section = target.xpath(
                 './/a[@class="coll"]/text()').get().strip() if 'rank' not in self.search_start else '-*-*-'
             self.say(example_b.format(str(x + 1), title, author, refresh_time, refresh_section, chr(12288)))
-            frame_results[x + 1] = [title, url]
+            frame_results[x + 1] = [url, title]
         return self.say.frame_book_print(frame_results, extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选<br>")
 
     def frame_section(self, response):
