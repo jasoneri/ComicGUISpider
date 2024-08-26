@@ -102,7 +102,7 @@ class KaobeiSpider(BaseComicSpider):
             # url = rf"""https://{self.domain}/api/v3/comic/{rendered.pop('book_path')}/group/tankobon/chapters?limit=300&offset=0&_update=false"""
             # todo[9]: 额外卷请求，写req做到frame_section上合并
             self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
-            frame_results[index + 1] = [rendered['漫画名'], url]
+            frame_results[index + 1] = [url, rendered['漫画名']]
         return self.say.frame_book_print(
             frame_results, url=response.url,
             extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>" +
@@ -129,10 +129,12 @@ class KaobeiSpider(BaseComicSpider):
                                 color='orange'))
         chapter = result.get('chapter', {})
         targets = dict(zip(chapter.get('words', []), chapter.get('contents', [])))
+        title = response.meta.get('title')
+        sec = response.meta.get('section')
         for page, url_item in targets.items():
             item = ComicspiderItem()
-            item['title'] = response.meta.get('title')
-            item['section'] = response.meta.get('section')
+            item['title'] = title
+            item['section'] = sec
             item['page'] = page + 1
             item['image_urls'] = [url_item['url']]
             self.total += 1

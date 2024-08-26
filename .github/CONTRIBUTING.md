@@ -17,7 +17,7 @@
 > 首先说明:<br>
 >   + 三级跳转 表示 "搜索 > 书列表 > 书章节（例如第1卷/第1话）> 该章节的每一页"<br>
 >   + 二级跳转 表示 "搜索 > 书列表 > 没有章节，直接给全书的页数"<br>
-      > 上述说的跳转并非人类行为操作，实则压缩了步骤，毕竟机器只需要效率
+      > 从搜索页url得出书url，称为一步跳转。。(压缩/技巧等)直到能拿到图片访问的url，需要几步就称为几级跳转
 
 [爬虫代码存放位置在此](../ComicSpider/spiders)，创建`py脚本`，命名同分支 <br>
 二级跳转模版参照`jm.py`,`wnacg.py`，继承类`BaseComicSpider2` <br>
@@ -35,6 +35,8 @@
     + `jm`里的`JmComicPipeline`，禁漫的图片直接访问链接时是切割加密过的(可自行浏览器右键新建标签打开图像)，这里做了解密还原了
 - [ ] ua: 若`custom_settings`设了 `UAMiddleware` 才会生效
 - [ ] mappings: 默认映射，与`更改配置`里的`映射`相叠加
+- [ ] frame_book_format: 影响传递给`self.parse_section`的`meta`组成
+- [ ] turn_page_search/turn_page_info: 翻页时需要，使用为`utils.processed_class.Url`，参照已有案例即可
 
 ##### 类方法
 

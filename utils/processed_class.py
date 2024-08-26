@@ -134,9 +134,10 @@ class PreviewHtml:
             </div>"""
             return el
 
-    def __init__(self, html_style="bootstrap"):
+    def __init__(self, url=None, html_style="bootstrap"):
         self.contents = []
         self.html_style = html_style
+        self.url = url
 
     def add(self, *args):
         self.contents.append(getattr(self, self.html_style).create_element(*args))
@@ -147,7 +148,10 @@ class PreviewHtml:
         temp_p.mkdir(exist_ok=True)
         with open(self.format_path.joinpath(rf"{self.html_style}.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
-        html = format_text.replace("{body}", "\n".join(self.contents))
+        _content = "\n".join(self.contents)
+        if self.url:
+            _content += f'\n<div class="col-md-3"><p>for check current page</p><p>检查当前页数</p><p>{self.url}</p></div>'
+        html = format_text.replace("{body}", _content)
         tf = tempfile.TemporaryFile(suffix=".html", delete=False, dir=temp_p)
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)

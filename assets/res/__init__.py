@@ -8,12 +8,12 @@ class GUI:
     DESC1 = "1、首次使用请查阅`CGS-使用说明.exe`(内容与`scripts/README.md`一样)，内有配置/GUI视频使用指南等说明<br>"
     DESC2 = "2、除非版本更新，一般bug修复/功能更新等，用户运行`CGS-更新.exe`即可<br>"
     DESC3 = "3、在 github wiki 上也有记录 Q & A，可以先查阅看能否解决疑惑"
-    DESC4 = " 若有其他问题到群反映/提issue<br>"
+    DESC4 = " 若有其他问题/功能建议等到群反映/提issue<br>"
 
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 
     toolBox_warning = "仅当常规漫画网站能使用工具箱功能"
-    wnacg_run_slow_in_cn_tip = "wancg 国内源有点慢哦，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" + \
+    wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" + \
                                "网络问题一般重启就好了，数次均无效的话 加群反映/提issue<br>"
     checkisopen_text_change = "现在点击立刻打开存储目录"
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
@@ -32,6 +32,10 @@ class GUI:
 class EHentai:
     PROXIES_NEED = True
     PROXIES_NOT_SET = "访问 e-hentai 必须代理"
+    GUIDE = ("ehentai使用指引<br>1. 确保你有一个能访问`exhentai.org`的账号<br>"
+             "2. (国内)确保你有一个可以使用的代理，其中的地区IP不会因共有而被占爆看图限额。<br>"
+             "2.1. 代理的配置需要在此指引弹出前就设置好，否则重启/retry，代理服务建议用v2rayN<br>"
+             "3. 基于以上两点，同时已观看`视频4`了解基本操作流程<br>")
 
 
 # backend (spider/scrapy)
@@ -39,8 +43,9 @@ class SPIDER:
     # basecomicspider
     class SayToGui:
         exp_txt = f"""<br>{'{:=^80}'.format('message')}<br>请于【 输入序号 】框输入要选的序号  """
+        exp_turn_page = "<br>搜索框右侧为`翻页按钮组`，分别是 上一页/下一页/输入页数跳转"
         exp_preview = "<br>进预览页面能直接点击封面进行多选，与【 输入序号 】框的序号相叠加"
-        exp_replace_keyword = '<br>请于'
+        exp_replace_keyword = "<br>请于"
         TextBrowser_error = """选择{1}步骤时错误的输入：{0}<br> {2}"""  # discarded
         frame_book_print_extra = " →_→ 鼠标移到序号栏有教输入规则<br>"
         frame_book_print_retry_tip = "什么意思？唔……就是你搜的在放✈(飞机)，点击retry重开"

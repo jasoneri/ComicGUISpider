@@ -36,7 +36,7 @@ class WnacgSpider(BaseComicSpider2):
         frame_results = {}
         example_b = r' [ {} ]、【 {} 】'
         self.say(example_b.format('序号', '漫画名') + '<br>')
-        preview = PreviewHtml()
+        preview = PreviewHtml(response.url)
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
         title_xpath = './div[contains(@class, "pic")]/a'
         for x, target in enumerate(targets):
@@ -48,7 +48,7 @@ class WnacgSpider(BaseComicSpider2):
             img_preview = 'http:' + item_elem.xpath('./img/@src').get()
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [title, url]
+            frame_results[x + 1] = [url, title]
             preview.add(x + 1, img_preview, PresetHtmlEl.sub(title), preview_url)  # 其实title已兜底处理，但preview受其影响所以前置一下
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=response.url)
