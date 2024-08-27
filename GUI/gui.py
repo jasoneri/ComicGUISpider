@@ -178,7 +178,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
             if index == 3 and not conf.proxies:
                 self.textbrowser_load(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
-            if index == 1:
+            elif index == 4:
+                self.nextPageBtn.setDisabled(True)  # REMARK(2024-08-27): 翻页开发完成后解除限制
+                self.previousPageBtn.setDisabled(True)  # REMARK(2024-08-27): 翻页开发完成后解除限制
+                self.pageEdit.setDisabled(True)
+                self.textbrowser_load(font_color(res.EHentai.GUIDE, color='purple'))
+            elif index == 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
             # 输入框联想补全
             self.set_completer()
@@ -190,7 +195,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         idx = self.chooseBox.currentIndex()
         if idx == 0:
             return
-        completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", conf.completer[idx])))
+        this_completer = conf.completer[idx] if idx in conf.completer else DEFAULT_COMPLETER[idx]
+        completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", this_completer)))
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.searchinput.setCompleter(completer)
@@ -238,11 +244,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.pageEdit.textChanged.connect(page_edit)
 
     def set_preview(self):
-        proxies = None if self.chooseBox.currentIndex() != 3 else \
+        proxies = None if self.chooseBox.currentIndex() not in SPIDERS_NEED_PROXIES_IDXES else \
             (conf.proxies or [None])[0]  # only wnacg need proxies presently
         if proxies:
             BrowserWindow.set_proxies(proxies)
         self.BrowserWindow = BrowserWindow(self.tf)
+        if self.chooseBox.currentIndex() == 4:  # e-hentai
+            self.BrowserWindow.set_e_hentai()
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() + 50
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),

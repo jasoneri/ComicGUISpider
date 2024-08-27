@@ -89,6 +89,7 @@ class Ui_MainWindow(object):
         self.chooseBox.addItem("")
         self.chooseBox.addItem("")
         self.chooseBox.addItem("")
+        self.chooseBox.addItem("")
         self.verticalLayout_8.addWidget(self.chooseBox)
         self.verticalLayout_5 = QtWidgets.QVBoxLayout()
         self.verticalLayout_5.setObjectName("verticalLayout_5")
@@ -462,6 +463,7 @@ class Ui_MainWindow(object):
         self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))
         self.chooseBox.setItemText(2, _translate("MainWindow", "2、jm**"))
         self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg**"))
+        self.chooseBox.setItemText(4, _translate("MainWindow", "4、ehentai**"))
         self.checkisopen.setText(_translate("MainWindow", "(完成后自动)打开存储目录"))
         self.searchinput.setInputMask(
             _translate("MainWindow", "输入关键字：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))

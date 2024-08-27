@@ -195,7 +195,7 @@ class Url(str):
         return self.turn_page(func=lambda page: page + self.step)
 
     @property
-    def previous(self):
+    def prev(self):
         return self.turn_page(func=lambda page: page - self.step)
 
     def jump(self, p):

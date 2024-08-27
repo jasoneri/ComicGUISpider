@@ -31,11 +31,14 @@ class GUI:
 # website
 class EHentai:
     PROXIES_NEED = True
-    PROXIES_NOT_SET = "访问 e-hentai 必须代理"
+    COOKIES_NOT_SET = "访问 exhentai 必须设置`eh_cookies`"
+    PROXIES_NOT_SET = "访问 exhentai 必须代理"
+    ACCESS_FAIL = "当前`eh_cookies`或`代理` 无法访问"
     GUIDE = ("ehentai使用指引<br>1. 确保你有一个能访问`exhentai.org`的账号<br>"
-             "2. (国内)确保你有一个可以使用的代理，其中的地区IP不会因共有而被占爆看图限额。<br>"
-             "2.1. 代理的配置需要在此指引弹出前就设置好，否则重启/retry，代理服务建议用v2rayN<br>"
-             "3. 基于以上两点，同时已观看`视频4`了解基本操作流程<br>")
+             "2. (国内)确保你有一个可以使用的代理，其中的地区IP不会因共有而被占爆看图限额<br>"
+             "3.1 基于第1点，配置需设置`eh_cookies`的值，cookies值生成参考`使用说明`里配置对应字段说明。<br>"
+             "3.2 基于2，代理的配置需要在此指引弹出前设置好，否则重启/retry生效。代理服务建议用v2rayN<br>")
+    JUMP_TIP = "<br>ehentai页跳转情况特殊，没想好应用 暂时设限制取消`跳转页`功能<br>"
 
 
 # backend (spider/scrapy)
