@@ -15,6 +15,17 @@ GUI for comic download, support preview window and multiple choice, pageTurn etc
 
 ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)
 
+## About Language
+
+I'm not sure someone will interested in this project with English or other language,<br>
+but some work were ongoing such as [inner-text-description](assets/res/__init__.py), as my current env is zh-cn, I put
+the contents of my env file [zh_cn.py](assets/zh_cn.py) into it. <br>
+It mean anyone can create `en.py` translated by chatgpt etc. , put contents into `assets/res/__init__.py`, then
+software's inner-text-description will change into language of en.
+
+As the beginning I said, if someone tell me needs of language is existed, I'm pleasure to promote translation work. <br>
+or PR about translation is great !!
+
 ## Introduce
 
 ### website
@@ -45,17 +56,6 @@ Please use it in moderation to avoid burdening the other party's server
 ```
 
 > [here is the GUI usage video (but chinese)](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
-
-## About Language
-
-I'm not sure someone will interested in this project with English or other language,<br>
-but some work were ongoing such as [inner-text-description](assets/res/__init__.py), as my current env is zh-cn, I put
-the contents of my env file [zh_cn.py](assets/zh_cn.py) into it. <br>
-It mean anyone can create `en.py` translated by chatgpt etc. , put contents into `assets/res/__init__.py`, then
-software's inner-text-description will change into language of en.
-
-As the beginning I said, if someone tell me needs of language is existed, I'm pleasure to promote translation work. <br>
-or PR about translation is great !!
 
 ## Usage
 
