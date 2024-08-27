@@ -2,13 +2,19 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl
+from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
 from PyQt5.QtWebEngineWidgets import QWebEngineView
+
 from GUI.uic.browser import Ui_browser
 from assets import res
+from utils import conf
+from utils.special.ehentai import EHentaiKits
 
 
 class BrowserWindow(QMainWindow, Ui_browser):
+    eh_kits = None
+
     def __init__(self, tf, parent=None, proxies: str = None):
         super(BrowserWindow, self).__init__(parent)
         if proxies:
@@ -65,3 +71,29 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.refreshBtn.clicked.connect(self.view.reload)
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
+
+    def set_e_hentai(self):
+        def recheck():
+            limit = self.eh_kits.get_limit()
+            self.limitCntLabel.setText(limit)
+
+        if not conf.eh_cookies:
+            QMessageBox.information(self, 'Warning', res.EHentai.COOKIES_NOT_SET, QMessageBox.Ok)
+            return
+        if not conf.proxies:
+            QMessageBox.information(self, 'Warning', res.EHentai.PROXIES_NOT_SET, QMessageBox.Ok)
+            return
+        self.eh_kits = self.eh_kits or EHentaiKits(conf.eh_cookies, conf.proxies)
+        if not self.eh_kits.test_index():
+            QMessageBox.information(self, 'Warning', f"{res.EHentai.ACCESS_FAIL} {self.eh_kits.index}")
+            return
+        recheck()
+        self.ehentaiWidget.setEnabled(True)
+        self.recheckBtn.clicked.connect(recheck)
+
+        for key, values in conf.eh_cookies.items():
+            my_cookie = QNetworkCookie()
+            my_cookie.setName(key.encode())
+            my_cookie.setValue(values.encode())
+            my_cookie.setDomain(self.eh_kits.domain)
+            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(self.eh_kits.index))

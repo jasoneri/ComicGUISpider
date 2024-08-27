@@ -135,7 +135,7 @@ class BaseComicSpider(scrapy.Spider):
                 url = response.meta['Url'].next
                 yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
             elif 'previous' in self.input_state.pageTurn:
-                url = response.meta['Url'].previous
+                url = response.meta['Url'].prev
                 yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
             elif self.input_state.pageTurn:
                 url = response.meta['Url'].jump(int(self.input_state.pageTurn))
@@ -283,3 +283,24 @@ class BaseComicSpider2(BaseComicSpider):
             yield item
         self.process_state.process = 'fin'
         self.Q('ProcessQueue').send(self.process_state)
+
+
+class BaseComicSpider3(BaseComicSpider):
+    """Antique grade! No section, but three or more jump"""
+
+    def parse_section(self, response):
+        self.process_state.process = 'parse section'
+        self.Q('ProcessQueue').send(self.process_state)
+        title = response.meta.get('title')
+        sec_page = response.meta.get('sec_page', 1)
+        self.say(f'<br>{"=" * 15} 《{title}》 page-of-{sec_page}')
+        results, next_page_flag = self.frame_section(response)
+        if next_page_flag:
+            meta = deepcopy(response.meta)
+            meta.update(frame_results=results, sec_page=sec_page + 1)
+            yield scrapy.Request(url=next_page_flag, callback=self.parse_section, meta=meta)
+        else:
+            title = PresetHtmlEl.sub(response.meta.get('title'))
+            for page, url in results.items():
+                meta = {'title': title, 'page': page}
+                yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)

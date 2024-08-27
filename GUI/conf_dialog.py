@@ -19,12 +19,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
     def setupUi(self, Dialog):
         super(ConfDialog, self).setupUi(Dialog)
         self.buttonBox.accepted.connect(self.save_conf)
-        tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：{json.dumps(SPIDERS)}")
+        tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
 
     def show_self(self):  # can't naming `show`. If done, just run code once
-        for _ in ('sv_path', 'proxies', 'custom_map', 'cv_proj_path', "completer"):
+        for _ in ('sv_path', 'proxies', 'custom_map', 'cv_proj_path', "completer", "eh_cookies"):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         super(ConfDialog, self).show()
@@ -48,6 +48,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "custom_map": yaml.safe_load(cp(getattr(self, f"custom_mapEdit").toPlainText())),
             # TODO[7](2024-08-19): gui进程出错时仍然没记录至log里，如上述yaml的格式保存错误
             "completer": yaml.safe_load(cp(getattr(self, f"completerEdit").toPlainText())),
+            "eh_cookies": yaml.safe_load(cp(getattr(self, f"eh_cookiesEdit").toPlainText().replace("\t", ""))),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "log_level": getattr(self, "logLevelComboBox").currentText()
         }

@@ -37,10 +37,11 @@ class Conf:
     log_level: str = 'WARNING'
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
+    eh_cookies: dict = field(default_factory=dict)
     file = None
 
     def __init__(self):
-        super(Conf).__init__()
+        # super(Conf).__init__()
         self.init_conf()
 
     def init_conf(self):  # 脱敏，储存路径和代理等用外部文件读
@@ -52,6 +53,7 @@ class Conf:
                 self.__setattr__(k, v or getattr(self, k, None))
             self.sv_path = p.Path(self.sv_path)
             self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
+            self.eh_cookies = getattr(self, 'eh_cookies', None)
         except FileNotFoundError:
             pass
 
