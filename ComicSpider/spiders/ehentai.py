@@ -18,7 +18,10 @@ class EHentaiSpider(BaseComicSpider3):
     domain = domain
     # allowed_domains = [domain]
     search_url_head = f'https://{domain}/?f_search='
-    mappings = {'热门': f'https://{domain}/popular'}
+    mappings = {
+        '首页': f'https://{domain}',
+        '热门': f'https://{domain}/popular'
+    }
     frame_book_format = ['title', 'book_pages']
     turn_page_info = (r"page=\d+",)  # TODO[1](2024-08-27): next=idx, prev=idx
 
