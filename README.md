@@ -1,3 +1,5 @@
+**| [English](README_en.md) | 简体中文 |**
+
 <div align="center">
   <a href="https://github.com/jasoneri/ComicSpider" target="_blank">
     <img src="assets/icon.png" alt="logo">
