@@ -22,7 +22,7 @@ h11==0.14.0               # via httpcore
 httpcore==1.0.5           # via httpx
 httpx==0.27.0             # via -r requirements-in.txt
 hyperlink==21.0.0         # via twisted
-idna==3.7                 # via anyio, httpx, hyperlink, requests, tldextract
+idna==3.8                 # via anyio, httpx, hyperlink, requests, tldextract
 incremental==24.7.2       # via twisted
 itemadapter==0.9.0        # via itemloaders, scrapy
 itemloaders==1.3.1        # via scrapy
