@@ -141,13 +141,13 @@ class BaseComicSpider(scrapy.Spider):
             yield scrapy.Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
         elif 'next' in self.input_state.pageTurn:
             url = response.meta['Url'].next
-            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url})
+            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
         elif 'previous' in self.input_state.pageTurn:
             url = response.meta['Url'].prev
-            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url})
+            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
         elif self.input_state.pageTurn:
             url = response.meta['Url'].jump(int(self.input_state.pageTurn))
-            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url})
+            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
 
     @abstractmethod
     def frame_book(self, response) -> dict:
