@@ -7,9 +7,10 @@
   <h1 id="koishi">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social" alt="tag">
   <img src="https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef" alt="tag">
-</div>
 
-交互式下载漫画项目，支持预览多选，翻页等
+  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=35&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS+%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%E5%A4%9A%E9%80%89%EF%BC%8C%E7%BF%BB%E9%A1%B5%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
+
+</div>
 
 ▼ 操作展示 ▼ (国内如果无法看到动图 [点这里](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/preview-usage.gif))
 
