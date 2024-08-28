@@ -45,7 +45,7 @@ pyqt5==5.15.11            # via -r requirements-in.txt, pyqtwebengine
 pyqt5-qt5==5.15.2         # via pyqt5
 pyqt5-sip==12.15.0        # via pyqt5, pyqtwebengine
 pyqtwebengine==5.15.7     # via -r requirements-in.txt
-pyqtwebengine-qt5==5.15.2  # via pyqtwebengine
+pyqtwebengine-qt5==5.15.14  # via pyqtwebengine
 pyyaml==6.0.1             # via -r requirements-in.txt
 queuelib==1.7.0           # via scrapy
 requests==2.32.3          # via requests-file, tldextract
