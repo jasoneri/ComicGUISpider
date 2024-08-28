@@ -30,12 +30,12 @@ or PR about translation is great !!
 
 ### website
 
-| website   | support<br>(Digital inputs) | preview |   pageTurn   |
-|:----------|:---------------------------:|:-------:|:------------:|
-| mangacopy |              ✅              |    ❌    |      ✅       |
-| jm-comic  |              ✅              |    ✅    |      ✅       |
-| wnacg     |              ✅              |    ✅    |      ✅       |
-| ExHentai  |              ✅              |    ✅    | developing📃 |
+| website   | support<br>(digital inputs) | preview<br/>(multiple choice) |         pageTurn         |
+|:----------|:---------------------------:|:-----------------------------:|:------------------------:|
+| mangacopy |              ✅              |               ❌               |            ✅             |
+| jm-comic  |              ✅              |               ✅               |            ✅             |
+| wnacg     |              ✅              |               ✅               |            ✅             |
+| ExHentai  |              ✅              |               ✅               | ✅<br/>part of func limit |
 
 Please use it in moderation to avoid burdening the other party's server
 
@@ -69,15 +69,15 @@ Please use it in moderation to avoid burdening the other party's server
 
 ![](assets/conf_usage.jpg)
 
-|              |  yml field   |  default  | description |
-|:-------------|:------------:|:---------:|:------------|
-| sv_path      |   sv_path    | D:\comic  |             |
-| log_level    |  log_level   | `WARNING` |             |
-| proxies      |   proxies    |           |             |
-| custom_map   |  custom_map  |           |             |
-| completer    |  completer   |           |             |
-| eh_cookies   |  eh_cookies  |           |             |
-| cv_proj_path | cv_proj_path |           |             |
+|              |  yml field   |  default  | description                                                                                         |
+|:-------------|:------------:|:---------:|:----------------------------------------------------------------------------------------------------|
+| sv_path      |   sv_path    | D:\comic  |                                                                                                     |
+| log_level    |  log_level   | `WARNING` |                                                                                                     |
+| proxies      |   proxies    |           |                                                                                                     |
+| custom_map   |  custom_map  |           |                                                                                                     |
+| completer    |  completer   |           |                                                                                                     |
+| eh_cookies   |  eh_cookies  |           | [demo to get it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif) |
+| cv_proj_path | cv_proj_path |           |                                                                                                     |
 
 ## Else
 

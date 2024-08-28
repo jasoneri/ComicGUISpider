@@ -35,7 +35,7 @@ class EHentaiSpider(BaseComicSpider3):
         frame_results = {}
         example_b = r' [ {} ]、p_{}、【 {} 】'
         self.say(example_b.format('序号', '页数', '漫画名') + '<br>')
-        preview = PreviewHtml()
+        preview = PreviewHtml(response.url)
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         for x, target in enumerate(targets):
             item_elem = target.xpath('./td/div[@class="glthumb"]')
@@ -57,13 +57,13 @@ class EHentaiSpider(BaseComicSpider3):
         if 'next' in self.input_state.pageTurn:
             find_prevurl = re.search(r"""var nexturl="(.*?)";""", response.text)
             url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield Request(url=url, callback=self.parse, meta={"Url": url, "referer": self.search})
+            yield Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
         elif 'previous' in self.input_state.pageTurn:
             find_prevurl = re.search(r"""var prevurl="(.*?)";""", response.text)
             url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield Request(url=url, callback=self.parse, meta={"Url": url, "referer": self.search})
+            yield Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
         else:
-            yield Request(url=self.search, callback=self.parse, meta=response.meta)
+            yield Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
 
     def frame_section(self, response):
         next_flag = None
