@@ -33,6 +33,11 @@ class BrowserWindow(QMainWindow, Ui_browser):
         # self.ensureBtn.clicked.connect(self.ensure)
         self.set_html()
 
+    def second_init(self, tf):
+        self.tf = tf
+        self.home_url = QUrl.fromLocalFile(self.tf)
+        self.view.load(self.home_url)
+
     def ensure(self, after_callback):
         def callback(ret):
             if not ret:

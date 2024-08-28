@@ -163,6 +163,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         self.tf = None
         self.previewInit = True
+        self.previewSecondInit = False
 
         def chooseBox_changed_handle(index):
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
@@ -224,12 +225,23 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def page_turn_frame(self):
         def page_turn(_p):
-            self.previewInit = True
+            _prev_tf = self.tf
+            self.previewSecondInit = True
             self.pageFrameClickCnt += 1
             self.clean_temp_file()
             self.input_state.pageTurn = _p
             self.Q('InputFieldQueue').send(self.input_state)
-
+            if self.BrowserWindow.isVisible():
+                i = 0
+                while i < 1000:  # i * 3ms = 极限等待3s
+                    if self.tf != _prev_tf:
+                        self.BrowserWindow.second_init(self.tf)
+                        self.previewSecondInit = False
+                        break
+                    i += 1
+                    QThread.msleep(3)
+                if self.tf == _prev_tf:
+                    self.BrowserWindow.close()
         self.nextPageBtn.clicked.connect(lambda: page_turn(f"next{self.pageFrameClickCnt}"))
         self.previousPageBtn.clicked.connect(lambda: page_turn(f"previous{self.pageFrameClickCnt}"))
         self.pageJumpBtn.clicked.connect(lambda: page_turn(self.pageEdit.text()))
@@ -264,6 +276,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         if self.previewInit:
             self.set_preview()
             self.previewInit = False
+        elif self.previewSecondInit:
+            self.BrowserWindow.second_init(self.tf)
+            self.previewSecondInit = False
         self.BrowserWindow.show()
 
     def ensure_preview(self):
