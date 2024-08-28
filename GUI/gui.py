@@ -179,8 +179,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             if index == 3 and not conf.proxies:
                 self.textbrowser_load(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
             elif index == 4:
-                self.nextPageBtn.setDisabled(True)  # REMARK(2024-08-27): 翻页开发完成后解除限制
-                self.previousPageBtn.setDisabled(True)  # REMARK(2024-08-27): 翻页开发完成后解除限制
                 self.pageEdit.setDisabled(True)
                 self.textbrowser_load(font_color(res.EHentai.GUIDE, color='purple'))
             elif index == 1:
