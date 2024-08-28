@@ -94,6 +94,6 @@ class BrowserWindow(QMainWindow, Ui_browser):
         for key, values in conf.eh_cookies.items():
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
-            my_cookie.setValue(values.encode())
+            my_cookie.setValue(str(values).encode())
             my_cookie.setDomain(self.eh_kits.domain)
             self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(self.eh_kits.index))

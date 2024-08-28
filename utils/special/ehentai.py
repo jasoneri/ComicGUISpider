@@ -25,6 +25,10 @@ class EhCookies:
     def to_str(self):
         return '; '.join([f"{k}={v}" for k, v in self.cookie.items()])
 
+    @staticmethod
+    def to_str_(cookie):
+        return '; '.join([f"{k}={v}" for k, v in cookie.items()])
+
 
 class EHentaiKits:
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
@@ -34,7 +38,8 @@ class EHentaiKits:
 
     def __init__(self, cookies, proxies: list):
         _proxies = {"https://": f"http://{proxies[0]}"}
-        self.cli = httpx.Client(cookies=cookies, proxies=_proxies, headers=headers)
+        _hea = {**headers, "Cookie": EhCookies.to_str_(cookies)}
+        self.cli = httpx.Client(proxies=_proxies, headers=_hea)
 
     def get_limit(self):
         """查限额"""

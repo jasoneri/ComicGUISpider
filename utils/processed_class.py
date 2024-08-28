@@ -6,6 +6,7 @@ import typing as t
 import socket
 from dataclasses import dataclass
 from multiprocessing import Queue, freeze_support
+import urllib.parse as up
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
@@ -109,6 +110,7 @@ def crawl_what(what, queue_port, **settings_kw):
     spider_what = SPIDERS
     freeze_support()
     s = get_project_settings()
+    s.setmodule("ComicSpider.settings")
     s.update(settings_kw)
     process = CrawlerProcess(s)
     process.crawl(spider_what[what], queue_port=queue_port)
@@ -187,8 +189,8 @@ class Url(str):
     def __str__(self):
         return self.url
 
-    def __add__(self, _str):  # must before next/previous/jump
-        return Url(self.url + _str).set_next(*self.info)
+    def __add__(self, _str):  # must before next/prev/jump
+        return Url(f"{self.url}{_str}").set_next(*self.info)
 
     @property
     def next(self):
@@ -201,20 +203,26 @@ class Url(str):
     def jump(self, p):
         return self.turn_page(_p=p)
 
-    def turn_page(self, func=None, _p: int = None):
-        if_next = re.search(self.next_suffix, self)
-        if if_next:
+    def turn_page(self, func=None, _p: int = None, match_replace: str = None):
+        is_str = isinstance(self.next_suffix, str)
+        if_next = re.search(self.next_suffix, self) if is_str else self.next_suffix.search(self)
+        if bool(if_next):
             match = if_next.group()
-            current_page = int(re.search(r"\d+", match).group())
-            if self.step == 1 and current_page <= 0:
-                raise ValueError("current page is less than zero")
-            new = match.replace(str(current_page), str(_p or func(current_page)))
-            _url = self.url.replace(match, new)
+            if match_replace:
+                _url = self.url.replace(match, match_replace)
+            else:
+                current_page = int(re.search(r"\d+", match).group())
+                if self.step == 1 and current_page <= 0:
+                    raise ValueError("current page is less than zero")
+                new = match.replace(str(current_page), str(_p or func(current_page)))
+                _url = self.url.replace(match, new)
         else:
-            page2 = self.next_suffix.replace(r"\d+", str(_p or self.page))
+            page2 = (self.next_suffix if is_str else str(self.next_suffix.pattern)).replace(r"\d+",
+                                                                                            str(_p or self.page))
+            query = up.urlparse(self).query
             if self.replace_format:
                 new = self.replace_format % page2
                 _url = self.replace(self.replace_format.replace("%s", ""), new)
             else:
-                _url = self + f'&{page2}'
+                _url = f'{self}{"&" if query else "?"}{match_replace or page2}'
         return Url(_url).set_next(*self.info)

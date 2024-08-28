@@ -8,7 +8,7 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-from variables import *
+from variables import SPECIAL_WEBSITES
 from utils import conf
 
 BOT_NAME = 'ComicSpider'
