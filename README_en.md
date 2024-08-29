@@ -1,17 +1,15 @@
 **| English | [简体中文](README.md) |**
 
 <div align="center">
-  <a href="https://github.com/jasoneri/ComicSpider" target="_blank">
+  <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
     <img src="assets/icon.png" alt="logo">
   </a>
   <h1 id="koishi">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social" alt="tag">
   <img src="https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef" alt="tag">
 
-  <p><a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=28&duration=2500&pause=1800&color=13C8C3&center=true&vCenter=true&multiline=true&width=950&height=100&lines=CGS%2C++A+comic+downloading+software;which+support+preview(multiple+choice)+and+turn-page" alt="Typing SVG" /></a></p>
+  <p><a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=28&duration=2500&pause=1800&color=13C8C3&center=true&vCenter=true&multiline=true&width=950&height=100&lines=CGS%2C++A+comic%2Fmanga+download+software;which+support+preview(multiple+choice)+and+turn-page" alt="Typing SVG" /></a></p>
 </div>
-
-GUI for comic download, support preview window and multiple choice, pageTurn etc.
 
 ▼ demo show ▼
 

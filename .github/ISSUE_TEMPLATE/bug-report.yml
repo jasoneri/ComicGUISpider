@@ -28,11 +28,18 @@ body:
   - type: textarea
     attributes:
       label: ' 📄 [异常/日志]信息([Exception/Log] Information)'
-      description: 如报错等其他信息可以贴在这里/Other information such as crash can be posted here
-      render: Shell
+      description: 如报错等其他信息可以贴在这里，或上传log文件/Other information such as crash can be posted here, or upload log file
   - type: markdown
     attributes:
       value: '## 🚑 **基本信息(Basic Information)**'
+  - type: input
+    attributes:
+      label: 程序哈希号(Program hash number)
+      description: >-
+        请填写当前程序的哈希号，绿色安装包可在`scripts/version`里获取 / Please enter the hash number of the
+        current program, Portable version can find it from `scripts/version`
+    validations:
+      required: true
   - type: dropdown
     attributes:
       label: 系统(OS)
@@ -43,22 +50,14 @@ body:
         - Windows7~-
     validations:
       required: true
-  - type: dropdown
-    attributes:
-      label: 是否使用了代理(Whether a proxy is used)
-      description: 如果使用了代理请选择yes否则选no/Select yes if proxy is used otherwise select no
-      options:
-        - 'No'
-        - 'Yes'
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: 📄 配置文件(Configuration file)
-      description: 最好请上传脱敏之后的配置文件/It's best to upload the profile after desensitization
+      description: "上传配置文件`scripts/conf.yml` 或 配置窗口的截图 (记得脱敏!!下面字段的值 删除或打马赛克 等手段模糊化)
+      /Upload configure file`scripts/conf.yml` or configur dialog screenshots (remember desensitization!! The value of below field must be blur)"
       placeholder: >-
-        删除/delete: sv_path, proxies, eh_cookies
+        储存路径, 代理，eh_cookies / sv_path, proxies, eh_cookies
   - type: textarea
     attributes:
-      label: ' 🖼 截图(Screenshots)'
-      description: 截图可以贴在这里/Screenshots can be posted here
+      label: ' 🖼 其他截图(Screenshots)'
+      description: 其他截图可以贴在这里/Screenshots of other situations can be posted here

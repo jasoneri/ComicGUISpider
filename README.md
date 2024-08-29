@@ -1,14 +1,14 @@
 **| [English](README_en.md) | 简体中文 |**
 
 <div align="center">
-  <a href="https://github.com/jasoneri/ComicSpider" target="_blank">
+  <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
     <img src="assets/icon.png" alt="logo">
   </a>
   <h1 id="koishi">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social" alt="tag">
   <img src="https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef" alt="tag">
 
-  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=35&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS+%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%E5%A4%9A%E9%80%89%EF%BC%8C%E7%BF%BB%E9%A1%B5%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
+  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=35&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS%EF%BC%8C%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%E5%A4%9A%E9%80%89%EF%BC%8C%E7%BF%BB%E9%A1%B5%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
 
 </div>
 
@@ -31,7 +31,7 @@
 
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z`
 > ，解压后目录树如下 <br>
-> `每次解压绿色包` 后，建议先更新一次保证代码最新 <br>
+> `每次解压绿色包` 后，先更新一次保证代码最新（更新可能受网络波动影响，可重试几次，假如还是不行请联系开发者） <br>
 
 ```shell
   CGS
@@ -51,12 +51,11 @@
 
 ### V1.6 | # 2024-08-27
 
-支持 `ehentai`（准确来说是`exhentai`），程序已内置使用说明
+支持 `ehentai`（准确来说是`exhentai`），需要 [获取`eh_cookies`](#配置)，程序已内置流程说明
 
 ### V1.6 | # 2024-08-26
 
-新增翻页功能 （搜索框右侧，长这样 →  ![](assets/pageTurnFrame.jpg)
-），当有列表结果出来后开启使用，内部已做使用的引导，不再详述；<br>
+新增翻页功能，搜索框右侧，长这样 →  ![](assets/pageTurnFrame.jpg) ，当有列表结果出来后开启使用<br>
 需要注意的是`拷贝漫画`的翻页数使用的是`序号`而不是`页数`，`ehentai`不支持跳转等，对应程序内已做详细说明
 
 ## 功能
@@ -83,7 +82,7 @@
 |:-----------|:------------:|:---------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 存储路径       |   sv_path    | D:\comic  | 下载目录                                                                                                                                                                                                                |
 | 日志等级       |  log_level   | `WARNING` | 后台运行过后会有log目录，GUI 与 后台 同级，后台未知错误GUI会进行操作指引                                                                                                                                                                          |
-| 代理         |   proxies    |           | 翻墙用，使用`wnacg`时可以用到，`jmcomic`用的内地域名此项对其无效                                                                                                                                                                            |
+| 代理         |   proxies    |           | 翻墙用，`ehentai`国内必须设置，`wnacg`可以用到，`jmcomic`用的内地域名此项对其无效                                                                                                                                                               |
 | 映射         |  custom_map  |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展 |
 | 预设         |  completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                   |
 | eh_cookies |  eh_cookies  |           | 使用`ehentai`时需要，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备用查看 ](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))            |
