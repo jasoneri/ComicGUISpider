@@ -13,8 +13,8 @@ class GUI:
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 
     toolBox_warning = "仅当常规漫画网站能使用工具箱功能"
-    wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" + \
-                               "网络问题一般重启就好了，数次均无效的话 加群反映/提issue<br>"
+    wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，或者抽风，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" + \
+                               "网络问题如 [Errno 11001] 一般重启就好了，数次没解决的话 加群反映/提issue<br>"
     checkisopen_text_change = "现在点击立刻打开存储目录"
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
     textbrowser_load_if_http = (u'<b><font size="5"><br>  内置预览：点击右下 "点我预览" </font></b> 或者 '
@@ -83,6 +83,8 @@ class Updater:
     not_pkg_markdown = "当前环境无法使用此功能，需要重新下载绿色安装包"
     first_init = "首次使用更新，初始化覆盖中"
     refreshing_code = "更新代码中"
+    refresh_fail_retry = "更新失败, 准备重试"
+    refresh_fail_retry_over_limit = "是网络问题，重试更新即可。 若其他情况导致更新一直失败请截图发issue"
     code_is_latest = "代码已是最新.. 若有其他问题向群里反映"
     env_covering = "环境补充中"
     env_trigger_flag = "检测到需要补充环境"

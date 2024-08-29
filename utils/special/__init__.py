@@ -165,13 +165,24 @@ class WnacgUtils(Utils):
             lambda href: not bool(match_regex.search(href)), hrefs
         ))
         for url in order_href:
-            resp = httpx.head(url, headers=cls.headers, follow_redirects=True)
-            if str(resp.status_code).startswith('2'):
+            resp = retry(httpx.head, 1, url, headers=cls.headers, follow_redirects=True, timeout=3)
+            if resp and str(resp.status_code).startswith('2'):
                 return re.sub("https?://", "", url).strip("/")
         else:
             cls.status_publish = False
             print(f"发布页[{cls.publish_url}]清洗失效")  # logger.warning()
             return None
+
+
+def retry(func, retry_limit, *args, retry_times=0, raise_error=False, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        retry_times += 1
+        if retry_times <= retry_limit:
+            return retry(func, retry_limit, *args, retry_times=retry_times, raise_error=raise_error, **kwargs)
+        if raise_error:
+            raise e
 
 
 tag_regex = re.compile(r"汉化|漢化|粵化|DL版|修正|中国|翻訳|翻译|翻譯|中文|後編|前編|カラー化|個人|" +
