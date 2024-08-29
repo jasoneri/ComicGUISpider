@@ -15,7 +15,7 @@ import GUI.src.material_ct
 def start():
     freeze_support()
     app = QApplication(sys.argv)
-    # app.setStyle("Fusion")
+    app.setStyle("Fusion")
     ui = SpiderGUI()
     QApplication.processEvents()
     app.exec_()

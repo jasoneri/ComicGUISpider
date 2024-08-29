@@ -9,6 +9,7 @@ import shutil
 import stat
 import pathlib
 import zipfile
+import traceback
 
 import httpx
 from tqdm import tqdm
@@ -165,11 +166,23 @@ class Proj:
 
 
 def regular_update():
-    proj = Proj()
-    proj.check()
-    proj.local_update()
-    proj.env_check_and_replenish()
-    proj.end()
+    retry_times = 1
+    __ = None
+    while retry_times < 4:
+        try:
+            proj = Proj()
+            proj.check()
+            proj.local_update()
+            proj.env_check_and_replenish()
+            proj.end()
+            break
+        except Exception as e:
+            __ = traceback.format_exc()
+            print(Fore.RED + f"[ {res.refresh_fail_retry}-{retry_times} ]\n{type(e)} {e} ")
+            retry_times += 1
+    if retry_times > 3:
+        print(__)
+        print(Fore.RED + f"[Errno 11001] {res.refresh_fail_retry_over_limit}")
 
 
 def create_desc():

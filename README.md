@@ -31,13 +31,14 @@
 
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z`
 > ，解压后目录树如下 <br>
-> `每次解压绿色包` 后，先更新一次保证代码最新（更新可能受网络波动影响，可重试几次，假如还是不行请联系开发者） <br>
+> `每次解压绿色包` 后，先更新一次保证代码最新， 更新时当窗口显示`更新完毕`才算更新成功，闪退或错误提示是失败 <br>
 
 ```shell
   CGS
    ├── runtime
    ├── scripts
    ├── site-packages
+   ├── _pystand_static.int  # 经过修改现采用PyStand的壳，`CGS.exe`应该不会被杀软隔离了
    ├── CGS.bat              # 等价于 CGS.exe *主程序* 防被杀毒软件隔离 备用
    ├── CGS.exe              # 对应 deploy/launcher/CGS.bat  *主程序*
    ├── CGS-使用说明.exe      # 对应 deploy/launcher/desc.bat
