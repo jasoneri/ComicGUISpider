@@ -30,7 +30,6 @@ class BrowserWindow(QMainWindow, Ui_browser):
         super(BrowserWindow, self).setupUi(_window)
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.topHintBox.clicked.connect(self.keep_top_hint)
-        # self.ensureBtn.clicked.connect(self.ensure)
         self.set_html()
 
     def second_init(self, tf):
@@ -38,17 +37,24 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.home_url = QUrl.fromLocalFile(self.tf)
         self.view.load(self.home_url)
 
+    def js_execute(self, js_code, callback):
+        page = self.view.page()
+        page.runJavaScript(js_code, callback)
+
+    def page(self, after_callback):
+        def callback(ret):
+            self.output = list(map(int, ret)) if ret else []
+            after_callback()
+
+        self.js_execute("scanChecked()", callback)
+
     def ensure(self, after_callback):
         def callback(ret):
-            if not ret:
-                QMessageBox.information(self, 'Warning', res.GUI.BrowserWindow_ensure_warning, QMessageBox.Ok)
-            else:
-                self.output = list(map(int, ret))
-                self.close()
-                after_callback()
+            self.output = list(map(int, ret)) if ret else []
+            self.close()
+            after_callback()
 
-        page = self.view.page()
-        page.runJavaScript("""scanChecked()""", callback)
+        self.js_execute("scanChecked()", callback)
 
     @staticmethod
     def set_proxies(proxy_str):
@@ -78,9 +84,9 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
 
     def set_e_hentai(self):
-        def recheck():
-            limit = self.eh_kits.get_limit()
-            self.limitCntLabel.setText(limit)
+        # def recheck():    # deprecated
+        #     limit = self.eh_kits.get_limit()
+        #     self.limitCntLabel.setText(limit)
 
         if not conf.eh_cookies:
             QMessageBox.information(self, 'Warning', res.EHentai.COOKIES_NOT_SET, QMessageBox.Ok)
@@ -92,9 +98,9 @@ class BrowserWindow(QMainWindow, Ui_browser):
         if not self.eh_kits.test_index():
             QMessageBox.information(self, 'Warning', f"{res.EHentai.ACCESS_FAIL} {self.eh_kits.index}")
             return
-        recheck()
-        self.ehentaiWidget.setEnabled(True)
-        self.recheckBtn.clicked.connect(recheck)
+        # recheck()
+        # self.ehentaiWidget.setEnabled(True)
+        # self.recheckBtn.clicked.connect(recheck)
 
         for key, values in conf.eh_cookies.items():
             my_cookie = QNetworkCookie()

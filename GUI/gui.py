@@ -224,13 +224,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.page_turn_frame()
 
     def page_turn_frame(self):
-        def page_turn(_p):
-            _prev_tf = self.tf
-            self.previewSecondInit = True
-            self.pageFrameClickCnt += 1
-            self.clean_temp_file()
-            self.input_state.pageTurn = _p
-            self.Q('InputFieldQueue').send(self.input_state)
+        def refresh_view(_prev_tf):
             if self.BrowserWindow and self.BrowserWindow.isVisible():
                 i = 0
                 while i < 1000:  # i * 3ms = 极限等待3s
@@ -242,9 +236,23 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     QThread.msleep(3)
                 if self.tf == _prev_tf:
                     self.BrowserWindow.close()
-        self.nextPageBtn.clicked.connect(lambda: page_turn(f"next{self.pageFrameClickCnt}"))
-        self.previousPageBtn.clicked.connect(lambda: page_turn(f"previous{self.pageFrameClickCnt}"))
-        self.pageJumpBtn.clicked.connect(lambda: page_turn(self.pageEdit.text()))
+
+        def page_turn(_p):
+            _prev_tf = self.tf
+            self.previewSecondInit = True
+            self.pageFrameClickCnt += 1
+            self.clean_temp_file()
+            if self.BrowserWindow and self.BrowserWindow.isRetain.isChecked():
+                idxes = self.BrowserWindow.output
+                self.input_state.indexes = idxes
+            self.input_state.pageTurn = _p
+            self.Q('InputFieldQueue').send(self.input_state)
+            refresh_view(_prev_tf)
+
+        _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg))
+        self.nextPageBtn.clicked.connect(lambda: _(f"next{self.pageFrameClickCnt}"))
+        self.previousPageBtn.clicked.connect(lambda: _(f"previous{self.pageFrameClickCnt}"))
+        self.pageJumpBtn.clicked.connect(lambda: _(self.pageEdit.text()))
 
         def page_edit(text):
             self.pageEdit.setText(text.strip())
@@ -261,7 +269,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.BrowserWindow = BrowserWindow(self.tf)
         if self.chooseBox.currentIndex() == 4:  # e-hentai
             self.BrowserWindow.set_e_hentai()
-        preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() + 40
+        preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
             preview_y if preview_y > 0 else 200,
@@ -370,6 +378,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         if self.BrowserWindow and self.BrowserWindow.output:
             idxes = list(set(self.BrowserWindow.output) | set(idxes))
         self.input_state.indexes = idxes
+        self.input_state.pageTurn = ""
         if self.nextclickCnt == 1:
             self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else \
                 [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue

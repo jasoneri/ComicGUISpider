@@ -13,7 +13,9 @@
 
 ▼ demo show ▼
 
-![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)
+|                             preview, multiple choice                             |                            turn page, keep choice                            |
+|:--------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
+| ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif) |
 
 ## About Language
 

@@ -12,9 +12,11 @@
 
 </div>
 
-▼ 操作展示 ▼ (国内如果无法看到动图 [点这里](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/preview-usage.gif))
+▼ 操作演示 ▼
 
-![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)
+| 预览、多选（[国内备用观看链接](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/preview-usage.gif)） | 翻页、保留选择（[国内备用观看链接](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/turn-page.gif)） |
+|:-----------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------:|
+|     ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)      |      ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif)       |
 
 ## 项目介绍
 
@@ -31,7 +33,7 @@
 
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z`
 > ，解压后目录树如下 <br>
-> `每次解压绿色包` 后，先更新一次保证代码最新， 更新时当窗口显示`更新完毕`才算更新成功，闪退或错误提示是失败 <br>
+> `每次解压绿色包`后，先更新一次保证代码最新，更新后窗口显示`更新完毕`才算更新成功，闪退或错误提示是失败 <br>
 
 ```shell
   CGS
@@ -50,22 +52,22 @@
 
 ## 更新
 
+### V1.6 | # 2024-09-01
+
+支持 翻页时保留选择状态
+
 ### V1.6 | # 2024-08-27
 
 支持 `ehentai`（准确来说是`exhentai`），需要 [获取`eh_cookies`](#配置)，程序已内置流程说明
 
-### V1.6 | # 2024-08-26
-
-新增翻页功能，搜索框右侧，长这样 →  ![](assets/pageTurnFrame.jpg) ，当有列表结果出来后开启使用<br>
-需要注意的是`拷贝漫画`的翻页数使用的是`序号`而不是`页数`，`ehentai`不支持跳转等，对应程序内已做详细说明
-
 ## 功能
 
-1. 搜索框的联想功能（按空格弹出对应预设）
-2. 常规漫画工具箱功能
+1. 搜索框的联想功能（ 按 <kbd>空格键</kbd> 弹出对应预设 ）
+2. 预览功能：内置的小型浏览器，封面点击多选，条目链接浏览器体验，浏览器功能按键等。详情使用看`视频3`
+3. 翻页：当有列表结果出来后开启使用，使用如上面动图所示
+   > 注意：`拷贝漫画`的翻页数使用的是`序号`而不是`页数`，`ehentai`不支持跳转等，对应程序内已做详细说明
+4. 常规漫画工具箱功能
    > 工具箱功能配合另一个项目用 -> [点击前往项目](https://github.com/jasoneri/comic_viewer)
-3. 预览功能：内置的小型浏览器，封面点击多选，条目链接浏览器体验，浏览器功能按键等。详情使用看`视频3`
-   > 保持预览窗口时，翻页能实时渲染预览窗口的页面
 
 ## 使用
 
@@ -90,11 +92,12 @@
 | cv项目路径     | cv_proj_path |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                         |
 
 > 除 `存储路径` 其他均非必须，使用默认即可 或置空 <br>
-> 如熟悉yaml或其他需求，可至 `conf.yml`或`scripts/conf.yml` 修改
+> 如熟悉yaml或其他需求，可至 `scripts/conf.yml` 修改
 
-> [2024-08-16 未开发 开发完后会在此处更新说明]<br>
-> 保留字段: `wnacg_publish_domain`, `jm_forever_url`, `jm_publish_url`<br>
-> 不会进配置窗口，用作对应程序内设的 `发布页`/`永久链接` 均失效了时用户可以自设的情况
+> [ 额外说明 ]<br>
+> <s>保留字段: `wnacg_publish_domain`, `jm_forever_url`, `jm_publish_url`<br></s>
+> 各网站的 `发布页`/`永久链接` 能在 `scripts/utils/special/__init__.py` 里找到 <br>
+> 经考虑，不做用户自主配置，`发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用
 
 ## bug记录
 

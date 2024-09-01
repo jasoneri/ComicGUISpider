@@ -14,7 +14,7 @@ class GUI:
 
     toolBox_warning = "仅当常规漫画网站能使用工具箱功能"
     wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，或者抽风，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" + \
-                               "网络问题如 [Errno 11001] 一般重启就好了，数次没解决的话 加群反映/提issue<br>"
+                               "网络问题如 [Errno 11001] / `ReadTimeout` 一般重启就好了，一直出现同一种错误的话 加群反映/提issue<br>"
     checkisopen_text_change = "现在点击立刻打开存储目录"
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
     textbrowser_load_if_http = (u'<b><font size="5"><br>  内置预览：点击右下 "点我预览" </font></b> 或者 '
@@ -55,16 +55,17 @@ class SPIDER:
         frame_section_print_extra = " ←_← 点击【开始爬取！】 <br>"
 
     search_url_head_NotImplementedError = '需要自定义搜索网址'
+    choice_list_before_turn_page = "此前页面已选择(待结算)"
     parse_step = '漫画'  # not use
     parse_sec_step = '章节'  # not use
     parse_sec_not_match = '没匹配到结果'
     parse_sec_selected = '所选序号'
     parse_sec_now_start_crawl_desc = "现在开始爬取《%s》章节"
     close_success = "后台完成任务了"
-    close_backend_error = "后台挂了，若非自己取消可进行如下操作"
+    close_backend_error = "后台挂了，或没进行任何选择！若非自己取消可进行如下操作"
     close_check_log_guide1 = '1、打开下方给的日志文件，应该能解决大部分疑惑<br>'
     close_check_log_guide2 = '2、第1步不足以解惑的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤<br>'
-    close_check_log_guide3 = '3、第2步得出的日志仍不以解惑的话，请到群反映或提issue<br>'
+    close_check_log_guide3 = '3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue<br>'
 
     # spiders
 
@@ -84,7 +85,7 @@ class Updater:
     first_init = "首次使用更新，初始化覆盖中"
     refreshing_code = "更新代码中"
     refresh_fail_retry = "更新失败, 准备重试"
-    refresh_fail_retry_over_limit = "是网络问题，重试更新即可。 若其他情况导致更新一直失败请截图发issue"
+    refresh_fail_retry_over_limit = "是网络问题，重试更新即可。 若其他情况导致更新一直失败请截图发issue或找群反映"
     code_is_latest = "代码已是最新.. 若有其他问题向群里反映"
     env_covering = "环境补充中"
     env_trigger_flag = "检测到需要补充环境"
