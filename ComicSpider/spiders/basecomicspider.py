@@ -124,30 +124,39 @@ class BaseComicSpider(scrapy.Spider):
     def parse(self, response):
         self.process_state.process = 'parse'
         self.Q('ProcessQueue').send(self.process_state)
+        self.say("<br>")
         frame_book_results = self.frame_book(response)
+        elect_res = response.meta.get("elect_res", [])
+        if elect_res:
+            elected_titles = list(map(lambda x: x[1], elect_res))
+            self.say(font_color(f"<br>{self.__res.choice_list_before_turn_page}<br>"
+                                f"{'<br>'.join(elected_titles)}", color='green'))
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         results = self.elect_res(self.input_state.indexes, frame_book_results, step=self.__res.parse_step)
-        if results is None or not len(results):
-            yield from self.page_turn(response, frame_book_results)
+        if self.input_state.pageTurn:
+            yield from self.page_turn(response, results)
         else:
-            for result in results:
+            for result in [*results, *response.meta.get("elect_res", [])]:
                 title_url = result[0]
                 meta = dict(zip(self.frame_book_format, result[1:]))
                 yield scrapy.Request(url=title_url, callback=self.parse_section, meta=meta, dont_filter=True)
 
-    def page_turn(self, response, frame_book_results):
+    def page_turn(self, response, elected_results):
         if not self.input_state.pageTurn:
             yield scrapy.Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
         elif 'next' in self.input_state.pageTurn:
-            url = response.meta['Url'].next
-            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
+            yield from self.page_turn_(response, elected_results, response.meta['Url'].next)
         elif 'previous' in self.input_state.pageTurn:
-            url = response.meta['Url'].prev
-            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
+            yield from self.page_turn_(response, elected_results, response.meta['Url'].prev)
         elif self.input_state.pageTurn:
             url = response.meta['Url'].jump(int(self.input_state.pageTurn))
-            yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url}, dont_filter=True)
+            yield from self.page_turn_(response, elected_results, url)
+
+    def page_turn_(self, resp, elected_results, url, **kw):
+        all_elected_res = [*elected_results, *resp.meta.get("elect_res", [])]
+        yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url, "elect_res": all_elected_res},
+                             dont_filter=True, **kw)
 
     @abstractmethod
     def frame_book(self, response) -> dict:

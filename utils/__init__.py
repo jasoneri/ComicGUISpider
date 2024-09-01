@@ -31,7 +31,7 @@ def yaml_update(_f, dic):
 @dataclass
 class Conf:
     sv_path: t.Union[p.Path, str] = r'D:\Comic'
-    cv_proj_path: t.Union[p.Path, str] = r'D:\comic_viewer'
+    cv_proj_path: t.Union[p.Path, str] = r''
     log_path = ori_path.joinpath('log')
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
