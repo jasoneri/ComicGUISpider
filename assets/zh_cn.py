@@ -51,7 +51,8 @@ class SPIDER:
         exp_replace_keyword = "<br>请于"
         TextBrowser_error = """选择{1}步骤时错误的输入：{0}<br> {2}"""  # discarded
         frame_book_print_extra = " →_→ 鼠标移到序号栏有教输入规则<br>"
-        frame_book_print_retry_tip = "什么意思？唔……就是你搜的在放✈(飞机)，点击retry重开"
+        frame_book_print_retry_tip = ("什么意思？唔……就是你搜的在放✈(飞机)<br>"
+                                      "翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没 / 重开换种姿势再搜")
         frame_section_print_extra = " ←_← 点击【开始爬取！】 <br>"
 
     search_url_head_NotImplementedError = '需要自定义搜索网址'
