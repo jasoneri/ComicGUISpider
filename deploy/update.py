@@ -187,7 +187,7 @@ def regular_update():
 
 def create_desc():
     def cdn_replace(md_str, author, repo, branch):
-        return (md_str.replace("raw.githubusercontent.com", "cdn.jsdmirror.com/gh")
+        return (md_str.replace("raw.githubusercontent.com", "jsd.onmicrosoft.cn/gh")
                 .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
     try:
         import markdown

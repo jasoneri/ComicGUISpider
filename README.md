@@ -14,9 +14,9 @@
 
 ▼ 操作演示 ▼
 
-| 预览、多选（[国内备用观看链接](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/preview-usage.gif)） | 翻页、保留选择（[国内备用观看链接](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/turn-page.gif)） |
-|:-----------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------:|
-|     ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)      |      ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif)       |
+| 预览、多选（[国内备用观看链接](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/preview-usage.gif)） | 翻页、保留选择（[国内备用观看链接](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/turn-page.gif)） |
+|:------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------:|
+|      ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)      |       ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif)       |
 
 ## 项目介绍
 
@@ -88,7 +88,7 @@
 | 代理         |   proxies    |           | 翻墙用，`ehentai`国内必须设置，`wnacg`可以用到，`jmcomic`用的内地域名此项对其无效                                                                                                                                                               |
 | 映射         |  custom_map  |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展 |
 | 预设         |  completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                   |
-| eh_cookies |  eh_cookies  |           | 使用`ehentai`时需要，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备用查看 ](https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))            |
+| eh_cookies |  eh_cookies  |           | 使用`ehentai`时需要，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备用查看 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))           |
 | cv项目路径     | cv_proj_path |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                         |
 
 > 除 `存储路径` 其他均非必须，使用默认即可 或置空 <br>
