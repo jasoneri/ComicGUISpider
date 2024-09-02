@@ -10,6 +10,7 @@ import asyncio
 import aiofiles
 from dataclasses import dataclass, asdict
 
+import pandas as pd
 from loguru import logger
 import tqdm
 
@@ -28,6 +29,36 @@ class TaskMeta:
     user_name: str
     user_id: str
     service: str
+
+
+t_format = '%Y-%m-%dT%H:%M:%S'
+
+
+def time_format(_):
+    try:
+        return datetime.datetime.strptime(_, t_format)
+    except ValueError:
+        return datetime.datetime.strptime(_.split(".")[0], t_format)
+
+
+class ListArtistsInfo:
+    def __init__(self, order_l: list):
+        self.order_l = order_l
+
+    def match(self, _info):
+        df = pd.DataFrame(_info)
+        out = []
+        for search_input in self.order_l:
+            if isinstance(search_input, str):
+                _df = df[df['name'].str.contains(search_input, na=False)]
+                if not _df.empty:
+                    out.extend(_df.to_dict(orient='records'))
+            elif isinstance(search_input, list) and len(search_input) == 2:
+                _df = df[(df['name'] == search_input[0]) & (df['service'] == search_input[1])]
+                if not _df.empty:
+                    out.extend(_df.to_dict(orient='records'))
+        for _ in out:
+            yield _
 
 
 class Kemono:
@@ -49,7 +80,6 @@ class Kemono:
       cookie: ...  # get from browser, filed 'session'
     ```
     """
-    date_format = "%Y-%m-%dT%H:%M:%S"
     file_size_limit = 100 * 1024 * 1024  # 100mb
     suffixes = ['jpg', 'jpeg', 'png', 'gif', 'mp4']
 
@@ -65,6 +95,7 @@ class Kemono:
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
         self.sv_path = p.Path(self.conf.get('sv_path'))
+        self.sorted_record = self.sv_path.joinpath('__sorted_record')
         self.blacklist_obj = BlackList(self.sv_path / 'blacklist.json')
         self.blacklist = self.blacklist_obj.read()
 
@@ -96,23 +127,28 @@ class Kemono:
             """commonly values-of-attachments include value-of-file,
             special institution: value-of-file exist but values-of-attachments empty"""
             title = post.get('title').strip()
-            published = datetime.datetime.strptime(post.get('published'), self.date_format)
+            published = time_format(post.get('published')).strftime("%Y-%m-%d")
             meta = asdict(_task_meta)
             tasks = post.get("attachments") or post.get("file") or []
             if isinstance(tasks, dict):
                 tasks = [tasks]
+            this_artist_record = self.sorted_record.joinpath(f'{_task_meta.user_name}_{_task_meta.service}')
+            this_artist_record.mkdir(parents=True, exist_ok=True)
+            with open(this_artist_record.joinpath(f'[{published}]{title}.json'), 'w', encoding='utf-8') as f:
+                json.dump([_['name'] for _ in tasks], f, ensure_ascii=False)
             tasks = [{"url": self.Api.file_prefix + task.get("path"),
-                      "meta": {**meta, "published": published.strftime("%Y-%m-%d"),
+                      "meta": {**meta, "published": published,
                                "title": title, "file_name": task.get("name")}}
                      for task in tqdm.tqdm(tasks)]
             if tasks:
                 await self.redis.rpush(self.redis_key, *tasks)
 
         async def _filter(posts):
-            valid_posts = list(filter(lambda _:
-                                      datetime.datetime.strptime(_.get('published'), self.date_format) >= interrupt,
-                                      posts))
+            valid_posts = list(filter(lambda _: time_format(_.get('published')) >= interrupt, posts))
             # TODO[9](2024-08-05):  too many repeat title,take func duel it
+            """get filter from kemono_expander.Artists etc."""
+            from utils.script.image.kemono_expander import Artists
+            valid_posts = Artists.Gsusart2222(valid_posts)
             return valid_posts
 
         async def posts_of_creator(info):
@@ -129,16 +165,16 @@ class Kemono:
                 valid_posts = await _filter(posts)
                 for post in valid_posts:
                     await create_task_of_post(post, task_meta)
-                if len(valid_posts) < 50:
+                if len(posts) < 50:
                     break
                 o += 50
 
         interrupt = datetime.datetime.strptime(interrupt_date, '%Y-%m-%d')
         favorites = await self.get_favorites()
-        order_creators = order_creators or list(map(lambda _: _.get('name'), favorites))
-        for favorite in favorites:
-            if favorite.get('name') in order_creators:
-                await posts_of_creator(favorite)
+        order_creators = order_creators or ListArtistsInfo(
+            list(map(lambda _: [_.get('name'), _.get('service')], favorites)))
+        for matched in order_creators.match(favorites):
+            await posts_of_creator(matched)
 
     def filter(self, u_s, p_t, f) -> bool:
         """
@@ -242,8 +278,9 @@ if __name__ == '__main__':
     asyncio.set_event_loop(loop)
 
     obj = Kemono(AioRClient())
-    # loop.run_until_complete(obj.step1_tasks_create_by_favorites('2023-10-01', ['サインこす']))
-    loop.run_until_complete(obj.temp_copy_vals(restore=False))
+    # loop.run_until_complete(obj.step1_tasks_create_by_favorites(
+    #     '2024-01-01', ListArtistsInfo(['Gsusart2222'])))
+    # loop.run_until_complete(obj.temp_copy_vals(restore=True))
 
     tasks = loop.run_until_complete(obj.step2_get_tasks())
     sem = asyncio.Semaphore(7)
