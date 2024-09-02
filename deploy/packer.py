@@ -94,7 +94,7 @@ class Clean:
     def fit():
         """execute this script, and let project work fully with package as much as possible"""
         if not path.joinpath("fit.py").exists():
-            script_url = "https://cdn.jsdmirror.com/gh/mengdeer589/PythonSizeCruncher@main/main.py"
+            script_url = "https://jsd.onmicrosoft.cn/gh/mengdeer589/PythonSizeCruncher@main/main.py"
             with httpx.Client(headers=headers, proxies=proxies) as sess:
                 r = sess.get(script_url)
                 with open(path.joinpath("fit.py"), 'w', encoding='utf-8') as f:
