@@ -17,7 +17,7 @@
 |:--------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
 | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif) |
 
-## About Language
+## I18N
 
 I'm not sure someone will interested in this project with English or other language,<br>
 but some work were ongoing such as [inner-text-description](assets/res/__init__.py), as my current env is zh-cn, I put

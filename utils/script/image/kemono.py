@@ -18,6 +18,17 @@ from utils.script import conf, AioRClient, BlackList
 
 domain = "kemono.su"
 headers = {'accept': 'application/json'}
+img_hea = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
+    "Accept": "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
+    "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
+    "Accept-Encoding": "gzip, deflate, br, zstd",
+    "Connection": "keep-alive",
+    "Sec-Fetch-Dest": "image",
+    "Sec-Fetch-Mode": "no-cors",
+    "Sec-Fetch-Site": "same-site",
+    "Priority": "u=0, i"
+}
 
 
 class OverSizeErr(Exception):
@@ -50,11 +61,11 @@ class ListArtistsInfo:
         out = []
         for search_input in self.order_l:
             if isinstance(search_input, str):
-                _df = df[df['name'].str.contains(search_input, na=False)]
+                _df = df[df['name'].str.contains(search_input.strip(), na=False)]
                 if not _df.empty:
                     out.extend(_df.to_dict(orient='records'))
             elif isinstance(search_input, list) and len(search_input) == 2:
-                _df = df[(df['name'] == search_input[0]) & (df['service'] == search_input[1])]
+                _df = df[(df['name'] == search_input[0].strip()) & (df['service'] == search_input[1])]
                 if not _df.empty:
                     out.extend(_df.to_dict(orient='records'))
         for _ in out:
@@ -129,26 +140,28 @@ class Kemono:
             title = post.get('title').strip()
             published = time_format(post.get('published')).strftime("%Y-%m-%d")
             meta = asdict(_task_meta)
-            tasks = post.get("attachments") or post.get("file") or []
-            if isinstance(tasks, dict):
-                tasks = [tasks]
-            this_artist_record = self.sorted_record.joinpath(f'{_task_meta.user_name}_{_task_meta.service}')
-            this_artist_record.mkdir(parents=True, exist_ok=True)
-            with open(this_artist_record.joinpath(f'[{published}]{title}.json'), 'w', encoding='utf-8') as f:
-                json.dump([_['name'] for _ in tasks], f, ensure_ascii=False)
-            tasks = [{"url": self.Api.file_prefix + task.get("path"),
-                      "meta": {**meta, "published": published,
-                               "title": title, "file_name": task.get("name")}}
-                     for task in tqdm.tqdm(tasks)]
+            tasks = post.get("attachments", [])
+            file = post.get("file")
+            if file and file not in tasks:
+                tasks = [file, *tasks]
+            redis_tasks = [{"url": self.Api.file_prefix + task.get("path"),
+                            "meta": {**meta, "published": published, "title": title, "file_name": task.get("name")}}
+                           for task in tqdm.tqdm(tasks)]
             if tasks:
-                await self.redis.rpush(self.redis_key, *tasks)
+                this_artist_record = self.sorted_record.joinpath(f'{_task_meta.user_name}_{_task_meta.service}')
+                this_artist_record.mkdir(parents=True, exist_ok=True)
+                this_post_record = this_artist_record.joinpath(f'[{published}]{title}.json')
+                if not this_post_record.exists():
+                    with open(this_post_record, 'w', encoding='utf-8') as f:
+                        json.dump([_['name'] for _ in tasks], f, ensure_ascii=False)
+                await self.redis.rpush(self.redis_key, *redis_tasks)
 
         async def _filter(posts):
             valid_posts = list(filter(lambda _: time_format(_.get('published')) >= interrupt, posts))
             # TODO[9](2024-08-05):  too many repeat title,take func duel it
             """get filter from kemono_expander.Artists etc."""
             from utils.script.image.kemono_expander import Artists
-            valid_posts = Artists.Gsusart2222(valid_posts)
+            # valid_posts = Artists.Gsusart2222(valid_posts)
             return valid_posts
 
         async def posts_of_creator(info):
@@ -219,7 +232,7 @@ class Kemono:
                         if int(resp_head.headers.get("Content-Length", 0)) >= self.file_size_limit:
                             raise OverSizeErr(
                                 f"{_file} size[{int(resp_head.headers.get("Content-Length", 0)) / 1024 / 1024} Mb] over limit]")
-                    resp = await self.req(cli, _url, follow_redirects=True, timeout=300)
+                    resp = await self.req(cli, _url, headers=img_hea, follow_redirects=True, timeout=60)
                 async with aiofiles.open(_file, 'wb') as f:
                     await f.write(resp.content)
                 return _file
@@ -278,12 +291,20 @@ if __name__ == '__main__':
     asyncio.set_event_loop(loop)
 
     obj = Kemono(AioRClient())
-    # loop.run_until_complete(obj.step1_tasks_create_by_favorites(
-    #     '2024-01-01', ListArtistsInfo(['Gsusart2222'])))
-    # loop.run_until_complete(obj.temp_copy_vals(restore=True))
+    # 1. 获取/生成任务
+    # 1.1 指定该日期之后作品
+    # 1.2.1 指定作者 ListArtistsInfo(['Gsusart2222', 'サインこす', ...])
+    # 1.2.2 指定作者+平台 例如`keihh_patreon`：ListArtistsInfo([['keihh', 'patreon'], 'サインこす', ...])
+    loop.run_until_complete(obj.step1_tasks_create_by_favorites(
+        '2021-05-01', ListArtistsInfo(['バーバリアン高本'])))
 
+    # 1.5 备份redis任务，restore=False时备份任务，restore=True时还原任务
+    #       下面第二步无论成功与否都会消耗掉任务，不备份就要返回第一步生成任务了
+    loop.run_until_complete(obj.temp_copy_vals(restore=False))
+
+    # 2 处理/执行任务
     tasks = loop.run_until_complete(obj.step2_get_tasks())
-    sem = asyncio.Semaphore(7)
+    sem = asyncio.Semaphore(5)
     loop.run_until_complete(obj.step2_run_task(sem, tasks))
 
     # obj.delete(

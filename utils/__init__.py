@@ -40,7 +40,7 @@ class Conf:
     eh_cookies: dict = field(default_factory=dict)
     file = None
 
-    def __init__(self):
+    def __init__(self, path=None):
         # super(Conf).__init__()
         self.init_conf()
 
