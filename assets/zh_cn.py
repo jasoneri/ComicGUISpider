@@ -13,7 +13,7 @@ class GUI:
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 
     toolBox_warning = "仅当常规漫画网站能使用工具箱功能"
-    wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，或者抽风，半分钟没出列表时，看看 `scripts/log/scrapy.log` 是不是报错了 <br>" + \
+    wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>" + \
                                "网络问题如 [Errno 11001] / `ReadTimeout` 一般重启就好了，一直出现同一种错误的话 加群反映/提issue<br>"
     checkisopen_text_change = "现在点击立刻打开存储目录"
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
@@ -21,6 +21,7 @@ class GUI:
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
     WorkThread_finish_flag = "完成任务"  # related to SPIDER.close_success
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
+    global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
 
     class ToolMenu:
         action1 = "显示已阅最新话数记录"
@@ -64,8 +65,8 @@ class SPIDER:
     parse_sec_now_start_crawl_desc = "现在开始爬取《%s》章节"
     close_success = "后台完成任务了"
     close_backend_error = "后台挂了，或没进行任何选择！若非自己取消可进行如下操作"
-    close_check_log_guide1 = '1、打开下方给的日志文件，应该能解决大部分疑惑<br>'
-    close_check_log_guide2 = '2、第1步不足以解惑的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤<br>'
+    close_check_log_guide1 = '1、打开下方的日志文件，查阅看有没开发者定义了的错误提示，或者是重试能解决的网络问题如 ReadTimeout<br>'
+    close_check_log_guide2 = '2、第1步非网络问题的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤<br>'
     close_check_log_guide3 = '3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue<br>'
 
     # spiders

@@ -1,15 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import os
 import re
-import logging
 import time
 import yaml
 import pathlib as p
 import typing as t
-from logging.handlers import TimedRotatingFileHandler
 from dataclasses import dataclass, asdict, field
 import multiprocessing.managers as m
+
+from loguru import logger as lg
 
 from variables import DEFAULT_COMPLETER
 
@@ -67,25 +66,15 @@ class Conf:
         props['cv_proj_path'] = path_like_handle(props['cv_proj_path'])
         yaml_update(self.file, props)
 
-    def cLog(self, name: str, level: str = None, **kw) -> logging.Logger:
-        """
-        :return: customize obj(log)
-        """
-        LEVEL = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'WARNING': logging.WARNING, "ERROR": logging.ERROR}
-        os.makedirs(self.log_path, exist_ok=True)
-        logfile = self.log_path.joinpath(f"{name}.log")
-        format = f'%(asctime)s | %(levelname)s | [{name}]: %(message)s'
-        datefmt = '%Y-%m-%d %H:%M:%S'
-        formatter = logging.Formatter(fmt=format, datefmt=datefmt)
-
-        log_file_handler = TimedRotatingFileHandler(filename=logfile, when="D", interval=1, backupCount=3)
-        log_file_handler.setFormatter(formatter)
-        log_file_handler.setLevel(LEVEL[level or self.log_level])
-
-        log = logging.getLogger(str(logfile))
-        log.addHandler(log_file_handler)
-        log.setLevel(LEVEL[level or self.log_level])
-        return log
+    def cLog(self, name: str, level: str = None, **kw):
+        self.log_path.mkdir(parents=True, exist_ok=True)
+        lg.remove(handler_id=None)
+        lg.add(self.log_path.joinpath(f'{name}.log'),
+               filter=lambda record: name in record["extra"],
+               format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}",
+               level=level or self.log_level, retention='5 days', encoding='utf-8')
+        logger = lg.bind(**{name: True})
+        return logger
 
     @property
     def settings(self):

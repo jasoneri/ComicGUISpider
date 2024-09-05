@@ -21,10 +21,9 @@ class WnacgSpider(BaseComicSpider2):
     turn_page_search = r"p=\d+"
     turn_page_info = (r"-page-\d+", "albums-index%s")
 
-    def start_requests(self):
+    def before_search(self):
         if self.settings.get("PROXY_CUST") is None:
             self.domain = WnacgUtils.get_domain()
-        return super(WnacgSpider, self).start_requests()
 
     @staticmethod
     def rule_book_index(book_index: str) -> str:

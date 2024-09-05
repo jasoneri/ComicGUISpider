@@ -46,7 +46,6 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "sv_path": sv_path,
             "cv_proj_path": cv_proj_path_str,
             "custom_map": yaml.safe_load(cp(getattr(self, f"custom_mapEdit").toPlainText())),
-            # TODO[7](2024-08-19): gui进程出错时仍然没记录至log里，如上述yaml的格式保存错误
             "completer": yaml.safe_load(cp(getattr(self, f"completerEdit").toPlainText())),
             "eh_cookies": yaml.safe_load(cp(getattr(self, f"eh_cookiesEdit").toPlainText().replace("\t", ""))),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
