@@ -40,7 +40,7 @@ class GitHandler:
 
     def normal_req(self, *args, **kwargs):
         resp = self.sess.get(*args, headers=headers, **kwargs)
-        if "API rate limit exceeded" in resp.text:
+        if not str(resp.status_code).startswith("2"):
             raise ValueError(resp.text)
         return resp.json()
 
@@ -50,7 +50,7 @@ class GitHandler:
 
     def check_changed_files(self, ver):
         print(Fore.BLUE + f"[ {res.ver_check}.. ]")
-        resp_json = self.normal_req(self.commit_api, headers=headers)
+        resp_json = self.normal_req(self.commit_api)
         vers = list(map(lambda _: _["sha"], resp_json))
         if not ver:
             print(Fore.RED + f"[ {res.ver_file_not_exist}.. ]")
