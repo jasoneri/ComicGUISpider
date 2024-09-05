@@ -176,12 +176,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.retrybtn.setEnabled(True)
             if index in SPECIAL_WEBSITES_IDXES:
                 self.toolButton.setDisabled(True)
-                self.textBrowser.append(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
+                self.say(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
             if index == 3 and not conf.proxies:
-                self.textbrowser_load(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
+                self.say(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
             elif index == 4:
                 self.pageEdit.setDisabled(True)
-                self.textbrowser_load(font_color(res.EHentai.GUIDE, color='purple'))
+                self.say(font_color(res.EHentai.GUIDE, color='purple'))
             elif index == 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
             # 输入框联想补全
@@ -317,6 +317,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.close_process()  # 考虑重开应该是可以减少重新实例化的数量
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
+            self.log = conf.cLog(name="GUI")
             self.setupUi(self)
 
         # retry_do_what = {'fin': retry_all}
@@ -325,11 +326,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         retry_all()
         self.retrybtn.setDisabled(True)
         self.confBtn.setDisabled(False)
-        self.log.debug('===--→ retry_schedule end\n')
+        self.log.info('===--→ retry_schedule end\n')
 
     def next_schedule(self):
         def start_and_search():
-            self.log.debug('===--→ -*- searching')
+            self.log.info('===--→ -*- searching')
             self.next_btn.setText('Next')
 
             self.input_state.keyword = self.searchinput.text()[6:].strip()
@@ -347,7 +348,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                         self.next_btn.setDisabled(self.crawl_btn.isEnabled())
                 self.chooseinput.textChanged.connect(crawl_btn)
 
-                self.bThread.print_signal.connect(self.textbrowser_load)
+                self.bThread.print_signal.connect(self.say)
                 self.bThread.item_count_signal.connect(self.processbar_load)
                 self.bThread.finishSignal.connect(self.crawl_end)
 
@@ -369,10 +370,10 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.chooseinput.setFocusPolicy(Qt.StrongFocus)
 
         refresh_state(self, 'process_state', 'ProcessQueue')
-        self.log.debug(f"===--→ next_schedule end (now step: {self.process_state.process})\n")
+        self.log.info(f"===--→ next_schedule end (now step: {self.process_state.process})\n")
 
     def _next(self):
-        self.log.debug('===--→ nexting')
+        self.log.info('===--→ nexting')
         self.pageFrame.setEnabled(False)
         idxes = transfer_input(self.chooseinput.text()[5:].strip())
         if self.BrowserWindow and self.BrowserWindow.output:
@@ -403,7 +404,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         else:
             self.chooseinput.clear()
         self.log.debug(f'book_num remain: {self.book_num}')
-        self.log.debug(f"===--→ crawl finish (now step: {self.process_state.process})\n")
+        self.log.info(f"===--→ crawl finish (now step: {self.process_state.process})\n")
 
     def crawl_end(self, imgs_path):
         del self.manager
@@ -415,12 +416,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.retrybtn.setEnabled(True)
 
         self.process_state.process = 'fin'
-        self.textbrowser_load(
-            font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
+        self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         os.startfile(imgs_path) if self.checkisopen.isChecked() else None
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
-    def textbrowser_load(self, string):
+    def say(self, string):
         if 'http' in string:
             self.textBrowser.setOpenExternalLinks(True)
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
@@ -460,6 +460,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.destroy()  # 窗口关闭销毁
         self.close_process()
         sys.exit(0)
+
+    def hook_exception(self, exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            return sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        exception = str("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+        self.log.error(exception)
+        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", color='red', size=5))
 
 
 class TextUtils:

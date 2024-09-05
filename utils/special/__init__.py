@@ -52,7 +52,6 @@ class Utils:
 
 
 class JmUtils(Utils):
-    # TODO[9](2024-08-17): getattr(conf, "jm_forever_url") or ...  时序性需要引导
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     status_forever = True
@@ -170,8 +169,7 @@ class WnacgUtils(Utils):
                 return re.sub("https?://", "", url).strip("/")
         else:
             cls.status_publish = False
-            print(f"发布页[{cls.publish_url}]清洗失效")  # logger.warning()
-            return None
+            raise ConnectionError(f"发布页[{cls.publish_url}]清洗出的网址{order_href}均失效，请前往检查")
 
 
 def retry(func, retry_limit, *args, retry_times=0, raise_error=False, **kwargs):

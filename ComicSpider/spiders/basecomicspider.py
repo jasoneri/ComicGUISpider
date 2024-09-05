@@ -1,4 +1,4 @@
-import re
+# import re
 from abc import abstractmethod
 from copy import deepcopy
 from time import sleep
@@ -98,12 +98,21 @@ class BaseComicSpider(scrapy.Spider):
 
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
-        search_start = self.search
-        if self.domain not in search_start:
-            search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
-        self.search_start = deepcopy(search_start)
-        meta = {"Url": self.search_start}
-        yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
+        try:
+            self.process_state.process = 'start_requests'
+            self.before_search()
+            search_start = self.search
+            if self.domain not in search_start:
+                search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
+        except Exception as e:
+            raise e
+        else:
+            self.search_start = deepcopy(search_start)
+            meta = {"Url": self.search_start}
+            yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
+
+    def before_search(self):
+        ...
 
     @property
     def search(self) -> Url:
@@ -113,7 +122,7 @@ class BaseComicSpider(scrapy.Spider):
         # kind = re.search(rf"(({')|('.join(self.kind)}))(.*)", keyword) if bool(self.kind) else None
         if keyword in self.mappings.keys():
             search_start = Url(self.mappings[keyword]).set_next(*self.turn_page_info)
-        # elif bool(kind):    # not use? 20240825
+        # elif bool(kind):    # 应对get请求非QueryParams形式，例子如`BaseComicSpider.kind`下面注释的e.g.
         #     search_start = f"{self.kind[kind.group(1)]}{kind.group(len(self.kind) + 2)}/"
         else:
             __next_info = (self.turn_page_search,) if self.turn_page_search else self.turn_page_info

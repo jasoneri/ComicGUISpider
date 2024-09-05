@@ -158,7 +158,6 @@ class Kemono:
 
         async def _filter(posts):
             valid_posts = list(filter(lambda _: time_format(_.get('published')) >= interrupt, posts))
-            # TODO[9](2024-08-05):  too many repeat title,take func duel it
             """get filter from kemono_expander.Artists etc."""
             from utils.script.image.kemono_expander import Artists
             # valid_posts = Artists.Gsusart2222(valid_posts)
