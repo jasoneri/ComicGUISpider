@@ -38,8 +38,6 @@ body:
       description: >-
         请填写当前程序的哈希号，绿色安装包可在`scripts/version`里获取 / Please enter the hash number of the
         current program, Portable version can find it from `scripts/version`
-    validations:
-      required: true
   - type: dropdown
     attributes:
       label: 系统(OS)
