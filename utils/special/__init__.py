@@ -132,16 +132,24 @@ class JmUtils(Utils):
     def parse_publish(cls, html_text):
         html = etree.HTML(html_text)
         ps = html.xpath('//div[@class="main"]/p')
+        domains = []
         order_p = list(filter(lambda p: '內地' in ''.join(p.xpath('.//text()')), ps))  # 小心这个"内"字是繁体
         if order_p:
             idx = ps.index(order_p[0])
             for p in ps[idx:]:
-                domain = p.xpath('.//text()')[-1].strip()
-                if "." in domain:
-                    return domain
-        cls.status_publish = False
-        print(f"发布页[{cls.publish_url}]清洗失效")  # logger.warning()
-        return None
+                fuck_text = p.xpath('.//text()')
+                for _domain in fuck_text:
+                    domain = _domain.strip()
+                    if "." in domain and not bool(re.search(r"discord|\.work|@|＠|<", domain)):
+                        domains.append(domain)
+        for domain in domains:
+            url = f"https://{domain}"
+            resp = retry(httpx.head, 1, url, headers=cls.headers, follow_redirects=True, timeout=3)
+            if resp and str(resp.status_code).startswith('2'):
+                return domain
+        else:
+            cls.status_publish = False
+            raise ConnectionError(f"发布页[{cls.publish_url}]清洗出的域名{domains}均失效，请前往检查")
 
 
 class WnacgUtils(Utils):
