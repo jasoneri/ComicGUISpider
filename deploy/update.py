@@ -108,7 +108,8 @@ class Proj:
                 if dst.exists():  # fix
                     os.rmdir(dst)
             dst.parent.mkdir(exist_ok=True)
-            shutil.move(src, dst)
+            if src.exists():
+                shutil.move(src, dst)
 
         if not self.first_flag and not self.changed_files:
             print(Fore.CYAN + f"[ {res.code_is_latest} ]")
