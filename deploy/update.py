@@ -38,15 +38,19 @@ class GitHandler:
 
     # src_url = f"{self.speedup_prefix}https://github.com/{self.github_author}/{proj_name}/archive/refs/heads/{branch}.zip"
 
+    def normal_req(self, *args, **kwargs):
+        resp = self.sess.get(*args, headers=headers, **kwargs)
+        if "API rate limit exceeded" in resp.text:
+            raise ValueError(resp.text)
+        return resp.json()
+
     def get_version_info(self, ver):
-        resp = self.sess.get(f"{self.commit_api}/{ver}", headers=headers)
-        resp_json = resp.json()
+        resp_json = self.normal_req(f"{self.commit_api}/{ver}")
         return resp_json
 
     def check_changed_files(self, ver):
         print(Fore.BLUE + f"[ {res.ver_check}.. ]")
-        resp = self.sess.get(self.commit_api, headers=headers)
-        resp_json = resp.json()
+        resp_json = self.normal_req(self.commit_api, headers=headers)
         vers = list(map(lambda _: _["sha"], resp_json))
         if not ver:
             print(Fore.RED + f"[ {res.ver_file_not_exist}.. ]")
@@ -59,7 +63,11 @@ class GitHandler:
             resp_json = self.get_version_info(_ver)
             files.extend(list(map(lambda _: _["filename"], resp_json["files"])))
             print(Fore.GREEN + f"[ {_ver[:8]} ] {resp_json['commit']['message']}")
-        return vers[0], list(set(files))
+        out_files = list(set(files))
+        if "deploy/update.py" in out_files:  # make sure update.py must be local-updated
+            out_files.remove("deploy/update.py")
+            out_files.insert(0, "deploy/update.py")
+        return vers[0], out_files
 
     def download_src_code(self, _url=None, zip_name="src.zip"):
         """proj less than 1Mb, actually just take little second"""
@@ -169,10 +177,16 @@ class Proj:
 def regular_update():
     retry_times = 1
     __ = None
+    try:
+        proj = Proj()
+        proj.check()
+    except Exception as e:
+        __ = traceback.format_exc()
+        print(__)
+        print(Fore.RED + f"[Errno 11001] {res.refresh_fail_retry_over_limit}")
+        return
     while retry_times < 4:
         try:
-            proj = Proj()
-            proj.check()
             proj.local_update()
             proj.env_check_and_replenish()
             proj.end()
