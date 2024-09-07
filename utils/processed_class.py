@@ -154,7 +154,7 @@ class PreviewHtml:
         if self.url:
             _content += f'\n<div class="col-md-3"><p>for check current page</p><p>检查当前页数</p><p>{self.url}</p></div>'
         html = format_text.replace("{body}", _content)
-        tf = tempfile.TemporaryFile(suffix=".html", delete=False, dir=temp_p)
+        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)
         tf.close()

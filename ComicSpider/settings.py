@@ -48,7 +48,8 @@ ITEM_PIPELINES = {
    'ComicSpider.pipelines.ComicPipeline': 50
 }
 
-IMAGES_STORE, log_path, PROXY_CUST, LOG_LEVEL, CUSTOM_MAP = conf.settings
+IMAGES_STORE = '/'
+SV_PATH, log_path, PROXY_CUST, LOG_LEVEL, CUSTOM_MAP = conf.settings
 
 UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/101.0",
       r'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',

@@ -22,6 +22,7 @@ from utils.processed_class import (
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what
 )
 from utils.comic_viewer_tools import combine_then_mv, show_max
+from deploy import curr_os
 
 
 class WorkThread(QThread):
@@ -214,7 +215,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
-                os.startfile(conf.sv_path)
+                curr_os.open_folder(conf.sv_path)
             self.checkisopen.setText(self.res.checkisopen_text_change)
             self.checkisopen.setStatusTip(self.res.checkisopen_status_tip)
             self.checkisopenCnt += 1
@@ -417,7 +418,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         self.process_state.process = 'fin'
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
-        os.startfile(imgs_path) if self.checkisopen.isChecked() else None
+        curr_os.open_folder(imgs_path) if self.checkisopen.isChecked() else None
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def say(self, string):

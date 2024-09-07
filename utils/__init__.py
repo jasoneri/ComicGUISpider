@@ -11,6 +11,7 @@ import multiprocessing.managers as m
 from loguru import logger as lg
 
 from variables import DEFAULT_COMPLETER
+from deploy import curr_os
 
 ori_path = p.Path(__file__).parent.parent
 yaml.warnings({'YAMLLoadWarning': False})
@@ -29,7 +30,7 @@ def yaml_update(_f, dic):
 
 @dataclass
 class Conf:
-    sv_path: t.Union[p.Path, str] = r'D:\Comic'
+    sv_path: t.Union[p.Path, str] = curr_os.default_sv_path
     cv_proj_path: t.Union[p.Path, str] = r''
     log_path = ori_path.joinpath('log')
     proxies: list = field(default_factory=list)

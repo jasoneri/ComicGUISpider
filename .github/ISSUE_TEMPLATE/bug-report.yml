@@ -46,6 +46,7 @@ body:
       options:
         - Windows10~+
         - Windows7~-
+        - macOS
     validations:
       required: true
   - type: textarea
