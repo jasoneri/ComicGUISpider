@@ -10,6 +10,7 @@ import stat
 import pathlib
 import zipfile
 import traceback
+import base64
 
 import httpx
 from tqdm import tqdm
@@ -28,6 +29,18 @@ headers = {
 }
 
 
+def get_token():
+    with open(existed_proj_p.joinpath('deploy/t.json'), 'r', encoding='utf-8') as f:
+        tokens = json.load(f)
+    for token in tokens:
+        base64.b64decode(token)
+        with httpx.Client(proxies=proxies,
+                          headers={**headers, 'Authorization': f"token {base64.b64decode(token).decode()}"}) as client:
+            resp = client.get(f"https://api.github.com")
+            if str(resp.status_code).startswith('2'):
+                return token
+
+
 class GitHandler:
     speedup_prefix = "https://gh.llkk.cc/"
 
@@ -35,11 +48,13 @@ class GitHandler:
         self.sess = httpx.Client(proxies=proxies)
         self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits"
         self.src_url = f"https://api.github.com/repos/{owner}/{proj_name}/zipball/{branch}"
+        token = get_token()
+        self.headers = {**headers, **{'Authorization': f"token {token}"}} if token else headers
 
     # src_url = f"{self.speedup_prefix}https://github.com/{self.github_author}/{proj_name}/archive/refs/heads/{branch}.zip"
 
     def normal_req(self, *args, **kwargs):
-        resp = self.sess.get(*args, headers=headers, **kwargs)
+        resp = self.sess.get(*args, headers=self.headers, **kwargs)
         if not str(resp.status_code).startswith("2"):
             raise ValueError(resp.text)
         return resp.json()
