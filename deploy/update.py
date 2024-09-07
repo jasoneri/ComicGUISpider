@@ -10,6 +10,7 @@ import stat
 import pathlib
 import zipfile
 import traceback
+import platform
 import base64
 
 import httpx
@@ -33,7 +34,6 @@ def get_token():
     with open(existed_proj_p.joinpath('deploy/t.json'), 'r', encoding='utf-8') as f:
         tokens = json.load(f)
     for token in tokens:
-        base64.b64decode(token)
         with httpx.Client(proxies=proxies,
                           headers={**headers, 'Authorization': f"token {base64.b64decode(token).decode()}"}) as client:
             resp = client.get(f"https://api.github.com")
@@ -49,7 +49,7 @@ class GitHandler:
         self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits"
         self.src_url = f"https://api.github.com/repos/{owner}/{proj_name}/zipball/{branch}"
         token = get_token()
-        self.headers = {**headers, **{'Authorization': f"token {token}"}} if token else headers
+        self.headers = {**headers, 'Authorization': f"token {token}"} if token else headers
 
     # src_url = f"{self.speedup_prefix}https://github.com/{self.github_author}/{proj_name}/archive/refs/heads/{branch}.zip"
 
@@ -219,24 +219,37 @@ def create_desc():
     def cdn_replace(md_str, author, repo, branch):
         return (md_str.replace("raw.githubusercontent.com", "jsd.onmicrosoft.cn/gh")
                 .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
+
+    github_markdown_format = """<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head>
+        <body><article class="markdown-body">
+            %s
+            </article></body></html>"""
+    os_flag = None
+    if platform.system().startswith("Darwin"):
+        os_flag = "macOS"
     try:
         import markdown
     except ModuleNotFoundError:
         print(Fore.RED + f"[ {res.not_pkg_markdown} ]")
     else:
-        file_path = 'scripts/README.md'
-        out_name = 'scripts/desc.html'
-        with open(path.joinpath(file_path), 'r', encoding='utf-8') as f:
+        with open(existed_proj_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
             md_content = f.read()
+            if os_flag == 'macOS':  # macOS desc also use markdown-html
+                md_content = md_content.replace('deploy/launcher/mac/EXTRA.md', f'desc_{os_flag}.html')
         md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main")
         extensions = ['markdown.extensions.tables']
         html = markdown.markdown(md_content, extensions=extensions)
-        html_style = """<!DOCTYPE html><html><head><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head>
-        <body><article class="markdown-body">
-            %s
-            </article></body></html>""" % html
-        with open(path.joinpath(out_name), 'w', encoding='utf-8') as f:
+        html_style = github_markdown_format % html
+        with open(existed_proj_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
             f.write(html_style)
+
+        if os_flag == 'macOS':
+            with open(existed_proj_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
+                md_content = f.read()
+            html = markdown.markdown(md_content)
+            html_style = github_markdown_format % html
+            with open(existed_proj_p.joinpath(f'desc_{os_flag}.html'), 'w', encoding='utf-8') as f:
+                f.write(html_style)
 
 
 if __name__ == '__main__':

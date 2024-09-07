@@ -33,7 +33,7 @@ class ComicPipeline(ImagesPipeline):
         section = self._sub.sub('-', item.get('section'))
         page = res.SPIDER.PAGE_NAMING % item.get('page')
         spider = self.spiderinfo.spider
-        basepath: pathlib.Path = spider.settings.get('IMAGES_STORE')
+        basepath: pathlib.Path = spider.settings.get('SV_PATH')
         path = self.file_folder(basepath, section, spider, title, request.meta)
         os.makedirs(path, exist_ok=True)
         fin = os.path.join(path, page)
