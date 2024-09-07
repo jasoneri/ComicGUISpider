@@ -1,7 +1,7 @@
 ---
 name: "Feature request \U0001F451"
 description: 对程序的需求或建议 / Suggest an idea for program
-title: "\U0001F451[Enhancement] "
+title: "\U0001F451[标题这里简述需求或建议/Describe simply for suggest] "
 labels: enhancement
 body:
   - type: textarea
