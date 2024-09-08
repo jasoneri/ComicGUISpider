@@ -69,6 +69,10 @@ release_desc = """开箱即用
 2. 实验性中：已创token供用户更新程序使用，速率限制5000请求每小时，尚不清楚不同IP对token并发的影响，若有更新程序相关问题请联系开发者
 
 ---
+### macOS
+下载`CGS-macOS.7z`就行，解压首先用浏览器打开`desc_macOS.html`查看说明（仅限初始解压后引导，后续说明运行`bash desc.bash`才有更新内容）
+
+---
 其他问题 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问"""
 
 
