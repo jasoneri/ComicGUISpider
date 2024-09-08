@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ ! -x brew ]; then
+if [ ! -x /usr/local/bin/brew ]; then
   echo "not brew, downloading brew...";
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)";
   git -C "$(brew --repo)" remote set-url origin https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git;
@@ -9,7 +9,7 @@ if [ ! -x brew ]; then
   git -C "$(brew --repo homebrew/cask-drivers)" remote set-url origin https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-cask-drivers.git;
   brew update
 fi
-if [ ! -x dos2unix ]; then
+if [ ! -x /usr/local/bin/dos2unix ]; then
   echo "not dos2unix, downloading dos2unix...";
   brew install dos2unix;
 fi

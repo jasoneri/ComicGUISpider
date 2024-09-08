@@ -2,7 +2,7 @@
 
 ### 绿色包说明
 
-> macOS 需要下载 `CGS-macOS.7z` (不需要下载`CGS.7z`)，解压后目录树如下
+> macOS 需要下载 `CGS-macOS.zip` (不需要下载`CGS.7z`)，解压后目录树如下
 
 ```shell
   CGS-macOS
@@ -26,13 +26,10 @@
       在 [`CGS.app/Contents/Resources/scripts/deploy/launcher/mac/__init__.py`](./__init__.py) 的`font`值，有注释说明）
 2. 默认储存路径：当前用户的(`下载`目录)`Downloads/Comic`
    ，更换的话到配置窗口更改即可（使用绝对路径，如 `/Users/xxxxxx/Downloads/Comic`）
-
-> 3. 没找到合适的`bash`打包成`.app`
-     的应用（或者说macOS的app就是这种只能影响.app内部文件的框架，不是很懂），目前用的`Platypus`
-     ，封装app时需要把代码先扔进去，破坏了原有目录结构，所以将`.app`与`.bash`分开应用
-     >
-1. `.bash`相关的运行目前看只能在终端运行`bash xxx.bash`，影响/执行的是`CGS.app/Contents/Resources/scripts`里的代码
->   2. `.app`的代码封装到app里，大概率也不怎么用重新封装，只是其他几个`.bash`也不能像win那样随意造`app/exe`
+3. 没找到合适的`bash`打包成`.app`的应用（或者说macOS的app就是这种只能影响.app内部文件的框架，不是很懂），
+   目前用的`Platypus`，封装app时需要把代码先扔进去，破坏了原有目录结构，所以将`.app`与`.bash`分开应用
+   1. `.bash`相关的运行目前看只能在终端运行`bash xxx.bash`，影响/执行的是`CGS.app/Contents/Resources/scripts`里的代码
+   2. `.app`的代码封装到app里，大概率也不怎么用重新封装，只是其他几个`.bash`也不能像win那样随意造`app/exe`
        轻松双击执行了（看有无热心人士想支持维护了）
 
 ![](../../../assets/macOS-run-bash.png)

@@ -3,6 +3,7 @@
 import datetime
 import json
 import os
+import sys
 import shutil
 import pathlib as p
 import httpx
@@ -14,7 +15,10 @@ import pandas as pd
 from loguru import logger
 import tqdm
 
+proj_p = p.Path(__file__).parent.parent.parent.parent
+sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList
+
 
 domain = "kemono.su"
 headers = {'accept': 'application/json'}
@@ -302,9 +306,9 @@ if __name__ == '__main__':
     loop.run_until_complete(obj.temp_copy_vals(restore=False))
 
     # 2 处理/执行任务
-    tasks = loop.run_until_complete(obj.step2_get_tasks())
-    sem = asyncio.Semaphore(5)
-    loop.run_until_complete(obj.step2_run_task(sem, tasks))
+    # tasks = loop.run_until_complete(obj.step2_get_tasks())
+    # sem = asyncio.Semaphore(5)
+    # loop.run_until_complete(obj.step2_run_task(sem, tasks))
 
     # obj.delete(
     #     *obj.sv_path.joinpath(r'MだSたろう_fanbox\[2024-06-16]フリーナっクス-アニメメーション版').glob('*動画*.zip')
