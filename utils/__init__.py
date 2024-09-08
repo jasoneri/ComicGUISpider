@@ -50,6 +50,8 @@ class Conf:
                 cfg = fp.read()
             yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
             for k, v in yml_config.items():
+                if k == "sv_path" and v == r"D:\Comic":
+                    v = curr_os.default_sv_path
                 self.__setattr__(k, v or getattr(self, k, None))
             self.sv_path = p.Path(self.sv_path)
             self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)

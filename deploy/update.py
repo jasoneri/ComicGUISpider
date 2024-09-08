@@ -4,6 +4,7 @@
 base on client, env-python: embed"""
 import argparse
 import os
+import sys
 import json
 import shutil
 import stat
@@ -17,17 +18,22 @@ import httpx
 from tqdm import tqdm
 from colorama import init, Fore
 
-from assets import res as ori_res
-
-res = ori_res.Updater
+curr_os = platform.system()
+if curr_os.startswith("Darwin"):
+    curr_os = "macOS"
 init(autoreset=True)
 path = pathlib.Path(__file__).parent.parent.parent
 existed_proj_p = path.joinpath('scripts')
 temp_p = path.joinpath('temp')
+sys.path.append(str(existed_proj_p))
 proxies = None
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
 }
+
+from assets import res as ori_res
+
+res = ori_res.Updater
 
 
 def get_token():
@@ -203,7 +209,8 @@ def regular_update():
     while retry_times < 4:
         try:
             proj.local_update()
-            proj.env_check_and_replenish()
+            if curr_os != 'macOS':
+                proj.env_check_and_replenish()
             proj.end()
             break
         except Exception as e:
@@ -224,9 +231,6 @@ def create_desc():
         <body><article class="markdown-body">
             %s
             </article></body></html>"""
-    os_flag = None
-    if platform.system().startswith("Darwin"):
-        os_flag = "macOS"
     try:
         import markdown
     except ModuleNotFoundError:
@@ -234,8 +238,8 @@ def create_desc():
     else:
         with open(existed_proj_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
             md_content = f.read()
-            if os_flag == 'macOS':  # macOS desc also use markdown-html
-                md_content = md_content.replace('deploy/launcher/mac/EXTRA.md', f'desc_{os_flag}.html')
+            if curr_os == 'macOS':  # macOS desc also use markdown-html
+                md_content = md_content.replace('deploy/launcher/mac/EXTRA.md', f'desc_{curr_os}.html')
         md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main")
         extensions = ['markdown.extensions.tables']
         html = markdown.markdown(md_content, extensions=extensions)
@@ -243,12 +247,12 @@ def create_desc():
         with open(existed_proj_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
             f.write(html_style)
 
-        if os_flag == 'macOS':
+        if curr_os == 'macOS':
             with open(existed_proj_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
                 md_content = f.read()
             html = markdown.markdown(md_content)
             html_style = github_markdown_format % html
-            with open(existed_proj_p.joinpath(f'desc_{os_flag}.html'), 'w', encoding='utf-8') as f:
+            with open(existed_proj_p.joinpath(f'desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
                 f.write(html_style)
 
 
