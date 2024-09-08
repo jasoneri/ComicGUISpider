@@ -70,7 +70,7 @@ release_desc = """开箱即用
 
 ---
 ### macOS
-下载`CGS-macOS.7z`就行，解压首先用浏览器打开`desc_macOS.html`查看说明（仅限初始解压后引导，后续说明运行`bash desc.bash`才有更新内容）
+下载`CGS-macOS.zip`就行，解压首先用浏览器打开`desc_macOS.html`查看说明（仅限初始解压后引导，后续说明运行`bash desc.bash`才有更新内容）
 
 ---
 其他问题 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问"""
