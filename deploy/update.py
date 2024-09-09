@@ -239,7 +239,8 @@ def create_desc():
         with open(existed_proj_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
             md_content = f.read()
             if curr_os == 'macOS':  # macOS desc also use markdown-html
-                md_content = md_content.replace('deploy/launcher/mac/EXTRA.md', f'desc_{curr_os}.html')
+                md_content = md_content.replace('deploy/launcher/mac/EXTRA.md',
+                                                f'deploy/launcher/mac/desc_{curr_os}.html')
         md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main")
         extensions = ['markdown.extensions.tables']
         html = markdown.markdown(md_content, extensions=extensions)
@@ -250,9 +251,9 @@ def create_desc():
         if curr_os == 'macOS':
             with open(existed_proj_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
                 md_content = f.read()
-            html = markdown.markdown(md_content)
+            html = markdown.markdown(md_content, extensions=['markdown.extensions.tables'])
             html_style = github_markdown_format % html
-            with open(existed_proj_p.joinpath(f'desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
+            with open(existed_proj_p.joinpath(f'deploy/launcher/mac/desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
                 f.write(html_style)
 
 
