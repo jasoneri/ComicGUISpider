@@ -1,4 +1,5 @@
 #!/bin/bash
-scripts_path="CGS.app/Contents/Resources/scripts";
-/usr/local/bin/python3.12 $scripts_path/deploy/update.py -d;
-open $scripts_path/desc.html;
+curr_p=$(cd "$(dirname "$0")";pwd);
+cd $curr_p/../../../;
+/usr/local/bin/python3.12 deploy/update.py -d;
+open desc.html;
