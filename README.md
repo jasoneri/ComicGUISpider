@@ -116,6 +116,12 @@ js没加载出来，刷新一下页面
 看下方交流群，但提问格式请参考 [issue的样式](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)
 ，一句连标点符号都不带没有上下文的话并不是一个好问题/反馈
 
+### 4. macOS相关
+
+#### 1. 数字输入似乎有问题
+
+未知，估计是键入方式有差异，尽量使用预览点选。拷贝漫画的情况下被多选其他书时，无视并继续点击`开始爬取`直到有进度条即可
+
 ## 其他
 
 ### 额外的脚本
@@ -140,6 +146,6 @@ js没加载出来，刷新一下页面
 
 ## 免责声明
 
-详见[License](LICENSE)，切勿进行盈利，所造成的后果与本人无关。
+详见[License](LICENSE)，切勿进行盈利，所造成的后果与本人无关
 
 ![CGS](https://count.getloli.com/get/@CGS?theme=gelbooru)
