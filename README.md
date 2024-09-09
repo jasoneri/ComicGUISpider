@@ -98,9 +98,20 @@
 > 各网站的 `发布页`/`永久链接` 能在 `scripts/utils/special/__init__.py` 里找到 <br>
 > 经考虑，不做用户自主配置，`发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用
 
-## bug记录
+## Q & A 问答
 
-+ 拷贝有些漫画卷和话是分开的，只做了粗糙处理 -> ComicSpider/spiders/kaobei.py `frame_book`的注释`url`进行互换
+### 1. 预览窗口选择页面有时一行只有一列/显示有问题
+
+js没加载出来，刷新一下页面
+
+### 2. 拷贝漫画部分无法出列表
+
+拷贝有些漫画卷和话是分开的，只做了粗糙处理 -> `ComicSpider/spiders/kaobei.py` `frame_book`的注释`url`进行互换
+
+### 3. 使用遇到问题想寻求帮助或报错，但没有github账号
+
+看下方交流群，但提问格式请参考 [issue的样式](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)
+，一句连标点符号都不带没有上下文的话并不是一个好问题/反馈
 
 ## 其他
 

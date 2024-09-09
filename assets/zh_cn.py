@@ -7,7 +7,7 @@ ENV = "简中环境"
 class GUI:
     DESC1 = "1、首次使用请查阅`CGS-使用说明.exe`(内容与`scripts/README.md`一样)，内有配置/GUI视频使用指南等说明<br>"
     DESC2 = "2、除非版本更新，一般bug修复/功能更新等，用户运行`CGS-更新.exe`即可<br>"
-    DESC3 = "3、在 github wiki 上也有记录 Q & A，可以先查阅看能否解决疑惑"
+    DESC3 = "3、在使用说明下方有问答记录 Q & A，可以先查阅看能否解决疑惑"
     DESC4 = " 若有其他问题/功能建议等到群反映/提issue<br>"
 
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
