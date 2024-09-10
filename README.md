@@ -35,7 +35,7 @@
 > ，解压后目录树如下 <br>
 > `每次解压绿色包`后，先更新一次保证代码最新，更新后窗口显示`更新完毕`才算更新成功，闪退或错误提示是失败 <br>
 
-```shell
+```
   CGS
    ├── runtime
    ├── scripts
@@ -75,9 +75,8 @@
 
 > 使用打包的，需要看下面配置说明
 
-`python CGS.py` 正常GUI运行
-
-`python crawl_only.py` 则是无GUI纯脚本，可用于调试等
++ `python CGS.py` GUI运行
++ `python crawl_only.py` 无GUI纯脚本运行，可用于调试等
 
 ### 配置
 

@@ -250,7 +250,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.Q('InputFieldQueue').send(self.input_state)
             refresh_view(_prev_tf)
 
-        _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg))
+        _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg)) if self.BrowserWindow else page_turn(arg)
         self.nextPageBtn.clicked.connect(lambda: _(f"next{self.pageFrameClickCnt}"))
         self.previousPageBtn.clicked.connect(lambda: _(f"previous{self.pageFrameClickCnt}"))
         self.pageJumpBtn.clicked.connect(lambda: _(self.pageEdit.text()))
