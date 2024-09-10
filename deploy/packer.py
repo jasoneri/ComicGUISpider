@@ -70,7 +70,8 @@ release_desc = """开箱即用
 
 ---
 ### macOS
-下载`CGS-macOS`压缩包就行，解压后首先双击`desc_macOS.html`浏览器打开查看说明（仅限初始解压后的一次性引导）
+下载`CGS-macOS`压缩包就行，解压后首先双击`desc_macOS.html`浏览器打开查看说明（仅限初始解压后的一次性引导），<br>
+注意初始化时会另外打开一个终端窗口，需要根据提示操作
 
 ---
 其他问题 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问"""
