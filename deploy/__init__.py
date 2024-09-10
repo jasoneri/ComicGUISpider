@@ -23,7 +23,6 @@ proj_path = pathlib.Path(__file__).parent.parent
 curr_os_module = Env
 if platform.system().startswith("Darwin"):
     import sys
-
     sys.path.append(str(proj_path))
     from deploy.launcher.mac import macOS
     curr_os_module = macOS
