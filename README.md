@@ -48,7 +48,7 @@
 ```
 
 > [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
-> 注意看评论有补充链接（防挂），新增`v1.6 新增功能演示 视频3`
+> 注意看评论有补充链接（防挂），新增`v1.6 预览等功能演示 视频3`
 
 > macOS必读：基于此说明(README)下进行了补充说明，[点击前往macOS的补充说明](deploy/launcher/mac/EXTRA.md)
 
@@ -57,10 +57,6 @@
 ### V1.6 | 2024-09-10
 
 支持macOS
-
-### V1.6 | 2024-09-05
-
-修复更新程序相关，请前往下载最新绿色包（20240905之前的更新程序无法正常使用），配置文件备份`scripts/conf.yml`
 
 ## 功能
 
@@ -86,10 +82,10 @@
 |:-----------|:------------:|:---------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 存储路径       |   sv_path    | D:\comic  | 下载目录                                                                                                                                                                                                                |
 | 日志等级       |  log_level   | `WARNING` | 后台运行过后会有log目录，GUI 与 后台 同级，后台未知错误GUI会进行操作指引                                                                                                                                                                          |
-| 代理         |   proxies    |           | 翻墙用，`ehentai`国内必须设置，`wnacg`可以用到，`jmcomic`用的内地域名此项对其无效                                                                                                                                                               |
+| 代理         |   proxies    |           | 翻墙用，`ehentai`和`wnacg`可以用到，`jmcomic`用的内地域名此项对其无效<br/>建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量                                                                                                                        |
 | 映射         |  custom_map  |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展 |
 | 预设         |  completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                   |
-| eh_cookies |  eh_cookies  |           | 使用`ehentai`时需要，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备用查看 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))           |
+| eh_cookies |  eh_cookies  |           | 使用`ehentai`时必需，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备用查看 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))           |
 | cv项目路径     | cv_proj_path |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                         |
 
 > 除 `存储路径` 其他均非必须，使用默认即可 或置空 <br>
@@ -129,13 +125,12 @@ js没加载出来，刷新一下页面
 
 ### 使用建议
 
+终端显示优化（cmd窗口早应该被微软删掉才对）
 [点击前往window终端](https://apps.microsoft.com/detail/9N0DX20HK701?launch=true&mode=full&hl=zh-cn&gl=cn&ocid=bingwebsearch)
 并自行安装
-
-开始菜单搜`终端`并打开，打开设置（快捷键 <kbd>Ctrl/Command</kbd> + <kbd>,</kbd>）<br>
-
-1. 启动 > 默认终端应用程序 > 选择 `windows终端`<br>
-2. 启动 > 新建实例行为 > 选择 `附加到最近使用的窗口`
+> 开始菜单搜`终端`并打开，打开设置（快捷键 <kbd>Ctrl/Command</kbd> + <kbd>,</kbd>）<br>
+> 1. 启动 > 默认终端应用程序 > 选择 `windows终端`<br>
+> 2. 启动 > 新建实例行为 > 选择 `附加到最近使用的窗口`
 
 ## 交流
 

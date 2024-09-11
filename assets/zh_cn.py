@@ -5,8 +5,8 @@ ENV = "简中环境"
 
 # GUI
 class GUI:
-    DESC1 = "1、首次使用请查阅`CGS-使用说明.exe`(内容与`scripts/README.md`一样)，内有配置/GUI视频使用指南等说明<br>"
-    DESC2 = "2、除非版本更新，一般bug修复/功能更新等，用户运行`CGS-更新.exe`即可<br>"
+    DESC1 = "1、首次使用请查阅`CGS-使用说明`(内容与`scripts/README.md`一样)，内有配置/GUI视频使用指南等说明<br>"
+    DESC2 = "2、除非版本更新，一般bug修复/功能更新等，用户运行`CGS-更新`即可<br>"
     DESC3 = "3、在使用说明下方有问答记录 Q & A，可以先查阅看能否解决疑惑"
     DESC4 = " 若有其他问题/功能建议等到群反映/提issue<br>"
 
@@ -15,6 +15,7 @@ class GUI:
     toolBox_warning = "仅当常规漫画网站能使用工具箱功能"
     wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>" + \
                                "网络问题如 [Errno 11001] / `ReadTimeout` 一般重启就好了，一直出现同一种错误的话 加群反映/提issue<br>"
+    check_ehetai = "正在检测当前环境能否访问exhentai中..."
     checkisopen_text_change = "现在点击立刻打开存储目录"
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
     textbrowser_load_if_http = (u'<b><font size="5"><br>  内置预览：点击右下 "点我预览" </font></b> 或者 '
@@ -34,11 +35,11 @@ class EHentai:
     PROXIES_NEED = True
     COOKIES_NOT_SET = "访问 exhentai 必须设置`eh_cookies`"
     PROXIES_NOT_SET = "访问 exhentai 必须代理"
-    ACCESS_FAIL = "当前`eh_cookies`或`代理` 无法访问"
+    ACCESS_FAIL = "当前`eh_cookies`或`配置代理`或`全局代理`等环境 无法访问<br>请自行浏览器访问排查（软件尚不支持无代理直连）"
     GUIDE = ("ehentai使用指引<br>1. 确保你有一个能访问`exhentai.org`的账号<br>"
-             "2. (国内)确保你有一个可以使用的代理，其中的地区IP不会因共有而被占爆看图限额<br>"
+             "2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br>"
              "3.1 基于第1点，配置需设置`eh_cookies`的值，cookies值生成参考`使用说明`里配置对应字段说明。<br>"
-             "3.2 基于2，代理的配置需要在此指引弹出前设置好，否则重启/retry生效。代理服务建议用v2rayN<br>")
+             "3.2 基于2，可使用全局代理（不建议）；或者配置代理，需要在此指引弹出前设置好，否则重启/retry生效。代理服务建议用v2rayN<br>")
     JUMP_TIP = "<br>ehentai页跳转情况特殊，没想好应用 暂时设限制取消`跳转页`功能<br>"
 
 
