@@ -1,20 +1,21 @@
 ## 须知
 
-### 脚本目录树
+### 脚本目录树: `script`目录
 ```shell
-script
-  ├── __init__.py
-  ├── conf.yml                  # 此目录下的所有脚本配置引用，没上传至git，需要自创建
-  ├── extra.py                  # 作为单个简单类爬虫使用
-  ├── image  
-       ├── __init__.py  
-       ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
-       ├── kemono_expander.py   # 基于每个作者对作品集取名习惯(可能是kemono本身爬作品时取标题的恶习)进行筛选
-       └── saucenao.py          # saucenao 著名的二次元以图搜图网站
-  └── script.md
+utils
+  ├── script
+        ├── __init__.py
+        ├── conf.yml                  # 此目录下的所有脚本配置引用，没上传至git，需要自创建
+        ├── extra.py                  # 作为单个简单类爬虫使用
+        ├── image  
+             ├── __init__.py  
+             ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
+             ├── kemono_expander.py   # 基于每个作者对作品集取名习惯(可能是kemono本身爬作品时取标题的恶习)进行筛选
+             └── saucenao.py          # saucenao 著名的二次元以图搜图网站
+        └── script.md
 ```
 
-### 配置字段 `script/conf.yml` （别把绿色安装包的`scripts`目录搞混）
+### 配置字段 `utils/script/conf.yml` （别把绿色安装包的`scripts`目录搞混）
 
 ```yaml
 kemono:
@@ -32,7 +33,7 @@ redis:
 ### 注意
 
 运行此目录下脚本的部分第三方依赖并不列在`requirements.txt`, 即绿色安装包的python运行环境不足以运行<br>
-因为设计当初没考虑进GUI主界面功能，是作为能单独运行的脚本集合 (除了 `from utils import Conf, ori_path`)
+因为设计当初没考虑进GUI主界面功能，是作为能单独运行的脚本集合
 
 此脚本目录下的脚本需要具备些少后端技能如 `redis`
 
@@ -61,8 +62,7 @@ redis:
 
 启动 `redis` 服务；设置配置如上`conf.yml`内容；
 
-环境：pycharm打开这个仓库，直接运行以下。 或把`from utils.script import conf, AioRClient, BlackList`
-的类剪切复制到`kemono.py`补环境
+环境：随意`python3`，缺什么包就pip装一下
 
 `python kemono.py` 需要结合注释拆分使用
 
@@ -96,8 +96,8 @@ redis:
     ├── ラマンダ_fantia
            ├── [2020-07-30]アカリちゃんとクエスト
            ├── [2021-01-29]白血球さんお願いします！
-           └── [2022-07-30]ノノ水着                                       # 作品集
-                    ├── 85fe7ae7-dfea-4ef2-816d-46f378ee2f80.png         # 该作品集的一个文件/图片
+           └── [2022-07-30]ノノ水着                                  # 作品集，命名格式：[作品创建时间]kemono的标题名
+                    ├── 85fe7ae7-dfea-4ef2-816d-46f378ee2f80.png    # 该作品集的一个文件/图片
                     ├── c57e9b35-608f-471f-8a34-2e56ead4dc70.png
     
     ├── blacklist.json            # 下载过滤名单，避免重复下载用（comic_viewer阅读过后操作会加进去 或 手动添加）

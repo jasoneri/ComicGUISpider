@@ -36,7 +36,8 @@
 - [ ] ua: 若`custom_settings`设了 `UAMiddleware` 才会生效
 - [ ] mappings: 默认映射，与`更改配置`里的`映射`相叠加
 - [ ] frame_book_format: 影响传递给`self.parse_section`的`meta`组成
-- [ ] turn_page_search/turn_page_info: 翻页时需要，使用为`utils.processed_class.Url`，参照已有案例即可
+- [ ] turn_page_search/turn_page_info: 翻页时需要，使用为`utils.processed_class.Url`， 参照已有案例即可
+  (注意`Url.set_next`，受传参个数影响)
 
 ##### 类方法
 

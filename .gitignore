@@ -173,3 +173,6 @@ conf.yml
 requirements-in.txt
 __temp
 _bug_log
+test/*
+src/
+untitled*

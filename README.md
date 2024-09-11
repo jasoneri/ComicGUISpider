@@ -50,7 +50,7 @@
 > [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
 > 注意看评论有补充链接（防挂），新增`v1.6 预览等功能演示 视频3`
 
-> macOS必读：基于此说明(README)下进行了补充说明，[点击前往macOS的补充说明](deploy/launcher/mac/EXTRA.md)
+> _**macOS必读**_：基于此说明(README)下进行了补充说明，[点击前往macOS的补充说明](deploy/launcher/mac/EXTRA.md)
 
 ## 更新
 
