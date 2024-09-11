@@ -22,7 +22,7 @@ class WnacgSpider(BaseComicSpider2):
     turn_page_info = (r"-page-\d+", "albums-index%s")
 
     def before_search(self):
-        if self.settings.get("PROXY_CUST") is None:
+        if self.settings.get("PROXY_CUST") is None:  # 不设配置代理就永远走国内可访问域名，无视全局代理模式
             self.domain = WnacgUtils.get_domain()
 
     @staticmethod

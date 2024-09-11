@@ -37,7 +37,7 @@ class EHentaiKits:
     index = f"https://{domain}/"
 
     def __init__(self, cookies, proxies: list):
-        _proxies = {"https://": f"http://{proxies[0]}"}
+        _proxies = {"https://": f"http://{proxies[0]}"} if proxies else None
         _hea = {**headers, "Cookie": EhCookies.to_str_(cookies)}
         self.cli = httpx.Client(proxies=_proxies, headers=_hea)
 
@@ -54,7 +54,11 @@ class EHentaiKits:
         return current_access
 
     def test_index(self):
-        resp = self.cli.get(self.index, follow_redirects=True)
+        try:
+            resp = self.cli.get(self.index, follow_redirects=True, timeout=3.5)
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            return False
         if not resp.text:
             return False
         return True

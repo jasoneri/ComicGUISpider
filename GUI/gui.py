@@ -269,7 +269,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             BrowserWindow.set_proxies(proxies)
         self.BrowserWindow = BrowserWindow(self.tf)
         if self.chooseBox.currentIndex() == 4:  # e-hentai
-            self.BrowserWindow.set_e_hentai()
+            self.BrowserWindow.set_ehentai()
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
@@ -362,6 +362,10 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         if self.next_btn.text() != '搜索':
             self._next()
         else:
+            if self.chooseBox.currentIndex() == 4:
+                self.say(self.res.check_ehetai)
+                if not BrowserWindow.check_ehentai(self):
+                    return
             start_and_search()
 
         self.nextclickCnt += 1

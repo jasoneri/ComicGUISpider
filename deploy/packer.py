@@ -148,8 +148,8 @@ class Packer:
                 logger.info(f"[ success {bat_file} ]")
 
         # 主运行使用 PyStand 壳，不再重复造exe了，容易被杀软误杀
-        _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
-            path.joinpath(rf"scripts/deploy/launcher/{proj}.ico"))
+        # _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
+        #     path.joinpath(rf"scripts/assets/{proj}.ico"))
         _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-使用说明.exe"),
             path.joinpath(rf"scripts/assets/icon.png"))
         # exe生成后需要扔到 https://habo.qq.com/ 做检测，必须是`未发现风险`

@@ -83,21 +83,10 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
 
-    def set_e_hentai(self):
+    def set_ehentai(self):
         # def recheck():    # deprecated
         #     limit = self.eh_kits.get_limit()
         #     self.limitCntLabel.setText(limit)
-
-        if not conf.eh_cookies:
-            QMessageBox.information(self, 'Warning', res.EHentai.COOKIES_NOT_SET, QMessageBox.Ok)
-            return
-        if not conf.proxies:
-            QMessageBox.information(self, 'Warning', res.EHentai.PROXIES_NOT_SET, QMessageBox.Ok)
-            return
-        self.eh_kits = self.eh_kits or EHentaiKits(conf.eh_cookies, conf.proxies)
-        if not self.eh_kits.test_index():
-            QMessageBox.information(self, 'Warning', f"{res.EHentai.ACCESS_FAIL} {self.eh_kits.index}")
-            return
         # recheck()
         # self.ehentaiWidget.setEnabled(True)
         # self.recheckBtn.clicked.connect(recheck)
@@ -106,5 +95,16 @@ class BrowserWindow(QMainWindow, Ui_browser):
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
             my_cookie.setValue(str(values).encode())
-            my_cookie.setDomain(self.eh_kits.domain)
-            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(self.eh_kits.index))
+            my_cookie.setDomain(EHentaiKits.domain)
+            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(EHentaiKits.index))
+
+    @classmethod
+    def check_ehentai(cls, window):
+        if not conf.eh_cookies:
+            QMessageBox.information(window, 'Warning', res.EHentai.COOKIES_NOT_SET, QMessageBox.Ok)
+            return
+        cls.eh_kits = cls.eh_kits or EHentaiKits(conf.eh_cookies, conf.proxies)
+        if not cls.eh_kits.test_index():
+            QMessageBox.information(window, 'Warning', f"{res.EHentai.ACCESS_FAIL} {cls.eh_kits.index}")
+            return
+        return True
