@@ -1,4 +1,5 @@
 import os
+import sys
 import pathlib
 import typing as t
 import httpx
@@ -8,12 +9,17 @@ import urllib.parse as urlparse
 from loguru import logger
 from abc import abstractmethod
 from tqdm import tqdm
+from tqdm.asyncio import tqdm as atqdm
 from lxml import etree
+from colorama import init, Fore
+
+proj_p = pathlib.Path(__file__).parent.parent.parent.parent
+sys.path.append(str(proj_p))
 from utils import Conf, ori_path
 
-conf = Conf(path=ori_path.joinpath("utils/script"))
-# proxy = {"https://": f"http://{conf.proxies[0]}"}
-proxy = None
+init(autoreset=True)
+conf = Conf(path=proj_p.joinpath("utils/script"))
+proxy = {"https://": f"http://{conf.proxies[0]}"}
 
 
 class SauceNAO:
@@ -72,7 +78,7 @@ class Imgur:
         return url
 
     async def req(self, sess, _url, _type='content'):
-        resp = await sess.get(_url, follow_redirects=True)
+        resp = await sess.get(_url, follow_redirects=True, timeout=50)
         return getattr(resp, _type)
 
     @staticmethod
