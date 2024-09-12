@@ -17,7 +17,7 @@
 |:--------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
 | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif) |
 
-## I18N
+## 🌏I18N
 
 I'm not sure someone will interested in this project with English or other language,<br>
 but some work were ongoing such as [inner-text-description](assets/res/__init__.py), as my current env is zh-cn, I put
@@ -28,16 +28,16 @@ software's inner-text-description will change into language of en.
 As the beginning I said, if someone tell me needs of language is existed, I'm pleasure to promote translation work. <br>
 or PR about translation is great !!
 
-## Introduce
+## 📑Introduce
 
 ### website
 
-| website   | support<br>(digital inputs) | preview<br/>(multiple choice) |         pageTurn         |
-|:----------|:---------------------------:|:-----------------------------:|:------------------------:|
-| mangacopy |              ✅              |               ❌               |            ✅             |
-| jm-comic  |              ✅              |               ✅               |            ✅             |
-| wnacg     |              ✅              |               ✅               |            ✅             |
-| ExHentai  |              ✅              |               ✅               | ✅<br/>part of func limit |
+| website   | support<br>(digital inputs) | preview<br/>(multiple choice) |    pageTurn    |
+|:----------|:---------------------------:|:-----------------------------:|:--------------:|
+| mangacopy |              ✅              |               ❌               |       ✅        |
+| jm-comic  |              ✅              |               ✅               |       ✅        |
+| wnacg     |              ✅              |               ✅               |       ✅        |
+| ExHentai  |              ✅              |               ✅               | ✅<br/>ban jump |
 
 Please use it in moderation to avoid burdening the other party's server
 
@@ -59,7 +59,7 @@ Please use it in moderation to avoid burdening the other party's server
 
 > [here is the GUI usage video (but chinese)](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
 
-## Usage
+## 🚀Usage
 
 > Portable Version: `CGS.exe` / `CGS.bat`
 
@@ -67,7 +67,7 @@ Please use it in moderation to avoid burdening the other party's server
 
 `python crawl_only.py` for backend only, or debug
 
-### Config
+## 🔨Config
 
 ![](assets/conf_usage.jpg)
 
@@ -81,14 +81,14 @@ Please use it in moderation to avoid burdening the other party's server
 | eh_cookies   |  eh_cookies  |           | [demo to get it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif) |
 | cv_proj_path | cv_proj_path |           |                                                                                                     |
 
-## Else
+## 🔰Else
 
 ### Suggestion
 
 [using window terminal](https://apps.microsoft.com/detail/9N0DX20HK701?launch=true&mode=full&hl=zh-cn&gl=cn&ocid=bingwebsearch)
 install bt self
 
-## Disclaimer
+## 🔇Disclaimer
 
 see [License](LICENSE)，do not make profit by this project.
 

@@ -4,11 +4,9 @@ import pathlib
 import re
 import subprocess
 
-font = "Hiragino Sans GB"
-
-
 # 对应`冬青黑体简体中文`，想要换其他字体可聚焦搜索`字体册`，在目标字体右键`访达中显示`，可以看到字体文件，把字体名替换掉`font`的值即可
-# 字体册仅支持能访达/系统alias能搜索出的字体，如果是下载的字体，可以看`macOS.font_replace _repl`
+# 字体册仅支持能访达/系统alias能搜索出的字体，如果是下载的字体文件，可以看`macOS.font_replace _repl`
+font = "Hiragino Sans GB"
 
 
 class macOS:
