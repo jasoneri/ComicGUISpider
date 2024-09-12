@@ -175,21 +175,26 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
-            if index in SPECIAL_WEBSITES_IDXES:
-                self.toolButton.setDisabled(True)
-                self.say(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
-            if index == 3 and not conf.proxies:
-                self.say(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
-            elif index == 4:
-                self.pageEdit.setDisabled(True)
-                self.say(font_color(res.EHentai.GUIDE, color='purple'))
-            elif index == 1:
-                self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
+            self.chooseBox_changed_tips(index)
             # 输入框联想补全
             self.set_completer()
 
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
         self.show()
+
+    def chooseBox_changed_tips(self, index):
+        if index in SPECIAL_WEBSITES_IDXES:
+            self.toolButton.setDisabled(True)
+            self.say(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
+        if index == 1:
+            self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
+        elif index == 2:
+            self.say(font_color(self.res.jm_bookid_support, color='blue'))
+        elif index == 3 and not conf.proxies:
+            self.say(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
+        elif index == 4:
+            self.pageEdit.setDisabled(True)
+            self.say(font_color(res.EHentai.GUIDE, color='purple'))
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()

@@ -52,23 +52,24 @@ preset = {
     "scrapy": ["mime.types"]}
 release_desc = """开箱即用
 ---
-### 下载
+### ⚡️下载
 下面的`CGS.7z`，下载很慢 ？到压缩包的下载链接右键复制到 https://github.akams.cn/ 上进行下载加速
 
-### 运行
-解压双击运行 `CGS.exe` ，每次解压后优先运行一次`CGS-更新`
+### 🚀运行
+解压双击运行 `CGS.exe` ，每次解压后优先运行一次`CGS-更新`（使代码与包内代码状态一致或更gèng新）
 
-### 更新
+### 📢更新
 一般情况下，使用包内的 `CGS-更新` 即可<br>
 特殊情况，如运行环境需要变化 或 有更新提示时，需要在此页面下绿色安装包 (包更新未必是最新，更新日期参照标题) 
 
-### 更新额外说明
+### ⚠️更新额外说明
 1. 大更新绿色包覆盖前，请备份配置文件 `scripts/conf.yml`
 2. 实验性中：已创token供用户更新程序使用，速率限制5000请求每小时，尚不清楚不同IP对token并发的影响，若有更新程序相关问题请联系开发者
 
 ---
-### macOS
+### 💻macOS
 下载 `CGS-macOS.7z` 就行，解压后首先双击`desc_macOS.html`浏览器打开查看说明（仅限初始解压后的一次性引导）
+注：_**全部 `.app` 第一次无法双击打开时，第二次需要右键打开，再以后就能双击打开**_
 
 ---
 其他问题 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问"""
@@ -162,7 +163,8 @@ class Packer:
                 logger.debug(f"[ if need init ] delete '{self.preset_zip_file}' manually later")
                 return self.packup()
             zip_file = self.preset_zip_file
-            specified = ('runtime', 'site-packages')
+            specified = ('runtime', 'site-packages', '_pystand_static.int',
+                         f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe')
             mode = "w"
         else:
             shutil.copy(self.preset_zip_file, self.zip_file)
@@ -222,7 +224,7 @@ if __name__ == '__main__':
     Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
                    (path.joinpath("scripts/log"), path.joinpath("scripts/version")))  # step 0 必清site-packages cache，太大了
     # Packer.bat_to_exe()  # step 1
-    packer = Packer(('scripts', f'{proj}.bat', f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe'))
+    packer = Packer(('scripts', f'{proj}.bat'))
     packer.packup(runtime_init=True)  # step 2
     # packer.upload('CGS.7z')  # step 3
     # Clean.end_work(('CGS.7z',))  # step 4

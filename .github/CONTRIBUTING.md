@@ -1,6 +1,8 @@
 [![License](https://img.shields.io/github/license/rails/rails)](https://github.com/rails/rails)
 
-# 欢迎扩展其他网站支持
+> 有关其他网站扩展的想法/建议/交流等等，可以在`github`上的`Discussions`进行讨论
+
+# 🌏欢迎扩展其他网站支持
 
 ## 开发说明
 

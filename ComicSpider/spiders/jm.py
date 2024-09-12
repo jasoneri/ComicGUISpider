@@ -2,7 +2,8 @@
 import re
 import typing as t
 from urllib.parse import urlencode
-from .basecomicspider import BaseComicSpider2, font_color
+from .basecomicspider import BaseComicSpider2, font_color, scrapy
+from utils import convert_punctuation, correct_domain
 from utils.special import JmUtils
 from utils.processed_class import PreviewHtml, Url
 
@@ -17,6 +18,7 @@ class JmSpider(BaseComicSpider2):
     num_of_row = 4
     domain = domain
     search_url_head = f'https://{domain}/search/photos?search_query='
+    book_id_url = f'https://{domain}/photo/'
     mappings = {}
 
     time_regex = re.compile(r".*?([日周月总])")
@@ -40,6 +42,33 @@ class JmSpider(BaseComicSpider2):
             'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
             'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
         }
+
+    def start_requests(self):
+        try:
+            self.refresh_state('input_state', 'InputFieldQueue')
+            keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
+            if ',' in keyword or keyword.isdecimal():
+                self.domain = JmUtils.get_domain()
+                b_url = self.book_id_url
+                b_url = b_url if self.domain in b_url else correct_domain(self.domain, b_url)
+                for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
+                    yield scrapy.Request(url=b_url + key, callback=self.parse_section,
+                                         meta={'book_id': key}, dont_filter=True)
+            else:
+                yield from super(JmSpider, self).start_requests()
+        except Exception as e:
+            raise e
+
+    def parse_section(self, response):
+        if response.url.endswith("album_missing"):
+            self.process_state.process = 'parse section'
+            self.Q('ProcessQueue').send(self.process_state)
+            yield self.say(font_color(f"===== 无效车号：{response.meta.get('book_id')}", color="red"))
+        else:
+            if not response.meta.get("title"):
+                title = response.xpath('//title/text()').extract_first()
+                response.meta['title'] = title.rsplit("|", 1)[0]
+            yield from super(JmSpider, self).parse_section(response)
 
     @property
     def search(self):
