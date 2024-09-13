@@ -39,9 +39,10 @@ res = ori_res.Updater
 def get_token():
     with open(existed_proj_p.joinpath('deploy/t.json'), 'r', encoding='utf-8') as f:
         tokens = json.load(f)
-    for token in tokens:
+    for _token in tokens:
+        token = base64.b64decode(_token).decode()
         with httpx.Client(proxies=proxies,
-                          headers={**headers, 'Authorization': f"token {base64.b64decode(token).decode()}"}) as client:
+                          headers={**headers, 'Authorization': f"token {token}"}) as client:
             resp = client.get(f"https://api.github.com")
             if str(resp.status_code).startswith('2'):
                 return token
