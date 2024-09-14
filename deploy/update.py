@@ -26,37 +26,57 @@ path = pathlib.Path(__file__).parent.parent.parent
 existed_proj_p = path.joinpath('scripts')
 temp_p = path.joinpath('temp')
 sys.path.append(str(existed_proj_p))
-proxies = None
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
 }
 
-from assets import res as ori_res
+from assets import res as ori_res  # must be below of sys.path.append
 
 res = ori_res.Updater
 
 
-def get_token():
-    with open(existed_proj_p.joinpath('deploy/t.json'), 'r', encoding='utf-8') as f:
-        tokens = json.load(f)
-    for _token in tokens:
-        token = base64.b64decode(_token).decode()
-        with httpx.Client(proxies=proxies,
-                          headers={**headers, 'Authorization': f"token {token}"}) as client:
-            resp = client.get(f"https://api.github.com")
-            if str(resp.status_code).startswith('2'):
-                return token
+class TokenHandler:
+    gitee_t_url = "https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/t.json"
+    gitee_t_file = existed_proj_p.joinpath('deploy/gitee_t.json')
+
+    def __init__(self):
+        self.token = self.check_token()
+
+    @property
+    def headers(self):
+        return {**headers, 'Authorization': self.token} if self.token else headers
+
+    def check_token(self):
+        if not self.gitee_t_file.exists():
+            self.download_t_file()
+        with open(self.gitee_t_file, 'r', encoding='utf-8') as f:
+            tokens = json.load(f)
+        for _token in tokens:
+            token = f"Bearer {base64.b64decode(_token).decode()}"
+            with httpx.Client(headers={**headers, 'Authorization': token}) as client:
+                resp = client.head(f"https://api.github.com")
+                if str(resp.status_code).startswith('2'):
+                    return token
+        else:
+            print(Fore.RED + res.token_invalid_notification)
+            os.remove(self.gitee_t_file)
+
+    def download_t_file(self):
+        with open(self.gitee_t_file, 'w', encoding='utf-8') as f:
+            resp = httpx.get(self.gitee_t_url)
+            resp_json = resp.json()
+            json.dump(resp_json, f, ensure_ascii=False)
 
 
 class GitHandler:
     speedup_prefix = "https://gh.llkk.cc/"
 
     def __init__(self, owner, proj_name, branch):
-        self.sess = httpx.Client(proxies=proxies)
+        self.sess = httpx.Client()
         self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits"
         self.src_url = f"https://api.github.com/repos/{owner}/{proj_name}/zipball/{branch}"
-        token = get_token()
-        self.headers = {**headers, 'Authorization': f"token {token}"} if token else headers
+        t_handler = TokenHandler()
+        self.headers = t_handler.headers
 
     # src_url = f"{self.speedup_prefix}https://github.com/{self.github_author}/{proj_name}/archive/refs/heads/{branch}.zip"
 
@@ -77,8 +97,11 @@ class GitHandler:
         if not ver:
             print(Fore.RED + f"[ {res.ver_file_not_exist}.. ]")
             return vers[0], []
-        ver_index = vers.index(ver)
+        ver_index = vers.index(ver) if ver in vers else None
         valid_vers = vers[:ver_index]
+        if len(valid_vers) > 10:
+            print(Fore.YELLOW + f"[ {res.too_much_waiting_update}... ]")
+            return vers[0], ["*"]
         files = []
         print(Fore.BLUE + f"[ {res.check_refresh_code}.. ]")
         for _ver in valid_vers:
@@ -109,11 +132,13 @@ class Proj:
     github_author = "jasoneri"
     name = "ComicGUISpider"
     branch = "GUI"
-    git_handler = GitHandler(github_author, name, branch)
     ver = ""
     first_flag = False
     local_ver = None
     changed_files = []
+
+    def __init__(self):
+        self.git_handler = GitHandler(self.github_author, self.name, self.branch)
 
     def check_existed_version(self):
         local_ver_file = existed_proj_p.joinpath('version')
@@ -150,8 +175,9 @@ class Proj:
             zip_f.extractall(temp_p)
         temp_proj_p = next(temp_p.glob(f"{self.github_author}-{self.name}*"))
         # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
-        if self.first_flag:  # when the first-time use this update(no version-file)
-            print(Fore.YELLOW + f"[ {res.first_init}.. ]")
+        if self.first_flag or self.changed_files[0] == "*":
+            # first_flag: when the first-time use this update(no version-file)
+            print(Fore.YELLOW + f"[ {res.latest_code_overwriting}.. ]")
             _, folders, files = next(os.walk(temp_proj_p))
             all_files = (*folders, *files)
             for file in tqdm(all_files, total=len(all_files), ncols=80, ascii=True,
