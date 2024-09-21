@@ -131,7 +131,7 @@ js没加载出来，刷新一下页面
 
 ### 漫画观看自荐
 
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer)](https://github.com/jasoneri/comic_viewer)
+[![点击前往comic_viewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer)](https://github.com/jasoneri/comic_viewer)
 
 ### 使用建议
 
