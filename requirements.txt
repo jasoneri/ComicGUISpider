@@ -6,7 +6,7 @@
 #
 anyio==4.4.0              # via httpx
 attrs==24.2.0             # via automat, service-identity, twisted
-automat==22.10.0          # via twisted
+automat==24.8.1          # via twisted
 brotli==1.1.0             # via -r requirements-in.txt
 certifi==2024.7.4         # via httpcore, httpx, requests
 cffi==1.16.0              # via cryptography
