@@ -22,20 +22,18 @@
 
 ### 支持网站
 
-| 网站          | 支持<br>(数字输入) | 预览<br/>(点击多选) |    翻页     |
-|:------------|:------------:|:-------------:|:---------:|
-| 拷贝漫画        |      ✅       |       ❌       |     ✅     |
-| komiic      |   计划开发中📅    |      🚩       |    🚩     |
-| 禁漫天堂        |      ✅       |       ✅       |     ✅     |
-| 绅士漫画(wnacg) |      ✅       |       ✅       |     ✅     |
-| ExHentai    |      ✅       |       ✅       | ✅<br/>禁跳转 |
-| nhentai     |   计划开发中📅    |      🚩       |    🚩     |
+| 网站                                    | 支持<br>(数字输入) | 预览<br/>(点击多选) |    翻页     |    补充说明    |
+|:--------------------------------------|:------------:|:-------------:|:---------:|:----------:|
+| [拷贝漫画](https://www.mangacopy.com/)    |      ✅       |       ❌       |     ✅     |
+| [Māngabz](https://mangabz.com)        |    开发中📅     |       ❌       |    🚩     | 补充拷贝，访问需代理 |
+| [禁漫天堂](https://18comic.vip/)          |      ✅       |       ✅       |     ✅     |
+| [绅士漫画(wnacg)](https://www.wnacg.com/) |      ✅       |       ✅       |     ✅     |
+| [ExHentai](https://exhentai.org/)     |      ✅       |       ✅       | ✅<br/>禁跳转 |
 
 使用请适度，以免加重对方服务器负担
 
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z`
 > ，解压后目录树如下 <br>
-> `每次解压绿色包`后，先更新一次保证代码最新，更新后窗口显示`更新完毕`才算更新成功，闪退或错误提示是失败 <br>
 
 ```
   CGS
@@ -60,10 +58,12 @@
 
 优化e绅士标题取名，优先使用副标题的中/日文作为目录名
 
-1. `komiic.com`   补充拷贝
-2. `nhentai.net`  上传时间比eh慢，但比wnacg/jm快
-3. 脚本集 `nekohouse.su`  补充kemono（才不是看到岛田文金的原因）
+其他：
 
+- [ ] Māngabz 开发中 （越发不对劲，连图源也要走代理，但已开发了一半...
+  基于此重新审视`nhentai`是否有开发必要，于是选择用投票决定，[点击查看`开发投票`议题](#开发投票)）
+- [ ] 脚本集 `nekohouse.su`  补充kemono（才不是看到岛田文金的原因）
+- [x] [~~komiic~~](https://komiic.com)：此站长个人维护的，限制有点多，取消对此开发
 
 > [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
@@ -135,6 +135,14 @@ js没加载出来，刷新一下页面
 ### 漫画观看自荐
 
 [![点击前往comic_viewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer)](https://github.com/jasoneri/comic_viewer)
+
+### 开发投票
+
+投票页面在 `Discussions` 上，目前议题有
+
++ [2024-09-26] [nhentai开发](https://github.com/jasoneri/ComicGUISpider/discussions/18)
+
+> 暂定5票以上赞成票就开发，避免开发了连自己都不用
 
 ### 使用建议
 
