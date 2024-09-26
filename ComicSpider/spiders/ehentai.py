@@ -65,6 +65,14 @@ class EHentaiSpider(BaseComicSpider3):
         else:
             yield Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
 
+    def parse_section(self, response):
+        if not response.meta.get('sec_page'):
+            titles = response.xpath("//h1/text()").getall()
+            if response.meta.get('title') in titles and len(titles) > 1:
+                titles.remove(response.meta.get('title'))
+                response.meta['title'] = titles[0]
+        yield from super(EHentaiSpider, self).parse_section(response)
+
     def frame_section(self, response):
         next_flag = None
         frame_results = response.meta.get('frame_results', {})
