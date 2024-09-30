@@ -196,6 +196,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         elif index == 4:
             self.pageEdit.setDisabled(True)
             self.say(font_color(res.EHentai.GUIDE, color='purple'))
+        elif index == 5:
+            self.say(font_color('<br>' + self.res.mangabz_desc, color='purple'))
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()

@@ -110,7 +110,7 @@ class MangabzSpider(FormReqBaseComicSpider):
         example_s = ' -{}、【{}】'
         self.say(example_s.format('序号', '章节') + '<br>')
         targets = response.xpath('//div[@class="detail-list-item"]/a')
-        for x, target in enumerate(targets):
+        for x, target in enumerate(reversed(targets)):
             section_url = rf"https://{domain}{target.xpath('./@href').get()}"
             section = "".join(target.xpath('./text()').get()).strip()
             frame_results[x + 1] = [section, section_url]
