@@ -216,6 +216,7 @@ class Proj:
             for file in tqdm(namelist, total=len(namelist), ncols=80, ascii=True,
                              desc=Fore.BLUE + f"[ {res.env_covering}.. ]"):
                 if not path.joinpath(file).exists():
+                    path.joinpath(file).parent.mkdir(exist_ok=True, parents=True)
                     shutil.move(temp_p.joinpath(file), path.joinpath(file))
             shutil.rmtree(temp_p, onerror=delete)
         else:
