@@ -43,7 +43,7 @@ macOS 需要下载 `CGS-macOS`压缩包 (不需要下载`CGS.7z`)，解压后目
         <td>大更新</td><td>以后通知重新下载绿色包都与macOS无关，因为除了主程序<code>CGS.app</code>以外都是间接运行<code>scripts/deploy/launcher/mac</code>里的<code>bash脚本</code></td>  
     </tr>  
     <tr>  
-        <td>环境补充部分</td><td>与<code>win</code>便携式环境不同，macOS的运行环境通过初始化时装到默认位置上了，环境补充方法不同甚至更简单，暂时搁置 [2024-09-08] <br>不过在没新功能/框架开发的情况下其实没什么影响，后续需要时再更新</td>  
+        <td>环境补充部分</td><td>今后将通过更改<code>requirements.txt</code>实现，<code>CGS-更新.app</code>后需运行一次<code>CGS-初始化.app</code>更新环境（需要更新环境时会在多处进行提醒）</td>  
     </tr>  
 </tbody></table>
 

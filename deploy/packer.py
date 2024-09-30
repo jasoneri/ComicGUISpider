@@ -212,10 +212,20 @@ def clean():
 
 def env_supplement():
     manifest = [  # it will change, but user no need care it
-        r"site-packages\PIL\_webp.cp312-win_amd64.pyd",
-        r"site-packages\PIL\_imagingmath.cp312-win_amd64.pyd"
+        "site-packages/execjs/runtime_names.py",
+        "site-packages/execjs/_abstract_runtime.py",
+        "site-packages/execjs/_abstract_runtime_context.py",
+        "site-packages/execjs/_exceptions.py",
+        "site-packages/execjs/_external_runtime.py",
+        "site-packages/execjs/_json2.py",
+        "site-packages/execjs/_misc.py",
+        "site-packages/execjs/_pyv8runtime.py",
+        "site-packages/execjs/_runner_sources.py",
+        "site-packages/execjs/_runtimes.py",
+        "site-packages/execjs/__init__.py",
+        "site-packages/execjs/__main__.py"
     ]
-    zip_file = path.joinpath(f'env_supplement.7z')
+    zip_file = path.joinpath(f'env_supplement0930.zip')
     with zipfile.ZipFile(zip_file, 'w') as zip_f:
         for file in tqdm(tuple(manifest)):
             if path.joinpath(file).exists():

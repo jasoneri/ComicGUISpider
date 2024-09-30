@@ -21,6 +21,7 @@ from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what
 )
+from utils.special import MangabzUtils
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from deploy import curr_os
 
@@ -370,6 +371,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             if self.chooseBox.currentIndex() == 4:
                 self.say(self.res.check_ehetai)
                 if not BrowserWindow.check_ehentai(self):
+                    return
+            elif self.chooseBox.currentIndex() == 5:
+                self.say("<br>" + self.res.check_mangabz)
+                obj = MangabzUtils(conf.proxies)
+                if not obj.test_index():
+                    QMessageBox.information(self, 'Warning', f"{self.res.ACCESS_FAIL} {obj.index}")
                     return
             start_and_search()
 

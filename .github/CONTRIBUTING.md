@@ -24,6 +24,7 @@
 [爬虫代码存放位置在此](../ComicSpider/spiders)，创建`py脚本`，命名同分支 <br>
 二级跳转模版参照`jm.py`,`wnacg.py`，继承类`BaseComicSpider2` <br>
 三级跳转模板参照`kaobei.py`，继承类`BaseComicSpider` <br>
+`post`请求的三级跳转模板参考`mangabz.py`，继承类`FormReqBaseComicSpider` <br>
 
 下面展开`类属性`与`类方法`等说明，其中选中(打钩)的部分为 开发必须部分
 

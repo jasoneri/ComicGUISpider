@@ -9,8 +9,13 @@ from scrapy.pipelines.images import ImagesPipeline, ImageException
 from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.utils.python import get_func_args
 
-from utils.special import JmUtils, set_author_ahead
+from utils.special import JmUtils, set_author_ahead, MangabzUtils
 from assets import res
+
+from itemadapter import ItemAdapter
+
+from scrapy.http import Request
+from scrapy.http.request import NO_CALLBACK
 
 
 class ComicPipeline(ImagesPipeline):
@@ -108,3 +113,10 @@ class JmComicPipeline(ComicPipeline):
             else:
                 thumb_image, thumb_buf = self.convert_image(image, size, buf)
             yield thumb_path, thumb_image, thumb_buf
+
+
+class MangabzComicPipeline(ComicPipeline):
+
+    def get_media_requests(self, item, info):
+        urls = ItemAdapter(item).get(self.images_urls_field, [])
+        return [Request(u, callback=NO_CALLBACK, headers=MangabzUtils.image_ua) for u in urls]

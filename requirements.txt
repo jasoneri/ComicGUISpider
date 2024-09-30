@@ -40,6 +40,7 @@ pyasn1==0.6.0             # via pyasn1-modules, service-identity
 pyasn1-modules==0.4.0     # via service-identity
 pycparser==2.22           # via cffi
 pydispatcher==2.0.7       # via scrapy
+pyexecjs==1.5.1           # via -r requirements-in.txt
 pyopenssl==24.2.1         # via scrapy
 pyqt5==5.15.11            # via -r requirements-in.txt, pyqtwebengine
 pyqt5-qt5==5.15.2         # via pyqt5
@@ -52,7 +53,7 @@ requests==2.32.3          # via requests-file, tldextract
 requests-file==2.1.0      # via tldextract
 scrapy==2.11.2            # via -r requirements-in.txt
 service-identity==24.1.0  # via scrapy
-six==1.16.0               # via automat, jsonpath-rw
+six==1.16.0               # via automat, jsonpath-rw, pyexecjs
 sniffio==1.3.1            # via anyio, httpx
 tldextract==5.1.2         # via scrapy
 tqdm==4.66.4              # via -r requirements-in.txt
