@@ -1,4 +1,5 @@
-# import re
+# -*- coding: utf-8 -*-
+from typing import Union
 from abc import abstractmethod
 from copy import deepcopy
 from time import sleep
@@ -115,7 +116,7 @@ class BaseComicSpider(scrapy.Spider):
         ...
 
     @property
-    def search(self) -> Url:
+    def search(self) -> Union[Url, tuple]:
         self.process_state.process = 'search'
         self.Q('ProcessQueue').send(self.process_state)
         keyword = self.input_state.keyword
@@ -218,7 +219,7 @@ class BaseComicSpider(scrapy.Spider):
     def mk_page_tasks(self, *arg, **kw) -> iter:
         """做这个中间件预想是：1、每一话预请求第一页，从resp中直接清洗获取items信息;
         2、设立规则处理response.follow也许可行"""
-        ...
+        return [kw['url']]
 
     def elect_res(self, elect: list, frame_results: dict, **kw) -> list:
         """简单判断elect，返回选择的frame
@@ -325,3 +326,57 @@ class BaseComicSpider3(BaseComicSpider):
             for page, url in results.items():
                 meta = {'title': title, 'page': page}
                 yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
+
+
+class BodyFormat:
+    page_index_field = "pageindex"
+    dic = {}
+
+    def __init__(self, **dic):
+        self.dic.update(**dic)
+
+    def update(self, **dic):
+        self.dic.update(**dic)
+
+
+class FormReqBaseComicSpider(BaseComicSpider):
+    body = BodyFormat()
+
+    def start_requests(self):
+        self.refresh_state('input_state', 'InputFieldQueue')
+        try:
+            self.process_state.process = 'start_requests'
+            self.before_search()
+            search_start = self.search
+            if self.domain not in search_start:
+                search_start = correct_domain(self.domain, search_start)
+        except Exception as e:
+            raise e
+        else:
+            self.search_start = deepcopy(search_start)
+            yield scrapy.FormRequest(self.search_start, formdata=self.body.dic,
+                                     dont_filter=True, meta={"Body": self.body})
+
+    def page_turn(self, response, elected_results):
+        _ = int(response.meta['Body'].dic[self.body.page_index_field])
+        if not self.input_state.pageTurn:
+            yield scrapy.FormRequest(url=self.search, callback=self.parse, formdata=response.meta['Body'].dic,
+                                     meta=response.meta, dont_filter=True)
+        elif 'next' in self.input_state.pageTurn:
+            response.meta['Body'].dic[self.body.page_index_field] = f"{_ + 1}"
+            yield from self.page_turn_(response, elected_results)
+        elif 'previous' in self.input_state.pageTurn:
+            if _ - 1 <= 0:
+                response.meta['Body'].dic[self.body.page_index_field] = 1
+                self.say(self.__res.page_less_than_one)
+            else:
+                response.meta['Body'].dic[self.body.page_index_field] = f"{_ - 1}"
+            yield from self.page_turn_(response, elected_results)
+        elif self.input_state.pageTurn:
+            response.meta['Body'].dic[self.body.page_index_field] = str(self.input_state.pageTurn)
+            yield from self.page_turn_(response, elected_results)
+
+    def page_turn_(self, resp, elected_results, **kw):
+        all_elected_res = [*elected_results, *resp.meta.get("elect_res", [])]
+        yield scrapy.FormRequest(url=resp.request.url, callback=self.parse, formdata=resp.meta['Body'].dic,
+                                 meta={"Body": resp.meta['Body'], "elect_res": all_elected_res}, dont_filter=True, **kw)

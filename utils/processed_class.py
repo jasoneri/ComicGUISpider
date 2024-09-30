@@ -226,3 +226,14 @@ class Url(str):
             else:
                 _url = f'{self}{"&" if query else "?"}{match_replace or page2}'
         return Url(_url).set_next(*self.info)
+
+
+def execute_js(js_code, func, arg):
+    try:
+        import execjs
+    except Exception as e:
+        raise ImportError("没有PyExecJS库，需要再度运行`更新程序`以更新环境（macOS用户则是运行`CGS-初始化.app`）")
+    else:
+        _js = execjs.compile(js_code)
+        out = _js.call(func, arg)
+        return out
