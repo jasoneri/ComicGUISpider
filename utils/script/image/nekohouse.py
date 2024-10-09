@@ -14,14 +14,15 @@ from dataclasses import dataclass, asdict
 import pandas as pd
 from loguru import logger
 import tqdm
+from lxml import etree
 
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList
 
-
-domain = "kemono.su"
-headers = {'accept': 'application/json'}
+domain = "nekohouse.su"
+headers = {
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8'}
 img_hea = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
     "Accept": "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
@@ -46,7 +47,7 @@ class TaskMeta:
     service: str
 
 
-t_format = '%Y-%m-%dT%H:%M:%S'
+t_format = '%Y-%m-%d %H:%M:%S'
 
 
 def time_format(_):
@@ -76,21 +77,53 @@ class ListArtistsInfo:
             yield _
 
 
-class Kemono:
+class Parser:
+    @staticmethod
+    def favorite(text):
+        html = etree.HTML(text)
+        artists_elem = html.xpath('//a[contains(@class, "user-card")]')
+        dic = [{
+            "service": a.xpath('./@data-service')[0],
+            "id": a.xpath('./@data-user-id')[0],
+            "name": a.xpath('.//div[@class="user-card__name"]/text()')[0].strip()
+        } for a in artists_elem]
+        return dic
+
+    @staticmethod
+    def posts(text):
+        html = etree.HTML(text)
+        article_elems = html.xpath('//article/a')
+        dic = [{
+            "title": "".join(a.xpath('./header//text()')).strip(),
+            "published": a.xpath('.//time/text()')[0].strip(),
+            "url_path": a.xpath('./@href')[0].strip(),
+        } for a in article_elems]
+        return dic
+
+    @staticmethod
+    def post(text):
+        html = etree.HTML(text)
+        article_elems = html.xpath('//div[@class="scrape__files"]/div')
+        dic = []
+        for a in article_elems:
+            path = a.xpath('.//div[@class="fileThumb"]/@href')[0]
+            dic.append({
+                "name": path.rsplit('/', 1)[-1].strip(),
+                "path": path
+            })
+        return dic
+
+
+class Nekohouse:
     """
     Api-service:
-      patreon   # Patreon
       fanbox    # Pixiv Fanbox
-      # 音声似乎有点麻烦  Discord
       fantia    # Fantia
-      # 爱发电没人上传  Afdian
-      # 欧美的不要  Boosty
-      gumroad   # Gumroad
       subscribestar  # SubscribeStar
 
     conf of ../conf.yml
     ```yaml
-    kemono:
+    nekohouse:
       sv_path: ...
       cookie: ...  # get from browser, filed 'session'
     ```
@@ -99,14 +132,13 @@ class Kemono:
     suffixes = ['jpg', 'jpeg', 'png', 'gif', 'mp4']
 
     class Api:
-        base = f"https://{domain}/api/v1"
+        base = f"https://{domain}"
         creator_posts = base + "/{service}/user/{creator_id}"
-        favorites = base + "/account/favorites"
-        file_prefix = "https://n1.kemono.su/data"
+        favorites = base + "/favorites"
 
     def __init__(self, redis_cli: AioRClient):
         self.sess = httpx.AsyncClient()
-        self.conf = conf.kemono
+        self.conf = conf.nekohouse
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
         self.sv_path = p.Path(self.conf.get('sv_path'))
@@ -123,13 +155,17 @@ class Kemono:
     async def get_favorites(self):
         resp = await self.req(self.sess, self.Api.favorites, headers=headers,
                               cookies={'session': self.conf.get('cookie')})
-        return resp.json()
+        return Parser.favorite(resp.text)
 
     async def get_creator_posts(self, creator_id, service, **kw):
         resp = await self.req(self.sess,
                               self.Api.creator_posts.format(creator_id=creator_id, service=service),
                               headers=headers, **kw)
-        return resp.json()
+        return Parser.posts(resp.text)
+
+    async def get_post(self, url_path, **kw):
+        resp = await self.req(self.sess, f"{self.Api.base}{url_path}", headers=headers, **kw)
+        return Parser.post(resp.text)
 
     @logger.catch
     async def step1_tasks_create_by_favorites(self, interrupt_date, order_creators=None):
@@ -144,11 +180,8 @@ class Kemono:
             title = post.get('title').strip()
             published = time_format(post.get('published')).strftime("%Y-%m-%d")
             meta = asdict(_task_meta)
-            tasks = post.get("attachments", [])
-            file = post.get("file")
-            if file and file not in tasks:
-                tasks = [file, *tasks]
-            redis_tasks = [{"url": self.Api.file_prefix + task.get("path"),
+            tasks = await self.get_post(post.get('url_path'))
+            redis_tasks = [{"url": self.Api.base + task.get("path"),
                             "meta": {**meta, "published": published, "title": title, "file_name": task.get("name")}}
                            for task in tqdm.tqdm(tasks)]
             if tasks:
@@ -164,9 +197,10 @@ class Kemono:
             valid_posts = list(filter(lambda _: time_format(_.get('published')) >= interrupt, posts))
             """get filter from kemono_expander.Artists etc."""
             from utils.script.image.kemono_expander import Artists
-            # valid_posts = Artists.Gsusart2222(valid_posts)
             valid_posts = Artists.normal(valid_posts)
-            return valid_posts
+            flag = True if not valid_posts and all(map(lambda _: time_format(_.get('published')) < interrupt, posts)) \
+                else False
+            return valid_posts, flag
 
         async def posts_of_creator(info):
             creator_id = info.get('id')
@@ -179,10 +213,12 @@ class Kemono:
                 if o:
                     param = {"o": o}
                 posts = await self.get_creator_posts(creator_id, service, params=param)
-                valid_posts = await _filter(posts)
+                valid_posts, interrupt_flag = await _filter(posts)
                 for post in valid_posts:
                     await create_task_of_post(post, task_meta)
                 if len(posts) < 50:
+                    break
+                elif interrupt_flag:
                     break
                 o += 50
 
@@ -277,7 +313,7 @@ class Kemono:
         """
         Notice! This way to delete file can let you never download again! As its blacklist system.
             Or, you can manually append blacklist to blacklist.json,
-                format refers to Kemono().filter
+                format refers to Nekohouse().filter
         """
         blacklist = self.blacklist
         len_parts = len(self.sv_path.parts)
@@ -294,22 +330,22 @@ if __name__ == '__main__':
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    obj = Kemono(AioRClient())
+    obj = Nekohouse(AioRClient())
     # 1. 获取/生成任务
     # 1.1 指定该日期之后作品
-    # 1.2.1 指定作者 ListArtistsInfo(['Gsusart2222', 'サインこす', ...])
-    # 1.2.2 指定作者+平台 例如`keihh_patreon`：ListArtistsInfo([['keihh', 'patreon'], 'サインこす', ...])
+    # 1.2.1 指定作者 ListArtistsInfo(['島田フミカネ', 'sincostan', ...])
+    # 1.2.2 指定作者+平台 例如`keihh_patreon`：ListArtistsInfo([['島田フミカネ', 'fantia'], 'sincostan', ...])
     loop.run_until_complete(obj.step1_tasks_create_by_favorites(
-        '2021-05-01', ListArtistsInfo(['バーバリアン高本'])))
+        '2024-08-01', ListArtistsInfo([['島田フミカネ', 'fantia']])))
 
     # 1.5 备份redis任务，restore=False时备份任务，restore=True时还原任务
     #       下面第二步无论成功与否都会消耗掉任务，不备份就要返回第一步生成任务了
     loop.run_until_complete(obj.temp_copy_vals(restore=False))
 
     # 2 处理/执行任务
-    # tasks = loop.run_until_complete(obj.step2_get_tasks())
-    # sem = asyncio.Semaphore(5)
-    # loop.run_until_complete(obj.step2_run_task(sem, tasks))
+    tasks = loop.run_until_complete(obj.step2_get_tasks())
+    sem = asyncio.Semaphore(5)
+    loop.run_until_complete(obj.step2_run_task(sem, tasks))
 
     # obj.delete(
     #     *obj.sv_path.joinpath(r'MだSたろう_fanbox\[2024-06-16]フリーナっクス-アニメメーション版').glob('*動画*.zip')
