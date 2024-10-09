@@ -12,8 +12,9 @@ utils
         ├── image  
              ├── __init__.py  
              ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
-             ├── kemono_expander.py   # 基于每个作者对作品集取名习惯(可能是kemono本身爬作品时取标题的恶习)进行筛选
-             └── saucenao.py          # saucenao 著名的二次元以图搜图网站
+             ├── kemono_expander.py   # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
+             ├── nekohouse.py         # 大概就是 kemono 的克隆网站
+             ├── saucenao.py          # saucenao 著名的二次元以图搜图网站
         └── script.md
 ```
 
@@ -24,6 +25,11 @@ kemono:
   sv_path: D:\pic\kemono
   cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://kemono.su/api/schema, F12打开控制台查看cookies, 字段名为 `cookie`
   redis_key: kemono
+  
+nekohouse:
+  sv_path: D:\pic\nekohouse
+  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://nekohouse.su, F12打开控制台查看cookies, 字段名为 `session`
+  redis_key: nekohouse
 
 redis:
   host: 127.0.0.1
@@ -127,6 +133,14 @@ saucenao限制30秒搜3张图，有它的账号也才30秒4张没什么好说的
 1. 随意创建个目录例如 `D:\pic`，丢几张图进去，脚本的`get_hd_img`的位置实参改成该目录，然后跑脚本`python saucenao.py`
 2. 成功后会保存在`D:\pic\hd`里，对照下文件大小之类的，合适就回去把原文件删了（不然下次跑会重复做前面的任务）
 
+// # TODO(2024-10-02): 重复任务用pathlib.exists()查一下hd文件夹内的，并用saucenao.json记录数据
+
 > 进阶：可以在很多图像的目录上运行脚本，只要在`get_hd_img`加上参数`first='a.png'`，就会以`文件大小`的`顺序`从`a.png`
 > 开始进行搜图 <br>
 > 不过同样要对比和手动删源文件，顺序可以自己调代码在`get_tasks`的`__ = sorted(...`的`key`
+
+---
+
+### 3. nekohouse 类似kemono的补充
+
+> 除了一些配置等从`kemono`变为`nekohouse`之外，使用方面与`kemono`用法别无二致，参照以上`kemono`即可

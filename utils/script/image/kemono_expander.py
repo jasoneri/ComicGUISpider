@@ -32,6 +32,11 @@ class Artists:
 
     @staticmethod
     def Gsusart2222(posts):
+        return Artists.normal(posts)
+
+    @staticmethod
+    def normal(posts):
+        """默认使用，统一将目录命名的非法字符装换成`-`"""
         for post in posts:
             post['title'] = re.sub(r'([|:<>?*"\\/])', '-', post['title'])
         return posts
