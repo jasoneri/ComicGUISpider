@@ -446,7 +446,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 string = self.res.textbrowser_load_if_http % string
                 self.textBrowser.append(string)
         else:
-            string = r'<p>%s</p>' % string
+            string = r'<p style="color: black;">%s</p>' % string
             self.textBrowser.append(string)
 
         cursor = self.textBrowser.textCursor()
@@ -490,12 +490,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
 class TextUtils:
     description = (
-            f"{'message':-^110}<br>" +
+            font_color(f"{'message':-^110}<br>") +
             font_color(res.GUI.DESC1, color='blue', size=5) +
             font_color(res.GUI.DESC2, color='blue', size=5) +
             font_color(res.GUI.DESC3, color='blue', size=5) +
             font_color(res.GUI.DESC4, color='white') +
-            f"{'仅供学习使用/proj only for study':-^105}")
+            font_color(f"{'仅供学习使用/proj only for study':-^105}"))
 
     @staticmethod
     def warning_(text):
