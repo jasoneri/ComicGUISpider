@@ -22,7 +22,8 @@ class GUI:
     checkisopen_text_change = "现在点击立刻打开存储目录"
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
     ACCESS_FAIL = "当前`配置代理`或`全局代理`等环境 无法访问<br>请自行浏览器访问排查（软件尚不支持该网站无代理直连）<br>"
-    textbrowser_load_if_http = (u'<b><font size="5"><br>  内置预览：点击右下 "点我预览" </font></b> 或者 '
+    textbrowser_load_if_http = (u'<b><font size="5" color="black"><br>  内置预览：点击右下 "点我预览" </font></b>'
+                                u'<font color="black"> 或者 </font>'
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
     WorkThread_finish_flag = "完成任务"  # related to SPIDER.close_success
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"

@@ -129,6 +129,7 @@ class Ui_Dialog(object):
         self.custom_mapEdit.setSizePolicy(sizePolicy)
         self.custom_mapEdit.setStyleSheet("QTextEdit {\n"
                                           "background-image: url(:/configDialog/ba_gamer.png);\n"
+                                          "color: black;\n"
                                           "}")
         self.custom_mapEdit.setObjectName("custom_mapEdit")
         self.horizontalLayout.addWidget(self.custom_mapEdit)
@@ -156,6 +157,7 @@ class Ui_Dialog(object):
         self.completerEdit.setToolTipDuration(-1)
         self.completerEdit.setStyleSheet("QTextEdit {\n"
                                          "background-image: url(:/configDialog/ba_swinsuit.png);\n"
+                                         "color: black;\n"
                                          "}")
         self.completerEdit.setObjectName("completerEdit")
         self.horizontalLayout_label_completer.addWidget(self.completerEdit)
@@ -185,6 +187,7 @@ class Ui_Dialog(object):
         self.eh_cookiesEdit.setToolTipDuration(-1)
         self.eh_cookiesEdit.setStyleSheet("QTextEdit {\n"
                                           "background-image: url(:/configDialog/fgo_bg.png);\n"
+                                          "color: black;\n"
                                           "}")
         self.eh_cookiesEdit.setObjectName("eh_cookiesEdit")
         self.horizontalLayout_label_ehCookies.addWidget(self.eh_cookiesEdit)
