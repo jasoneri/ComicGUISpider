@@ -17,7 +17,7 @@ class JmSpider(BaseComicSpider2):
                        }
     num_of_row = 4
     domain = domain
-    search_url_head = f'https://{domain}/search/photos?search_query='
+    search_url_head = f'https://{domain}/search/photos?main_tag=0&search_query='
     book_id_url = f'https://{domain}/photo/'
     mappings = {}
 
