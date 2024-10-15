@@ -59,7 +59,8 @@ class KaobeiSpider(BaseComicSpider):
         "Origin": "https://www.mangacopy.com",
     }
     domain = domain
-    custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5},
+    custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5,
+                                                  'ComicSpider.middlewares.ComicDlProxyMiddleware': 6},
                        "REFERER_ENABLED": False}
     search_url_head = ''
     mappings = {'更新': "byRefresh",
