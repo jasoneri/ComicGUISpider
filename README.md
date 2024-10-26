@@ -38,7 +38,7 @@
 ```
   CGS
    ├── runtime
-   ├── scripts
+   ├── scripts              # 此项目代码
    ├── site-packages
    ├── _pystand_static.int  # 经过修改现采用PyStand的壳，`CGS.exe`应该不会被杀软隔离了
    ├── CGS.bat              # 等价于 CGS.exe *主程序* 防被杀毒软件隔离 备用
@@ -54,13 +54,13 @@
 
 ## 📢更新
 
+### V1.6 | 2024-10-26
+
+`ehentai` 改版更新
+
 ### V1.6 | 2024-10-15
 
 拷贝在配置设了代理后能解锁章节了，例如`黑暗集会`（之前没在意就忽略了）
-
-### V1.6 | 2024-10-09
-
-新增脚本集的 `nekohouse.su`
 
 > [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
@@ -88,7 +88,7 @@
 |:-----------|:------------:|:---------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 存储路径       |   sv_path    | D:\comic  | 下载目录（内容目录结构里还有个`web`文件夹的情况是因为默认关联[`comic_viewer`项目](https://github.com/jasoneri/comic_viewer)所以这样设置的）                                                                                                               |
 | 日志等级       |  log_level   | `WARNING` | 后台运行过后会有log目录，GUI 与 后台 同级，报错时GUI会进行操作指引                                                                                                                                                                             |
-| 代理         |   proxies    |           | 翻墙用，`ehentai`和`wnacg`和`Māngabz`可以用到，`jmcomic`用的内地域名此项对其无效<br/>建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量                                                                                                              |
+| 代理         |   proxies    |           | 翻墙用，`jm`用的内地域名此项对其无效<br/>（建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量）                                                                                                                                                 |
 | 映射         |  custom_map  |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展 |
 | 预设         |  completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                   |
 | eh_cookies |  eh_cookies  |           | 使用`ehentai`时必需，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备链 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))             |
