@@ -246,7 +246,7 @@ class Ui_Dialog(object):
         self.completerEdit.setToolTip(_translate("Dialog", "completer/preset"))
         self.label_completer_2.setText(_translate("Dialog", "eh_cookies"))
         self.eh_cookiesEdit.setPlaceholderText(
-            _translate("Dialog", "cookies field key/cookies字段名  \nigneous,ipb_member_id,ipb_pass_hash,yay"))
+            _translate("Dialog", "cookies field key/cookies字段名  \nigneous,ipb_member_id,ipb_pass_hash"))
         self.label_5.setToolTip(_translate("Dialog", "comic_viewer_proj_path"))
         self.label_5.setText(_translate("Dialog", "cv项目路径"))
         self.cv_proj_pathEdit.setToolTip(_translate("Dialog", "comic_viewer_proj_path"))

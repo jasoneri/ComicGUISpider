@@ -67,10 +67,14 @@ class EHentaiSpider(BaseComicSpider3):
 
     def parse_section(self, response):
         if not response.meta.get('sec_page'):
-            titles = response.xpath("//h1/text()").getall()
-            if response.meta.get('title') in titles and len(titles) > 1:
-                titles.remove(response.meta.get('title'))
-                response.meta['title'] = titles[0]
+            title_gj = response.xpath('//h1[@id="gj"]/text()')
+            if title_gj:
+                response.meta['title'] = title_gj.get()
+            else:
+                titles = response.xpath("//h1/text()").getall()
+                if response.meta.get('title') in titles and len(titles) > 1:
+                    titles.remove(response.meta.get('title'))
+                    response.meta['title'] = titles[0]
         yield from super(EHentaiSpider, self).parse_section(response)
 
     def frame_section(self, response):
@@ -78,11 +82,11 @@ class EHentaiSpider(BaseComicSpider3):
         frame_results = response.meta.get('frame_results', {})
         sec_page = response.meta.get('sec_page', 1)
         this_book_pages = response.meta.get('book_pages')
-        targets = response.xpath('//div[@class="gdtm"]')
+        targets = response.xpath('//div[@id="gdt"]/a')
         first_idx = max(frame_results.keys()) if frame_results else 0
         for x, target in enumerate(targets):
             idx = first_idx + x
-            url = target.xpath('.//a/@href').get()
+            url = target.xpath('./@href').get()
             frame_results[idx + 1] = url
         if int(max(frame_results.keys())) < int(this_book_pages):
             if "/?p=" in response.url:
