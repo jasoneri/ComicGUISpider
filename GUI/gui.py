@@ -189,6 +189,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.say(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
         if index == 1:
             self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
+            self.say(font_color('<br>' + self.res.copymaga_tips, color='purple'))
         elif index == 2:
             self.say(font_color(self.res.jm_bookid_support, color='blue'))
         elif index == 3 and not conf.proxies:

@@ -238,7 +238,7 @@ class Ui_Dialog(object):
         self.label_4.setToolTip(_translate("Dialog", "proxies"))
         self.label_4.setText(_translate("Dialog", "代理"))
         self.proxiesEdit.setToolTip(_translate("Dialog", "proxies"))
-        self.proxiesEdit.setPlaceholderText(_translate("Dialog", "example x.x.x.x:y"))
+        self.proxiesEdit.setPlaceholderText(_translate("Dialog", "example-of-v2rayN 127.0.0.1:10809"))
         self.label_3.setToolTip(_translate("Dialog", "custom_map"))
         self.label_3.setText(_translate("Dialog", "映射"))
         self.label_completer.setToolTip(_translate("Dialog", "completer/preset"))
