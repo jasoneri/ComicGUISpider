@@ -236,7 +236,8 @@ def env_supplement():
 if __name__ == '__main__':
     # clean()
     Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
-                   (path.joinpath("scripts/log"), path.joinpath("scripts/version")))  # step 0 必清site-packages cache，太大了
+                   (path.joinpath("scripts/log"), path.joinpath("scripts/version"),
+                    path.joinpath("scripts/deploy/gitee_t.json")))  # step 0 必清site-packages cache，太大了
     # Packer.bat_to_exe()  # step 1
     packer = Packer(('scripts', f'{proj}.bat'))
     packer.packup(runtime_init=True)  # step 2

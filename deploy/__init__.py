@@ -10,6 +10,8 @@ class Env:
 
     def __init__(self, _p: pathlib.Path):
         self.proj_p = _p
+        os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = str(
+            proj_path.parent.joinpath(r"site-packages\PyQt5\Qt5\plugins\platforms"))
 
     def env_init(self):
         ...

@@ -26,6 +26,7 @@ class GUI:
                                 u'<font color="black"> 或者 </font>'
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
     WorkThread_finish_flag = "完成任务"  # related to SPIDER.close_success
+    copymaga_tips = "拷贝漫画在配置代理后能解锁章节，例如芙莉莲、黑暗集会等（此提示后再配置代理则需要重启/retry程序）"
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
     global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
 
@@ -91,6 +92,7 @@ class Updater:
     not_pkg_markdown = "当前环境无法使用此功能，需要重新下载绿色安装包"
     token_invalid_notification = ("[ 本地文件的token全部失效，当前将使用无状态去请求github api（受限60请求/小时）]\n"
                                   "下次使用更新会重新下载token文件，还是全部失效的话可截图告知开发者")
+    token_unknow_error = "使用token时出现未知错误，当前将使用无状态去请求github api（受限60请求/小时）"
     latest_code_overwriting = "使用最新版本代码覆盖中"
     too_much_waiting_update = "检测到堆积过多待更新版本，将忽略更新消息直接拉至最新版本代码"
     refreshing_code = "更新代码中"
