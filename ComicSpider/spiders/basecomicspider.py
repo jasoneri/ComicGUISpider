@@ -181,29 +181,36 @@ class BaseComicSpider(scrapy.Spider):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
 
-        title = response.meta.get('title')
-        self.say(f'<br>{"{:=^65}".format("message")}')
-        self.say(f'<br>{"=" * 15} 《{title}》')
-        frame_sec_result = self.frame_section(response)
-
-        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        choose = self.input_state.indexes
-        results = self.elect_res(choose, frame_sec_result, step=self.__res.parse_sec_step)
-        if results is None or not len(results):
-            self.say(font_color(f'<br><br>{self.__res.parse_sec_not_match}<br>', color="red"))
-            self.logger.info(f'no result return, choose_input is wrong: {choose}')
+        need_sec_next_page = self.need_sec_next_page(response)
+        if need_sec_next_page:
+            yield scrapy.Request(url=need_sec_next_page, callback=self.parse_section, meta=response.meta)
         else:
-            self.say(f'{"-" * 10}《{title}》 {self.__res.parse_sec_selected}: {choose}')
-            for result in results:
-                self.say(f"{result[0]:>>55}")
-            self.session = httpx.Client()
-            for section, section_url in results:
-                url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
-                now_start_crawl_desc = self.__res.parse_sec_now_start_crawl_desc % title
-                self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
-                meta = {'title': title, 'section': section}
-                for url in url_list:
-                    yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
+            title = response.meta.get('title')
+            self.say(f'<br>{"{:=^65}".format("message")}')
+            self.say(f'<br>{"=" * 15} 《{title}》')
+            frame_sec_result = self.frame_section(response)
+
+            self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
+            choose = self.input_state.indexes
+            results = self.elect_res(choose, frame_sec_result, step=self.__res.parse_sec_step)
+            if results is None or not len(results):
+                self.say(font_color(f'<br><br>{self.__res.parse_sec_not_match}<br>', color="red"))
+                self.logger.info(f'no result return, choose_input is wrong: {choose}')
+            else:
+                self.say(f'{"-" * 10}《{title}》 {self.__res.parse_sec_selected}: {choose}')
+                for result in results:
+                    self.say(f"{result[0]:>>55}")
+                self.session = httpx.Client()
+                for section, section_url in results:
+                    url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
+                    now_start_crawl_desc = self.__res.parse_sec_now_start_crawl_desc % title
+                    self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
+                    meta = {'title': title, 'section': section}
+                    for url in url_list:
+                        yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
+
+    def need_sec_next_page(self, resp):
+        pass
 
     @abstractmethod
     def frame_section(self, response) -> dict:
