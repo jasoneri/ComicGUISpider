@@ -47,23 +47,22 @@ class TokenHandler:
         return {**headers, 'Authorization': self.token} if self.token else headers
 
     def check_token(self):
+        if not self.gitee_t_file.exists():
+            self.download_t_file()
         try:
-            if not self.gitee_t_file.exists():
-                self.download_t_file()
             with open(self.gitee_t_file, 'r', encoding='utf-8') as f:
                 tokens = json.load(f)
-            for _token in tokens:
-                token = f"Bearer {base64.b64decode(_token).decode()}"
-                with httpx.Client(headers={**headers, 'Authorization': token}) as client:
-                    resp = client.head(f"https://api.github.com")
-                    if str(resp.status_code).startswith('2'):
-                        return token
-            else:
-                print(Fore.RED + res.token_invalid_notification)
-                os.remove(self.gitee_t_file)
-        except Exception:
-            print(Fore.RED + res.token_unknow_error)
-            return
+        except json.decoder.JSONDecodeError:
+            tokens = []
+        for _token in tokens:
+            token = f"Bearer {base64.b64decode(_token).decode()}"
+            with httpx.Client(headers={**headers, 'Authorization': token}) as client:
+                resp = client.head(f"https://api.github.com")
+                if str(resp.status_code).startswith('2'):
+                    return token
+        else:
+            print(Fore.RED + res.token_invalid_notification)
+            os.remove(self.gitee_t_file)
 
     def download_t_file(self):
         with open(self.gitee_t_file, 'w', encoding='utf-8') as f:

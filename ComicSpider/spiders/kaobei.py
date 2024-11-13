@@ -67,6 +67,7 @@ class KaobeiSpider(BaseComicSpider):
                 '排名': "byRank"}
     preset_book_frame = FrameBook(domain)
     turn_page_info = (r"offset=\d+", None, 30)
+    section_limit = 300
 
     @property
     def search(self):
@@ -109,11 +110,20 @@ class KaobeiSpider(BaseComicSpider):
             extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>" +
                   "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算<br>")
 
+    def need_sec_next_page(self, response):
+        total = int(response.json().get('results', {}).get('total', 0))
+        offset = int(re.search(r"offset=(\d+)", response.url).group(1))
+        response.meta["tmp_sections"] = [*response.meta.get('tmp_sections', []),
+                                         *response.json().get('results', {}).get('list', [])]
+        if total > self.section_limit and offset < total:
+            offset += self.section_limit
+            return re.sub(r"offset=(\d+)", rf"offset={offset}", response.url)
+
     def frame_section(self, response):
         frame_results = {}
         example_s = ' -{}、【{}】'
         self.say(example_s.format('序号', '章节') + '<br>')
-        targets = response.json().get('results', {}).get('list', [])
+        targets = response.meta["tmp_sections"]
         for x, target in enumerate(targets):
             section_url = rf"""https://{self.domain}/api/v3/comic/{target['comic_path_word']}/chapter2/{target['uuid']}?_update=false&format=json&platform=4"""
             section = target['name']

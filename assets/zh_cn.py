@@ -90,9 +90,8 @@ class Updater:
     code_downloading = "下载代码文件中"
     finish = "更新完毕"
     not_pkg_markdown = "当前环境无法使用此功能，需要重新下载绿色安装包"
-    token_invalid_notification = ("[ 本地文件的token全部失效，当前将使用无状态去请求github api（受限60请求/小时）]\n"
-                                  "下次使用更新会重新下载token文件，还是全部失效的话可截图告知开发者")
-    token_unknow_error = "使用token时出现未知错误，当前将使用无状态去请求github api（受限60请求/小时）"
+    token_invalid_notification = ("[ 本地文件的token全部失效/读取失误，当前将使用无状态去请求github api（受限60请求/小时）]\n"
+                                  "下次使用更新会重新下载token文件，还是全部失效/读取失误的话可截图告知开发者")
     latest_code_overwriting = "使用最新版本代码覆盖中"
     too_much_waiting_update = "检测到堆积过多待更新版本，将忽略更新消息直接拉至最新版本代码"
     refreshing_code = "更新代码中"
