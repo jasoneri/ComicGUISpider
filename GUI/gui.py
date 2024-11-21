@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import time
@@ -19,11 +20,38 @@ from utils import (
     conf, p)
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
-    GuiQueuesManger, QueueHandler, refresh_state, crawl_what
+    GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager
 )
-from utils.special import MangabzUtils
+from utils.special import httpx, Cookies, MangabzUtils, JmUtils, WnacgUtils, EHentaiKits
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from deploy import curr_os
+
+spider_utils_map = {1: object, 2: JmUtils, 3: WnacgUtils, 4: EHentaiKits, 5: MangabzUtils}
+
+
+class ClipTasksThread(QThread):
+    info_signal = pyqtSignal(tuple)
+    total_signal = pyqtSignal(dict)
+
+    def __init__(self, gui, parse_func, tasks):
+        super(ClipTasksThread, self).__init__()
+        self.gui: SpiderGUI = gui
+        self.tasks = tasks
+        self.parse_func = parse_func
+
+    def run(self):
+        self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
+        cli = httpx.Client(proxies={"https://": f"http://{conf.proxies[0]}"}, headers=self.gui.spiderUtils.headers)
+        if self.gui.chooseBox.currentIndex() == 4:
+            cli.headers = {**EHentaiKits.headers, "Cookie": Cookies.to_str_(conf.eh_cookies)}
+        total = {}
+        for idx, url in enumerate(self.tasks):
+            resp = cli.get(url)
+            info = self.parse_func(resp.text)
+            self.msleep(100)
+            self.info_signal.emit((idx + 1, url, *info[1:]))
+            total[idx + 1] = [info[2], info[0]]
+        self.total_signal.emit(total)
 
 
 class WorkThread(QThread):
@@ -83,11 +111,13 @@ class ToolMenu(QMenu):
 
     def init_actions(self):
         action_show_max = QAction(self.res.action1, self.gui)
+        self.action_show_max = action_show_max
         action_show_max.setObjectName("action_show_max")
         self.addAction(action_show_max)
         action_show_max.triggered.connect(self.show_max)
 
         action_combine_then_mv = QAction(self.res.action2, self.gui)
+        self.action_combine_then_mv = action_combine_then_mv
         action_combine_then_mv.setObjectName("action_combine_then_mv")
         self.addAction(action_combine_then_mv)
         action_combine_then_mv.triggered.connect(self.combine_then_mv)
@@ -103,6 +133,21 @@ class ToolMenu(QMenu):
         done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
         QMessageBox.information(self.gui, 'combine_then_mv',
                                 f"已将{done}整合章节并转换至[{conf.sv_path.joinpath("web")}]", QMessageBox.Ok)
+
+    def switch_ero(self):
+        self.removeAction(self.action_show_max)
+        self.removeAction(self.action_combine_then_mv)
+
+        action_read_clip = QAction(self.res.action_ero1, self.gui)
+        action_read_clip.setObjectName("action_read_clip")
+        self.addAction(action_read_clip)
+        action_read_clip.triggered.connect(self.read_clip)
+
+    def read_clip(self):
+        clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
+                           getattr(self.gui.spiderUtils, "book_url_regex"))
+        tf, match_items = clip.main()
+        self.gui.init_clip_handle(tf, match_items)
 
 
 class SpiderGUI(QMainWindow, Ui_MainWindow):
@@ -167,6 +212,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.previewInit = True
         self.previewSecondInit = False
 
+        self.clip_is_triggered = False
+
         def chooseBox_changed_handle(index):
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
@@ -184,9 +231,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.show()
 
     def chooseBox_changed_tips(self, index):
+        self.spiderUtils = spider_utils_map[index]
         if index in SPECIAL_WEBSITES_IDXES:
-            self.toolButton.setDisabled(True)
-            self.say(TextUtils.warning_(f'<br>{"*" * 10} {self.res.toolBox_warning}<br>'))
+            self.tool_menu.switch_ero()
         if index == 1:
             self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
             self.say(font_color('<br>' + self.res.copymaga_tips, color='purple'))
@@ -311,6 +358,31 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.clean_temp_file()
             self.BrowserWindow.destroy()
 
+    def init_clip_handle(self, tf, match_urls):
+        self.clip_is_triggered = True
+        self.tf = tf
+        self.set_preview()
+        self.BrowserWindow.setFixedHeight(860)
+        self.BrowserWindow.show()
+        self.page = self.BrowserWindow.view.page()
+        self.clipTasksThread = ClipTasksThread(self, getattr(self.spiderUtils, "parse_book"), match_urls)
+        self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
+        self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
+        self.clipTasksThread.start()
+
+    def single_clip_tasks_data(self, info):
+        idx, url, img_src, title, author, pages, tags = info
+        js_code = rf'addEL({idx}, "{url}", "{img_src}", "{title}", "{author}","{pages}",{tags})'
+        self.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
+
+    def all_clip_tasks_data(self, infos):
+        def refresh_tf(html):
+            with open(self.tf, 'w', encoding='utf-8') as f:
+                f.write(html)
+
+        self.BrowserWindow.view.page().toHtml(refresh_tf)
+        self.clip_infos = infos
+
     def clean_temp_file(self):
         """when: 1. preview BrowserWindow destroy; 2. pageTurn btn group clicked"""
         if self.tf and p.Path(self.tf).exists():
@@ -330,9 +402,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.log = conf.cLog(name="GUI")
             self.setupUi(self)
 
-        # retry_do_what = {'fin': retry_all}
-        # QThread.msleep(5)
-        # retry_do_what[self.process_state.process]()
         retry_all()
         self.retrybtn.setDisabled(True)
         self.confBtn.setDisabled(False)
@@ -377,7 +446,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     return
             elif self.chooseBox.currentIndex() == 5:
                 self.say("<br>" + self.res.check_mangabz)
-                obj = MangabzUtils(conf.proxies)
+                obj = self.spiderUtils(conf.proxies)
                 if not obj.test_index():
                     QMessageBox.information(self, 'Warning', f"{self.res.ACCESS_FAIL} {obj.index}")
                     return
@@ -395,6 +464,19 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def _next(self):
         self.log.info('===--→ nexting')
         self.pageFrame.setEnabled(False)
+        if self.clip_is_triggered:  # 剪切板支线走向
+            self.bThread = WorkThread(self)
+            self.bThread.print_signal.connect(self.say)
+            self.bThread.item_count_signal.connect(self.processbar_load)
+            self.bThread.finishSignal.connect(self.crawl_end)
+            self.bThread.start()
+            results = [self.clip_infos[i] for i in self.BrowserWindow.output]
+            self.input_state.indexes = "[clip]" + json.dumps(results)
+            self.input_state.pageTurn = ""
+            self.Q('InputFieldQueue').send(self.input_state)
+            refresh_state(self, 'process_state', 'ProcessQueue')
+            self.previewInit = False
+            return
         idxes = transfer_input(self.chooseinput.text()[5:].strip())
         if self.BrowserWindow and self.BrowserWindow.output:
             idxes = list(set(self.BrowserWindow.output) | set(idxes))

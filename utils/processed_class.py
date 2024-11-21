@@ -126,13 +126,13 @@ class PreviewHtml:
         @staticmethod
         def create_element(idx, img_src, title, url):
             max_width = 170
-            title_thumbnail = title[:18] + "..."
+            abbreviated_title = title[:18] + "..."
             el = f"""<div class="col-md-3" style="max-width:{max_width}px"><div class="form-check">
             <input class="form-check-input" type="checkbox" name="img" id="{idx}">
             <label class="form-check-label" for="{idx}">
               <img src="{img_src}" title="{title}" alt="{title}" class="img-thumbnail"/>
             </label></div>
-            <a href="{url}"><p>[{idx}]、{title_thumbnail}</p></a>
+            <a href="{url}"><p>[{idx}]、{abbreviated_title}</p></a>
             </div>"""
             return el
 
@@ -237,3 +237,51 @@ def execute_js(js_code, func, arg):
         _js = execjs.compile(js_code)
         out = _js.call(func, arg)
         return out
+
+
+class PreviewByClipHtml:
+    format_path = ori_path.joinpath("GUI/src/preview_format")
+    html_style = "bootstrap"
+
+    @classmethod
+    def created_temp_html(cls, url_regex, match_num):
+        temp_p = ori_path.joinpath("__temp")
+        temp_p.mkdir(exist_ok=True)
+        with open(cls.format_path.joinpath(rf"{cls.html_style}_by_clip.html"), 'r', encoding='utf-8') as f:
+            format_text = f.read()
+        html = format_text.replace("{_url_regex}", url_regex).replace("{_match_num}", str(match_num))
+        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
+        tf.write(bytes(html, 'utf-8'))
+        f = str(tf.name)
+        tf.close()
+        return f
+
+
+class ClipManager:
+    def __init__(self, db, sql, regex_string):
+        """
+        :param db, sql: by OS System
+        :param regex_string: by spider
+        """
+        self.db = db
+        self.sql = sql
+        self.regex = re.compile(regex_string)
+
+    def get_clip_items(self):
+        import sqlite3
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+        cursor.execute(self.sql)
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        del conn
+        return [r[0] for r in results]
+
+    def match(self, rets):
+        return list(set(filter(lambda x: bool(self.regex.search(x)), rets)))
+
+    def main(self):
+        match_items = self.match(self.get_clip_items())
+        tf = PreviewByClipHtml.created_temp_html(self.regex.pattern, len(match_items))
+        return tf, match_items

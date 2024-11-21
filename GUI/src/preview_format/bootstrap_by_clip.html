@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css">
+    <style>
+        .list-group-item {
+            height: auto;
+        }
+
+        .checkbox-div {
+            width: 100%;
+            height: 100%;
+            float: right;
+        }
+
+        input[type="checkbox"] {
+            width: 100%;
+            height: 100%;
+            /*float: right;*/
+        }
+
+        /* 确保缩略图容器具有适当的宽度和居中显示 */
+        .thumbnail-container {
+            height: 125px; /* 可以根据需要调整 */
+            margin: 5px;
+            border: 1px solid #ccc; /* 可选，添加边框以区分 */
+            padding: 3px; /* 可选，添加内边距 */
+            box-sizing: border-box; /* 确保内边距和边框包含在宽度内 */
+            float: left;
+        }
+
+        /* 设置缩略图的宽高和保持宽高比 */
+        .thumbnail {
+            width: auto;
+            height: 100%;
+            display: block; /* 移除图片底部的间隙 */
+            margin: 0 auto; /* 水平和垂直居中（在容器内） */
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            .thumbnail-container {
+                width: 80%; /* 在小屏幕上调整宽度 */
+            }
+        }
+
+        .title {
+            font-weight: bold;
+            font-size: x-large;
+        }
+
+        .author {
+            color: #2df500;
+        }
+
+        .pages {
+            font-size: small;
+        }
+
+        .tag {
+            background-color: #989a9d;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .modal-dialog {
+            max-width: 65%; /* 您可以将此值更改为所需的宽度，例如 600px、80% 等 */
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+<script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.min.js"></script>
+<script>
+  function scanChecked() {
+    var checkboxGroup = document.getElementsByName('img');
+    var selectedValues = [];
+    for (let i = 0; i < checkboxGroup.length; i++) {
+      if (checkboxGroup[i].checked) {
+        selectedValues.push(checkboxGroup[i].id);
+      }
+    }
+    return selectedValues
+  }
+
+  let taskCount = 0;
+  const maxTasks = {_match_num};
+
+  function addEL(idx, url, img_src, title, author, pages, tags) {
+    const htmlString1 = `
+      <div class="list-group-item"><div class="row g-1">
+        <div class="col-11">
+            <div class="thumbnail-container">
+                <img src="${img_src}" title="${title}" alt="Thumbnail" class="thumbnail">
+            </div>
+            <ul style="list-style:none">
+                <li><a class="title" href="${url}">${title}</a></li>
+                <li><span class="author">${author}</span> <span class="pages">${pages}pages</span></li>`
+    let tags_html = `<li>`;
+    for (let i = 0; i < tags.length; i++) {
+      tags_html += `<span class="tag">${tags[i]}</span> `;
+    }
+    tags_html += `</li>`
+    const htmlString2 = `</ul>
+            </div>
+        <div class="col-1"><div class="checkbox checkbox-div"><label style="width: 50%;height: 95%;float: right;">
+            <input class="form-check-input" type="checkbox" name="img" value="" id="${idx}" checked>
+        </label></div></div>
+    </div></div>
+    `;
+    const parentElement = document.querySelector(".list-group");
+    const progressBar = document.getElementById('progress-bar');
+
+    parentElement.insertAdjacentHTML('beforeend', htmlString1 + tags_html + htmlString2);
+
+    taskCount++;
+    if (taskCount >= maxTasks) {
+      progressBar.style.width = `100%`;
+      progressBar.setAttribute('aria-valuenow', "100");
+      progressBar.className = "progress-bar bg-success"
+      progressBar.innerText = "100% Completed"
+    } else {
+      const progressPercent = Math.round((taskCount / maxTasks) * 100);
+      progressBar.style.width = `${progressPercent}%`;
+      progressBar.setAttribute('aria-valuenow', String(progressPercent));
+    }
+  }
+</script>
+
+<div class="modal fade" id="myModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">额外说明</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                1. 关于代理：该功能访问网站是基于配置是否设了代理，<br>当剪切板复制国内域名时需配置代理置空，复制翻墙域名时需设置代理，<br>请勿将翻墙与国内的域名网址混合一起复制，不慎操作时可改读取条数做调整;
+                <hr>
+                TODO: 优化失败/无效任务链接的显示/提示
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-auto me-auto"><h5>当前网站书页url匹配规则为：{_url_regex}</h5></div>
+        <div class="col-auto">
+            <button id="fixed-button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                    data-bs-target="#myModal">额外说明
+            </button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-ms"><h5>从剪切板检测到的匹配数量为 <span
+                style="font-size: larger;color: #00aa00">{_match_num}</span>， 获取进度：</h5></div>
+        <div class="col-ms-auto">
+            <div class="progress">
+                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                     role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0"></div>
+            </div>
+        </div>
+    </div>
+    <div class="list-group">
+    </div>
+</div>
+</body>
+</html>
