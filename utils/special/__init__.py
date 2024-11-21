@@ -9,6 +9,12 @@ import httpx
 from lxml import etree
 
 
+class Cookies:
+    @staticmethod
+    def to_str_(cookie):
+        return '; '.join([f"{k}={v}" for k, v in cookie.items()])
+
+
 class Utils:
     forever_url = ""
     publish_url = ""
@@ -178,6 +184,60 @@ class WnacgUtils(Utils):
         else:
             cls.status_publish = False
             raise ConnectionError(f"发布页[{cls.publish_url}]清洗出的网址{order_href}均失效，请前往检查")
+
+    book_url_regex = r"^https://www\.wn.*?/photos-index-aid-\d+\.html$"
+
+    @staticmethod
+    def parse_book(resp_text):
+        html = etree.HTML(resp_text)
+        title = html.xpath('//body/div/h2/text()')[0]
+        thumb_el = html.xpath('//div[contains(@class, "uwthumb")]')[0]
+        img_src = thumb_el.xpath('./img/@src')[0].replace("////", "https://")
+        url = thumb_el.xpath('./a/@href')[0].replace('slide', 'gallery')
+        info_el = html.xpath('//div[contains(@class, "uwconn")]')[0]
+        pages = re.search(r'\d+', next(filter(lambda _: "頁數" in _, info_el.xpath('./label/text()')))).group(0)
+        tags = info_el.xpath('.//a[@class="tagshow"]/text()')
+        author = "-"
+        # TODO[1](2024-11-22): 处理过长标题 和 过多的tag
+        return url, img_src, title, author, pages, tags
+
+
+class EHentaiKits:
+    login_url = "https://forums.e-hentai.org/index.php?act=Login"
+    home_url = "https://e-hentai.org/home.php"
+    domain = "exhentai.org"
+    index = f"https://{domain}/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        # "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Priority": "u=0, i",
+        "Pragma": "no-cache",
+        "Cache-Control": "no-cache",
+        "TE": "trailers",
+    }
+
+    def __init__(self, cookies, proxies: list):
+        _proxies = {"https://": f"http://{proxies[0]}"} if proxies else None
+        _hea = {**self.headers, "Cookie": Cookies.to_str_(cookies)}
+        self.cli = httpx.Client(proxies=_proxies, headers=_hea)
+
+    def get_limit(self):  # discard
+        """查限额"""
+        ...
+
+    def test_index(self):
+        try:
+            resp = self.cli.get(self.index, follow_redirects=True, timeout=3.5)
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            return False
+        if not resp.text:
+            return False
+        return True
 
 
 class MangabzUtils:

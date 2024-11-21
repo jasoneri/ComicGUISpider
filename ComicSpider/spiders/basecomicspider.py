@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 from typing import Union
 from abc import abstractmethod
 from copy import deepcopy
@@ -99,18 +100,26 @@ class BaseComicSpider(scrapy.Spider):
 
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
+        self.process_state.process = 'start_requests'
         try:
-            self.process_state.process = 'start_requests'
             self.before_search()
-            search_start = self.search
-            if self.domain not in search_start:
-                search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
+            if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
+                self.process_state.process = 'parse'
+                self.Q('ProcessQueue').send(self.process_state)
+                self.refresh_state('input_state', 'InputFieldQueue')
+                tasks = json.loads(self.input_state.indexes[6:])
+                for title, book_url_path in tasks:
+                    yield scrapy.Request(url=f"https://{self.domain}{book_url_path}",
+                                         callback=self.parse_section, meta={"title": title})
+            else:
+                search_start = self.search
+                if self.domain not in search_start:
+                    search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
+                self.search_start = deepcopy(search_start)
+                meta = {"Url": self.search_start}
+                yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
         except Exception as e:
             raise e
-        else:
-            self.search_start = deepcopy(search_start)
-            meta = {"Url": self.search_start}
-            yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
 
     def before_search(self):
         ...
@@ -170,7 +179,8 @@ class BaseComicSpider(scrapy.Spider):
 
     @abstractmethod
     def frame_book(self, response) -> dict:
-        """最终返回值按此数据格式返回
+        """parse book list page
+        最终返回值按此数据格式返回
         :return dict: {1: [title1, title1_url], 2: [title2, title2_url]……} 
         """
         pass
@@ -214,7 +224,8 @@ class BaseComicSpider(scrapy.Spider):
 
     @abstractmethod
     def frame_section(self, response) -> dict:
-        """最终返回值按此数据格式返回
+        """parse section list page
+        最终返回值按此数据格式返回
         :return dict: {1: [section1, section1_url], 2: [section2, section2_url]……} 
         """
         pass

@@ -38,6 +38,9 @@ class Conf:
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
     eh_cookies: dict = field(default_factory=dict)
+    clip_db: t.Union[p.Path, str] = curr_os.default_clip_db
+    clip_read_num: str = "20"
+    clip_sql = curr_os.clip_sql
     file = None
 
     def __init__(self, path=None):
@@ -54,6 +57,7 @@ class Conf:
                     v = curr_os.default_sv_path
                 self.__setattr__(k, v or getattr(self, k, None))
             self.sv_path = p.Path(self.sv_path)
+            self.clip_db = p.Path(self.clip_db)
             self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
             self.eh_cookies = getattr(self, 'eh_cookies', None)
         except FileNotFoundError:
@@ -66,6 +70,7 @@ class Conf:
             self.__setattr__(k, p.Path(v) if k == "sv_path" else v)
         props = asdict(self)
         props['sv_path'] = path_like_handle(props['sv_path'])
+        props['clip_db'] = path_like_handle(props['clip_db'])
         props['cv_proj_path'] = path_like_handle(props['cv_proj_path'])
         yaml_update(self.file, props)
 

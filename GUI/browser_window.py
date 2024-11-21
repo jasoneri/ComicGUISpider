@@ -9,7 +9,7 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 from GUI.uic.browser import Ui_browser
 from assets import res
 from utils import conf
-from utils.special.ehentai import EHentaiKits
+from utils.special import EHentaiKits
 
 
 class BrowserWindow(QMainWindow, Ui_browser):
@@ -39,6 +39,10 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
     def js_execute(self, js_code, callback):
         page = self.view.page()
+        page.runJavaScript(js_code, callback)
+
+    @staticmethod
+    def js_execute_by_page(page, js_code, callback):
         page.runJavaScript(js_code, callback)
 
     def page(self, after_callback):

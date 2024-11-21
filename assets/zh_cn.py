@@ -12,7 +12,6 @@ class GUI:
 
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 
-    toolBox_warning = "仅当常规漫画网站能使用工具箱功能"
     jm_bookid_support = "支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>"
     wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>" + \
                                "网络问题如 [Errno 11001] / `ReadTimeout` 一般重启就好了，一直出现同一种错误的话 加群反映/提issue<br>"
@@ -26,7 +25,7 @@ class GUI:
                                 u'<font color="black"> 或者 </font>'
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
     WorkThread_finish_flag = "完成任务"  # related to SPIDER.close_success
-    copymaga_tips = "拷贝漫画在配置代理后能解锁章节，例如芙莉莲、黑暗集会等（此提示后再配置代理则需要重启/retry程序）"
+    copymaga_tips = "拷贝漫画在配置代理后能解锁章节，例如黑暗集会等（此提示后再配置代理则需要重启/retry程序）"
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
     global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
 
@@ -34,6 +33,8 @@ class GUI:
         action1 = "显示已阅最新话数记录"
         action2 = "整合章节并移至web目录"
         action2_warning = "未配合[comic_viewer]项目产生记录文件[%s]，\n功能无法正常使用"
+
+        action_ero1 = "读取剪切板创建匹配任务列表"
 
 
 # website
