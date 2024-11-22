@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 import time
 from multiprocessing import Process
@@ -41,7 +42,8 @@ class ClipTasksThread(QThread):
 
     def run(self):
         self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
-        cli = httpx.Client(proxies={"https://": f"http://{conf.proxies[0]}"}, headers=self.gui.spiderUtils.headers)
+        cli = httpx.Client(proxies={"https://": f"http://{conf.proxies[0]}"} if conf.proxies else None,
+                           headers=self.gui.spiderUtils.headers)
         if self.gui.chooseBox.currentIndex() == 4:
             cli.headers = {**EHentaiKits.headers, "Cookie": Cookies.to_str_(conf.eh_cookies)}
         total = {}
@@ -51,6 +53,7 @@ class ClipTasksThread(QThread):
             self.msleep(100)
             self.info_signal.emit((idx + 1, url, *info[1:]))
             total[idx + 1] = [info[2], info[0]]
+        self.msleep(800)
         self.total_signal.emit(total)
 
 
@@ -144,10 +147,13 @@ class ToolMenu(QMenu):
         action_read_clip.triggered.connect(self.read_clip)
 
     def read_clip(self):
-        clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
-                           getattr(self.gui.spiderUtils, "book_url_regex"))
-        tf, match_items = clip.main()
-        self.gui.init_clip_handle(tf, match_items)
+        if self.gui.next_btn.text() != '搜索':
+            QMessageBox.information(self.gui, 'Warning', self.res.clip_process_warning)
+        else:
+            clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
+                               getattr(self.gui.spiderUtils, "book_url_regex"))
+            tf, match_items = clip.main()
+            self.gui.init_clip_handle(tf, match_items)
 
 
 class SpiderGUI(QMainWindow, Ui_MainWindow):
@@ -359,10 +365,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.BrowserWindow.destroy()
 
     def init_clip_handle(self, tf, match_urls):
+        self.searchinput.setDisabled(True)
+        self.previewInit = False
         self.clip_is_triggered = True
         self.tf = tf
         self.set_preview()
-        self.BrowserWindow.setFixedHeight(860)
+        self.BrowserWindow.resize(self.BrowserWindow.width(), 860)
         self.BrowserWindow.show()
         self.page = self.BrowserWindow.view.page()
         self.clipTasksThread = ClipTasksThread(self, getattr(self.spiderUtils, "parse_book"), match_urls)
@@ -377,10 +385,20 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def all_clip_tasks_data(self, infos):
         def refresh_tf(html):
-            with open(self.tf, 'w', encoding='utf-8') as f:
-                f.write(html)
+            if html:
+                with open(self.tf, 'w', encoding='utf-8') as f:
+                    # 实在搞不懂怎么跨端正常关掉已经打开的模态框，只能硬改标签属性了
+                    html = re.sub(r"<body.*?>", "<body>", html)
+                    html = re.sub(r"""aria-labelledby="exampleModalLabel".*?>""",
+                                  """aria-labelledby="exampleModalLabel">""", html)
+                    html = html.replace(r"""<div class="modal-backdrop fade show"></div>""", "")
+                    f.write(html)
+            else:
+                print("没有内容？？？")
 
-        self.BrowserWindow.view.page().toHtml(refresh_tf)
+        self.BrowserWindow.js_execute("finishTasks();", refresh_tf)
+        if self.BrowserWindow.topHintBox.isChecked():
+            self.BrowserWindow.topHintBox.click()
         self.clip_infos = infos
 
     def clean_temp_file(self):
@@ -430,7 +448,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.bThread.print_signal.connect(self.say)
                 self.bThread.item_count_signal.connect(self.processbar_load)
                 self.bThread.finishSignal.connect(self.crawl_end)
-
                 self.bThread.start()
                 self.log.info(f'-*-*- Background thread & spider starting')
 
@@ -475,7 +492,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.input_state.pageTurn = ""
             self.Q('InputFieldQueue').send(self.input_state)
             refresh_state(self, 'process_state', 'ProcessQueue')
-            self.previewInit = False
+            self.toolButton.setDisabled(True)
             return
         idxes = transfer_input(self.chooseinput.text()[5:].strip())
         if self.BrowserWindow and self.BrowserWindow.output:

@@ -35,6 +35,7 @@ class GUI:
         action2_warning = "未配合[comic_viewer]项目产生记录文件[%s]，\n功能无法正常使用"
 
         action_ero1 = "读取剪切板创建匹配任务列表"
+        clip_process_warning = "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
 
 
 # website
