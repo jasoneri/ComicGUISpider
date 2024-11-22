@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import re
 import typing as t
 from urllib.parse import urlencode
@@ -47,6 +48,9 @@ class JmSpider(BaseComicSpider2):
         try:
             self.refresh_state('input_state', 'InputFieldQueue')
             keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
+            if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
+                tasks = json.loads(self.input_state.indexes[6:])
+                keyword = ','.join([_[-1] for _ in tasks])
             if ',' in keyword or keyword.isdecimal():
                 self.domain = JmUtils.get_domain()
                 b_url = self.book_id_url

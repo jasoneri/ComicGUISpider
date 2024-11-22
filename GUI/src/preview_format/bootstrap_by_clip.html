@@ -132,9 +132,15 @@
     }
   }
 
+  function checkDoneTasks() {
+    const El = document.querySelectorAll(".list-group-item");
+    return El.length;
+  }
   function finishTasks() {
     var modal = bootstrap.Modal.getInstance(document.getElementById('myModal'));
-    modal.hide();
+    if (modal) {
+      modal.hide();
+    }
     return document.documentElement.outerHTML;
   }
 </script>
