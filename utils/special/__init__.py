@@ -198,8 +198,7 @@ class WnacgUtils(Utils):
         pages = re.search(r'\d+', next(filter(lambda _: "頁數" in _, info_el.xpath('./label/text()')))).group(0)
         tags = info_el.xpath('.//a[@class="tagshow"]/text()')
         author = "-"
-        # TODO[1](2024-11-22): 处理过长标题 和 过多的tag
-        return url, img_src, title, author, pages, tags
+        return url, img_src, title, author, pages, tags[:20]
 
 
 class EHentaiKits:
