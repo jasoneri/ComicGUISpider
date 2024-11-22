@@ -43,17 +43,30 @@ class ClipTasksThread(QThread):
     def run(self):
         self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
         cli = httpx.Client(proxies={"https://": f"http://{conf.proxies[0]}"} if conf.proxies else None,
-                           headers=self.gui.spiderUtils.headers)
+                           headers=self.gui.spiderUtils.book_hea)
         if self.gui.chooseBox.currentIndex() == 4:
             cli.headers = {**EHentaiKits.headers, "Cookie": Cookies.to_str_(conf.eh_cookies)}
         total = {}
         for idx, url in enumerate(self.tasks):
-            resp = cli.get(url)
-            info = self.parse_func(resp.text)
-            self.msleep(100)
-            self.info_signal.emit((idx + 1, url, *info[1:]))
-            total[idx + 1] = [info[2], info[0]]
-        self.msleep(800)
+            try:
+                resp = cli.get(url)
+                info = self.parse_func(resp.text)
+                self.msleep(100)
+                self.info_signal.emit((idx + 1, url, *info[1:]))
+                total[idx + 1] = [info[2], info[0]]
+            except Exception as e:
+                err_msg = rf"获取信息失败({url}): [{type(e).__name__}] {str(e)}"
+                self.gui.log.warning(err_msg)
+                # self.gui.say(err_msg)
+        self.max_wait = 10
+        while self.max_wait:
+            def _match(num):
+                if num >= len(total):
+                    self.max_wait = 1
+
+            self.gui.BrowserWindow.js_execute("checkDoneTasks();", _match)
+            self.msleep(200)
+            self.max_wait -= 1
         self.total_signal.emit(total)
 
 

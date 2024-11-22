@@ -74,6 +74,12 @@ class JmUtils(Utils):
         "Cache-Control": "no-cache",
         "TE": "trailers"
     }
+    book_hea = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
+        "Accept-Encoding": "gzip, deflate, br",
+    }
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")
@@ -157,6 +163,25 @@ class JmUtils(Utils):
             cls.status_publish = False
             raise ConnectionError(f"发布页[{cls.publish_url}]清洗出的域名{domains}均失效，请前往检查")
 
+    book_url_regex = r"^https://.*?comic.*?/album/\d+"
+
+    @staticmethod
+    def parse_book(resp_text):
+        html = etree.HTML(resp_text)
+        cover_el = \
+        html.xpath('//div[contains(@class, "visible-lg")]//div[@class="panel-body"]/div/div[@id="album_photo_cover"]')[
+            0]
+        title = html.xpath('//h1[@id="book-name"]/text()')[0]
+        img_src = cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src')[0]
+        info_el = cover_el.xpath('./following-sibling::div')[0]
+        author = (info_el.xpath('.//span[@data-type="author"]/a/text()') or ["-"])[-1]
+        pages = re.search(r'\d+',
+                          info_el.xpath('./div/div[contains(text(), "頁數") or contains(text(), "页数")]/text()')[
+                              0]).group(0)
+        tags = info_el.xpath('.//span[@data-type="tags"]/a/text()')
+        url = jm_id = re.search(r"var aid = (\d+);", resp_text).group(1)
+        return url, img_src, title, author, pages, tags[:20]
+
 
 class WnacgUtils(Utils):
     publish_domain = "wnacg.date"
@@ -168,6 +193,7 @@ class WnacgUtils(Utils):
         "cache-control": "max-age=0",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.67"
     }
+    book_hea = headers
 
     @classmethod
     def parse_publish(cls, html_text):
