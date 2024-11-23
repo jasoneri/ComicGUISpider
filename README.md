@@ -28,7 +28,7 @@
 | [Māngabz](https://mangabz.com)        |      ✅       |       ❌       |     ✅     |  ❌   | 补充拷贝，访问需代理 |
 | [禁漫天堂](https://18comic.vip/)          |      ✅       |       ✅       |     ✅     |  ✅   |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) |      ✅       |       ✅       |     ✅     |  ✅   |
-| [ExHentai](https://exhentai.org/)     |      ✅       |       ✅       | ✅<br/>禁跳转 | 开发中  |
+| [ExHentai](https://exhentai.org/)     |      ✅       |       ✅       | ✅<br/>禁跳转 |  ✅   |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -56,9 +56,8 @@
 
 ### V1.6.1 | 2024-11-23
 
-新增读剪切板匹配生成任务功能（工具箱里）,
-配合剪切板软件使用（自行下载安装），win为 [Ditto](https://github.com/sabrogden/Ditto)
-、macOS为 [Maccy](https://github.com/p0deje/Maccy)。<br>
+新增读剪切板匹配生成任务功能, 需配合剪切板软件使用（自行下载安装），
+win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://github.com/p0deje/Maccy)。<br>
 该功能流程使用看`视频3`新增部分，此功能说明以及后续的相关更新详细细则等将放在任务页面右上的`额外说明`。
 
 ### V1.6 | 2024-11-13
