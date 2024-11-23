@@ -406,6 +406,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.previewInit = False
         self.clip_is_triggered = True
         self.tf = tf
+        self.clip_tasks = match_urls
         self.set_preview()
         self.BrowserWindow.resize(self.BrowserWindow.width(), 860)
         self.BrowserWindow.show()
@@ -433,10 +434,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 # self.BrowserWindow.second_init(self.tf)
                 if self.BrowserWindow.topHintBox.isChecked():
                     self.BrowserWindow.topHintBox.click()
+                if len(infos) < len(self.clip_tasks):
+                    self.activateWindow()
+                    self.say("===部分失败，但仍可继续处理任务窗口的任务")
                 self.clip_infos = infos
             else:
                 print("没有内容？？？")
-
         if not infos:
             self.BrowserWindow.hide()
         else:
