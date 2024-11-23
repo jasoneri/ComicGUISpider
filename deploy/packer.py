@@ -50,8 +50,15 @@ preset = {
                       "qtwebengine_resources", "qt.conf"], "streamlit": ["streamlit\\static"],
     "trame_vtk": ["static_viewer.html"], "python-docx": ["docx\\templates"], "python-pptx": ["pptx\\templates"],
     "scrapy": ["mime.types"]}
-release_desc = """开箱即用
----
+release_desc = """
+Features
+ + 新增读剪切板功能(d3c1b690de50a5bb5ee2a1491f5dd71b966d9b75) , closes #20 
+  
+> 此`1.6.1`版本并没进行环境更新或大bug，运行`CGS-更新`即可（即使下载这release的绿色包也是）
+
+<details>
+<summary>开箱即用说明(点击展开)</summary>
+
 ### ⚡️下载
 下面的`CGS.7z`，下载很慢 ？到压缩包的下载链接右键复制到 https://github.akams.cn/ 上进行下载加速
 
@@ -74,6 +81,7 @@ release_desc = """开箱即用
 ### 💻macOS
 下载 `CGS-macOS.7z` 就行，解压后首先双击`desc_macOS.html`浏览器打开查看说明（仅限初始解压后的一次性引导）
 注：_**全部 `.app` 第一次无法双击打开时，第二次需要右键打开，再以后就能双击打开**_
+</details>
 
 ---
 遇到问题 提issue 或 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问"""
