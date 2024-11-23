@@ -42,32 +42,52 @@ class ClipTasksThread(QThread):
 
     def run(self):
         self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
-        cli = httpx.Client(proxies={"https://": f"http://{conf.proxies[0]}"} if conf.proxies else None,
-                           headers=self.gui.spiderUtils.book_hea)
-        if self.gui.chooseBox.currentIndex() == 4:
-            cli.headers = {**EHentaiKits.headers, "Cookie": Cookies.to_str_(conf.eh_cookies)}
+        cli = self.gui.spiderUtils.get_cli(conf)
         total = {}
         for idx, url in enumerate(self.tasks):
             try:
-                resp = cli.get(url)
+                resp = cli.get(url, follow_redirects=True, timeout=3)
                 info = self.parse_func(resp.text)
-                self.msleep(100)
+                self.msleep(50)
                 self.info_signal.emit((idx + 1, url, *info[1:]))
                 total[idx + 1] = [info[2], info[0]]
             except Exception as e:
                 err_msg = rf"获取信息失败({url}): [{type(e).__name__}] {str(e)}"
-                self.gui.log.warning(err_msg)
-                # self.gui.say(err_msg)
-        self.max_wait = 10
-        while self.max_wait:
-            def _match(num):
-                if num >= len(total):
-                    self.max_wait = 1
+                self.gui.log.exception(e)
+                self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
+        self.handle_total(total)
 
-            self.gui.BrowserWindow.js_execute("checkDoneTasks();", _match)
-            self.msleep(200)
-            self.max_wait -= 1
-        self.total_signal.emit(total)
+    def check_condition_and_run_js(self):
+        if self.iterations >= self.max_iterations:
+            print("Reached maximum iterations without meeting the condition.")
+            self.total_signal.emit(self.total)
+            return
+        else:
+            self.iterations += 1
+            self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
+
+    def handle_js_result(self, num):
+        if num and num >= len(self.total):
+            print("Condition met, stopping loop.")
+            self.total_signal.emit(self.total)
+            return
+        self.msleep(200)
+        self.check_condition_and_run_js()
+
+    def handle_total(self, total):
+        self.max_iterations = 7 * len(self.tasks)  # 一个任务约给1.5秒
+        self.iterations = 0  # 当前循环次数
+        self.total = total
+        if not total:
+            self.total_signal.emit({})
+            self.gui.say(
+                font_color(r"没有一个成功的任务，如http错误请更新配置如代理/cookies后重新运行此功能，若总是失败提issue",
+                           color='red'),
+                ignore_http=True)
+            self.gui.say(
+                font_color(rf"<br>在日志文件查看详细报错堆栈 [{conf.log_path}\GUI.log]", color='red', size=5))
+        else:
+            self.check_condition_and_run_js()
 
 
 class WorkThread(QThread):
@@ -166,7 +186,11 @@ class ToolMenu(QMenu):
             clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
                                getattr(self.gui.spiderUtils, "book_url_regex"))
             tf, match_items = clip.main()
-            self.gui.init_clip_handle(tf, match_items)
+            if not match_items:
+                self.gui.say(f"无匹配任务，先进行复制再运行此功能，当前匹配规则：{self.gui.spiderUtils.book_url_regex}",
+                             ignore_http=True)
+            else:
+                self.gui.init_clip_handle(tf, match_items)
 
 
 class SpiderGUI(QMainWindow, Ui_MainWindow):
@@ -406,13 +430,17 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                                   """aria-labelledby="exampleModalLabel">""", html)
                     html = html.replace(r"""<div class="modal-backdrop fade show"></div>""", "")
                     f.write(html)
+                # self.BrowserWindow.second_init(self.tf)
+                if self.BrowserWindow.topHintBox.isChecked():
+                    self.BrowserWindow.topHintBox.click()
+                self.clip_infos = infos
             else:
                 print("没有内容？？？")
 
-        self.BrowserWindow.js_execute("finishTasks();", refresh_tf)
-        if self.BrowserWindow.topHintBox.isChecked():
-            self.BrowserWindow.topHintBox.click()
-        self.clip_infos = infos
+        if not infos:
+            self.BrowserWindow.hide()
+        else:
+            self.BrowserWindow.js_execute("finishTasks();", refresh_tf)
 
     def clean_temp_file(self):
         """when: 1. preview BrowserWindow destroy; 2. pageTurn btn group clicked"""
@@ -552,8 +580,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         curr_os.open_folder(imgs_path) if self.checkisopen.isChecked() else None
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
-    def say(self, string):
-        if 'http' in string:
+    def say(self, string, ignore_http=False):
+        if 'http' in string and not ignore_http:
             self.textBrowser.setOpenExternalLinks(True)
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
                 string = self.res.textbrowser_load_if_http % string
