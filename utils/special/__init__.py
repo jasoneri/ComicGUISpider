@@ -15,6 +15,22 @@ class Cookies:
         return '; '.join([f"{k}={v}" for k, v in cookie.items()])
 
 
+class Req:
+    book_hea = {}
+
+    @classmethod
+    def get_cli(cls, conf):
+        cli = httpx.Client(proxies={"https://": f"http://{conf.proxies[0]}"} if conf.proxies else None,
+                           headers=cls.book_hea)
+        return cli
+
+    book_url_regex = ""
+
+    @classmethod
+    def parse_book(cls):
+        ...
+
+
 class Utils:
     forever_url = ""
     publish_url = ""
@@ -57,7 +73,7 @@ class Utils:
         ...
 
 
-class JmUtils(Utils):
+class JmUtils(Utils, Req):
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     status_forever = True
@@ -168,22 +184,19 @@ class JmUtils(Utils):
     @staticmethod
     def parse_book(resp_text):
         html = etree.HTML(resp_text)
-        cover_el = \
-        html.xpath('//div[contains(@class, "visible-lg")]//div[@class="panel-body"]/div/div[@id="album_photo_cover"]')[
-            0]
+        cover_el = html.xpath('//div[@id="album_photo_cover"]')[-1]
         title = html.xpath('//h1[@id="book-name"]/text()')[0]
         img_src = cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src')[0]
         info_el = cover_el.xpath('./following-sibling::div')[0]
         author = (info_el.xpath('.//span[@data-type="author"]/a/text()') or ["-"])[-1]
-        pages = re.search(r'\d+',
-                          info_el.xpath('./div/div[contains(text(), "頁數") or contains(text(), "页数")]/text()')[
-                              0]).group(0)
+        pages = re.search(
+            r'\d+', info_el.xpath('./div/div[contains(text(), "頁數") or contains(text(), "页数")]/text()')[0]).group(0)
         tags = info_el.xpath('.//span[@data-type="tags"]/a/text()')
         url = jm_id = re.search(r"var aid = (\d+);", resp_text).group(1)
         return url, img_src, title, author, pages, tags[:20]
 
 
-class WnacgUtils(Utils):
+class WnacgUtils(Utils, Req):
     publish_domain = "wnacg.date"
     publish_url = f"https://{publish_domain}"
     status_publish = True
@@ -227,7 +240,7 @@ class WnacgUtils(Utils):
         return url, img_src, title, author, pages, tags[:20]
 
 
-class EHentaiKits:
+class EHentaiKits(Req):
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
     domain = "exhentai.org"
@@ -243,6 +256,12 @@ class EHentaiKits:
         "Pragma": "no-cache",
         "Cache-Control": "no-cache",
         "TE": "trailers",
+    }
+    book_hea = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
+        "Accept-Encoding": "gzip, deflate, br",
     }
 
     def __init__(self, cookies, proxies: list):
@@ -263,6 +282,32 @@ class EHentaiKits:
         if not resp.text:
             return False
         return True
+
+    @classmethod
+    def get_cli(cls, conf):
+        cli = super().get_cli(conf)
+        cli.headers = {**cls.book_hea, "Cookie": Cookies.to_str_(conf.eh_cookies)}
+        return cli
+
+    book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"
+
+    @staticmethod
+    def parse_book(resp_text):
+        html = etree.HTML(resp_text)
+        title = (html.xpath('//h1[@id="gj"]/text()') or html.xpath('//div[@id="gd2"]/h1/text()'))[0]
+        script_string = html.xpath('//script[contains(text(), "var base_url")]/text()')[0]
+        gid = re.search(r"gid = ([0-9a-z]+)", script_string).group(1)
+        token = re.search(r"""token = "?([0-9a-z]+)""", script_string).group(1)
+        url = f"/g/{gid}/{token}/"
+        pages = re.search(r">(\d+) pages<", resp_text).group(1)
+        tags_ = html.xpath('//td[@class="tc" and text()="female:"]/following-sibling::td/div/a/@id')
+        tags = list(map(lambda x: x.split(":")[-1], tags_))
+        author_ = html.xpath('//div[contains(@id, "td_artist:")]/@id')
+        author = author_[0].split(':')[-1] if author_ else '-'
+        img_src_el = html.xpath('//div[@id="gleft"]/div/div/@style')[0]
+        img_src = re.search(r"url\((.*?)\)", img_src_el.replace("&quot;", "").replace('"', '')
+                            ).group(1)
+        return url, img_src, title, author, pages, tags[:20] if tags else []
 
 
 class MangabzUtils:

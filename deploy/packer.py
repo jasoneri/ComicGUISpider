@@ -200,7 +200,7 @@ class Packer:
         release.upload_asset(str(path.joinpath(zip_file)), name=zip_file)
         # update release
         text = release_desc
-        release.update_release(name=f"{date_now} - v1.6.0", message=text)
+        release.update_release(name=f"{date_now} - v1.6.1", message=text)
 
 
 def clean():

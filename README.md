@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social" alt="tag">
   <img src="https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef" alt="tag">
 
-  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=35&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS%EF%BC%8C%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%E5%A4%9A%E9%80%89%EF%BC%8C%E7%BF%BB%E9%A1%B5%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
+  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=32&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS%EF%BC%8C%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%2F%E7%BF%BB%E9%A1%B5%2F%E8%AF%BB%E5%89%AA%E5%88%87%E6%9D%BF%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
 
 </div>
 
@@ -48,20 +48,18 @@
 ```
 
 > [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
-> 注意看评论有补充链接（防挂），新增`v1.6 预览等功能演示 视频3`
+> 注意看评论有补充链接（防挂），新增`v1.6.1 预览等功能演示 视频3`
 
 > _**macOS必读**_：基于此说明(README)下进行了补充说明，[点击前往macOS的补充说明](deploy/launcher/mac/EXTRA.md)
 
 ## 📢更新
 
-### V1.6 | 2024-11-23
+### V1.6.1 | 2024-11-23
 
-新增读剪切板匹配生成任务列表功能（工具箱里）,
-需配合剪切板软件使用（自行下载安装），win为 [Ditto](https://github.com/sabrogden/Ditto)
+新增读剪切板匹配生成任务功能（工具箱里）,
+配合剪切板软件使用（自行下载安装），win为 [Ditto](https://github.com/sabrogden/Ditto)
 、macOS为 [Maccy](https://github.com/p0deje/Maccy)。<br>
-该功能流程使用看`视频3`新增部分，该功能的说明以及后续的相关更新详细细则等将放在任务列表页面右上的`额外说明`。
-
-> 合计ehentai搞定后会更新绿色包，视频3尚未更新
+该功能流程使用看`视频3`新增部分，此功能说明以及后续的相关更新详细细则等将放在任务页面右上的`额外说明`。
 
 ### V1.6 | 2024-11-13
 

@@ -18,7 +18,6 @@ class EHentaiSpider(BaseComicSpider3):
     name = 'ehentai'
     num_of_row = 25
     domain = domain
-    # allowed_domains = [domain]
     search_url_head = f'https://{domain}/?f_search='
     mappings = {
         '首页': f'https://{domain}',
@@ -81,7 +80,7 @@ class EHentaiSpider(BaseComicSpider3):
         next_flag = None
         frame_results = response.meta.get('frame_results', {})
         sec_page = response.meta.get('sec_page', 1)
-        this_book_pages = response.meta.get('book_pages')
+        this_book_pages = response.meta.get('book_pages') or re.search(r">(\d+) pages<", response.text).group(1)
         targets = response.xpath('//div[@id="gdt"]/a')
         first_idx = max(frame_results.keys()) if frame_results else 0
         for x, target in enumerate(targets):
