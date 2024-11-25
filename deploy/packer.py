@@ -52,7 +52,7 @@ preset = {
     "scrapy": ["mime.types"]}
 release_desc = """
 ### 🎁 Features
- + 新增读剪切板功能(d3c1b690de50a5bb5ee2a1491f5dd71b966d9b75) , closes #20 
+ + 新增读剪贴板功能(d3c1b690de50a5bb5ee2a1491f5dd71b966d9b75) , closes #20 
   
 > 此`1.6.1`版本并没进行环境更新或大bug，运行`CGS-更新`即可（即使下载这release的绿色包也是）
 

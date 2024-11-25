@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Python-3.12%2B-brightgreen.svg?style=social" alt="tag">
   <img src="https://img.shields.io/badge/Mode-GUI+Scrapy-blue.svg?colorA=abcdef" alt="tag">
 
-  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=32&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS%EF%BC%8C%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%2F%E7%BF%BB%E9%A1%B5%2F%E8%AF%BB%E5%89%AA%E5%88%87%E6%9D%BF%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
+  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=32&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS%EF%BC%8C%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%2F%E7%BF%BB%E9%A1%B5%2F%E8%AF%BB%E5%89%AA%E8%B4%B4%E6%9D%BF%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
 
 </div>
 
@@ -22,7 +22,7 @@
 
 ### 支持网站
 
-| 网站                                    | 支持<br>(数字输入) | 预览<br/>(点击多选) |    翻页     | 读剪切板 |    补充说明    |
+| 网站                                    | 支持<br>(数字输入) | 预览<br/>(点击多选) |    翻页     | 读剪贴板 |    补充说明    |
 |:--------------------------------------|:------------:|:-------------:|:---------:|:----:|:----------:|
 | [拷贝漫画](https://www.mangacopy.com/)    |      ✅       |       ❌       |     ✅     |  ❌   |
 | [Māngabz](https://mangabz.com)        |      ✅       |       ❌       |     ✅     |  ❌   | 补充拷贝，访问需代理 |
@@ -54,15 +54,15 @@
 
 ## 📢更新
 
+### V1.6.1 | 2024-11-26
+
+处理jm域名重定向
+
 ### V1.6.1 | 2024-11-23
 
-新增读剪切板匹配生成任务功能, 需配合剪切板软件使用（自行下载安装），
+新增读剪贴板匹配生成任务功能, 需配合剪贴板软件使用（自行下载安装），
 win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://github.com/p0deje/Maccy)。<br>
 该功能流程使用看`视频3`新增部分，此功能说明以及后续的相关更新详细细则等将放在任务页面右上的`额外说明`。
-
-### V1.6 | 2024-11-13
-
-处理拷贝章节数量大于300
 
 > [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
@@ -73,7 +73,7 @@ win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://gi
 3. 翻页：当有列表结果出来后开启使用，使用如上面动图所示
    > 注意：`拷贝漫画`的翻页数使用的是`序号`而不是`页数`等，对应程序内已做详细说明
 4. 工具箱功能
-   1. 读剪切板匹配生成任务列表
+   1. 读剪贴板匹配生成任务列表
    > 常规漫画的工具箱功能作为另一个项目的配合使用 -> [点击前往该项目](https://github.com/jasoneri/comic_viewer)
 
 ## 🚀使用
@@ -95,8 +95,8 @@ win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://gi
 | 映射         |  custom_map   |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展 |
 | 预设         |   completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                   |
 | eh_cookies |  eh_cookies   |           | 使用`ehentai`时必需，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备链 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))             |
-| 剪切板db      |    clip_db    |           | 默认读取剪切板软件的数据库初设路径<br>如相关功能无法使用时可自行查看路径是否一致，并在此更改<br>1. ditto(win): 打开选项 → 数据库路径 <br>2.maccy(macOS): [issue搜索相关得知](https://github.com/p0deje/Maccy/issues/271)                                                       |
-| 读取条数       | clip_read_num |    20     | 读取剪切板软件条目数量，需少于剪切板软件设置的最大数量 (建议少量多次)                                                                                                                                                                                |
+| 剪贴板db      |    clip_db    |           | 默认读取剪贴板软件的数据库初设路径<br>如相关功能无法使用时可自行查看路径是否一致，并在此更改<br>1. ditto(win): 打开选项 → 数据库路径 <br>2.maccy(macOS): [issue搜索相关得知](https://github.com/p0deje/Maccy/issues/271)                                                       |
+| 读取条数       | clip_read_num |    20     | 读取剪贴板软件条目数量，需少于剪贴板软件设置的最大数量 (建议少量多次)                                                                                                                                                                                |
 | cv项目路径     | cv_proj_path  |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                         |
 
 > 除 `存储路径` 其他均非必须，使用默认即可 或置空 <br>

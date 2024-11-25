@@ -22,7 +22,7 @@ class SayToGui:
     exp_txt = res.exp_txt
     exp_turn_page = font_color(res.exp_turn_page, color='darkgreen')
     exp_preview = font_color(res.exp_preview, color='chocolate')
-    exp_extra = exp_turn_page + exp_preview + res.exp_replace_keyword
+    exp_extra = f"{exp_turn_page}<br>{exp_preview}<br>{res.exp_replace_keyword}"
 
     def __init__(self, spider, queue, state):
         self.spider = spider
@@ -50,7 +50,7 @@ class SayToGui:
         extra = extra or self.res.frame_book_print_extra
         self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         self(
-            f"{''.join(self.exp_txt)}{font_color(extra, color='blue')}"
+            f"<hr><p>{''.join(self.exp_txt)}{font_color(extra, color='blue')}</p><br>"
             if len(frame_results) else
             f"{'✈' * 15}{font_color(self.res.frame_book_print_retry_tip, color='red', size=5)}"
         )
@@ -66,7 +66,7 @@ class SayToGui:
                 print_npc = []
         self(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(
             print_npc) else None
-        self(''.join(self.exp_txt) + font_color(extra, color="purple"))
+        self(f"<hr><p>{''.join(self.exp_txt)}{font_color(extra, color='purple')}</p><br>")
         return frame_results
 
 
@@ -143,7 +143,6 @@ class BaseComicSpider(scrapy.Spider):
     def parse(self, response):
         self.process_state.process = 'parse'
         self.Q('ProcessQueue').send(self.process_state)
-        self.say("<br>")
         frame_book_results = self.frame_book(response)
         elect_res = response.meta.get("elect_res", [])
         if elect_res:
@@ -196,8 +195,7 @@ class BaseComicSpider(scrapy.Spider):
             yield scrapy.Request(url=need_sec_next_page, callback=self.parse_section, meta=response.meta)
         else:
             title = response.meta.get('title')
-            self.say(f'<br>{"{:=^65}".format("message")}')
-            self.say(f'<br>{"=" * 15} 《{title}》')
+            self.say(f'{"=" * 15} 《{title}》')
             frame_sec_result = self.frame_section(response)
 
             self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
@@ -287,9 +285,9 @@ class BaseComicSpider(scrapy.Spider):
                 font_color(f'<br>~~~{self.__res.close_success} ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
                 if self.total != 0 else
                 font_color(f'~~~…(￣┰￣*)………{self.__res.close_backend_error}<br>', size=5) +
-                font_color(self.__res.close_check_log_guide1, color='blue', size=4) +
-                font_color(self.__res.close_check_log_guide2, color='blue', size=4) +
-                font_color(self.__res.close_check_log_guide3, color='blue', size=4) +
+                font_color('<br>'.join((self.__res.close_check_log_guide1, self.__res.close_check_log_guide2,
+                                        self.__res.close_check_log_guide3)),
+                           color='blue', size=4) + "<br>" +
                 font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
             )
 
@@ -309,7 +307,7 @@ class BaseComicSpider2(BaseComicSpider):
         self.Q('ProcessQueue').send(self.process_state)
 
         title = PresetHtmlEl.sub(response.meta.get('title'))
-        self.say(f'<br>{"=" * 15} 《{title}》')
+        self.say(f'{"=" * 15} 《{title}》')
         results = self.frame_section(response)  # {1: url1……}
         referer = response.url
         for page, url in results.items():

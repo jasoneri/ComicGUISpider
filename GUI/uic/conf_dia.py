@@ -270,9 +270,9 @@ class Ui_Dialog(object):
         self.label_completer_2.setText(_translate("Dialog", "eh_cookies"))
         self.eh_cookiesEdit.setPlaceholderText(
             _translate("Dialog", "cookies field key/cookies字段名  igneous,ipb_member_id,ipb_pass_hash"))
-        self.label_6.setText(_translate("Dialog", "剪切板db"))
+        self.label_6.setText(_translate("Dialog", "剪贴板db"))
         self.label_7.setText(_translate("Dialog", "读取条数"))
-        self.clip_read_numEdit.setToolTip(_translate("Dialog", "需少于剪切板软件所设的最大值"))
+        self.clip_read_numEdit.setToolTip(_translate("Dialog", "需少于剪贴板软件所设的最大值"))
         self.clip_read_numEdit.setInputMask(_translate("Dialog", "999"))
         self.clip_read_numEdit.setText(_translate("Dialog", "100"))
         self.label_5.setToolTip(_translate("Dialog", "comic_viewer_proj_path"))

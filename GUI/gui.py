@@ -233,7 +233,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def setupUi(self, MainWindow):
         self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
-        self.textBrowser.setText(''.join(TextUtils.description))
+        self.textBrowser.append(TextUtils.description)
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
         # 初始化通信管道相关
@@ -279,7 +279,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.tool_menu.switch_ero()
         if index == 1:
             self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
-            self.say(font_color('<br>' + self.res.copymaga_tips, color='purple'))
+            self.say(font_color(self.res.copymaga_tips, color='purple'))
         elif index == 2:
             self.say(font_color(self.res.jm_bookid_support, color='blue'))
         elif index == 3 and not conf.proxies:
@@ -288,7 +288,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.pageEdit.setDisabled(True)
             self.say(font_color(res.EHentai.GUIDE, color='purple'))
         elif index == 5:
-            self.say(font_color('<br>' + self.res.mangabz_desc, color='purple'))
+            self.say(font_color(self.res.mangabz_desc, color='purple'))
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()
@@ -502,11 +502,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self._next()
         else:
             if self.chooseBox.currentIndex() == 4:
-                self.say(self.res.check_ehetai)
+                self.say(f"{self.res.check_ehetai}<br>")
                 if not BrowserWindow.check_ehentai(self):
                     return
             elif self.chooseBox.currentIndex() == 5:
-                self.say("<br>" + self.res.check_mangabz)
+                self.say(f"{self.res.check_mangabz}<br>")
                 obj = self.spiderUtils(conf.proxies)
                 if not obj.test_index():
                     QMessageBox.information(self, 'Warning', f"{self.res.ACCESS_FAIL} {obj.index}")
@@ -525,7 +525,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def _next(self):
         self.log.info('===--→ nexting')
         self.pageFrame.setEnabled(False)
-        if self.clip_is_triggered:  # 剪切板支线走向
+        if self.clip_is_triggered:  # 剪贴板支线走向
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
             self.bThread.item_count_signal.connect(self.processbar_load)
@@ -587,12 +587,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         if 'http' in string and not ignore_http:
             self.textBrowser.setOpenExternalLinks(True)
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
-                string = self.res.textbrowser_load_if_http % string
-                self.textBrowser.append(string)
-        else:
-            string = r'<p style="color: black;">%s</p>' % string
+                self.textBrowser.append(self.res.textbrowser_load_if_http % string)
+        elif "</p>" in string:
             self.textBrowser.append(string)
-
+        else:
+            self.textBrowser.append(r'<p style="color: black;">%s</p>' % string)
         cursor = self.textBrowser.textCursor()
         self.textBrowser.moveCursor(cursor.End)  # 光标移到最后，这样就会自动显示出来
 
@@ -633,13 +632,16 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
 
 class TextUtils:
-    description = (
-            font_color(f"{'message':-^110}<br>") +
-            font_color(res.GUI.DESC1, color='blue', size=5) +
-            font_color(res.GUI.DESC2, color='blue', size=5) +
-            font_color(res.GUI.DESC3, color='blue', size=5) +
-            font_color(res.GUI.DESC4, color='white') +
-            font_color(f"{'仅供学习使用/proj only for study':-^105}"))
+    description = r"""<style>* {margin: 1px;padding: 1px;}</style><div>
+    <div style="text-align: center;align-items: center;height: 75px">
+        <img alt="描述" src="assets/icon.png" height="60"><span style="font-weight: bold;font-size: 40px">CGS</span>
+    </div>
+    <div style="color: blue">
+        <p>%s</p>
+        <p>%s<span style="color: white"> %s</span></p>
+        <hr><p style="color: green">%s</p><hr><p></p>
+    </div>
+</div>""" % (res.GUI.DESC1, res.GUI.DESC2, res.GUI.DESC_ELSE, res.GUI.DESC_NEW)
 
     @staticmethod
     def warning_(text):
