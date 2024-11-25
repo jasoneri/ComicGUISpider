@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+"""反正i18n暂时没人在意，暂时停止同步更新"""
 ENV = "简中环境"
 
 
@@ -13,7 +14,7 @@ class GUI:
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 
     jm_bookid_support = ("<br>支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>"
-                         "【剪切板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号】")
+                         "【剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号】")
     wnacg_run_slow_in_cn_tip = "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>" + \
                                "网络问题如 [Errno 11001] / `ReadTimeout` 一般重启就好了，一直出现同一种错误的话 加群反映/提issue<br>"
     mangabz_desc = "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
@@ -35,7 +36,7 @@ class GUI:
         action2 = "整合章节并移至web目录"
         action2_warning = "未配合[comic_viewer]项目产生记录文件[%s]，\n功能无法正常使用"
 
-        action_ero1 = "读取剪切板创建匹配任务列表"
+        action_ero1 = "读取剪贴板创建匹配任务列表"
         clip_process_warning = "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
 
 

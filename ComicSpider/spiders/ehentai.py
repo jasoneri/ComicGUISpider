@@ -50,7 +50,7 @@ class EHentaiSpider(BaseComicSpider3):
             frame_results[x + 1] = [url, title, pages]  # , book_idx]
             preview.add(x + 1, img_preview, PresetHtmlEl.sub(title), preview_url)
         self.say(preview.created_temp_html)
-        return self.say.frame_book_print(frame_results, extra=res.EHentai.JUMP_TIP)
+        return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
 
     def page_turn(self, response, elected_results):
         if 'next' in self.input_state.pageTurn:

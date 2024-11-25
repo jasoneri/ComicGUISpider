@@ -13,9 +13,10 @@ domain = "18comic-zzz.xyz"
 
 class JmSpider(BaseComicSpider2):
     name = 'jm'
-    custom_settings = {"ITEM_PIPELINES": {'ComicSpider.pipelines.JmComicPipeline': 50},
-                       "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5}
-                       }
+    custom_settings = {
+        "ITEM_PIPELINES": {'ComicSpider.pipelines.JmComicPipeline': 50},
+        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5}
+    }
     num_of_row = 4
     domain = domain
     search_url_head = f'https://{domain}/search/photos?main_tag=0&search_query='

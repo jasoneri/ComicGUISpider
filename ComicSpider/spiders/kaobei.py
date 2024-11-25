@@ -59,9 +59,11 @@ class KaobeiSpider(BaseComicSpider):
         "Origin": "https://www.mangacopy.com",
     }
     domain = domain
-    custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5,
-                                                  'ComicSpider.middlewares.ComicDlProxyMiddleware': 6},
-                       "REFERER_ENABLED": False}
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5,
+                                   'ComicSpider.middlewares.ComicDlProxyMiddleware': 6},
+        "REFERER_ENABLED": False
+    }
     search_url_head = ''
     mappings = {'更新': "byRefresh",
                 '排名': "byRank"}
@@ -108,7 +110,7 @@ class KaobeiSpider(BaseComicSpider):
         return self.say.frame_book_print(
             frame_results, url=response.url,
             extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>" +
-                  "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算<br>")
+                  "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算")
 
     def need_sec_next_page(self, response):
         total = int(response.json().get('results', {}).get('total', 0))
