@@ -462,6 +462,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
             self.log = conf.cLog(name="GUI")
+            self.BrowserWindow = None
             self.setupUi(self)
 
         retry_all()
@@ -589,7 +590,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
                 self.textBrowser.append(self.res.textbrowser_load_if_http % string)
         elif "</p>" in string:
-            self.textBrowser.append(string)
+            self.textBrowser.append(string.replace('<p>', '<p style="color: black;">'))
         else:
             self.textBrowser.append(r'<p style="color: black;">%s</p>' % string)
         cursor = self.textBrowser.textCursor()
