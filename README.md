@@ -64,6 +64,7 @@
 新增读剪贴板匹配生成任务功能, 需配合剪贴板软件使用（自行下载安装），
 win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://github.com/p0deje/Maccy)。<br>
 该功能流程使用看`视频3`新增部分，此功能说明以及后续的相关更新详细细则等将放在任务页面右上的`额外说明`。
+> 不下载剪贴板软件仅会影响`读剪贴板`这一功能而已，不影响软件常规流程的使用
 
 > [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
