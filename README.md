@@ -54,17 +54,14 @@
 
 ## 📢更新
 
+### V1.6.1 | 2024-12-08
+
+处理部分用户环境无法显示ui图标相关资源问题（如对比动图/视频仍有ui图标没显示，请反馈）
+
 ### V1.6.1 | 2024-11-26
 
 + 修复retry前的预览窗口已选序号残留给retry后的序号选择框叠加（相应QA第五条已改）
 + 处理jm域名重定向
-
-### V1.6.1 | 2024-11-23
-
-新增读剪贴板匹配生成任务功能, 需配合剪贴板软件使用（自行下载安装），
-win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://github.com/p0deje/Maccy)。<br>
-该功能流程使用看`视频3`新增部分，此功能说明以及后续的相关更新详细细则等将放在任务页面右上的`额外说明`。
-> 不下载剪贴板软件仅会影响`读剪贴板`这一功能而已，不影响软件常规流程的使用
 
 > [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
@@ -73,10 +70,12 @@ win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://gi
 1. 搜索框的联想功能（ 按 <kbd>空格键</kbd> 弹出对应预设 ）
 2. 预览功能：内置的小型浏览器，封面点击多选，条目链接浏览器体验，浏览器功能按键等。详情使用看`视频3`
 3. 翻页：当有列表结果出来后开启使用，使用如上面动图所示
-   > 注意：`拷贝漫画`的翻页数使用的是`序号`而不是`页数`等，对应程序内已做详细说明
-4. 工具箱功能
-   1. 读剪贴板匹配生成任务列表
-   > 常规漫画的工具箱功能作为另一个项目的配合使用 -> [点击前往该项目](https://github.com/jasoneri/comic_viewer)
+
+| 4.工具箱功能 | 仅使用于.. | 说明                                                                                                                                                                                                                                  |
+|:--------|:------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 读剪贴板..  |  本子网   | 读剪贴板匹配生成任务，需配合剪贴板软件使用（自行下载安装），win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://github.com/p0deje/Maccy)。<br>该功能流程使用看`视频3`新增部分，此功能说明以及后续的相关更新详细细则等将放在任务页面右上的`额外说明`<br>｛不下载剪贴板软件仅会影响`读剪贴板`这一功能而已，不影响软件常规流程的使用｝ |
+| 显示记录..  | 常规漫画网  | 需配合 [comic_viewer项目](https://github.com/jasoneri/comic_viewer) 使用，用其阅读后产生的记录文件能知道从哪一话开始下起                                                                                                                                           |
+| 整合章节..  | 常规漫画网  | 批量整合，例如将`D:\Comic\蓝箱\165\第1页`整合转至`D:\Comic\web\蓝箱_165\第1页`（使用comic_viewer项目需要此目录结构）                                                                                                                                                 |
 
 ## 🚀使用
 
@@ -107,7 +106,7 @@ win为 [Ditto](https://github.com/sabrogden/Ditto)、macOS为 [Maccy](https://gi
 > [ 额外说明 ]<br>
 > <s>保留字段: `wnacg_publish_domain`, `jm_forever_url`, `jm_publish_url`<br></s>
 > 各网站的 `发布页`/`永久链接` 能在 `scripts/utils/special/__init__.py` 里找到 <br>
-> 经考虑，不做用户自主配置，`发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用
+> 经考虑，域名不做用户自主配置，`发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用
 
 ## ❓ Q & A 问答
 
@@ -138,7 +137,7 @@ JavaScript 没加载出来，刷新一下页面
 
 `utils.script` 内含 `kemono`, `saucenao` 等脚本，详情到 [script.md](utils/script/script.md) 查阅
 
-### 漫画观看自荐
+### 漫画观看方式自荐
 
 [![点击前往comic_viewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer)](https://github.com/jasoneri/comic_viewer)
 

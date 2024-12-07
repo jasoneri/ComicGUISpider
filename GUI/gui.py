@@ -18,7 +18,7 @@ from variables import *
 from assets import res
 from utils import (
     transfer_input, font_color, Queues, QueuesManager,
-    conf, p)
+    conf, p, ori_path)
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager
@@ -635,14 +635,15 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 class TextUtils:
     description = r"""<style>* {margin: 1px;padding: 1px;}</style><div>
     <div style="text-align: center;align-items: center;height: 75px">
-        <img alt="描述" src="assets/icon.png" height="60"><span style="font-weight: bold;font-size: 40px">CGS</span>
+        <img alt="描述" src="%s" height="60"><span style="font-weight: bold;font-size: 40px">CGS</span>
     </div>
     <div style="color: blue">
         <p>%s</p>
         <p>%s<span style="color: white"> %s</span></p>
         <hr><p style="color: green">%s</p><hr><p></p>
     </div>
-</div>""" % (res.GUI.DESC1, res.GUI.DESC2, res.GUI.DESC_ELSE, res.GUI.DESC_NEW)
+</div>""" % (rf'file:///{ori_path.joinpath("assets/icon.png")}',
+             res.GUI.DESC1, res.GUI.DESC2, res.GUI.DESC_ELSE, res.GUI.DESC_NEW)
 
     @staticmethod
     def warning_(text):
