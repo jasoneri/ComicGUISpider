@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
         MainWindow.setFont(font)
         MainWindow.setFocusPolicy(QtCore.Qt.StrongFocus)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/dohnadohna_.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+        icon.addPixmap(QtGui.QPixmap(":/dohnadohna_.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setToolTipDuration(2)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -171,7 +171,7 @@ class Ui_MainWindow(object):
                                            "background-color: rgb(255, 255, 255);\n"
                                            "}")
         icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap(":/previous_page.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon1.addPixmap(QtGui.QPixmap(":/page/previous_page.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.previousPageBtn.setIcon(icon1)
         self.previousPageBtn.setIconSize(QtCore.QSize(25, 25))
         self.previousPageBtn.setAutoRaise(True)
@@ -187,7 +187,7 @@ class Ui_MainWindow(object):
                                        "background-color: rgb(255, 255, 255);\n"
                                        "}")
         icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap(":/next_page.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon2.addPixmap(QtGui.QPixmap(":/page/next_page.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.nextPageBtn.setIcon(icon2)
         self.nextPageBtn.setIconSize(QtCore.QSize(25, 25))
         self.nextPageBtn.setAutoRaise(True)
@@ -226,7 +226,7 @@ class Ui_MainWindow(object):
                                        "background-color: rgb(255, 255, 255);\n"
                                        "}")
         icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap(":/jump_page.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon3.addPixmap(QtGui.QPixmap(":/page/jump_page.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.pageJumpBtn.setIcon(icon3)
         self.pageJumpBtn.setIconSize(QtCore.QSize(20, 20))
         self.pageJumpBtn.setAutoRaise(True)
@@ -292,9 +292,9 @@ class Ui_MainWindow(object):
                                       "    padding-left: 2px;\n"
                                       "}")
         icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap(":/toolbox_icon.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon4.addPixmap(QtGui.QPixmap(":/toolbox_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButton.setIcon(icon4)
-        self.toolButton.setIconSize(QtCore.QSize(20, 20))
+        self.toolButton.setIconSize(QtCore.QSize(18, 18))
         self.toolButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
         self.toolButton.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.toolButton.setObjectName("toolButton")
@@ -316,7 +316,7 @@ class Ui_MainWindow(object):
                                    "     border-radius: 7px;\n"
                                    "}")
         icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap(":/config_icon.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon5.addPixmap(QtGui.QPixmap(":/config_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.confBtn.setIcon(icon5)
         self.confBtn.setIconSize(QtCore.QSize(18, 18))
         self.confBtn.setObjectName("confBtn")
@@ -365,7 +365,7 @@ class Ui_MainWindow(object):
         self.previewBtn.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.previewBtn.setFocusPolicy(QtCore.Qt.StrongFocus)
         icon6 = QtGui.QIcon()
-        icon6.addPixmap(QtGui.QPixmap(":/help_btn.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+        icon6.addPixmap(QtGui.QPixmap(":/help_btn.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.previewBtn.setIcon(icon6)
         self.previewBtn.setIconSize(QtCore.QSize(65, 65))
         self.previewBtn.setChecked(False)
@@ -435,7 +435,7 @@ class Ui_MainWindow(object):
                                      "    border-radius: 5px;\n"
                                      "}")
         icon7 = QtGui.QIcon()
-        icon7.addPixmap(QtGui.QPixmap(":/crawl_btn.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon7.addPixmap(QtGui.QPixmap(":/crawl_btn.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.crawl_btn.setIcon(icon7)
         self.crawl_btn.setIconSize(QtCore.QSize(30, 30))
         self.crawl_btn.setCheckable(True)
@@ -486,7 +486,7 @@ class Ui_MainWindow(object):
         self.chooseBox.setItemText(5, _translate("MainWindow", "5、Māngabz"))
         self.checkisopen.setText(_translate("MainWindow", "(完成后自动)打开存储目录"))
         self.searchinput.setInputMask(
-            _translate("MainWindow", "输入关键字：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
+                _translate("MainWindow", "输入关键字：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
         self.searchinput.setText(_translate("MainWindow", "输入关键字："))
         self.previousPageBtn.setToolTip(_translate("MainWindow", "previous page/上一页"))
         self.previousPageBtn.setStatusTip(_translate("MainWindow", "previous page/上一页"))

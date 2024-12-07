@@ -47,6 +47,8 @@ macOS 需要下载 `CGS-macOS`压缩包 (不需要下载`CGS.7z`)，解压后目
     </tr>  
 </tbody></table>
 
+> 更新如若涉及到 UI/界面变动 相关的，最好运行 `CGS-初始化` 一下以保证字体等设置
+
 ### bug report / 提交报错issue
 
 macOS上运行软件出错需要提issue时，除了选择系统选`macOS`以外，还需要在描述上说明或截图使用的版本 <br>
