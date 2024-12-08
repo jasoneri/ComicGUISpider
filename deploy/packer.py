@@ -54,7 +54,7 @@ release_desc = """
 ### 🎁 Features
  + 新增读剪贴板功能(d3c1b690de50a5bb5ee2a1491f5dd71b966d9b75) , closes #20 
   
-> 此`1.6.1`版本并没进行环境更新或大bug，运行`CGS-更新`即可（即使下载这release的绿色包也是）
+> 升级至v1.6.2需要运行CGS-更新（即使下载这release下的绿色包也要更新）
 
 <details>
 <summary>开箱即用说明(点击展开)</summary>
@@ -207,7 +207,7 @@ class Packer:
         release.upload_asset(str(path.joinpath(zip_file)), name=zip_file)
         # update release
         text = release_desc
-        release.update_release(name=f"{date_now} - v1.6.1", message=text)
+        release.update_release(name=f"{date_now} - v1.6.2", message=text)
 
 
 def clean():

@@ -343,7 +343,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.pageFrameClickCnt += 1
             self.clean_temp_file()
             if self.BrowserWindow and self.BrowserWindow.isRetain.isChecked():
-                idxes = self.BrowserWindow.output
+                idxes = list(set(self.BrowserWindow.output) | set(transfer_input(self.chooseinput.text()[5:].strip())))
                 self.input_state.indexes = idxes
             self.input_state.pageTurn = _p
             self.Q('InputFieldQueue').send(self.input_state)
