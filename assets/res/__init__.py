@@ -19,7 +19,8 @@ class GUI:
     jm_bookid_support = ("支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>"
                          "【剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号】")
     wnacg_run_slow_in_cn_tip = ("wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>"
-                                "网络问题如 [Errno 11001] / `ReadTimeout` 一般重启就好了，一直出现同一种错误的话 加群反映/提issue<br>")
+                                "网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>"
+                                "重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>")
     mangabz_desc = "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
     check_ehetai = "正在检测当前环境能否访问`exhentai`中..."
     check_mangabz = "正在检测当前环境能否访问`Māngabz`中..."

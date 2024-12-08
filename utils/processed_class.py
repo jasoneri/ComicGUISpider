@@ -11,7 +11,7 @@ import urllib.parse as up
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from utils import State, QueuesManager, Queues, ori_path, re
+from utils import State, QueuesManager, Queues, ori_path, re, temp_p
 from variables import SPIDERS
 
 
@@ -245,8 +245,6 @@ class PreviewByClipHtml:
 
     @classmethod
     def created_temp_html(cls, url_regex, match_num):
-        temp_p = ori_path.joinpath("__temp")
-        temp_p.mkdir(exist_ok=True)
         with open(cls.format_path.joinpath(rf"{cls.html_style}_by_clip.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
         html = format_text.replace("{_url_regex}", url_regex).replace("{_match_num}", str(match_num))
