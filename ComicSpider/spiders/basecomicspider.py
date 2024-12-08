@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import os
 from typing import Union
 from abc import abstractmethod
 from copy import deepcopy
@@ -11,7 +12,7 @@ import scrapy
 from variables import *
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
-from utils import font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain
+from utils import font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
 )
@@ -281,15 +282,19 @@ class BaseComicSpider(scrapy.Spider):
         if reason == "ConnectionResetError":
             return
         elif 'init' not in self.process_state.process:
-            self.say(
-                font_color(f'<br>~~~{self.__res.close_success} ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6)
-                if self.total != 0 else
-                font_color(f'~~~…(￣┰￣*)………{self.__res.close_backend_error}<br>', size=5) +
-                font_color('<br>'.join((self.__res.close_check_log_guide1, self.__res.close_check_log_guide2,
-                                        self.__res.close_check_log_guide3)),
-                           color='blue', size=4) + "<br>" +
-                font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
-            )
+            if self.total != 0:
+                self.say(
+                    font_color(f'<br>~~~{self.__res.close_success} ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6))
+            else:
+                self.say(
+                    font_color(f'~~~…(￣┰￣*)………{self.__res.close_backend_error}<br>', size=5) +
+                    font_color('<br>'.join((self.__res.close_check_log_guide1, self.__res.close_check_log_guide2,
+                                            self.__res.close_check_log_guide3)), color='blue', size=4) + "<br>" +
+                    font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
+                )
+                domain_cache = temp_p.joinpath(f"{self.name}_domain.txt")
+                if reason != "finished" and domain_cache.exists():
+                    os.remove(domain_cache)
 
     def refresh_state(self, state_name, queue_name, monitor_change=False):
         try:

@@ -7,6 +7,9 @@ from PIL import Image
 from io import BytesIO
 import httpx
 from lxml import etree
+from datetime import datetime, timedelta
+
+from utils import temp_p
 
 
 class Cookies:
@@ -32,6 +35,7 @@ class Req:
 
 
 class Utils:
+    name = ""
     forever_url = ""
     publish_url = ""
     status_forever = True
@@ -54,7 +58,8 @@ class Utils:
     def by_publish(cls):
         if not cls.publish_url:
             return None
-        resp = httpx.get(cls.publish_url, follow_redirects=True)
+        with httpx.Client(headers=cls.headers) as cli:
+            resp = retry(cli.get, retry_limit=8, raise_error=True, url=cls.publish_url, follow_redirects=True)
         if str(resp.status_code).startswith('2'):
             return cls.parse_publish(resp.text)
         else:
@@ -63,17 +68,32 @@ class Utils:
 
     @classmethod
     def get_domain(cls):
-        domain = cls.by_publish() or cls.by_forever() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
+        domain_file = temp_p.joinpath(f"{cls.name}_domain.txt")
+        current_time = datetime.now()
+        if (domain_file.exists() and
+                current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=12)):
+            with open(domain_file, 'r', encoding='utf-8') as f:
+                domain = f.read()
+        else:
+            domain = cls.by_publish() or cls.by_forever() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
         if not cls.status_forever and not cls.status_publish:
-            raise ConnectionError(f"无法获取 {cls.__name__} domain，方法均失效了，需要查看")
+            raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
         return domain
 
     @classmethod
     def parse_publish(cls, html):
+        domain = cls.parse_publish_(html)
+        with open(temp_p.joinpath(f"{cls.name}_domain.txt"), 'w', encoding='utf-8') as f:
+            f.write(domain)
+        return domain
+
+    @classmethod
+    def parse_publish_(cls, html):
         ...
 
 
 class JmUtils(Utils, Req):
+    name = "jm"
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     status_forever = True
@@ -157,7 +177,7 @@ class JmUtils(Utils, Req):
             return obj
 
     @classmethod
-    def parse_publish(cls, html_text):
+    def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
         ps = html.xpath('//div[@class="main"]/p')
         domains = []
@@ -197,6 +217,7 @@ class JmUtils(Utils, Req):
 
 
 class WnacgUtils(Utils, Req):
+    name = "wnacg"
     publish_domain = "wnacg.date"
     publish_url = f"https://{publish_domain}"
     status_publish = True
@@ -209,7 +230,7 @@ class WnacgUtils(Utils, Req):
     book_hea = headers
 
     @classmethod
-    def parse_publish(cls, html_text):
+    def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
         hrefs = html.xpath('//div[@class="main"]//li/a/@href')
         match_regex = re.compile(f"google|{cls.publish_domain}|email")

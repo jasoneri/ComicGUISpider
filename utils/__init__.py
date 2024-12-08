@@ -14,6 +14,8 @@ from variables import DEFAULT_COMPLETER
 from deploy import curr_os
 
 ori_path = p.Path(__file__).parent.parent
+temp_p = ori_path.joinpath("__temp")
+temp_p.mkdir(exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
 
 

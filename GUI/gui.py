@@ -283,7 +283,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         elif index == 2:
             self.say(font_color(self.res.jm_bookid_support, color='blue'))
         elif index == 3 and not conf.proxies:
-            self.say(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'))
+            self.say(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'), ignore_http=True)
         elif index == 4:
             self.pageEdit.setDisabled(True)
             self.say(font_color(res.EHentai.GUIDE, color='purple'))
