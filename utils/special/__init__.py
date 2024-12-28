@@ -179,13 +179,13 @@ class JmUtils(Utils, Req):
     @classmethod
     def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
-        ps = html.xpath('//div[@class="main"]/p')
+        ps = html.xpath('//div[@class="wrap"]//p')
         domains = []
-        order_p = list(filter(lambda p: '內地' in ''.join(p.xpath('.//text()')), ps))  # 小心这个"内"字是繁体
+        order_p = list(filter(lambda p: '內地' in ''.join(p.xpath('.//text()')), ps))  # 小心这个"內"字是繁体
         if order_p:
             idx = ps.index(order_p[0])
             for p in ps[idx:]:
-                fuck_text = p.xpath('.//text()')
+                fuck_text = p.xpath('./following-sibling::div//text()')
                 for _domain in fuck_text:
                     domain = _domain.strip()
                     if "." in domain and not bool(re.search(r"discord|\.work|@|＠|<|/", domain)):
