@@ -3,7 +3,7 @@ import re
 
 from .basecomicspider import BaseComicSpider2, font_color
 from utils import PresetHtmlEl
-from utils.special import WnacgUtils
+from utils.website import WnacgUtils
 from utils.processed_class import PreviewHtml
 
 domain = "wnacg.com"

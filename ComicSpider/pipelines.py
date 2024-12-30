@@ -9,7 +9,7 @@ from scrapy.pipelines.images import ImagesPipeline, ImageException
 from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.utils.python import get_func_args
 
-from utils.special import JmUtils, set_author_ahead, MangabzUtils
+from utils.website import JmUtils, set_author_ahead, MangabzUtils
 from assets import res
 
 from itemadapter import ItemAdapter

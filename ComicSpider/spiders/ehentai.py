@@ -4,7 +4,7 @@ from scrapy import Request
 from .basecomicspider import BaseComicSpider3
 from utils import PresetHtmlEl, conf, re
 from utils.processed_class import PreviewHtml, Url
-from utils.special import Cookies, EHentaiKits
+from utils.website import Cookies, EHentaiKits
 from assets import res
 from ..items import ComicspiderItem
 
