@@ -23,7 +23,7 @@ from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager
 )
-from utils.special import httpx, Cookies, MangabzUtils, JmUtils, WnacgUtils, EHentaiKits
+from utils.website import httpx, Cookies, MangabzUtils, JmUtils, WnacgUtils, EHentaiKits
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from deploy import curr_os
 

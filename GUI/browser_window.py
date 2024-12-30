@@ -9,7 +9,7 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 from GUI.uic.browser import Ui_browser
 from assets import res
 from utils import conf
-from utils.special import EHentaiKits
+from utils.website import EHentaiKits
 
 
 class BrowserWindow(QMainWindow, Ui_browser):

@@ -245,7 +245,7 @@ class WnacgUtils(Utils, Req):
             cls.status_publish = False
             raise ConnectionError(f"发布页[{cls.publish_url}]清洗出的网址{order_href}均失效，请前往检查")
 
-    book_url_regex = r"^https://www\.wn.*?/photos-index-aid-\d+\.html$"
+    book_url_regex = r"^https://(www\.)?wn.*?/photos-index-aid-\d+\.html$"
 
     @staticmethod
     def parse_book(resp_text):
