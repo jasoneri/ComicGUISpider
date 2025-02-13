@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
-"""debug scrapy for test，no gui,no wait for Interactive"""
+"""cli，no gui,no wait for Interactive"""
 import time
+import argparse
+from multiprocessing import Process
+
 from loguru import logger
 
 from utils import transfer_input
 from utils.processed_class import (
     GuiQueuesManger, crawl_what, QueuesManager, QueueHandler, InputFieldState, refresh_state, ProcessState
 )
-from multiprocessing import Process
+from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
 
 
 def say_to_textBrowser(textBrowserQueue):
@@ -59,13 +62,15 @@ def test_turn_page():
     gui.Q('InputFieldQueue').send(state_5)
 
 
-def test_normal_process():
-    keyword = '汉化'  # 输入关键词    # TODO[8](2024-08-19): debug 拷贝漫画轻小说book请求
-    input_2 = "1"  # 选书
-    input_3 = "2"  # 选章节
+def test_normal_process(keyword, input_2, input_3):
+    # TODO[8](2024-08-19): debug 拷贝漫画轻小说book请求
+    # input_2 = "1"  # 选书
+    # input_3 = "2"  # 选章节
     state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='', pageTurn='')
     state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2), pageTurn='')
-    state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_3), pageTurn='')
+    if input_3:
+        state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_3),
+                                  pageTurn='')
 
     gui.Q('InputFieldQueue').send(state_1)
     refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
@@ -73,13 +78,39 @@ def test_normal_process():
     gui.Q('InputFieldQueue').send(state_2)
     refresh_state(gui, 'process_state', 'ProcessQueue')
     #  上面这行 refresh_state，当测试三步跳转时要加 monitor_change=True
-    time.sleep(2)
-    gui.Q('InputFieldQueue').send(state_3)
-    time.sleep(2)
+    if input_3:
+        time.sleep(2)
+        gui.Q('InputFieldQueue').send(state_3)
+        time.sleep(2)
 
 
 if __name__ == '__main__':
-    spider_choice = 1  # 选网站/爬虫，转crawl_what方法一目了然
+    parser = argparse.ArgumentParser(
+        description=f"""CGS命令行脚本，目前支持简单下载/调试功能
+网站对应序号: {SPIDERS}""",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument('-w', '--website', type=int, help='选择网站序号')
+    parser.add_argument('-k', '--keyword', help='关键字（作品名）')
+    parser.add_argument('-i', '--indexes',
+                        help='e.g., 0 表示全选(特殊)  |  1 表示单选 1 (类推)  |  7+9 →表示多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号)  |  1+7-9 →复合多选 1、7、8、9')
+    # TODO[3](2025-02-11): 负数扩展，例如当indexes=-3时，从倒数第三个至最后一个，（下载最新3话）
+    parser.add_argument('-i2', '--indexes2', help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
+    parser.add_argument('-t', '--turn_p', action='store_true', help='Run turn_page_test')
+    args = parser.parse_args()
+
+    if not args.keyword or not args.indexes:
+        parser.error("the following arguments are required: -k/--keyword and -i/--indexes")
+
+    if args.website not in SPECIAL_WEBSITES_IDXES:
+        if not args.indexes2:
+            parser.error(
+                "the following argument is required when website is not in SPECIAL_WEBSITES_IDXES: -i2/--indexes2")
+    else:
+        if args.indexes2:
+            parser.error("the argument -i2/--indexes2 is not allowed when website is in SPECIAL_WEBSITES_IDXES")
+
+    spider_choice = args.website if args.website else 1  # 选网站/爬虫，转crawl_what方法一目了然
 
     guiQueuesManger = GuiQueuesManger()
     queue_port = guiQueuesManger.find_free_port()
@@ -94,12 +125,15 @@ if __name__ == '__main__':
     p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'),))
     p_bThread.start()
 
-    test_turn_page()
-    # test_normal_process()
+    if args.turn_p:
+        test_turn_page()
+    else:
+        test_normal_process(args.keyword, args.indexes, args.indexes2)
 
+    # ⚠️ 以下步骤为安全退出而设（避免主进程先于后台进程完成前关闭），常规使用时sleep数值设得大于使用的平均完成时间即可
     for p in [p_qm, p_bThread]:
         if p is not None:  # break point for it, scrapy end then restore for all process end
-            time.sleep(2)  # break point for it, scrapy end then restore for all process end
+            time.sleep(120)  # break point for it, scrapy end then restore for all process end
             p.kill()
             p.join()
             p.close()
