@@ -7,11 +7,13 @@ import socket
 from dataclasses import dataclass
 from multiprocessing import Queue, freeze_support
 import urllib.parse as up
+from lxml import etree
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from utils import State, QueuesManager, Queues, ori_path, re, temp_p
+from utils import State, QueuesManager, Queues, ori_path, re, temp_p, md5, PresetHtmlEl
+from utils.sql import SqlUtils
 from variables import SPIDERS
 
 
@@ -127,6 +129,7 @@ class PreviewHtml:
         def create_element(idx, img_src, title, url):
             max_width = 170
             abbreviated_title = title[:18] + "..."
+            title = PresetHtmlEl.sub(title)
             el = f"""<div class="col-md-3" style="max-width:{max_width}px"><div class="form-check">
             <input class="form-check-input" type="checkbox" name="img" id="{idx}">
             <label class="form-check-label" for="{idx}">
@@ -159,6 +162,42 @@ class PreviewHtml:
         f = str(tf.name)
         tf.close()
         return f
+
+    @staticmethod
+    def tip_duplication(spider_db, tf):
+        md5_filter = Md5Filter(tf)
+        titles = md5_filter.get_titles()
+        batch_md5 = md5_filter.batch_md5(titles)
+        sql_utils = SqlUtils(spider_db)
+        downloaded_titles_md5 = sql_utils.batch_check_dupe(list(batch_md5.keys()))
+        sql_utils.close()
+
+        with open(tf, 'r+', encoding='utf-8') as fp:
+            html_content = fp.read()
+            for title_md5 in downloaded_titles_md5:
+                title = batch_md5[title_md5]
+                html_content = html_content.replace(
+                    f'alt="{title}" class="img-thumbnail"',
+                    f'alt="{title}" class="img-thumbnail downloaded"'
+                )
+            fp.seek(0)
+            fp.truncate()
+            fp.write(html_content)
+
+
+class Md5Filter:
+    def __init__(self, tf):
+        self.tf = tf
+
+    def get_titles(self):
+        with open(self.tf, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+            html = etree.HTML(html_content)
+        titles = html.xpath('//div[@class="col-md-3"]//img/@title')
+        return titles
+
+    def batch_md5(self, titles):
+        return {md5(title): title for title in titles}
 
 
 class Url(str):

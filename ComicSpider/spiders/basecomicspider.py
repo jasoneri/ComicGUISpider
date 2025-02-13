@@ -12,10 +12,13 @@ import scrapy
 from variables import *
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
-from utils import font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p
+from utils import (
+    font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p, conf, md5
+)
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
 )
+from utils.sql import SqlUtils
 
 
 class SayToGui:
@@ -86,6 +89,7 @@ class BaseComicSpider(scrapy.Spider):
     manager: QueuesManager = None
     Q: QueueHandler = None
     say: SayToGui = None
+    sql_handler: SqlUtils = None
     ua = {}
 
     num_of_row = 5
@@ -270,6 +274,7 @@ class BaseComicSpider(scrapy.Spider):
         spider.Q('ProcessQueue').send(spider.process_state)
 
         spider.say = SayToGui(spider, q, spider.text_browser_state)
+        spider.sql_handler = SqlUtils(spider.name)
         return spider
 
     def close(self, reason):
@@ -279,6 +284,7 @@ class BaseComicSpider(scrapy.Spider):
         except:
             pass
         sleep(0.3)
+        self.sql_handler.close()
         if reason == "ConnectionResetError":
             return
         elif 'init' not in self.process_state.process:
@@ -312,18 +318,21 @@ class BaseComicSpider2(BaseComicSpider):
         self.Q('ProcessQueue').send(self.process_state)
 
         title = PresetHtmlEl.sub(response.meta.get('title'))
-        self.say(f'{"=" * 15} 《{title}》')
-        results = self.frame_section(response)  # {1: url1……}
-        referer = response.url
-        for page, url in results.items():
-            item = ComicspiderItem()
-            item['title'] = title
-            item['page'] = str(page)
-            item['section'] = 'meaningless'
-            item['image_urls'] = [url]
-            item['referer'] = referer
-            self.total += 1
-            yield item
+        title_md5 = md5(title)
+        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(title_md5)):
+            self.sql_handler.add(title_md5)
+            self.say(f'{"=" * 15} 《{title}》')
+            results = self.frame_section(response)  # {1: url1……}
+            referer = response.url
+            for page, url in results.items():
+                item = ComicspiderItem()
+                item['title'] = title
+                item['page'] = str(page)
+                item['section'] = 'meaningless'
+                item['image_urls'] = [url]
+                item['referer'] = referer
+                self.total += 1
+                yield item
         self.process_state.process = 'fin'
         self.Q('ProcessQueue').send(self.process_state)
 
@@ -344,9 +353,12 @@ class BaseComicSpider3(BaseComicSpider):
             yield scrapy.Request(url=next_page_flag, callback=self.parse_section, meta=meta)
         else:
             title = PresetHtmlEl.sub(response.meta.get('title'))
-            for page, url in results.items():
-                meta = {'title': title, 'page': page}
-                yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
+            title_md5 = md5(title)
+            if not conf.isDeduplicate or not self.sql_handler.check_dupe(title_md5):
+                self.sql_handler.add(title_md5)
+                for page, url in results.items():
+                    meta = {'title': title, 'page': page}
+                    yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
 
 class BodyFormat:

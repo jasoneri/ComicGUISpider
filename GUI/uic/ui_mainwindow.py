@@ -48,6 +48,9 @@ class Ui_MainWindow(object):
         font.setBold(False)
         font.setWeight(50)
         self.textBrowser.setFont(font)
+        self.textBrowser.setStyleSheet("QTextBrowser {\n"
+                                       "color: black;\n"
+                                       "}")
         self.textBrowser.setObjectName("textBrowser")
         self.funcLayout.addWidget(self.textBrowser)
         self.funcGroupBox = QtWidgets.QGroupBox(self.centralwidget)
@@ -476,7 +479,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v1.6.2"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v1.6.3"))
         self.chooseBox.setToolTip(_translate("MainWindow", "选中网站后看状态栏有输入提示"))
         self.chooseBox.setItemText(0, _translate("MainWindow", "点选一个网站"))
         self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))

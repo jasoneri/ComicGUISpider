@@ -54,7 +54,7 @@ release_desc = """
 ### 🎁 Features
  + 新增读剪贴板功能(d3c1b690de50a5bb5ee2a1491f5dd71b966d9b75) , closes #20 
   
-> 升级至v1.6.2需要运行CGS-更新（即使下载这release下的绿色包也要更新）
+> 升级至v1.6.3需要运行CGS-更新（即使下载这release下的绿色包也要更新）
 
 <details>
 <summary>开箱即用说明(点击展开)</summary>
@@ -72,7 +72,7 @@ release_desc = """
 后续的更新动作会在对应的release上进行说明
 
 ### ⚠️更新额外说明
-1. 大更新绿色包覆盖前，请备份配置文件 `scripts/conf.yml` 
+1. 大更新绿色包覆盖前，请备份配置文件 `scripts/conf.yml`与`scripts/record.db` 
 2. 实验性中：已创token供用户更新程序使用，速率限制15000请求每小时，若有更新程序相关问题请联系开发者
 3. 更新程序实际是`git clone`的变种，可以克隆此项目改名scripts替代绿色包解压后的原scripts，通过操作git来达到代码更新（应对开发者更新程序不如git且经常报错的问题）
 
@@ -207,7 +207,7 @@ class Packer:
         release.upload_asset(str(path.joinpath(zip_file)), name=zip_file)
         # update release
         text = release_desc
-        release.update_release(name=f"{date_now} - v1.6.2", message=text)
+        release.update_release(name=f"{date_now} - v1.6.3", message=text)
 
 
 def clean():

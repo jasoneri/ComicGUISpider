@@ -9,6 +9,7 @@ from scrapy.pipelines.images import ImagesPipeline, ImageException
 from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.utils.python import get_func_args
 
+from utils import conf
 from utils.website import JmUtils, set_author_ahead, MangabzUtils
 from assets import res
 
@@ -67,10 +68,11 @@ class ComicPipeline(ImagesPipeline):
 class JmComicPipeline(ComicPipeline):
     def file_folder(self, basepath, section, spider, title, meta: dict):
         path = super(JmComicPipeline, self).file_folder(basepath, section, spider, title, meta)
-        # jm上传者太多命名规范太杂有重名情况出现(例如'満开开花-催眠で')，重名时加上车号确保不重
-        _epsId = re.search(r"(\d+)$", meta.get("referer", ""))
-        if bool(_epsId):
-            path = f"{path}[{_epsId.group(1)}]"
+        if not conf.isDeduplicate:
+            # jm上传者太多命名规范太杂有重名情况出现(例如'満开开花-催眠で')，重名时加上车号确保不重
+            _epsId = re.search(r"(\d+)$", meta.get("referer", ""))
+            if bool(_epsId):
+                path = f"{path}[{_epsId.group(1)}]"
         return path
 
     def get_images(self, response, request, info, *, item=None):

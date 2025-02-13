@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Preview</title>
     <link rel="stylesheet" href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css">
+    <style>
+        .downloaded {
+            filter: grayscale(100%); /* 将图片灰度化 */
+            opacity: 0.6; /* 降低图片透明度 */
+        }
+    </style>
 </head>
 <body>
 <script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.min.js"></script>
@@ -19,6 +25,14 @@
     }
     return selectedValues
   }
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const downloadedImages = document.querySelectorAll('.img-thumbnail.downloaded');
+    downloadedImages.forEach(img => {
+      img.closest('.form-check').style.backgroundColor = 'lightsalmon';
+    });
+  });
 </script>
 <div class="row">
     {body}
