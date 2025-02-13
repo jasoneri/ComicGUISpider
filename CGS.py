@@ -3,6 +3,7 @@ import sys
 from multiprocessing import freeze_support
 
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt
 
 # 自己项目用到的
 from GUI.gui import SpiderGUI
@@ -14,6 +15,8 @@ import GUI.src.material_ct
 
 def start():
     freeze_support()
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     ui = SpiderGUI()
