@@ -3,6 +3,8 @@
 import re
 import time
 import yaml
+import html
+import hashlib
 import pathlib as p
 import typing as t
 from dataclasses import dataclass, asdict, field
@@ -108,7 +110,7 @@ class PresetHtmlEl:
 
     @classmethod
     def sub(cls, string):
-        return cls.regex.sub('', string)
+        return cls.regex.sub('', html.unescape(string))
 
 
 @dataclass
@@ -240,3 +242,7 @@ class Queues:
                     queue.get_nowait()
             except:
                 pass
+
+
+def md5(_str):
+    return hashlib.md5(_str.encode()).hexdigest()
