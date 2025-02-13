@@ -39,6 +39,8 @@ class Conf:
     log_path = ori_path.joinpath('log')
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
+    isBanCover: bool = False
+    isDeduplicate: bool = False
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
     eh_cookies: dict = field(default_factory=dict)

@@ -3,11 +3,11 @@ import os
 import re
 import sys
 import time
+import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication, QRect
 from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QCompleter
-import traceback
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.conf_dialog import ConfDialog
@@ -21,24 +21,22 @@ from utils import (
     conf, p, ori_path)
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
-    GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager
+    GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager,
+    PreviewHtml
 )
-from utils.website import httpx, Cookies, MangabzUtils, JmUtils, WnacgUtils, EHentaiKits
+from utils.website import spider_utils_map
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from deploy import curr_os
-
-spider_utils_map = {1: object, 2: JmUtils, 3: WnacgUtils, 4: EHentaiKits, 5: MangabzUtils}
 
 
 class ClipTasksThread(QThread):
     info_signal = pyqtSignal(tuple)
     total_signal = pyqtSignal(dict)
 
-    def __init__(self, gui, parse_func, tasks):
+    def __init__(self, gui, tasks):
         super(ClipTasksThread, self).__init__()
         self.gui: SpiderGUI = gui
         self.tasks = tasks
-        self.parse_func = parse_func
 
     def run(self):
         self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
@@ -47,7 +45,7 @@ class ClipTasksThread(QThread):
         for idx, url in enumerate(self.tasks):
             try:
                 resp = cli.get(url, follow_redirects=True, timeout=3)
-                info = self.parse_func(resp.text)
+                info = self.gui.spiderUtils.parse_book(resp.text)
                 self.msleep(50)
                 self.info_signal.emit((idx + 1, url, *info[1:]))
                 total[idx + 1] = [info[2], info[0]]
@@ -378,6 +376,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
         self.BrowserWindow.ensureBtn.clicked.connect(self.ensure_preview)
+        if conf.isDeduplicate:
+            PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
 
     def show_preview(self):
         """prevent PreviewWindow is None when init"""
@@ -411,7 +411,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.BrowserWindow.resize(self.BrowserWindow.width(), 860)
         self.BrowserWindow.show()
         self.page = self.BrowserWindow.view.page()
-        self.clipTasksThread = ClipTasksThread(self, getattr(self.spiderUtils, "parse_book"), match_urls)
+        self.clipTasksThread = ClipTasksThread(self, match_urls)
         self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
         self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
         self.clipTasksThread.start()

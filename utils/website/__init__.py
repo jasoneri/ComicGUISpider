@@ -3,11 +3,12 @@
 import hashlib
 import math
 import re
-from PIL import Image
 from io import BytesIO
-import httpx
-from lxml import etree
 from datetime import datetime, timedelta
+
+import httpx
+from PIL import Image
+from lxml import etree
 
 from utils import temp_p
 
@@ -267,16 +268,10 @@ class EHentaiKits(Req):
     domain = "exhentai.org"
     index = f"https://{domain}/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/132.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-        "Accept-Encoding": "gzip, deflate, br",
-        # "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Priority": "u=0, i",
-        "Pragma": "no-cache",
-        "Cache-Control": "no-cache",
-        "TE": "trailers",
+        "Accept-Encoding": "gzip, deflate, br"
     }
     book_hea = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
@@ -394,3 +389,6 @@ def set_author_ahead(title: str) -> str:
         return title
     author = author_[0]
     return author + title.replace(author, '').replace("  ", " ")
+
+
+spider_utils_map = {1: object, 2: JmUtils, 3: WnacgUtils, 4: EHentaiKits, 5: MangabzUtils}

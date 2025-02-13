@@ -111,6 +111,9 @@ log/
 # PyBuilder
 target/
 
+# vscode
+.vscode
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -170,6 +173,7 @@ analyze/
 *.ico
 temp
 conf.yml
+record.db
 requirements-in.txt
 __temp
 _bug_log
