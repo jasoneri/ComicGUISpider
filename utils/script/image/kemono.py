@@ -102,7 +102,7 @@ class Kemono:
         base = f"https://{domain}/api/v1"
         creator_posts = base + "/{service}/user/{creator_id}"
         favorites = base + "/account/favorites"
-        file_prefix = "https://n1.kemono.su/data"
+        file_prefix = "https://n3.kemono.su/data"
 
     def __init__(self, redis_cli: AioRClient):
         self.sess = httpx.AsyncClient()
@@ -160,12 +160,13 @@ class Kemono:
                         json.dump([_['name'] for _ in tasks], f, ensure_ascii=False)
                 await self.redis.rpush(self.redis_key, *redis_tasks)
 
-        async def _filter(posts):
+        async def _filter(posts, expander):
             valid_posts = list(filter(lambda _: time_format(_.get('published')) >= interrupt, posts))
             """get filter from kemono_expander.Artists etc."""
             from utils.script.image.kemono_expander import Artists
-            # valid_posts = Artists.Gsusart2222(valid_posts)
-            valid_posts = Artists.normal(valid_posts)
+            expander = expander if hasattr(Artists, expander) else "normal"
+            _expander = getattr(Artists, expander)
+            valid_posts = _expander(valid_posts)
             return valid_posts
 
         async def posts_of_creator(info):
@@ -179,7 +180,7 @@ class Kemono:
                 if o:
                     param = {"o": o}
                 posts = await self.get_creator_posts(creator_id, service, params=param)
-                valid_posts = await _filter(posts)
+                valid_posts = await _filter(posts, info['name'])
                 for post in valid_posts:
                     await create_task_of_post(post, task_meta)
                 if len(posts) < 50:
