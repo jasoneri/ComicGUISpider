@@ -12,9 +12,9 @@ class Artists:
         """
         df = pd.DataFrame(posts)
 
-        df['BaseName'] = df['title'].apply(lambda x: re.sub(r'\(.*\)', '', x))
-        df['Version'] = df['title'].apply(lambda x: re.search(r'\((v\d+)\)', x))
-        df['Version'] = df['Version'].apply(lambda x: x.group(1) if x else 'v0')
+        df['BaseName'] = df['title'].apply(lambda x: re.sub(r'\s*\(v\d+\)', '', x).strip())
+        df['Version'] = df['title'].apply(lambda x: re.search(r'\(v(\d+)\)', x))
+        df['Version'] = df['Version'].apply(lambda x: f"v{x.group(1)}" if x else 'v0')
 
         df['title'] = df['title'].apply(lambda x: re.sub(r'([|:<>?*"\\/])', '', x))
         # 找到每个标题的最新版本
@@ -28,7 +28,7 @@ class Artists:
     @staticmethod
     def a5p74od3(posts):
         posts = list(filter(lambda post: 'PSD' not in post['title'], posts))
-        return posts
+        return Artists.normal(posts)
 
     @staticmethod
     def Gsusart2222(posts):
