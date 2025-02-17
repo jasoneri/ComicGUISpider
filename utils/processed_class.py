@@ -128,8 +128,8 @@ class PreviewHtml:
         @staticmethod
         def create_element(idx, img_src, title, url):
             max_width = 170
-            abbreviated_title = title[:18] + "..."
             title = PresetHtmlEl.sub(title)
+            abbreviated_title = title[:18] + "..."
             el = f"""<div class="col-md-3" style="max-width:{max_width}px"><div class="form-check">
             <input class="form-check-input" type="checkbox" name="img" id="{idx}">
             <label class="form-check-label" for="{idx}">

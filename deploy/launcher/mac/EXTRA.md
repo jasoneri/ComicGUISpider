@@ -2,7 +2,9 @@
 
 ## 📑绿色包说明
 
-macOS 需要下载 `CGS-macOS`压缩包 (不需要下载`CGS.7z`)，解压后目录树如下
+macOS 需要下载 `CGS-macOS`压缩包 (不需要下载`CGS.7z`)
+<details>
+<summary>解压后目录树(点击展开)</summary>
 
 ```
   CGS-macOS
@@ -17,6 +19,8 @@ macOS 需要下载 `CGS-macOS`压缩包 (不需要下载`CGS.7z`)，解压后目
    ├── CGS-使用说明.app          # 执行脚本 `scripts/deploy/launcher/mac/desc.bash`
    └── desc_macOS.html          # 仅用作刚解压时提供指引的一次性使用说明
 ```
+
+</details>
 
 ## ⛵️操作
 > 全部说明含`scripts`目录的，包括此额外说明，主说明README，release页面，issue的等等等等，<br>

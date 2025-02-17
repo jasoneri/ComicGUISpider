@@ -1,14 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import hashlib
-import math
 import re
+import math
+import json
 from io import BytesIO
 from datetime import datetime, timedelta
 
 import httpx
 from PIL import Image
 from lxml import etree
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
 
 from utils import temp_p
 
@@ -324,6 +328,29 @@ class EHentaiKits(Req):
         img_src = re.search(r"url\((.*?)\)", img_src_el.replace("&quot;", "").replace('"', '')
                             ).group(1)
         return url, img_src, title, author, pages, tags[:20] if tags else []
+
+
+class KaobeiUtils:
+    AES_KEY = "xxxmanga.woo.key"
+
+    @staticmethod
+    def decrypt_chapter_data(ret: str):
+        def _(cipher_hex: str, key: str, iv: str) -> dict:
+            cipher_bytes = bytes.fromhex(cipher_hex)
+            key_bytes = key.encode('utf-8')
+            iv_bytes = iv.encode('utf-8')
+            cipher = Cipher(
+                algorithms.AES(key_bytes),
+                modes.CBC(iv_bytes),
+                backend=default_backend()
+            )
+            decryptor = cipher.decryptor()
+            decrypted_padded = decryptor.update(cipher_bytes) + decryptor.finalize()
+            unpadder = padding.PKCS7(128).unpadder()
+            decrypted = unpadder.update(decrypted_padded) + unpadder.finalize()
+            return json.loads(decrypted.decode('utf-8'))
+
+        return _(ret[16:], KaobeiUtils.AES_KEY, ret[:16])
 
 
 class MangabzUtils:
