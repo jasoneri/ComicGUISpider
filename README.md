@@ -33,7 +33,9 @@
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
 > 打包好的开箱即用版，[点击前往下载页面](https://github.com/jasoneri/ComicGUISpider/releases)，包名 `CGS.7z`
-> ，解压后目录树如下
+
+<details>
+<summary>解压后的目录树(点击展开)</summary>
 
 ```
   CGS
@@ -47,6 +49,8 @@
    └── CGS-更新.exe         # 对应 deploy/launcher/update.bat
 ```
 
+</details><br>
+
 > [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
 > 注意看评论有补充链接（防挂），对应`v1.6.x 相关功能演示 视频3`
 
@@ -54,12 +58,18 @@
 
 ## 📢更新
 
-> todo v1.6.4
-> 1. 优化报错/正常操作而没结果的提示分类
-> 2. 增加`禁止覆盖`开关勾选(e绅士发现也有重复标题)，默认覆盖，打开后会消耗小许性能以查询标题md5
-> 3. jm代理相关优化
-> 4. 处理拷贝的隐藏漫画
-> 5. 细化任务条，做class Task对象
+### todo V1.6.5
+
+🔳 序号输入扩展：`-x`，例`-3`表示选择倒数三个
+🔳 为命令行Cli增加简易GUI
+
+### todo V1.6.4
+
+🔳 优化报错/正常操作而没结果的提示分类
+🔳 增加`禁止覆盖`开关勾选(e绅士发现也有重复标题)，默认覆盖，打开后会消耗小许性能以查询标题md5
+🔳 jm代理相关优化
+✅ 处理拷贝的隐藏漫画
+🔳 细化任务条，做class Task对象
 
 ### V1.6.3 | 2024-12-28 ~ 2025-02-13
 
@@ -76,14 +86,6 @@
   `setAttribute(Qt.AA_` 的两行代码
 + 更改`crawl_only.py`作为[命令行Cli](#命令行cli)使用
 + 标题命名html.unescape(html_string) 例如`&#039;`转单引号
-
-### V1.6.2 | 2024-11-26 ~ 2024-12-08
-
-+ 增加域名缓存机制（针对最近wnacg发布页的10056
-  10060错误），每12小时才刷新可用域名，缓存文件为`scripts/__temp/xxx_domain.txt`，可删可改
-+ 处理部分用户环境无法显示ui图标相关资源问题（如对比动图/视频仍有ui图标没显示，请反馈）
-+ 修复retry前的预览窗口已选序号残留给retry后的序号选择框叠加（相应QA第五条已改）
-+ 处理jm域名重定向
 
 > [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
@@ -110,7 +112,7 @@
 ### 命令行Cli
 
 `python crawl_only.py --help` <br>
-> 目前版本 `v1.6.3` 能进行简单批量下载/调试功能，使用方法进help看说明<br>
+> 目前版本 `v1.6.3` 能进行简单下载/调试功能，使用方法进help看说明<br>
 > （注意查阅脚本内最下方的警告说明，未来会增设为参数）<br>
 > 后续将逐步扩展`crawl_only.py`以作为命令行工具使用
 
@@ -119,23 +121,27 @@
 > 有关生效时间节点请查阅 [Q&A 第二点](#2-配置生效相关)
 
 ![](assets/conf_usage.jpg)
+<details>
+<summary>配置详细说明(点击展开)</summary>
 
-|            |     yml字段     |    默认值    | 说明                                                                                                                                                                                                                         |
-|:-----------|:-------------:|:---------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 存储路径       |    sv_path    | D:\comic  | 下载目录（内容目录结构里还有个`web`文件夹的情况是因为默认关联[`comic_viewer`项目](https://github.com/jasoneri/comic_viewer)所以这样设置的）                                                                                                                      |
-| 日志等级       |   log_level   | `WARNING` | 后台运行过后会有log目录，GUI 与 后台 同级，报错时GUI会进行操作指引                                                                                                                                                                                    |
-| 去重         | isDeduplicate |   false   | 勾选状态下，点预览时会额外花点时间查记录并做出相应样式提示，同时下载也会自动过滤已存在的记录<br>⚠️注意: 1. 仅本子网适用（常规漫画带章节的复杂性并没什么思路）<br>2. 当使用去重后jm保存的目录名不再保留车号<br><hr>⚠️3. v1.6.3使用的是伪逻辑，即在点击确认至下载完成之间记录title_md5；正确逻辑为该title下全部图片下载完成时才记录title_md5，将会在v1.6.4与任务细化系统结合并改正 |
-| 禁止覆盖       |  isBanCover   |   false   | （REMARK(2025-02-13): 内部功能尚未实现）处理不同作品的同一命名<br>逻辑原因，勾选后将取消`去重`                                                                                                                                                               |
-| 代理         |    proxies    |           | 翻墙用，`jm`用的内地域名此项对其无效（全局代理反而会令`jm`无法使用）<br/>（建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量）                                                                                                                                      |
-| 映射         |  custom_map   |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展        |
-| 预设         |   completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                          |
-| eh_cookies |  eh_cookies   |           | 使用`ehentai`时必需，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备链 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))                    |
-| 剪贴板db      |    clip_db    |           | 默认读取剪贴板软件的数据库初设路径<br>如相关功能无法使用时可自行查看路径是否一致，并在此更改<br>1. ditto(win): 打开选项 → 数据库路径 <br>2.maccy(macOS): [issue搜索相关得知](https://github.com/p0deje/Maccy/issues/271)                                                              |
-| 读取条数       | clip_read_num |    20     | 读取剪贴板软件条目数量，需少于剪贴板软件设置的最大数量 (建议少量多次)                                                                                                                                                                                       |
-| cv项目路径     | cv_proj_path  |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                                |
+|            |     yml字段     |    默认值    | 说明                                                                                                                                                                                                                                    |
+|:-----------|:-------------:|:---------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 存储路径       |    sv_path    | D:\comic  | 下载目录（内容目录结构里还有个`web`文件夹的情况是因为默认关联[`comic_viewer`项目](https://github.com/jasoneri/comic_viewer)所以这样设置的）                                                                                                                                 |
+| 日志等级       |   log_level   | `WARNING` | 后台运行过后会有log目录，GUI 与 后台 同级，报错时GUI会进行操作指引                                                                                                                                                                                               |
+| 去重         | isDeduplicate |   false   | 勾选状态下，点预览时会额外花点时间查记录并做出相应样式提示，同时下载也会自动过滤已存在的记录<br>⚠️ 1. 仅本子网适用（常规带章节的复杂性没什么思路）<br>2. 各网站的去重记录各自独立<br>3. 当使用去重后jm保存的目录名不再保留车号<br><hr>⚠️ v1.6.3使用的是伪逻辑，即在点击确认至下载完成之间记录title_md5；正确逻辑为该title下全部图片下载完成时才记录title_md5，将会在v1.6.4与任务细化系统结合并改正 |
+| 禁止覆盖       |  isBanCover   |   false   | （REMARK(2025-02-13): 内部功能尚未实现）处理不同作品的同一命名<br>逻辑原因，勾选后将取消`去重`                                                                                                                                                                          |
+| 代理         |    proxies    |           | 翻墙用，`jm`用的内地域名此项对其无效（全局代理反而会令`jm`无法使用）<br/>（建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量）                                                                                                                                                 |
+| 映射         |  custom_map   |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展                   |
+| 预设         |   completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                                     |
+| eh_cookies |  eh_cookies   |           | 使用`ehentai`时必需，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备链 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))                               |
+| 剪贴板db      |    clip_db    |           | 默认读取剪贴板软件的数据库初设路径<br>如相关功能无法使用时可自行查看路径是否一致，并在此更改<br>1. ditto(win): 打开选项 → 数据库路径 <br>2.maccy(macOS): [issue搜索相关得知](https://github.com/p0deje/Maccy/issues/271)                                                                         |
+| 读取条数       | clip_read_num |    20     | 读取剪贴板软件条目数量，需少于剪贴板软件设置的最大数量 (建议少量多次)                                                                                                                                                                                                  |
+| cv项目路径     | cv_proj_path  |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                                           |
+
+</details><br>
 
 > 除 `存储路径` 其他均非必须，使用默认即可 或置空 <br>
-> 如熟悉yaml或其他需求，可至 `scripts/conf.yml` 修改
+> 如熟悉yaml或`⚠️使用的是命令行cli⚠️`时，可至 `scripts/conf.yml` 修改
 
 ## ❓ Q & A 问答
 
@@ -150,7 +156,7 @@ JavaScript 没加载出来，刷新一下页面
 
 ### 3. 拷贝漫画部分无法出列表
 
-拷贝有些漫画卷和话是分开的，只做了粗糙处理 -> `ComicSpider/spiders/kaobei.py` `frame_book`的注释`url`进行互换
+拷贝有些漫画卷和话是分开的，api结构转换的当前是有结果的，但是没做解析，如需前往群里反馈
 
 ### 4. 使用遇到问题想寻求帮助或报错，但没有github账号
 
@@ -173,13 +179,13 @@ JavaScript 没加载出来，刷新一下页面
 
 ## 🔰其他
 
-### 额外的脚本集
-
-`utils.script` 内含 `kemono`, `saucenao` 等脚本，详情到 [script.md](utils/script/script.md) 查阅
-
 ### 漫画观看方式自荐
 
 [![点击前往comic_viewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer)](https://github.com/jasoneri/comic_viewer)
+
+### 额外的脚本集
+
+`utils.script` 内含 `kemono`, `saucenao` 等脚本，详情到 [script.md](utils/script/script.md) 查阅
 
 ### 开发投票
 
