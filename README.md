@@ -111,9 +111,12 @@
 
 ### 命令行Cli <a id="命令行cli"></a>
 
-`python crawl_only.py --help`
+`python crawl_only.py --help`  
+或使用绿色包的python环境，在解压目录执行`.\runtime\python.exe .\scripts\crawl_only.py --help`
+
 > 目前版本 `v1.6.3` 能进行简单下载/调试功能，使用方法进help看说明  
 > 后续将逐步扩展命令行工具/参数
+> 命令行的配置可用GUI方式修改 或 直接修改`scripts/conf.yml`文件
 
 ## 🔨配置
 
@@ -140,7 +143,7 @@
 </details>
 
 > 除 `存储路径` 其他均非必须，使用默认即可 或置空  
-> 如熟悉yaml或`⚠️使用的是命令行cli⚠️`时，可至 `scripts/conf.yml` 修改
+> 配置文件为 `scripts/conf.yml`
 
 ## ❓ Q & A 问答
 
