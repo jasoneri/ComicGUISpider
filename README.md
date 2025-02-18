@@ -49,7 +49,7 @@
    └── CGS-更新.exe         # 对应 deploy/launcher/update.bat
 ```
 
-</details><br>
+</details>
 
 > [点击前往GUI使用指南](https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments)
 > 注意看评论有补充链接（防挂），对应`v1.6.x 相关功能演示 视频3`
@@ -137,7 +137,7 @@
 | 读取条数       | clip_read_num |    20     | 读取剪贴板软件条目数量，需少于剪贴板软件设置的最大数量 (建议少量多次)                                                                                                                                                                                                                 |
 | cv项目路径     | cv_proj_path  |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                                                          |
 
-</details><br>
+</details>
 
 > 除 `存储路径` 其他均非必须，使用默认即可 或置空  
 > 如熟悉yaml或`⚠️使用的是命令行cli⚠️`时，可至 `scripts/conf.yml` 修改

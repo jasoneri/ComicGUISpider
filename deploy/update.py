@@ -279,10 +279,12 @@ def create_desc(proj_path=None):
             if curr_os == 'macOS':  # macOS desc also use markdown-html
                 md_content = md_content.replace('deploy/launcher/mac/EXTRA.md',
                                                 f'deploy/launcher/mac/desc_{curr_os}.html')
-        md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace('</details><br>',
-                                                                                          '</details>').replace(
+        md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace(
             "<details>", '<details markdown="1">')
-        md = markdown.Markdown(extensions=['md_in_html', 'tables', 'fenced_code', 'nl2br'], output_format='html5')
+
+        md = markdown.Markdown(extensions=['markdown.extensions.md_in_html', 'markdown.extensions.tables',
+                                           'markdown.extensions.fenced_code', 'markdown.extensions.nl2br'],
+                               output_format='html5')
         html_body = md.convert(md_content)
         full_html = github_markdown_format % html_body
         with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
