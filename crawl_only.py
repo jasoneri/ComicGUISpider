@@ -6,6 +6,7 @@ from multiprocessing import Process
 
 from loguru import logger
 
+from assets import res
 from utils import transfer_input
 from utils.processed_class import (
     GuiQueuesManger, crawl_what, QueuesManager, QueueHandler, InputFieldState, refresh_state, ProcessState
@@ -18,10 +19,13 @@ def say_to_textBrowser(textBrowserQueue):
     while 1:
         if not q.empty():
             _state = q.get()
+            if _state is None:
+                break
             _ = _state.text
             logger.debug(_)
-            if '完成任务' in _:
+            if res.GUI.WorkThread_finish_flag in _:
                 break
+    textBrowserQueue.queue.put(None)
 
 
 class Gui:
@@ -63,9 +67,11 @@ def test_turn_page():
 
 
 def test_normal_process(keyword, input_2, input_3):
+    """
+    input_2: 选书
+    input_3: 选章节
+    """
     # TODO[8](2024-08-19): debug 拷贝漫画轻小说book请求
-    # input_2 = "1"  # 选书
-    # input_3 = "2"  # 选章节
     state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='', pageTurn='')
     state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2), pageTurn='')
     if input_3:
@@ -74,9 +80,9 @@ def test_normal_process(keyword, input_2, input_3):
 
     gui.Q('InputFieldQueue').send(state_1)
     refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
-    time.sleep(4)
+    time.sleep(2)
     gui.Q('InputFieldQueue').send(state_2)
-    refresh_state(gui, 'process_state', 'ProcessQueue')
+    refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=input_3 or False)
     #  上面这行 refresh_state，当测试三步跳转时要加 monitor_change=True
     if input_3:
         time.sleep(2)
@@ -96,7 +102,9 @@ if __name__ == '__main__':
                         help='e.g., 0 表示全选(特殊)  |  1 表示单选 1 (类推)  |  7+9 →表示多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号)  |  1+7-9 →复合多选 1、7、8、9')
     # TODO[3](2025-02-11): 负数扩展，例如当indexes=-3时，从倒数第三个至最后一个，（下载最新3话）
     parser.add_argument('-i2', '--indexes2', help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
-    parser.add_argument('-t', '--turn_p', action='store_true', help='Run turn_page_test')
+    parser.add_argument('-tw', '--time_wait',
+                        help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')
+    parser.add_argument('-tp', '--turn_p', action='store_true', help='Run turn_page_test')
     args = parser.parse_args()
 
     if not args.keyword or not args.indexes:
@@ -130,12 +138,16 @@ if __name__ == '__main__':
     else:
         test_normal_process(args.keyword, args.indexes, args.indexes2)
 
-    # ⚠️ 以下步骤为安全退出而设（避免主进程先于后台进程完成前关闭），常规使用时sleep数值设得大于使用的平均完成时间即可
-    for p in [p_qm, p_bThread]:
-        if p is not None:  # break point for it, scrapy end then restore for all process end
-            time.sleep(120)  # break point for it, scrapy end then restore for all process end
-            p.kill()
-            p.join()
+    try:
+        p_bThread.join(timeout=args.time_wait or 300)
+        gui.Q('TextBrowserQueue').send(None)
+        for p in [p_crawler, p_qm]:
+            if p.is_alive():
+                p.terminate()
+        for p in [p_crawler, p_qm, p_bThread]:
+            p.join(timeout=5)
+    finally:
+        for p in [p_crawler, p_qm, p_bThread]:
+            if p.is_alive():
+                p.kill()
             p.close()
-    for p in [p_qm, p_bThread]:
-        del p
