@@ -278,29 +278,38 @@ class BaseComicSpider(scrapy.Spider):
         return spider
 
     def close(self, reason):
+        def _remove_cache():
+            domain_cache = temp_p.joinpath(f"{self.name}_domain.txt")
+            if domain_cache.exists():
+                os.remove(domain_cache)
+
+        stats = self.crawler.stats
+
         try:
             del self.manager
             self.session.close()
-        except:
-            pass
+        except Exception as e:
+            self.logger.error(f"Error closing resources: {e}")
         sleep(0.3)
         self.sql_handler.close()
-        if reason == "ConnectionResetError":
+        if reason == "finished":
+            if 'init' not in self.process_state.process:
+                if self.total != 0 and stats.get_value('item_scraped_count'):
+                    self.say(
+                        font_color(f'<br>{self.__res.finished_success % stats.get_value("item_scraped_count")}<br>',
+                                   color='green', size=6))
+                else:
+                    self.say(font_color(f'<br>{self.__res.finished_empty}<br>', color='orange', size=6))
+        elif reason == "ConnectionResetError":
             return
-        elif 'init' not in self.process_state.process:
-            if self.total != 0:
-                self.say(
-                    font_color(f'<br>~~~{self.__res.close_success} ヾ(￣▽￣ )Bye~Bye~<br>', color='green', size=6))
-            else:
-                self.say(
-                    font_color(f'~~~…(￣┰￣*)………{self.__res.close_backend_error}<br>', size=5) +
-                    font_color('<br>'.join((self.__res.close_check_log_guide1, self.__res.close_check_log_guide2,
-                                            self.__res.close_check_log_guide3)), color='blue', size=4) + "<br>" +
-                    font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
-                )
-                domain_cache = temp_p.joinpath(f"{self.name}_domain.txt")
-                if reason != "finished" and domain_cache.exists():
-                    os.remove(domain_cache)
+        elif reason == "error":
+            self.say(
+                font_color(f'{self.__res.close_backend_error}<br>', size=5) +
+                font_color('<br>'.join((self.__res.close_check_log_guide1, self.__res.close_check_log_guide2,
+                                        self.__res.close_check_log_guide3)), color='blue', size=4) + "<br>" +
+                font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
+            )
+            _remove_cache()
 
     def refresh_state(self, state_name, queue_name, monitor_change=False):
         try:

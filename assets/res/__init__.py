@@ -31,7 +31,7 @@ class GUI:
     textbrowser_load_if_http = (u'<b><font size="5" color="black">内置预览：点击右下 "点我预览" </font></b>'
                                 u'<font color="black"> 或者 </font>'
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
-    WorkThread_finish_flag = "完成任务"  # related to SPIDER.close_success
+    WorkThread_finish_flag = "后台完成"  # related to SPIDER.close_success
     copymaga_tips = "拷贝漫画在配置代理后能解锁章节，例如黑暗集会等（此提示后再配置代理则需要重启/retry程序）"
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
     global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
@@ -78,8 +78,10 @@ class SPIDER:
     parse_sec_selected = '所选序号'
     parse_sec_now_start_crawl_desc = "现在开始爬取《%s》章节"
     page_less_than_one = "当前页数少于1，避免出错设置回第一页"
-    close_success = "后台完成任务了"
-    close_backend_error = "后台挂了，或没结果，或没进行选择！若非后两者可进行如下操作"
+
+    finished_success = "~~~后台完成[%s]个图片任务了 ヾ(￣▽￣ )Bye~Bye~"
+    finished_empty = "~~~…(￣┰￣*)………后台正常退出没有产生图片任务，请自行检查输入"
+    close_backend_error = "~~~…(￣┰￣*)………后台挂了，排错操作指引如下"
     close_check_log_guide1 = '1、打开下方的日志文件，查阅看有没开发者定义了的错误提示，或者是重试能解决的网络问题如 ReadTimeout'
     close_check_log_guide2 = '2、第1步非网络问题的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤'
     close_check_log_guide3 = '3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue'
