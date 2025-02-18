@@ -253,12 +253,18 @@ def regular_update():
         print(Fore.RED + f"[Errno 11001] {res.refresh_fail_retry_over_limit}")
 
 
-def create_desc():
+def create_desc(proj_path=None):
     def cdn_replace(md_str, author, repo, branch):
         return (md_str.replace("raw.githubusercontent.com", "jsd.onmicrosoft.cn/gh")
                 .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
 
-    github_markdown_format = """<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"></head>
+    github_markdown_format = """<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+        <style>details { margin: 1em 0;border: 1px solid #e1e4e8;border-radius: 6px;padding: 0.5em;}
+        summary {cursor: pointer;font-weight: 500;padding: 0.25em;transition: all 0.3s;}
+        summary:hover { color: #0366d6; }
+        table {margin-top: 0.5em; table-layout: fixed; }
+        .markdown-body table td, .markdown-body table th {word-wrap: break-word;}</style> 
+    </head>
         <body><article class="markdown-body">
             %s
             </article></body></html>"""
@@ -267,25 +273,28 @@ def create_desc():
     except ModuleNotFoundError:
         print(Fore.RED + f"[ {res.not_pkg_markdown} ]")
     else:
-        with open(existed_proj_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
+        _p = proj_path or existed_proj_p
+        with open(_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
             md_content = f.read()
             if curr_os == 'macOS':  # macOS desc also use markdown-html
                 md_content = md_content.replace('deploy/launcher/mac/EXTRA.md',
                                                 f'deploy/launcher/mac/desc_{curr_os}.html')
-        md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main")
-        extensions = ['markdown.extensions.tables']
-        html = markdown.markdown(md_content, extensions=extensions)
-        html_style = github_markdown_format % html
-        with open(existed_proj_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
-            f.write(html_style)
+        md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace('</details><br>',
+                                                                                          '</details>').replace(
+            "<details>", '<details markdown="1">')
+        md = markdown.Markdown(extensions=['md_in_html', 'tables', 'fenced_code', 'nl2br'], output_format='html5')
+        html_body = md.convert(md_content)
+        full_html = github_markdown_format % html_body
+        with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
+            f.write(full_html)
 
-        if curr_os == 'macOS':
-            with open(existed_proj_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
-                md_content = f.read()
-            html = markdown.markdown(md_content, extensions=['markdown.extensions.tables'])
-            html_style = github_markdown_format % html
-            with open(existed_proj_p.joinpath(f'deploy/launcher/mac/desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
-                f.write(html_style)
+        # if curr_os == 'macOS':
+        with open(_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
+            mac_md_content = f.read()
+        mac_html_body = md.convert(mac_md_content)
+        mac_full_html = github_markdown_format % mac_html_body
+        with open(_p.joinpath(f'deploy/launcher/mac/desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
+            f.write(mac_full_html)
 
 
 if __name__ == '__main__':
