@@ -8,4 +8,5 @@ class ComicspiderItem(scrapy.Item):
     page = scrapy.Field()
     image_urls = scrapy.Field()
     images = scrapy.Field()
-    referer = scrapy.Field()
+    identity = scrapy.Field()
+    identity_md5 = scrapy.Field()  # 相当于group_id，并非此item的唯一标识

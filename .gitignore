@@ -180,3 +180,4 @@ _bug_log
 test/*
 src/
 untitled*
+.lh/

@@ -3,10 +3,11 @@ import json
 import re
 import typing as t
 from urllib.parse import urlencode
-from .basecomicspider import BaseComicSpider2, font_color, scrapy
+
 from utils import convert_punctuation, correct_domain
 from utils.website import JmUtils
 from utils.processed_class import PreviewHtml, Url
+from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
 domain = "18comic-zzz.xyz"
 

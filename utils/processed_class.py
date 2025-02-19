@@ -14,6 +14,7 @@ from scrapy.utils.project import get_project_settings
 
 from utils import State, QueuesManager, Queues, ori_path, re, temp_p, md5, PresetHtmlEl
 from utils.sql import SqlUtils
+from utils.website import get_identity
 from variables import SPIDERS
 
 
@@ -164,21 +165,23 @@ class PreviewHtml:
         return f
 
     @staticmethod
-    def tip_duplication(spider_db, tf):
-        md5_filter = Md5Filter(tf)
-        titles = md5_filter.get_titles()
-        batch_md5 = md5_filter.batch_md5(titles)
-        sql_utils = SqlUtils(spider_db)
-        downloaded_titles_md5 = sql_utils.batch_check_dupe(list(batch_md5.keys()))
+    def tip_duplication(spider, tf):
+        md5_filter = Md5Filter(spider, tf)
+        infos = md5_filter.get_infos()
+        batch_md5 = md5_filter.batch_md5(infos)
+        sql_utils = SqlUtils()
+        downloaded_md5 = sql_utils.batch_check_dupe(list(batch_md5.keys()))
         sql_utils.close()
 
         with open(tf, 'r+', encoding='utf-8') as fp:
             html_content = fp.read()
-            for title_md5 in downloaded_titles_md5:
-                title = batch_md5[title_md5]
+            for _md5 in downloaded_md5:
+                info = batch_md5[_md5]
                 html_content = html_content.replace(
-                    f'alt="{title}" class="img-thumbnail"',
-                    f'alt="{title}" class="img-thumbnail downloaded"'
+                    # f'alt="{info}" class="img-thumbnail"',
+                    # f'alt="{info}" class="img-thumbnail downloaded"'
+                    f'href="{info}"',
+                    f'href="{info}" class="downloaded"'
                 )
             fp.seek(0)
             fp.truncate()
@@ -186,18 +189,23 @@ class PreviewHtml:
 
 
 class Md5Filter:
-    def __init__(self, tf):
+    def __init__(self, spider, tf):
+        self.spider = spider
         self.tf = tf
 
-    def get_titles(self):
+    def get_infos(self):
         with open(self.tf, 'r', encoding='utf-8') as file:
             html_content = file.read()
             html = etree.HTML(html_content)
-        titles = html.xpath('//div[@class="col-md-3"]//img/@title')
-        return titles
+        # titles = html.xpath('//div[@class="col-md-3"]//img/@title')
+        urls = html.xpath('//div[@class="col-md-3"]//a/@href')
+        return urls
 
-    def batch_md5(self, titles):
-        return {md5(title): title for title in titles}
+    def batch_md5(self, infos):
+        # return {md5(title): title for title in titles}
+        _get_identity = get_identity(self.spider)
+        _ = {md5(_get_identity(info)): info for info in infos}
+        return _
 
 
 class Url(str):

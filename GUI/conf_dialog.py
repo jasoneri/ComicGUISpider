@@ -19,7 +19,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
     def setupUi(self, Dialog):
         super(ConfDialog, self).setupUi(Dialog)
         self.buttonBox.accepted.connect(self.save_conf)
-        self.isBanCover.stateChanged.connect(self.handleBanCoverStateChange)
+        self.isUuid.stateChanged.connect(self.handleBanCoverStateChange)
         tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
@@ -38,7 +38,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         # 2. CheckBox类配置
-        for _ in ('isBanCover', 'isDeduplicate'):
+        for _ in ('isUuid', 'isDeduplicate'):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         super(ConfDialog, self).show()
 
@@ -63,7 +63,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "eh_cookies": yaml.safe_load(cp(getattr(self, f"eh_cookiesEdit").toPlainText().replace("\t", ""))),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
-            "isBanCover": getattr(self, "isBanCover").isChecked(),
+            "isUuid": getattr(self, "isUuid").isChecked(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "clip_db": getattr(self, f"clip_dbEdit").text(),
             "clip_read_num": getattr(self, f"clip_read_numEdit").text()
