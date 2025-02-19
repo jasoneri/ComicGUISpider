@@ -66,7 +66,7 @@
 ### todo V1.6.4
 
 ✅
-去重逻辑的更正：方向错了，推倒之前逻辑半重做，已保存的title_md5更新后失效，如有疑问或建议[点击前往相关逻辑说明以及讨论](https://github.com/jasoneri/ComicGUISpider/discussions/23)
+去重逻辑的更正：方向错了，推倒之前逻辑半重做，已保存的title_md5更新后失效，如有疑问或建议[点击前往相关逻辑说明以及讨论](https://github.com/jasoneri/ComicGUISpider/discussions/23)  
 ✅ 优化报错/正常操作而没结果的提示分类  
 🔳 增加`禁止覆盖`开关勾选(e绅士发现也有重复标题)，默认覆盖，打开后会消耗小许性能以查询标题md5  
 ❌ ~~jm代理相关优化~~ 不用优化，无论有无设置代理，jm全程都不走代理（如有jm需要走代理的场景请告知开发者）  
