@@ -60,9 +60,8 @@ class TokenHandler:
                 resp = client.head(f"https://api.github.com")
                 if str(resp.status_code).startswith('2'):
                     return token
-        else:
-            print(Fore.RED + res.token_invalid_notification)
-            os.remove(self.gitee_t_file)
+        print(Fore.RED + res.token_invalid_notification)
+        os.remove(self.gitee_t_file)
 
     def download_t_file(self):
         with open(self.gitee_t_file, 'w', encoding='utf-8') as f:
@@ -222,8 +221,7 @@ class Proj:
                     path.joinpath(file).parent.mkdir(exist_ok=True, parents=True)
                     shutil.move(temp_p.joinpath(file), path.joinpath(file))
             shutil.rmtree(temp_p, onerror=delete)
-        else:
-            print(Fore.CYAN + f"[ {res.env_is_latest} ]")
+        print(Fore.CYAN + f"[ {res.env_is_latest} ]")
 
 
 def regular_update():
@@ -281,7 +279,6 @@ def create_desc(proj_path=None):
                                                 f'deploy/launcher/mac/desc_{curr_os}.html')
         md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace(
             "<details>", '<details markdown="1">')
-
         md = markdown.Markdown(extensions=['markdown.extensions.md_in_html', 'markdown.extensions.tables',
                                            'markdown.extensions.fenced_code', 'markdown.extensions.nl2br'],
                                output_format='html5')
@@ -290,13 +287,13 @@ def create_desc(proj_path=None):
         with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
             f.write(full_html)
 
-        # if curr_os == 'macOS':
-        with open(_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
-            mac_md_content = f.read()
-        mac_html_body = md.convert(mac_md_content)
-        mac_full_html = github_markdown_format % mac_html_body
-        with open(_p.joinpath(f'deploy/launcher/mac/desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
-            f.write(mac_full_html)
+        if curr_os == 'macOS':
+            with open(_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
+                mac_md_content = f.read()
+            mac_html_body = md.convert(mac_md_content)
+            mac_full_html = github_markdown_format % mac_html_body
+            with open(_p.joinpath(f'deploy/launcher/mac/desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
+                f.write(mac_full_html)
 
 
 if __name__ == '__main__':

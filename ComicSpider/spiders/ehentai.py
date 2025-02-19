@@ -98,6 +98,8 @@ class EHentaiSpider(BaseComicSpider3):
         url = response.xpath('//img[@id="img"]/@src').get() or ""
         title = response.meta.get('title')
         page = response.meta.get('page')
+        this_identity = response.meta.get('identity')
+        identity_md5 = response.meta.get('identity_md5')
         if url.endswith('509.gif'):
             self.log(f'[509] https://ehgt.org/g/509.gif: [page-{page}] of [{title}]', level=30)
         else:
@@ -106,5 +108,7 @@ class EHentaiSpider(BaseComicSpider3):
             item['page'] = str(page)
             item['section'] = 'meaningless'
             item['image_urls'] = [url]
+            item['identity'] = this_identity
+            item['identity_md5'] = identity_md5
             self.total += 1
             yield item

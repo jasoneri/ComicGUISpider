@@ -220,6 +220,10 @@ class JmUtils(Utils, Req):
         url = jm_id = re.search(r"var aid = (\d+);", resp_text).group(1)
         return url, img_src, title, author, pages, tags[:20]
 
+    @staticmethod
+    def get_identity(url):
+        _identity = re.search(r"(\d+)$", url).group(1)
+        return f"jm-{_identity}"
 
 class WnacgUtils(Utils, Req):
     name = "wnacg"
@@ -265,6 +269,10 @@ class WnacgUtils(Utils, Req):
         author = "-"
         return url, img_src, title, author, pages, tags[:20]
 
+    @staticmethod
+    def get_identity(url):
+        _identity = re.search(r"-(\d+)\.html$", url).group(1)
+        return f"wnacg-{_identity}"
 
 class EHentaiKits(Req):
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
@@ -329,6 +337,10 @@ class EHentaiKits(Req):
                             ).group(1)
         return url, img_src, title, author, pages, tags[:20] if tags else []
 
+    @staticmethod
+    def get_identity(url):
+        _identity = re.search(r"/g/(\d+)/", url).group(1)
+        return f"ehentai-{_identity}"
 
 class KaobeiUtils:
     AES_KEY = "xxxmanga.woo.key"
@@ -418,4 +430,11 @@ def set_author_ahead(title: str) -> str:
     return author + title.replace(author, '').replace("  ", " ")
 
 
-spider_utils_map = {1: object, 2: JmUtils, 3: WnacgUtils, 4: EHentaiKits, 5: MangabzUtils}
+spider_utils_map = {
+    1: KaobeiUtils, 2: JmUtils, 3: WnacgUtils, 4: EHentaiKits, 5: MangabzUtils,
+    'manga_copy': KaobeiUtils, 'jm': JmUtils, 'wnacg': WnacgUtils, 'ehentai': EHentaiKits, 'mangabz': MangabzUtils
+}
+
+
+def get_identity(spider_name):
+    return getattr(spider_utils_map[spider_name], 'get_identity')

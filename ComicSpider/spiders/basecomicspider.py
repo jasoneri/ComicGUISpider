@@ -18,6 +18,7 @@ from utils import (
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
 )
+from utils.website import get_identity
 from utils.sql import SqlUtils
 
 
@@ -274,7 +275,7 @@ class BaseComicSpider(scrapy.Spider):
         spider.Q('ProcessQueue').send(spider.process_state)
 
         spider.say = SayToGui(spider, q, spider.text_browser_state)
-        spider.sql_handler = SqlUtils(spider.name)
+        spider.sql_handler = SqlUtils()
         return spider
 
     def close(self, reason):
@@ -327,19 +328,20 @@ class BaseComicSpider2(BaseComicSpider):
         self.Q('ProcessQueue').send(self.process_state)
 
         title = PresetHtmlEl.sub(response.meta.get('title'))
-        title_md5 = md5(title)
-        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(title_md5)):
-            self.sql_handler.add(title_md5)
+        this_identity = get_identity(self.name)(response.url)
+        identity_md5 = md5(this_identity)
+        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(identity_md5)):
+            self.sql_handler.add(identity_md5)
             self.say(f'{"=" * 15} 《{title}》')
             results = self.frame_section(response)  # {1: url1……}
-            referer = response.url
             for page, url in results.items():
                 item = ComicspiderItem()
                 item['title'] = title
                 item['page'] = str(page)
                 item['section'] = 'meaningless'
                 item['image_urls'] = [url]
-                item['referer'] = referer
+                item['identity'] = this_identity
+                item['identity_md5'] = identity_md5
                 self.total += 1
                 yield item
         self.process_state.process = 'fin'
@@ -362,11 +364,15 @@ class BaseComicSpider3(BaseComicSpider):
             yield scrapy.Request(url=next_page_flag, callback=self.parse_section, meta=meta)
         else:
             title = PresetHtmlEl.sub(response.meta.get('title'))
-            title_md5 = md5(title)
-            if not conf.isDeduplicate or not self.sql_handler.check_dupe(title_md5):
-                self.sql_handler.add(title_md5)
+            this_identity = get_identity(self.name)(response.url)
+            identity_md5 = md5(this_identity)
+            if not conf.isDeduplicate or not self.sql_handler.check_dupe(identity_md5):
+                self.sql_handler.add(identity_md5)
                 for page, url in results.items():
-                    meta = {'title': title, 'page': page}
+                    meta = {
+                        'title': title, 'page': page,
+                        'identity_md5': identity_md5, 'identity': this_identity
+                    }
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
 

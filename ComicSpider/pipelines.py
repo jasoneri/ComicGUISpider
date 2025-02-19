@@ -26,13 +26,6 @@ class ComicPipeline(ImagesPipeline):
     _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
 
-    def get_media_requests(self, item, info):
-        request_objs = super(ComicPipeline, self).get_media_requests(item, info)
-        for request_obj in request_objs:
-            request_obj.item = item
-            request_obj.meta['referer'] = item.get('referer')
-        return request_objs
-
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
         title = self._sub.sub('-', item.get('title'))
@@ -40,12 +33,12 @@ class ComicPipeline(ImagesPipeline):
         page = res.SPIDER.PAGE_NAMING % item.get('page')
         spider = self.spiderinfo.spider
         basepath: pathlib.Path = spider.settings.get('SV_PATH')
-        path = self.file_folder(basepath, section, spider, title, request.meta)
+        path = self.file_folder(basepath, section, spider, title, response.url)
         os.makedirs(path, exist_ok=True)
         fin = os.path.join(path, page)
         return fin
 
-    def file_folder(self, basepath, section, spider, title, meta: dict):
+    def file_folder(self, basepath, section, spider, title, url):
         path = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web/{self._sub_index.sub('', set_author_ahead(title))}") \
             if spider.name in spider.settings.get('SPECIAL') \
             else basepath.joinpath(f"{title}/{section}")
@@ -66,11 +59,11 @@ class ComicPipeline(ImagesPipeline):
 
 
 class JmComicPipeline(ComicPipeline):
-    def file_folder(self, basepath, section, spider, title, meta: dict):
-        path = super(JmComicPipeline, self).file_folder(basepath, section, spider, title, meta)
+    def file_folder(self, basepath, section, spider, title, url):
+        path = super(JmComicPipeline, self).file_folder(basepath, section, spider, title, url)
         if not conf.isDeduplicate:
             # jm上传者太多命名规范太杂有重名情况出现(例如'満开开花-催眠で')，重名时加上车号确保不重
-            _epsId = re.search(r"(\d+)$", meta.get("referer", ""))
+            _epsId = re.search(r"(\d+)$", url)
             if bool(_epsId):
                 path = f"{path}[{_epsId.group(1)}]"
         return path
