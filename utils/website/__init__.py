@@ -182,6 +182,11 @@ class JmUtils(Utils, Req):
             return obj
 
     @classmethod
+    def get_cli(cls, conf):
+        cli = httpx.Client(headers=cls.book_hea)
+        return cli
+
+    @classmethod
     def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
         ps = html.xpath('//div[@class="wrap"]//p')
