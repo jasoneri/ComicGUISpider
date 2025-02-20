@@ -253,7 +253,7 @@ def regular_update():
 
 def create_desc(proj_path=None):
     def cdn_replace(md_str, author, repo, branch):
-        return (md_str.replace("raw.githubusercontent.com", "jsd.onmicrosoft.cn/gh")
+        return (md_str.replace("raw.githubusercontent.com", "jsd.vxo.im/gh")
                 .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
 
     github_markdown_format = """<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
