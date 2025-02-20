@@ -5,6 +5,9 @@ import pathlib
 import warnings
 from io import BytesIO
 
+from itemadapter import ItemAdapter
+from scrapy.http import Request
+from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
 from scrapy.exceptions import ScrapyDeprecationWarning
 from scrapy.utils.python import get_func_args
@@ -12,11 +15,6 @@ from scrapy.utils.python import get_func_args
 from utils import conf
 from utils.website import JmUtils, set_author_ahead, MangabzUtils
 from assets import res
-
-from itemadapter import ItemAdapter
-
-from scrapy.http import Request
-from scrapy.http.request import NO_CALLBACK
 
 
 class ComicPipeline(ImagesPipeline):
@@ -33,41 +31,36 @@ class ComicPipeline(ImagesPipeline):
         page = res.SPIDER.PAGE_NAMING % item.get('page')
         spider = self.spiderinfo.spider
         basepath: pathlib.Path = spider.settings.get('SV_PATH')
-        path = self.file_folder(basepath, section, spider, title, request.url)
+        path = self.file_folder(basepath, section, spider, title, item)
         os.makedirs(path, exist_ok=True)
         fin = os.path.join(path, page)
         return fin
 
-    def file_folder(self, basepath, section, spider, title, url):
-        path = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web/{self._sub_index.sub('', set_author_ahead(title))}") \
-            if spider.name in spider.settings.get('SPECIAL') \
-            else basepath.joinpath(f"{title}/{section}")
+    def file_folder(self, basepath, section, spider, title, item):
+        if spider.name in spider.settings.get('SPECIAL'):
+            parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web")
+            _title = self._sub_index.sub('', set_author_ahead(title))
+            if conf.addUuid:
+                _title = f"{_title}[{item['identity']}]"
+            path = parent_p.joinpath(_title)
+        else:
+            path = basepath.joinpath(f"{title}/{section}")
         return path
 
     def image_downloaded(self, response, request, info, *, item=None):
-        self.now += 1
-        spider = self.spiderinfo.spider
         try:
+            super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
+            self.now += 1
+            spider = self.spiderinfo.spider
             percent = int((self.now / spider.total) * 100)
             if percent > self.threshold:
                 percent -= int((percent / self.threshold) * 100)  # 进度缓存
             spider.Q('BarQueue').send(int(percent))  # 后台打印百分比进度扔回GUI界面
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
-        # # 控制台专用
-        super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
 
 
 class JmComicPipeline(ComicPipeline):
-    def file_folder(self, basepath, section, spider, title, url):
-        path = super(JmComicPipeline, self).file_folder(basepath, section, spider, title, url)
-        if not conf.isDeduplicate:
-            # jm上传者太多命名规范太杂有重名情况出现(例如'満开开花-催眠で')，重名时加上车号确保不重
-            _epsId = re.search(r"(\d+)$", url)
-            if bool(_epsId):
-                path = f"{path}[{_epsId.group(1)}]"
-        return path
-
     def get_images(self, response, request, info, *, item=None):
         path = self.file_path(request, response=response, info=info, item=item)
         orig_image = JmUtils.JmImage.by_url(item['image_urls'][0]).convert_img(response.body)

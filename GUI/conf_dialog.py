@@ -19,17 +19,9 @@ class ConfDialog(QDialog, Ui_ConfDialog):
     def setupUi(self, Dialog):
         super(ConfDialog, self).setupUi(Dialog)
         self.buttonBox.accepted.connect(self.save_conf)
-        self.isUuid.stateChanged.connect(self.handleBanCoverStateChange)
         tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
-
-    def handleBanCoverStateChange(self, state):
-        if state == QtCore.Qt.Checked:
-            self.isDeduplicate.setChecked(False)
-            self.isDeduplicate.setDisabled(True)
-        else:
-            self.isDeduplicate.setDisabled(False)
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
@@ -38,7 +30,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         # 2. CheckBox类配置
-        for _ in ('isUuid', 'isDeduplicate'):
+        for _ in ('addUuid', 'isDeduplicate'):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         super(ConfDialog, self).show()
 
@@ -63,7 +55,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "eh_cookies": yaml.safe_load(cp(getattr(self, f"eh_cookiesEdit").toPlainText().replace("\t", ""))),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
-            "isUuid": getattr(self, "isUuid").isChecked(),
+            "addUuid": getattr(self, "addUuid").isChecked(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "clip_db": getattr(self, f"clip_dbEdit").text(),
             "clip_read_num": getattr(self, f"clip_read_numEdit").text()
