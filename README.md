@@ -14,9 +14,9 @@
 
 ▼ 操作演示 ▼
 
-| 预览、多选（[国内备链](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/preview-usage.gif)） | 翻页、保留选择（[国内备链](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/turn-page.gif)） |
-|:--------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|
-|    ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif)    |     ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif)     |
+|  预览、多选（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/preview-usage.gif)）  | 翻页、保留选择（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/turn-page.gif)） |
+|:--------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
+| ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif) |
 
 ## 📑介绍
 
@@ -132,7 +132,7 @@
 | 代理         |    proxies    |           | 翻墙用，`jm`只走内地此项对其无效（全局代理反而会令`jm`无法使用）<br/>（建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量）                                                                                                                                 |
 | 映射         |  custom_map   |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 已无需使用映射做翻页，但注意的是自制映射有可能超出翻页规则范围，此时可通知开发者进行扩展 |
 | 预设         |   completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                   |
-| eh_cookies |  eh_cookies   |           | 使用`ehentai`时必需，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备链 ](https://jsd.onmicrosoft.cn/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))             |
+| eh_cookies |  eh_cookies   |           | 使用`ehentai`时必需，[点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies.gif)  ([ 国内备链 ](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies.gif))                     |
 | 剪贴板db      |    clip_db    |           | 默认读取剪贴板软件的数据库初设路径<br>如相关功能无法使用时可自行查看路径是否一致，并在此更改<br>1. ditto(win): 打开选项 → 数据库路径 <br>2.maccy(macOS): [issue搜索相关得知](https://github.com/p0deje/Maccy/issues/271)                                                       |
 | 读取条数       | clip_read_num |    20     | 读取剪贴板软件条目数量，需少于剪贴板软件设置的最大数量 (建议少量多次)                                                                                                                                                                                |
 | cv项目路径     | cv_proj_path  |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                         |
