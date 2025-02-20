@@ -35,7 +35,7 @@
 <table><tbody>  
   <tr>
     <td>CGS导航</td>
-    <td><a href="https://github.com/jasoneri/ComicGUISpider/releases">🔗开箱即用绿色包下载</a></td>
+    <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">🔗开箱即用绿色包下载</a></td>
     <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗GUI使用指南(视频，注意评论跳链)</a></td>  
     <td><a href="deploy/launcher/mac/EXTRA.md">🔗macOS必读的补充说明</a></td> 
   </tr>  
