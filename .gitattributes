@@ -1,2 +1,8 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# 核心配置：自动识别文本文件，并强制统一为 LF
+* text=auto eol=lf
+
+# 明确排除二进制文件（避免误处理）
+*.png binary
+*.jpg binary
+*.zip binary
+*.7z  binary
