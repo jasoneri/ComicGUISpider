@@ -8,6 +8,7 @@ import re
 
 from scrapy import signals
 import random
+from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
 
 
 class ComicspiderDownloaderMiddleware(object):
@@ -93,3 +94,8 @@ class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
         if bool(self.domain_regex.search(request.url)) and self.PROXIES:
             proxy = random.choice(self.PROXIES)
             request.meta['proxy'] = f"http://{proxy}"
+
+
+class DisableSystemProxyMiddleware(HttpProxyMiddleware):
+    def _get_proxy(self, scheme, *args, **kwargs):
+        return None, None
