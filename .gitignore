@@ -181,3 +181,5 @@ test/*
 src/
 untitled*
 .lh/
+Pipfile
+Pipfile.lock
