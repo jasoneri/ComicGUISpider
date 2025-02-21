@@ -508,7 +508,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                     return
             elif self.chooseBox.currentIndex() == 5:
                 self.say(f"{self.res.check_mangabz}<br>")
-                obj = self.spiderUtils(conf.proxies)
+                obj = self.spiderUtils(conf)
                 if not obj.test_index():
                     QMessageBox.information(self, 'Warning', f"{self.res.ACCESS_FAIL} {obj.index}")
                     return

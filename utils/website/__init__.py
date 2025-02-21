@@ -28,9 +28,12 @@ class Req:
 
     @classmethod
     def get_cli(cls, conf):
-        cli = httpx.Client(proxies={"https://": f"http://{conf.proxies[0]}"} if conf.proxies else None,
-                           headers=cls.book_hea)
-        return cli
+        if conf.proxies:
+            return httpx.Client(
+                headers=cls.book_hea,
+                proxies={"https://": f"http://{conf.proxies[0]}"},
+                transport=httpx.HTTPTransport(retries=3))
+        return httpx.Client(headers=cls.book_hea, trust_env=True)
 
     book_url_regex = ""
 
@@ -285,22 +288,15 @@ class EHentaiKits(Req):
     domain = "exhentai.org"
     index = f"https://{domain}/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/132.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Accept-Encoding": "gzip, deflate, br"
     }
-    book_hea = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-        "Accept-Encoding": "gzip, deflate, br",
-    }
+    book_hea = headers
 
-    def __init__(self, cookies, proxies: list):
-        _proxies = {"https://": f"http://{proxies[0]}"} if proxies else None
-        _hea = {**self.headers, "Cookie": Cookies.to_str_(cookies)}
-        self.cli = httpx.Client(proxies=_proxies, headers=_hea)
+    def __init__(self, conf):
+        self.cli = self.get_cli(conf)
 
     def get_limit(self):  # discard
         """查限额"""
@@ -347,6 +343,7 @@ class EHentaiKits(Req):
         _identity = re.search(r"/g/(\d+)/", url).group(1)
         return f"ehentai-{_identity}"
 
+
 class KaobeiUtils:
     AES_KEY = "xxxmanga.woo.key"
 
@@ -370,7 +367,7 @@ class KaobeiUtils:
         return _(ret[16:], KaobeiUtils.AES_KEY, ret[:16])
 
 
-class MangabzUtils:
+class MangabzUtils(Req):
     index = "https://www.mangabz.com"
     image_ua = {
         "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
@@ -387,9 +384,8 @@ class MangabzUtils:
         "TE": "trailers"
     }
 
-    def __init__(self, proxies: list):
-        _proxies = {"https://": f"http://{proxies[0]}"} if proxies else None
-        self.cli = httpx.Client(proxies=_proxies)
+    def __init__(self, conf):
+        self.cli = self.get_cli(conf)
 
     def test_index(self):
         try:

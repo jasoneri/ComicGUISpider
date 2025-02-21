@@ -107,7 +107,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         if not conf.eh_cookies:
             QMessageBox.information(window, 'Warning', res.EHentai.COOKIES_NOT_SET, QMessageBox.Ok)
             return
-        cls.eh_kits = cls.eh_kits or EHentaiKits(conf.eh_cookies, conf.proxies)
+        cls.eh_kits = EHentaiKits(conf)
         if not cls.eh_kits.test_index():
             QMessageBox.information(window, 'Warning', f"{res.EHentai.ACCESS_FAIL} {cls.eh_kits.index}")
             return
