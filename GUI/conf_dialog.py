@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import ast
 import json
 import pathlib
 
@@ -9,6 +10,7 @@ from PyQt5.QtWidgets import QDialog
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from variables import SPIDERS
 from utils import conf, yaml, convert_punctuation as cp
+from assets import res
 
 
 class ConfDialog(QDialog, Ui_ConfDialog):
@@ -47,12 +49,18 @@ class ConfDialog(QDialog, Ui_ConfDialog):
     def save_conf(self):
         sv_path = getattr(self, f"sv_pathEdit").text()
         cv_proj_path_str = getattr(self, f"cv_proj_pathEdit").text()
+        eh_cookies_str = cp(getattr(self, f"eh_cookiesEdit").toPlainText()).replace("cookies = ", "")
+        if eh_cookies_str:
+            try:
+                assert isinstance(ast.literal_eval(eh_cookies_str), dict)
+            except (SyntaxError, ValueError, AssertionError):
+                raise SyntaxError(res.GUI.cookies_copy_err)
         config = {
             "sv_path": sv_path,
             "cv_proj_path": cv_proj_path_str,
             "custom_map": yaml.safe_load(cp(getattr(self, f"custom_mapEdit").toPlainText())),
             "completer": yaml.safe_load(cp(getattr(self, f"completerEdit").toPlainText())),
-            "eh_cookies": yaml.safe_load(cp(getattr(self, f"eh_cookiesEdit").toPlainText().replace("\t", ""))),
+            "eh_cookies": yaml.safe_load(eh_cookies_str),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
             "addUuid": getattr(self, "addUuid").isChecked(),
