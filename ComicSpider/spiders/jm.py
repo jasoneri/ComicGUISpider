@@ -16,7 +16,11 @@ class JmSpider(BaseComicSpider2):
     name = 'jm'
     custom_settings = {
         "ITEM_PIPELINES": {'ComicSpider.pipelines.JmComicPipeline': 50},
-        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5}
+        "DOWNLOADER_MIDDLEWARES": {
+            'ComicSpider.middlewares.UAMiddleware': 5,
+            'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
+            'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4
+        }
     }
     num_of_row = 4
     domain = domain
