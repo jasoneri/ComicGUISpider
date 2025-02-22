@@ -11,7 +11,6 @@ from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QCompleter
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.conf_dialog import ConfDialog
-from GUI.fin_ensure_dialog import FinEnsureDialog
 from GUI.browser_window import BrowserWindow
 
 from variables import *
@@ -215,7 +214,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def __init__(self, parent=None):
         super(SpiderGUI, self).__init__(parent)
-        self.ensure_dia = FinEnsureDialog()
         self.conf_dia = ConfDialog()
         self.log = conf.cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
