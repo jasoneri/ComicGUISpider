@@ -50,7 +50,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         sv_path = getattr(self, f"sv_pathEdit").text()
         cv_proj_path_str = getattr(self, f"cv_proj_pathEdit").text()
         eh_cookies_str = cp(getattr(self, f"eh_cookiesEdit").toPlainText()).replace("cookies = ", "")
-        if eh_cookies_str:
+        if not conf.eh_cookies and eh_cookies_str:
             try:
                 assert isinstance(ast.literal_eval(eh_cookies_str), dict)
             except (SyntaxError, ValueError, AssertionError):
