@@ -102,7 +102,7 @@ class MangabzSpider(FormReqBaseComicSpider):
             url = f"https://{self.domain}/{rendered.pop('book_path').strip('/')}/"
             self.say(example_b.format(str(x + 1), *rendered.values(), chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [url, rendered['漫画名']]
+            frame_results[x + 1] = [url, rendered['漫画名'], response.url]
         return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
@@ -125,12 +125,10 @@ class MangabzSpider(FormReqBaseComicSpider):
             "run", target_js)
         img_list_ = re.search(r'\[(.*?)]', real_js).group(1)
         img_list = [re.sub(r"""['"]""", '', _) for _ in re.split(', ?', img_list_)]
-        title = response.meta.get('title')
-        sec = response.meta.get('section')
+        group_infos = ComicspiderItem.get_group_infos(response.meta)
         for img_url in img_list:
             item = ComicspiderItem()
-            item['title'] = title
-            item['section'] = sec
+            item.update(**group_infos)
             page = int(re.search(r'/(\d+)_\d+\.', img_url).group(1))
             item['page'] = page
             item['image_urls'] = [img_url]

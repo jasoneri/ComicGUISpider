@@ -14,6 +14,7 @@ import datetime
 import zipfile
 from itertools import chain
 
+from pydos2unix import dos2unix
 import httpx
 import py7zr
 
@@ -50,51 +51,67 @@ preset = {
                       "qtwebengine_resources", "qt.conf"], "streamlit": ["streamlit\\static"],
     "trame_vtk": ["static_viewer.html"], "python-docx": ["docx\\templates"], "python-pptx": ["pptx\\templates"],
     "scrapy": ["mime.types"]}
-release_desc = """
-### 🎁 Features
- + 新增读剪贴板功能(d3c1b690de50a5bb5ee2a1491f5dd71b966d9b75) , closes #20 
-  
-> 升级至v1.6.3需要运行CGS-更新（即使下载这release下的绿色包也要更新）
 
-<details>
-<summary>开箱即用说明(点击展开)</summary>
 
-### ⚡️下载
-下面的`CGS.7z`，下载很慢 ？到压缩包的下载链接右键复制到 https://github.akams.cn/ 上进行下载加速
+class ReleasesDesc:
+    stable = """
+## 🎁 Features
 
-### 🚀运行
-解压后双击运行 `CGS.exe` 
-
-### 📢更新
-每次解压后优先运行一次`CGS-更新`（使解压后的代码与线上代码状态一致）
-> 更新后窗口显示`更新完毕`才算更新成功，闪退或错误提示是失败，失败可尝试删除`scripts/version`文件再运行
-
-后续的更新动作会在对应的release上进行说明
-
-### ⚠️更新额外说明
-1. 大更新绿色包覆盖前，请备份配置文件 `scripts/conf.yml`与`scripts/record.db` 
-2. 实验性中：已创token供用户更新程序使用，速率限制15000请求每小时，若有更新程序相关问题请联系开发者
-3. 更新程序实际是`git clone`的变种，可以克隆此项目改名scripts替代绿色包解压后的原scripts，通过操作git来达到代码更新（应对开发者更新程序不如git且经常报错的问题）
+## 🐞 Fix
 
 ---
-### 💻macOS
-下载 `CGS-macOS.7z` 就行，解压后首先双击`desc_macOS.html`浏览器打开查看说明（仅限初始解压后的一次性引导）
-注：_**全部 `.app` 第一次无法双击打开时，第二次需要右键打开，再以后就能双击打开**_ (macOS认证签名收费原因所致)
+
+<details>
+<summary>开箱即用说明 👈点击展开</summary>
+
+### ⚡️下载
+window系统下载`CGS.7z`，macOS系统下载`CGS-macOS.7z`  
+下载慢的话，可右键复制下载链接到 [github资源加速](https://github.akams.cn/) 网站进行下载
+
+### 🚀运行
+win系统解压后双击运行 `CGS.exe`  
+mac系统则需先阅读解压后的`desc_macOS.html`（mac专用的初次使用指引）
+
+### 📢更新
+推荐使用内置的`CGS-更新`  
+更新后窗口显示`更新完毕`才算更新成功，闪退或错误提示是失败，失败可尝试删除`scripts/version`文件再运行
+
+> ⚠️使用绿色包覆盖旧版本软件的话，请备份配置文件 `scripts/conf.yml`与`scripts/record.db` ⚠️
+
+### 💻macOS app说明
+macOS由于认证签名收费，app初次打开会有限制，正确操作如下
+```
+1. 对任一app右键打开，报错不要丢垃圾篓，直接关闭
+2. 再对同一app右键打开，此时弹出窗口有打开选项，能打开了
+3. 后续就能双击打开，不用右键打开了
+```
 </details>
 
 ---
-遇到问题 提issue 或 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问"""
+遇到问题 提issue 或 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问  
+> ⚠️解压的软件路径需纯英文/英标（含中文会导致QT错误等闪退）
+"""
 
+    develop = """
+## 🎁 Features
+
+## 🐞 Fix
+
+------
+
+╭─────────  ![show](https://img.shields.io/endpoint?url=https://current-date.jsoneri.workers.dev/)  ─────────────
+│✨ 通过任意此前稳定版本内置的  「 CGS-更新 」    
+│ 即可获取最新开发版的`特性`与`修复`                         
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
+"""
 
 class Proj:
     proj = "CGS"
     name = "ComicGUISpider"
+    github_author = "jasoneri"
 
     def __repr__(self):
         return self.proj
-
-
-proj = Proj()
 
 
 class Clean:
@@ -135,11 +152,11 @@ class Clean:
                 shutil.rmtree(_p, onerror=delete) if _p.is_dir() else os.remove(_p)
 
 
-class Packer:
-    github_author = "jasoneri"
+class Packer(Proj):
+    _proj = Proj.proj
     executor = path.parent.joinpath(r'Bat_To_Exe_Converter\Bat_To_Exe_Converter.exe')
-    zip_file = path.joinpath(f'{proj}.7z')
-    preset_zip_file = path.joinpath(f'{proj}_preset.7z')
+    zip_file = path.joinpath(f'{_proj}.7z')
+    preset_zip_file = path.joinpath(f'{_proj}_preset.7z')
 
     def __init__(self, default_specified: tuple):
         self.default_specified = default_specified
@@ -159,7 +176,7 @@ class Packer:
         # 主运行使用 PyStand 壳，不再重复造exe了，容易被杀软误杀
         # _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
         #     path.joinpath(rf"scripts/assets/{proj}.ico"))
-        _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-使用说明.exe"),
+        _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{cls._proj}-使用说明.exe"),
             path.joinpath(rf"scripts/assets/icon.png"))
         # exe生成后需要扔到 https://habo.qq.com/ 做检测，必须是`未发现风险`
 
@@ -175,7 +192,7 @@ class Packer:
                 return self.packup()
             zip_file = self.preset_zip_file
             specified = ('runtime', 'site-packages', '_pystand_static.int',
-                         f'{proj}.exe', f'{proj}-更新.exe', f'{proj}-使用说明.exe')
+                         f'{self._proj}.exe', f'{self._proj}-更新.exe', f'{self._proj}-使用说明.exe')
             mode = "w"
         else:
             shutil.copy(self.preset_zip_file, self.zip_file)
@@ -189,7 +206,7 @@ class Packer:
     @staticmethod
     def upload(zip_file):
         date_now = datetime.datetime.now().strftime("%Y%m%d")
-        repo = proj.name
+        repo = Proj.name
         if github_token.startswith("**create"):
             raise ValueError("[ you forget to replace your github token ] ")
         auth = Auth.Token(github_token)
@@ -206,8 +223,55 @@ class Packer:
         # upload asset
         release.upload_asset(str(path.joinpath(zip_file)), name=zip_file)
         # update release
-        text = release_desc
+        text = ReleasesDesc.stable.format(
+            features="...",
+            fix="..."  # TODO[5](2025-02-24): 后续自动化
+        )
         release.update_release(name=f"{date_now} - v1.6.3", message=text)
+
+
+class PackerMacOS(Packer):
+    _proj = f"{Proj.proj}-macOS"
+    zip_file = path.joinpath(f'{_proj}.7z')
+    preset_zip_file = path.joinpath(f'{_proj}_preset.7z')
+    scripts_path = "CGS.app/Contents/Resources/scripts"
+
+    def __init__(self, default_specified=None):
+        super().__init__(default_specified)
+
+    def pre_packup(self):
+        """ 1。预处理CGS.app的结构
+            2. dos2unix处理项目文本文件"""
+        mac_7z_p = path.joinpath(self.scripts_path.rsplit("/", maxsplit=1)[0])
+        mac_7z_p.mkdir(parents=True, exist_ok=True)
+        mac_scripts_path = mac_7z_p.joinpath("scripts")
+        if mac_scripts_path.exists():
+            shutil.rmtree(mac_scripts_path, ignore_errors=True)
+        shutil.move(path.joinpath(Proj.name), mac_scripts_path)
+
+        targets = [
+            mac_scripts_path.rglob("*.bash"), mac_scripts_path.rglob("*.md"), mac_scripts_path.rglob("*.py"),
+            mac_scripts_path.rglob("*.json"), mac_scripts_path.rglob("*.yml"), mac_scripts_path.rglob("*.html"),
+        ]
+        for _p in tqdm(chain(*targets)):
+            with open(_p, "rb+") as fp:
+                buffer = dos2unix(fp)
+                fp.seek(0)
+                fp.truncate()
+                fp.write(buffer)
+
+    def packup(self, runtime_init=False):
+        self.pre_packup()
+        zip_file = self.zip_file
+        specified = (self.scripts_path,)
+        mode = "a"
+        shutil.copy(self.preset_zip_file, self.zip_file)
+        with py7zr.SevenZipFile(zip_file, mode, filters=[{"id": py7zr.FILTER_LZMA2}]) as zip_f:
+            for file in tqdm(tuple(specified)):
+                if path.joinpath(file).exists():
+                    zip_f.writeall(path.joinpath(file), arcname=file)
+        if not self.zip_file.exists():
+            self.packup()
 
 
 def clean():
@@ -241,15 +305,17 @@ def env_supplement():
 
 
 if __name__ == '__main__':
-    # clean()
-    Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
-                   (path.joinpath("scripts/log"), path.joinpath("scripts/version"),
-                    path.joinpath("scripts/deploy/gitee_t.json")))  # step 0 必清site-packages cache，太大了
-    # Packer.bat_to_exe()  # step 1
-    packer = Packer(('scripts', f'{proj}.bat'))
-    packer.packup(runtime_init=True)  # step 2
-    # packer.upload('CGS.7z')  # step 3
-    # Clean.end_work(('CGS.7z',))  # step 4
-    # If error occur, exegesis previous step and run again
-
-    # env_supplement()
+    # # clean()
+    # Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
+    #                (path.joinpath("scripts/log"), path.joinpath("scripts/version"),
+    #                 path.joinpath("scripts/deploy/gitee_t.json")))  # step 0 必清site-packages cache，太大了
+    # # Packer.bat_to_exe()  # step 1
+    # packer = Packer(('scripts', f'{Proj.proj}.bat'))
+    # packer.packup()  # step 2
+    # # packer.upload('CGS.7z')  # step 3
+    # # Clean.end_work(('CGS.7z',))  # step 4
+    # # If error occur, exegesis previous step and run again
+    #
+    # # env_supplement()
+    packer_mac = PackerMacOS()
+    packer_mac.packup()

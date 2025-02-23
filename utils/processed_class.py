@@ -12,9 +12,9 @@ from lxml import etree
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from utils import State, QueuesManager, Queues, ori_path, re, temp_p, md5, PresetHtmlEl
+from utils import State, QueuesManager, Queues, ori_path, re, temp_p, PresetHtmlEl
 from utils.sql import SqlUtils
-from utils.website import get_identity
+from utils.website import Uuid
 from variables import SPIDERS
 
 
@@ -34,6 +34,24 @@ class TextBrowserState(State):
 @dataclass
 class ProcessState(State):
     process: str
+
+
+class TasksObj:
+    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None):
+        self.taskid = taskid
+        self.title = title
+        self.tasks_count = tasks_count
+        self.title_url = title_url
+        self.downloaded = []
+
+
+class TaskObj:
+    success: bool = True
+
+    def __init__(self, taskid: str, page: str, url: str = None):
+        self.taskid = taskid
+        self.page = page
+        self.url = url
 
 
 def refresh_state(self, state_name, queue_name, monitor_change=False):
@@ -80,10 +98,12 @@ class GuiQueuesManger(QueuesManager):
         TextBrowserQueue = Queue(2)
         ProcessQueue = Queue()
         BarQueue = Queue()
+        TasksQueue = Queue()
         QueuesManager.register('InputFieldQueue', callable=lambda: InputFieldQueue)  # GUI > 爬虫
         QueuesManager.register('TextBrowserQueue', callable=lambda: TextBrowserQueue)  # 爬虫 > GUI.thread
         QueuesManager.register('ProcessQueue', callable=lambda: ProcessQueue)  # 爬虫 > GUI
         QueuesManager.register('BarQueue', callable=lambda: BarQueue)  # 爬虫 > GUI.thread
+        QueuesManager.register('TasksQueue', callable=lambda: TasksQueue)  # 爬虫 > GUI.thread
         manager = QueuesManager(address=('127.0.0.1', self.queue_port), authkey=b'abracadabra')
         self.s = manager.get_server()
         self.s.serve_forever()
@@ -166,9 +186,12 @@ class PreviewHtml:
 
     @staticmethod
     def tip_duplication(spider, tf):
-        md5_filter = Md5Filter(spider, tf)
-        infos = md5_filter.get_infos()
-        batch_md5 = md5_filter.batch_md5(infos)
+        handler = InfoHandler(spider, tf)
+        infos = handler.get_infos()
+        if not infos:
+            print("no need tip_duplication")
+            return
+        batch_md5 = handler.batch_md5(infos)
         sql_utils = SqlUtils()
         downloaded_md5 = sql_utils.batch_check_dupe(list(batch_md5.keys()))
         sql_utils.close()
@@ -188,7 +211,7 @@ class PreviewHtml:
             fp.write(html_content)
 
 
-class Md5Filter:
+class InfoHandler:
     def __init__(self, spider, tf):
         self.spider = spider
         self.tf = tf
@@ -203,8 +226,8 @@ class Md5Filter:
 
     def batch_md5(self, infos):
         # return {md5(title): title for title in titles}
-        _get_identity = get_identity(self.spider)
-        _ = {md5(_get_identity(info)): info for info in infos}
+        uuid_obj = Uuid(self.spider)
+        _ = {uuid_obj.id_and_md5(info)[-1]: info for info in infos}
         return _
 
 
