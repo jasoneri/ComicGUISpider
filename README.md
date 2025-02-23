@@ -46,8 +46,8 @@
 
 <hr>
 
-**☝️😋收藏夹吃灰？不如点⭐Star给作者加赛博功德(*￣∇￣*) 你的⭐Star会让CGS升级更快！
-** ![](https://img.shields.io/github/stars/jasoneri/ComicGUISpider)
+**☝️😋收藏夹吃灰？不如点⭐Star给作者加赛博功德(*￣∇￣*) 你的⭐Star会让CGS升级更快！**
+![](https://img.shields.io/github/stars/jasoneri/ComicGUISpider)
 
 <hr>
 
