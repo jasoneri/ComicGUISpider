@@ -381,7 +381,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 # self.BrowserWindow.second_init(self.tf)
                 if self.BrowserWindow.topHintBox.isChecked():
                     self.BrowserWindow.topHintBox.click()
-                    self.BrowserWindow.hide()  # TODO[5](2025-02-24): 后续集成public.js后去掉
                 if len(infos) < len(self.clip_tasks):
                     self.activateWindow()
                     self.say("===部分失败，但仍可继续处理任务窗口的任务")
@@ -488,6 +487,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.Q('InputFieldQueue').send(self.input_state)
             refresh_state(self, 'process_state', 'ProcessQueue')
             self.toolButton.setDisabled(True)
+            if self.BrowserWindow:
+                self.BrowserWindow.hide()
             return
         idxes = transfer_input(self.chooseinput.text()[5:].strip())
         if self.BrowserWindow and self.BrowserWindow.output:
