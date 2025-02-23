@@ -14,12 +14,12 @@ from scrapy.utils.python import get_func_args
 
 from utils import conf
 from utils.website import JmUtils, set_author_ahead, MangabzUtils
+from utils.processed_class import TaskObj
 from assets import res
 
 
 class ComicPipeline(ImagesPipeline):
-    now = 0
-    threshold = 95
+    threshold = 97
     err_flag = 0
     _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
@@ -40,9 +40,7 @@ class ComicPipeline(ImagesPipeline):
         if spider.name in spider.settings.get('SPECIAL'):
             parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             _title = self._sub_index.sub('', set_author_ahead(title))
-            if conf.addUuid:
-                _title = f"{_title}[{item['identity']}]"
-            path = parent_p.joinpath(_title)
+            path = parent_p.joinpath(f"{_title}[{item['uuid']}]" if conf.addUuid else _title)
         else:
             path = basepath.joinpath(f"{title}/{section}")
         return path
@@ -50,14 +48,21 @@ class ComicPipeline(ImagesPipeline):
     def image_downloaded(self, response, request, info, *, item=None):
         try:
             super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
-            self.now += 1
-            spider = self.spiderinfo.spider
-            percent = int((self.now / spider.total) * 100)
-            if percent > self.threshold:
-                percent -= int((percent / self.threshold) * 100)  # 进度缓存
+            spider = info.spider
+            stats = spider.crawler.stats
+            percent = int((stats.get_value('file_status_count/downloaded', default=0) / spider.total) * 100)
+            # if percent > self.threshold:
+            #     percent -= int((percent / self.threshold) * 100)  # 进度缓存
             spider.Q('BarQueue').send(int(percent))  # 后台打印百分比进度扔回GUI界面
+            spider.Q('TasksQueue').send(TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0]),
+                                        wait=True)
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
+
+    def item_completed(self, results, item, info):
+        _item = super(ComicPipeline, self).item_completed(results, item, info)
+        # TODO[5](2025-01-10): 可以像image_downloaded里的send那样，后续可扩展TaskObj将图片url信息塞进Obj
+        return _item
 
 
 class JmComicPipeline(ComicPipeline):

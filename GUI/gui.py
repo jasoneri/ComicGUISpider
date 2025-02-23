@@ -6,12 +6,13 @@ import time
 import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
-from PyQt5.QtCore import QThread, Qt, pyqtSignal, QCoreApplication, QRect
+from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect
 from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QCompleter
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
+from GUI.thread import WorkThread, ClipTasksThread
 
 from variables import *
 from assets import res
@@ -21,116 +22,60 @@ from utils import (
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager,
-    PreviewHtml
+    PreviewHtml, TaskObj, TasksObj
 )
 from utils.website import spider_utils_map
 from utils.comic_viewer_tools import combine_then_mv, show_max
+from utils.sql import SqlUtils
 from deploy import curr_os
 
 
-class ClipTasksThread(QThread):
-    info_signal = pyqtSignal(tuple)
-    total_signal = pyqtSignal(dict)
-
-    def __init__(self, gui, tasks):
-        super(ClipTasksThread, self).__init__()
-        self.gui: SpiderGUI = gui
-        self.tasks = tasks
-
-    def run(self):
-        self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
-        cli = self.gui.spiderUtils.get_cli(conf)
-        total = {}
-        for idx, url in enumerate(self.tasks):
-            try:
-                resp = cli.get(url, follow_redirects=True, timeout=3)
-                info = self.gui.spiderUtils.parse_book(resp.text)
-                self.msleep(50)
-                self.info_signal.emit((idx + 1, url, *info[1:]))
-                total[idx + 1] = [info[2], info[0]]
-            except Exception as e:
-                err_msg = rf"获取信息失败({url}): [{type(e).__name__}] {str(e)}"
-                self.gui.log.exception(e)
-                self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
-        self.handle_total(total)
-
-    def check_condition_and_run_js(self):
-        if self.iterations >= self.max_iterations:
-            print("Reached maximum iterations without meeting the condition.")
-            self.total_signal.emit(self.total)
-            return
-        else:
-            self.iterations += 1
-            self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
-
-    def handle_js_result(self, num):
-        if num and num >= len(self.total):
-            print("Condition met, stopping loop.")
-            self.total_signal.emit(self.total)
-            return
-        self.msleep(200)
-        self.check_condition_and_run_js()
-
-    def handle_total(self, total):
-        self.max_iterations = 7 * len(self.tasks)  # 一个任务约给1.5秒
-        self.iterations = 0  # 当前循环次数
-        self.total = total
-        if not total:
-            self.total_signal.emit({})
-            self.gui.say(
-                font_color(r"没有一个成功的任务，如http错误请更新配置如代理/cookies后重新运行此功能，若总是失败提issue",
-                           color='red'),
-                ignore_http=True)
-            self.gui.say(
-                font_color(rf"<br>在日志文件查看详细报错堆栈 [{conf.log_path}\GUI.log]", color='red', size=5))
-        else:
-            self.check_condition_and_run_js()
-
-
-class WorkThread(QThread):
-    """only for monitor signals"""
-    item_count_signal = pyqtSignal(int)
-    print_signal = pyqtSignal(str)
-    finishSignal = pyqtSignal(str)
-    active = True
-
+class TaskProgressManager:
     def __init__(self, gui):
-        super(WorkThread, self).__init__()
-        self.gui: SpiderGUI = gui
-        self.flag = 1
+        self.gui = gui
+        self._tasks = {}
+        self.init_flag = True
+        self.sql_handler = SqlUtils()
 
-    def run(self):
-        manager = self.gui.manager
-        TextBrowser = manager.TextBrowserQueue()
-        Bar = manager.BarQueue()
-        while self.active:
-            self.msleep(5)
-            try:
-                if not TextBrowser.empty():
-                    _ = str(TextBrowser.get().text)
-                    if "__temp" in _:
-                        self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己进程/线程初始化
-                        self.gui.previewBtn.setEnabled(True)
-                    else:
-                        self.print_signal.emit(_)
-                    self.msleep(5)
-                if not Bar.empty():
-                    self.item_count_signal.emit(Bar.get())
-                    self.msleep(10)
-                if res.GUI.WorkThread_finish_flag in self.gui.textBrowser.toPlainText():
-                    self.item_count_signal.emit(100)
-                    self.msleep(10)
-                    break
-            except ConnectionResetError:
-                self.active = False
-        if self.active:
-            self.finishSignal.emit(str(conf.sv_path))
+    def init(self, add_task):
+        """初始化相关"""
+        self.init_flag = False
+        if not self.gui.BrowserWindow and self.gui.previewInit:
+            self.gui.tf = self.gui.tf or PreviewHtml().created_temp_html
+            self.gui.previewInit = False
+            self.gui.set_preview()
+        self.gui.BrowserWindow.init_task_panel(add_task)
 
-    # def __del__(self):
-    #     self.wait()
+    def add_task(self, task_info: tuple):
+        """新增任务"""
+        if self.init_flag:
+            self.init(lambda: self._real_add_task(task_info))
+        else:
+            self._real_add_task(task_info)
 
-    def stop(self):
-        self.flag = 0
+    def _real_add_task(self, task_info: tuple):
+        """实际新增任务"""
+        obj = TasksObj(*task_info)
+        self._tasks[task_info[0]] = obj
+        self.gui.BrowserWindow.add_task(obj)
+
+    def update_progress(self, task_obj: TaskObj):
+        """更新指定任务进度"""
+        taskid = task_obj.taskid
+        progress_completed = False
+        if taskid in self._tasks:
+            _tasks = self._tasks[taskid]
+            _tasks.downloaded.append(task_obj)
+            curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
+            if conf.isDeduplicate and curr_progress >= 100:
+                self.sql_handler.add(taskid)
+                progress_completed = True
+            self.gui.BrowserWindow.update_progress(taskid, curr_progress,
+                                                   lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else None
+                                                   )
+
+    def close(self):
+        self.sql_handler.close()
 
 
 class ToolMenu(QMenu):
@@ -235,7 +180,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # 初始化通信管道相关
         self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='', pageTurn='')
         self.manager = QueuesManager.create_manager(
-            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
+            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
             address=('127.0.0.1', self.queue_port), authkey=b'abracadabra'
         )
         self.manager.connect()
@@ -246,11 +191,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
         self.btn_logic_bind()
-
+        # 预览
         self.tf = None
         self.previewInit = True
         self.previewSecondInit = False
-
+        self.BrowserWindow = None
+        # 剪贴板
         self.clip_is_triggered = False
 
         def chooseBox_changed_handle(index):
@@ -265,8 +211,11 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.chooseBox_changed_tips(index)
             # 输入框联想补全
             self.set_completer()
-
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
+
+        self.first_tmp_sv_flag = True
+        self.task_mgr = TaskProgressManager(self)
+
         self.show()
 
     def chooseBox_changed_tips(self, index):
@@ -432,6 +381,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 # self.BrowserWindow.second_init(self.tf)
                 if self.BrowserWindow.topHintBox.isChecked():
                     self.BrowserWindow.topHintBox.click()
+                    self.BrowserWindow.hide()  # TODO[5](2025-02-24): 后续集成public.js后去掉
                 if len(infos) < len(self.clip_tasks):
                     self.activateWindow()
                     self.say("===部分失败，但仍可继续处理任务窗口的任务")
@@ -490,7 +440,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
                 self.bThread.print_signal.connect(self.say)
                 self.bThread.item_count_signal.connect(self.processbar_load)
-                self.bThread.finishSignal.connect(self.crawl_end)
+                self.bThread.tasks_signal.connect(self.task_handle)
+                self.bThread.finish_signal.connect(self.crawl_end)
                 self.bThread.start()
                 self.log.info(f'-*-*- Background thread & spider starting')
 
@@ -528,7 +479,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
             self.bThread.item_count_signal.connect(self.processbar_load)
-            self.bThread.finishSignal.connect(self.crawl_end)
+            self.bThread.tasks_signal.connect(self.task_handle)
+            self.bThread.finish_signal.connect(self.crawl_end)
             self.bThread.start()
             results = [self.clip_infos[i] for i in self.BrowserWindow.output]
             self.input_state.indexes = "[clip]" + json.dumps(results)
@@ -577,6 +529,12 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.next_btn.setDisabled(True)
         self.retrybtn.setEnabled(True)
 
+        if self.BrowserWindow:
+            if self.BrowserWindow.topHintBox.isChecked():
+                self.BrowserWindow.topHintBox.click()
+                self.BrowserWindow.hide()
+            self.show()
+
         self.process_state.process = 'fin'
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         curr_os.open_folder(imgs_path) if self.checkisopen.isChecked() else None
@@ -597,6 +555,15 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def processbar_load(self, i):
         # 发送item目前信号>更新进度条
         self.progressBar.setValue(i)
+        if self.first_tmp_sv_flag:
+            self.first_tmp_sv_flag = False
+            self.BrowserWindow.tmp_sv_local()
+
+    def task_handle(self, task):
+        if isinstance(task, tuple):
+            self.task_mgr.add_task(task)
+        else:
+            self.task_mgr.update_progress(task)
 
     def enterEvent(self, QEvent):
         self.textBrowser.setStyleSheet('background-color: white;')
@@ -617,6 +584,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 delattr(self, _)
 
     def closeEvent(self, event):
+        if hasattr(self, 'task_mgr'):
+            self.task_mgr.close()
         event.accept()
         self.destroy()  # 窗口关闭销毁
         self.close_process()

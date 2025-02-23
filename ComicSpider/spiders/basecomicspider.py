@@ -13,12 +13,12 @@ from variables import *
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from utils import (
-    font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p, conf, md5
+    font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p, conf
 )
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
 )
-from utils.website import get_identity
+from utils.website import Uuid
 from utils.sql import SqlUtils
 
 
@@ -100,7 +100,7 @@ class BaseComicSpider(scrapy.Spider):
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
     mappings = {}  # mappings自定义关键字对应"固定"uri
-    frame_book_format = ['title']
+    frame_book_format = ['title', 'preview_url']
     turn_page_search: str = None
     turn_page_info: tuple = None
 
@@ -219,7 +219,13 @@ class BaseComicSpider(scrapy.Spider):
                     url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
                     now_start_crawl_desc = self.__res.parse_sec_now_start_crawl_desc % title
                     self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
-                    meta = {'title': title, 'section': section}
+                    this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
+                    meta = {
+                        'title': title, 'section': section,
+                        'uuid_md5': this_md5, 'uuid': this_uuid
+                    }
+                    self.Q('TasksQueue').send((this_md5, f"{title}-{section}", len(results),
+                                               response.meta.get('preview_url') or response.url))
                     for url in url_list:
                         yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
@@ -265,7 +271,7 @@ class BaseComicSpider(scrapy.Spider):
         spider.mappings.update(spider.settings.get('CUSTOM_MAP') or {})
 
         spider.manager = QueuesManager.create_manager(
-            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
+            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
             address=('127.0.0.1', spider.queue_port), authkey=b'abracadabra'
         )
         spider.manager.connect()
@@ -328,20 +334,20 @@ class BaseComicSpider2(BaseComicSpider):
         self.Q('ProcessQueue').send(self.process_state)
 
         title = PresetHtmlEl.sub(response.meta.get('title'))
-        this_identity = get_identity(self.name)(response.url)
-        identity_md5 = md5(this_identity)
-        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(identity_md5)):
-            self.sql_handler.add(identity_md5)
+        this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
+        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
             self.say(f'{"=" * 15} 《{title}》')
             results = self.frame_section(response)  # {1: url1……}
+            self.Q('TasksQueue').send((this_md5, title, len(results),
+                                       response.meta.get('preview_url') or response.url))
             for page, url in results.items():
                 item = ComicspiderItem()
                 item['title'] = title
                 item['page'] = str(page)
                 item['section'] = 'meaningless'
                 item['image_urls'] = [url]
-                item['identity'] = this_identity
-                item['identity_md5'] = identity_md5
+                item['uuid'] = this_uuid
+                item['uuid_md5'] = this_md5
                 self.total += 1
                 yield item
         self.process_state.process = 'fin'
@@ -364,14 +370,14 @@ class BaseComicSpider3(BaseComicSpider):
             yield scrapy.Request(url=next_page_flag, callback=self.parse_section, meta=meta)
         else:
             title = PresetHtmlEl.sub(response.meta.get('title'))
-            this_identity = get_identity(self.name)(response.url)
-            identity_md5 = md5(this_identity)
-            if not conf.isDeduplicate or not self.sql_handler.check_dupe(identity_md5):
-                self.sql_handler.add(identity_md5)
+            this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
+            if not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5):
+                self.Q('TasksQueue').send((this_md5, title, len(results),
+                                           response.meta.get('preview_url') or response.url))
                 for page, url in results.items():
                     meta = {
                         'title': title, 'page': page,
-                        'identity_md5': identity_md5, 'identity': this_identity
+                        'uuid_md5': this_md5, 'uuid': this_uuid
                     }
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 

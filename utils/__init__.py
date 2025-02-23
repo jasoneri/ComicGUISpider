@@ -173,6 +173,8 @@ def convert_punctuation(text):
 
 
 class State:
+    """gui与后端需要共用的一个状态变量时，使用此类；
+    由于处于不同进程，需要创建一个对应的Queues做通讯"""
     buffer: dict = None
 
     def sv_cache(self):

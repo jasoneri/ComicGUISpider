@@ -33,7 +33,7 @@ class Gui:
 
     def __init__(self, port):
         manager = QueuesManager.create_manager(
-            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue',
+            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
             address=('127.0.0.1', port), authkey=b'abracadabra'
         )
         manager.connect()

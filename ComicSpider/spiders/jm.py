@@ -112,7 +112,7 @@ class JmSpider(BaseComicSpider2):
                 img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [url, title]
+            frame_results[x + 1] = [url, title, preview_url]
             preview.add(x + 1, img_preview, title, preview_url)
         self.say(preview.created_temp_html)
         self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", color='purple'))

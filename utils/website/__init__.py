@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
-from utils import temp_p
+from utils import temp_p, md5
 
 
 class Cookies:
@@ -44,11 +44,19 @@ class Req:
 
 class Utils:
     name = ""
+    headers = {}
+
+    @classmethod
+    def get_uuid(cls, info):
+        return f"{cls.name}-{info}"
+
+
+class EroUtils(Utils):
     forever_url = ""
     publish_url = ""
     status_forever = True
     status_publish = True
-    headers = {}
+    uuid_regex = NotImplementedError
 
     @classmethod
     def by_forever(cls):
@@ -99,8 +107,13 @@ class Utils:
     def parse_publish_(cls, html):
         ...
 
+    @classmethod
+    def get_uuid(cls, info):
+        _identity = cls.uuid_regex.search(info).group(1)
+        return f"{cls.name}-{_identity}"
 
-class JmUtils(Utils, Req):
+
+class JmUtils(EroUtils, Req):
     name = "jm"
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
@@ -124,6 +137,7 @@ class JmUtils(Utils, Req):
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Accept-Encoding": "gzip, deflate, br",
     }
+    uuid_regex = re.compile(r"(\d+)$")
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")
@@ -228,12 +242,8 @@ class JmUtils(Utils, Req):
         url = jm_id = re.search(r"var aid = (\d+);", resp_text).group(1)
         return url, img_src, title, author, pages, tags[:20]
 
-    @staticmethod
-    def get_identity(url):
-        _identity = re.search(r"(\d+)$", url).group(1)
-        return f"jm-{_identity}"
 
-class WnacgUtils(Utils, Req):
+class WnacgUtils(EroUtils, Req):
     name = "wnacg"
     publish_domain = "wnacg.date"
     publish_url = f"https://{publish_domain}"
@@ -245,6 +255,7 @@ class WnacgUtils(Utils, Req):
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.67"
     }
     book_hea = headers
+    uuid_regex = re.compile(r"-(\d+)\.html$")
 
     @classmethod
     def parse_publish_(cls, html_text):
@@ -277,12 +288,8 @@ class WnacgUtils(Utils, Req):
         author = "-"
         return url, img_src, title, author, pages, tags[:20]
 
-    @staticmethod
-    def get_identity(url):
-        _identity = re.search(r"-(\d+)\.html$", url).group(1)
-        return f"wnacg-{_identity}"
 
-class EHentaiKits(Req):
+class EHentaiKits(EroUtils, Req):
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
     domain = "exhentai.org"
@@ -294,6 +301,7 @@ class EHentaiKits(Req):
         "Accept-Encoding": "gzip, deflate, br"
     }
     book_hea = headers
+    uuid_regex = re.compile(r"/g/(\d+)/")
 
     def __init__(self, conf):
         self.cli = self.get_cli(conf)
@@ -338,13 +346,10 @@ class EHentaiKits(Req):
                             ).group(1)
         return url, img_src, title, author, pages, tags[:20] if tags else []
 
-    @staticmethod
-    def get_identity(url):
-        _identity = re.search(r"/g/(\d+)/", url).group(1)
-        return f"ehentai-{_identity}"
 
-
-class KaobeiUtils:
+class KaobeiUtils(Utils):
+    name = "manga_copy"
+    uuid_regex = re.compile(r"(\d+)$")
     AES_KEY = "xxxmanga.woo.key"
 
     @staticmethod
@@ -367,7 +372,8 @@ class KaobeiUtils:
         return _(ret[16:], KaobeiUtils.AES_KEY, ret[:16])
 
 
-class MangabzUtils(Req):
+class MangabzUtils(Utils, Req):
+    name = "mangabz"
     index = "https://www.mangabz.com"
     image_ua = {
         "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
@@ -437,5 +443,11 @@ spider_utils_map = {
 }
 
 
-def get_identity(spider_name):
-    return getattr(spider_utils_map[spider_name], 'get_identity')
+class Uuid:
+    def __init__(self, spider_name):
+        self.spider = spider_name
+        self.get = getattr(spider_utils_map[self.spider], 'get_uuid')
+
+    def id_and_md5(self, info):
+        _id = self.get(info)
+        return _id, md5(_id)

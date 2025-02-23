@@ -34,10 +34,10 @@ body:
       value: '## 🚑 **基本信息(Basic Information)**'
   - type: input
     attributes:
-      label: 程序哈希号(Program hash number)
+      label: 程序版本(Program version)
       description: >-
-        请填写当前程序的哈希号，绿色安装包可在`scripts/version`里获取 / Please enter the hash number of the
-        current program, Portable version can find it from `scripts/version`
+        请填写当前程序的版本号，在GUI主窗口的左上角图标右边 / Please enter the version of the
+        current program, To the right of the icon in the top-left corner of the GUI-window
   - type: dropdown
     attributes:
       label: 系统(OS)
@@ -52,8 +52,8 @@ body:
   - type: textarea
     attributes:
       label: 📄 配置文件(Configuration file)
-      description: "上传配置文件`scripts/conf.yml` 或 配置窗口的截图 (记得脱敏!!下面字段的值使用马赛克等手段模糊化)
-      /Upload configure file`scripts/conf.yml` or configure-dialog screenshots (remember desensitization!! The value of below field must be blur)"
+      description: "上传配置文件`scripts/conf.yml` 或 配置窗口的截图 (github是公开的记得脱敏!下面字段的值使用马赛克等手段模糊化)
+      /Upload configure file`scripts/conf.yml` or configure-dialog screenshots (remember desensitization! The value of below field must be blur)"
       placeholder: >-
         储存路径, 代理，eh_cookies / sv_path, proxies, eh_cookies
   - type: textarea

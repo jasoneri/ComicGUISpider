@@ -23,7 +23,7 @@ class EHentaiSpider(BaseComicSpider3):
         '首页': f'https://{domain}',
         '热门': f'https://{domain}/popular'
     }
-    frame_book_format = ['title', 'book_pages']  # , 'book_idx']
+    frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)
 
     @property
@@ -47,7 +47,7 @@ class EHentaiSpider(BaseComicSpider3):
             # book_idx = re.search(r"g/(\d+)/", url).group(1)
             self.say(example_b.format(str(x + 1), pages, title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [url, title, pages]  # , book_idx]
+            frame_results[x + 1] = [url, title, pages, preview_url]  # , book_idx]
             preview.add(x + 1, img_preview, title, preview_url)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
@@ -96,19 +96,14 @@ class EHentaiSpider(BaseComicSpider3):
 
     def parse_fin_page(self, response):
         url = response.xpath('//img[@id="img"]/@src').get() or ""
-        title = response.meta.get('title')
         page = response.meta.get('page')
-        this_identity = response.meta.get('identity')
-        identity_md5 = response.meta.get('identity_md5')
+        group_infos = ComicspiderItem.get_group_infos(response.meta)
         if url.endswith('509.gif'):
-            self.log(f'[509] https://ehgt.org/g/509.gif: [page-{page}] of [{title}]', level=30)
+            self.log(f'[509] https://ehgt.org/g/509.gif: [page-{page}] of [{group_infos["title"]}]', level=30)
         else:
             item = ComicspiderItem()
-            item['title'] = title
+            item.update(**group_infos)
             item['page'] = str(page)
-            item['section'] = 'meaningless'
             item['image_urls'] = [url]
-            item['identity'] = this_identity
-            item['identity_md5'] = identity_md5
             self.total += 1
             yield item

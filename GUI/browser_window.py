@@ -33,6 +33,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.set_html()
 
     def second_init(self, tf):
+        """翻页时，页面变更tf文件，需要刷新"""
         self.tf = tf
         self.home_url = QUrl.fromLocalFile(self.tf)
         self.view.load(self.home_url)
@@ -52,13 +53,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
         self.js_execute("scanChecked()", callback)
 
-    def ensure(self, after_callback):
-        def callback(ret):
-            self.output = list(map(int, ret)) if ret else []
-            self.close()
-            after_callback()
-
-        self.js_execute("scanChecked()", callback)
+    ensure = page
 
     @staticmethod
     def set_proxies(proxy_str):
@@ -112,3 +107,29 @@ class BrowserWindow(QMainWindow, Ui_browser):
             QMessageBox.information(window, 'Warning', f"{res.EHentai.ACCESS_FAIL} {cls.eh_kits.index}")
             return
         return True
+
+    def tmp_sv_local(self):
+        def refresh_tf(html):
+            if html:
+                with open(self.tf, 'w', encoding='utf-8') as f:
+                    f.write(html)
+
+        self.js_execute("get_curr_hml();", refresh_tf)
+
+    # ---子任务模块
+    def init_task_panel(self, callback):
+        self.js_execute("initTaskPanel();", lambda _: callback())
+
+    def add_task(self, tasks_obj):
+        _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
+        js_code = """if (typeof addTask === 'function') {
+                %s;
+            } else { false; }""" % _js_code
+        self.js_execute(js_code, lambda _: None)
+
+    def update_progress(self, taskid, progress, callback):
+        _js_code = f"""updateTaskProgress(`{taskid}`, {progress});"""
+        js_code = """if (typeof updateTaskProgress === 'function') {
+                %s;
+            } else { false; }""" % _js_code
+        self.js_execute(js_code, lambda _: callback())
