@@ -13,7 +13,8 @@ from variables import *
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from utils import (
-    font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p, conf
+    font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p, conf,
+    fin_transfer
 )
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
@@ -249,13 +250,13 @@ class BaseComicSpider(scrapy.Spider):
         2、设立规则处理response.follow也许可行"""
         return [kw['url']]
 
-    def elect_res(self, elect: list, frame_results: dict, **kw) -> list:
+    def elect_res(self, elect: str, frame_results: dict, **kw) -> list:
         """简单判断elect，返回选择的frame
-        :param elect: [1,2,3,4,……]
+        :param elect: [1,2,3,4,……], [0], -3
         :param frame_results: {1: [title1, title1_url], 2: [title2, title2_url]……}
         :return: [[title1, title1_url], [title2, title2_url]……]
         """
-        selected = frame_results.keys() if elect == [0] else elect
+        selected = fin_transfer(elect, frame_results.keys())
         self.say(kw['extra_info']) if 'extra_info' in kw else None
         try:
             results = [frame_results[i] for i in selected]

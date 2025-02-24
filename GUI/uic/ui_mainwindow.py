@@ -479,7 +479,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v1.7.2"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v1.7.3-beta"))
         self.chooseBox.setToolTip(_translate("MainWindow", "选中网站后看状态栏有输入提示"))
         self.chooseBox.setItemText(0, _translate("MainWindow", "点选一个网站"))
         self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))
@@ -503,7 +503,7 @@ class Ui_MainWindow(object):
         self.pageJumpBtn.setStatusTip(_translate("MainWindow", "jump page/翻页"))
         self.pageJumpBtn.setText(_translate("MainWindow", "jump"))
         self.chooseinput.setStatusTip(_translate("MainWindow",
-                                                 "示例： 0 表示全选(特殊)  |  1 表示单选 1 (类推)  |  7+9 →表示多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号)  |  1+7-9 →复合多选 1、7、8、9"))
+                                                 "示例： 0 表示全选(特殊)  |  1 表示单选 1 (类推)  |  7+9 →表示多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号)  |  1+7-9 →复合多选 1、7、8、9 | -3 →倒数3个"))
         self.chooseinput.setInputMask(_translate("MainWindow",
                                                  "输入序号：################################################################################"))
         self.chooseinput.setText(_translate("MainWindow", "输入序号："))

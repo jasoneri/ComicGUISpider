@@ -160,7 +160,7 @@
     progressBar.ariaValuenow = progress;
     if (progress >= 100) {
       task.classList.add('completed');
-      progressBar.textContent = '100% completed';
+      progressBar.textContent = '100% Completed';
     }
   }
 

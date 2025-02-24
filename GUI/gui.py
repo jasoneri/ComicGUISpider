@@ -29,6 +29,17 @@ from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.sql import SqlUtils
 from deploy import curr_os
 
+#  - [ ] 5. 弹出的窗口/label带有能复制未完成任务url的按钮(仅限special使用)
+
+'''建议卡了几分钟进度没动才做以下操作
+一、适用于剩余少量页数的补救：对此页未完成任务的链接点进去，手动保存命名缺失的页数
+二、适用于进度条还差一大截的情况：
+    ①截图未完成任务，重开程序根据截图重下任务即可补；
+    ②点击右上复制按钮，重开软件选择网站后使用剪贴板生成任务（仅适用于特殊网站，并且需配合剪贴板功能）
+<hr>
+注：可能情况是资源太旧访问出错/太太太慢，方法并非一定有效，适时放弃
+'''
+
 
 class TaskProgressManager:
     def __init__(self, gui):
@@ -174,6 +185,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def setupUi(self, MainWindow):
         self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
+        self.textBrowser.setOpenExternalLinks(True)
         self.textBrowser.append(TextUtils.description)
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
@@ -288,10 +300,10 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.pageFrameClickCnt += 1
             self.clean_temp_file()
             if self.BrowserWindow and self.BrowserWindow.isRetain.isChecked():
-                idxes = list(set(self.BrowserWindow.output) | set(transfer_input(self.chooseinput.text()[5:].strip())))
+                idxes = f"[combine]{str(self.BrowserWindow.output)} and {self.chooseinput.text()[5:].strip()}"
                 self.input_state.indexes = idxes
             self.input_state.pageTurn = _p
-            self.Q('InputFieldQueue').send(self.input_state)
+            self.q_InputFieldQueue_send(self.input_state)
             refresh_view(_prev_tf)
 
         _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg)) if self.BrowserWindow else page_turn(arg)
@@ -425,7 +437,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.input_state.keyword = self.searchinput.text()[6:].strip()
             self.input_state.bookSelected = self.chooseBox.currentIndex()
             # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
-            self.Q('InputFieldQueue').send(self.input_state)
+            self.q_InputFieldQueue_send(self.input_state)
 
             if self.nextclickCnt == 0:          # 从section步 回parse步 的话以免重开
                 self.bThread = WorkThread(self)
@@ -484,34 +496,34 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             results = [self.clip_infos[i] for i in self.BrowserWindow.output]
             self.input_state.indexes = "[clip]" + json.dumps(results)
             self.input_state.pageTurn = ""
-            self.Q('InputFieldQueue').send(self.input_state)
+            self.q_InputFieldQueue_send(self.input_state)
             refresh_state(self, 'process_state', 'ProcessQueue')
             self.toolButton.setDisabled(True)
             if self.BrowserWindow:
                 self.BrowserWindow.hide()
             return
-        idxes = transfer_input(self.chooseinput.text()[5:].strip())
+        idxes = self.chooseinput.text()[5:].strip()
         if self.BrowserWindow and self.BrowserWindow.output:
-            idxes = list(set(self.BrowserWindow.output) | set(idxes))
+            idxes = f"[combine]{str(self.BrowserWindow.output)} and {idxes}"
         self.input_state.indexes = idxes
         self.input_state.pageTurn = ""
         if self.nextclickCnt == 1:
-            self.book_choose = self.input_state.indexes if self.input_state.indexes != [0] else \
+            self.book_choose = self.input_state.indexes if self.input_state.indexes != "0" else \
                 [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
             self.book_num = len(self.book_choose)
             if self.book_num > 1:
                 self.log.info('book_num > 1')
         self.chooseinput.clear()
         # choose逻辑 交由crawl, next,retry3个btn的schedule控制
-        self.Q('InputFieldQueue').send(self.input_state)
+        self.q_InputFieldQueue_send(self.input_state)
         self.log.debug(f'send choose: {self.input_state.indexes} success')
 
     def crawl(self):
-        self.input_state.indexes = transfer_input(self.chooseinput.text()[5:].strip())
+        self.input_state.indexes = self.chooseinput.text()[5:].strip()
         self.log.debug(f'===--→ click down crawl_btn')
 
         QThread.msleep(10)
-        self.Q('InputFieldQueue').send(self.input_state)
+        self.q_InputFieldQueue_send(self.input_state)
         self.log.debug(f'send choose success')
 
         if self.book_num == 0:
@@ -520,6 +532,17 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.chooseinput.clear()
         self.log.debug(f'book_num remain: {self.book_num}')
         self.log.info(f"===--→ crawl finish (now step: {self.process_state.process})\n")
+
+    def q_InputFieldQueue_send(self, input_state, *args):
+        """规范输入"""
+        _input_idx = input_state.indexes
+        if not _input_idx or isinstance(_input_idx, str) and (
+                _input_idx.startswith("[clip]") or _input_idx.startswith("[combine]") or _input_idx == "0" or 
+                bool(re.match(r'^-\d+$', _input_idx))
+            ):
+            self.Q('InputFieldQueue').send(input_state)
+        else:
+            raise ValueError(self.res.input_format_err)
 
     def crawl_end(self, imgs_path):
         del self.manager
@@ -543,7 +566,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def say(self, string, ignore_http=False):
         if 'http' in string and not ignore_http:
-            self.textBrowser.setOpenExternalLinks(True)
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
                 self.textBrowser.append(self.res.textbrowser_load_if_http % string)
         elif "</p>" in string:
