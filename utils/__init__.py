@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import re
+import ast
 import time
 import yaml
 import html
@@ -153,6 +154,22 @@ def transfer_input(_input: str) -> list:
     for i in re.findall(r'(\d{1,4}-\d{1,4})', _input):
         out2 |= f(i)
     return sorted(out1 | out2)
+
+
+minus_regex = re.compile(r'^-\d+$')
+
+
+def fin_transfer(_elect, _results_keys):
+    if _elect == '0':
+        return _results_keys
+    elif bool(minus_regex.search(_elect)):
+        return sorted(_results_keys)[int(_elect):]
+    elif _elect.startswith('[combine]'):
+        brower_input, _input = _elect[9:].split(' and ')
+        return list(set(ast.literal_eval(brower_input)) | (
+            set(transfer_input(_input)) if not bool(minus_regex.search(_input)) else 
+            set(sorted(_results_keys)[int(_input):])))
+    return transfer_input(_elect)
 
 
 domain_regex = re.compile("https?://(.*?)/")
