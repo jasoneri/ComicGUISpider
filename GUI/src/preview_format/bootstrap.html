@@ -5,42 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Preview</title>
     <link rel="stylesheet" href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css">
-    <style>
-        .img-downloaded {
-            filter: grayscale(100%) !important;
-            opacity: 0.6 !important;
-            transition: all 0.3s ease;
-        }
-        .form-check-downloaded {
-            background-color: lightsalmon !important;
-        }
-    </style>
 </head>
 <body>
 <script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.min.js"></script>
 <script src="../GUI/src/preview_format/public.js"></script>
+<script src="../GUI/src/preview_format/tip_downloaded.js"></script>
 <script src="../GUI/src/preview_format/tasks_extend.js"></script>
 <script>
-  function highlightDownloads() {
-    document.querySelectorAll('a.downloaded').forEach(url_a => {
-      const container = url_a.closest('.col-md-3');
-      container.querySelector('.form-check').classList.add('form-check-downloaded');
-      container.querySelector('img').classList.add('img-downloaded');
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', highlightDownloads);
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach(mutation => {
-      if (mutation.addedNodes.length) {
-        highlightDownloads();
-      }
-    });
-  });
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+  
 </script>
 <div class="row">
     {body}

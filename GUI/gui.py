@@ -390,6 +390,9 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                                   """aria-labelledby="exampleModalLabel">""", html)
                     html = html.replace(r"""<div class="modal-backdrop fade show"></div>""", "")
                     f.write(html)
+                if conf.isDeduplicate:
+                    PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
+                    self.BrowserWindow.refreshBtn.click()
                 # self.BrowserWindow.second_init(self.tf)
                 if self.BrowserWindow.topHintBox.isChecked():
                     self.BrowserWindow.topHintBox.click()

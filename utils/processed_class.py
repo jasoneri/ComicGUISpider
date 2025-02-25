@@ -151,7 +151,7 @@ class PreviewHtml:
             max_width = 170
             title = PresetHtmlEl.sub(title)
             abbreviated_title = title[:18] + "..."
-            el = f"""<div class="col-md-3" style="max-width:{max_width}px"><div class="form-check">
+            el = f"""<div class="col-md-3 singal-task" style="max-width:{max_width}px"><div class="form-check">
             <input class="form-check-input" type="checkbox" name="img" id="{idx}">
             <label class="form-check-label" for="{idx}">
               <img src="{img_src}" title="{title}" alt="{title}" class="img-thumbnail"/>
@@ -221,7 +221,7 @@ class InfoHandler:
             html_content = file.read()
             html = etree.HTML(html_content)
         # titles = html.xpath('//div[@class="col-md-3"]//img/@title')
-        urls = html.xpath('//div[@class="col-md-3"]//a/@href')
+        urls = html.xpath('//div[contains(@class, "singal-task")]//a/@href')
         return urls
 
     def batch_md5(self, infos):
