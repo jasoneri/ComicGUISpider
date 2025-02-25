@@ -33,7 +33,7 @@
         }
 
         /* 设置缩略图的宽高和保持宽高比 */
-        .thumbnail {
+        .img-thumbnail {
             width: auto;
             height: 100%;
             display: block; /* 移除图片底部的间隙 */
@@ -71,16 +71,12 @@
             max-width: 65%; /* 您可以将此值更改为所需的宽度，例如 600px、80% 等 */
             align-items: center;
         }
-
-        .downloaded {
-            filter: grayscale(100%); /* 将图片灰度化 */
-            opacity: 0.6; /* 降低图片透明度 */
-        }
     </style>
 </head>
 <body>
 <script src="https://cdn.staticfile.net/bootstrap/5.3.2/js/bootstrap.min.js"></script>
 <script src="../GUI/src/preview_format/public.js"></script>
+<script src="../GUI/src/preview_format/tip_downloaded.js"></script>
 <script>
   let taskCount = 0;
   const maxTasks = {_match_num};
@@ -88,12 +84,12 @@
   function addEL(idx, url, img_src, title, author, pages, tags) {
     const htmlString1 = `
       <div class="list-group-item"><div class="row g-1">
-        <div class="col-11">
+        <div class="col-11 singal-task">
             <div class="thumbnail-container"><label class="form-check-label" for="${idx}" style="height: 100%">
-                <img src="${img_src}" title="${title}" alt="Thumbnail" class="thumbnail">
+                <img src="${img_src}" title="${title}" alt="${title}" class="img-thumbnail">
             </label></div>
             <ul style="list-style:none">
-                <li class="text-truncate"><a class="title" href="${url}">${title}</a></li>
+                <li class="text-truncate"><a href="${url}"><span class="title">${title}</span></a></li>
                 <li><span class="author">${author}</span></li>
                 <li><span class="pages">${pages}pages</span></li>`
     let tags_html = `<li>`;
