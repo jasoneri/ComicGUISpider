@@ -17,8 +17,8 @@ from GUI.thread import WorkThread, ClipTasksThread
 from variables import *
 from assets import res
 from utils import (
-    transfer_input, font_color, Queues, QueuesManager,
-    conf, p, ori_path)
+    font_color, Queues, QueuesManager, conf, p, ori_path
+)
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager,
@@ -82,8 +82,8 @@ class TaskProgressManager:
                 self.sql_handler.add(taskid)
                 progress_completed = True
             self.gui.BrowserWindow.update_progress(taskid, curr_progress,
-                                                   lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else None
-                                                   )
+                lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else None
+            )
 
     def close(self):
         self.sql_handler.close()
@@ -335,7 +335,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
         self.BrowserWindow.ensureBtn.clicked.connect(self.ensure_preview)
-        if conf.isDeduplicate:
+        if conf.isDeduplicate and not self.clip_is_triggered:
             PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
 
     def show_preview(self):
@@ -502,8 +502,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.q_InputFieldQueue_send(self.input_state)
             refresh_state(self, 'process_state', 'ProcessQueue')
             self.toolButton.setDisabled(True)
-            if self.BrowserWindow:
-                self.BrowserWindow.hide()
             return
         idxes = self.chooseinput.text()[5:].strip()
         if self.BrowserWindow and self.BrowserWindow.output:
@@ -559,7 +557,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         if self.BrowserWindow:
             if self.BrowserWindow.topHintBox.isChecked():
                 self.BrowserWindow.topHintBox.click()
-                self.BrowserWindow.hide()
+            self.BrowserWindow.hide()
             self.show()
 
         self.process_state.process = 'fin'

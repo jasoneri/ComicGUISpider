@@ -53,16 +53,29 @@ preset = {
     "scrapy": ["mime.types"]}
 
 
-class ReleasesDesc:
-    stable = """
-## 🎁 Features
+features_fix_stable = """## 🎁 Features
 
 ## 🐞 Fix
+"""
+
+
+features_fix_preview = """## 🎁 Features
+🔳 为命令行Cli增加简易GUI  
+
+## 🐞 Fix
+✅ 序号输入扩展：输入框支持单个负数，例`-3`表示选择倒数三个（不影响已有输入规则）  
+✅ ✨兼容 `去重样式提示` & `子任务条` 至剪贴板预览窗口中  
+🔳 修正`子任务条`在某些场景不起效的情况     
+"""
+
+
+class ReleasesDesc:
+    stable = f"""{features_fix_stable}
 
 ---
 
 <details>
-<summary>开箱即用说明 👈点击展开</summary>
+<summary>（❗️新用户必看）开箱即用说明 👈点击展开</summary>
 
 ### ⚡️下载
 window系统下载`CGS.7z`，macOS系统下载`CGS-macOS.7z`  
@@ -92,18 +105,6 @@ macOS由于认证签名收费，app初次打开会有限制，正确操作如下
 > ⚠️解压的软件路径需纯英文/英标（含中文会导致QT错误等闪退）
 """
 
-    develop = """
-## 🎁 Features
-
-## 🐞 Fix
-
-------
-
-╭─────────  ![show](https://img.shields.io/endpoint?url=https://current-date.jsoneri.workers.dev/)  ─────────────
-│✨ 通过任意此前稳定版本内置的  「 CGS-更新 」    
-│ 即可获取最新开发版的`特性`与`修复`                         
-╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
-"""
 
 class Proj:
     proj = "CGS"
@@ -223,10 +224,7 @@ class Packer(Proj):
         # upload asset
         release.upload_asset(str(path.joinpath(zip_file)), name=zip_file)
         # update release
-        text = ReleasesDesc.stable.format(
-            features="...",
-            fix="..."  # TODO[5](2025-02-24): 后续自动化
-        )
+        text = ReleasesDesc.preview
         release.update_release(name=f"{date_now} - v1.6.3", message=text)
 
 
@@ -304,7 +302,7 @@ def env_supplement():
     ...
 
 
-if __name__ == '__main__':
+def common_packup():
     # # clean()
     # Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
     #                (path.joinpath("scripts/log"), path.joinpath("scripts/version"),

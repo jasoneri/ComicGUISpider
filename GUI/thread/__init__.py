@@ -32,7 +32,7 @@ class ClipTasksThread(QThread):
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:
-            print("Reached maximum iterations without meeting the condition.")
+            print("[clip tasks loop]❌over max_iterations, fail.")
             self.total_signal.emit(self.total)
             return
         else:
@@ -41,7 +41,7 @@ class ClipTasksThread(QThread):
 
     def handle_js_result(self, num):
         if num and num >= len(self.total):
-            print("Condition met, stopping loop.")
+            print("[clip tasks loop]✅finsh.")
             self.total_signal.emit(self.total)
             return
         self.msleep(200)
@@ -99,7 +99,8 @@ class WorkThread(QThread):
                     self.tasks_signal.emit(_Tasks.get())
                 if res.GUI.WorkThread_finish_flag in self.gui.textBrowser.toPlainText():
                     self.item_count_signal.emit(100)
-                    self.msleep(5)
+                    break
+                elif res.GUI.WorkThread_empty_flag in self.gui.textBrowser.toPlainText():
                     break
             except ConnectionResetError:
                 self.active = False
