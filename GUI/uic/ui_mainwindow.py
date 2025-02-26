@@ -9,6 +9,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from assets import res
 
 
 class Ui_MainWindow(object):
@@ -502,8 +503,7 @@ class Ui_MainWindow(object):
         self.pageJumpBtn.setToolTip(_translate("MainWindow", "jump page/翻页"))
         self.pageJumpBtn.setStatusTip(_translate("MainWindow", "jump page/翻页"))
         self.pageJumpBtn.setText(_translate("MainWindow", "jump"))
-        self.chooseinput.setStatusTip(_translate("MainWindow",
-                                                 "示例： 0 表示全选(特殊)  |  1 表示单选 1 (类推)  |  7+9 →表示多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号)  |  1+7-9 →复合多选 1、7、8、9 | -3 →倒数3个"))
+        self.chooseinput.setStatusTip(_translate("MainWindow", res.GUI.input_tip))
         self.chooseinput.setInputMask(_translate("MainWindow",
                                                  "输入序号：################################################################################"))
         self.chooseinput.setText(_translate("MainWindow", "输入序号："))

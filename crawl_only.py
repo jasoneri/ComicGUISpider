@@ -101,8 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--website', type=int, help='选择网站序号')
     parser.add_argument('-k', '--keyword', help='关键字（作品名）')
     parser.add_argument('-i', '--indexes',
-                        help='e.g., 0 表示全选(特殊)  |  1 表示单选 1 (类推)  |  7+9 →表示多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号)  |  1+7-9 →复合多选 1、7、8、9')
-    # TODO[3](2025-02-11): 负数扩展，例如当indexes=-3时，从倒数第三个至最后一个，（下载最新3话）
+                        help=res.GUI.input_tip)
     parser.add_argument('-i2', '--indexes2', help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
     parser.add_argument('-tw', '--time_wait',
                         help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')

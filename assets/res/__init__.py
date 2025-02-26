@@ -43,6 +43,8 @@ class GUI:
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
     global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
     input_format_err = "输入格式错误，请鼠标移到输入框查看规则提示"
+    input_tip = ("示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) "
+    "|  1+7-9 →复合多选 1、7、8、9 | -3 →倒数3个")
 
     class ToolMenu:
         action1 = "显示已阅最新话数记录"

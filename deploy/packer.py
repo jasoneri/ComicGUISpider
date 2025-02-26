@@ -53,13 +53,15 @@ preset = {
     "scrapy": ["mime.types"]}
 
 
-features_fix_stable = """## 🎁 Features
+features_fix_stable = """
+## 🎁 Features
 
 ## 🐞 Fix
 """
 
 
-features_fix_preview = """## 🎁 Features
+features_fix_preview = """
+## 🎁 Features
 🔳 为命令行Cli增加简易GUI  
 
 ## 🐞 Fix
