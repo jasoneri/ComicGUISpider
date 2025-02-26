@@ -189,7 +189,7 @@ class PreviewHtml:
         handler = InfoHandler(spider, tf)
         infos = handler.get_infos()
         if not infos:
-            print("no need tip_duplication")
+            print("tip_duplication got info None")
             return
         batch_md5 = handler.batch_md5(infos)
         sql_utils = SqlUtils()

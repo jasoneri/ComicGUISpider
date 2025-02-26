@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """cli，no gui,no wait for Interactive"""
 import time
+import re
 import argparse
 from multiprocessing import Process
 
@@ -16,6 +17,7 @@ from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
 
 def say_to_textBrowser(textBrowserQueue):
     q = textBrowserQueue.queue
+    break_flag = re.compile(f"{res.GUI.WorkThread_finish_flag}|{res.GUI.WorkThread_empty_flag}")
     while 1:
         if not q.empty():
             _state = q.get()
@@ -23,7 +25,7 @@ def say_to_textBrowser(textBrowserQueue):
                 break
             _ = _state.text
             logger.debug(_)
-            if res.GUI.WorkThread_finish_flag in _:
+            if bool(break_flag.search(_)):
                 break
     textBrowserQueue.queue.put(None)
 
