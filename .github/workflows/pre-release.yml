@@ -1,0 +1,44 @@
+name: Pre Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*.*.*-beta*'
+
+jobs:
+  create-prerelease:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: generate-notes
+        run: |
+          # 直接从文件提取 features_fix_preview 内容
+          FEATURES_FIX=$(sed -n '/^features_fix_preview = """/,/^"""/p' deploy/packer.py | sed '1d;$d')
+          
+          # 组合生成完整的 release notes
+          cat << EOF > release_notes.md
+          $FEATURES_FIX
+
+          ------
+
+          ╭─────────  ![show](https://img.shields.io/endpoint?url=https://current-date.jsoneri.workers.dev/)  ─────────────
+          │🎯 通过任意此前稳定版本内置的  「 CGS-更新 」    
+          │ 即可获取最新开发版的`特性`与`修复`                         
+          ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          name: "${{ github.ref_name}} Beta Release"
+          body_path: release_notes.md
+          prerelease: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
