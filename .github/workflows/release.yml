@@ -55,7 +55,7 @@ jobs:
       working-directory: /build
       run: |
         python scripts/deploy/packer.py windows
-        python scripts/deply/packer.py mac
+        python scripts/deploy/packer.py mac
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
