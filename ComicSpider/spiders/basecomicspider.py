@@ -126,7 +126,8 @@ class BaseComicSpider(scrapy.Spider):
                 meta = {"Url": self.search_start}
                 yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
         except Exception as e:
-            raise e
+            self.crawler.engine.close_spider(self, reason=f"[error]{str(e)}")
+            return
 
     def before_search(self):
         ...
@@ -295,9 +296,11 @@ class BaseComicSpider(scrapy.Spider):
 
         try:
             del self.manager
-            self.session.close()
+            if hasattr(self, "session"):
+                self.session.close()
         except Exception as e:
             self.logger.error(f"Error closing resources: {e}")
+            reason = "error"
         sleep(0.3)
         self.sql_handler.close()
         if reason == "finished":
@@ -310,7 +313,9 @@ class BaseComicSpider(scrapy.Spider):
                     self.say(font_color(f'{self.__res.finished_empty}<br>', color='purple', size=6))
         elif reason == "ConnectionResetError":
             return
-        elif reason == "error":
+        elif "error" in reason:
+            if reason.startswith("[error]"):
+                self.say(font_color(reason.replace('http', 'h ttp'), color='red', size=4))
             self.say(
                 font_color(f'{self.__res.close_backend_error}<br>', size=5) +
                 font_color('<br>'.join((self.__res.close_check_log_guide1, self.__res.close_check_log_guide2,

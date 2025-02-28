@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""cli，no gui,no wait for Interactive"""
+"""cli，no gui,no wait for Interaction"""
 import time
 import re
 import argparse
