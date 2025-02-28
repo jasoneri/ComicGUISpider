@@ -36,8 +36,9 @@ body:
     attributes:
       label: 程序版本(Program version)
       description: >-
-        请填写当前程序的版本号，在GUI主窗口的左上角图标右边 / Please enter the version of the
-        current program, To the right of the icon in the top-left corner of the GUI-window
+        填写当前程序的版本号，在GUI主窗口的左上角图标右边 / Enter the current version, On top-left corner  
+    validations:
+      required: true
   - type: dropdown
     attributes:
       label: 系统(OS)
