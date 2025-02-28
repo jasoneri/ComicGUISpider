@@ -1,4 +1,4 @@
-**| [English](README_en.md) | 简体中文 |**
+**| [English](docs/README_en.md) | 简体中文 |**
 
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
@@ -171,7 +171,7 @@ JavaScript 没加载出来，刷新一下页面
 
 ### 额外的脚本集
 
-`utils.script.image` 内含 `kemono`, `saucenao` 等脚本，详情到 [script.md](utils/script/script.md) 查阅
+`utils.script.image` 内含 `kemono`, `saucenao` 等脚本，详情到 [script.md](docs/script.md) 查阅
 
 ### 扩展支持网站的讨论
 

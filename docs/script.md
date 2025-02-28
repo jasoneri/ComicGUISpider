@@ -15,7 +15,6 @@ utils
              ├── kemono_expander.py   # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
              ├── nekohouse.py         # 大概就是 kemono 的克隆网站
              ├── saucenao.py          # saucenao 著名的二次元以图搜图网站
-        └── script.md
 ```
 
 ### 配置文件 `utils/script/conf.yml` （自行创建）
