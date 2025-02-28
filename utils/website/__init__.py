@@ -89,7 +89,7 @@ class EroUtils(Utils):
         if (domain_file.exists() and
                 current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=12)):
             with open(domain_file, 'r', encoding='utf-8') as f:
-                domain = f.read()
+                domain = f.read().strip()
         else:
             domain = cls.by_publish() or cls.by_forever() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
         if not cls.status_forever and not cls.status_publish:
