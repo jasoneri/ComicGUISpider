@@ -31,15 +31,22 @@ jobs:
     - name: Compose Release Notes
       id: compose_notes
       run: |
+        TAG_NAME="${GITHUB_REF#refs/tags/}"
+        echo "version: $TAG_NAME"
         base=$(cat /build/scripts/docs/_github/release_notes.md)
-        if [[ ${{ github.ref }} == *"beta"* ]]; then
+
+        case "$TAG_NAME" in
+          *beta*)
             extra=$(cat /build/scripts/docs/_github/preset_preview.md)
             echo "is_beta=true" >> $GITHUB_OUTPUT
-        else
+            ;;
+          *)
             extra=$(cat /build/scripts/docs/_github/preset_stable.md)
             echo "is_beta=false" >> $GITHUB_OUTPUT
-        fi
-        echo -e "$base $extra" > /build/full_body.md
+            ;;
+        esac
+
+        echo "$base\n$extra" > /build/full_body.md
 
     - name: Setup Python
       run: python -m pip install pydos2unix py7zr tqdm loguru
