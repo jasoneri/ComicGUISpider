@@ -266,7 +266,7 @@ class WnacgUtils(EroUtils, Req):
             lambda href: not bool(match_regex.search(href)), hrefs
         ))
         for url in order_href:
-            resp = retry(httpx.head, 1, url, headers=cls.headers, follow_redirects=True, timeout=3)
+            resp = retry(httpx.head, 2, url, headers=cls.headers, follow_redirects=True, timeout=3)
             if resp and str(resp.status_code).startswith('2'):
                 return re.sub("https?://", "", url).strip("/")
         else:
