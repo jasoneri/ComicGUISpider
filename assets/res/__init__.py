@@ -13,11 +13,11 @@ class GUI:
     DESC2 = "2、在使用说明下方有问答记录 <code>Q & A</code>，使用遇阻时可以先查阅看能否解决疑惑 "
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
     DESC_STABLE = r"⭐️ v1.7.5 主要更新 特性/修复：(1)序号输入扩展：负数 (2)兼容剪贴板预览相关 (3)修复错误提示<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
-    DESC_PRERELEASE = r"""🧪 v1.7.5-beta 此开发版更新 特性/修复：<br>
-    (1)修复"错误提示却显示输入错误"，例如[WinError 10054]<br>
+    DESC_PRERELEASE = r"""🧪 v1.7.6-beta 此开发版更新 特性/修复：<br>
+    (1)修复去重记录在某些场景不生效的情况<br>
     此前稳定版更新细则查看`使用说明`的更新部分，稳定版至当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
     最新Pre-release说明 <a>"""
-    DESC_NEW = DESC_STABLE
+    DESC_NEW = DESC_PRERELEASE
 
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 

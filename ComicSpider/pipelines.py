@@ -43,21 +43,32 @@ class ComicPipeline(ImagesPipeline):
             path = parent_p.joinpath(f"{_title}[{item['uuid']}]" if conf.addUuid else _title)
         else:
             path = basepath.joinpath(f"{title}/{section}")
+        if item['uuid_md5'] not in spider.tasks_path:
+            spider.tasks_path[item['uuid_md5']] = path
         return path
 
     def image_downloaded(self, response, request, info, *, item=None):
+        spider = info.spider
         try:
             super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
-            spider = info.spider
             stats = spider.crawler.stats
             percent = int((stats.get_value('file_status_count/downloaded', default=0) / spider.total) * 100)
             # if percent > self.threshold:
             #     percent -= int((percent / self.threshold) * 100)  # 进度缓存
             spider.Q('BarQueue').send(int(percent))  # 后台打印百分比进度扔回GUI界面
-            spider.Q('TasksQueue').send(TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0]),
-                                        wait=True)
+            task_obj = TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0])
+            self.handle_task(spider, task_obj)
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
+
+    @staticmethod
+    def handle_task(spider, task_obj):
+        _tasks = spider.tasks[task_obj.taskid]
+        _tasks.downloaded.append(task_obj)
+        curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
+        if conf.isDeduplicate and curr_progress >= 100:
+            spider.sql_handler.add(task_obj.taskid)
+        spider.Q('TasksQueue').send(task_obj, wait=True)
 
     def item_completed(self, results, item, info):
         _item = super(ComicPipeline, self).item_completed(results, item, info)
