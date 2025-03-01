@@ -63,21 +63,13 @@ Some step like:
 
 > Following semantic versioning. Check [beta releases](https://github.com/jasoneri/ComicGUISpider/releases) between stable versions.
 
-### v1.7.2 | ~ 2025-02-24
-
-#### 🎁 Features
-
-+ Improved deduplication: Use MD5 of work ID from URL  
-+ Added identifier suffix for same-name works  
-+ Copy hidden manga support  
-+ Sub-task progress visualization  
-+ EH cookie guidance improvements
+### v1.7.5 | ~ 2025-03-01
 
 #### 🐞 Fixes
 
-+ Proxy handling optimization  
-+ Error message categorization  
-+ JM proxy logic fix
++ Serial number input extension: supports a single negative number, e.g. '-3' indicates selecting the last three
++ compatibility with clipboard-preview-window releated
++ fixes error prompt, e.g. [WinError 10054]
 
 > [Full History](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
