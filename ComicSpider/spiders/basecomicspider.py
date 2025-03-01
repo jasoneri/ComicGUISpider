@@ -17,7 +17,7 @@ from utils import (
     fin_transfer
 )
 from utils.processed_class import (
-    TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
+    TextBrowserState, ProcessState, QueueHandler, refresh_state, Url, TasksObj
 )
 from utils.website import Uuid
 from utils.sql import SqlUtils
@@ -93,9 +93,11 @@ class BaseComicSpider(scrapy.Spider):
     say: SayToGui = None
     sql_handler: SqlUtils = None
     ua = {}
-
-    num_of_row = 5
     total = 0
+    tasks = {}
+    tasks_path = {}
+    # 以下为继承变量
+    num_of_row = 5
     search_url_head = NotImplementedError(__res.search_url_head_NotImplementedError)
     domain = None  # REMARK(2024-08-16): 使用时用self.domain, 保留作出更改的余地
     kind = {}
@@ -226,8 +228,10 @@ class BaseComicSpider(scrapy.Spider):
                         'title': title, 'section': section,
                         'uuid_md5': this_md5, 'uuid': this_uuid
                     }
-                    self.Q('TasksQueue').send((this_md5, f"{title}-{section}", len(results),
-                                               response.meta.get('preview_url') or response.url))
+                    task_info = (
+                    this_md5, f"{title}-{section}", len(results), response.meta.get('preview_url') or response.url)
+                    self.tasks[this_md5] = TasksObj(*task_info)
+                    self.Q('TasksQueue').send(task_info)
                     for url in url_list:
                         yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
@@ -266,6 +270,21 @@ class BaseComicSpider(scrapy.Spider):
         else:
             return results
 
+    def makesure_tasks_status(self):
+        if conf.isDeduplicate:
+            for taskid, _ in self.tasks.items():
+                if self.sql_handler.check_dupe(taskid):
+                    continue
+                elif len(tuple(self.tasks_path.get(taskid).iterdir())) >= self.tasks[taskid].tasks_count:
+                    self.sql_handler.add(taskid)
+
+    def refresh_state(self, state_name, queue_name, monitor_change=False):
+        try:
+            refresh_state(self, state_name, queue_name, monitor_change)
+        except ConnectionResetError:
+            # logger.warning('gui非正常关闭停止爬虫(gui重启的话无视此信息)')
+            self.close('ConnectionResetError')
+
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = cls(*args, **kwargs)
@@ -298,6 +317,7 @@ class BaseComicSpider(scrapy.Spider):
             del self.manager
             if hasattr(self, "session"):
                 self.session.close()
+            self.makesure_tasks_status()
         except Exception as e:
             self.logger.error(f"Error closing resources: {e}")
             reason = "error"
@@ -324,13 +344,6 @@ class BaseComicSpider(scrapy.Spider):
             )
             _remove_cache()
 
-    def refresh_state(self, state_name, queue_name, monitor_change=False):
-        try:
-            refresh_state(self, state_name, queue_name, monitor_change)
-        except ConnectionResetError:
-            # logger.warning('gui非正常关闭停止爬虫(gui重启的话无视此信息)')
-            self.close('ConnectionResetError')
-
 
 class BaseComicSpider2(BaseComicSpider):
     """skip find page from book_page"""
@@ -344,8 +357,9 @@ class BaseComicSpider2(BaseComicSpider):
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
             self.say(f'{"=" * 15} 《{title}》')
             results = self.frame_section(response)  # {1: url1……}
-            self.Q('TasksQueue').send((this_md5, title, len(results),
-                                       response.meta.get('preview_url') or response.url))
+            task_info = (this_md5, title, len(results), response.meta.get('preview_url') or response.url)
+            self.tasks[this_md5] = TasksObj(*task_info)
+            self.Q('TasksQueue').send(task_info)
             for page, url in results.items():
                 item = ComicspiderItem()
                 item['title'] = title
@@ -378,8 +392,9 @@ class BaseComicSpider3(BaseComicSpider):
             title = PresetHtmlEl.sub(response.meta.get('title'))
             this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
             if not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5):
-                self.Q('TasksQueue').send((this_md5, title, len(results),
-                                           response.meta.get('preview_url') or response.url))
+                task_info = (this_md5, title, len(results), response.meta.get('preview_url') or response.url)
+                self.tasks[this_md5] = TasksObj(*task_info)
+                self.Q('TasksQueue').send(task_info)
                 for page, url in results.items():
                     meta = {
                         'title': title, 'page': page,

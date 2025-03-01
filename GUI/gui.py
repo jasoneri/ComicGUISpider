@@ -79,10 +79,9 @@ class TaskProgressManager:
             _tasks.downloaded.append(task_obj)
             curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
             if conf.isDeduplicate and curr_progress >= 100:
-                self.sql_handler.add(taskid)
                 progress_completed = True
             self.gui.BrowserWindow.update_progress(taskid, curr_progress,
-                lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else None
+                                                   lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
             )
 
     def close(self):
