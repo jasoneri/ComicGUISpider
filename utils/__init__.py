@@ -113,7 +113,7 @@ class PresetHtmlEl:
 
     @classmethod
     def sub(cls, string):
-        return cls.regex.sub('', html.unescape(string))
+        return cls.regex.sub('', html.unescape(string)).rstrip('.')
 
 
 @dataclass
@@ -162,6 +162,8 @@ minus_regex = re.compile(r'^-\d+$')
 def fin_transfer(_elect, _results_keys):
     if _elect == '0':
         return _results_keys
+    elif isinstance(_elect, list):
+        return _elect
     elif bool(minus_regex.search(_elect)):
         return sorted(_results_keys)[int(_elect):]
     elif _elect.startswith('[combine]'):

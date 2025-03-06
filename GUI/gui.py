@@ -538,7 +538,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         _input_idx = input_state.indexes
         if not _input_idx or isinstance(_input_idx, str) and (
                 _input_idx.startswith("[clip]") or _input_idx.startswith("[combine]") or _input_idx == "0" or 
-                bool(re.match(r'^-\d+$', _input_idx))
+                bool(re.match(r'^-\d+$', _input_idx)) or bool(re.match(r'^\d+[0-9\+\-]*$', _input_idx))
             ):
             self.Q('InputFieldQueue').send(input_state)
         else:

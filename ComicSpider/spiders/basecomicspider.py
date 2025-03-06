@@ -255,7 +255,7 @@ class BaseComicSpider(scrapy.Spider):
         2、设立规则处理response.follow也许可行"""
         return [kw['url']]
 
-    def elect_res(self, elect: str, frame_results: dict, **kw) -> list:
+    def elect_res(self, elect, frame_results: dict, **kw) -> list:
         """简单判断elect，返回选择的frame
         :param elect: [1,2,3,4,……], [0], -3
         :param frame_results: {1: [title1, title1_url], 2: [title2, title2_url]……}
@@ -331,6 +331,8 @@ class BaseComicSpider(scrapy.Spider):
                                    color='green', size=6))
                 else:
                     self.say(font_color(f'{self.__res.finished_empty}<br>', color='purple', size=6))
+            else:
+                self.say(font_color('unknown init error, please contact maintainer with operation-process', color='red', size=6))
         elif reason == "ConnectionResetError":
             return
         elif "error" in reason:
