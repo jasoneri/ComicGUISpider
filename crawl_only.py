@@ -15,18 +15,21 @@ from utils.processed_class import (
 from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
 
 
-def say_to_textBrowser(textBrowserQueue):
-    q = textBrowserQueue.queue
+def say_to_textBrowser(textBrowserQueue, TasksQueue):
+    text_browser_q = textBrowserQueue.queue
+    task_q = TasksQueue.queue
     break_flag = re.compile(f"{res.GUI.WorkThread_finish_flag}|{res.GUI.WorkThread_empty_flag}")
     while 1:
-        if not q.empty():
-            _state = q.get()
+        if not text_browser_q.empty():
+            _state = text_browser_q.get()
             if _state is None:
                 break
             _ = _state.text
             logger.debug(_)
             if bool(break_flag.search(_)):
                 break
+        if not task_q.empty():
+            _task_state = task_q.get()
     textBrowserQueue.queue.put(None)
 
 
@@ -75,10 +78,9 @@ def test_normal_process(keyword, input_2, input_3):
     """
     # TODO[8](2024-08-19): debug 拷贝漫画轻小说book请求
     state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='', pageTurn='')
-    state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2), pageTurn='')
+    state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=input_2, pageTurn='')
     if input_3:
-        state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_3),
-                                  pageTurn='')
+        state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=input_3, pageTurn='')
 
     gui.Q('InputFieldQueue').send(state_1)
     refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
@@ -100,9 +102,9 @@ if __name__ == '__main__':
     )
     parser.add_argument('-w', '--website', type=int, help='选择网站序号')
     parser.add_argument('-k', '--keyword', help='关键字（作品名）')
-    parser.add_argument('-i', '--indexes',
+    parser.add_argument('-i', '--indexes', type=str, nargs='?',
                         help=res.GUI.input_tip)
-    parser.add_argument('-i2', '--indexes2', help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
+    parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
     parser.add_argument('-tw', '--time_wait',
                         help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')
     parser.add_argument('-tp', '--turn_p', action='store_true', help='Run turn_page_test')
@@ -131,7 +133,7 @@ if __name__ == '__main__':
                         kwargs={"LOG_LEVEL": "DEBUG", "LOG_FILE": None})
     p_crawler.start()
 
-    p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'),))
+    p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'), gui.Q('TasksQueue')))
     p_bThread.start()
 
     if args.turn_p:
