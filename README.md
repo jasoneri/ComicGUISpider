@@ -30,7 +30,7 @@
 | [拷贝漫画](https://www.mangacopy.com/)    |       ❌       |     ✅     |  ❌   |   已解锁隐藏    |
 | [Māngabz](https://mangabz.com)        |       ❌       |     ✅     |  ❌   | 代理 |
 | [禁漫天堂](https://18comic.vip/)          |       ✅       |     ✅     |  ✅   |     🔞     |
-| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞     |
+| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞<br>不fan墙需求看[QA第三条](#-q--a-问答)     |
 | [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳转 |  ✅   |     🔞/代理     |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
@@ -56,13 +56,14 @@
 > 现遵从`语义版本控制`，到下一稳定版之间至少会有一个[`Pre-release`的
 `beta`开发版](https://github.com/jasoneri/ComicGUISpider/releases)
 
-### v1.7.5 | ~ 2025-03-01
+### v1.7.6 | ~ 2025-03-06
 
 #### 🐞 Fix
 
-+ 序号输入扩展：输入框支持单个负数，例`-3`表示选择倒数三个（不影响已有输入规则）
-+ 兼容 `去重样式提示` & `子任务条` 至剪贴板预览窗口中
-+ 修复"错误提示却显示输入错误"，例如[WinError 10054]
++ 修复输入框常规输入无法正常使用
++ 命令行工具相关
+  + 修复细化任务后带来的只停留在下载第一页问题
+  + 修复参数使用负数无法正常使用的问题
 
 > [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
 
@@ -134,8 +135,11 @@ JavaScript 没加载出来，刷新一下页面
 ### 3. 域名相关说明
 
 各网站的 `发布页`/`永久链接` 能在 `scripts/utils/website/__init__.py` 里找到  
-（国内域名专用）域名缓存文件为`scripts/__temp/xxx_domain.txt`，每12小时更新，期间可对此文件删改
-> `发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用
+（国内域名专用）域名缓存文件为`scripts/__temp/xxx_domain.txt`，再开程序会检测修改时间大于24小时则失效重新获取，处于24小时内则可对此文件删改即时生效
+> `发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用  
+
+> [20250306]`wnacg`相关1: 对发布页做了访问限制，要想全程墙内访问的临时解决手段是手动改域名缓存文件，参考[🔗讨论](https://github.com/jasoneri/ComicGUISpider/discussions/22)  
+> 2. 图片似乎变得要开全局代理手段解决，好像edge又能访问... 先静观其变
 
 ### 4. 拷贝漫画部分无法出列表
 

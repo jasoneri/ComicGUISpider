@@ -10,7 +10,8 @@ domain = "wnacg.com"
 
 
 class WnacgSpider(BaseComicSpider2):
-    custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.ComicDlProxyMiddleware': 5}}
+    custom_settings = {"DOWNLOADER_MIDDLEWARES": {
+        'ComicSpider.middlewares.ComicDlProxyMiddleware': 6}}
     name = 'wnacg'
     num_of_row = 4
     domain = domain

@@ -87,7 +87,7 @@ class EroUtils(Utils):
         domain_file = temp_p.joinpath(f"{cls.name}_domain.txt")
         current_time = datetime.now()
         if (domain_file.exists() and
-                current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=12)):
+                current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=24)):
             with open(domain_file, 'r', encoding='utf-8') as f:
                 domain = f.read().strip()
         else:
@@ -251,8 +251,7 @@ class WnacgUtils(EroUtils, Req):
     headers = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
-        "cache-control": "max-age=0",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.67"
+        "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36 Edg/133.0.0.0"
     }
     book_hea = headers
     uuid_regex = re.compile(r"-(\d+)\.html$")
