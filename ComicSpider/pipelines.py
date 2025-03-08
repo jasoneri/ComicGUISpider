@@ -19,7 +19,6 @@ from assets import res
 
 
 class ComicPipeline(ImagesPipeline):
-    threshold = 97
     err_flag = 0
     _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
@@ -53,22 +52,21 @@ class ComicPipeline(ImagesPipeline):
             super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
             stats = spider.crawler.stats
             percent = int((stats.get_value('file_status_count/downloaded', default=0) / spider.total) * 100)
-            # if percent > self.threshold:
-            #     percent -= int((percent / self.threshold) * 100)  # 进度缓存
             spider.Q('BarQueue').send(int(percent))  # 后台打印百分比进度扔回GUI界面
             task_obj = TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0])
-            self.handle_task(spider, task_obj)
+            self.handle_task(spider, stats, task_obj)
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
 
     @staticmethod
-    def handle_task(spider, task_obj):
+    def handle_task(spider, stats, task_obj):
         _tasks = spider.tasks[task_obj.taskid]
         _tasks.downloaded.append(task_obj)
         curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
         if conf.isDeduplicate and curr_progress >= 100:
             spider.sql_handler.add(task_obj.taskid)
         spider.Q('TasksQueue').send(task_obj, wait=True)
+        stats.set_value('image/downloaded', stats.get_value('image/downloaded', 0) + 1)
 
     def item_completed(self, results, item, info):
         _item = super(ComicPipeline, self).item_completed(results, item, info)
