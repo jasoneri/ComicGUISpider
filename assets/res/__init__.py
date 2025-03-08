@@ -12,7 +12,7 @@ class GUI:
     DESC1 = "1、首次使用请查阅 <code>CGS-使用说明</code> ，内有配置/GUI视频使用指南等说明"
     DESC2 = "2、在使用说明中也有 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>🔗FAQ/额外说明</a> 文档，使用遇阻时可以先查阅看能否解决疑惑 "
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
-    DESC_STABLE = r"⭐️ v1.8.0 主要更新 特性/修复：(1)预览窗口新增`复制`按钮 (2)优化翻页保留相关逻辑等 <br>其他细则查看`使用说明`的更新部分 或 该版release说明"
+    DESC_STABLE = r"⭐️ v1.8.1 主要更新 特性/修复：(1)预览窗口新增`复制`按钮 (2)优化翻页保留相关逻辑等 (3)修复剪贴板单任务时闪退问题<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
     DESC_PRERELEASE = r"""🧪 v1.7.6-beta 此开发版更新 特性/修复：<br>
     (1)修复去重记录在某些场景不生效的情况<br>
     此前稳定版更新细则查看`使用说明`的更新部分，稳定版至当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
@@ -40,7 +40,7 @@ class GUI:
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
     WorkThread_finish_flag = "后台完成"  # related to SPIDER.close_success
     WorkThread_empty_flag = "后台正常退出没有"  # related to SPIDER.close_success
-    copymaga_tips = "拷贝漫画在配置代理后能解锁章节，例如黑暗集会等（此提示后再配置代理则需要重启/retry程序）"
+    copymaga_tips = "拷贝已解锁章节，例如福利连"
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
     global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
     input_format_err = "输入格式错误，请鼠标移到输入框查看规则提示"
