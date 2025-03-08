@@ -29,4 +29,6 @@ macOS由于认证签名收费，app初次打开会有限制，正确操作如下
 
 ---
 遇到问题 提issue 或 [回到项目主页](https://github.com/jasoneri/ComicGUISpider) 下方找群进群询问  
-> ⚠️解压的软件路径需纯英文/英标（含中文会导致QT错误等闪退）
+
+> [!Warning]  
+> 解压的软件路径需纯英文/英标（含中文会导致QT错误等闪退）
