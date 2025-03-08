@@ -7,6 +7,7 @@
   <h1 id="koishi">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
   <img src="https://img.shields.io/badge/By-Qt5_&_Scrapy-blue.svg?colorA=abcdef" alt="tag">
+  <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
@@ -30,7 +31,7 @@
 | [拷贝漫画](https://www.mangacopy.com/)    |       ❌       |     ✅     |  ❌   |   已解锁隐藏    |
 | [Māngabz](https://mangabz.com)        |       ❌       |     ✅     |  ❌   | 代理 |
 | [禁漫天堂](https://18comic.vip/)          |       ✅       |     ✅     |  ✅   |     🔞     |
-| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞<br>不fan墙需求看[QA第三条](#-q--a-问答)     |
+| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞<br>不fan墙需求看[额外使用说明第二条](docs/FAQ_and_EXTRA.md#2-域名相关说明)     |
 | [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳转 |  ✅   |     🔞/代理     |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
@@ -38,34 +39,37 @@
 <table><tbody>  
   <tr>
     <td>CGS导航</td>
-    <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">🔗开箱即用绿色包下载</a></td>
-    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗GUI使用指南(视频，注意评论跳链)</a></td>  
-    <td><a href="deploy/launcher/mac/EXTRA.md">🔗macOS必读的补充说明</a></td> 
+    <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">🔗绿色包下载</a></td>
+    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗GUI视频使用指南(注意评论跳链)</a></td>  
+    <td><a href="docs/FAQ_and_EXTRA.md">🔗FAQ / 额外说明</a></td>
+    <td><a href="deploy/launcher/mac/EXTRA.md">🔗macOS必读补充说明</a></td> 
   </tr>  
 </tbody></table>
 
 <hr>
 
-**☝️😋收藏夹吃灰？不如点⭐Star给作者加赛博功德(*￣∇￣*) 你的⭐Star会让CGS升级更快！**
-![](https://img.shields.io/github/stars/jasoneri/ComicGUISpider)
+**☝️😋收藏夹吃灰？不如点⭐Star给作者加赛博功德(*￣∇￣*) 你的⭐Star会让CGS升级更快！** ![stars](
+  https://img.shields.io/github/stars/jasoneri/ComicGUISpider)
 
 <hr>
 
 ## 📢更新
 
-> 现遵从`语义版本控制`，到下一稳定版之间至少会有一个[`Pre-release`的
-`beta`开发版](https://github.com/jasoneri/ComicGUISpider/releases)
+> 现遵从`语义版本控制`，到下一稳定版之间至少会有一个[`Pre-release`的`beta`开发版](
+  https://github.com/jasoneri/ComicGUISpider/releases)
 
-### v1.7.6 | ~ 2025-03-06
+### v1.8.0 | ~ 2025-03-08
+
+#### 🎁 Features
+
++ 预览窗口新增`复制`按钮，详情看下方 [`预览窗口按钮`说明](#预览窗口按钮)
 
 #### 🐞 Fix
 
-+ 修复输入框常规输入无法正常使用
-+ 命令行工具相关
-  + 修复细化任务后带来的只停留在下载第一页问题
-  + 修复参数使用负数无法正常使用的问题
++ 优化翻页保留相关逻辑等
++ 调整各类说明文档的存储/指向等
 
-> [点击查看更新历史](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
+> [点击查看更新历史](docs/UPDATE_RECORD.md)
 
 ## 📚功能
 
@@ -85,7 +89,7 @@
 
 `python CGS.py`
 
-### 命令行工具 <a id="命令行cli"></a>
+### 命令行工具
 
 `python crawl_only.py --help`  
 或使用绿色包的环境，在解压目录打开终端执行`.\runtime\python.exe .\scripts\crawl_only.py --help`
@@ -94,13 +98,20 @@
 > 后续将逐步扩展命令行工具/参数  
 > 命令行工具的配置可用GUI方式修改 或 直接修改`scripts/conf.yml`文件
 
+### 预览窗口按钮
+
+1. `v1.8.0` 开始删除`翻页保留勾选框`，实际没人翻页不保留，因为该页一个不选就好了（此条说明将在后续更新中去除）
+2. `复制未完成`按钮：将当前未完成下载的条目链接复制到剪贴板，需配合推荐的剪贴板软件做些设置，参考[额外使用说明第三条](docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关)。先`复制`后用`剪贴板功能`的流程约等于重试，常用于进度卡死不动的情况
+
+![browser_btn_group](assets/browser_btn_group.png)
+
 ## 🔨配置
 
-> 有关生效时间节点请查阅 [Q&A 第二点](#2-配置生效相关)
+> 有关生效时间节点请查阅 [额外使用说明第一条](docs/FAQ_and_EXTRA.md#1-配置生效相关)
 
 ![](assets/conf_usage.jpg)
 <details>
-<summary>配置详细说明(点击展开)</summary>
+<summary>配置详细说明👈点击展开</summary>
 
 |            |     yml字段     |    默认值    | 说明                                                                                                                                                                                                                                                      |
 |:-----------|:-------------:|:---------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -123,42 +134,10 @@
 
 ## ❓ Q & A 问答
 
-### 1. 预览窗口选择页面有时一行只有一列/显示有问题/页面空白
-
-JavaScript 没加载出来，刷新一下页面
-
-### 2. 配置生效相关 <a id="2-配置生效相关"></a>
-
-除少部分条目例如预设(只影响gui)，能当即保存时立即生效(保存配置的操作与gui同一进程);  
-其余影响后台进程的配置条目在选择网站后定型(点选网站后`后台进程`即开始)，如果选网站后才反应过来改配置，需retry重启方可生效
-
-### 3. 域名相关说明
-
-各网站的 `发布页`/`永久链接` 能在 `scripts/utils/website/__init__.py` 里找到  
-（国内域名专用）域名缓存文件为`scripts/__temp/xxx_domain.txt`，再开程序会检测修改时间大于24小时则失效重新获取，处于24小时内则可对此文件删改即时生效
-> `发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用  
-
-> [20250306]`wnacg`相关1: 对发布页做了访问限制，要想全程墙内访问的临时解决手段是手动改域名缓存文件，参考[🔗讨论](https://github.com/jasoneri/ComicGUISpider/discussions/22)  
-> 2. 图片似乎变得要开全局代理手段解决，好像edge又能访问... 先静观其变
-
-### 4. 拷贝漫画部分无法出列表
-
-拷贝有些漫画卷和话是分开的，api结构转换的当前是有结果的，但是没做解析，如需前往群里反馈
-
-### 5. 拷贝/Māngabz多选书情况
-
-多选了书时，在章节序号输入环节中可以直接点击`开始爬取`跳过当前书的章节选择，只要直到出进度条即可
-
-### 6. <win系统独占>弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
-
-前往查阅 [🔗Qt报错集合](https://github.com/jasoneri/ComicGUISpider/wiki/Qt%E6%8A%A5%E9%94%99%E9%9B%86%E5%90%88)
-
-### 7. 使用遇到问题想寻求帮助或报错，但没有github账号
-
-看下方交流群，但提问格式请参考 [issue的样式](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)
-，一句连标点符号都不带没有上下文的话并不是一个好问题/反馈
+精简版面，已切换至CGS导航的 [🔗FAQ](docs/FAQ_and_EXTRA.md)，后续版本将移除此部分
 
 ## 🔰其他
+
 ### 漫画观看方式自荐
 
 [![点击前往comic_viewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer)](https://github.com/jasoneri/comic_viewer)

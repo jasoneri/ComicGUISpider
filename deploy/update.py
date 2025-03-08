@@ -276,7 +276,7 @@ def create_desc(proj_path=None):
             md_content = f.read().replace(
                 'deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html').replace(
                 'docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html').replace(
-                'docs/UPDATE_RECOED.md', 'docs/UPDATE_RECOED.html'
+                'docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html'
             )
         md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace(
             "<details>", '<details markdown="1">')
@@ -297,7 +297,7 @@ def create_desc(proj_path=None):
                 f.write(_full_html)
         transfer_markdown('deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html')
         transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
-        transfer_markdown('docs/UPDATE_RECOED.md', 'docs/UPDATE_RECOED.html')
+        transfer_markdown('docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html')
 
 
 if __name__ == '__main__':
