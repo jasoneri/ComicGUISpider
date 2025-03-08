@@ -44,7 +44,7 @@ class ClipTasksThread(QThread):
             print("[clip tasks loop]✅finsh.")
             self.total_signal.emit(self.total)
             return
-        self.msleep(200)
+        self.msleep(250)
         self.check_condition_and_run_js()
 
     def handle_total(self, total):
@@ -60,6 +60,7 @@ class ClipTasksThread(QThread):
             self.gui.say(
                 font_color(rf"<br>在日志文件查看详细报错堆栈 [{conf.log_path}\GUI.log]", color='red', size=5))
         else:
+            self.msleep(1200 if len(self.total) == 1 else 350)
             self.check_condition_and_run_js()
 
 
