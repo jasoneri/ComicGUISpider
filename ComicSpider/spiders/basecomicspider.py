@@ -327,7 +327,7 @@ class BaseComicSpider(scrapy.Spider):
             if 'init' not in self.process_state.process:
                 if self.total != 0 and stats.get_value('item_scraped_count'):
                     self.say(
-                        font_color(f'<br>{self.__res.finished_success % stats.get_value("item_scraped_count")}<br>',
+                        font_color(f'<br>{self.__res.finished_success % stats.get_value("image/downloaded", 0)}<br>',
                                    color='green', size=6))
                 else:
                     self.say(font_color(f'{self.__res.finished_empty}<br>', color='purple', size=6))
