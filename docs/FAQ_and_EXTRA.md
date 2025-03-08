@@ -12,13 +12,13 @@ JavaScript 没加载出来，刷新一下页面
 
 多选了书时，在章节序号输入环节中可以直接点击`开始爬取`跳过当前书的章节选择，只要直到出进度条即可
 
-### 4. <win系统独占>弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
+### 4. 【win系统独占】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
 
 看下方 [🔗Qt报错集合](#qt报错集合) 部分
 
 ### 5. 使用遇到问题想寻求帮助或报错，但没有github账号
 
-看下方交流群，但提问格式请参考 [issue的样式](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)
+回说明页最下方进群反馈，但提问格式请参考 [issue的样式](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)
 ，一句连标点符号都不带没有上下文的话并不是一个好问题/反馈
 
 ## 📒 额外使用说明
@@ -34,8 +34,7 @@ JavaScript 没加载出来，刷新一下页面
 （国内域名专用）域名缓存文件为`scripts/__temp/xxx_domain.txt`，再开程序会检测修改时间大于24小时则失效重新获取，处于24小时内则可对此文件删改即时生效
 > `发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用  
 
-> [20250306]`wnacg`相关1: 对发布页做了访问限制，要想全程墙内访问的临时解决手段是手动改域名缓存文件，参考[🔗讨论](https://github.com/jasoneri/ComicGUISpider/discussions/22)  
-> 2. 图片似乎变得要开全局代理手段解决，好像edge又能访问... 先静观其变
+> [20250306]`wnacg`相关: 对发布页做了访问限制，要想全程墙内访问的临时解决手段是手动改域名缓存文件，参考[🔗讨论](https://github.com/jasoneri/ComicGUISpider/discussions/22)  
 
 ### 3. 预览视窗的复制按钮相关
 

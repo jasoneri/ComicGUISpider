@@ -12,7 +12,7 @@ class GUI:
     DESC1 = "1、首次使用请查阅 <code>CGS-使用说明</code> ，内有配置/GUI视频使用指南等说明"
     DESC2 = "2、在使用说明中也有 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>🔗FAQ/额外说明</a> 文档，使用遇阻时可以先查阅看能否解决疑惑 "
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
-    DESC_STABLE = r"⭐️ v1.7.6 主要更新 特性/修复：(1)输入框常规输入的错误 (2)命令行工具的输入和流程等异常 <br>其他细则查看`使用说明`的更新部分 或 该版release说明"
+    DESC_STABLE = r"⭐️ v1.8.0 主要更新 特性/修复：(1)预览窗口新增`复制`按钮 (2)优化翻页保留相关逻辑等 <br>其他细则查看`使用说明`的更新部分 或 该版release说明"
     DESC_PRERELEASE = r"""🧪 v1.7.6-beta 此开发版更新 特性/修复：<br>
     (1)修复去重记录在某些场景不生效的情况<br>
     此前稳定版更新细则查看`使用说明`的更新部分，稳定版至当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
