@@ -11,8 +11,10 @@ from lxml import etree
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
+from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication
 
-from utils import State, QueuesManager, Queues, ori_path, re, temp_p, PresetHtmlEl
+from utils import State, QueuesManager, Queues, ori_path, re, temp_p, PresetHtmlEl, curr_os
 from utils.sql import SqlUtils
 from utils.website import Uuid
 from variables import SPIDERS
@@ -353,3 +355,21 @@ class ClipManager:
         match_items = self.match(self.get_clip_items())
         tf = PreviewByClipHtml.created_temp_html(self.regex.pattern, len(match_items))
         return tf, match_items
+
+
+class CopyUnfinished:
+    copy_delay = 120 if curr_os != "macOS" else 500
+    copied = 0
+    
+    def __init__(self, tasks):
+        self.tasks = tasks
+        self.length = len(tasks)
+
+    def to_clip(self):
+        if not self.tasks:
+            return 
+        task = self.tasks.pop(0)
+        clipboard = QApplication.clipboard()
+        clipboard.setText(task.title_url)
+        self.copied += 1
+        QTimer.singleShot(self.copy_delay, self.to_clip)
