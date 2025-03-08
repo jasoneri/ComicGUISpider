@@ -273,10 +273,11 @@ def create_desc(proj_path=None):
     else:
         _p = proj_path or existed_proj_p
         with open(_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
-            md_content = f.read()
-            if curr_os == 'macOS':  # macOS desc also use markdown-html
-                md_content = md_content.replace('deploy/launcher/mac/EXTRA.md',
-                                                f'deploy/launcher/mac/desc_{curr_os}.html')
+            md_content = f.read().replace(
+                'deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html').replace(
+                'docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html').replace(
+                'docs/UPDATE_RECOED.md', 'docs/UPDATE_RECOED.html'
+            )
         md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace(
             "<details>", '<details markdown="1">')
         md = markdown.Markdown(extensions=['markdown.extensions.md_in_html', 'markdown.extensions.tables',
@@ -287,13 +288,16 @@ def create_desc(proj_path=None):
         with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
             f.write(full_html)
 
-        if curr_os == 'macOS':
-            with open(_p.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
-                mac_md_content = f.read()
-            mac_html_body = md.convert(mac_md_content)
-            mac_full_html = github_markdown_format % mac_html_body
-            with open(_p.joinpath(f'deploy/launcher/mac/desc_{curr_os}.html'), 'w', encoding='utf-8') as f:
-                f.write(mac_full_html)
+        def transfer_markdown(_in, _out):
+            with open(_p.joinpath(_in), 'r', encoding='utf-8') as f:
+                _md_content = f.read()
+            _html_body = md.convert(_md_content)
+            _full_html = github_markdown_format % _html_body
+            with open(_p.joinpath(_out), 'w', encoding='utf-8') as f:
+                f.write(_full_html)
+        transfer_markdown('deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html')
+        transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
+        transfer_markdown('docs/UPDATE_RECOED.md', 'docs/UPDATE_RECOED.html')
 
 
 if __name__ == '__main__':

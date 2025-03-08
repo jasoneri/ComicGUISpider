@@ -5,6 +5,7 @@
   <h1 id="koishi">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
   <img src="https://img.shields.io/badge/By-Qt5_&_Scrapy-blue.svg?colorA=abcdef" alt="tag">
+  <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
