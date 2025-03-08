@@ -29,23 +29,11 @@ from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.sql import SqlUtils
 from deploy import curr_os
 
-#  - [ ] 5. 弹出的窗口/label带有能复制未完成任务url的按钮(仅限special使用)
-
-'''建议卡了几分钟进度没动才做以下操作
-一、适用于剩余少量页数的补救：对此页未完成任务的链接点进去，手动保存命名缺失的页数
-二、适用于进度条还差一大截的情况：
-    ①截图未完成任务，重开程序根据截图重下任务即可补；
-    ②点击右上复制按钮，重开软件选择网站后使用剪贴板生成任务（仅适用于特殊网站，并且需配合剪贴板功能）
-<hr>
-注：可能情况是资源太旧访问出错/太太太慢，方法并非一定有效，适时放弃
-'''
-
 
 class TaskProgressManager:
     def __init__(self, gui):
         self.gui = gui
         self._tasks = {}
-        self._tasks_finished = []
         self.init_flag = True
         self.sql_handler = SqlUtils()
 
@@ -81,15 +69,16 @@ class TaskProgressManager:
             curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
             if conf.isDeduplicate and curr_progress >= 100:
                 progress_completed = True
-                self._tasks_finished.append(taskid)
             self.gui.BrowserWindow.update_progress(taskid, curr_progress,
                                                    lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
             )
 
     @property
     def unfinished_tasks(self):
-        taskids = set(self._tasks.keys()) - set(self._tasks_finished)
-        return [self._tasks[taskid] for taskid in taskids]
+        _tasks_key = list(self._tasks.keys())
+        downloaded_taskids = self.sql_handler.batch_check_dupe(_tasks_key)
+        un_taskids = set(_tasks_key) - set(downloaded_taskids)
+        return [self._tasks[taskid] for taskid in un_taskids]
         
     def close(self):
         self.sql_handler.close()
