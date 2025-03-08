@@ -22,7 +22,7 @@ from utils import (
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager,
-    PreviewHtml, TaskObj, TasksObj
+    PreviewHtml, TaskObj, TasksObj, CopyUnfinished
 )
 from utils.website import spider_utils_map
 from utils.comic_viewer_tools import combine_then_mv, show_max
@@ -45,6 +45,7 @@ class TaskProgressManager:
     def __init__(self, gui):
         self.gui = gui
         self._tasks = {}
+        self._tasks_finished = []
         self.init_flag = True
         self.sql_handler = SqlUtils()
 
@@ -80,10 +81,16 @@ class TaskProgressManager:
             curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
             if conf.isDeduplicate and curr_progress >= 100:
                 progress_completed = True
+                self._tasks_finished.append(taskid)
             self.gui.BrowserWindow.update_progress(taskid, curr_progress,
                                                    lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
             )
 
+    @property
+    def unfinished_tasks(self):
+        taskids = set(self._tasks.keys()) - set(self._tasks_finished)
+        return [self._tasks[taskid] for taskid in taskids]
+        
     def close(self):
         self.sql_handler.close()
 
@@ -298,12 +305,18 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.previewSecondInit = True
             self.pageFrameClickCnt += 1
             self.clean_temp_file()
-            if self.BrowserWindow and self.BrowserWindow.isRetain.isChecked():
+            if self.BrowserWindow and self.BrowserWindow.output:
                 idxes = f"[combine]{str(self.BrowserWindow.output)} and {self.chooseinput.text()[5:].strip()}"
                 self.input_state.indexes = idxes
+                self.BrowserWindow.output = []
+            elif self.chooseinput.text()[5:].strip():
+                self.input_state.indexes = self.chooseinput.text()[5:].strip()
+            else:
+                self.input_state.indexes = ""
             self.input_state.pageTurn = _p
             self.q_InputFieldQueue_send(self.input_state)
             refresh_view(_prev_tf)
+            self.chooseinput.clear()
 
         _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg)) if self.BrowserWindow else page_turn(arg)
         self.nextPageBtn.clicked.connect(lambda: _(f"next{self.pageFrameClickCnt}"))
@@ -331,9 +344,16 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             preview_y if preview_y > 0 else 200,
             self.BrowserWindow.width(), self.BrowserWindow.height()
         ))
+        # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
-        self.BrowserWindow.ensureBtn.clicked.connect(self.ensure_preview)
+        self.BrowserWindow.ensureBtn.clicked.connect(lambda : self.BrowserWindow.ensure(self._next))
+        def copyUnfinishedTasks():
+            _ = CopyUnfinished(self.task_mgr.unfinished_tasks)
+            _.to_clip()
+            QMessageBox.information(self.BrowserWindow, 'Tip', self.res.copied_tip % _.length)
+        self.BrowserWindow.copyBtn.clicked.connect(copyUnfinishedTasks)
+        # webEngine / page
         if conf.isDeduplicate and not self.clip_is_triggered:
             PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
 
@@ -346,13 +366,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.BrowserWindow.second_init(self.tf)
             self.previewSecondInit = False
         self.BrowserWindow.show()
-
-    def ensure_preview(self):
-        def callback():
-            self.BrowserWindow.ensureBtn.setDisabled(True)
-            self._next()
-
-        self.BrowserWindow.ensure(callback)
 
     def clean_preview(self):
         if self.BrowserWindow:
@@ -472,7 +485,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.say(f"{self.res.check_mangabz}<br>")
                 obj = self.spiderUtils(conf)
                 if not obj.test_index():
-                    QMessageBox.information(self, 'Warning', f"{self.res.ACCESS_FAIL} {obj.index}")
+                    QMessageBox.warning(self, 'Warning', f"{self.res.ACCESS_FAIL} {obj.index}")
                     return
             start_and_search()
 
@@ -488,6 +501,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def _next(self):
         self.log.info('===--→ nexting')
         self.pageFrame.setEnabled(False)
+        self.BrowserWindow.ensureBtn.setDisabled(True)
         if self.clip_is_triggered:  # 剪贴板支线走向
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
