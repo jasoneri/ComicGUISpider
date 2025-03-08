@@ -40,7 +40,7 @@
   <tr>
     <td>CGS导航</td>
     <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">🔗绿色包下载</a></td>
-    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗GUI视频使用指南(注意评论跳链)</a></td>  
+    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗GUI视频使用指南<br>(注意评论跳链)</a></td>  
     <td><a href="docs/FAQ_and_EXTRA.md">🔗FAQ / 额外说明</a></td>
     <td><a href="deploy/launcher/mac/EXTRA.md">🔗macOS必读补充说明</a></td> 
   </tr>  
@@ -58,7 +58,7 @@
 > 现遵从`语义版本控制`，到下一稳定版之间至少会有一个[`Pre-release`的`beta`开发版](
   https://github.com/jasoneri/ComicGUISpider/releases)
 
-### v1.8.0 | ~ 2025-03-08
+### v1.8.1 | ~ 2025-03-08
 
 #### 🎁 Features
 
@@ -66,6 +66,7 @@
 
 #### 🐞 Fix
 
++ 修复剪贴板仅单任务时，出预览窗口后程序却闪退的问题
 + 优化翻页保留相关逻辑等
 + 调整各类说明文档的存储/指向等
 
@@ -101,7 +102,7 @@
 ### 预览窗口按钮
 
 1. `v1.8.0` 开始删除`翻页保留勾选框`，实际没人翻页不保留，因为该页一个不选就好了（此条说明将在后续更新中去除）
-2. `复制未完成`按钮：将当前未完成下载的条目链接复制到剪贴板，需配合推荐的剪贴板软件做些设置，参考[额外使用说明第三条](docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关)。先`复制`后用`剪贴板功能`的流程约等于重试，常用于进度卡死不动的情况
+2. `复制未完成`按钮：将当前未完成下载的条目链接复制到剪贴板，需参考[额外使用说明第三条](docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关)对剪贴板软件做些设置。先`复制`后用`剪贴板功能`的流程约等于重试，常用于进度卡死不动的情况
 
 ![browser_btn_group](assets/browser_btn_group.png)
 

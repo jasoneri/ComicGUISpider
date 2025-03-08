@@ -7,6 +7,7 @@ import socket
 from dataclasses import dataclass
 from multiprocessing import Queue, freeze_support
 import urllib.parse as up
+from copy import deepcopy
 from lxml import etree
 
 from scrapy.crawler import CrawlerProcess
@@ -362,7 +363,7 @@ class CopyUnfinished:
     copied = 0
     
     def __init__(self, tasks):
-        self.tasks = tasks
+        self.tasks = deepcopy(tasks)
         self.length = len(tasks)
 
     def to_clip(self):
