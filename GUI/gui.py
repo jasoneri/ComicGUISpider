@@ -490,7 +490,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def _next(self):
         self.log.info('===--→ nexting')
         self.pageFrame.setEnabled(False)
-        self.BrowserWindow.ensureBtn.setDisabled(True)
+        if self.BrowserWindow:
+            self.BrowserWindow.ensureBtn.setDisabled(True)
         if self.clip_is_triggered:  # 剪贴板支线走向
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
