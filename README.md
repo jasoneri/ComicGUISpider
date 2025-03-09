@@ -58,7 +58,7 @@
 > 现遵从`语义版本控制`，到下一稳定版之间至少会有一个[`Pre-release`的`beta`开发版](
   https://github.com/jasoneri/ComicGUISpider/releases)
 
-### v1.8.1 | ~ 2025-03-08
+### v1.8.2 | ~ 2025-03-08
 
 #### 🎁 Features
 
