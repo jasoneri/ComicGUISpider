@@ -122,6 +122,8 @@ class Updater:
     refresh_fail_retry = "更新失败, 准备重试"
     refresh_fail_retry_over_limit = "是网络问题，重试更新即可。 若其他情况导致更新一直失败请截图发issue或找群反映"
     code_is_latest = "代码已是最新.. 若有其他问题向群里反映"
-    env_covering = "环境补充中"
-    env_trigger_flag = "检测到需要补充环境"
+    # env_covering = "环境补充中"
+    env_check_fail = ("检测到缺失包[%s]\n", 
+        "1. win用户: 请前往最新release下载绿色安装包（可选备份配置`scripts/conf.yml`与去重记录`scripts/record.db`）\n",
+        "2. mac用户: 使用`CGS-初始化`更新环境")
     env_is_latest = "环境已是最新"
