@@ -75,7 +75,8 @@ class GitHandler:
 
     def __init__(self, owner, proj_name, branch):
         self.sess = httpx.Client()
-        self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits?sha={branch}"
+        self.branch_commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits?sha={branch}"
+        self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits"
         self.src_url = f"https://api.github.com/repos/{owner}/{proj_name}/zipball/{branch}"
         t_handler = TokenHandler()
         self.headers = t_handler.headers
@@ -94,7 +95,7 @@ class GitHandler:
 
     def check_changed_files(self, ver):
         print(Fore.BLUE + f"[ {res.ver_check}.. ]")
-        resp_json = self.normal_req(self.commit_api)
+        resp_json = self.normal_req(self.branch_commit_api)
         vers = list(map(lambda _: _["sha"], resp_json))
         if not ver:
             print(Fore.RED + f"[ {res.ver_file_not_exist}.. ]")
