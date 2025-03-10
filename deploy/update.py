@@ -75,7 +75,7 @@ class GitHandler:
 
     def __init__(self, owner, proj_name, branch):
         self.sess = httpx.Client()
-        self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits"
+        self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits?sha={branch}"
         self.src_url = f"https://api.github.com/repos/{owner}/{proj_name}/zipball/{branch}"
         t_handler = TokenHandler()
         self.headers = t_handler.headers
@@ -197,30 +197,17 @@ class Proj:
         print(Fore.GREEN + "=" * 40 + f"[ {res.finish} ]" + "=" * 40)
 
     def env_check_and_replenish(self):
-        def delete(func, _path, execinfo):
-            os.chmod(_path, stat.S_IWUSR)
-            func(_path)
-
         record_file = path.joinpath("scripts/deploy/env_record.json")
         if not record_file.exists() or not self.local_ver:
             return
         with open(record_file, 'r', encoding='utf-8') as f:
             env_supplements = json.load(f)
-        for env_pkg, env_files in env_supplements.items():
-            if all(map(lambda _: path.joinpath(_).exists(), env_files)):
+        site_packages_p = path.joinpath("site-packages")
+        for site_package in env_supplements:
+            if site_packages_p.joinpath(site_package).exists():
                 continue
-            proj_zip = self.git_handler.download_src_code(
-                f"{self.git_handler.speedup_prefix}https://github.com/{self.github_author}/imgur/blob/main/CGS/{env_pkg}",
-                zip_name=env_pkg)
-            with zipfile.ZipFile(proj_zip, 'r') as zip_f:
-                namelist = zip_f.namelist()
-                zip_f.extractall(temp_p)
-            for file in tqdm(namelist, total=len(namelist), ncols=80, ascii=True,
-                             desc=Fore.BLUE + f"[ {res.env_covering}.. ]"):
-                if not path.joinpath(file).exists():
-                    path.joinpath(file).parent.mkdir(exist_ok=True, parents=True)
-                    shutil.move(temp_p.joinpath(file), path.joinpath(file))
-            shutil.rmtree(temp_p, onerror=delete)
+            print(Fore.RED + f"[ {res.env_check_fail % site_package} ]")
+            return
         print(Fore.CYAN + f"[ {res.env_is_latest} ]")
 
 
