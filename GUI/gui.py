@@ -6,7 +6,7 @@ import time
 import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
-from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect
+from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect, QTimer
 from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QCompleter
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
@@ -420,7 +420,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
         def retry_all():
             try:
-                time.sleep(1)
                 self.close_process()  # 考虑重开应该是可以减少重新实例化的数量
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
@@ -428,7 +427,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.BrowserWindow = None
             self.setupUi(self)
 
-        retry_all()
+        self.say(font_color(f"<br>(・∀・(・∀・(・∀・*)(・∀・(・∀・*) {self.res.reboot_tip}", color='purple', size=5))
+        QTimer.singleShot(200, retry_all)
         self.retrybtn.setDisabled(True)
         self.confBtn.setDisabled(False)
         self.log.info('===--→ retry_schedule end\n')

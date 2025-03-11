@@ -37,7 +37,10 @@ class ComicspiderDownloaderMiddleware(object):
         return response
 
     def process_exception(self, request, exception, spider):
-        pass
+        if exception:
+            spider.crawler.stats.inc_value('process_exception/count')
+            spider.crawler.stats.set_value('process_exception/last_exception', str(exception))
+        return None
 
     def spider_opened(self, spider):
         spider.logger.info(f'Spider opened: 【{spider.name}】')

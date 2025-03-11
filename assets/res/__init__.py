@@ -17,7 +17,7 @@ class GUI:
     (1)修复`wnacg`剪贴板xpath解析错误问题<br>
     此前稳定版更新细则查看`使用说明`的更新部分，稳定版至当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
     最新Pre-release说明 <a>"""
-    DESC_NEW = DESC_STABLE
+    DESC_NEW = DESC_PRERELEASE
 
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 
@@ -46,6 +46,8 @@ class GUI:
     input_format_err = "输入格式错误，请鼠标移到输入框查看规则提示"
     input_tip = ("示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) "
     "|  1+7-9 →复合多选 1、7、8、9 | -3 →倒数3个")
+    reboot_tip = "CGS内置重启中，将会花一小会重建界面与实例"
+    # 使用InfoBar需要title与content, 所以`InfoBar_xxx`的值是tuple而不是str
 
     class ToolMenu:
         action1 = "显示已阅最新话数记录"
@@ -93,6 +95,7 @@ class SPIDER:
     page_less_than_one = "当前页数少于1，避免出错设置回第一页"
 
     finished_success = "~~~后台完成[%s]个图片任务了 ヾ(￣▽￣ )Bye~Bye~"
+    finished_err = "~~~…(￣┰￣*)………后台异常退出，最后捕捉的异常信息为<br>%s"
     finished_empty = "~~~…(￣┰￣*)………后台正常退出没有产生图片任务，请自行检查输入"
     close_backend_error = "~~~…(￣┰￣*)………后台挂了，排错操作指引如下"
     close_check_log_guide1 = '1、打开下方的日志文件，查阅看有没开发者定义了的错误提示，或者是重试能解决的网络问题如 ReadTimeout'

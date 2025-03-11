@@ -326,9 +326,13 @@ class BaseComicSpider(scrapy.Spider):
         if reason == "finished":
             if 'init' not in self.process_state.process:
                 if self.total != 0 and stats.get_value('item_scraped_count'):
-                    self.say(
-                        font_color(f'<br>{self.__res.finished_success % stats.get_value("image/downloaded", 0)}<br>',
-                                   color='green', size=6))
+                    self.say(font_color(
+                        f'<br>{self.__res.finished_success % stats.get_value("image/downloaded", 0)}<br>',
+                        color='green', size=6))
+                elif not stats.get_value('item_scraped_count') and stats.get_value('process_exception/count') > 0:
+                    self.say(font_color(
+                        f'<br>{self.__res.finished_err % stats.get_value("process_exception/last_exception")}<br>' + 
+                        f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4))
                 else:
                     self.say(font_color(f'{self.__res.finished_empty}<br>', color='purple', size=6))
             else:

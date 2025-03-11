@@ -66,7 +66,7 @@ class ComicPipeline(ImagesPipeline):
         if conf.isDeduplicate and curr_progress >= 100:
             spider.sql_handler.add(task_obj.taskid)
         spider.Q('TasksQueue').send(task_obj, wait=True)
-        stats.set_value('image/downloaded', stats.get_value('image/downloaded', 0) + 1)
+        stats.inc_value('image/downloaded')
 
     def item_completed(self, results, item, info):
         _item = super(ComicPipeline, self).item_completed(results, item, info)
