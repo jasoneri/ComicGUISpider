@@ -18,23 +18,26 @@ JavaScript 没加载出来，刷新一下页面
 
 ### 5. 使用遇到问题想寻求帮助或报错，但没有github账号
 
-回说明页最下方进群反馈，但提问格式请参考 [issue的样式](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)
-，一句连标点符号都不带没有上下文的话并不是一个好问题/反馈
+回说明页最下方进群反馈，但提问格式请参考 [issue的样式](
+  https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)，
+  一句连标点符号都不带没有上下文的话并不是一个好问题/反馈
 
 ## 📒 额外使用说明
 
 ### 1. 配置生效相关
 
 除少部分条目例如预设(只影响gui)，能当即保存时立即生效(保存配置的操作与gui同一进程);  
-其余影响后台进程的配置条目在选择网站后定型(点选网站后`后台进程`即开始)，如果选网站后才反应过来改配置，需retry重启方可生效
+其余影响后台进程的配置条目在选择网站后定型(点选网站后`后台进程`即开始)，如果选网站后才反应过来改配置，需重启CGS方可生效
 
 ### 2. 域名相关说明
 
 各网站的 `发布页`/`永久链接` 能在 `scripts/utils/website/__init__.py` 里找到  
-（国内域名专用）域名缓存文件为`scripts/__temp/xxx_domain.txt`，再开程序会检测修改时间大于24小时则失效重新获取，处于24小时内则可对此文件删改即时生效
+（国内域名专用）域名缓存文件为`scripts/__temp/xxx_domain.txt`（xxx = `wnacg`或`jm`），  
+再开程序会检测修改时间大于24小时则失效重新获取，处于24小时内则可对此文件删改或加个空格保存即时生效
 > `发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用  
 
-> [20250306]`wnacg`相关: 对发布页做了访问限制，要想全程墙内访问的临时解决手段是手动改域名缓存文件，参考[🔗讨论](https://github.com/jasoneri/ComicGUISpider/discussions/22)  
+> [20250306]`wnacg`相关: 发布页设了访问限制，要想全程墙内访问的临时解决手段是手动改域名缓存文件，参考[🔗讨论](
+  https://github.com/jasoneri/ComicGUISpider/discussions/22)  
 
 ### 3. 预览视窗的复制按钮相关
 

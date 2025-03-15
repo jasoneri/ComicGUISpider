@@ -2,17 +2,19 @@ import json
 import os
 import re
 import sys
-import time
 import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
+from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect, QTimer
-from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QCompleter
+from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
-from GUI.uic.ui_mainwindow import Ui_MainWindow
+from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch, CustomInfoBar
+from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, ClipTasksThread
+from GUI.thread.other import ToolMenu
 
 from variables import *
 from assets import res
@@ -21,11 +23,10 @@ from utils import (
 )
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
-    GuiQueuesManger, QueueHandler, refresh_state, crawl_what, ClipManager,
-    PreviewHtml, TaskObj, TasksObj, CopyUnfinished
+    GuiQueuesManger, QueueHandler, refresh_state, crawl_what,
+    PreviewHtml, TaskObj, TasksObj
 )
 from utils.website import spider_utils_map
-from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.sql import SqlUtils
 from deploy import curr_os
 
@@ -46,6 +47,12 @@ class TaskProgressManager:
             self.gui.set_preview()
         self.gui.BrowserWindow.init_task_panel(add_task)
 
+    def handle(self, task):
+        if isinstance(task, tuple):
+            self.add_task(task)
+        else:
+            self.update_progress(task)
+            
     def add_task(self, task_info: tuple):
         """新增任务"""
         if self.init_flag:
@@ -84,64 +91,7 @@ class TaskProgressManager:
         self.sql_handler.close()
 
 
-class ToolMenu(QMenu):
-    res = res.GUI.ToolMenu
-
-    def __init__(self, gui, *args, **kwargs):
-        super(ToolMenu, self).__init__(*args, **kwargs)
-        self.gui = gui
-        self.init_actions()
-        gui.toolButton.setMenu(self)
-
-    def init_actions(self):
-        action_show_max = QAction(self.res.action1, self.gui)
-        self.action_show_max = action_show_max
-        action_show_max.setObjectName("action_show_max")
-        self.addAction(action_show_max)
-        action_show_max.triggered.connect(self.show_max)
-
-        action_combine_then_mv = QAction(self.res.action2, self.gui)
-        self.action_combine_then_mv = action_combine_then_mv
-        action_combine_then_mv.setObjectName("action_combine_then_mv")
-        self.addAction(action_combine_then_mv)
-        action_combine_then_mv.triggered.connect(self.combine_then_mv)
-
-    def show_max(self):
-        record_txt = conf.sv_path.joinpath("web_handle/record.txt")
-        if record_txt.exists():
-            QMessageBox.information(self.gui, 'show_max', show_max(record_txt), QMessageBox.Ok)
-        else:
-            QMessageBox.information(self.gui, 'show_max', self.res.action2_warning % record_txt, QMessageBox.Ok)
-
-    def combine_then_mv(self):
-        done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
-        QMessageBox.information(self.gui, 'combine_then_mv',
-                                f"已将{done}整合章节并转换至[{conf.sv_path.joinpath("web")}]", QMessageBox.Ok)
-
-    def switch_ero(self):
-        self.removeAction(self.action_show_max)
-        self.removeAction(self.action_combine_then_mv)
-
-        action_read_clip = QAction(self.res.action_ero1, self.gui)
-        action_read_clip.setObjectName("action_read_clip")
-        self.addAction(action_read_clip)
-        action_read_clip.triggered.connect(self.read_clip)
-
-    def read_clip(self):
-        if self.gui.next_btn.text() != '搜索':
-            QMessageBox.information(self.gui, 'Warning', self.res.clip_process_warning)
-        else:
-            clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
-                               getattr(self.gui.spiderUtils, "book_url_regex"))
-            tf, match_items = clip.main()
-            if not match_items:
-                self.gui.say(f"无匹配任务，先进行复制再运行此功能，当前匹配规则：{self.gui.spiderUtils.book_url_regex}",
-                             ignore_http=True)
-            else:
-                self.gui.init_clip_handle(tf, match_items)
-
-
-class SpiderGUI(QMainWindow, Ui_MainWindow):
+class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
     input_state: InputFieldState = None
     text_browser_state: TextBrowserState = None
@@ -165,7 +115,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
     def __init__(self, parent=None):
         super(SpiderGUI, self).__init__(parent)
-        self.conf_dia = ConfDialog()
         self.log = conf.cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
@@ -180,6 +129,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
     def setupUi(self, MainWindow):
         self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
+        self.conf_dia = ConfDialog(self)
         self.textBrowser.setOpenExternalLinks(True)
         self.textBrowser.append(TextUtils.description)
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
@@ -198,6 +148,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
         self.btn_logic_bind()
+        self.set_shortcut()
         # 预览
         self.tf = None
         self.previewInit = True
@@ -209,6 +160,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         def chooseBox_changed_handle(index):
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
+            FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
+            FluentMonkeyPatch.rbutton_menu_lineEdit(self.chooseinput)
             if index and not getattr(self, 'p_crawler'):
                 # optimize backend scrapy start speed
                 self.p_crawler = Process(target=crawl_what, args=(index, self.queue_port))
@@ -242,6 +195,14 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         elif index == 5:
             self.say(font_color(self.res.mangabz_desc, color='purple'))
 
+    def set_shortcut(self):
+        self.previousPageShort = QShortcut(QKeySequence("Ctrl+,"), self)
+        self.previousPageShort.setContext(Qt.ApplicationShortcut)
+        self.previousPageShort.activated.connect(self.previousPageBtn.click)
+        self.nextPageShort = QShortcut(QKeySequence("Ctrl+."), self)
+        self.nextPageShort.setContext(Qt.ApplicationShortcut)
+        self.nextPageShort.activated.connect(self.nextPageBtn.click)
+
     def set_completer(self):
         idx = self.chooseBox.currentIndex()
         if idx == 0:
@@ -251,6 +212,13 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.searchinput.setCompleter(completer)
+        completer.activated.connect(lambda :
+            self.searchinput.setCursorPosition(len(self.searchinput.text())))
+        _completer = QCompleter(list(map(lambda x: f"输入序号：{x}", ['0', '1', '-3', '-1'])))
+        _completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.chooseinput.setCompleter(_completer)
+        _completer.activated.connect(lambda :
+            self.chooseinput.setCursorPosition(len(self.chooseinput.text())))
 
     def btn_logic_bind(self):
         def search_btn(text):
@@ -281,6 +249,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 i = 0
                 while i < 1000:  # i * 3ms = 极限等待3s
                     if self.tf != _prev_tf:
+                        if conf.isDeduplicate:
+                            PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
                         self.BrowserWindow.second_init(self.tf)
                         self.previewSecondInit = False
                         break
@@ -302,6 +272,10 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.input_state.indexes = self.chooseinput.text()[5:].strip()
             else:
                 self.input_state.indexes = ""
+            if _p.startswith("next"):
+                self.pageEdit.setValue(int(self.pageEdit.value()) + 1)
+            elif _p.startswith("previous"):
+                self.pageEdit.setValue(int(self.pageEdit.value()) - 1)
             self.input_state.pageTurn = _p
             self.q_InputFieldQueue_send(self.input_state)
             refresh_view(_prev_tf)
@@ -310,21 +284,19 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg)) if self.BrowserWindow else page_turn(arg)
         self.nextPageBtn.clicked.connect(lambda: _(f"next{self.pageFrameClickCnt}"))
         self.previousPageBtn.clicked.connect(lambda: _(f"previous{self.pageFrameClickCnt}"))
-        self.pageJumpBtn.clicked.connect(lambda: _(self.pageEdit.text()))
+        self.pageJumpBtn.clicked.connect(lambda: _(str(self.pageEdit.value())))
 
-        def page_edit(text):
-            self.pageEdit.setText(text.strip())
-            self.pageEdit.setCursorPosition(len(text))
-            self.pageJumpBtn.setEnabled(len(text) > 0)
+        def page_edit(_):
+            self.pageJumpBtn.setEnabled(True)
 
-        self.pageEdit.textChanged.connect(page_edit)
+        self.pageEdit.valueChanged.connect(page_edit)
 
     def set_preview(self):
         proxies = None if self.chooseBox.currentIndex() not in SPIDERS_NEED_PROXIES_IDXES else \
             (conf.proxies or [None])[0]  # only wnacg need proxies presently
         if proxies:
             BrowserWindow.set_proxies(proxies)
-        self.BrowserWindow = BrowserWindow(self.tf)
+        self.BrowserWindow = BrowserWindow(self, self.tf)
         if self.chooseBox.currentIndex() == 4:  # e-hentai
             self.BrowserWindow.set_ehentai()
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
@@ -336,12 +308,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
-        self.BrowserWindow.ensureBtn.clicked.connect(lambda : self.BrowserWindow.ensure(self._next))
-        def copyUnfinishedTasks():
-            _ = CopyUnfinished(self.task_mgr.unfinished_tasks)
-            _.to_clip()
-            QMessageBox.information(self.BrowserWindow, 'Tip', self.res.copied_tip % _.length)
-        self.BrowserWindow.copyBtn.clicked.connect(copyUnfinishedTasks)
         # webEngine / page
         if conf.isDeduplicate and not self.clip_is_triggered:
             PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
@@ -427,8 +393,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.BrowserWindow = None
             self.setupUi(self)
 
-        self.say(font_color(f"<br>(・∀・(・∀・(・∀・*)(・∀・(・∀・*) {self.res.reboot_tip}", color='purple', size=5))
-        QTimer.singleShot(200, retry_all)
+        self.say(font_color(f"<br>(・∀・(・∀・(・∀・(・∀・*)(・∀・(・∀・(・∀・*) <br>{self.res.reboot_tip}", color='purple', size=4))
+        QTimer.singleShot(50, retry_all)
         self.retrybtn.setDisabled(True)
         self.confBtn.setDisabled(False)
         self.log.info('===--→ retry_schedule end\n')
@@ -455,7 +421,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
 
                 self.bThread.print_signal.connect(self.say)
                 self.bThread.item_count_signal.connect(self.processbar_load)
-                self.bThread.tasks_signal.connect(self.task_handle)
+                self.bThread.tasks_signal.connect(self.task_mgr.handle)
                 self.bThread.finish_signal.connect(self.crawl_end)
                 self.bThread.start()
                 self.log.info(f'-*-*- Background thread & spider starting')
@@ -474,7 +440,8 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
                 self.say(f"{self.res.check_mangabz}<br>")
                 obj = self.spiderUtils(conf)
                 if not obj.test_index():
-                    QMessageBox.warning(self, 'Warning', f"{self.res.ACCESS_FAIL} {obj.index}")
+                    CustomInfoBar.show('', self.res.ACCESS_FAIL, self.textBrowser,
+                        obj.index, obj.name)
                     return
             start_and_search()
 
@@ -496,7 +463,7 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
             self.bThread.item_count_signal.connect(self.processbar_load)
-            self.bThread.tasks_signal.connect(self.task_handle)
+            self.bThread.tasks_signal.connect(self.task_mgr.handle)
             self.bThread.finish_signal.connect(self.crawl_end)
             self.bThread.start()
             results = [self.clip_infos[i] for i in self.BrowserWindow.output]
@@ -586,12 +553,6 @@ class SpiderGUI(QMainWindow, Ui_MainWindow):
             self.first_tmp_sv_flag = False
             self.BrowserWindow.tmp_sv_local()
 
-    def task_handle(self, task):
-        if isinstance(task, tuple):
-            self.task_mgr.add_task(task)
-        else:
-            self.task_mgr.update_progress(task)
-
     def enterEvent(self, QEvent):
         self.textBrowser.setStyleSheet('background-color: white;')
 
@@ -638,8 +599,5 @@ class TextUtils:
         <hr><p style="color: green">%s</p><hr><p></p>
     </div>
 </div>""" % (rf'file:///{ori_path.joinpath("assets/icon.png")}',
-             res.GUI.DESC1, res.GUI.DESC2, res.GUI.DESC_ELSE, res.GUI.DESC_NEW)
-
-    @staticmethod
-    def warning_(text):
-        return font_color(text, color='orange', size=4)
+             res.GUI.DESC1 % rf'file:///{ori_path.joinpath("assets/config_icon.png")}', 
+             res.GUI.DESC2, res.GUI.DESC_ELSE, res.GUI.DESC_NEW)

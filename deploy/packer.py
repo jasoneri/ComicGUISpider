@@ -110,8 +110,9 @@ class Packer(Proj):
     # preset_zip_file = path.joinpath(f'{_proj}_preset.7z')
     preset_zip_file = pathlib.Path(f'/tmp/{_proj}_preset.7z')
 
-    def __init__(self, default_specified: tuple):
+    def __init__(self, default_specified: tuple, ver: str):
         self.default_specified = default_specified
+        self.ver = ver
 
     @classmethod
     def bat_to_exe(cls):
@@ -132,7 +133,14 @@ class Packer(Proj):
             path.joinpath(rf"scripts/assets/icon.png"))
         # exe生成后需要扔到 https://habo.qq.com/ 做检测，必须是`未发现风险`
 
+    def pre_packup(self):
+        with open(path.joinpath(r"scripts/deploy/version.json"), 'w', encoding='utf-8') as f:
+            json.dump({
+                "current": self.ver, "stable": "", "dev": ""
+            }, f, indent=4)
+
     def packup(self, runtime_init=False):
+        self.pre_packup()
         zip_file = self.zip_file
         specified = self.default_specified
         mode = "a"
@@ -144,7 +152,7 @@ class Packer(Proj):
                 return self.packup()
             zip_file = self.preset_zip_file
             specified = ('runtime', 'site-packages', '_pystand_static.int',
-                         f'{self._proj}.exe', f'{self._proj}-更新.exe', f'{self._proj}-使用说明.exe')
+                         f'{self._proj}.exe')
             mode = "w"
         else:
             shutil.copy(self.preset_zip_file, self.zip_file)
@@ -165,18 +173,18 @@ class PackerMacOS(Packer):
     preset_zip_file = pathlib.Path(f'/tmp/{_proj}_preset.7z')
     scripts_path = "CGS.app/Contents/Resources/scripts"
 
-    def __init__(self, default_specified=None):
-        super().__init__(default_specified)
+    def __init__(self, ver):
+        super(PackerMacOS, self).__init__(tuple(), ver)
 
     def pre_packup(self):
         """ 1。预处理CGS.app的结构
             2. dos2unix处理项目文本文件"""
+        super(PackerMacOS, self).pre_packup()
         mac_7z_p = path.joinpath(self.scripts_path.rsplit("/", maxsplit=1)[0])
         mac_7z_p.mkdir(parents=True, exist_ok=True)
         mac_scripts_path = mac_7z_p.joinpath("scripts")
         if mac_scripts_path.exists():
             shutil.rmtree(mac_scripts_path, ignore_errors=True)
-        # shutil.move(path.joinpath(Proj.name), mac_scripts_path)
         shutil.move(path.joinpath("scripts"), mac_scripts_path)
 
         targets = [
@@ -234,13 +242,13 @@ def env_supplement():
     ...
 
 
-def packup_windows():
+def packup_windows(ver):
     # # clean()
     # Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
     #                (path.joinpath("scripts/log"), path.joinpath("scripts/version"),
     #                 path.joinpath("scripts/deploy/gitee_t.json")))  # step 0 必清site-packages cache，太大了
     # # Packer.bat_to_exe()  # step 1
-    packer = Packer(('scripts', f'{Proj.proj}.bat'))
+    packer = Packer(('scripts', f'{Proj.proj}.bat'), ver=ver)
     packer.packup()  # step 2
     # # packer.upload('CGS.7z')  # step 3
     # # Clean.end_work(('CGS.7z',))  # step 4
@@ -249,17 +257,18 @@ def packup_windows():
     # # env_supplement()
 
 
-def packup_mac():
-    packer_mac = PackerMacOS()
+def packup_mac(ver):
+    packer_mac = PackerMacOS(ver=ver)
     packer_mac.packup()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('command', choices=['windows', 'mac'])
+    parser.add_argument('-v', '--version', help='current tag version')
     args = parser.parse_args()
     
     if args.command == 'windows':
-        packup_windows()
+        packup_windows(args.version)
     elif args.command == 'mac':
-        packup_mac()
+        packup_mac(args.version)

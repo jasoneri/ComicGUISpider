@@ -4,7 +4,6 @@
 base on client, env-python: embed"""
 import argparse
 import os
-import sys
 import json
 import shutil
 import stat
@@ -14,9 +13,13 @@ import traceback
 import platform
 import base64
 
+import markdown
 import httpx
 from tqdm import tqdm
 from colorama import init, Fore
+from packaging.version import parse
+
+from assets import res as ori_res
 
 curr_os = platform.system()
 if curr_os.startswith("Darwin"):
@@ -24,13 +27,13 @@ if curr_os.startswith("Darwin"):
 init(autoreset=True)
 path = pathlib.Path(__file__).parent.parent.parent
 existed_proj_p = path.joinpath('scripts')
+if not existed_proj_p.exists():
+    existed_proj_p = path.joinpath('ComicGUISpider')
 temp_p = path.joinpath('temp')
-sys.path.append(str(existed_proj_p))
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
 }
 
-from assets import res as ori_res  # must be below of sys.path.append
 
 res = ori_res.Updater
 
@@ -72,12 +75,14 @@ class TokenHandler:
 
 class GitHandler:
     speedup_prefix = "https://gh.llkk.cc/"
+    api_prefix = "https://api.github.com"
 
     def __init__(self, owner, proj_name, branch):
         self.sess = httpx.Client()
-        self.branch_commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits?sha={branch}"
-        self.commit_api = f"https://api.github.com/repos/{owner}/{proj_name}/commits"
-        self.src_url = f"https://api.github.com/repos/{owner}/{proj_name}/zipball/{branch}"
+        self.releases_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/releases"
+        self.branch_commit_api = f" {owner}/{proj_name}/commits?sha={branch}"
+        self.commit_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/commits"
+        self.src_url = f"{self.api_prefix}/repos/{owner}/{proj_name}/zipball/{branch}"
         t_handler = TokenHandler()
         self.headers = t_handler.headers
 
@@ -89,33 +94,38 @@ class GitHandler:
             raise ValueError(resp.text)
         return resp.json()
 
-    def get_version_info(self, ver):
-        resp_json = self.normal_req(f"{self.commit_api}/{ver}")
+    def get_commit_info(self, commit):
+        resp_json = self.normal_req(f"{self.commit_api}/{commit}")
         return resp_json
 
-    def check_changed_files(self, ver):
+    def get_releases_info(self) -> tuple:
+        latest_resp_json = self.normal_req(self.releases_api)
+        latest_stable_resp_json = self.normal_req(f"{self.releases_api}/latest")
+        return latest_resp_json[0], latest_stable_resp_json
+
+    def check_changed_files(self, commit):
         print(Fore.BLUE + f"[ {res.ver_check}.. ]")
         resp_json = self.normal_req(self.branch_commit_api)
-        vers = list(map(lambda _: _["sha"], resp_json))
-        if not ver:
+        commits = list(map(lambda _: _["sha"], resp_json))
+        if not commit:
             print(Fore.RED + f"[ {res.ver_file_not_exist}.. ]")
-            return vers[0], []
-        ver_index = vers.index(ver) if ver in vers else None
-        valid_vers = vers[:ver_index]
-        if len(valid_vers) > 10:
+            return commits[0], []
+        commit_index = commits.index(commit) if commit in commits else None
+        valid_commits = commits[:commit_index]
+        if len(valid_commits) > 10:
             print(Fore.YELLOW + f"[ {res.too_much_waiting_update}... ]")
-            return vers[0], ["*"]
+            return commits[0], ["*"]
         files = []
         print(Fore.BLUE + f"[ {res.check_refresh_code}.. ]")
-        for _ver in valid_vers:
-            resp_json = self.get_version_info(_ver)
+        for _commit in valid_commits:
+            resp_json = self.get_commit_info(_commit)
             files.extend(list(map(lambda _: _["filename"], resp_json["files"])))
-            print(Fore.GREEN + f"[ {_ver[:8]} ] {resp_json['commit']['message']}")
+            print(Fore.GREEN + f"[ {_commit[:8]} ] {resp_json['commit']['message']}")
         out_files = list(set(files))
         if "deploy/update.py" in out_files:  # make sure update.py must be local-updated
             out_files.remove("deploy/update.py")
             out_files.insert(0, "deploy/update.py")
-        return vers[0], out_files
+        return commits[0], out_files
 
     def download_src_code(self, _url=None, zip_name="src.zip"):
         """proj less than 1Mb, actually just take little second"""
@@ -135,25 +145,39 @@ class Proj:
     github_author = "jasoneri"
     name = "ComicGUISpider"
     branch = "GUI"
+
     ver = ""
     first_flag = False
     local_ver = None
+    local_ver_file = existed_proj_p.joinpath('deploy/version.json')
     changed_files = []
+    update_flag = "local"
+    update_info = None
 
     def __init__(self):
         self.git_handler = GitHandler(self.github_author, self.name, self.branch)
 
     def check_existed_version(self):
-        local_ver_file = existed_proj_p.joinpath('version')
-        if not local_ver_file.exists():
+        if not self.local_ver_file.exists():
             self.first_flag = True
         else:
-            with open(local_ver_file, 'r', encoding='utf-8') as f:
-                return f.read().strip()
+            with open(self.local_ver_file, 'r', encoding='utf-8') as f:
+                version_info = json.load(f)
+                return version_info.get('current', 'v0.0.0')
+        return 'v0.0.0'
 
     def check(self):
         self.local_ver = local_ver = self.check_existed_version()
-        self.ver, self.changed_files = self.git_handler.check_changed_files(local_ver)
+        latest_dev_info, latest_stable_info = self.git_handler.get_releases_info()
+        ver_local = parse(self.local_ver.lstrip('v'))
+        ver_dev = parse(latest_dev_info.get('tag_name').lstrip('v'))
+        ver_stable = parse(latest_stable_info.get('tag_name').lstrip('v'))
+        if ver_local < ver_stable:
+            self.update_flag = 'stable'
+            self.update_info = latest_stable_info
+        elif ver_local < ver_dev:
+            self.update_flag = 'dev'
+            self.update_info = latest_dev_info
 
     def local_update(self):
         def delete(func, _path, execinfo):
@@ -193,9 +217,11 @@ class Proj:
         shutil.rmtree(temp_p, onerror=delete)
 
     def end(self):
-        with open(existed_proj_p.joinpath('version'), 'w', encoding='utf-8') as f:
-            f.write(self.ver)
-        print(Fore.GREEN + "=" * 40 + f"[ {res.finish} ]" + "=" * 40)
+        # with open(existed_proj_p.joinpath('version'), 'w', encoding='utf-8') as f:
+        #     f.write(self.ver)
+        # print(Fore.GREEN + "=" * 40 + f"[ {res.finish} ]" + "=" * 40)
+        with open(self.local_ver_file, 'w', encoding='utf-8') as f:
+            json.dump({"current": self.ver}, f, ensure_ascii=False, indent=4)
 
     def env_check_and_replenish(self):
         record_file = path.joinpath("scripts/deploy/env_record.json")
@@ -212,17 +238,10 @@ class Proj:
         print(Fore.CYAN + f"[ {res.env_is_latest} ]")
 
 
-def regular_update():
+def regular_update(version):
     retry_times = 1
     __ = None
-    try:
-        proj = Proj()
-        proj.check()
-    except Exception as e:
-        __ = traceback.format_exc()
-        print(__)
-        print(Fore.RED + f"[Errno 11001] {res.refresh_fail_retry_over_limit}")
-        return
+    update_result = ""
     while retry_times < 4:
         try:
             proj.local_update()
@@ -237,55 +256,55 @@ def regular_update():
     if retry_times > 3:
         print(__)
         print(Fore.RED + f"[Errno 11001] {res.refresh_fail_retry_over_limit}")
+        update_result = "exception: over_limit"
+    return update_result
+
+    
+with open(existed_proj_p.joinpath('assets/github_format.html'), 'r', encoding='utf-8') as f:
+    github_markdown_format = f.read()
+
+
+class MarkdownConverter:
+    github_markdown_format = github_markdown_format
+    md = markdown.Markdown(extensions=['markdown.extensions.md_in_html', 
+        'markdown.extensions.tables', 'markdown.extensions.fenced_code', 'markdown.extensions.nl2br'],
+        output_format='html5')
+
+    @classmethod
+    def convert_html(cls, md_content):
+        html_body = cls.md.convert(md_content)
+        full_html = cls.github_markdown_format.replace('{content}', html_body)
+        return full_html
 
 
 def create_desc(proj_path=None):
     def cdn_replace(md_str, author, repo, branch):
         return (md_str.replace("raw.githubusercontent.com", "jsd.vxo.im/gh")
                 .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
+    
+    _p = proj_path or existed_proj_p
+    with open(_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
+        md_content = f.read().replace(
+            'deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html').replace(
+            'docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html').replace(
+            'docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html'
+        )
+    md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace(
+        "<details>", '<details markdown="1">')
+    full_html = MarkdownConverter.convert_html(md_content)
+    with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
+        f.write(full_html)
 
-    github_markdown_format = """<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
-        <style>details { margin: 1em 0;border: 1px solid #e1e4e8;border-radius: 6px;padding: 0.5em;}
-        summary {cursor: pointer;font-weight: 500;padding: 0.25em;transition: all 0.3s;}
-        summary:hover { color: #0366d6; }
-        table {margin-top: 0.5em; table-layout: fixed; }
-        .markdown-body table td, .markdown-body table th {word-wrap: break-word;}</style> 
-    </head>
-        <body><article class="markdown-body">
-            %s
-            </article></body></html>"""
-    try:
-        import markdown
-    except ModuleNotFoundError:
-        print(Fore.RED + f"[ {res.not_pkg_markdown} ]")
-    else:
-        _p = proj_path or existed_proj_p
-        with open(_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
-            md_content = f.read().replace(
-                'deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html').replace(
-                'docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html').replace(
-                'docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html'
-            )
-        md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace(
-            "<details>", '<details markdown="1">')
-        md = markdown.Markdown(extensions=['markdown.extensions.md_in_html', 'markdown.extensions.tables',
-                                           'markdown.extensions.fenced_code', 'markdown.extensions.nl2br'],
-                               output_format='html5')
-        html_body = md.convert(md_content)
-        full_html = github_markdown_format % html_body
-        with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
-            f.write(full_html)
-
-        def transfer_markdown(_in, _out):
-            with open(_p.joinpath(_in), 'r', encoding='utf-8') as f:
-                _md_content = f.read()
-            _html_body = md.convert(_md_content)
-            _full_html = github_markdown_format % _html_body
-            with open(_p.joinpath(_out), 'w', encoding='utf-8') as f:
-                f.write(_full_html)
-        transfer_markdown('deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html')
-        transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
-        transfer_markdown('docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html')
+    def transfer_markdown(_in, _out):
+        with open(_p.joinpath(_in), 'r', encoding='utf-8') as f:
+            _md_content = f.read()
+        _html = MarkdownConverter.convert_html(_md_content)
+        with open(_p.joinpath(_out), 'w', encoding='utf-8') as f:
+            f.write(_html)
+    transfer_markdown('deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html')
+    transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
+    transfer_markdown('docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html')
+    return _p.joinpath('desc.html')
 
 
 if __name__ == '__main__':
@@ -295,10 +314,15 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     args = parser.add_argument_group("Arguments")
-    args.add_argument('-d', '--desc', action=argparse.BooleanOptionalAction, required=False,
-                      help=r'create scripts/desc.html from scripts/README.md')
+    args.add_argument('-d', '--desc', action=argparse.BooleanOptionalAction, required=False)
+    args.add_argument('-c', '--check', action=argparse.BooleanOptionalAction, required=False)
+    args.add_argument('-u', '--update', required=False)
     parsed = parser.parse_args()
+
+    proj = Proj()
     if parsed.desc:
         create_desc()
-    else:
-        regular_update()
+    elif parsed.check:
+        proj.check()
+    elif parsed.update:
+        regular_update(parsed.update)

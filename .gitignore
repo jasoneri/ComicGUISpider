@@ -169,17 +169,25 @@ analyze/
 *.d
 *.zip
 *demo*.py
-*.qrc
-*.ico
-temp
-conf.yml
-record.db
-requirements-in.txt
 __temp
-_bug_log
 test/*
-src/
-untitled*
 .lh/
+# self/build
+*.ico
+*.qrc
+src/
+temp
+requirements-in.txt
+untitled*
 Pipfile
 Pipfile.lock
+# self/conf
+gitee_t.json
+conf.yml
+record.db
+# self/desc created html
+desc.html
+docs/*.html
+deploy/launcher/mac/*.html
+# self/bug-report
+_bug_log

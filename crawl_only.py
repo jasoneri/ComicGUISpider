@@ -103,7 +103,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--website', type=int, help='选择网站序号')
     parser.add_argument('-k', '--keyword', help='关键字（作品名）')
     parser.add_argument('-i', '--indexes', type=str, nargs='?',
-                        help=res.GUI.input_tip)
+                        help=res.GUI.Uic.chooseinputTip)
     parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
     parser.add_argument('-tw', '--time_wait',
                         help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')

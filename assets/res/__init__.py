@@ -9,13 +9,13 @@ ENV = "简中环境"
 
 # GUI
 class GUI:
-    DESC1 = "1、首次使用请查阅 <code>CGS-使用说明</code> ，内有配置/GUI视频使用指南等说明"
-    DESC2 = "2、在使用说明中也有 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>🔗FAQ/额外说明</a> 文档，使用遇阻时可以先查阅看能否解决疑惑 "
+    DESC1 = """1、首次使用请点击<img src="%s" height="25" style="background-color: rgb(0, 255, 255);border-radius: 7px;">按钮，配置窗口左下角点击`查看说明`，内有配置详情/GUI视频使用指南等"""
+    DESC2 = "2、使用遇阻时可以先查阅说明中的 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>🔗FAQ/额外说明</a> 文档，看能否解决疑惑 "
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
-    DESC_STABLE = r"⭐️ v1.8.2 主要更新 特性/修复：(1)预览窗口新增`复制`按钮 (2)优化翻页保留相关逻辑等 (3)修复剪贴板单任务时闪退问题<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
-    DESC_PRERELEASE = r"""🧪 v1.8.3-beta 此开发版更新 特性/修复：<br>
-    (1)修复`wnacg`剪贴板xpath解析错误问题<br>
-    此前稳定版更新细则查看`使用说明`的更新部分，稳定版至当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
+    DESC_STABLE = r"⭐️ v2.0.0 主要更新 特性/修复：(1)预览窗口新增`复制`按钮 (2)优化翻页保留相关逻辑等 (3)修复剪贴板单任务时闪退问题<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
+    DESC_PRERELEASE = r"""🧪 v2.0.0-beta 此开发版更新 特性/修复：<br>
+    (1)✨使用`QFluentWidgets`优化界面与操作体验<br>
+    当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
     最新Pre-release说明 <a>"""
     DESC_NEW = DESC_PRERELEASE
 
@@ -31,11 +31,10 @@ class GUI:
     check_mangabz = "正在检测当前环境能否访问`Māngabz`中..."
     checkisopen_text_change = "现在点击立刻打开存储目录"
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
-    ACCESS_FAIL = ("当前`配置代理`或`全局代理`等环境 无法访问<br>"
-                   "请自行浏览器访问排查（软件尚不支持该网站无代理直连）<br>")
+    ACCESS_FAIL = "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
     cookies_copy_err = "格式错误，请看清楚最新gif的操作重新复制"
     copied_tip = "已复制[%s]条到剪贴板"
-    textbrowser_load_if_http = (u'<b><font size="5" color="black">内置预览：点击右下 "点我预览" </font></b>'
+    textbrowser_load_if_http = (u'<b><font size="5" color="black">点击右下 `预览` </font></b>'
                                 u'<font color="black"> 或者 </font>'
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
     WorkThread_finish_flag = "后台完成"  # related to SPIDER.close_success
@@ -44,8 +43,6 @@ class GUI:
     copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
     global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
     input_format_err = "输入格式错误，请鼠标移到输入框查看规则提示"
-    input_tip = ("示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) "
-    "|  1+7-9 →复合多选 1、7、8、9 | -3 →倒数3个")
     reboot_tip = "CGS内置重启中，将会花一小会重建界面与实例"
     # 使用InfoBar需要title与content, 所以`InfoBar_xxx`的值是tuple而不是str
 
@@ -56,19 +53,35 @@ class GUI:
         action_ero1 = "读取剪贴板创建匹配任务列表"
         clip_process_warning = "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
 
+    class Uic:
+        chooseinputTip = ("示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) "
+                     "|  1+7-9 →复合 多选 1、7、8、9 | -3 →倒数3个")
+        chooseBoxToolTip = "选中网站后看状态栏有输入提示"
+        previewBtnStatusTip = "点击打开预览窗口，仅当出现书列表后才能使用"
+        progressBarStatusTip = (" >>> Ⅰ、绿色100%表示完成"
+            " Ⅱ、 任务细化后查得绿色100%也有漏页情况，可结合`复制未完成`与`剪贴板功能`进行补页")
+        
+        menu_show_completer = "展开预设"
+        menu_next_page = "下一页"
+        menu_prev_page = "上一页"
+        confDia_descBtn = "查看说明"
+        confDia_updateBtn = "检查更新"
+        confDia_updateDialog_stable = "检测到最新稳定版"
+        confDia_updateDialog_dev = "检测到最新开发版"
+
 
 # website
 class EHentai:
     COOKIES_NOT_SET = "访问 exhentai 必须设置`eh_cookies`"
-    ACCESS_FAIL = ("当前`eh_cookies`或`配置代理`或`全局代理`等环境 无法访问<br>"
-                   "请自行浏览器访问排查（软件尚不支持无代理直连）")
-    GUIDE = ("ehentai使用指引<br>1. 确保你有一个能访问`exhentai.org`的账号<br>"
+    ACCESS_FAIL = ("当前`eh_cookies`或`配置代理`或`全局代理`等环境无法访问<br>"
+                   """请前往网站访问排查（尚不支持该网站墙内直连）""")
+    GUIDE = ("exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br>"
+             " - 配置需设置`eh_cookies`的值，值生成参考配置详情里该字段说明。<br>"
              "2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br>"
-             "3.1 基于第1点，配置需设置`eh_cookies`的值，cookies值生成参考`使用说明`里配置对应字段说明。<br>"
-             "3.2 基于2，可使用全局代理（不建议）；或者配置代理，需要在此指引弹出前设置好。代理服务建议用v2rayN<br>"
-             "（⚠️当前版本测试链接仅设置请求3秒超时，由于测api与GUI共同为主线程，避免请求长时间超时使得GUI没响应令用户反而觉得是软件坏了，<br>"
-             "建议出错后日志模式开至debug，边使用边看`scripts/log/GUI.log`排错，结合retry和关程序再开先重试两三次，后续看情况优化）")
-    JUMP_TIP = "ehentai页跳转情况特殊，没想好应用 暂时设限制取消`跳转页`功能"
+             " - 可使用全局代理，或者配置代理（需要在此指引弹出前设置好，否则重启CGS）代理服务建议用v2rayN<br>"
+             "（⚠️测试链接仅设置请求3秒超时，由于测api与GUI共同为主线程，避免请求太久超时使得GUI没响应令用户反而觉得是软件坏了，<br>"
+             "建议出错后日志等级设debug，边使用边看`scripts/log/GUI.log`排错，结合关程序后重启先试几遍，后续看情况优化）")
+    JUMP_TIP = "ehentai跳页情况特殊，没想好应用，暂时设限制取消`跳页`功能"
 
 
 # backend (spider/scrapy)
@@ -130,3 +143,6 @@ class Updater:
         "1. win用户: 请前往最新release下载绿色安装包（可选备份配置`scripts/conf.yml`与去重记录`scripts/record.db`）\n",
         "2. mac用户: 使用`CGS-初始化`更新环境")
     env_is_latest = "环境已是最新"
+    
+    ver_local_latest = "本地版本已是最新.."
+    update_ensure = "确认更新"

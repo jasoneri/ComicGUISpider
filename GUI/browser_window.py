@@ -3,24 +3,29 @@
 from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtNetwork import QNetworkCookie
-from PyQt5.QtWidgets import QMainWindow, QMessageBox
-from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWebEngineWidgets import QWebEngineSettings
+from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF
+from qframelesswindow.webengine import FramelessWebEngineView
 
 from GUI.uic.browser import Ui_browser
+from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from assets import res
 from utils import conf
 from utils.website import EHentaiKits
+from utils.processed_class import CopyUnfinished
 
 
 class BrowserWindow(QMainWindow, Ui_browser):
     eh_kits = None
 
-    def __init__(self, tf, parent=None, proxies: str = None):
+    def __init__(self, gui, tf, parent=None, proxies: str = None):
         super(BrowserWindow, self).__init__(parent)
         if proxies:
             self.set_proxies(proxies)
+        self.gui = gui
         self.tf = tf
-        self.view = QWebEngineView()
+        self.view = FramelessWebEngineView(self)
         self.home_url = QUrl.fromLocalFile(self.tf)
         self.view.load(self.home_url)
         self.output = []
@@ -30,13 +35,52 @@ class BrowserWindow(QMainWindow, Ui_browser):
         super(BrowserWindow, self).setupUi(_window)
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.topHintBox.clicked.connect(self.keep_top_hint)
+        self.set_btn()
         self.set_html()
+        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+
+    def set_btn(self):
+        # ui
+        self.topHintBox.setIcon(FIF.PIN)
+        self.topHintBox.setChecked(True)
+        self.homeBtn.setIcon(FIF.HOME)
+        self.backBtn.setIcon(FIF.LEFT_ARROW)
+        self.forwardBtn.setIcon(FIF.RIGHT_ARROW)
+        self.refreshBtn.setIcon(FIF.SYNC)
+        self.copyBtn.setIcon(FIF.COPY)
+        self.ensureBtn.setIcon(FIF.DOWNLOAD)
+        # logic
+        self.homeBtn.clicked.connect(lambda: self.view.load(self.home_url))
+        self.backBtn.clicked.connect(self.view.back)
+        self.forwardBtn.clicked.connect(self.view.forward)
+        self.refreshBtn.clicked.connect(self.view.reload)
+        self.ensureBtn.clicked.connect(lambda : self.ensure(self.gui._next))
+        def copyUnfinishedTasks():
+            _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)
+            _.to_clip()
+            InfoBar.success(
+                title='Copied Tip', content=self.gui.res.copied_tip % _.length,
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+                duration=2500, parent=self
+            )
+        self.copyBtn.clicked.connect(copyUnfinishedTasks)
+
+    def set_html(self):
+        self.horizontalLayout.addWidget(self.view)
+        self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
 
     def second_init(self, tf):
         """翻页时，页面变更tf文件，需要刷新"""
         self.tf = tf
         self.home_url = QUrl.fromLocalFile(self.tf)
         self.view.load(self.home_url)
+
+    def keep_top_hint(self):
+        if self.topHintBox.isChecked():
+            self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(Qt.Widget)
+        self.show()
 
     def js_execute(self, js_code, callback):
         page = self.view.page()
@@ -67,29 +111,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         proxy.setPort(int(port))
         QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
 
-    def keep_top_hint(self):
-        if self.topHintBox.isChecked():
-            self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        else:
-            self.setWindowFlags(Qt.Widget)
-        self.show()
-
-    def set_html(self):
-        self.homeBtn.clicked.connect(lambda: self.view.load(self.home_url))
-        self.backBtn.clicked.connect(self.view.back)
-        self.forwardBtn.clicked.connect(self.view.forward)
-        self.refreshBtn.clicked.connect(self.view.reload)
-        self.horizontalLayout.addWidget(self.view)
-        self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
-
     def set_ehentai(self):
-        # def recheck():    # deprecated
-        #     limit = self.eh_kits.get_limit()
-        #     self.limitCntLabel.setText(limit)
-        # recheck()
-        # self.ehentaiWidget.setEnabled(True)
-        # self.recheckBtn.clicked.connect(recheck)
-
         for key, values in conf.eh_cookies.items():
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
@@ -100,11 +122,16 @@ class BrowserWindow(QMainWindow, Ui_browser):
     @classmethod
     def check_ehentai(cls, window):
         if not conf.eh_cookies:
-            QMessageBox.information(window, 'Warning', res.EHentai.COOKIES_NOT_SET, QMessageBox.Ok)
+            InfoBar.error(
+                title='', content=res.EHentai.COOKIES_NOT_SET,
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
+                duration=-1, parent=window.textBrowser
+            )
             return
         cls.eh_kits = EHentaiKits(conf)
         if not cls.eh_kits.test_index():
-            QMessageBox.information(window, 'Warning', f"{res.EHentai.ACCESS_FAIL} {cls.eh_kits.index}")
+            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, window.textBrowser,
+                cls.eh_kits.index, cls.eh_kits.name)
             return
         return True
 

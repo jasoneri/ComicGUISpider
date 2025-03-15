@@ -4,7 +4,6 @@ from assets import res
 
 
 class ClipTasksThread(QThread):
-    # TODO[3](2025-02-24): 当任务只有1时，窗口动作太快闪退，未查明原因
     info_signal = pyqtSignal(tuple)
     total_signal = pyqtSignal(dict)
 
