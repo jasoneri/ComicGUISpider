@@ -16,11 +16,11 @@
 
 </div>
 
-▼ 操作演示 ▼
+▼ 操作演示 ▼ 动图没加载/卡顿时可用备链打开
 
-| 预览/多选/翻页（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/turn-page-new.gif)）  | 读剪贴板（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)） |
-|:--------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
-| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page-new.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
+|       预览/多选/翻页（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
+|:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
+| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
 
 
 ## 📑介绍
@@ -112,7 +112,7 @@
 <table><tbody>  
   <tr><td colspan="2" style="text-align: center; vertical-align: middle;">预览窗口按钮组</td></tr>  
   <tr>
-    <td><img src="assets/browser_btn_group.png" alt="logo" style="max-height: 60px;"></td>
+    <td><img src="assets/browser_copyBtn.png" alt="logo" style="max-height: 60px;"></td>
     <td>将当前未完成链接复制到剪贴板，需参考<a href="docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关" target="_blank">额外使用说明第三条</a>对剪贴板软件做些设置。<br>先`复制`后用`剪贴板功能`的流程，常用于进度卡死不动重下或补漏页
 </td>
   </tr>  
@@ -123,7 +123,7 @@
 > 有关生效时间节点请查阅 [额外使用说明第一条](docs/FAQ_and_EXTRA.md#1-配置生效相关)  
 > 多行的编辑框输入为`yaml`格式（除了eh_cookies），⚠️ 冒号后要加一个<kbd>空格</kbd> ⚠️
 
-![](assets/conf_usage.jpg)
+![](assets/conf_usage.png)
 
 <details>
 <summary>配置详细说明👈点击展开</summary>
