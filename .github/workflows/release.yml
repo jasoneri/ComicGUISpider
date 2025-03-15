@@ -61,8 +61,8 @@ jobs:
     - name: Build packages
       working-directory: /build
       run: |
-        python scripts/deploy/packer.py windows
-        python scripts/deploy/packer.py mac
+        python scripts/deploy/packer.py windows -v "${{ github.ref_name }}"
+        python scripts/deploy/packer.py mac -v "${{ github.ref_name }}"
 
     - name: Create Release
       uses: softprops/action-gh-release@v1

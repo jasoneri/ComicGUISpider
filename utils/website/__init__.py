@@ -295,6 +295,7 @@ class WnacgUtils(EroUtils, Req):
 
 
 class EHentaiKits(EroUtils, Req):
+    name = "ehentai"
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
     domain = "exhentai.org"

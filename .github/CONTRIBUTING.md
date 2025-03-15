@@ -56,7 +56,6 @@
 ##### 常用方法
 
 + self.say: 能将字符串(可使用部分html标签格式)打印在gui上
-+ utils.font_color: 自定义\<font>标签，跟self.say配合使用
 + utils.processed_class.PreviewHtml: 通过`add`喂预览图链接，结束后用`created_temp_html`
   生成临时html文件。实例详见`JmSpider.frame_book`
 
@@ -68,12 +67,12 @@
 2. `DEFAULT_COMPLETER` - 默认预设：序号必须，值可空列表。用户配置会覆盖，但是可以先把做了开发的映射放进去
 3. `STATUS_TIP` - 状态栏输入提示：序号必须，值可空字符串。鼠标悬停在搜索框时，最下状态栏会出现的文字
 
-> 如目标网站为禁漫这类的，还需在`SPECIAL_WEBSITES`加进 爬虫名字`ehentai¹` （此处影响存储位置）<br>
+> 如目标网站为禁漫这类的，还需在`SPECIAL_WEBSITES`加进 爬虫名字`ehentai¹` （此处影响存储位置）  
 > 在`SPECIAL_WEBSITES_IDXES`加进 序号`4`² （此处影响gui逻辑）
 
 #### 2.3 gui代码
 
-1. [前往`GUI/uic/ui_mainwindow.py` ](../GUI/uic/ui_mainwindow.py) 搜索`self.chooseBox.setItemText`，在`wnacg`条目下方加入代码
+1. [前往`GUI/mainwindow.py` ](../GUI/mainwindow.py) ，在最下方加入代码
     ```python
     self.chooseBox.addItem("")
     self.chooseBox.setItemText(4, _translate("MainWindow", "4、ehentai**"))  # ** 是作为禁漫这类网站的标识，不影响任何代码
@@ -87,12 +86,14 @@
 
 #### 纯后台测试 无GUI
 
-根目录的`crawl_only.py`，修改`spider_choice`为序号`4`²，运行测试，根据报错等调整跑通后，进入GUI集成测试
+```python
+python crawl_only.py -w 4 -k 首页 -i 1
+```
 
 #### GUI测试
 
 > 注意: 当`ComicSpider/settings.py`里的`LOG_FILE`不为空时，控制台不会打印任何信息，只会在日志`log/scrapy.log`
-> 中输出，无论什么日志等级 <br>
+> 中输出，无论什么日志等级  
 > 反之想让控制台输出时将其值置为空，在commit时需要改回来
 
 根目录运行`python CGS.py`，进GUI后先进行开发的网站流程是否正常，然后测试其他网站有没受影响

@@ -70,7 +70,6 @@ class ComicPipeline(ImagesPipeline):
 
     def item_completed(self, results, item, info):
         _item = super(ComicPipeline, self).item_completed(results, item, info)
-        # TODO[5](2025-01-10): 可以像image_downloaded里的send那样，后续可扩展TaskObj将图片url信息塞进Obj
         return _item
 
 

@@ -2,20 +2,22 @@
 # -*- coding: utf-8 -*-
 import ast
 import json
-import pathlib
 
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QDialog
+from PyQt5.QtWidgets import QDialog, QSizePolicy
+from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, HyperlinkButton
 
-from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
+from assets import res
 from variables import SPIDERS
 from utils import conf, yaml, convert_punctuation as cp
-from assets import res
+from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
+from GUI.uic.qfluent.action_factory import Updater, DescCreator, ProjUpdateThread
 
 
 class ConfDialog(QDialog, Ui_ConfDialog):
     def __init__(self, parent=None):
         super(ConfDialog, self).__init__(parent)
+        self.gui = parent
         self.setupUi(self)
 
     def setupUi(self, Dialog):
@@ -24,16 +26,38 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
+        self.insert_btn()
+
+    def insert_btn(self):
+        def _create_desc():
+            DescCreator.run()
+        self.descBtn = PrimaryPushButton(FIF.LIBRARY, res.GUI.Uic.confDia_descBtn)
+        self.descBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.descBtn.setMaximumSize(QtCore.QSize(110, 16777215))
+        self.descBtn.clicked.connect(_create_desc)
+        def _regular_update():
+            self.puThread = ProjUpdateThread(self)
+            Updater(self.gui).run()
+        self.updateBtn = PushButton(FIF.UPDATE, res.GUI.Uic.confDia_updateBtn)
+        self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
+        self.updateBtn.clicked.connect(_regular_update)
+        self.githubBtn = HyperlinkButton(FIF.GITHUB, "https://github.com/jasoneri/ComicGUISpider", "Github")
+
+        self.bottom_btn_horizontalLayout.insertWidget(0, self.githubBtn)
+        self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
+        self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
-        for _ in ('sv_path', 'proxies', 'custom_map', 'cv_proj_path', "completer", "eh_cookies",
-                  "clip_db", "clip_read_num"):
+        for _ in ('sv_path', 'proxies', 'custom_map', "completer", "eh_cookies", "clip_db"):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         # 2. CheckBox类配置
         for _ in ('addUuid', 'isDeduplicate'):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
+        # 3. SpinBox类配置
+        getattr(self, "clip_read_numEdit").setValue(int(getattr(conf, "clip_read_num")))
         super(ConfDialog, self).show()
 
     @staticmethod
@@ -47,9 +71,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             return str(val)
 
     def save_conf(self):
-        sv_path = getattr(self, f"sv_pathEdit").text()
-        cv_proj_path_str = getattr(self, f"cv_proj_pathEdit").text()
-        eh_cookies_str = cp(getattr(self, f"eh_cookiesEdit").toPlainText()).replace("cookies = ", "")
+        sv_path = getattr(self, "sv_pathEdit").text()
+        eh_cookies_str = cp(getattr(self, "eh_cookiesEdit").toPlainText()).replace("cookies = ", "")
         if not conf.eh_cookies and eh_cookies_str:
             try:
                 assert isinstance(ast.literal_eval(eh_cookies_str), dict)
@@ -57,26 +80,14 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                 raise SyntaxError(res.GUI.cookies_copy_err)
         config = {
             "sv_path": sv_path,
-            "cv_proj_path": cv_proj_path_str,
-            "custom_map": yaml.safe_load(cp(getattr(self, f"custom_mapEdit").toPlainText())),
-            "completer": yaml.safe_load(cp(getattr(self, f"completerEdit").toPlainText())),
+            "custom_map": yaml.safe_load(cp(getattr(self, "custom_mapEdit").toPlainText())),
+            "completer": yaml.safe_load(cp(getattr(self, "completerEdit").toPlainText())),
             "eh_cookies": yaml.safe_load(eh_cookies_str),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
             "addUuid": getattr(self, "addUuid").isChecked(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
-            "clip_db": getattr(self, f"clip_dbEdit").text(),
-            "clip_read_num": getattr(self, f"clip_read_numEdit").text()
+            "clip_db": getattr(self, "clip_dbEdit").text(),
+            "clip_read_num": getattr(self, "clip_read_numEdit").value()
         }
         conf.update(**config)
-
-        if cv_proj_path_str:  # 联动comic_viewer更改
-            cv_proj_path = pathlib.Path(cv_proj_path_str)
-            if cv_proj_path.joinpath("scripts").exists():
-                cv_proj_path = cv_proj_path.joinpath("scripts")
-            cv_conf = cv_proj_path.joinpath("backend/conf.yml")
-            if not cv_conf.exists():
-                return
-            with open(cv_conf, 'w', encoding='utf-8') as fp:
-                yaml_data = yaml.dump({"path": sv_path}, allow_unicode=True)
-                fp.write(yaml_data)

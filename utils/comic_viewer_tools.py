@@ -3,7 +3,6 @@
 import pathlib
 import re
 import shutil
-from pprint import pformat
 
 from tqdm import tqdm
 
@@ -48,7 +47,7 @@ def show_max(record_file) -> str:
     for book, sections in temp.items():
         temp[book] = max(temp[book],
                          key=lambda x: float(sec_regex.search(x).group(1)) if sec_regex.search(x) else 0)
-    return pformat(temp)
+    return temp
 
 
 if __name__ == '__main__':

@@ -18,11 +18,14 @@
 
 ▼ 操作演示 ▼
 
-|  预览、多选（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/preview-usage.gif)）  | 翻页、保留选择（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/turn-page.gif)） |
+| 预览/多选/翻页（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/turn-page-new.gif)）  | 读剪贴板（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)） |
 |:--------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
-| ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif) |
+| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page-new.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
+
 
 ## 📑介绍
+
+先下载后再看，免得在线看时得忍受卡网广告等😇 `CGS` 因这想法而诞生  
 
 ### 支持网站/功能
 
@@ -32,7 +35,7 @@
 | [Māngabz](https://mangabz.com)        |       ❌       |     ✅     |  ❌   | 代理 |
 | [禁漫天堂](https://18comic.vip/)          |       ✅       |     ✅     |  ✅   |     🔞     |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞<br>不fan墙需求看[额外使用说明第二条](docs/FAQ_and_EXTRA.md#2-域名相关说明)     |
-| [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳转 |  ✅   |     🔞/代理     |
+| [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳页 |  ✅   |     🔞/代理     |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -40,9 +43,9 @@
   <tr>
     <td>CGS导航</td>
     <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">🔗绿色包下载</a></td>
-    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗GUI视频使用指南<br>(注意评论跳链)</a></td>  
-    <td><a href="docs/FAQ_and_EXTRA.md">🔗FAQ / 额外说明</a></td>
-    <td><a href="deploy/launcher/mac/EXTRA.md">🔗macOS必读补充说明</a></td> 
+    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments" target="_blank">🔗GUI视频使用指南<br>(注意评论跳链)</a></td>  
+    <td><a href="docs/FAQ_and_EXTRA.md" target="_blank">🔗FAQ / 额外说明</a></td>
+    <td><a href="deploy/launcher/mac/EXTRA.md" target="_blank">🔗macOS必读补充说明</a></td> 
   </tr>  
 </tbody></table>
 
@@ -55,27 +58,32 @@
 
 ## 📢更新
 
-> 现遵从`语义版本控制`，到下一稳定版之间至少会有一个[`Pre-release`的`beta`开发版](
-  https://github.com/jasoneri/ComicGUISpider/releases)
+> `v2.0.0-beta`开始，配置窗口左下角设有`检查更新`按钮，请根据提示进行更新操作
 
-### v1.8.2 | ~ 2025-03-08
+### v2.0.0-beta | ~ 2025-03-15
 
 #### 🎁 Features
 
-+ 预览窗口新增`复制`按钮，详情看下方 [`预览窗口按钮`说明](#预览窗口按钮)
+✅ CGS的`使用说明`与`更新`在 v2.0.0-beta 以后将设置在配置窗口的左下按钮，绿色包可执行程序只保留主程序（macOS加个初始化.app）  
+✅ 优化更新流程，贴近主流软件体验  
+✅ ✨使用`QFluentWidgets`优化界面与操作体验  
+<span style="white-space:pre">&#9;</span>✅ 搜索框增加右键选项`展开预设`, 序号输入框也有  
+<span style="white-space:pre">&#9;</span>✅ 展示已阅最新话使用表格视图  
+<span style="white-space:pre">&#9;</span>✅ 预览窗口改造了右键菜单，已将翻页加进去（后续有机会扩展菜单功能），附带有`CGS`内的全局快捷键  
+<span style="white-space:pre">&#9;</span>📣 优化ui后，目前在 `2560*1600分辨率 150%缩放` 上去掉`Qt同步系统缩放`也能有良好ui体验
+（操作参考[更新历史`v1.6.3`删代码部分](docs/UPDATE_RECORD.md)，后续若有反响则做成开关提供切换）
 
 #### 🐞 Fix
 
-+ 修复剪贴板仅单任务时，出预览窗口后程序却闪退的问题
-+ 优化翻页保留相关逻辑等
-+ 调整各类说明文档的存储/指向等
+✅ 修复`wnacg`剪贴板xpath解析错误问题
+✅ 修复去重样式提示在翻页后没有生效
 
-> [点击查看更新历史](docs/UPDATE_RECORD.md)
+> [🕑更新历史](docs/UPDATE_RECORD.md) / [📝开发日志](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
 ## 📚功能
 
-1. 搜索框的联想功能（ 按 <kbd>空格</kbd> 弹出对应预设 ）
-2. 预览功能：内置的小型浏览器，封面点击多选，条目链接浏览器体验，浏览器功能按键等。详情使用看`视频3`
+1. 搜索框的预设功能（ 在搜索框区域右键选`展开预设`即可弹出预设选项 ），序号输入框同理
+2. 预览功能：内置的小型浏览器，封面点击多选，条目链接浏览器体验等。详情使用看`视频3`
 3. 翻页：当有列表结果出来后开启使用，使用如上面动图所示
 
 | 4.工具箱  | 仅用于.. | 说明                                                                                                                                                                                                                                 |
@@ -88,29 +96,35 @@
 
 ### 常规GUI运行
 
-`python CGS.py`
+`python CGS.py`  
+或使用绿色包程序
 
 ### 命令行工具
 
 `python crawl_only.py --help`  
 或使用绿色包的环境，在解压目录打开终端执行`.\runtime\python.exe .\scripts\crawl_only.py --help`
 
-> 当前版本能进行简单下载/调试功能，使用方法进help看说明  
-> 后续将逐步扩展命令行工具/参数  
+> 当前版本能进行简单下载/调试功能（后续将逐步扩展），使用方法进help看说明  
 > 命令行工具的配置可用GUI方式修改 或 直接修改`scripts/conf.yml`文件
 
-### 预览窗口按钮
+### 按钮组
 
-1. `v1.8.0` 开始删除`翻页保留勾选框`，实际没人翻页不保留，因为该页一个不选就好了（此条说明将在后续更新中去除）
-2. `复制未完成`按钮：将当前未完成下载的条目链接复制到剪贴板，需参考[额外使用说明第三条](docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关)对剪贴板软件做些设置。先`复制`后用`剪贴板功能`的流程约等于重试，常用于进度卡死不动的情况
-
-![browser_btn_group](assets/browser_btn_group.png)
+<table><tbody>  
+  <tr><td colspan="2" style="text-align: center; vertical-align: middle;">预览窗口按钮组</td></tr>  
+  <tr>
+    <td><img src="assets/browser_btn_group.png" alt="logo" style="max-height: 60px;"></td>
+    <td>将当前未完成链接复制到剪贴板，需参考<a href="docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关" target="_blank">额外使用说明第三条</a>对剪贴板软件做些设置。<br>先`复制`后用`剪贴板功能`的流程，常用于进度卡死不动重下或补漏页
+</td>
+  </tr>  
+</tbody></table>
 
 ## 🔨配置
 
-> 有关生效时间节点请查阅 [额外使用说明第一条](docs/FAQ_and_EXTRA.md#1-配置生效相关)
+> 有关生效时间节点请查阅 [额外使用说明第一条](docs/FAQ_and_EXTRA.md#1-配置生效相关)  
+> 多行的编辑框输入为`yaml`格式（除了eh_cookies），⚠️ 冒号后要加一个<kbd>空格</kbd> ⚠️
 
 ![](assets/conf_usage.jpg)
+
 <details>
 <summary>配置详细说明👈点击展开</summary>
 
@@ -118,24 +132,19 @@
 |:-----------|:-------------:|:---------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 存储路径       |    sv_path    | D:\comic  | 下载目录（内容目录结构里还有个`web`文件夹的情况是因为默认关联[`comic_viewer`项目](https://github.com/jasoneri/comic_viewer)所以这样设置的）                                                                                                                                                   |
 | 日志等级       |   log_level   | `WARNING` | 后台运行过后会有log目录，GUI 与 后台 同级，报错时GUI会进行操作指引                                                                                                                                                                                                                 |
-| 去重         | isDeduplicate |   false   | <a id="配置"></a>勾选状态下，点预览时会额外花点时间查记录并做出相应样式提示，同时下载也会自动过滤已存在的记录<br>当前仅🔞网适用                                                                                                                                                                               |
+| 去重         | isDeduplicate |   false   | <a id="配置"></a>勾选状态下，预览窗口会有已下载的样式提示，同时下载也会自动过滤已存在的记录<br>当前仅🔞网适用                                                                                                                                                                               |
 | 增加标识       |    addUuid    |   false   | 存储时目录最后增加标识，用以处理同一命名的不同作品等                                                                                                                                                                                                                              |
 | 代理         |    proxies    |           | 翻墙用，（已设置`jm`无论用全局还是怎样都只走本地原生ip）<br/>（建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量）                                                                                                                                                                          |
-| 映射         |  custom_map   |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重开gui在搜索框输入自定义键就会将对应网址结果输出，视频3有介绍用法<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 注意自制的映射有可能超出翻页规则范围，此时可通知开发者进行扩展                                         |
-| 预设         |   completer   |           | 搜索框按<kbd>空格</kbd>弹出的内容，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                                                       |
+| 映射         |  custom_map   |           | 搜索输入映射 当搜索与预设不满足使用时，先在此加入键值对，重启后在搜索框输入自定义键就会将对应网址结果输出，视频3有介绍用法<br/>1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，<br/>程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉<br/>2. 注意自制的映射有可能超出翻页规则范围，此时可通知开发者进行扩展                                         |
+| 预设         |   completer   |           | 自定义预设，鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)，视频3有介绍用法                                                                                                                                                                                       |
 | eh_cookies |  eh_cookies   |           | 使用`exhentai`时必需，[🔗点击查看获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)  ([ 国内备链 ](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif))<br/> [🔗动图中的curl转换网站](https://tool.lu/curl/) |
-| 剪贴板db      |    clip_db    |           | 默认读取剪贴板软件的数据库初设路径<br>如相关功能无法使用时可自行查看路径是否一致，并在此更改<br>1. ditto(win): 打开选项 → 数据库路径 <br>2.maccy(macOS): [issue搜索相关得知](https://github.com/p0deje/Maccy/issues/271)                                                                                           |
-| 读取条数       | clip_read_num |    20     | 读取剪贴板软件条目数量，需少于剪贴板软件设置的最大数量 (建议少量多次)                                                                                                                                                                                                                    |
-| cv项目路径     | cv_proj_path  |           | 没用到`comic_viewer`项目的不用管。若用到, 会联动将存储路径更新进去（若不想联动更新，随便写个无关路径）                                                                                                                                                                                             |
+| 剪贴板db      |    clip_db    |           | 读取剪贴板功能无法使用时可查看路径是否存在，通过以下查得正确路径后在此更改<br>1. ditto(win): 打开选项 → 数据库路径 <br>2.maccy(macOS): [issue搜索相关得知](https://github.com/p0deje/Maccy/issues/271)                                                                                           |
+| 读取条数       | clip_read_num |    20     | 读取剪贴板软件条目数量                                                                                                                                                                                                                   |
 
 </details>
 
-> 除 `存储路径` 其他均非必须，使用默认即可 或置空  
+> 配置项按需设置，使用默认也可，或置空  
 > 配置文件为 `scripts/conf.yml`
-
-## ❓ Q & A 问答
-
-精简版面，已切换至CGS导航的 [🔗FAQ](docs/FAQ_and_EXTRA.md)，后续版本将移除此部分
 
 ## 🔰其他
 
@@ -160,9 +169,32 @@
 前往[🔗window终端](https://apps.microsoft.com/detail/9N0DX20HK701?launch=true&mode=full&hl=zh-cn&gl=cn&ocid=bingwebsearch)
 并自行安装 ~~建议升级win11~~
 
-## 💬交流
+## 💬交流/反馈
 
-![](https://img.shields.io/badge/QQ群-437774506-blue.svg?colorA=abcopq)
+![Q群-437774506](https://img.shields.io/badge/QQ群-437774506-blue.svg?colorA=abcopq)
+
+## 💝CGS受以下开源项目支持
+
+<table><tbody>  
+  <tr>
+    <td><div align="center"><a href="https://github.com/skywind3000/PyStand" target="_blank">
+      PyStand
+    </a></div></td>
+    <td><div align="center"><a href="https://github.com/sveinbjornt/Platypus" target="_blank">
+      <img src="https://jsd.vxo.im/gh/sveinbjornt/Platypus/Documentation/images/platypus.png" alt="logo" style="max-width: 50px;">
+      <br>Platypus</a></div></td>
+    <td><div align="center"><a href="https://github.com/sabrogden/Ditto" target="_blank">
+      <img src="https://avatars.githubusercontent.com/u/16867884?v=4" alt="logo" style="max-width: 50px;">
+      <br>Ditto</a></div></td>
+    <td><div align="center"><a href="https://github.com/p0deje/Maccy" target="_blank">
+      <img src="https://maccy.app/img/maccy/Logo.png" alt="logo" style="max-width: 50px;">
+      <br>Maccy</a></div></td>
+    <td><div align="center"><a href="https://github.com/zhiyiYo/PyQt-Fluent-Widgets/" target="_blank">
+      <img src="https://qfluentwidgets.com/img/logo.png" alt="logo" style="max-width: 50px;">
+      <br>PyQt-Fluent-Widgets</a></div></td>
+    <td><div align="center">etc..</div></td>
+  </tr>  
+</tbody></table>
 
 ## 🔇免责声明
 

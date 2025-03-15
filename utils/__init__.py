@@ -36,7 +36,6 @@ def yaml_update(_f, dic):
 @dataclass
 class Conf:
     sv_path: t.Union[p.Path, str] = curr_os.default_sv_path
-    cv_proj_path: t.Union[p.Path, str] = r''
     log_path = ori_path.joinpath('log')
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
@@ -78,7 +77,6 @@ class Conf:
         props = asdict(self)
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['clip_db'] = path_like_handle(props['clip_db'])
-        props['cv_proj_path'] = path_like_handle(props['cv_proj_path'])
         yaml_update(self.file, props)
 
     def cLog(self, name: str, level: str = None, **kw):
