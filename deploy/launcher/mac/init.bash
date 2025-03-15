@@ -13,7 +13,12 @@ if [ ! -x /usr/local/bin/python3.12 ];
 fi
 
 /usr/local/bin/python3.12 deploy/__init__.py;
-/usr/local/bin/python3.12 -m pip install -r requirements.txt -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com --user --break-system-packages;
+echo "正在安装依赖（自动过滤macOS不兼容包）..."
+cat requirements.txt | grep -vE 'pywin32==|twisted-iocpsupport==' | /usr/local/bin/python3.12 -m pip install -r /dev/stdin \
+    -i http://mirrors.aliyun.com/pypi/simple/ \
+    --trusted-host mirrors.aliyun.com \
+    --user \
+    --break-system-packages;
 
 echo ""
 echo "===== 初始化完毕，请手动关闭终端窗口 ====="
