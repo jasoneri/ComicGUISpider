@@ -15,6 +15,7 @@ colorama==0.4.6           # via loguru, tqdm
 constantly==23.10.4       # via twisted
 cryptography==43.0.0      # via pyopenssl, scrapy, service-identity
 cssselect==1.2.0          # via parsel, scrapy
+darkdetect==0.8.0         # via pyqt-fluent-widgets
 decorator==5.1.1          # via jsonpath-rw
 defusedxml==0.7.1         # via scrapy
 filelock==3.15.4          # via tldextract
@@ -42,11 +43,14 @@ pycparser==2.22           # via cffi
 pydispatcher==2.0.7       # via scrapy
 pyexecjs==1.5.1           # via -r requirements-in.txt
 pyopenssl==24.2.1         # via scrapy
-pyqt5==5.15.11            # via -r requirements-in.txt, pyqtwebengine
+pyqt-fluent-widgets==1.7.6  # via -r requirements-in.txt
+pyqt5==5.15.11            # via -r requirements-in.txt, pyqt-fluent-widgets, pyqtwebengine
+pyqt5-frameless-window==0.4.5  # via pyqt-fluent-widgets
 pyqt5-qt5==5.15.2         # via pyqt5
 pyqt5-sip==12.15.0        # via pyqt5, pyqtwebengine
 pyqtwebengine==5.15.7     # via -r requirements-in.txt
 pyqtwebengine-qt5==5.15.2  # via pyqtwebengine
+pywin32==309              # via pyqt5-frameless-window
 pyyaml==6.0.1             # via -r requirements-in.txt
 queuelib==1.7.0           # via scrapy
 requests==2.32.3          # via requests-file, tldextract

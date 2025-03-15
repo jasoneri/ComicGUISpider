@@ -47,7 +47,7 @@ class macOS:
     def handle_requirements(self):
         self.file_content_replace(
             self.proj_p.joinpath('requirements.txt'),
-            lambda content: re.sub(r"twisted-iocpsupport==.*\n", "", content)
+            lambda content: re.sub(r"twisted-iocpsupport==.*\n|pywin32==.*\n", "", content)
         )
 
     @staticmethod
