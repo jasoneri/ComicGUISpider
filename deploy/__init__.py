@@ -3,6 +3,7 @@
 import os
 import platform
 import pathlib
+import subprocess
 
 
 class Env:
@@ -21,6 +22,10 @@ class Env:
     @staticmethod
     def open_folder(_p):
         os.startfile(_p)
+
+    @staticmethod
+    def open_file(_f):
+        subprocess.run(["start", "", f"{_f}"], shell=True, check=True)
 
 
 proj_path = pathlib.Path(__file__).parent.parent
