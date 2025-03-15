@@ -41,7 +41,7 @@ class macOS:
             new_content = re.sub(r'font\.setFamily\(".*?"\)', f'font.setFamily("{font}")', content)
             return new_content
         uic_p = self.proj_p.joinpath("GUI/uic")
-        for _f in ["ui_ensure_dia.py", "browser.py", "ui_mainwindow.py"]:
+        for _f in ["conf_dia.py", "browser.py", "ui_mainwindow.py"]:
             self.file_content_replace(uic_p.joinpath(_f), _repl)
 
     def handle_requirements(self):
