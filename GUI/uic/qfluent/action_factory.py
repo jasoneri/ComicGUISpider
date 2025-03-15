@@ -12,6 +12,7 @@ from qfluentwidgets import (
 
 from assets import res
 from utils import ori_path
+from deploy import curr_os
 from deploy.update import create_desc, regular_update, Proj, MarkdownConverter
 from GUI.uic.qfluent.components import CustomInfoBar
 
@@ -20,7 +21,7 @@ class DescCreator:
     @staticmethod
     def run():
         desc_html = create_desc()
-        subprocess.run(["start", "", f"{desc_html}"], shell=True, check=True)
+        curr_os.open_file(desc_html)
 
 
 class IndeterminateBarFView(FlyoutViewBase):

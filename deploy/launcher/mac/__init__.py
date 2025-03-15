@@ -22,6 +22,10 @@ class macOS:
     def open_folder(_p):
         subprocess.run(['open', _p])
 
+    @staticmethod
+    def open_file(_f):
+        subprocess.run(['open', _f])
+
     def env_init(self):
         # 1. 更换字体
         self.font_replace()
