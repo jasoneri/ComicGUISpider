@@ -173,7 +173,6 @@ class PreviewHtml:
 
     @property
     def created_temp_html(self):
-        temp_p = ori_path.joinpath("__temp")
         temp_p.mkdir(exist_ok=True)
         with open(self.format_path.joinpath(rf"{self.html_style}.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()

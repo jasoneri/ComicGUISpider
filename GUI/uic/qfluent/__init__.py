@@ -48,10 +48,10 @@ class MonkeyPatch:
 
         def custom_menu():
             fluent_menu = RoundMenu(parent=web_view)
-            next_page_action = Action(FluentIcon.PAGE_RIGHT, web_view.tr(res.menu_next_page), 
-                triggered=browserWindow.gui.nextPageBtn.click, shortcut='Ctrl+,')
-            previous_page_action = Action(FluentIcon.PAGE_LEFT, web_view.tr(res.menu_prev_page), 
-                triggered=browserWindow.gui.previousPageBtn.click, shortcut='Ctrl+.')
+            next_page_action = Action(FluentIcon.PAGE_RIGHT, web_view.tr(res.menu_next_page),
+                                      triggered=browserWindow.gui.nextPageBtn.click, shortcut='Ctrl+.')
+            previous_page_action = Action(FluentIcon.PAGE_LEFT, web_view.tr(res.menu_prev_page),
+                                          triggered=browserWindow.gui.previousPageBtn.click, shortcut='Ctrl+,')
             fluent_menu.addAction(next_page_action)
             fluent_menu.addAction(previous_page_action)
             fluent_menu.addSeparator()
