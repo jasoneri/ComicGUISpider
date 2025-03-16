@@ -16,9 +16,9 @@
 
 </div>
 
-▼ 操作演示 ▼ 动图没加载/卡顿时可用备链打开
+▼ 操作演示 ▼ （动图没加载/卡顿时可用备链打开）
 
-|       预览/多选/翻页（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[国内备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
+|       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
 
@@ -67,22 +67,22 @@
 ✅ CGS的`使用说明`与`更新`在 v2.0.0-beta 以后将设置在配置窗口的左下按钮，绿色包可执行程序只保留主程序（macOS加个初始化.app）  
 ✅ 优化更新流程，贴近主流软件体验  
 ✅ ✨使用`QFluentWidgets`优化界面与操作体验  
-<span style="white-space:pre">&#9;</span>✅ 搜索框增加右键选项`展开预设`, 序号输入框也有  
-<span style="white-space:pre">&#9;</span>✅ 展示已阅最新话使用表格视图  
-<span style="white-space:pre">&#9;</span>✅ 预览窗口改造了右键菜单，已将翻页加进去（后续有机会扩展菜单功能），附带有`CGS`内的全局快捷键  
-<span style="white-space:pre">&#9;</span>📣 优化ui后，目前在 `2560*1600分辨率 150%缩放` 上去掉`Qt同步系统缩放`也能有良好ui体验
+&emsp;✅ 搜索框增加右键选项`展开预设`, 序号输入框也有  
+&emsp;✅ 展示已阅最新话使用表格视图  
+&emsp;✅ 预览窗口改造了右键菜单，已将翻页加进去（后续有机会扩展菜单功能），附带有`CGS`内的全局快捷键  
+&emsp;📣 优化ui后，目前在 `2560*1600分辨率 150%缩放` 上去掉`Qt同步系统缩放`也能有良好ui体验
 （操作参考[更新历史`v1.6.3`删代码部分](docs/UPDATE_RECORD.md)，后续若有反响则做成开关提供切换）
 
 #### 🐞 Fix
 
-✅ 修复`wnacg`剪贴板xpath解析错误问题
+✅ 修复`wnacg`剪贴板xpath解析错误问题  
 ✅ 修复去重样式提示在翻页后没有生效
 
 > [🕑更新历史](docs/UPDATE_RECORD.md) / [📝开发日志](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
 ## 📚功能
 
-1. 搜索框的预设功能（ 在搜索框区域右键选`展开预设`即可弹出预设选项 ），序号输入框同理
+1. 搜索框的预设功能（在搜索框区域按<kbd>空格</kbd>或右键选`展开预设`即可弹出预设选项），序号输入框同理
 2. 预览功能：内置的小型浏览器，封面点击多选，条目链接浏览器体验等。详情使用看`视频3`
 3. 翻页：当有列表结果出来后开启使用，使用如上面动图所示
 
@@ -113,7 +113,7 @@
   <tr><td colspan="2" style="text-align: center; vertical-align: middle;">预览窗口按钮组</td></tr>  
   <tr>
     <td><img src="assets/browser_copyBtn.png" alt="logo" style="max-height: 60px;"></td>
-    <td>将当前未完成链接复制到剪贴板，需参考<a href="docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关" target="_blank">额外使用说明第三条</a>对剪贴板软件做些设置。<br>先`复制`后用`剪贴板功能`的流程，常用于进度卡死不动重下或补漏页
+    <td>将当前未完成链接复制到剪贴板，需参考<a href="docs/FAQ_and_EXTRA.md#3-预览视窗的复制按钮相关" target="_blank">额外使用说明第三条</a>对剪贴板软件做些设置。<br>先<code>复制</code>后用<code>剪贴板功能</code>的流程，常用于进度卡死不动重下或补漏页
 </td>
   </tr>  
 </tbody></table>
@@ -181,16 +181,16 @@
       PyStand
     </a></div></td>
     <td><div align="center"><a href="https://github.com/sveinbjornt/Platypus" target="_blank">
-      <img src="https://jsd.vxo.im/gh/sveinbjornt/Platypus/Documentation/images/platypus.png" alt="logo" style="max-width: 50px;">
+      <img src="https://jsd.vxo.im/gh/sveinbjornt/Platypus/Documentation/images/platypus.png" alt="logo" height="50">
       <br>Platypus</a></div></td>
     <td><div align="center"><a href="https://github.com/sabrogden/Ditto" target="_blank">
-      <img src="https://avatars.githubusercontent.com/u/16867884?v=4" alt="logo" style="max-width: 50px;">
+      <img src="https://avatars.githubusercontent.com/u/16867884?v=4" alt="logo" height="50">
       <br>Ditto</a></div></td>
     <td><div align="center"><a href="https://github.com/p0deje/Maccy" target="_blank">
-      <img src="https://maccy.app/img/maccy/Logo.png" alt="logo" style="max-width: 50px;">
+      <img src="https://maccy.app/img/maccy/Logo.png" alt="logo" height="50">
       <br>Maccy</a></div></td>
     <td><div align="center"><a href="https://github.com/zhiyiYo/PyQt-Fluent-Widgets/" target="_blank">
-      <img src="https://qfluentwidgets.com/img/logo.png" alt="logo" style="max-width: 50px;">
+      <img src="https://qfluentwidgets.com/img/logo.png" alt="logo" height="50">
       <br>PyQt-Fluent-Widgets</a></div></td>
     <td><div align="center">etc..</div></td>
   </tr>  
