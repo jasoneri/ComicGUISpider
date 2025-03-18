@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/By-Qt5_&_Scrapy-blue.svg?colorA=abcdef" alt="tag">
   <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
-    <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
+    <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fcgs-downloaded-cn.jsoneri.workers.dev%2F&style=social&logo=github" alt="tag">
   </a>
 
   <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=32&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS%EF%BC%8C%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%2F%E7%BF%BB%E9%A1%B5%2F%E8%AF%BB%E5%89%AA%E8%B4%B4%E6%9D%BF%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
@@ -51,8 +51,8 @@
 
 <hr>
 
-**☝️😋收藏夹吃灰？不如点⭐Star给作者加赛博功德(*￣∇￣*) 你的⭐Star会让CGS升级更快！** ![stars](
-  https://img.shields.io/github/stars/jasoneri/ComicGUISpider)
+**[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
+)](https://github.com/jasoneri/ComicGUISpider/stargazers) ➕1️⃣😻，➖1️⃣🙀⁉️😧❓**
 
 <hr>
 
@@ -173,7 +173,7 @@
 
 ![Q群-437774506](https://img.shields.io/badge/QQ群-437774506-blue.svg?colorA=abcopq)
 
-## 💝CGS受以下开源项目支持
+## 💝CGS的部分实现依赖于以下开源项目
 
 <table><tbody>  
   <tr>
