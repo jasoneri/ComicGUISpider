@@ -61,7 +61,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
             InfoBar.success(
                 title='Copied Tip', content=self.gui.res.copied_tip % _.length,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-                duration=2500, parent=self
+                duration=2500, parent=self.view
             )
         self.copyBtn.clicked.connect(copyUnfinishedTasks)
 
