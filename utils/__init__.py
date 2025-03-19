@@ -3,7 +3,6 @@
 import re
 import ast
 import time
-import yaml
 import html
 import hashlib
 import pathlib as p
@@ -11,6 +10,7 @@ import typing as t
 from dataclasses import dataclass, asdict, field
 import multiprocessing.managers as m
 
+import yaml
 from loguru import logger as lg
 
 from variables import DEFAULT_COMPLETER
