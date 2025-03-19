@@ -32,7 +32,8 @@ macOS 仅需下载 `CGS-macOS`压缩包
 | app应用 | 目前用的`Platypus`将代码封装成`app`，处理方式与win的随意位置有所不同                                                                                                                                                                                                                                    |
 
 <table><tbody>  
-    <tr><td>app移至应用程序</td><td><img alt="" src="../../../assets/mac-app-move.jpg"></td></tr>  
+    <!-- 此EXTRA.md会生成guide.html与自身位置的html，静态资源禁止使用路径，需使用url（然后切cdn） -->
+    <tr><td>app移至应用程序</td><td><img alt="" src="https://raw.githubusercontent.com/jasoneri/ComicGUISpider/GUI/assets/mac-app-move.jpg"></td></tr>  
 </tbody></table>
 
 ## 🔰其他

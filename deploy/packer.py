@@ -30,7 +30,7 @@ else:
     tmp_p = prog_path.parent.joinpath("tmp")
 path = prog_path.parent
 sys.path.append(str(prog_path))
-from utils.docs import MarkdownConverter
+from utils.docs import MarkdownConverter, MdHtml
 
 api_github = "https://api.github.com"
 github_token = "**create token by your github account**"
@@ -180,7 +180,11 @@ class PackerMacOS(Packer):
         super(PackerMacOS, self).__init__(tuple(), ver)
 
     def set_guide(self):
-        MarkdownConverter.transfer_markdown(prog_path.joinpath('deploy/launcher/mac/EXTRA.md'), self.tmp_guide_html)
+        with open(prog_path.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
+            md_content = f.read()
+        _html = MarkdownConverter.convert_html(MdHtml(md_content).cdn_replace("jasoneri", "ComicGUISpider", "GUI"))
+        with open(self.tmp_guide_html, 'w', encoding='utf-8') as f:
+            f.write(_html)
 
     def pre_packup(self):
         """ 1. 生成guide.html
