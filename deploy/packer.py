@@ -20,14 +20,18 @@ import py7zr
 
 from tqdm import tqdm
 from loguru import logger
+from utils import ori_path
+from utils.docs import MarkdownConverter
 
 # import github.Requester  # modified in package: HTTPSRequestsConnectionClass.session.proxies
 if pathlib.Path("/build").exists():
     print("Running in CI environment")
     path = pathlib.Path(r"/build")
+    tmp_p = pathlib.Path(r"/tmp")
 else:
     print("Running in local environment")
-    path = pathlib.Path(__file__).parent
+    path = ori_path.parent
+    tmp_p = path.joinpath("tmp")
 api_github = "https://api.github.com"
 github_token = "**create token by your github account**"
 proxies = {"https://": f"http://127.0.0.1:10809"}
@@ -107,8 +111,7 @@ class Packer(Proj):
     _proj = Proj.proj
     executor = path.parent.joinpath(r'Bat_To_Exe_Converter\Bat_To_Exe_Converter.exe')
     zip_file = path.joinpath(f'{_proj}.7z')
-    # preset_zip_file = path.joinpath(f'{_proj}_preset.7z')
-    preset_zip_file = pathlib.Path(f'/tmp/{_proj}_preset.7z')
+    preset_zip_file = tmp_p.joinpath(f'{_proj}_preset.7z')
 
     def __init__(self, default_specified: tuple, ver: str):
         self.default_specified = default_specified
@@ -169,17 +172,22 @@ class Packer(Proj):
 class PackerMacOS(Packer):
     _proj = f"{Proj.proj}-macOS"
     zip_file = path.joinpath(f'{_proj}.7z')
-    # preset_zip_file = path.joinpath(f'{_proj}_preset.7z')
-    preset_zip_file = pathlib.Path(f'/tmp/{_proj}_preset.7z')
+    preset_zip_file = tmp_p.joinpath(f'{_proj}_preset.7z')
     scripts_path = "CGS.app/Contents/Resources/scripts"
+    tmp_guide_html = tmp_p.joinpath('CGS_macOS_first_guide.html')
 
     def __init__(self, ver):
         super(PackerMacOS, self).__init__(tuple(), ver)
 
+    def set_guide(self):
+        MarkdownConverter.transfer_markdown(path.joinpath('deploy/launcher/mac/EXTRA.md'), self.tmp_guide_html)
+
     def pre_packup(self):
-        """ 1。预处理CGS.app的结构
-            2. dos2unix处理项目文本文件"""
+        """ 1. 生成guide.html
+            2. 预处理CGS.app的结构
+            3. dos2unix处理项目文本文件"""
         super(PackerMacOS, self).pre_packup()
+        self.set_guide()
         mac_7z_p = path.joinpath(self.scripts_path.rsplit("/", maxsplit=1)[0])
         mac_7z_p.mkdir(parents=True, exist_ok=True)
         mac_scripts_path = mac_7z_p.joinpath("scripts")
@@ -208,6 +216,7 @@ class PackerMacOS(Packer):
             for file in tqdm(tuple(specified)):
                 if path.joinpath(file).exists():
                     zip_f.writeall(path.joinpath(file), arcname=file)
+            zip_f.write(self.tmp_guide_html, arcname='CGS_macOS_first_guide.html')
         if not self.zip_file.exists():
             self.packup()
 

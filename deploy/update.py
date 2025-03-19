@@ -13,13 +13,14 @@ import traceback
 import platform
 import base64
 
-import markdown
 import httpx
 from tqdm import tqdm
 from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
+from utils.docs import MarkdownConverter, MdHtml
+
 
 curr_os = platform.system()
 if curr_os.startswith("Darwin"):
@@ -217,9 +218,6 @@ class Proj:
         shutil.rmtree(temp_p, onerror=delete)
 
     def end(self):
-        # with open(existed_proj_p.joinpath('version'), 'w', encoding='utf-8') as f:
-        #     f.write(self.ver)
-        # print(Fore.GREEN + "=" * 40 + f"[ {res.finish} ]" + "=" * 40)
         with open(self.local_ver_file, 'w', encoding='utf-8') as f:
             json.dump({"current": self.ver}, f, ensure_ascii=False, indent=4)
 
@@ -259,29 +257,8 @@ def regular_update(version):
         update_result = "exception: over_limit"
     return update_result
 
-    
-with open(existed_proj_p.joinpath('assets/github_format.html'), 'r', encoding='utf-8') as f:
-    github_markdown_format = f.read()
-
-
-class MarkdownConverter:
-    github_markdown_format = github_markdown_format
-    md = markdown.Markdown(extensions=['markdown.extensions.md_in_html', 
-        'markdown.extensions.tables', 'markdown.extensions.fenced_code', 'markdown.extensions.nl2br'],
-        output_format='html5')
-
-    @classmethod
-    def convert_html(cls, md_content):
-        html_body = cls.md.convert(md_content)
-        full_html = cls.github_markdown_format.replace('{content}', html_body)
-        return full_html
-
 
 def create_desc(proj_path=None):
-    def cdn_replace(md_str, author, repo, branch):
-        return (md_str.replace("raw.githubusercontent.com", "jsd.vxo.im/gh")
-                .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
-    
     _p = proj_path or existed_proj_p
     with open(_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
         md_content = f.read().replace(
@@ -289,18 +266,13 @@ def create_desc(proj_path=None):
             'docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html').replace(
             'docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html'
         )
-    md_content = cdn_replace(md_content, Proj.github_author, "imgur", "main").replace(
-        "<details>", '<details markdown="1">')
-    full_html = MarkdownConverter.convert_html(md_content)
+    full_html = MarkdownConverter.convert_html(
+        MdHtml(md_content).cdn_replace(Proj.github_author, "imgur", "main").details_formatter)
     with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
         f.write(full_html)
 
     def transfer_markdown(_in, _out):
-        with open(_p.joinpath(_in), 'r', encoding='utf-8') as f:
-            _md_content = f.read()
-        _html = MarkdownConverter.convert_html(_md_content)
-        with open(_p.joinpath(_out), 'w', encoding='utf-8') as f:
-            f.write(_html)
+        MarkdownConverter.transfer_markdown(_p.joinpath(_in), _p.joinpath(_out))
     transfer_markdown('deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html')
     transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
     transfer_markdown('docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html')

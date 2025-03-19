@@ -214,7 +214,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.searchinput.setCompleter(completer)
         completer.activated.connect(lambda :
             self.searchinput.setCursorPosition(len(self.searchinput.text())))
-        _completer = QCompleter(list(map(lambda x: f"输入序号：{x}", ['0', '1', '-3', '-1'])))
+        _completer = QCompleter(list(map(lambda x: f"输入序号：{x}", ['1', '-1', '-3', '0'])))
         _completer.setCompletionMode(QCompleter.PopupCompletion)
         self.chooseinput.setCompleter(_completer)
         _completer.activated.connect(lambda :

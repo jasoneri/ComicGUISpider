@@ -12,7 +12,7 @@ window系统下载`CGS.7z`，macOS系统下载`CGS-macOS.7z`
 ### 🚀运行
 
 win系统解压后双击运行 `CGS.exe`  
-mac系统则需先阅读解压后的`desc_macOS.html`（mac专用的初次使用指引）
+mac系统解压后无法直接运行，需要先根据`CGS_macOS_first_guide.html`的指引安装环境
 
 ### 📢更新
 
