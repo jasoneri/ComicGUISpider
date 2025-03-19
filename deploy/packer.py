@@ -7,10 +7,10 @@ thanks mengdeer589/PythonSizeCruncher
 """
 import json
 import os
+import sys
 import shutil
 import pathlib
 import stat
-import datetime
 import zipfile
 import argparse
 from itertools import chain
@@ -20,18 +20,18 @@ import py7zr
 
 from tqdm import tqdm
 from loguru import logger
-from utils import ori_path
-from utils.docs import MarkdownConverter
 
-# import github.Requester  # modified in package: HTTPSRequestsConnectionClass.session.proxies
+prog_path = pathlib.Path(__file__).parent.parent
 if pathlib.Path("/build").exists():
     print("Running in CI environment")
-    path = pathlib.Path(r"/build")
     tmp_p = pathlib.Path(r"/tmp")
 else:
     print("Running in local environment")
-    path = ori_path.parent
-    tmp_p = path.joinpath("tmp")
+    tmp_p = prog_path.parent.joinpath("tmp")
+path = prog_path.parent
+sys.path.append(str(prog_path))
+from utils.docs import MarkdownConverter
+
 api_github = "https://api.github.com"
 github_token = "**create token by your github account**"
 proxies = {"https://": f"http://127.0.0.1:10809"}
