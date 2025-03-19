@@ -180,7 +180,7 @@ class PackerMacOS(Packer):
         super(PackerMacOS, self).__init__(tuple(), ver)
 
     def set_guide(self):
-        MarkdownConverter.transfer_markdown(path.joinpath('deploy/launcher/mac/EXTRA.md'), self.tmp_guide_html)
+        MarkdownConverter.transfer_markdown(prog_path.joinpath('deploy/launcher/mac/EXTRA.md'), self.tmp_guide_html)
 
     def pre_packup(self):
         """ 1. 生成guide.html
