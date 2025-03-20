@@ -191,3 +191,5 @@ docs/*.html
 deploy/launcher/mac/*.html
 # self/bug-report
 _bug_log
+# ide
+.cursor

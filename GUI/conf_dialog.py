@@ -11,7 +11,7 @@ from assets import res
 from variables import SPIDERS
 from utils import conf, yaml, convert_punctuation as cp
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
-from GUI.uic.qfluent.action_factory import Updater, DescCreator, ProjUpdateThread
+from GUI.uic.qfluent.action_factory import Updater, DescCreator, ProjUpdateThread, Proj
 
 
 class ConfDialog(QDialog, Ui_ConfDialog):
@@ -42,7 +42,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
         self.updateBtn.clicked.connect(_regular_update)
-        self.githubBtn = HyperlinkButton(FIF.GITHUB, "https://github.com/jasoneri/ComicGUISpider", "Github")
+        self.githubBtn = HyperlinkButton(FIF.GITHUB, Proj.url, "Github")
 
         self.bottom_btn_horizontalLayout.insertWidget(0, self.githubBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)

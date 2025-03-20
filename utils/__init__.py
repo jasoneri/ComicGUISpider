@@ -80,13 +80,22 @@ class Conf:
         yaml_update(self.file, props)
 
     def cLog(self, name: str, level: str = None, **kw):
+        if not hasattr(Conf, '_loggers'):
+            Conf._loggers = {}
+        if name in Conf._loggers:
+            return Conf._loggers[name]
         self.log_path.mkdir(parents=True, exist_ok=True)
-        lg.remove(handler_id=None)
-        lg.add(self.log_path.joinpath(f'{name}.log'),
-               filter=lambda record: name in record["extra"],
-               format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}",
-               level=level or self.log_level, retention='5 days', encoding='utf-8')
+        log_file = self.log_path.joinpath(f'{name}.log')
+        handlers = [h for h in lg._core.handlers.values() 
+                   if hasattr(h, 'file_path') and h.file_path == str(log_file)]
+        if not handlers:
+            lg.remove(handler_id=None)
+            lg.add(log_file,
+                filter=lambda record: name in record["extra"],
+                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}",
+                level=level or self.log_level, retention='5 days', encoding='utf-8')
         logger = lg.bind(**{name: True})
+        Conf._loggers[name] = logger
         return logger
 
     @property

@@ -4,6 +4,10 @@
 base on client, env-python: embed"""
 import argparse
 import os
+import sys
+import time
+import subprocess
+import importlib
 import json
 import shutil
 import stat
@@ -19,6 +23,7 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
+from utils import conf
 from utils.docs import MarkdownConverter, MdHtml
 
 
@@ -30,12 +35,13 @@ path = pathlib.Path(__file__).parent.parent.parent
 existed_proj_p = path.joinpath('scripts')
 if not existed_proj_p.exists():
     existed_proj_p = path.joinpath('ComicGUISpider')
-temp_p = path.joinpath('temp')
+temp_p = path.joinpath('__temp')
+temp_p.mkdir(exist_ok=True)
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
 }
 
-
+updater_logger = conf.cLog(name="GUI")
 res = ori_res.Updater
 
 
@@ -64,7 +70,7 @@ class TokenHandler:
                 resp = client.head(f"https://api.github.com")
                 if str(resp.status_code).startswith('2'):
                     return token
-        print(Fore.RED + res.token_invalid_notification)
+        updater_logger.warning(res.token_invalid_notification)
         os.remove(self.gitee_t_file)
 
     def download_t_file(self):
@@ -83,7 +89,8 @@ class GitHandler:
         self.releases_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/releases"
         self.branch_commit_api = f" {owner}/{proj_name}/commits?sha={branch}"
         self.commit_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/commits"
-        self.src_url = f"{self.api_prefix}/repos/{owner}/{proj_name}/zipball/{branch}"
+        self.zipball_url = f"{self.api_prefix}/repos/{owner}/{proj_name}/zipball"
+        self.src_url = f"{self.zipball_url}/{branch}"
         t_handler = TokenHandler()
         self.headers = t_handler.headers
 
@@ -101,8 +108,10 @@ class GitHandler:
 
     def get_releases_info(self) -> tuple:
         latest_resp_json = self.normal_req(self.releases_api)
+        # 查找带beta标签的开发版本
+        dev_release = next((release for release in latest_resp_json if release.get('prerelease')), latest_resp_json[0])
         latest_stable_resp_json = self.normal_req(f"{self.releases_api}/latest")
-        return latest_resp_json[0], latest_stable_resp_json
+        return dev_release, latest_stable_resp_json
 
     def check_changed_files(self, commit):
         print(Fore.BLUE + f"[ {res.ver_check}.. ]")
@@ -130,7 +139,6 @@ class GitHandler:
 
     def download_src_code(self, _url=None, zip_name="src.zip"):
         """proj less than 1Mb, actually just take little second"""
-        temp_p.mkdir(exist_ok=True)
         zip_file = temp_p.joinpath(zip_name)
         with self.sess.stream("GET", _url or self.src_url, follow_redirects=True) as resp:
             with open(zip_file, 'wb') as f:
@@ -141,11 +149,78 @@ class GitHandler:
         return zip_file
 
 
+class BackupManager:
+    def __init__(self):
+        self.backup_dir = temp_p.joinpath("backup")
+        if self.backup_dir.exists():
+                shutil.rmtree(self.backup_dir, ignore_errors=True)
+        self.ignore_patterns = [self.backup_dir.name, '*.pyc', '__pycache__', 'log', '*.db']
+
+    def _safe_operation(self, operation: callable, error_msg: str, *args, **kwargs) -> bool:
+        try:
+            operation(*args, **kwargs)
+            return True
+        except Exception as e:
+            updater_logger.warning(f"BackupWarning: {error_msg}: {e}")
+            return False
+
+    def _safe_remove(self, _path, is_dir=False):
+        return self._safe_operation(shutil.rmtree if is_dir else os.remove, f"BackupDeleteError: {_path}", _path)
+
+    def _safe_move(self, _src, _dst):
+        return self._safe_operation(shutil.move, f"BackupMoveError: {_src} -> {_dst}", _src, _dst)
+    
+    def _check_file_access(self, _path):
+        try:
+            if _path.is_file():
+                with open(_path, 'a', encoding='utf-8'): pass
+            return True
+        except (IOError, OSError):
+            return False
+
+    def create_backup(self):
+        if self.backup_dir.exists() and not self._safe_remove(self.backup_dir, is_dir=True):
+            raise RuntimeError("BackupCleanError: fail clean old backup")
+        try:
+            shutil.copytree(existed_proj_p.absolute(), self.backup_dir, ignore=shutil.ignore_patterns(*self.ignore_patterns))
+        except Exception as e:
+            self.cleanup()
+            raise e
+
+    def restore_backup(self):
+        if not self.backup_dir.exists():
+            raise FileNotFoundError("BackupNotFoundError: backup directory not found")
+        self._check_destination_access()
+        _failed_items = set()
+        for _item in self.backup_dir.iterdir():
+            _src = self.backup_dir / _item.name
+            _dst = existed_proj_p / _item.name
+            if _dst.exists() and not self._safe_remove(_dst, is_dir=_dst.is_dir()):
+                _failed_items.add(_item.name)
+            if not self._safe_move(_src, existed_proj_p):
+                _failed_items.add(_item.name)
+        if _failed_items:
+            raise RuntimeError(f"BackupRestoreError: [{', '.join(_failed_items)}]")
+        self.cleanup()
+
+    def _check_destination_access(self):
+        _inaccessible_files = [_dst for _item in self.backup_dir.iterdir() 
+                             if (_dst := existed_proj_p / _item.name).exists() 
+                             and not self._check_file_access(_dst)]
+        if _inaccessible_files:
+            raise RuntimeError(f"BackupAccessError: [{', '.join(_inaccessible_files)}]")
+
+    def cleanup(self):
+        if self.backup_dir.exists():
+            self._safe_remove(self.backup_dir, is_dir=True)
+
+
 class Proj:
     proj = "CGS"
     github_author = "jasoneri"
     name = "ComicGUISpider"
     branch = "GUI"
+    url = f"https://github.com/{github_author}/{name}"
 
     ver = ""
     first_flag = False
@@ -153,7 +228,8 @@ class Proj:
     local_ver_file = existed_proj_p.joinpath('deploy/version.json')
     changed_files = []
     update_flag = "local"
-    update_info = None
+    update_info = {}
+    updated_success_flag = True
 
     def __init__(self):
         self.git_handler = GitHandler(self.github_author, self.name, self.branch)
@@ -179,8 +255,9 @@ class Proj:
         elif ver_local < ver_dev:
             self.update_flag = 'dev'
             self.update_info = latest_dev_info
+        updater_logger.info(f"local_ver: {self.local_ver}")
 
-    def local_update(self):
+    def local_update(self, ver=None):
         def delete(func, _path, execinfo):
             os.chmod(_path, stat.S_IWUSR)
             func(_path)
@@ -194,58 +271,86 @@ class Proj:
             if src.exists():
                 shutil.move(src, dst)
 
-        if not self.first_flag and not self.changed_files:
-            print(Fore.CYAN + f"[ {res.code_is_latest} ]")
-            return
-
-        proj_zip = self.git_handler.download_src_code()
+        self.ver = ver or self.update_info.get('tag_name') or self.local_ver
+        backuper = BackupManager()
+        backuper.create_backup()
+        proj_zip = self.git_handler.download_src_code(
+            f"{self.git_handler.zipball_url}/{ver}" if ver else self.update_info.get('zipball_url'))
         with zipfile.ZipFile(proj_zip, 'r') as zip_f:
             zip_f.extractall(temp_p)
-        temp_proj_p = next(temp_p.glob(f"{self.github_author}-{self.name}*"))
+        temp_proj_p = next(temp_p.glob(f"*{self.name}*"))
         # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
-        if self.first_flag or self.changed_files[0] == "*":
-            # first_flag: when the first-time use this update(no version-file)
-            print(Fore.YELLOW + f"[ {res.latest_code_overwriting}.. ]")
-            _, folders, files = next(os.walk(temp_proj_p))
-            all_files = (*folders, *files)
-            for file in tqdm(all_files, total=len(all_files), ncols=80, ascii=True,
-                             desc=Fore.BLUE + f"[ {res.refreshing_code}.. ]"):
-                move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
+        _, folders, files = next(os.walk(temp_proj_p))
+        all_files = (*folders, *files)
+        try:
+            for file in all_files:
+                if file != "conf.yml" or file != "record.db":
+                    move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
+            self.env_check_and_replenish()
+            if not self.updated_success_flag:
+                raise RuntimeError("update failed")
+        except Exception as e:
+            try:
+                if existed_proj_p.exists():
+                    shutil.rmtree(existed_proj_p, ignore_errors=True)
+                backuper.restore_backup()
+                raise e
+            except Exception as _e:
+                raise _e
         else:
-            for changed_file in tqdm(self.changed_files, total=len(self.changed_files),
-                                     ncols=80, ascii=True, desc=Fore.BLUE + f"[ {res.refreshing_code}.. ]"):
-                move(temp_proj_p.joinpath(changed_file), existed_proj_p.joinpath(changed_file))
-        shutil.rmtree(temp_p, onerror=delete)
+            shutil.rmtree(temp_p, onexc=delete, ignore_errors=True)
+            self.update_end()
 
-    def end(self):
+    def update_end(self):
         with open(self.local_ver_file, 'w', encoding='utf-8') as f:
             json.dump({"current": self.ver}, f, ensure_ascii=False, indent=4)
 
     def env_check_and_replenish(self):
-        record_file = path.joinpath("scripts/deploy/env_record.json")
-        if not record_file.exists() or not self.local_ver:
+        def check_import():
+            for site_package in env_supplements:
+                try:
+                    importlib.import_module(site_package)
+                except ImportError:
+                    updater_logger.info(f"pkg-missing: {site_package}")
+                    return True
+
+        record_file = existed_proj_p.joinpath("deploy/env_record.json")
+        if not record_file.exists():
             return
         with open(record_file, 'r', encoding='utf-8') as f:
             env_supplements = json.load(f)
-        site_packages_p = path.joinpath("site-packages")
-        for site_package in env_supplements:
-            if site_packages_p.joinpath(site_package).exists():
-                continue
-            print(Fore.RED + f"[ {res.env_check_fail % site_package} ]")
-            return
-        print(Fore.CYAN + f"[ {res.env_is_latest} ]")
+
+        if check_import():
+            if curr_os == "macOS":
+                bash_path = existed_proj_p.joinpath("deploy/launcher/mac/init.bash")
+                os.chmod(bash_path, stat.S_IRWXU)
+                cmd = ["/bin/bash", str(bash_path)]
+            else:
+                cmd = [sys.executable, "-m", "pip", "install", "-r", 
+                       str(existed_proj_p.joinpath("requirements.txt")),
+                       "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
+            updater_logger.debug(f"[ pip-command ]: {' '.join(cmd)}")
+            try:
+                result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+                if result.returncode == 0:
+                    updater_logger.debug(result.stdout)
+                else:
+                    updater_logger.warning(f"[ pip-returncode <{result.returncode}> ]: {result.stderr}")
+                    # self.updated_success_flag = False
+            except Exception as e:
+                self.updated_success_flag = False
+                updater_logger.error(f"[ pip-exception ]: {e}")
+        else:
+            time.sleep(2)
 
 
-def regular_update(version):
+def regular_update(ver):
     retry_times = 1
     __ = None
     update_result = ""
     while retry_times < 4:
         try:
-            proj.local_update()
-            if curr_os != 'macOS':
-                proj.env_check_and_replenish()
-            proj.end()
+            proj.local_update(ver)
             break
         except Exception as e:
             __ = traceback.format_exc()
@@ -288,7 +393,7 @@ if __name__ == '__main__':
     args = parser.add_argument_group("Arguments")
     args.add_argument('-d', '--desc', action=argparse.BooleanOptionalAction, required=False)
     args.add_argument('-c', '--check', action=argparse.BooleanOptionalAction, required=False)
-    args.add_argument('-u', '--update', required=False)
+    args.add_argument('-v', '--version', required=False, help='指定版本号, 需要先搭配-c/--check查询')
     parsed = parser.parse_args()
 
     proj = Proj()
@@ -296,5 +401,5 @@ if __name__ == '__main__':
         create_desc()
     elif parsed.check:
         proj.check()
-    elif parsed.update:
-        regular_update(parsed.update)
+    elif parsed.version:
+        regular_update(parsed.version)

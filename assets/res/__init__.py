@@ -145,4 +145,7 @@ class Updater:
     env_is_latest = "环境已是最新"
     
     ver_local_latest = "本地版本已是最新.."
+    ver_check_fail = "检查版本失败，可重试或前往releases页面查看"
     update_ensure = "确认更新"
+    updated_success = "✅ 更新成功，CGS将在5s后重启"
+    updated_fail = "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）"
