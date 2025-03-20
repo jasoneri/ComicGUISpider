@@ -53,7 +53,7 @@ class ConvertBase:
 
 
 if __name__ == '__main__':
-    ConvertBase('untitled.py', 'untitled.py').run()
+    # ConvertBase('untitled.py', 'untitled.py').run()
     # ConvertBase('ui_mainwindow.py', 'ui_mainwindow.py').run()
     # ConvertBase('conf_dia.py', 'conf_dia.py').run()
     # ConvertBase('browser.py', 'browser.py', custom_sub={

@@ -13,8 +13,8 @@ class GUI:
     DESC2 = "2、使用遇阻时可以先查阅说明中的 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>🔗FAQ/额外说明</a> 文档，看能否解决疑惑 "
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
     DESC_STABLE = r"⭐️ v2.0.0 主要更新 特性/修复：(1)预览窗口新增`复制`按钮 (2)优化翻页保留相关逻辑等 (3)修复剪贴板单任务时闪退问题<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
-    DESC_PRERELEASE = r"""🧪 v2.0.0-beta 此开发版更新 特性/修复：<br>
-    (1)✨使用`QFluentWidgets`优化界面与操作体验<br>
+    DESC_PRERELEASE = r"""🧪 v2.0.0-beta.2 此开发版更新 特性/修复：<br>
+    (1)✨使用`QFluentWidgets`优化界面与操作体验 (2)优化更新流程机制 <br>
     当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
     最新Pre-release说明 <a>"""
     DESC_NEW = DESC_PRERELEASE
