@@ -27,7 +27,7 @@ if pathlib.Path("/build").exists():
     tmp_p = pathlib.Path(r"/tmp")
 else:
     print("Running in local environment")
-    tmp_p = prog_path.parent.joinpath("tmp")
+    tmp_p = prog_path.parent.joinpath("temp")
 path = prog_path.parent
 sys.path.append(str(prog_path))
 from utils.docs import MarkdownConverter, MdHtml
@@ -109,7 +109,6 @@ class Clean:
 
 class Packer(Proj):
     _proj = Proj.proj
-    executor = path.parent.joinpath(r'Bat_To_Exe_Converter\Bat_To_Exe_Converter.exe')
     zip_file = path.joinpath(f'{_proj}.7z')
     preset_zip_file = tmp_p.joinpath(f'{_proj}_preset.7z')
 
@@ -120,21 +119,11 @@ class Packer(Proj):
     @classmethod
     def bat_to_exe(cls):
         """最好只做一次，减少指定脚本的修改次数/生成 从而减少引发的风险"""
-        def _do(bat_file, exe_file, icon, *args):
-            args_str = " ".join(args)
-            command = f"cd {path} && {cls.executor} /bat {bat_file} /exe {exe_file} /icon {icon} /x64 {args_str}"
-            error_code = os.system(command)
-            if error_code:  # Unreliable, need raise error make next step run correctly
-                raise OSError(f"[ fail - packup {bat_file}], error_code: {error_code}")
-            else:
-                logger.info(f"[ success {bat_file} ]")
-
+        executor = path.parent.joinpath(r'Bat_To_Exe_Converter\Bat_To_Exe_Converter.exe')
+        # command = f"cd {path} && {cls.executor} /bat {bat_file} /exe {exe_file} /icon {icon} /x64 {args_str}"
         # 主运行使用 PyStand 壳，不再重复造exe了，容易被杀软误杀
-        # _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{proj}-更新.exe"),
-        #     path.joinpath(rf"scripts/assets/{proj}.ico"))
-        _do(path.joinpath(rf"scripts/deploy/launcher/update.bat"), path.joinpath(rf"{cls._proj}-使用说明.exe"),
-            path.joinpath(rf"scripts/assets/icon.png"))
         # exe生成后需要扔到 https://habo.qq.com/ 做检测，必须是`未发现风险`
+        ...
 
     def pre_packup(self):
         with open(path.joinpath(r"scripts/deploy/version.json"), 'w', encoding='utf-8') as f:
@@ -148,13 +137,13 @@ class Packer(Proj):
         specified = self.default_specified
         mode = "a"
         if runtime_init:
-            # {proj}_preset.7z: only include runtime and site-packages. If env changed, re-packup it
+            # {proj}_preset.7z: only include runtime. If env changed, re-packup it
             if self.preset_zip_file.exists():
                 logger.debug(f"[ preset_zip_file exists ] run normal packup")
                 logger.debug(f"[ if need init ] delete '{self.preset_zip_file}' manually later")
                 return self.packup()
             zip_file = self.preset_zip_file
-            specified = ('runtime', 'site-packages', '_pystand_static.int',
+            specified = ('runtime', '_pystand_static.int',
                          f'{self._proj}.exe')
             mode = "w"
         else:
@@ -232,42 +221,14 @@ def clean():
     Clean.end_work()
 
 
-def env_supplement():
-    manifest = [  # it will change, but user no need care it
-        "site-packages/execjs/runtime_names.py",
-        "site-packages/execjs/_abstract_runtime.py",
-        "site-packages/execjs/_abstract_runtime_context.py",
-        "site-packages/execjs/_exceptions.py",
-        "site-packages/execjs/_external_runtime.py",
-        "site-packages/execjs/_json2.py",
-        "site-packages/execjs/_misc.py",
-        "site-packages/execjs/_pyv8runtime.py",
-        "site-packages/execjs/_runner_sources.py",
-        "site-packages/execjs/_runtimes.py",
-        "site-packages/execjs/__init__.py",
-        "site-packages/execjs/__main__.py"
-    ]
-    zip_file = path.joinpath(f'env_supplement0930.zip')
-    with zipfile.ZipFile(zip_file, 'w') as zip_f:
-        for file in tqdm(tuple(manifest)):
-            if path.joinpath(file).exists():
-                zip_f.write(file)
-    ...
-
-
 def packup_windows(ver):
     # # clean()
-    # Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("site-packages").rglob("__pycache__"),
-    #                (path.joinpath("scripts/log"), path.joinpath("scripts/version"),
-    #                 path.joinpath("scripts/deploy/gitee_t.json")))  # step 0 必清site-packages cache，太大了
-    # # Packer.bat_to_exe()  # step 1
+    Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("runtime").rglob("__pycache__"),
+        (path.joinpath("scripts/log"), path.joinpath("scripts/deploy/gitee_t.json")))  # step 0 必清runtime cache，太大了
     packer = Packer(('scripts', f'{Proj.proj}.bat'), ver=ver)
     packer.packup()  # step 2
-    # # packer.upload('CGS.7z')  # step 3
     # # Clean.end_work(('CGS.7z',))  # step 4
     # # If error occur, exegesis previous step and run again
-    #
-    # # env_supplement()
 
 
 def packup_mac(ver):
