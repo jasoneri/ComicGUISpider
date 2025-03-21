@@ -11,7 +11,6 @@ import sys
 import shutil
 import pathlib
 import stat
-import zipfile
 import argparse
 from itertools import chain
 

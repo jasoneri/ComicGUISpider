@@ -12,11 +12,15 @@ JavaScript 没加载出来，刷新一下页面
 
 多选了书时，在章节序号输入环节中可以直接点击`开始爬取`跳过当前书的章节选择，只要直到出进度条即可
 
-### 4. 【win系统独占】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
+### 4. ModuleNotFoundError: No module named 'xxx'
+
+如果你当前还在使用`CGS-更新`，并且是从`v1.xx`或`v2.0.0-beta`版本过来的话，请到[🔗releases](https://github.com/jasoneri/ComicGUISpider/releases/latest) 下载绿色包并覆盖更新
+
+### 5. 【win系统独占】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
 
 看下方 [🔗Qt报错集合](#qt报错集合) 部分
 
-### 5. 使用遇到问题想寻求帮助或报错，但没有github账号
+### 6. 使用遇到问题想寻求帮助或报错，但没有github账号
 
 回说明页最下方进群反馈，但提问格式请参考 [issue的样式](
   https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/issue-format.png)，
