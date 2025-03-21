@@ -1,14 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import re
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import Qt
+from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, FluentIcon, 
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar,
-    MessageBoxBase, TextBrowser, SubtitleLabel
+    MessageBoxBase, TextBrowser, BodyLabel, SubtitleLabel, 
+    PixmapLabel, TeachingTip, TeachingTipTailPosition
 )
 from assets import res
 from utils.docs import MarkdownConverter
@@ -35,8 +36,10 @@ class CustomFlyout:
             view=view, parent=parent, aniType=FlyoutAnimationType.PULL_UP, 
             target=cls.calculate_target_position(target) if calc_bottom else target
         )
+        if hasattr(view, "closed"):
+            view.closed.connect(_fly.close)
         return _fly
-        
+
 
     @staticmethod
     def calculate_target_position(widget):
@@ -45,6 +48,17 @@ class CustomFlyout:
         bottom_center.setX(bottom_center.x() + rect.width() // 2 - widget.width() // 2)
         bottom_center.setY(bottom_center.y() - 15)
         return bottom_center
+
+
+class CustomTeachingTip:
+    @classmethod
+    def make(cls, view, target, parent, tailPosition=TeachingTipTailPosition.BOTTOM):
+        _tip = TeachingTip.make(
+            view=view, target=target, duration=-1, tailPosition=tailPosition, parent=parent
+        )
+        if hasattr(view, "closed"):
+            view.closed.connect(_tip.close)
+        return _tip
 
 
 class CustomMessageBox(MessageBoxBase):
@@ -79,17 +93,71 @@ class CustomMessageBox(MessageBoxBase):
         self.show()
 
 
+class SupportView(FlyoutViewBase):
+    closed = pyqtSignal()  # 添加closed信号
+    
+    def __init__(self, proj_url, conf_dia=None):
+        super(SupportView, self).__init__(conf_dia)
+        self.width = int(conf_dia.width() * 0.8)
+        self.height = int(conf_dia.height() * 0.65)
+        self.layout = VBoxLayout(self)
+        self.titleLayout = QtWidgets.QHBoxLayout()
+        # self.titleLayout.setContentsMargins(8, 0, 8, 0)
+        self.githubBtn = HyperlinkButton(FluentIcon.LINK, proj_url, "Github")
+        spacerItem = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
+        self.closeBtn.clicked.connect(self.closed)
+        self.titleLayout.addWidget(self.githubBtn)
+        self.titleLayout.addItem(spacerItem)
+        self.titleLayout.addWidget(self.closeBtn)
+        self.contentLabel = BodyLabel(res.GUI.Uic.confDia_support_content) 
+        
+        dpr = self.devicePixelRatio()
+        self.picLayout = QtWidgets.QHBoxLayout()
+        self.aliPayLabel = PixmapLabel(self)
+        aliPayPixmap = QtGui.QPixmap(":/_support/alipay.png")
+        scaled_pixmap = aliPayPixmap.scaled(
+            int(self.width * 0.4), int(self.height * 0.8),
+            Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        scaled_pixmap.setDevicePixelRatio(dpr)  # 关键步骤
+        self.aliPayLabel.setPixmap(scaled_pixmap)
+        self.aliPayLabel.setAlignment(Qt.AlignCenter)
+        self.picLayout.addWidget(self.aliPayLabel)
+        self.vLine = QtWidgets.QFrame(self)
+        self.vLine.setFrameShape(QtWidgets.QFrame.VLine)
+        self.vLine.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.picLayout.addWidget(self.vLine)
+        self.wePayLabel = PixmapLabel(self)
+        wePayPixmap = QtGui.QPixmap(":/_support/wepay.png")
+        wePayPixmap = wePayPixmap.scaled(
+            int(self.width * 0.4), int(self.height * 0.8),
+            Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        self.wePayLabel.setPixmap(wePayPixmap)
+        self.wePayLabel.setAlignment(Qt.AlignCenter)
+        self.picLayout.addWidget(self.wePayLabel)
+        
+        self.layout.addLayout(self.titleLayout)
+        self.layout.addWidget(self.contentLabel)
+        self.layout.addLayout(self.picLayout)
+        self.setFixedSize(self.width, self.height)
+
+
 class IndeterminateBarFView(FlyoutViewBase):
     def __init__(self, parent=None):
         super(IndeterminateBarFView, self).__init__(parent)
-        self.barLayout = QtWidgets.QHBoxLayout(self)
+        self.barLayout = QtWidgets.QHBoxLayout()
         self.barLayout.setContentsMargins(8, 0, 8, 0)
         indeterminateBar = IndeterminateProgressBar(self, start=True)
         self.barLayout.addWidget(indeterminateBar)
+        self.setLayout(self.barLayout)
         self.setFixedSize(int(parent.width()*0.93), 10)
 
 
 class TableFlyoutView(FlyoutViewBase):
+    closed = pyqtSignal()
+
     def __init__(self, data: dict, parent=None):
         super().__init__(parent)
         p_width = parent.width()
@@ -105,7 +173,7 @@ class TableFlyoutView(FlyoutViewBase):
         self.bottom_layout = QtWidgets.QHBoxLayout()
         self.bottom_layout.setObjectName("bottom_layout")
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
-        self.closeBtn.clicked.connect(self.close)
+        self.closeBtn.clicked.connect(self.closed)
         spacerItem3 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.bottom_layout.addItem(spacerItem3)
         self.bottom_layout.addWidget(self.closeBtn)

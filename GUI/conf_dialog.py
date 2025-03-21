@@ -5,13 +5,14 @@ import json
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy
-from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, HyperlinkButton
+from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton
 
 from assets import res
 from variables import SPIDERS
 from utils import conf, yaml, convert_punctuation as cp
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.uic.qfluent.action_factory import Updater, DescCreator, ProjUpdateThread, Proj
+from GUI.uic.qfluent.components import SupportView, CustomFlyout
 
 
 class ConfDialog(QDialog, Ui_ConfDialog):
@@ -42,9 +43,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
         self.updateBtn.clicked.connect(_regular_update)
-        self.githubBtn = HyperlinkButton(FIF.GITHUB, Proj.url, "Github")
-
-        self.bottom_btn_horizontalLayout.insertWidget(0, self.githubBtn)
+        self.supportBtn = TransparentPushButton(FIF.CAFE, res.GUI.Uic.confDia_supportBtn)
+        self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
+            view=SupportView(Proj.url, self), target=self.supportBtn, parent=self
+        ))
+        
+        self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
 
