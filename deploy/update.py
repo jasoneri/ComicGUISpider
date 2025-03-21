@@ -107,11 +107,10 @@ class GitHandler:
         return resp_json
 
     def get_releases_info(self) -> tuple:
-        latest_resp_json = self.normal_req(self.releases_api)
-        # 查找带beta标签的开发版本
-        dev_release = next((release for release in latest_resp_json if release.get('prerelease')), latest_resp_json[0])
-        latest_stable_resp_json = self.normal_req(f"{self.releases_api}/latest")
-        return dev_release, latest_stable_resp_json
+        releases_resp_json = self.normal_req(self.releases_api)
+        dev_release = next((release for release in releases_resp_json if release.get('prerelease')), releases_resp_json[0])
+        stable_release = next((release for release in releases_resp_json if not release.get('prerelease')), releases_resp_json[0])
+        return dev_release, stable_release
 
     def check_changed_files(self, commit):
         print(Fore.BLUE + f"[ {res.ver_check}.. ]")
