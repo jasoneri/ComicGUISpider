@@ -9,7 +9,9 @@ from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect, QTimer
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
-from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch, CustomInfoBar
+from GUI.uic.qfluent import (
+    MonkeyPatch as FluentMonkeyPatch, CustomInfoBar, CustomSplashScreen
+)
 from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
@@ -118,6 +120,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log = conf.cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
+        self.first_init = True
         self.setupUi(self)
 
     def init_queue(self):
@@ -127,8 +130,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.p_qm.start()
 
     def setupUi(self, MainWindow):
-        self.init_queue()
         super(SpiderGUI, self).setupUi(MainWindow)
+        if self.first_init:
+            self.splashScreen = CustomSplashScreen(self)
+            self.show()
+            QTimer.singleShot(10, self.setupUi_)
+            self.first_init = False
+        else:
+            self.setupUi_()
+    
+    def setupUi_(self):
+        self.init_queue()
         self.conf_dia = ConfDialog(self)
         self.textBrowser.setOpenExternalLinks(True)
         self.textBrowser.append(TextUtils.description)
@@ -176,7 +188,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.first_tmp_sv_flag = True
         self.task_mgr = TaskProgressManager(self)
 
-        self.show()
+        if hasattr(self, 'splashScreen'):
+            self.splashScreen.finish()
 
     def chooseBox_changed_tips(self, index):
         self.spiderUtils = spider_utils_map[index]

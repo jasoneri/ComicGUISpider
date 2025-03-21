@@ -9,10 +9,18 @@ from qfluentwidgets import (
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar,
     MessageBoxBase, TextBrowser, BodyLabel, SubtitleLabel, 
-    PixmapLabel, TeachingTip, TeachingTipTailPosition
+    PixmapLabel, TeachingTip, TeachingTipTailPosition,
+    SplashScreen
 )
 from assets import res
 from utils.docs import MarkdownConverter
+
+
+class CustomSplashScreen(SplashScreen):
+    def __init__(self, parent=None, enableShadow=True):
+        super(CustomSplashScreen, self).__init__(QtGui.QIcon(":/guide.png"), parent, enableShadow)
+        height = int(parent.height() * 0.7)
+        self.setIconSize(QtCore.QSize(height, height))
 
 
 class CustomInfoBar:
