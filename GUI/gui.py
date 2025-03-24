@@ -310,7 +310,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if proxies:
             BrowserWindow.set_proxies(proxies)
         self.BrowserWindow = BrowserWindow(self, self.tf)
-        if self.chooseBox.currentIndex() == 4:  # e-hentai
+        if self.chooseBox.currentIndex() == 3 and not proxies:  # wnacg
+            self.BrowserWindow.set_referer_nterceptor(f"https://{self.spiderUtils.get_domain()}")
+        elif self.chooseBox.currentIndex() == 4:  # e-hentai
             self.BrowserWindow.set_ehentai()
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(

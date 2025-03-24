@@ -103,3 +103,9 @@ class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
 class DisableSystemProxyMiddleware(HttpProxyMiddleware):
     def _get_proxy(self, scheme, *args, **kwargs):
         return None, None
+
+
+class RefererMiddleware(ComicspiderDownloaderMiddleware):
+    def process_request(self, request, spider):
+        request.headers['Referer'] = spider.domain
+        return None

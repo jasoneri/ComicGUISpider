@@ -34,7 +34,7 @@
 | [拷贝漫画](https://www.mangacopy.com/)    |       ❌       |     ✅     |  ❌   |   已解锁隐藏    |
 | [Māngabz](https://mangabz.com)        |       ❌       |     ✅     |  ❌   | 代理 |
 | [禁漫天堂](https://18comic.vip/)          |       ✅       |     ✅     |  ✅   |     🔞     |
-| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞<br>不fan墙需求看[额外使用说明第二条](docs/FAQ_and_EXTRA.md#2-域名相关说明)     |
+| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞<br>域名问题看[额外使用说明第二条](docs/FAQ_and_EXTRA.md#2-域名相关说明)     |
 | [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳页 |  ✅   |     🔞/代理     |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
@@ -58,7 +58,9 @@
 
 ## 📢更新
 
-> `v2.0.0-beta`开始，配置窗口左下角设有`检查更新`按钮，请根据提示进行更新操作
+> `v2.0.0-beta`开始，配置窗口左下角设有`检查更新`按钮，请根据提示进行更新操作  
+> `v2.0.1-beta`更新wnacg相关，详情看[对应`Pre-release`的说明](
+  https://github.com/jasoneri/ComicGUISpider/releases)
 
 ### v2.0.0 | ~ 2025-03-21
 
