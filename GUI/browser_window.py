@@ -4,7 +4,7 @@ from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWidgets import QMainWindow
-from PyQt5.QtWebEngineWidgets import QWebEngineSettings
+from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF
 from qframelesswindow.webengine import FramelessWebEngineView
 
@@ -16,6 +16,16 @@ from utils.website import EHentaiKits
 from utils.processed_class import CopyUnfinished
 
 
+class RefererInterceptor(QWebEngineUrlRequestInterceptor):
+    def __init__(self, referer_url):
+        super().__init__()
+        self.referer_url = referer_url
+
+    def interceptRequest(self, info):
+        if info.requestUrl().toString().endswith(('png', 'jpg', 'jpeg', 'webp')):
+            info.setHttpHeader(b"Referer", self.referer_url.encode())
+
+
 class BrowserWindow(QMainWindow, Ui_browser):
     eh_kits = None
 
@@ -25,9 +35,10 @@ class BrowserWindow(QMainWindow, Ui_browser):
             self.set_proxies(proxies)
         self.gui = gui
         self.tf = tf
+        self._set_referer_nterceptor = False
         self.view = FramelessWebEngineView(self)
         self.home_url = QUrl.fromLocalFile(self.tf)
-        self.view.load(self.home_url)
+        self.load_home()
         self.output = []
         self.setupUi(self)
 
@@ -50,7 +61,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.copyBtn.setIcon(FIF.COPY)
         self.ensureBtn.setIcon(FIF.DOWNLOAD)
         # logic
-        self.homeBtn.clicked.connect(lambda: self.view.load(self.home_url))
+        self.homeBtn.clicked.connect(self.load_home)
         self.backBtn.clicked.connect(self.view.back)
         self.forwardBtn.clicked.connect(self.view.forward)
         self.refreshBtn.clicked.connect(self.view.reload)
@@ -65,6 +76,15 @@ class BrowserWindow(QMainWindow, Ui_browser):
             )
         self.copyBtn.clicked.connect(copyUnfinishedTasks)
 
+    def set_referer_nterceptor(self, url):
+        self.interceptor_referer = url    
+        self._set_referer_nterceptor = True
+
+    def load_home(self):
+        self.view.load(self.home_url)
+        if self._set_referer_nterceptor:
+            self.view.page().profile().setUrlRequestInterceptor(RefererInterceptor(self.interceptor_referer))
+        
     def set_html(self):
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
@@ -73,7 +93,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         """翻页时，页面变更tf文件，需要刷新"""
         self.tf = tf
         self.home_url = QUrl.fromLocalFile(self.tf)
-        self.view.load(self.home_url)
+        self.load_home()
 
     def keep_top_hint(self):
         if self.topHintBox.isChecked():

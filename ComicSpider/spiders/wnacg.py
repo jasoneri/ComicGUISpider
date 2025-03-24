@@ -11,7 +11,9 @@ domain = "wnacg.com"
 
 class WnacgSpider(BaseComicSpider2):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {
-        'ComicSpider.middlewares.ComicDlProxyMiddleware': 6}}
+        'ComicSpider.middlewares.ComicDlProxyMiddleware': 6,
+        'ComicSpider.middlewares.RefererMiddleware': 10,
+    }}
     name = 'wnacg'
     num_of_row = 4
     domain = domain

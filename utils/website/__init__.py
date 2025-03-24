@@ -245,7 +245,8 @@ class JmUtils(EroUtils, Req):
 
 class WnacgUtils(EroUtils, Req):
     name = "wnacg"
-    publish_domain = "wnacg.date"
+    publish_domain = "wnlink.ru"
+    publish_domain_old = ["wnacg.date"]
     publish_url = f"https://{publish_domain}"
     status_publish = True
     headers = {
@@ -266,7 +267,8 @@ class WnacgUtils(EroUtils, Req):
     def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
         hrefs = html.xpath('//div[@class="main"]//li/a/@href')
-        match_regex = re.compile(f"google|{cls.publish_domain}|email")
+        publish_domain_old_str = "|".join(cls.publish_domain_old)
+        match_regex = re.compile(f"google|{cls.publish_domain}|email|{publish_domain_old_str}")
         order_href = list(filter(
             lambda href: not bool(match_regex.search(href)), hrefs
         ))
