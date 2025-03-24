@@ -55,6 +55,10 @@ class Conf:
 
     def init_conf(self):  # 脱敏，储存路径和代理等用外部文件读
         try:
+            if not self.file.exists():
+                with open(ori_path.joinpath('assets/conf_sample.yml'), 'r', encoding='utf-8') as fps:
+                    with open(self.file, 'w', encoding='utf-8') as fpw:
+                        fpw.write(fps.read())
             with open(self.file, 'r', encoding='utf-8') as fp:
                 cfg = fp.read()
             yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
