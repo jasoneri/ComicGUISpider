@@ -14,7 +14,8 @@ JavaScript 没加载出来，刷新一下页面
 
 ### 4. ModuleNotFoundError: No module named 'xxx'
 
-如果你当前还在使用`CGS-更新`，并且是从`v1.xx`或`v2.0.0-beta`版本过来的话，请到[🔗releases](https://github.com/jasoneri/ComicGUISpider/releases/latest) 下载绿色包并覆盖更新
+win: 如果你当前还在使用`CGS-更新`，并且是从`v1.xx`或`v2.0.0-beta`版本过来的话，请到[🔗releases](https://github.com/jasoneri/ComicGUISpider/releases/latest) 下载绿色包并覆盖更新  
+macOS: 用`CGS-init`更新下环境
 
 ### 5. 【win系统独占】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
 
