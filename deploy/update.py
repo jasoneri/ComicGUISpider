@@ -112,30 +112,6 @@ class GitHandler:
         stable_release = next((release for release in releases_resp_json if not release.get('prerelease')), releases_resp_json[0])
         return dev_release, stable_release
 
-    def check_changed_files(self, commit):
-        print(Fore.BLUE + f"[ {res.ver_check}.. ]")
-        resp_json = self.normal_req(self.branch_commit_api)
-        commits = list(map(lambda _: _["sha"], resp_json))
-        if not commit:
-            print(Fore.RED + f"[ {res.ver_file_not_exist}.. ]")
-            return commits[0], []
-        commit_index = commits.index(commit) if commit in commits else None
-        valid_commits = commits[:commit_index]
-        if len(valid_commits) > 10:
-            print(Fore.YELLOW + f"[ {res.too_much_waiting_update}... ]")
-            return commits[0], ["*"]
-        files = []
-        print(Fore.BLUE + f"[ {res.check_refresh_code}.. ]")
-        for _commit in valid_commits:
-            resp_json = self.get_commit_info(_commit)
-            files.extend(list(map(lambda _: _["filename"], resp_json["files"])))
-            print(Fore.GREEN + f"[ {_commit[:8]} ] {resp_json['commit']['message']}")
-        out_files = list(set(files))
-        if "deploy/update.py" in out_files:  # make sure update.py must be local-updated
-            out_files.remove("deploy/update.py")
-            out_files.insert(0, "deploy/update.py")
-        return commits[0], out_files
-
     def download_src_code(self, _url=None, zip_name="src.zip"):
         """proj less than 1Mb, actually just take little second"""
         zip_file = temp_p.joinpath(zip_name)

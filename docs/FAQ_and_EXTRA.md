@@ -19,7 +19,7 @@ macOS: 用`CGS-init`更新下环境
 
 ### 5. 【win系统独占】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
 
-看下方 [🔗Qt报错集合](#qt报错集合) 部分
+例如`Qxxx:xxxx`, `OpenGL`等，看下方 [🔗Qt报错集合](#️-qt报错集合) 部分
 
 ### 6. 使用遇到问题想寻求帮助或报错，但没有github账号
 
@@ -60,24 +60,15 @@ macOS: 用`CGS-init`更新下环境
 
 ## ⛔️ Qt报错集合
 
-### 原因
-
-~~开发时因为控制压缩包大小，把Qt库瘦身了，所以可能在各种情况弹出奇怪的报错弹窗~~
-
 > [!Tip]  
-> 主要现在github action流程化不用费劲费流量上传，`v2.0.0-beta`后开始PyQt5不再瘦身，同时塞回pip，打包省点心力
+> 目前github action流程化不用费劲费流量上传，`v2.0.0`后开始PyQt5不再瘦身，并塞回pip，打包省点心力
 
-### 解决手段❗️
+### 解决手段
 
-1. 在 readme 拉到最下看企鹅群号进去，看群文件，下载 `PyQt5.7z` (2024-12-08 77.4MB)，解压  
-2. 根据下面群友样例针对性搞搞（体积小点）  
-3. 没相同样例啊岂可修！直接覆盖！ 把解压后的文件覆盖到 `site-packages\PyQt5`，然后开程序看看  
-4. 全覆盖还是不行时~~开喷开发者~~，尝试在解压目录使用cmd运行`./CGS.bat`，然后截图错误信息发群里反馈
+已优化过，如还有弹出框警告如下方样例的话，尝试在解压目录使用cmd运行`./CGS.bat`，然后截图错误信息发群里反馈
 
 ### 群友提供的样例
 
-> 以下将群里下的包解压后的目录称为`PyQt5_from_folder`
-
-1. 将`PyQt5_from_folder\Qt5\bin`里的 `libEGL.dll` `libGLESv2.dll` `d3dcompiler_47.dll`  复制到 `site-packages\PyQt5\Qt5\bin`  
+1. `libEGL.dll` `libGLESv2.dll` `d3dcompiler_47.dll` 缺失  
 
 ![26d8cdbd1962f2458906a31574ecdd0c](../assets/qtErr/1.png)

@@ -1,5 +1,16 @@
 # macOS(mac操作系统) 额外说明
 
+## 🚩前置架构相关
+
+通过以下命令查看架构（一般英特尔芯片i系的即为`x86_64`, 苹果芯片m系的为`arm64`）  
+
+```bash
+python -c "import platform; print(platform.machine())"
+```
+
+1. `x86_64` 架构: 开发者虚拟机就是该架构，一般按下面流程走即可  
+2. `arm64` 架构: CGS-init.app 会自动安装`Rosetta 2`，下文中有列出一些[应对`CGS.app`无法打开](#针对弹窗报错的尝试)的处理方案  
+
 ## 📑绿色包说明
 
 macOS 仅需下载 `CGS-macOS`压缩包
@@ -8,7 +19,7 @@ macOS 仅需下载 `CGS-macOS`压缩包
 
 ```
   CGS-macOS
-   ├── CGS.app                     # 既是 *主程序*，也可以当成代码目录用访达打开  
+   ├── CGS.app                     # 既是 *主程序*，也可以当成代码目录文件夹打开  
    |    ├── Contents
    |         ├── Resources
    |              ├── scripts      # 真实项目代码目录
@@ -38,13 +49,25 @@ macOS 仅需下载 `CGS-macOS`压缩包
 
 ## 🔰其他
 
+### 针对弹窗报错的尝试
+
+```bash
+# arm64 CGS.app显示损坏无法打开时
+/opt/homebrew/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
+# 或
+/usr/local/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
+# 或重新签名
+sudo codesign --force --deep --sign - /Applications/CGS.app
+```
+
+> 都失败的话可先自行deepseek等寻找方法 / 群内反馈(对于架构相关开发者未必比你熟悉)
+
 ### 更新相关
 
-⚠️ 配置文件/去重记录均存放在`scripts`上，注意避免下包直接覆盖导致丢失
-
+⚠️ 配置文件/去重记录均存放在`scripts`上，注意避免下包直接覆盖导致丢失  
 版本如若涉及到 UI/界面变动 相关的，最好运行 `CGS-init.app` 一下以保证字体等设置
 
 ### bug report / 提交报错issue
 
-macOS上运行软件出错需要提issue时，除了选择系统选`macOS`以外，还需要在描述上说明或截图使用的版本 <br>
-（开发者测试环境为`macOS Sonoma(14)`）
+macOS上运行软件出错需要提issue时，除了选择系统选`macOS`以外，还需要在描述上说明系统版本与架构  
+（开发者测试开发环境为`macOS Sonoma(14) / x86_64`）
