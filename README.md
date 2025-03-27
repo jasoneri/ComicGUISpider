@@ -49,12 +49,12 @@
   </tr>  
 </tbody></table>
 
-<hr>
+---
 
 **[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
-)](https://github.com/jasoneri/ComicGUISpider/stargazers) 若觉得体验还不错的话，要不回头点个⭐️star吧👻**
+)](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;若觉得体验还不错的话，要不回头点个⭐️star吧👻**
 
-<hr>
+---
 
 ## 📢更新
 

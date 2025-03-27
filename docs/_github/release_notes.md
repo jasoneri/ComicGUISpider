@@ -2,11 +2,9 @@
 
 ### mac相关
 
-✅ ✨兼容`ARM64`架构，即苹果m系芯片，可通过以下命令查看（如m系仍无法打开，请进群反馈）
-
-```bash
-python -c "import platform; print(platform.machine())"
-```
+✅ ✨兼容`ARM64`架构，即苹果m系芯片，已更新[macOS额外说明](
+    https://github.com/jasoneri/ComicGUISpider/blob/GUI/deploy/launcher/mac/EXTRA.md
+    ) ，查阅`前置架构相关`部分
 
 ### wnacg专栏
 
