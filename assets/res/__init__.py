@@ -12,12 +12,12 @@ class GUI:
     DESC1 = """1、首次使用请点击<img src="%s" height="25" style="background-color: rgb(0, 255, 255);border-radius: 7px;">按钮，配置窗口左下角点击`查看说明`，内有配置详情/GUI视频使用指南等"""
     DESC2 = "2、使用遇阻时可以先查阅说明中的 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
-    DESC_STABLE = r"⭐️ v2.0.0 主要更新 特性/修复：(1)✨使用`QFluentWidgets`优化界面与操作体验 (2)优化更新流程机制<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
+    DESC_STABLE = r"⭐️ v2.1.0 主要更新 特性/修复：(1)wnacg相关修复 (2)预览各封面增加徽章<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
     DESC_PRERELEASE = r"""🧪 v2.0.1-beta.2 此开发版更新 特性/修复：<br>
     wnacg相关 (1)域名获取已恢复正常无需手动设 (2)图片获取解决访问403 (3)修复预览图片加载问题 <br>
     当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
     最新Pre-release说明 <a>"""
-    DESC_NEW = DESC_PRERELEASE
+    DESC_NEW = DESC_STABLE
 
     BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
 

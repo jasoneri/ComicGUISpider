@@ -13,7 +13,7 @@ class MitmMainWindow(Ui_MainWindow):
     def setupUi(self, _mainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
-        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.0.1-beta.2"))
+        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.1.0"))
         self.retrybtn.setDisabled(True)
         self.chooseinput.setStatusTip(_translate("MainWindow", res.chooseinputTip))
         self.chooseBox.setToolTip(_translate("MainWindow", res.chooseBoxToolTip))

@@ -302,7 +302,7 @@ class Proj:
                 cmd = ["/bin/bash", str(bash_path)]
             else:
                 cmd = [sys.executable, "-m", "pip", "install", "-r", 
-                       str(existed_proj_p.joinpath("requirements.txt")),
+                       str(existed_proj_p.joinpath("requirements/win.txt")),
                        "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
             updater_logger.debug(f"[ pip-command ]: {' '.join(cmd)}")
             try:

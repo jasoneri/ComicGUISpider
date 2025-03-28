@@ -58,27 +58,19 @@
 
 ## 📢更新
 
-> `v2.0.0-beta`开始，配置窗口左下角设有`检查更新`按钮，请根据提示进行更新操作  
-> `v2.0.1-beta`更新wnacg相关，详情看[对应`Pre-release`的说明](
-  https://github.com/jasoneri/ComicGUISpider/releases)
+> 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
-### v2.0.0 | ~ 2025-03-21
+### v2.1.0 | ~ 2025-03-29
 
 #### 🎁 Features
 
-✅ CGS的`使用说明`与`更新`在今后将设置在配置窗口的左下按钮，绿色包可执行程序只保留主程序（macOS加个初始化.app）  
-✅ 优化更新流程，贴近主流软件体验  
-✅ ✨使用`QFluentWidgets`优化界面与操作体验  
-&emsp;✅ 搜索框增加右键选项`展开预设`, 序号输入框也有  
-&emsp;✅ 展示已阅最新话使用表格视图  
-&emsp;✅ 预览窗口改造了右键菜单，已将翻页加进去（后续有机会扩展菜单功能），附带有`CGS`内的全局快捷键  
-&emsp;📣 ✨已正确处理小数位级系统缩放，可选：优化ui后在 `2560*1600分辨率 150%缩放` 上去掉`Qt同步系统缩放`也有良好界面体验
-（操作参考[更新历史`v1.6.3`删代码部分](docs/UPDATE_RECORD.md)，后续若有反响则做成开关之类提供切换）
+✅ 为预览窗口各封面右上增设badge
 
 #### 🐞 Fix
 
-✅ 修复`wnacg`剪贴板xpath解析错误问题  
-✅ 修复去重样式提示在翻页后没有生效
+✅ 修复`wnacg`的发布页访问 / 图片下载进度不动 / 预览图片加载不了 等问题
+✅ 将`requirements.txt`分别以`win`,`mac_x86_64`,`mac_arm64`编译，苹果m系芯片==arm64，详阅`📖macOS必读补充说明`
+✅ 优化ui相关
 
 > [🕑更新历史](docs/UPDATE_RECORD.md) / [📝开发日志](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
