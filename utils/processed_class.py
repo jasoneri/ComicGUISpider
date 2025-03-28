@@ -203,8 +203,6 @@ class PreviewHtml:
             for _md5 in downloaded_md5:
                 info = batch_md5[_md5]
                 html_content = html_content.replace(
-                    # f'alt="{info}" class="img-thumbnail"',
-                    # f'alt="{info}" class="img-thumbnail downloaded"'
                     f'href="{info}"',
                     f'href="{info}" class="downloaded"'
                 )

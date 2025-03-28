@@ -107,7 +107,7 @@ class SupportView(FlyoutViewBase):
     def __init__(self, proj_url, conf_dia=None):
         super(SupportView, self).__init__(conf_dia)
         self.width = int(conf_dia.width() * 0.8)
-        self.height = int(conf_dia.height() * 0.65)
+        self.height = int(self.width * 0.6)
         self.layout = VBoxLayout(self)
         self.titleLayout = QtWidgets.QHBoxLayout()
         # self.titleLayout.setContentsMargins(8, 0, 8, 0)
