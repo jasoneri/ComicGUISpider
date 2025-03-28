@@ -150,17 +150,20 @@ class PreviewHtml:
 
     class bootstrap:
         @staticmethod
-        def create_element(idx, img_src, title, url):
+        def create_element(idx, img_src, title, url, num=0):
             max_width = 170
             title = PresetHtmlEl.sub(title)
             abbreviated_title = title[:18] + "..."
             el = f"""<div class="col-md-3 singal-task" style="max-width:{max_width}px"><div class="form-check">
             <input class="form-check-input" type="checkbox" name="img" id="{idx}">
             <label class="form-check-label" for="{idx}">
-              <img src="{img_src}" title="{title}" alt="{title}" class="img-thumbnail"/>
+                <div style="position: relative; display: inline-block;">
+                    <img src="{img_src}" title="{title}" alt="{title}" class="img-thumbnail"/>%s
+                </div>
             </label></div>
             <a href="{url}"><p>[{idx}]、{abbreviated_title}</p></a>
             </div>"""
+            el = el % (f'''<span class="badge bg-info badge-on-img">{num}</span>''' if num else "")
             return el
 
     def __init__(self, url=None, html_style="bootstrap"):

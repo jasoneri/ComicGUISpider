@@ -243,7 +243,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.next_btn.clicked.connect(self.next_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
-        self.conf_dia.buttonBox.accepted.connect(self.set_completer)
+        self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:

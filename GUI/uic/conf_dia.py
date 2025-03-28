@@ -165,7 +165,7 @@ class Ui_Dialog(object):
         self.completerEdit = TextEdit(Dialog)
         self.completerEdit.setToolTipDuration(-1)
         self.completerEdit.setStyleSheet("QTextEdit {\n"
-"background-image: url(:/configDialog/ba_swinsuit.png);\n"
+"background-image: url(:/configDialog/ba_swimsuit.png);\n"
 "color: black;\n"
 "}")
         self.completerEdit.setObjectName("completerEdit")
