@@ -10,8 +10,3 @@
     https://github.com/jasoneri/ComicGUISpider/blob/GUI/deploy/launcher/mac/EXTRA.md
     ) ，查阅`前置架构相关`部分
 ✅ 优化ui相关
-
-### mac相关
-
-✅ ✨兼容`ARM64`架构，即苹果m系芯片，已
-

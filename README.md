@@ -68,8 +68,8 @@
 
 #### 🐞 Fix
 
-✅ 修复`wnacg`的发布页访问 / 图片下载进度不动 / 预览图片加载不了 等问题
-✅ 将`requirements.txt`分别以`win`,`mac_x86_64`,`mac_arm64`编译，苹果m系芯片==arm64，详阅`📖macOS必读补充说明`
+✅ 修复`wnacg`的发布页访问 / 图片下载进度不动 / 预览图片加载不了 等问题  
+✅ 将`requirements.txt`分别以`win`,`mac_x86_64`,`mac_arm64`编译，苹果m系芯片==arm64，详阅`📖macOS必读补充说明`  
 ✅ 优化ui相关
 
 > [🕑更新历史](docs/UPDATE_RECORD.md) / [📝开发日志](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)

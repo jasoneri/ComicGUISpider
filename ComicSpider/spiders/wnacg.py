@@ -52,7 +52,7 @@ class WnacgSpider(BaseComicSpider2):
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [url, title, preview_url]
             _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
-            page = f"p📄{re.search(r'(\d+)[張张]', _page.strip()).group(1)}" if _page else 0
+            page = f"p{re.search(r'(\d+)[張张]', _page.strip()).group(1)}" if _page else 0
             preview.add(x + 1, img_preview, title, preview_url, page)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=response.url)
