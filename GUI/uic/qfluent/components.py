@@ -10,7 +10,7 @@ from qfluentwidgets import (
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar,
     MessageBoxBase, TextBrowser, BodyLabel, SubtitleLabel, 
     PixmapLabel, TeachingTip, TeachingTipTailPosition,
-    SplashScreen
+    SplashScreen, ImageLabel
 )
 from assets import res
 from utils.docs import MarkdownConverter
@@ -120,30 +120,18 @@ class SupportView(FlyoutViewBase):
         self.titleLayout.addWidget(self.closeBtn)
         self.contentLabel = BodyLabel(res.GUI.Uic.confDia_support_content) 
         
-        dpr = self.devicePixelRatio()
         self.picLayout = QtWidgets.QHBoxLayout()
-        self.aliPayLabel = PixmapLabel(self)
-        aliPayPixmap = QtGui.QPixmap(":/_support/alipay.png")
-        scaled_pixmap = aliPayPixmap.scaled(
-            int(self.width * 0.4), int(self.height * 0.8),
-            Qt.KeepAspectRatio, Qt.SmoothTransformation
-        )
-        scaled_pixmap.setDevicePixelRatio(dpr)  # 关键步骤
-        self.aliPayLabel.setPixmap(scaled_pixmap)
-        self.aliPayLabel.setAlignment(Qt.AlignCenter)
+        self.aliPayLabel = ImageLabel(":/_support/alipay.png")
+        self.aliPayLabel.scaledToWidth(int(self.width * 0.4))
+        self.aliPayLabel.setBorderRadius(8, 8, 8, 8)
         self.picLayout.addWidget(self.aliPayLabel)
         self.vLine = QtWidgets.QFrame(self)
         self.vLine.setFrameShape(QtWidgets.QFrame.VLine)
         self.vLine.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.picLayout.addWidget(self.vLine)
-        self.wePayLabel = PixmapLabel(self)
-        wePayPixmap = QtGui.QPixmap(":/_support/wepay.png")
-        wePayPixmap = wePayPixmap.scaled(
-            int(self.width * 0.4), int(self.height * 0.8),
-            Qt.KeepAspectRatio, Qt.SmoothTransformation
-        )
-        self.wePayLabel.setPixmap(wePayPixmap)
-        self.wePayLabel.setAlignment(Qt.AlignCenter)
+        self.wePayLabel = ImageLabel(":/_support/wepay.png")
+        self.wePayLabel.scaledToWidth(int(self.width * 0.4))
+        self.wePayLabel.setBorderRadius(8, 8, 8, 8)
         self.picLayout.addWidget(self.wePayLabel)
         
         self.layout.addLayout(self.titleLayout)
@@ -195,9 +183,10 @@ class TableFlyoutView(FlyoutViewBase):
         self.tableView = TableView(self)
         self.tableView.setBorderRadius(15)
         self.tableView.setWordWrap(False)
-        tb_width = self.width - 20
+        tb_width = self.width
         tb_height = self.height - 30
         self.tableView.setFixedSize(tb_width, tb_height)
+        self.tableView.verticalHeader().hide()
         # 设置数据模型
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["漫画", "已阅最新章节"])

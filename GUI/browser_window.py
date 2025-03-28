@@ -5,7 +5,7 @@ from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWidgets import QMainWindow
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
-from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF
+from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
 from qframelesswindow.webengine import FramelessWebEngineView
 
 from GUI.uic.browser import Ui_browser
@@ -48,7 +48,12 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.topHintBox.clicked.connect(self.keep_top_hint)
         self.set_btn()
         self.set_html()
+        self.patch_tip()
         FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+
+    def patch_tip(self):
+        for button in (self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn):
+            button.installEventFilter(ToolTipFilter(button, showDelay=300, position=ToolTipPosition.TOP))
 
     def set_btn(self):
         # ui
