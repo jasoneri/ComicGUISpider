@@ -4,8 +4,8 @@ import ast
 import json
 
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QDialog, QSizePolicy
-from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton
+from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
+from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, PushSettingCard
 
 from assets import res
 from variables import SPIDERS
@@ -13,6 +13,18 @@ from utils import conf, yaml, convert_punctuation as cp
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.uic.qfluent.action_factory import Updater, DescCreator, ProjUpdateThread, Proj
 from GUI.uic.qfluent.components import SupportView, CustomFlyout
+
+
+class SvPathCard(PushSettingCard):
+    def __init__(self, parent=None):
+        super().__init__(res.GUI.Uic.sv_path_desc_tip, FIF.DOWNLOAD, 
+                         res.GUI.Uic.sv_path_desc, "D:/Comic", parent)
+        self.clicked.connect(self._onSelectFolder)
+
+    def _onSelectFolder(self):
+        folder = QFileDialog.getExistingDirectory(self, res.GUI.Uic.sv_path_desc_tip)
+        if folder:
+            self.setContent(folder)
 
 
 class ConfDialog(QDialog, Ui_ConfDialog):
@@ -29,8 +41,20 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
+        self._preset()
         self.insert_btn()
 
+    def _preset(self):
+        self.sv_path_card = SvPathCard(self)
+        self.sv_path_Layout.addWidget(self.sv_path_card)
+        
+        completer = QCompleter(['127.0.0.1:10809'])
+        completer.setFilterMode(QtCore.Qt.MatchStartsWith)
+        completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.proxiesEdit.setCompleter(completer)
+        self.proxiesEdit.setClearButtonEnabled(True)
+        
+    
     def insert_btn(self):
         def _create_desc():
             DescCreator.run()
@@ -56,7 +80,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
-        for _ in ('sv_path', 'proxies', 'custom_map', "completer", "eh_cookies", "clip_db"):
+        for _ in ('proxies', 'custom_map', "completer", "eh_cookies", "clip_db"):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         # 2. CheckBox类配置
@@ -65,6 +89,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 3. SpinBox类配置
         getattr(self, "clip_read_numEdit").setValue(int(getattr(conf, "clip_read_num")))
         super(ConfDialog, self).show()
+        # 4. SettingCard卡片类配置
+        self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
 
     @staticmethod
     def transfer_to_gui(val) -> str:
@@ -77,7 +103,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             return str(val)
 
     def save_conf(self):
-        sv_path = getattr(self, "sv_pathEdit").text()
+        sv_path = self.sv_path_card.contentLabel.text()
         eh_cookies_str = cp(getattr(self, "eh_cookiesEdit").toPlainText()).replace("cookies = ", "")
         if not conf.eh_cookies and eh_cookies_str:
             try:

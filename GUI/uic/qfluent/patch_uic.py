@@ -60,7 +60,7 @@ if __name__ == '__main__':
         "acceptBtn = QtWidgets.QToolButton": "acceptBtn = PrimaryToolButton",
         "cancelBtn = QtWidgets.QToolButton": "cancelBtn = TransparentToolButton",
         }, 
-    custom_fluent_widgets=['StrongBodyLabel', 'TransparentToolButton', 'PrimaryToolButton']).run()
+        custom_fluent_widgets=['StrongBodyLabel', 'TransparentToolButton', 'PrimaryToolButton']).run()
     # ConvertBase('browser.py', 'browser.py', custom_sub={
     #     "topHintBox = QtWidgets.QToolButton": "topHintBox = TransparentToggleToolButton",
     #     "ensureBtn = QtWidgets.QToolButton": "ensureBtn = PrimaryToolButton",

@@ -61,6 +61,8 @@ class GUI:
         progressBarStatusTip = (" >>> Ⅰ、绿色100%表示完成"
             " Ⅱ、 任务细化后查得绿色100%也有漏页情况，可结合`复制未完成`与`剪贴板功能`进行补页")
         
+        sv_path_desc = "存储路径"
+        sv_path_desc_tip = "选择目录"
         menu_show_completer = "展开预设"
         menu_next_page = "下一页"
         menu_prev_page = "上一页"
