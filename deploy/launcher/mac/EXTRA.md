@@ -59,7 +59,7 @@ macOS 仅需下载 `CGS-macOS`压缩包
 sudo codesign --force --deep --sign - /Applications/CGS.app
 ```
 
-> 都失败的话可先自行deepseek等寻找方法 / 群内反馈(对于架构相关开发者未必比你熟悉)
+> 都失败的话可先自行deepseek等寻找方法 / 群内反馈
 
 ### 更新相关
 

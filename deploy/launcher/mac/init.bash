@@ -4,9 +4,11 @@ osascript -e 'tell application "Terminal" to activate' -e 'tell application "Sys
 
 curr_p=$(cd "$(dirname "$0")";pwd);
 cd $curr_p/../../../;
+REQUIREMENTS="requirements/mac_x86_64.txt"
 
 # 检测是否为 Apple Silicon
 if [ "$(uname -m)" = "arm64" ]; then
+    REQUIREMENTS="requirements/mac_arm64.txt"
     # 检测 Rosetta 2 是否已安装
     if ! arch -x86_64 echo > /dev/null 2>&1; then
         echo "检测到 Apple Silicon Mac，但未安装 Rosetta 2，正在安装..."
@@ -53,7 +55,7 @@ fi
 
 "$PYTHON_PATH" deploy/__init__.py;
 echo "正在安装依赖（自动过滤macOS不兼容包）..."
-cat requirements.txt | grep -vE 'pywin32==|twisted-iocpsupport==' | "$PYTHON_PATH" -m pip install -r /dev/stdin \
+cat "$REQUIREMENTS" | grep -vE 'pywin32==|twisted-iocpsupport==' | "$PYTHON_PATH" -m pip install -r /dev/stdin \
     -i http://mirrors.aliyun.com/pypi/simple/ \
     --trusted-host mirrors.aliyun.com \
     --user \
