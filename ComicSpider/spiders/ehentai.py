@@ -48,7 +48,7 @@ class EHentaiSpider(BaseComicSpider3):
             self.say(example_b.format(str(x + 1), pages, title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [url, title, pages, preview_url]  # , book_idx]
-            preview.add(x + 1, img_preview, title, preview_url)
+            preview.add(x + 1, img_preview, title, preview_url, f"p{pages}")
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
 
