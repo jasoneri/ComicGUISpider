@@ -69,7 +69,7 @@ class GUI:
         confDia_updateDialog_stable = "检测到最新稳定版"
         confDia_updateDialog_dev = "检测到最新开发版"
         confDia_supportBtn = "开发支持"
-        confDia_support_content = "~请随意，将用于开扩展网站会员做测试等开发"
+        confDia_support_content = "~请随意投喂，将用于开扩展等开发"
 
 
 # website
