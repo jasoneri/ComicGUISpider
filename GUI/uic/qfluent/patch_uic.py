@@ -55,7 +55,12 @@ class ConvertBase:
 if __name__ == '__main__':
     # ConvertBase('untitled.py', 'untitled.py').run()
     # ConvertBase('ui_mainwindow.py', 'ui_mainwindow.py').run()
-    # ConvertBase('conf_dia.py', 'conf_dia.py').run()
+    ConvertBase('conf_dia.py', 'conf_dia.py', custom_sub={
+        "= QtWidgets.QLabel": "= StrongBodyLabel",
+        "acceptBtn = QtWidgets.QToolButton": "acceptBtn = PrimaryToolButton",
+        "cancelBtn = QtWidgets.QToolButton": "cancelBtn = TransparentToolButton",
+        }, 
+    custom_fluent_widgets=['StrongBodyLabel', 'TransparentToolButton', 'PrimaryToolButton']).run()
     # ConvertBase('browser.py', 'browser.py', custom_sub={
     #     "topHintBox = QtWidgets.QToolButton": "topHintBox = TransparentToggleToolButton",
     #     "ensureBtn = QtWidgets.QToolButton": "ensureBtn = PrimaryToolButton",
