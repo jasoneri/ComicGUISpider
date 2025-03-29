@@ -19,7 +19,7 @@ macOS 仅需下载 `CGS-macOS`压缩包
 
 ```
   CGS-macOS
-   ├── CGS.app                     # 既是 *主程序*，也可以当成代码目录文件夹打开  
+   ├── CGS.app                     # 既是 *主程序*，也可以当成代码目录文件夹打开，执行脚本 `scripts/deploy/launcher/mac/CGS.bash`  
    |    ├── Contents
    |         ├── Resources
    |              ├── scripts      # 真实项目代码目录
@@ -55,8 +55,6 @@ macOS 仅需下载 `CGS-macOS`压缩包
 /opt/homebrew/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
 # 或
 /usr/local/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
-# 或重新签名
-sudo codesign --force --deep --sign - /Applications/CGS.app
 ```
 
 > 都失败的话可先自行deepseek等寻找方法 / 群内反馈
