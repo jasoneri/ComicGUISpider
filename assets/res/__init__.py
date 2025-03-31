@@ -66,12 +66,18 @@ class GUI:
         menu_show_completer = "展开预设"
         menu_next_page = "下一页"
         menu_prev_page = "上一页"
+        
         confDia_descBtn = "查看说明"
         confDia_updateBtn = "检查更新"
         confDia_updateDialog_stable = "检测到最新稳定版"
         confDia_updateDialog_dev = "检测到最新开发版"
-        confDia_supportBtn = "开发支持"
-        confDia_support_content = "~请随意投喂，将用于开扩展等开发"
+        confDia_supportBtn = "其他"
+        confDia_promote_title = "推荐机场"
+        confDia_promote_content = "30rmb130G永久流量，量大管饱" 
+        confDia_promote_url = "https://hxlm.io/#/register?code=sZWBMyum"
+        confDia_feedback_group = "437774506"
+        confDia_feedback_group_copied = "群号已复制"
+        confDia_support_content = "~投喂请随意"
 
 
 # website
