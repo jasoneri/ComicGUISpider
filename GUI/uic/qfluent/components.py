@@ -1,16 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import re
-from PyQt5 import QtCore, QtWidgets, QtGui
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtCore import Qt, pyqtSignal, QSize
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, FluentIcon, 
+    TransparentToolButton, TransparentPushButton, HyperlinkButton, FluentIcon, 
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar,
     MessageBoxBase, TextBrowser, BodyLabel, SubtitleLabel, 
-    PixmapLabel, TeachingTip, TeachingTipTailPosition,
-    SplashScreen, ImageLabel
+    TeachingTip, TeachingTipTailPosition, SplashScreen, ImageLabel
 )
 from assets import res
 from utils.docs import MarkdownConverter
@@ -18,9 +17,9 @@ from utils.docs import MarkdownConverter
 
 class CustomSplashScreen(SplashScreen):
     def __init__(self, parent=None, enableShadow=True):
-        super(CustomSplashScreen, self).__init__(QtGui.QIcon(":/guide.png"), parent, enableShadow)
+        super(CustomSplashScreen, self).__init__(QIcon(":/guide.png"), parent, enableShadow)
         height = int(parent.height() * 0.7)
-        self.setIconSize(QtCore.QSize(height, height))
+        self.setIconSize(QSize(height, height))
 
 
 class CustomInfoBar:
@@ -76,7 +75,7 @@ class CustomMessageBox(MessageBoxBase):
         self.yesButton.setText(res.Updater.update_ensure)
         self.textBrowser = TextBrowser(self)
         # self.textBrowser.setWordWrapMode(QtGui.QTextOption.NoWrap)  # 禁用自动换行
-        self.textBrowser.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)  # 需要时显示水平滚动条
+        self.textBrowser.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # 需要时显示水平滚动条
         if title:
             self.titleLabel = SubtitleLabel(title)
             self.viewLayout.addWidget(self.titleLabel)
@@ -103,41 +102,67 @@ class CustomMessageBox(MessageBoxBase):
 
 class SupportView(FlyoutViewBase):
     closed = pyqtSignal()  # 添加closed信号
+    res = res.GUI.Uic
     
+    def _copy_group(self):
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(self.res.confDia_feedback_group)
+        InfoBar.success(
+            title='', content=self.res.confDia_feedback_group_copied,
+            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+            duration=2500, parent=self.conf_dia
+        )
+        
     def __init__(self, proj_url, conf_dia=None):
         super(SupportView, self).__init__(conf_dia)
+        self.conf_dia = conf_dia
         self.width = int(conf_dia.width() * 0.8)
-        self.height = int(self.width * 0.6)
         self.layout = VBoxLayout(self)
         self.titleLayout = QtWidgets.QHBoxLayout()
         # self.titleLayout.setContentsMargins(8, 0, 8, 0)
-        self.githubBtn = HyperlinkButton(FluentIcon.LINK, proj_url, "Github")
+        self.githubBtn = HyperlinkButton(FluentIcon.GITHUB, proj_url, "Github")
+        self.feedbackBtn = TransparentPushButton(FluentIcon.CHAT, self.res.confDia_feedback_group)
+        self.feedbackBtn.clicked.connect(self._copy_group)
         spacerItem = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
         self.closeBtn.clicked.connect(self.closed)
         self.titleLayout.addWidget(self.githubBtn)
+        self.titleLayout.addWidget(self.feedbackBtn)
         self.titleLayout.addItem(spacerItem)
         self.titleLayout.addWidget(self.closeBtn)
-        self.contentLabel = BodyLabel(res.GUI.Uic.confDia_support_content) 
         
+        self.promoteLayout = QtWidgets.QHBoxLayout()
+        self.promoteBtn = HyperlinkButton(FluentIcon.LINK, self.res.confDia_promote_url, self.res.confDia_promote_title)
+        self.contentLabel = BodyLabel(self.res.confDia_promote_content) 
+        self.promoteLayout.addWidget(self.promoteBtn)
+        self.promoteLayout.addWidget(self.contentLabel)
+        self.promoteLayout.addItem(QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
+
+        self.contentLabel = BodyLabel(res.GUI.Uic.confDia_support_content) 
         self.picLayout = QtWidgets.QHBoxLayout()
         self.aliPayLabel = ImageLabel(":/_support/alipay.png")
         self.aliPayLabel.scaledToWidth(int(self.width * 0.4))
         self.aliPayLabel.setBorderRadius(8, 8, 8, 8)
         self.picLayout.addWidget(self.aliPayLabel)
-        self.vLine = QtWidgets.QFrame(self)
-        self.vLine.setFrameShape(QtWidgets.QFrame.VLine)
-        self.vLine.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.picLayout.addWidget(self.vLine)
+        vLine = QtWidgets.QFrame(self)
+        vLine.setFrameShape(QtWidgets.QFrame.VLine)
+        vLine.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.picLayout.addWidget(vLine)
         self.wePayLabel = ImageLabel(":/_support/wepay.png")
         self.wePayLabel.scaledToWidth(int(self.width * 0.4))
         self.wePayLabel.setBorderRadius(8, 8, 8, 8)
         self.picLayout.addWidget(self.wePayLabel)
-        
+
         self.layout.addLayout(self.titleLayout)
+        self.hLine = QtWidgets.QFrame(self)
+        self.hLine.setFrameShape(QtWidgets.QFrame.HLine)
+        self.hLine.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.layout.addWidget(self.hLine)
+        self.layout.addLayout(self.promoteLayout)
         self.layout.addWidget(self.contentLabel)
         self.layout.addLayout(self.picLayout)
-        self.setFixedSize(self.width, self.height)
+        self.setFixedWidth(self.width)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
 
 
 class IndeterminateBarFView(FlyoutViewBase):
