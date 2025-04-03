@@ -221,7 +221,7 @@ class JmUtils(EroUtils, Req):
                         domains.append(domain)
         for domain in domains:
             url = f"https://{domain}"
-            resp = retry(httpx.head, 1, url, headers={**cls.headers, 'Referer': url}, follow_redirects=True, timeout=3)
+            resp = retry(httpx.head, 1, url, headers={**cls.headers, 'Referer': url}, follow_redirects=True, timeout=4)
             if resp and str(resp.status_code).startswith('2'):
                 return resp.url.host
         else:
