@@ -80,7 +80,8 @@ class Updater:
                 self.conf_dia.puThread.wait()
 
         def updated(recv):
-            self.gui.updating_fly.close()
+            if hasattr(self.gui, "updating_fly") and self.gui.updating_fly:
+                self.gui.updating_fly.close()
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
                 msg = self.res.updated_fail
@@ -97,7 +98,8 @@ class Updater:
             QtCore.QTimer.singleShot(reload_time, self.after_update)
 
         def checked(recv):
-            fly.close()
+            if hasattr(self, "check_fly") and self.check_fly:
+                self.check_fly.close()
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
                 CustomInfoBar.show("", self.res.ver_check_fail, self.gui.textBrowser, 
@@ -122,7 +124,7 @@ class Updater:
                         title = ""
                 self.gui.update_dialog = CustomMessageBox(title, self.gui)
                 self.gui.update_dialog.show_release_note(recv.update_info.get("body"))
-        fly = CustomFlyout.make(
+        self.check_fly = CustomFlyout.make(
             view=IndeterminateBarFView(self.conf_dia), 
             target=self.conf_dia, parent=self.conf_dia, calc_bottom=True
         )

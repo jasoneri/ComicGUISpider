@@ -14,7 +14,7 @@ class GUI:
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
     DESC_STABLE = r"⭐️ v2.1.0 主要更新 特性/修复：(1)wnacg相关修复 (2)预览各封面增加徽章<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
     DESC_PRERELEASE = r"""🧪 v2.1.1-beta 此开发版更新 特性/修复：<br>
-    wnacg相关 (1)域名获取已恢复正常无需手动设 (2)图片获取解决访问403 (3)修复预览图片加载问题 <br>
+    (1)修复/优化`jm`的访问（也可能仅是服务器繁忙而已） <br>
     当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
     最新Pre-release说明 <a>"""
     DESC_NEW = DESC_PRERELEASE
