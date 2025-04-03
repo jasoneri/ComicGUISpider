@@ -19,7 +19,8 @@ class JmSpider(BaseComicSpider2):
         "DOWNLOADER_MIDDLEWARES": {
             'ComicSpider.middlewares.UAMiddleware': 5,
             'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
-            'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4
+            'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4,
+            'ComicSpider.middlewares.RefererMiddleware': 10,
         }
     }
     num_of_row = 4
