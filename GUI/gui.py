@@ -270,6 +270,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                     i += 1
                     QThread.msleep(3)
                 if self.tf == _prev_tf:
+                    self.previewSecondInit = True
                     self.BrowserWindow.close()
 
         def page_turn(_p):
