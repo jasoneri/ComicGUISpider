@@ -202,7 +202,7 @@ class JmUtils(EroUtils, Req):
 
     @classmethod
     def get_cli(cls, conf):
-        cli = httpx.Client(headers=cls.book_hea)
+        cli = httpx.Client(headers={**cls.book_hea, 'Referer': f"https://{cls.get_domain()}"})
         return cli
 
     @classmethod
