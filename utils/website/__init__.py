@@ -120,16 +120,18 @@ class JmUtils(EroUtils, Req):
     status_forever = True
     status_publish = True
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Alt-Used": "jm365.work",
-        "Connection": "keep-alive",
-        "Priority": "u=0, i",
-        "Pragma": "no-cache",
-        "Cache-Control": "no-cache",
-        "TE": "trailers"
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
+        'Priority': 'u=0, i',
+        'Pragma': 'no-cache',
+        'Cache-Control': 'no-cache',
     }
     book_hea = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
@@ -219,7 +221,7 @@ class JmUtils(EroUtils, Req):
                         domains.append(domain)
         for domain in domains:
             url = f"https://{domain}"
-            resp = retry(httpx.head, 1, url, headers=cls.headers, follow_redirects=True, timeout=3)
+            resp = retry(httpx.head, 1, url, headers={**cls.headers, 'Referer': url}, follow_redirects=True, timeout=3)
             if resp and str(resp.status_code).startswith('2'):
                 return resp.url.host
         else:
