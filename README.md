@@ -59,7 +59,7 @@
 ## 📢更新
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
-> [`v2.1.1-beta`](https://github.com/jasoneri/ComicGUISpider/releases/v2.1.1-beta) 处理jm访问
+> [🧪`v2.1.1-beta`](https://github.com/jasoneri/ComicGUISpider/releases/v2.1.1-beta) 处理jm访问
 
 ### v2.1.0 | ~ 2025-03-29
 
