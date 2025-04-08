@@ -1,10 +1,13 @@
-from PyQt5.QtCore import Qt
+from copy import deepcopy
+
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QApplication
 from qfluentwidgets import (
     Action, InfoBar, InfoBarPosition, DWMMenu
 )
 
 from assets import res
-from utils import conf
+from utils import conf, curr_os
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView
@@ -69,3 +72,21 @@ class ToolMenu(DWMMenu):
                              ignore_http=True)
             else:
                 self.gui.init_clip_handle(tf, match_items)
+
+
+class CopyUnfinished:
+    copy_delay = 120 if curr_os != "macOS" else 500
+    copied = 0
+    
+    def __init__(self, tasks):
+        self.tasks = deepcopy(tasks)
+        self.length = len(tasks)
+
+    def to_clip(self):
+        if not self.tasks:
+            return 
+        task = self.tasks.pop(0)
+        clipboard = QApplication.clipboard()
+        clipboard.setText(task.title_url)
+        self.copied += 1
+        QTimer.singleShot(self.copy_delay, self.to_clip)
