@@ -10,10 +10,10 @@ from qframelesswindow.webengine import FramelessWebEngineView
 
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
+from GUI.thread.other import CopyUnfinished
 from assets import res
 from utils import conf
 from utils.website import EHentaiKits
-from utils.processed_class import CopyUnfinished
 
 
 class RefererInterceptor(QWebEngineUrlRequestInterceptor):
