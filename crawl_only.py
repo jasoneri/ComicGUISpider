@@ -3,7 +3,7 @@
 import time
 import re
 import argparse
-from multiprocessing import Process
+from multiprocessing import Process, set_start_method
 
 from loguru import logger
 
@@ -37,9 +37,10 @@ class Gui:
     process_state = ProcessState(process='init')
 
     def __init__(self, port):
+        logger.debug(f"{port=}")
         manager = QueuesManager.create_manager(
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
-            address=('127.0.0.1', port), authkey=b'abracadabra'
+            address=('localhost', port), authkey=b'abracadabra'
         )
         manager.connect()
         self.Q = QueueHandler(manager)
@@ -95,6 +96,7 @@ def test_normal_process(keyword, input_2, input_3):
 
 
 if __name__ == '__main__':
+    set_start_method('spawn', force=True)
     parser = argparse.ArgumentParser(
         description=f"""CGS命令行脚本，目前支持简单下载/调试功能
 网站对应序号: {SPIDERS}""",
@@ -128,7 +130,12 @@ if __name__ == '__main__':
     p_qm = Process(target=guiQueuesManger.create_server_manager)
     p_qm.start()
 
-    gui = Gui(queue_port)
+    try:
+        gui = Gui(queue_port)
+    except Exception as e:
+        if p_qm.is_alive():
+            p_qm.terminate()
+        raise e
     p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port),
                         kwargs={"LOG_LEVEL": "DEBUG", "LOG_FILE": None})
     p_crawler.start()
@@ -148,7 +155,7 @@ if __name__ == '__main__':
             if p.is_alive():
                 p.terminate()
         for p in [p_crawler, p_qm, p_bThread]:
-            p.join(timeout=5)
+            p.join(timeout=3)
     finally:
         for p in [p_crawler, p_qm, p_bThread]:
             if p.is_alive():

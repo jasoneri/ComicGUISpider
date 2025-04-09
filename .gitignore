@@ -181,6 +181,8 @@ requirements-in.txt
 untitled*
 Pipfile
 Pipfile.lock
+codecov*
+*_loacl.yml
 # self/conf
 gitee_t.json
 conf.yml
