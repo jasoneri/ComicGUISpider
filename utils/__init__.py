@@ -234,13 +234,16 @@ class QueuesManager(m.BaseManager):
         return m
 
     def connect(self):
-        while 1:
+        loop = 0
+        while loop < 25:
             try:
                 super(QueuesManager, self).connect()
             except ConnectionRefusedError:
                 time.sleep(0.2)
+                loop += 1
             else:
-                break
+                return
+        raise ConnectionRefusedError("Failed to connect to manager")
 
 
 class Queues:

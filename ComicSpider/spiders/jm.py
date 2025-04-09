@@ -83,6 +83,7 @@ class JmSpider(BaseComicSpider2):
 
     @property
     def search(self):
+        self.say("getting jm domain...\n")
         self.domain = JmUtils.get_domain()
         keyword = self.input_state.keyword
         __t = self.time_regex.search(keyword)

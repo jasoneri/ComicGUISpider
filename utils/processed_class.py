@@ -104,29 +104,22 @@ class GuiQueuesManger(QueuesManager):
         QueuesManager.register('ProcessQueue', callable=lambda: ProcessQueue)  # 爬虫 > GUI
         QueuesManager.register('BarQueue', callable=lambda: BarQueue)  # 爬虫 > GUI.thread
         QueuesManager.register('TasksQueue', callable=lambda: TasksQueue)  # 爬虫 > GUI.thread
-        manager = QueuesManager(address=('127.0.0.1', self.queue_port), authkey=b'abracadabra')
+        manager = QueuesManager(address=('0.0.0.0', self.queue_port), authkey=b'abracadabra')
         self.s = manager.get_server()
         self.s.serve_forever()
 
     def find_free_port(self):
-        for i in range(50000, 50020):
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(3)
-            try:
-                result = sock.connect_ex(('localhost', i))
-                if result == 0:
-                    sock.close()
-                    continue
-                else:
-                    self.queue_port = i
-                    sock.close()
-                    break
-            except Exception as e:
-                sock.close()
-        else:
-            raise ConnectionError('no free port between 50000 and 50020 ')
-        del sock
-        return self.queue_port
+        for port in range(50000, 50020):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    s.bind(('0.0.0.0', port))
+                    self.queue_port = port
+                    return port
+                except Exception as e:
+                    if isinstance(e, socket.error):  # Address in use
+                        continue
+        raise ConnectionError('no free port between 50000 and 50020 ')
 
 
 def crawl_what(what, queue_port, **settings_kw):
