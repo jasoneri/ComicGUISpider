@@ -29,13 +29,13 @@
 
 ### 支持网站/功能
 
-| 网站                                    |  预览<br/>(点击多选) |    翻页     | 读剪贴板 |    补充说明    |
-|:--------------------------------------|:-------------:|:---------:|:----:|:----------:|
-| [拷贝漫画](https://www.mangacopy.com/)    |       ❌       |     ✅     |  ❌   |   已解锁隐藏    |
-| [Māngabz](https://mangabz.com)        |       ❌       |     ✅     |  ❌   | 代理 |
-| [禁漫天堂](https://18comic.vip/)          |       ✅       |     ✅     |  ✅   |     🔞     |
-| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞<br>域名问题看[额外使用说明第二条](docs/FAQ_and_EXTRA.md#2-域名相关说明)     |
-| [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳页 |  ✅   |     🔞/代理     |
+| 网站                                    |  预览<br>(点击多选) |    翻页     | 读剪贴板 |    补充说明    | 状态<br>(UTC+8) |
+|:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----:|
+| [拷贝漫画](https://www.mangacopy.com/)    |       ❌       |     ✅     |  ❌   |   已解锁隐藏    | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
+| [Māngabz](https://mangabz.com)        |       ❌       |     ✅     |  ❌   | 代理 | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
+| [禁漫天堂](https://18comic.vip/)          |       ✅       |     ✅     |  ✅   |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
+| [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
+| [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳页 |  ✅   |     🔞/代理     |  |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -59,19 +59,17 @@
 ## 📢更新
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
-> [🧪`v2.1.1-beta`](https://github.com/jasoneri/ComicGUISpider/releases/v2.1.1-beta) 处理jm访问
 
-### v2.1.0 | ~ 2025-03-29
+### v2.1.1 | ~ 2025-04-10
 
 #### 🎁 Features
 
-✅ 为预览窗口各封面右上增设badge
+✅ 版面增设各网站运行状态(非功能性，测试阶段)
 
 #### 🐞 Fix
 
-✅ 修复`wnacg`的发布页访问 / 图片下载进度不动 / 预览图片加载不了 等问题  
-✅ 将`requirements.txt`分别以`win`,`mac_x86_64`,`mac_arm64`编译，苹果m系芯片==arm64，详阅`📖macOS必读补充说明`  
-✅ 优化ui相关
+✅ 修复`jm`访问错误相关  
+✅ 修正`复制到剪贴板`功能异常（此前经常仅复制一条）  
 
 > [🕑更新历史](docs/UPDATE_RECORD.md) / [📝开发日志](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
