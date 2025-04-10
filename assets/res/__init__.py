@@ -131,6 +131,9 @@ class SPIDER:
     ERO_BOOK_FOLDER = "本子"
     PAGE_NAMING = '第%s页.jpg'
 
+    # utils
+    DOMAINS_INVALID = r"""<a href="%s">发布页</a>清洗出的域名%s访问失效，<br>请自行检查 (可参考📒额外使用说明第二条处理[%s])"""
+
 
 # folder of deploy
 class Updater:
