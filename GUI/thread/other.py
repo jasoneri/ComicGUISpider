@@ -75,18 +75,16 @@ class ToolMenu(DWMMenu):
 
 
 class CopyUnfinished:
-    copy_delay = 120 if curr_os != "macOS" else 500
+    copy_delay = 150 if curr_os != "macOS" else 300
     copied = 0
     
     def __init__(self, tasks):
         self.tasks = deepcopy(tasks)
-        self.length = len(tasks)
+        self.length = len(self.tasks)
 
     def to_clip(self):
-        if not self.tasks:
-            return 
-        task = self.tasks.pop(0)
-        clipboard = QApplication.clipboard()
-        clipboard.setText(task.title_url)
-        self.copied += 1
-        QTimer.singleShot(self.copy_delay, self.to_clip)
+        def copy_to_clipboard(text):
+            QApplication.clipboard().setText(text)
+        for i, task in enumerate(self.tasks):
+            QTimer.singleShot(self.copy_delay * (i + 1), 
+                lambda t=task.title_url: copy_to_clipboard(t))

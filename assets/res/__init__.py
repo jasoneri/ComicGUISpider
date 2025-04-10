@@ -33,7 +33,7 @@ class GUI:
     checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
     ACCESS_FAIL = "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
     cookies_copy_err = "格式错误，请看清楚最新gif的操作重新复制"
-    copied_tip = "已复制[%s]条到剪贴板"
+    copied_tip = "后台将复制[%s]条到剪贴板"
     textbrowser_load_if_http = (u'<b><font size="5" color="black">点击右下 `预览` </font></b>'
                                 u'<font color="black"> 或者 </font>'
                                 u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
