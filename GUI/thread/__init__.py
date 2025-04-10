@@ -86,9 +86,11 @@ class WorkThread(QThread):
             try:
                 if not TextBrowser.empty():
                     _ = str(TextBrowser.get().text)
-                    if "__temp" in _:
+                    if "__temp" in _ and _.endswith("html"):
                         self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己进程/线程初始化
                         self.gui.previewBtn.setEnabled(True)
+                    elif '[httpok]' in _:
+                        self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     else:
                         self.print_signal.emit(_)
                     self.msleep(5)

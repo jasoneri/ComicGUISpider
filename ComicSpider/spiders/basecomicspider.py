@@ -83,7 +83,7 @@ class BaseComicSpider(scrapy.Spider):
     (3)frame_section --> yield item\n
     3、存文件：略（统一标题命名）"""
 
-    __res = ori_res.SPIDER
+    res = ori_res.SPIDER
     input_state = None
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
@@ -98,7 +98,7 @@ class BaseComicSpider(scrapy.Spider):
     tasks_path = {}
     # 以下为继承变量
     num_of_row = 5
-    search_url_head = NotImplementedError(__res.search_url_head_NotImplementedError)
+    search_url_head = NotImplementedError(res.search_url_head_NotImplementedError)
     domain = None  # REMARK(2024-08-16): 使用时用self.domain, 保留作出更改的余地
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
@@ -157,11 +157,11 @@ class BaseComicSpider(scrapy.Spider):
         elect_res = response.meta.get("elect_res", [])
         if elect_res:
             elected_titles = list(map(lambda x: x[1], elect_res))
-            self.say(font_color(f"<br>{self.__res.choice_list_before_turn_page}<br>"
+            self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
                                 f"{'<br>'.join(elected_titles)}", color='green'))
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        results = self.elect_res(self.input_state.indexes, frame_book_results, step=self.__res.parse_step)
+        results = self.elect_res(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
         if self.input_state.pageTurn:
             yield from self.page_turn(response, results)
         else:
@@ -210,18 +210,18 @@ class BaseComicSpider(scrapy.Spider):
 
             self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
             choose = self.input_state.indexes
-            results = self.elect_res(choose, frame_sec_result, step=self.__res.parse_sec_step)
+            results = self.elect_res(choose, frame_sec_result, step=self.res.parse_sec_step)
             if results is None or not len(results):
-                self.say(font_color(f'<br><br>{self.__res.parse_sec_not_match}<br>', color="red"))
+                self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', color="red"))
                 self.logger.info(f'no result return, choose_input is wrong: {choose}')
             else:
-                self.say(f'{"-" * 10}《{title}》 {self.__res.parse_sec_selected}: {choose}')
+                self.say(f'{"-" * 10}《{title}》 {self.res.parse_sec_selected}: {choose}')
                 for result in results:
                     self.say(f"{result[0]:>>55}")
                 self.session = httpx.Client()
                 for section, section_url in results:
                     url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
-                    now_start_crawl_desc = self.__res.parse_sec_now_start_crawl_desc % title
+                    now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % title
                     self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
                     this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
                     meta = {
@@ -327,25 +327,25 @@ class BaseComicSpider(scrapy.Spider):
             if 'init' not in self.process_state.process:
                 if self.total != 0 and stats.get_value('item_scraped_count'):
                     self.say(font_color(
-                        f'<br>{self.__res.finished_success % stats.get_value("image/downloaded", 0)}<br>',
+                        f'<br>{self.res.finished_success % stats.get_value("image/downloaded", 0)}<br>',
                         color='green', size=6))
                 elif not stats.get_value('item_scraped_count') and stats.get_value('process_exception/count') > 0:
                     self.say(font_color(
-                        f'<br>{self.__res.finished_err % stats.get_value("process_exception/last_exception")}<br>' + 
+                        f'<br>{self.res.finished_err % stats.get_value("process_exception/last_exception")}<br>' + 
                         f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4))
                 else:
-                    self.say(font_color(f'{self.__res.finished_empty}<br>', color='purple', size=6))
+                    self.say(font_color(f'{self.res.finished_empty}<br>', color='purple', size=6))
             else:
                 self.say(font_color('unknown init error, please contact maintainer with operation-process', color='red', size=6))
         elif reason == "ConnectionResetError":
             return
         elif "error" in reason:
             if reason.startswith("[error]"):
-                self.say(font_color(reason.replace('http', 'h ttp'), color='red', size=4))
+                self.say(font_color(f"[httpok]{reason}" if "http" in reason else reason, color='red', size=4))
             self.say(
-                font_color(f'{self.__res.close_backend_error}<br>', size=5) +
-                font_color('<br>'.join((self.__res.close_check_log_guide1, self.__res.close_check_log_guide2,
-                                        self.__res.close_check_log_guide3)), color='blue', size=4) + "<br>" +
+                font_color(f'{self.res.close_backend_error}<br>', size=5) +
+                font_color('<br>'.join((self.res.close_check_log_guide1, self.res.close_check_log_guide2,
+                                        self.res.close_check_log_guide3)), color='blue', size=4) + "<br>" +
                 font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
             )
             _remove_cache()
@@ -449,7 +449,7 @@ class FormReqBaseComicSpider(BaseComicSpider):
         elif 'previous' in self.input_state.pageTurn:
             if _ - 1 <= 0:
                 response.meta['Body'].dic[self.body.page_index_field] = 1
-                self.say(self.__res.page_less_than_one)
+                self.say(self.res.page_less_than_one)
             else:
                 response.meta['Body'].dic[self.body.page_index_field] = f"{_ - 1}"
             yield from self.page_turn_(response, elected_results)

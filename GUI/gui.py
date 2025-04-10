@@ -397,7 +397,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def retry_schedule(self):  # 烂逻辑
         if getattr(self, 'p_crawler', None):
-            refresh_state(self, 'process_state', 'ProcessQueue')
+            try:
+                refresh_state(self, 'process_state', 'ProcessQueue')
+            except ConnectionResetError:
+                ...
             self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
 
         def retry_all():
@@ -552,7 +555,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def say(self, string, ignore_http=False):
-        if 'http' in string and not ignore_http:
+        if isinstance(string, str) and string.startswith('[httpok]'):
+            string = string[len('[httpok]'):]
+            ignore_http = True
+        if not ignore_http and 'http' in string:
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
                 self.textBrowser.append(self.res.textbrowser_load_if_http % string)
         elif "</p>" in string:

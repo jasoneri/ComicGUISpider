@@ -14,7 +14,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
-from utils import temp_p, md5
+from assets import res
+from utils import temp_p, md5, ori_path
 
 
 class Cookies:
@@ -224,9 +225,10 @@ class JmUtils(EroUtils, Req):
             resp = retry(httpx.head, 1, url, headers={**cls.headers, 'Referer': url}, follow_redirects=True, timeout=4)
             if resp and str(resp.status_code).startswith('2'):
                 return resp.url.host
-        else:
-            cls.status_publish = False
-            raise ConnectionError(f"发布页[{cls.publish_url}]清洗出的域名{domains}均失效，请前往检查")
+        cls.status_publish = False
+        raise ConnectionError(
+            res.SPIDER.DOMAINS_INVALID % (cls.publish_url, domains, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
+        )
 
     book_url_regex = r"^https://.*?comic.*?/album/\d+"
 
@@ -278,9 +280,10 @@ class WnacgUtils(EroUtils, Req):
             resp = retry(httpx.head, 2, url, headers=cls.headers, follow_redirects=True, timeout=3)
             if resp and str(resp.status_code).startswith('2'):
                 return re.sub("https?://", "", url).strip("/")
-        else:
-            cls.status_publish = False
-            raise ConnectionError(f"发布页[{cls.publish_url}]清洗出的网址{order_href}均失效，请前往检查")
+        cls.status_publish = False
+        raise ConnectionError(
+            res.SPIDER.DOMAINS_INVALID % (cls.publish_url, order_href, ori_path.joinpath(f'__temp/{cls.name}_domain.txt'))
+        )
 
     book_url_regex = r"^https://(www\.)?wn.*?/photos-index-aid-\d+\.html$"
 
