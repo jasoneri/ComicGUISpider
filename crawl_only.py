@@ -15,7 +15,7 @@ from utils.processed_class import (
 from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
 
 
-def say_to_textBrowser(textBrowserQueue, TasksQueue):
+def say_to_textBrowser(textBrowserQueue, TasksQueue, daily_test_flag=False):
     text_browser_q = textBrowserQueue.queue
     task_q = TasksQueue.queue
     break_flag = re.compile(f"{res.GUI.WorkThread_finish_flag}|{res.GUI.WorkThread_empty_flag}")
@@ -25,7 +25,8 @@ def say_to_textBrowser(textBrowserQueue, TasksQueue):
             if _state is None:
                 break
             _ = _state.text
-            logger.debug(_)
+            if not daily_test_flag:
+                logger.debug(_)
             if bool(break_flag.search(_)):
                 break
         if not task_q.empty():
@@ -107,9 +108,12 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--indexes', type=str, nargs='?',
                         help=res.GUI.Uic.chooseinputTip)
     parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
+    parser.add_argument('-l', '--log_level', type=str, nargs='?', default='DEBUG', help='log level')
     parser.add_argument('-tw', '--time_wait',
                         help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')
-    parser.add_argument('-tp', '--turn_p', action='store_true', help='Run turn_page_test')
+    parser.add_argument('-tp', '--turn_page', action='store_true', help='Run turn_page_test')
+    parser.add_argument('-dt', '--daily_test', action='store_true', help='Run daily_test')
+    parser.add_argument('-sp', '--start_port', type=int, nargs='?', default=50000, help='bind start port')
     args = parser.parse_args()
 
     if not args.keyword or not args.indexes:
@@ -126,7 +130,7 @@ if __name__ == '__main__':
     spider_choice = args.website if args.website else 1  # 选网站/爬虫，转crawl_what方法一目了然
 
     guiQueuesManger = GuiQueuesManger()
-    queue_port = guiQueuesManger.find_free_port()
+    queue_port = guiQueuesManger.find_free_port(start_port=args.start_port)
     p_qm = Process(target=guiQueuesManger.create_server_manager)
     p_qm.start()
 
@@ -136,14 +140,18 @@ if __name__ == '__main__':
         if p_qm.is_alive():
             p_qm.terminate()
         raise e
-    p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port),
-                        kwargs={"LOG_LEVEL": "DEBUG", "LOG_FILE": None})
+    p_crawler_kwargs = {"LOG_LEVEL": args.log_level, "LOG_FILE": None}
+    if args.daily_test:
+        p_crawler_kwargs.update({
+            "CLOSESPIDER_ITEMCOUNT": 13,
+        })
+    p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port), kwargs=p_crawler_kwargs)
     p_crawler.start()
 
-    p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'), gui.Q('TasksQueue')))
+    p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'), gui.Q('TasksQueue'), args.daily_test))
     p_bThread.start()
 
-    if args.turn_p:
+    if args.turn_page:
         test_turn_page()
     else:
         test_normal_process(args.keyword, args.indexes, args.indexes2)

@@ -108,8 +108,8 @@ class GuiQueuesManger(QueuesManager):
         self.s = manager.get_server()
         self.s.serve_forever()
 
-    def find_free_port(self):
-        for port in range(50000, 50020):
+    def find_free_port(self, start_port=50000):
+        for port in range(start_port, start_port + 20):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 try:
@@ -119,7 +119,7 @@ class GuiQueuesManger(QueuesManager):
                 except Exception as e:
                     if isinstance(e, socket.error):  # Address in use
                         continue
-        raise ConnectionError('no free port between 50000 and 50020 ')
+        raise ConnectionError(f'no free port between {start_port} and {start_port + 20}')
 
 
 def crawl_what(what, queue_port, **settings_kw):

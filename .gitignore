@@ -182,7 +182,7 @@ untitled*
 Pipfile
 Pipfile.lock
 codecov*
-*_loacl.yml
+*_local.yml
 # self/conf
 gitee_t.json
 conf.yml
