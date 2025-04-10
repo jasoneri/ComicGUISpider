@@ -35,7 +35,7 @@
 | [Māngabz](https://mangabz.com)        |       ❌       |     ✅     |  ❌   | 代理 | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
 | [禁漫天堂](https://18comic.vip/)          |       ✅       |     ✅     |  ✅   |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) |       ✅       |     ✅     |  ✅   |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
-| [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳页 |  ✅   |     🔞/代理     |  |
+| [ExHentai](https://exhentai.org/)     |       ✅       | ✅<br/>禁跳页 |  ✅   |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
