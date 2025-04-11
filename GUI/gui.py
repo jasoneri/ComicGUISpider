@@ -613,13 +613,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 class TextUtils:
     description = r"""<style>* {margin: 1px;padding: 1px;}</style><div>
     <div style="text-align: center;align-items: center;height: 75px">
-        <img alt="描述" src="%s" height="60"><span style="font-weight: bold;font-size: 40px">CGS</span>
+        <img alt="描述" src="%s" height="128"><span style="font-weight: bold;font-size: 40px">CGS</span>
     </div>
     <div style="color: blue">
         <p>%s</p>
         <p>%s<span style="color: white"> %s</span></p>
         <hr><p style="color: green">%s</p><hr><p></p>
     </div>
-</div>""" % (rf'file:///{ori_path.joinpath("assets/icon.png")}',
+</div>""" % (rf'file:///{ori_path.joinpath("assets/CGS-girl.png")}',
              res.GUI.DESC1 % rf'file:///{ori_path.joinpath("assets/config_icon.png")}', 
              res.GUI.DESC2, res.GUI.DESC_ELSE, res.GUI.DESC_NEW)

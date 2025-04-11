@@ -12,7 +12,7 @@ class GUI:
     DESC1 = """1、首次使用请点击<img src="%s" height="25" style="background-color: rgb(0, 255, 255);border-radius: 7px;">按钮，配置窗口左下角点击`查看说明`，内有配置详情/GUI视频使用指南等"""
     DESC2 = "2、使用遇阻时可以先查阅说明中的 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
     DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
-    DESC_STABLE = r"⭐️ v2.1.1 主要更新 特性/修复：(1)jm访问相关修复 (2)修正`复制到剪贴板`功能异常<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
+    DESC_STABLE = r"⭐️ v2.1.2 主要更新 特性/修复：(1)<s>更换</s> 新增看板娘 (2)jm访问相关修复 (3)修正`复制到剪贴板`功能异常<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
     DESC_PRERELEASE = r"""🧪 v2.1.1-beta 此开发版更新 特性/修复：<br>
     (1)修复/优化`jm`的访问（也可能仅是服务器繁忙而已） <br>
     当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 

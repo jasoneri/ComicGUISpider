@@ -64,6 +64,7 @@ class JmSpider(BaseComicSpider2):
                 b_url = b_url if self.domain in b_url else correct_domain(self.domain, b_url)
                 for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
                     yield scrapy.Request(url=b_url + key, callback=self.parse_section,
+                                         headers={**self.ua, 'Referer': self.domain},
                                          meta={'book_id': key}, dont_filter=True)
             else:
                 yield from super(JmSpider, self).start_requests()

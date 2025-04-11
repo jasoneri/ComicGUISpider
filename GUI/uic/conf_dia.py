@@ -24,7 +24,7 @@ class Ui_Dialog(object):
         Dialog.setMinimumSize(QtCore.QSize(500, 470))
         Dialog.setMaximumSize(QtCore.QSize(650, 530))
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/dohnadohna_.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(":/CGS-logo.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         Dialog.setWindowIcon(icon)
         self.gridLayout_2 = QtWidgets.QGridLayout(Dialog)
         self.gridLayout_2.setObjectName("gridLayout_2")
