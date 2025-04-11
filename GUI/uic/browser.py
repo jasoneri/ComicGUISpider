@@ -19,7 +19,7 @@ class Ui_browser(object):
         browser.setMinimumSize(QtCore.QSize(1040, 417))
         browser.setMaximumSize(QtCore.QSize(1375, 16777215))
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/dohnadohna_.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(":/CGS-logo.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         browser.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(browser)
         self.centralwidget.setMinimumSize(QtCore.QSize(0, 0))

@@ -1,8 +1,8 @@
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="../assets/icon.png" alt="logo">
+    <img src="../assets/CGS-girl.png" alt="logo">
   </a>
-  <h1 id="koishi">ComicGUISpider</h1>
+  <h1 id="koishi"style="margin: 0.1em 0;">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
   <img src="https://img.shields.io/badge/By-Qt5_&_Scrapy-blue.svg?colorA=abcdef" alt="tag">
   <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
@@ -16,27 +16,28 @@
 
 ▼ Demo ▼
 
-|  Preview & Multi-select  | Paging & Selection Retention |
-|:--------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
-| ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/preview-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/turn-page.gif) |
+|                             Preview & Multi-select                              |                         Paging & Selection Retention                         |
+|:-------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
+| ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
 
 ## 📑 Introduction
 
 ### Supported Websites
 
-| Website  | Preview<br/>(Multi-select) | Paging  | Clipboard | Notes         |
-|:--------------------------------------|:-------------:|:---------:|:----:|:----------:|
-| [MangaCopy](https://www.mangacopy.com/) | ❌ | ✅ | ❌ | Hidden content unlocked |
-| [Māngabz](https://mangabz.com)        | ❌ | ✅ | ❌ |  |
-| [18comic](https://18comic.vip/)       | ✅ | ✅ | ✅ | 🔞         |
-| [wnacg](https://www.wnacg.com/)       | ✅ | ✅ | ✅ | 🔞         |
-| [ExHentai](https://exhentai.org/)     | ✅ | ✅<br/>(No redirect) | ✅ | 🔞         |
+| Website                                 | Preview<br/>(Multi-select) |       Paging        | Clipboard |          Notes          |                                               status<br>(UTC+8)                                                |
+|:----------------------------------------|:--------------------------:|:-------------------:|:---------:|:-----------------------:|:--------------------------------------------------------------------------------------------------------------:|
+| [MangaCopy](https://www.mangacopy.com/) |             ❌              |          ✅          |     ❌     | Hidden content unlocked |  ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json)  |
+| [Māngabz](https://mangabz.com)          |             ❌              |          ✅          |     ❌     |                         | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
+| [18comic](https://18comic.vip/)         |             ✅              |          ✅          |     ✅     |           🔞            |      ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json)      |
+| [wnacg](https://www.wnacg.com/)         |             ✅              |          ✅          |     ✅     |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
+| [ExHentai](https://exhentai.org/)       |             ✅              | ✅<br/>(No redirect) |     ✅     |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
 
 <table><tbody>  
   <tr>
     <td>CGS Navigation</td>
     <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">🔗 Portable Package</a></td>
     <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗 GUI Guide (Video)</a></td>  
+    <td><a href="docs/FAQ_and_EXTRA.md" target="_blank">📖FAQ / extra</a></td>
     <td><a href="deploy/launcher/mac/EXTRA.md">🔗 macOS Notes</a></td> 
   </tr>  
 </tbody></table>
@@ -64,15 +65,13 @@ Some step like:
 
 > Following semantic versioning. Check [beta releases](https://github.com/jasoneri/ComicGUISpider/releases) between stable versions.
 
-### v1.7.5 | ~ 2025-03-01
+### v2.1.1 | ~ 2025-04-10
 
-#### 🐞 Fixes
+#### 🎁 Features
 
-+ Serial number input extension: supports a single negative number, e.g. '-3' indicates selecting the last three
-+ compatibility with clipboard-preview-window releated
-+ fixes error prompt, e.g. [WinError 10054]
+#### 🐞 Fix
 
-> [Full History](https://github.com/jasoneri/ComicGUISpider/wiki/%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95-update-record)
+> [🕑Full History](docs/UPDATE_RECORD.md)
 
 ## 📚 Features
 
@@ -96,7 +95,8 @@ Or using env of portable package:
 
 ## 🔨 Configuration
 
-![](../assets/conf_usage.jpg)
+![](../assets/conf_usage.png)
+
 <details>
 <summary>Config Details</summary>
 
@@ -115,21 +115,6 @@ Or using env of portable package:
 | cv_proj_path    | -           | - |
 
 </details>
-
-## ❓ FAQ
-
-### 1. Preview layout issues
-
-Refresh page if JavaScript fails to load
-
-### 2. Configuration effective releated
-
-Most settings require restart after website selection  
-Except completer
-
-### 3. Somethins wrong with Qt5
-
-> [Check Qt error collection](https://github.com/jasoneri/ComicGUISpider/wiki/Qt%E6%8A%A5%E9%94%99%E9%9B%86%E5%90%88)
 
 ## 🔰 Extras
 

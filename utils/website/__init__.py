@@ -447,7 +447,7 @@ def set_author_ahead(title: str) -> str:
     elif not author_:
         return title
     author = author_[0]
-    return author + title.replace(author, '').replace("  ", " ")
+    return (author + title.replace(author, '').replace("  ", " ")).strip()
 
 
 spider_utils_map = {

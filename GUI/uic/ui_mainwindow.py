@@ -28,7 +28,7 @@ class Ui_MainWindow(object):
         MainWindow.setFont(font)
         MainWindow.setFocusPolicy(QtCore.Qt.StrongFocus)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/dohnadohna_.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(":/CGS-logo.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setToolTipDuration(2)
         self.centralwidget = QtWidgets.QWidget(MainWindow)

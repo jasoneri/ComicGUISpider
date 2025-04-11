@@ -2,9 +2,9 @@
 
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="assets/icon.png" alt="logo">
+    <img src="assets/CGS-girl.png" alt="logo">
   </a>
-  <h1 id="koishi">ComicGUISpider</h1>
+  <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
   <img src="https://img.shields.io/badge/By-Qt5_&_Scrapy-blue.svg?colorA=abcdef" alt="tag">
   <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
@@ -60,10 +60,11 @@
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
-### v2.1.1 | ~ 2025-04-10
+### v2.1.2 | ~ 2025-04-12
 
 #### 🎁 Features
 
+✅ ~~更换~~ 新增看板娘  
 ✅ 版面增设各网站运行状态(非功能性，测试阶段)
 
 #### 🐞 Fix
