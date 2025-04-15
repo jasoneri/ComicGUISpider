@@ -1,4 +1,4 @@
-name: Daily Crawl Tests
+name: Schedule Test Status
 
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   test-suite:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     container:
       image: ghcr.io/jasoneri/comicguispider-dockerimage:latest
       options: >-
@@ -54,6 +54,4 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          # 部署badges目录到CloudFlare Pages
           wrangler pages deploy __temp/badges/ --project-name=cgs-status-badges --branch=main
-  

@@ -461,12 +461,6 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v1.6.2"))
-        self.chooseBox.setItemText(0, _translate("MainWindow", "选择网站"))
-        self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))
-        self.chooseBox.setItemText(2, _translate("MainWindow", "2、jm**"))
-        self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg**"))
-        self.chooseBox.setItemText(4, _translate("MainWindow", "4、ehentai**"))
-        self.chooseBox.setItemText(5, _translate("MainWindow", "5、Māngabz"))
         self.checkisopen.setText(_translate("MainWindow", "(完成后自动)打开存储目录"))
         self.searchinput.setInputMask(_translate("MainWindow", "输入关键字：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
         self.searchinput.setText(_translate("MainWindow", "输入关键字："))
