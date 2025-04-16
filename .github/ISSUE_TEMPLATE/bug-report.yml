@@ -1,6 +1,6 @@
 name: Bug Report 🐛
 description: 创建 Bug 报告以帮助我们改进 / Create a report to help us improve
-title: 🐛[标题这里简述这次情况/Describe simply for this situations]
+title: 🐛[Bug]
 assignees:
   - jasoneri
 labels: bug

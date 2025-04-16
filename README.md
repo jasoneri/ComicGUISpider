@@ -4,19 +4,17 @@
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
     <img src="assets/CGS-girl.png" alt="logo">
   </a>
-  <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider</h1>
-  <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
-  <img src="https://img.shields.io/badge/By-Qt5_&_Scrapy-blue.svg?colorA=abcdef" alt="tag">
+  <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
+  <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
   <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
+  <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fcgs-downloaded-cn.jsoneri.workers.dev%2F&style=social&logo=github" alt="tag">
   </a>
 
-  <p><a href="https://github.com/jasoneri/ComicGUISpider"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=32&duration=2500&pause=2500&color=13C8C3&center=true&vCenter=true&width=800&lines=CGS%EF%BC%8C%E4%B8%80%E4%B8%AA%E8%83%BD%E9%A2%84%E8%A7%88%2F%E7%BF%BB%E9%A1%B5%2F%E8%AF%BB%E5%89%AA%E8%B4%B4%E6%9D%BF%E7%AD%89%E5%8A%9F%E8%83%BD%E7%9A%84%E6%BC%AB%E7%94%BB%E4%B8%8B%E8%BD%BD%E8%BD%AF%E4%BB%B6" alt="Typing SVG" /></a></p>
-
 </div>
 
-▼ 操作演示 ▼ （动图没加载/卡顿时可用备链打开）
+▼ 操作演示 ▼ 
 
 |       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
@@ -25,9 +23,7 @@
 
 ## 📑介绍
 
-先下载后再看，免得在线看时得忍受卡网广告等😇 `CGS` 因这想法而诞生  
-
-### 支持网站/功能
+是否有过看漫加载慢，频跳广告而烦躁过😫，用 `CGS` 先下后看就行了啊嗯☝️  
 
 | 网站                                    |  预览<br>(点击多选) |    翻页     | 读剪贴板 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----:|
@@ -43,7 +39,7 @@
   <tr>
     <td>CGS导航</td>
     <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a></td>
-    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments" target="_blank">🎥GUI视频使用指南<br>(注意评论跳链)</a></td>  
+    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments" target="_blank">🎥视频使用指南<br>(注意评论跳链)</a></td>  
     <td><a href="docs/FAQ_and_EXTRA.md" target="_blank">📖FAQ / 额外说明</a></td>
     <td><a href="deploy/launcher/mac/EXTRA.md" target="_blank">📖macOS必读补充说明</a></td> 
   </tr>  
@@ -58,9 +54,7 @@
 
 ## 📢更新
 
-> 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
-
-### v2.1.2 | ~ 2025-04-12
+### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
 #### 🎁 Features
 
@@ -71,6 +65,8 @@
 
 ✅ 修复`jm`访问错误相关  
 ✅ 修正`复制到剪贴板`功能异常（此前经常仅复制一条）  
+
+> 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
 > [🕑更新历史](docs/UPDATE_RECORD.md) / [📝开发日志](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
@@ -157,6 +153,10 @@
 ## 💬交流/反馈
 
 ![Q群-437774506](https://img.shields.io/badge/QQ群-437774506-blue.svg?colorA=abcopq)
+
+## 📜贡献相关
+
+[📜贡献指南](docs/CONTRIBUTING/index.md) | [🌏开发指南](docs/CONTRIBUTING/spider.md)
 
 ## 💝CGS的部分实现依赖于以下开源项目
 
