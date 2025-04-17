@@ -156,7 +156,7 @@
 
 ## 📜贡献相关
 
-[📜贡献指南](docs/CONTRIBUTING/index.md) | [🌏开发指南](docs/CONTRIBUTING/spider.md)
+[📜贡献指南](docs/CONTRIBUTING/index.md) | [✒️开发指南](docs/CONTRIBUTING/spider.md) | [🌏i18n指南](docs/CONTRIBUTING/i18n.md)
 
 ## 💝CGS的部分实现依赖于以下开源项目
 
@@ -180,6 +180,8 @@
     <td><div align="center">etc..</div></td>
   </tr>  
 </tbody></table>
+
+拟借助 [Weblate](https://hosted.weblate.org/engage/comicguispider/) 实现多语言的翻译
 
 ## 🔇免责声明
 

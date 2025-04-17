@@ -90,6 +90,8 @@ pillow==11.1.0
     # via -r requirements-in.txt
 ply==3.11
     # via jsonpath-rw
+polib==1.2.0
+    # via -r requirements-in.txt
 protego==0.4.0
     # via scrapy
 pyasn1==0.6.1

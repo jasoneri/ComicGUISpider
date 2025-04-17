@@ -1,4 +1,6 @@
-# 🌏 其他网站的扩展开发指南 Website crawler develope guide
+# ✒️ 其他网站的扩展开发指南 Website crawler develope guide
+
+基于 `Scrapy`
 
 ## 开发步骤
 
@@ -47,7 +49,7 @@
 3. `STATUS_TIP` - 状态栏输入提示：序号必须，值可空字符串。鼠标悬停在搜索框时，最下状态栏会出现的文字
 
 > 如目标网站为🔞的，还需在`SPECIAL_WEBSITES`加进 爬虫名字`wnacg` （此处影响存储位置）  
-> 在`SPECIAL_WEBSITES_IDXES`加进 序号`2`² （此处影响gui逻辑）
+> 在`SPECIAL_WEBSITES_IDXES`加进 序号`3`² （此处影响gui逻辑）
 
 ### 3. ui 代码
 
@@ -57,7 +59,7 @@
 
 ```python
     self.chooseBox.addItem("")
-    self.chooseBox.setItemText(2, _translate("MainWindow", "2、wnacg🔞"))  # 🔞标识符不影响任何代码
+    self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg🔞"))  # 🔞标识符不影响任何代码
 ```
 
 ---
