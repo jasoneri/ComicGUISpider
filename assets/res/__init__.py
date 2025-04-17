@@ -1,164 +1,165 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""换行符<br>使用原则：
-    1. 一行话禁止加br，换行在self.say()前解决;
-    2. 多行的一段话可在最后加br，禁止在段落起始处加br
+import gettext
+import pathlib
+import locale
+"""usage of `<br>`：
+    1. 一行话禁止加 `br` ，换行在 `self.say()` 前解决;
+    2. 多行的一段话可在最后加 `br` ，禁止在段落起始处加 `br`
+    
+    1. forbid the use of `br` in one line, solve line break before `self.say()`;
+    2. add `br` at the end of a paragraph with multiple lines, forbid the use of `br` at the beginning of a paragraph
 """
-ENV = "简中环境"
+
+
+def getUserLanguage():
+    """corresponds to RFC 1766"""
+    sys_lang, _ = locale.getlocale()
+    match sys_lang.split('_')[0]:
+        case 'Chinese (Simplified)':
+            return 'zh-CN'
+        case _:
+            return 'en-US'
+
+_path = pathlib.Path(__file__).parent
+lang = getUserLanguage()
+
+gettext.bindtextdomain('res', str(_path / 'locale'))
+gettext.textdomain('res')
+
+try:
+    _translation = gettext.translation('res', str(_path / 'locale'), languages=[lang], fallback=False)
+    _ = _translation.gettext
+except FileNotFoundError as e:
+    print(str(e))
+    _ = gettext.gettext
 
 
 # GUI
 class GUI:
-    DESC1 = """1、首次使用请点击<img src="%s" height="25" style="background-color: rgb(0, 255, 255);border-radius: 7px;">按钮，配置窗口左下角点击`查看说明`，内有配置详情/GUI视频使用指南等"""
-    DESC2 = "2、使用遇阻时可以先查阅说明中的 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
-    DESC_ELSE = "若有其他问题/功能建议等到群反映/提issue"
-    DESC_STABLE = r"⭐️ v2.1.2 主要更新 特性/修复：(1)<s>更换</s> 新增看板娘 (2)jm访问相关修复 (3)修正`复制到剪贴板`功能异常<br>其他细则查看`使用说明`的更新部分 或 该版release说明"
-    DESC_PRERELEASE = r"""🧪 v2.1.1-beta 此开发版更新 特性/修复：<br>
-    (1)修复/优化`jm`的访问（也可能仅是服务器繁忙而已） <br>
-    当前开发版所有更新细则查看<a href='https://github.com/jasoneri/ComicGUISpider/releases'> 
-    最新Pre-release说明 <a>"""
-    DESC_NEW = DESC_STABLE
+    DESC1 = _('GUI.DESC1')
+    DESC2 = _('GUI.DESC2')
+    DESC_ELSE = _('GUI.DESC_ELSE')
 
-    BrowserWindow_ensure_warning = "需要返回选择页，并确保有选择的情况下使用"
+    BrowserWindow_ensure_warning = _('GUI.BrowserWindow_ensure_warning')
 
-    jm_bookid_support = ("支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>"
-                         "【剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号】")
-    wnacg_run_slow_in_cn_tip = ("wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>"
-                                "网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>"
-                                "重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>")
-    mangabz_desc = "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
-    check_ehetai = "正在检测当前环境能否访问`exhentai`中..."
-    check_mangabz = "正在检测当前环境能否访问`Māngabz`中..."
-    checkisopen_text_change = "现在点击立刻打开存储目录"
-    checkisopen_status_tip = "勾选状态下完成后也会自动打开目录的"
-    ACCESS_FAIL = "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
-    cookies_copy_err = "格式错误，请看清楚最新gif的操作重新复制"
-    copied_tip = "后台将复制[%s]条到剪贴板"
-    textbrowser_load_if_http = (u'<b><font size="5" color="black">点击右下 `预览` </font></b>'
-                                u'<font color="black"> 或者 </font>'
-                                u'<a href="%s" ><b style="font-size:20px;">浏览器查看结果</b></a>')
-    WorkThread_finish_flag = "后台完成"  # related to SPIDER.close_success
-    WorkThread_empty_flag = "后台正常退出没有"  # related to SPIDER.close_success
-    copymaga_tips = "拷贝已解锁章节，例如福利连"
-    copymaga_page_status_tip = "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
-    global_err_hook = "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
-    input_format_err = "输入格式错误，请鼠标移到输入框查看规则提示"
-    reboot_tip = "CGS内置重启中，将会花一小会重建界面与实例"
-    # 使用InfoBar需要title与content, 所以`InfoBar_xxx`的值是tuple而不是str
+    jm_bookid_support = _('GUI.jm_bookid_support')
+    wnacg_run_slow_in_cn_tip = _('GUI.wnacg_run_slow_in_cn_tip')
+    mangabz_desc = _('GUI.mangabz_desc')
+    check_ehetai = _('GUI.check_ehetai')
+    check_mangabz = _('GUI.check_mangabz')
+    checkisopen_text_change = _('GUI.checkisopen_text_change')
+    checkisopen_status_tip = _('GUI.checkisopen_status_tip')
+    ACCESS_FAIL = _('GUI.ACCESS_FAIL')
+    cookies_copy_err = _('GUI.cookies_copy_err')
+    copied_tip = _('GUI.copied_tip')
+    textbrowser_load_if_http = _('GUI.textbrowser_load_if_http')
+    WorkThread_finish_flag = _('GUI.WorkThread_finish_flag')
+    WorkThread_empty_flag = _('GUI.WorkThread_empty_flag')
+    copymaga_tips = _('GUI.copymaga_tips')
+    copymaga_page_status_tip = _('GUI.copymaga_page_status_tip')
+    global_err_hook = _('GUI.global_err_hook')
+    input_format_err = _('GUI.input_format_err')
+    reboot_tip = _('GUI.reboot_tip')
 
     class ToolMenu:
-        action1 = "显示已阅最新话数记录"
-        action2 = "整合章节并移至web目录"
-        action2_warning = "未配合[comic_viewer]项目产生记录文件[%s]，\n功能无法正常使用"
-        action_ero1 = "读取剪贴板创建匹配任务列表"
-        clip_process_warning = "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
+        action1 = _('GUI.ToolMenu.action1')
+        action2 = _('GUI.ToolMenu.action2')
+        action2_warning = _('GUI.ToolMenu.action2_warning')
+        action_ero1 = _('GUI.ToolMenu.action_ero1')
+        clip_process_warning = _('GUI.ToolMenu.clip_process_warning')
 
     class Uic:
-        chooseinputTip = ("示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) "
-                     "|  1+7-9 →复合 多选 1、7、8、9 | -3 →倒数3个")
-        chooseBoxToolTip = "选中网站后看状态栏有输入提示"
-        previewBtnStatusTip = "点击打开预览窗口，仅当出现书列表后才能使用"
-        progressBarStatusTip = (" >>> Ⅰ、绿色100%表示完成"
-            " Ⅱ、 任务细化后查得绿色100%也有漏页情况，可结合`复制未完成`与`剪贴板功能`进行补页")
+        chooseinputTip = _('GUI.Uic.chooseinputTip')
+        chooseBoxToolTip = _('GUI.Uic.chooseBoxToolTip')
+        previewBtnStatusTip = _('GUI.Uic.previewBtnStatusTip')
+        progressBarStatusTip = _('GUI.Uic.progressBarStatusTip')
         
-        sv_path_desc = "存储路径"
-        sv_path_desc_tip = "选择目录"
-        menu_show_completer = "展开预设"
-        menu_next_page = "下一页"
-        menu_prev_page = "上一页"
+        sv_path_desc = _('GUI.Uic.sv_path_desc')
+        sv_path_desc_tip = _('GUI.Uic.sv_path_desc_tip')
+        menu_show_completer = _('GUI.Uic.menu_show_completer')
+        menu_next_page = _('GUI.Uic.menu_next_page')
+        menu_prev_page = _('GUI.Uic.menu_prev_page')
         
-        confDia_descBtn = "查看说明"
-        confDia_updateBtn = "检查更新"
-        confDia_updateDialog_stable = "检测到最新稳定版"
-        confDia_updateDialog_dev = "检测到最新开发版"
-        confDia_supportBtn = "其他"
-        confDia_promote_title = "推荐机场"
-        confDia_promote_content = "30rmb130G永久流量，量大管饱" 
-        confDia_promote_url = "https://hxlm.io/#/register?code=sZWBMyum"
-        confDia_feedback_group = "437774506"
-        confDia_feedback_group_copied = "群号已复制"
-        confDia_support_content = "~投喂请随意"
+        confDia_descBtn = _('GUI.Uic.confDia_descBtn')
+        confDia_updateBtn = _('GUI.Uic.confDia_updateBtn')
+        confDia_updateDialog_stable = _('GUI.Uic.confDia_updateDialog_stable')
+        confDia_updateDialog_dev = _('GUI.Uic.confDia_updateDialog_dev')
+        confDia_supportBtn = _('GUI.Uic.confDia_supportBtn')
+        confDia_promote_title = _('GUI.Uic.confDia_promote_title')
+        confDia_promote_content = _('GUI.Uic.confDia_promote_content') 
+        confDia_promote_url = _('GUI.Uic.confDia_promote_url')
+        confDia_feedback_group = _('GUI.Uic.confDia_feedback_group')
+        confDia_feedback_group_copied = _('GUI.Uic.confDia_feedback_group_copied')
+        confDia_support_content = _('GUI.Uic.confDia_support_content')
 
 
 # website
 class EHentai:
-    COOKIES_NOT_SET = "访问 exhentai 必须设置`eh_cookies`"
-    ACCESS_FAIL = ("当前`eh_cookies`或`配置代理`或`全局代理`等环境无法访问<br>"
-                   """请前往网站访问排查（尚不支持该网站墙内直连）""")
-    GUIDE = ("exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br>"
-             " - 配置需设置`eh_cookies`的值，值生成参考配置详情里该字段说明。<br>"
-             "2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br>"
-             " - 可使用全局代理，或者配置代理（需要在此指引弹出前设置好，否则重启CGS）代理服务建议用v2rayN<br>"
-             "（⚠️测试链接仅设置请求3秒超时，由于测api与GUI共同为主线程，避免请求太久超时使得GUI没响应令用户反而觉得是软件坏了，<br>"
-             "建议出错后日志等级设debug，边使用边看`scripts/log/GUI.log`排错，结合关程序后重启先试几遍，后续看情况优化）")
-    JUMP_TIP = "ehentai跳页情况特殊，没想好应用，暂时设限制取消`跳页`功能"
+    COOKIES_NOT_SET = _('EHentai.COOKIES_NOT_SET')
+    ACCESS_FAIL = _('EHentai.ACCESS_FAIL')
+    GUIDE = _('EHentai.GUIDE')
+    JUMP_TIP = _('EHentai.JUMP_TIP')
 
 
 # backend (spider/scrapy)
 class SPIDER:
     # basecomicspider
     class SayToGui:
-        exp_txt = f"""请于【 输入序号 】框输入要选的序号  """
-        exp_turn_page = "搜索输入框右侧为`翻页按钮组`，分别是 上一页/下一页/输入页数跳转"
-        exp_preview = "进预览页面能直接点击封面进行多选，预览页面右上确认选择(确认选择能额外与【输入序号】框的序号相叠加)"
-        exp_replace_keyword = "请于【"
-        TextBrowser_error = """选择{1}步骤时错误的输入：{0}<br> {2}"""  # discarded
-        frame_book_print_extra = " →_→ 鼠标移到序号栏有教输入规则"
-        frame_book_print_retry_tip = ("什么意思？唔……就是你搜的在放✈(飞机)<br>"
-                                      "翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没 / 重开换种姿势再搜")
-        frame_section_print_extra = " ←_← 点击【开始爬取！】"
+        exp_txt = _('SPIDER.SayToGui.exp_txt')
+        exp_turn_page = _('SPIDER.SayToGui.exp_turn_page')
+        exp_preview = _('SPIDER.SayToGui.exp_preview')
+        exp_replace_keyword = _('SPIDER.SayToGui.exp_replace_keyword')
+        TextBrowser_error = _('SPIDER.SayToGui.TextBrowser_error')
+        frame_book_print_extra = _('SPIDER.SayToGui.frame_book_print_extra')
+        frame_book_print_retry_tip = _('SPIDER.SayToGui.frame_book_print_retry_tip')
+        frame_section_print_extra = _('SPIDER.SayToGui.frame_section_print_extra')
 
-    search_url_head_NotImplementedError = '需要自定义搜索网址'
-    choice_list_before_turn_page = "此前页面已选择(待结算)"
-    parse_step = '漫画'  # not use
-    parse_sec_step = '章节'  # not use
-    parse_sec_not_match = '没匹配到结果'
-    parse_sec_selected = '所选序号'
-    parse_sec_now_start_crawl_desc = "现在开始爬取《%s》章节"
-    page_less_than_one = "当前页数少于1，避免出错设置回第一页"
+    search_url_head_NotImplementedError = _('SPIDER.search_url_head_NotImplementedError')
+    choice_list_before_turn_page = _('SPIDER.choice_list_before_turn_page')
+    parse_step = _('SPIDER.parse_step')
+    parse_sec_step = _('SPIDER.parse_sec_step')
+    parse_sec_not_match = _('SPIDER.parse_sec_not_match')
+    parse_sec_selected = _('SPIDER.parse_sec_selected')
+    parse_sec_now_start_crawl_desc = _('SPIDER.parse_sec_now_start_crawl_desc')
+    page_less_than_one = _('SPIDER.page_less_than_one')
 
-    finished_success = "~~~后台完成[%s]个图片任务了 ヾ(￣▽￣ )Bye~Bye~"
-    finished_err = "~~~…(￣┰￣*)………后台异常退出，最后捕捉的异常信息为<br>%s"
-    finished_empty = "~~~…(￣┰￣*)………后台正常退出没有产生图片任务，请自行检查输入"
-    close_backend_error = "~~~…(￣┰￣*)………后台挂了，排错操作指引如下"
-    close_check_log_guide1 = '1、打开下方的日志文件，查阅看有没开发者定义了的错误提示，或者是重试能解决的网络问题如 ReadTimeout'
-    close_check_log_guide2 = '2、第1步非网络问题的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤'
-    close_check_log_guide3 = '3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue'
+    finished_success = _('SPIDER.finished_success')
+    finished_err = _('SPIDER.finished_err')
+    finished_empty = _('SPIDER.finished_empty')
+    close_backend_error = _('SPIDER.close_backend_error')
+    close_check_log_guide1 = _('SPIDER.close_check_log_guide1')
+    close_check_log_guide2 = _('SPIDER.close_check_log_guide2')
+    close_check_log_guide3 = _('SPIDER.close_check_log_guide3')
 
     # spiders
 
     # pipelines
-    ERO_BOOK_FOLDER = "本子"
-    PAGE_NAMING = '第%s页.jpg'
+    ERO_BOOK_FOLDER = _('SPIDER.ERO_BOOK_FOLDER')
+    PAGE_NAMING = _('SPIDER.PAGE_NAMING')
 
     # utils
-    DOMAINS_INVALID = r"""<a href="%s">发布页</a>清洗出的域名%s访问失效，<br>请自行检查 (可参考📒额外使用说明第二条处理[%s])"""
+    DOMAINS_INVALID = _('SPIDER.DOMAINS_INVALID')
 
 
 # folder of deploy
 class Updater:
-    ver_check = "检查版本中"
-    ver_file_not_exist = "没有version文件，准备初始化"
-    check_refresh_code = "检查需要更新的代码"
-    code_downloading = "下载代码文件中"
-    finish = "更新完毕"
-    not_pkg_markdown = "当前环境无法使用此功能，需要重新下载绿色安装包"
-    token_invalid_notification = ("[ 本地文件的token全部失效/读取失误，当前将使用无状态去请求github api（受限60请求/小时）]\n"
-                                  "下次使用更新会重新下载token文件，还是全部失效/读取失误的话可截图告知开发者")
-    latest_code_overwriting = "使用最新版本代码覆盖中"
-    too_much_waiting_update = "检测到堆积过多待更新版本，将忽略更新消息直接拉至最新版本代码"
-    refreshing_code = "更新代码中"
-    refresh_fail_retry = "更新失败, 准备重试"
-    refresh_fail_retry_over_limit = "是网络问题，重试更新即可。 若其他情况导致更新一直失败请截图发issue或找群反映"
-    code_is_latest = "代码已是最新.. 若有其他问题向群里反映"
-    # env_covering = "环境补充中"
-    env_check_fail = ("检测到缺失包[%s]\n", 
-        "1. win用户: 请前往最新release下载绿色安装包（可选备份配置`scripts/conf.yml`与去重记录`scripts/record.db`）\n",
-        "2. mac用户: 使用`CGS-初始化`更新环境")
-    env_is_latest = "环境已是最新"
-    
-    ver_local_latest = "本地版本已是最新.."
-    ver_check_fail = "检查版本失败，可重试或前往releases页面查看"
-    update_ensure = "确认更新"
-    updated_success = "✅ 更新成功，CGS将在5s后重启"
-    updated_fail = "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）"
+    ver_check = _('Updater.ver_check')
+    ver_file_not_exist = _('Updater.ver_file_not_exist')
+    check_refresh_code = _('Updater.check_refresh_code')
+    code_downloading = _('Updater.code_downloading')
+    finish = _('Updater.finish')
+    not_pkg_markdown = _('Updater.not_pkg_markdown')
+    token_invalid_notification = _('Updater.token_invalid_notification')
+    latest_code_overwriting = _('Updater.latest_code_overwriting')
+    too_much_waiting_update = _('Updater.too_much_waiting_update')
+    refreshing_code = _('Updater.refreshing_code')
+    refresh_fail_retry = _('Updater.refresh_fail_retry')
+    refresh_fail_retry_over_limit = _('Updater.refresh_fail_retry_over_limit')
+    code_is_latest = _('Updater.code_is_latest')
+    env_is_latest = _('Updater.env_is_latest')
+    ver_local_latest = _('Updater.ver_local_latest')
+    ver_check_fail = _('Updater.ver_check_fail')
+    update_ensure = _('Updater.update_ensure')
+    updated_success = _('Updater.updated_success')
+    updated_fail = _('Updater.updated_fail')

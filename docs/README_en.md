@@ -10,15 +10,13 @@
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
 
-  <p><a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=28&duration=2500&pause=1800&color=13C8C3&center=true&vCenter=true&multiline=true&width=950&height=100&lines=CGS%2C++A+comic%2Fmanga+download+software;which+support+preview+and+turn-page+and+read+Clipboard" alt="Typing SVG" /></a></p>
-
 </div>
 
 ▼ Demo ▼
 
 |                             Preview & Multi-select                              |                         Paging & Selection Retention                         |
 |:-------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
-| ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
+| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
 
 ## 📑 Introduction
 
@@ -44,51 +42,28 @@
 
 <hr>
 
-**☝️😋 Star this repo to boost development karma! Your ⭐ makes CGS better!**
-![](https://img.shields.io/github/stars/jasoneri/ComicGUISpider)
+## 📜Contributing
+
+now support simple `en-US` of Ui, but still need help for i18n of maintenance
+
+here is the Documentation [🌏i18n Guide](./CONTRIBUTING/i18n.md)
 
 <hr>
 
-## 🌏I18N / Localization Support
-
-If you find this project valuable and would like to help translate it into your native language, we warmly welcome your contribution!
-
-Some step like:
-
-+ Submit translation PRs for existing languages
-+ Propose support for new languages
-+ Improve existing translations
-
-📮 Contact maintainer on [Discussions](https://github.com/jasoneri/ComicGUISpider/discussions/24) for assistance.
-
 ## 📢 Changelog
 
-> Following semantic versioning. Check [beta releases](https://github.com/jasoneri/ComicGUISpider/releases) between stable versions.
-
-### v2.1.1 | ~ 2025-04-10
-
-#### 🎁 Features
-
-#### 🐞 Fix
+Left-bottom of the config-dialog has `Check Update` button, please update according to the prompt
 
 > [🕑Full History](docs/UPDATE_RECORD.md)
-
-## 📚 Features
-
-1. Search suggestions (<kbd>Space</kbd> trigger)
-2. Preview window with browser-like features
-3. Paging functionality (see demo)
-4. Toolbox:
-   - Clipboard reading (🔞 sites)
-   - Reading records integration
-   - Chapter consolidation
 
 ## 🚀 Usage
 
 ### GUI
+
 `python CGS.py`
 
-### CLI <a id="cli"></a>
+### CLI
+
 `python crawl_only.py --help`  
 Or using env of portable package:  
 `.\runtime\python.exe .\scripts\crawl_only.py --help`
@@ -116,16 +91,10 @@ Or using env of portable package:
 
 </details>
 
-## 🔰 Extras
-
-### Scripts Extras
-About `kemono`/`saucenao` utilities
-
 ## 🔇 Disclaimer
 See [License](LICENSE). By using this project you agree to:
 - Non-commercial use only
 - Developer's final interpretation
-
 
 ---
 ![CGS_en](https://count.getloli.com/get/@CGS_en?theme=rule34)
