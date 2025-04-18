@@ -172,6 +172,7 @@ analyze/
 __temp
 test/*
 .lh/
+assets/res/*.png
 # self/build
 *.ico
 *.qrc

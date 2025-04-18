@@ -41,7 +41,6 @@ class TaskProgressManager:
         self.sql_handler = SqlUtils()
 
     def init(self, add_task):
-        """初始化相关"""
         self.init_flag = False
         if not self.gui.BrowserWindow and self.gui.previewInit:
             self.gui.tf = self.gui.tf or PreviewHtml().created_temp_html
@@ -56,20 +55,17 @@ class TaskProgressManager:
             self.update_progress(task)
             
     def add_task(self, task_info: tuple):
-        """新增任务"""
         if self.init_flag:
             self.init(lambda: self._real_add_task(task_info))
         else:
             self._real_add_task(task_info)
 
     def _real_add_task(self, task_info: tuple):
-        """实际新增任务"""
         obj = TasksObj(*task_info)
         self._tasks[task_info[0]] = obj
         self.gui.BrowserWindow.add_task(obj)
 
     def update_progress(self, task_obj: TaskObj):
-        """更新指定任务进度"""
         taskid = task_obj.taskid
         progress_completed = False
         if taskid in self._tasks:
@@ -221,13 +217,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if idx == 0:
             return
         this_completer = conf.completer[idx] if idx in conf.completer else DEFAULT_COMPLETER[idx]
-        completer = QCompleter(list(map(lambda x: f"{self.res.Uic.searchinputPrefix}{x}", this_completer)))
+        completer = QCompleter(list(map(lambda x: f" {x}", this_completer)))
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.searchinput.setCompleter(completer)
         completer.activated.connect(lambda :
             self.searchinput.setCursorPosition(len(self.searchinput.text())))
-        _completer = QCompleter(list(map(lambda x: f"{self.res.Uic.chooseinputPrefix}{x}", ['1', '-1', '-3', '0'])))
+        _completer = QCompleter(list(map(lambda x: f" {x}", ['1', '-1', '-3', '0'])))
         _completer.setCompletionMode(QCompleter.PopupCompletion)
         self.chooseinput.setCompleter(_completer)
         _completer.activated.connect(lambda :
@@ -235,7 +231,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def btn_logic_bind(self):
         def search_btn(text):
-            self.next_btn.setEnabled(len(text) > len(self.res.Uic.searchinputPrefix) and self.chooseBox.currentIndex() != 0)  # else None
+            self.next_btn.setEnabled(len(text.strip()) > 0 and self.chooseBox.currentIndex() != 0)  # else None
         self.searchinput.textChanged.connect(search_btn)
         self.next_btn.setDisabled(True)
         self.previewBtn.setDisabled(True)
@@ -279,11 +275,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.pageFrameClickCnt += 1
             self.clean_temp_file()
             if self.BrowserWindow and self.BrowserWindow.output:
-                idxes = f"[combine]{str(self.BrowserWindow.output)} and {self.chooseinput.text()[5:].strip()}"
+                idxes = f"[combine]{str(self.BrowserWindow.output)} and {self.chooseinput.text().strip()}"
                 self.input_state.indexes = idxes
                 self.BrowserWindow.output = []
-            elif self.chooseinput.text()[5:].strip():
-                self.input_state.indexes = self.chooseinput.text()[5:].strip()
+            elif self.chooseinput.text().strip():
+                self.input_state.indexes = self.chooseinput.text().strip()
             else:
                 self.input_state.indexes = ""
             if _p.startswith("next"):
@@ -423,7 +419,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.log.info('===--→ -*- searching')
             self.next_btn.setText('Next')
 
-            self.input_state.keyword = self.searchinput.text()[6:].strip()
+            self.input_state.keyword = self.searchinput.text().strip()
             self.input_state.bookSelected = self.chooseBox.currentIndex()
             # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
             self.q_InputFieldQueue_send(self.input_state)
@@ -432,7 +428,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.bThread = WorkThread(self)
 
                 def crawl_btn(text):
-                    if len(text) > len(self.res.Uic.chooseinputPrefix):
+                    if len(text.strip()) > 0:
                         refresh_state(self, 'process_state', 'ProcessQueue')
                         self.crawl_btn.setEnabled(self.process_state.process == 'parse section')
                         self.next_btn.setDisabled(self.crawl_btn.isEnabled())
@@ -492,7 +488,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             refresh_state(self, 'process_state', 'ProcessQueue')
             self.toolButton.setDisabled(True)
             return
-        idxes = self.chooseinput.text()[5:].strip()
+        idxes = self.chooseinput.text().strip()
         if self.BrowserWindow and self.BrowserWindow.output:
             idxes = f"[combine]{str(self.BrowserWindow.output)} and {idxes}"
         self.input_state.indexes = idxes
@@ -509,7 +505,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.debug(f'send choose: {self.input_state.indexes} success')
 
     def crawl(self):
-        self.input_state.indexes = self.chooseinput.text()[5:].strip()
+        self.input_state.indexes = self.chooseinput.text().strip()
         self.log.debug(f'===--→ click down crawl_btn')
 
         QThread.msleep(10)

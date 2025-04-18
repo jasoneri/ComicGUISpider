@@ -73,8 +73,8 @@ class GUI:
 
     class Uic:
         chooseBoxDefault = _('GUI.Uic.chooseBoxDefault')
-        searchinputPrefix = _('GUI.Uic.searchinputPrefix')
-        chooseinputPrefix = _('GUI.Uic.chooseinputPrefix')
+        searchinputPlaceholderText = _('GUI.Uic.searchinputPlaceholderText')
+        chooseinputPlaceholderText = _('GUI.Uic.chooseinputPlaceholderText')
         next_btnDefaultText = _('GUI.Uic.next_btnDefaultText')
         checkisopenDefaultText = _('GUI.Uic.checkisopenDefaultText')
         chooseinputTip = _('GUI.Uic.chooseinputTip')

@@ -1,6 +1,5 @@
 import types
 from PyQt5.QtWebEngineWidgets import QWebEngineContextMenuData, QWebEngineSettings, QWebEnginePage
-from PyQt5.QtCore import Qt
 from qfluentwidgets import (
     Action, RoundMenu, FluentIcon
 )
@@ -20,12 +19,16 @@ class MonkeyPatch:
     @staticmethod
     def rbutton_menu_lineEdit(line_edit):
         def new_context_menu(self, event):
+            def _showCompleterMenu():
+                if not self.text().strip():
+                    self.setText(" ")
+                self._showCompleterMenu()
             menu = RoundMenu(parent=self)
             undo_action = Action(FluentIcon.CANCEL, text=self.tr("Cancel"), triggered=self.undo)
             paste_action = Action(FluentIcon.PASTE, text=self.tr("Paste"), triggered=self.paste)
             select_all_action = Action(self.tr("Select all"), triggered=self.selectAll)
             show_completer = Action(FluentIcon.ALIGNMENT, text=self.tr(res.menu_show_completer), 
-                                    triggered=self._showCompleterMenu)
+                                    triggered=_showCompleterMenu)
             menu.addAction(show_completer)
             menu.addSeparator()
             menu.addAction(paste_action)
