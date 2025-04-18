@@ -53,20 +53,17 @@
 
 ## 📢更新
 
-✨支持 i18n , 软件启动时取值，当 `python -c 'import locale;print(locale.getlocale())'` 为 `Chinese (Simplified)`时  
-视为简中环境 `zh-CN` ，否则一律转换成 `en-US`
-
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
 #### 🎁 Features
 
-✅ ~~更换~~ 新增看板娘  
-✅ 版面增设各网站运行状态(非功能性，测试阶段)
+✅ 支持 i18n , 软件启动时取值，当 `python -c 'import locale;print(locale.getlocale())'` 为 `Chinese (Simplified)`时  
+视为简中环境 `zh-CN` ，否则一律转换成 `en-US`  
+✅ 增加贡献指南等，文档优化，为 `github page` 做准备
 
 #### 🐞 Fix
 
-✅ 修复`jm`访问错误相关  
-✅ 修正`复制到剪贴板`功能异常（此前经常仅复制一条）  
+✅ 优化输入框预设相关功能  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
