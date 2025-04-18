@@ -75,7 +75,7 @@
                     data-bs-toggle="collapse" 
                     data-bs-target="#taskPanel"
                     aria-expanded="true">
-                隐藏任务队列 (<span id="taskCounter">0</span>)
+                Hide tasks(<span id="taskCounter">0</span>)
             </button>
             <div class="collapse show" id="taskPanel">
                 <div class="card card-body pb-2" id="taskContainer"></div>
@@ -94,12 +94,12 @@
       requestAnimationFrame(autoScroll);
     }
     taskPanel.addEventListener('shown.bs.collapse', () => {
-      counterBtn.innerHTML = `隐藏任务队列 (<span id="taskCounter">${taskCounter()}</span>)`;
+      counterBtn.innerHTML = `Hide tasks (<span id="taskCounter">${taskCounter()}</span>)`;
       divider.classList.add('visible');
       autoScroll(); // 展开时自动滚动
     });
     taskPanel.addEventListener('hidden.bs.collapse', () => {
-      counterBtn.innerHTML = `显示任务队列 (<span id="taskCounter">${taskCounter()}</span>)`;
+      counterBtn.innerHTML = `Show tasks (<span id="taskCounter">${taskCounter()}</span>)`;
       divider.classList.remove('visible');
     });
     window.scrollTo({top: 0, behavior: 'smooth'});

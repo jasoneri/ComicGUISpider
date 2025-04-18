@@ -13,7 +13,8 @@ import locale
 
 
 def getUserLanguage():
-    """corresponds to RFC 1766"""
+    """locale.getlocale() get `ISO 639-1`_`ISO 3166-1`
+    return `RFC 1766`"""
     sys_lang, _ = locale.getlocale()
     match sys_lang.split('_')[0]:
         case 'Chinese (Simplified)':
@@ -54,7 +55,6 @@ class GUI:
     ACCESS_FAIL = _('GUI.ACCESS_FAIL')
     cookies_copy_err = _('GUI.cookies_copy_err')
     copied_tip = _('GUI.copied_tip')
-    ClipTasksPartFail = _('GUI.ClipTasksPartFail')
     textbrowser_load_if_http = _('GUI.textbrowser_load_if_http')
     WorkThread_finish_flag = _('GUI.WorkThread_finish_flag')
     WorkThread_empty_flag = _('GUI.WorkThread_empty_flag')
@@ -64,12 +64,29 @@ class GUI:
     input_format_err = _('GUI.input_format_err')
     reboot_tip = _('GUI.reboot_tip')
 
+    class Clip:
+        process_warning = _('GUI.Clip.process_warning')
+        match_none = _('GUI.Clip.match_none')
+        get_info_error = _('GUI.Clip.get_info_error')
+        partial_fail = _('GUI.Clip.partial_fail')
+        all_fail = _('GUI.Clip.all_fail')
+        view_log = _('GUI.Clip.view_log')
+
+    class SearchInputStatusTip:
+        manga_copy = _('GUI.SearchInputStatusTip.manga_copy')
+        jm = _('GUI.SearchInputStatusTip.jm')
+        wnacg = _('GUI.SearchInputStatusTip.wnacg')
+        ehentai = _('GUI.SearchInputStatusTip.ehentai')
+        mangabz = _('GUI.SearchInputStatusTip.mangabz')
+
     class ToolMenu:
         action1 = _('GUI.ToolMenu.action1')
         action2 = _('GUI.ToolMenu.action2')
         action2_warning = _('GUI.ToolMenu.action2_warning')
         action_ero1 = _('GUI.ToolMenu.action_ero1')
+        combined_tip = _('GUI.ToolMenu.combined_tip')
         clip_process_warning = _('GUI.ToolMenu.clip_process_warning')
+        clip_match_none = _('GUI.ToolMenu.clip_match_none')
 
     class Uic:
         chooseBoxDefault = _('GUI.Uic.chooseBoxDefault')
@@ -115,6 +132,8 @@ class EHentai:
     ACCESS_FAIL = _('EHentai.ACCESS_FAIL')
     GUIDE = _('EHentai.GUIDE')
     JUMP_TIP = _('EHentai.JUMP_TIP')
+    MAPPINGS_INDEX = _('EHentai.MAPPINGS_INDEX')
+    MAPPINGS_POPULAR = _('EHentai.MAPPINGS_POPULAR')
 
 
 # backend (spider/scrapy)

@@ -14,7 +14,7 @@
 
 ▼ Demo ▼
 
-|                             Preview & Multi-select                              |                         Paging & Selection Retention                         |
+|                             Preview / Multi-select / Paging                              |                         Clipboard Tasks                         |
 |:-------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
 | ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
 
@@ -44,9 +44,9 @@
 
 ## 📜Contributing
 
-now support simple `en-US` of Ui, but still need help for i18n of maintenance
+now support simple `en-US` of Ui, but still need help for i18n of maintenance, such as Documentation  
 
-here is the Documentation [🌏i18n Guide](./CONTRIBUTING/i18n.md)
+Come here [🌏i18n Guide](./CONTRIBUTING/i18n.md)
 
 <hr>
 
@@ -70,7 +70,7 @@ Or using env of portable package:
 
 ## 🔨 Configuration
 
-![](../assets/conf_usage.png)
+![](../assets/conf_usage_en.png)
 
 <details>
 <summary>Config Details</summary>
@@ -87,7 +87,6 @@ Or using env of portable package:
 | eh_cookies    | -           | Required for ExHentai, [🔗view how to gei it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)              |
 | clip_db    | -           |  [Ditto](https://github.com/sabrogden/Ditto) or [Maccy](https://github.com/p0deje/Maccy) 's local db path |
 | clip_read_num    | 20           | - |
-| cv_proj_path    | -           | - |
 
 </details>
 

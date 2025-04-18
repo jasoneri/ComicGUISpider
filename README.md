@@ -14,12 +14,11 @@
 
 </div>
 
-▼ 操作演示 ▼ 
+▼ 操作演示 ▼
 
 |       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
-
 
 ## 📑介绍
 
@@ -53,6 +52,9 @@
 ---
 
 ## 📢更新
+
+✨支持 i18n , 软件启动时取值，当 `python -c 'import locale;print(locale.getlocale())'` 为 `Chinese (Simplified)`时  
+视为简中环境 `zh-CN` ，否则一律转换成 `en-US`
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
