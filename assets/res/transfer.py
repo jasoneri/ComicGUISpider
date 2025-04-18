@@ -56,4 +56,4 @@ def main(lang):
 if __name__ == "__main__":
     base_dir = pathlib.Path(__file__).parent
     main('zh-CN') 
-    # main('en-US') 
+    main('en-US') 

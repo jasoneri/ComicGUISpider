@@ -2,7 +2,7 @@ name: Schedule Test Status
 
 on:
   schedule:
-    - cron: '0 4 */3 * *'  # UTC 4 == +8 12:00
+    - cron: '0 4 */5 * *'  # UTC 4 == +8 12:00
   workflow_dispatch:
 
 jobs:

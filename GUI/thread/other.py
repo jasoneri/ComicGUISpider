@@ -44,7 +44,7 @@ class ToolMenu(DWMMenu):
     def combine_then_mv(self):
         done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
         InfoBar.success(
-            title='combine_then_mv', content=f"已将{done}整合章节并转换至[{conf.sv_path.joinpath("web")}]",
+            title='combine_then_mv', content=self.res.combined_tip % (done, conf.sv_path.joinpath("web")),
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
             duration=3000, parent=self.gui.textBrowser
         )
@@ -57,9 +57,9 @@ class ToolMenu(DWMMenu):
         self.addAction(self.action_read_clip)
 
     def read_clip(self):
-        if self.gui.next_btn.text() != '搜索':
+        if self.gui.next_btn.text() != res.GUI.Uic.next_btnDefaultText:
             InfoBar.warning(
-                title='Clip start error', content=self.res.clip_process_warning,
+                title='Clip start error', content=res.GUI.Clip.process_warning,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
                 duration=3500, parent=self.gui.textBrowser
             )
@@ -68,7 +68,7 @@ class ToolMenu(DWMMenu):
                                getattr(self.gui.spiderUtils, "book_url_regex"))
             tf, match_items = clip.main()
             if not match_items:
-                self.gui.say(f"无匹配任务，先进行复制再运行此功能，当前匹配规则：{self.gui.spiderUtils.book_url_regex}",
+                self.gui.say(res.GUI.Clip.match_none % self.gui.spiderUtils.book_url_regex,
                              ignore_http=True)
             else:
                 self.gui.init_clip_handle(tf, match_items)

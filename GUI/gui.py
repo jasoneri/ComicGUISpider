@@ -377,7 +377,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                     self.BrowserWindow.topHintBox.click()
                 if len(infos) < len(self.clip_tasks):
                     self.activateWindow()
-                    self.say(f"==={self.res.ClipTasksPartFail}")
+                    self.say(f"==={self.res.Clip.partial_fail}")
                 self.clip_infos = infos
             else:
                 print("没有内容？？？")
@@ -406,7 +406,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.log.error(str(traceback.format_exc()))
             self.log = conf.cLog(name="GUI")
             self.BrowserWindow = None
-            self.setupUi(self)
+            self.guiQueuesManger = None
+            # self.setupUi(self)
+            QTimer.singleShot(10, lambda : self.setupUi(self))
 
         self.say(font_color(f"<br>(・∀・(・∀・(・∀・(・∀・*)(・∀・(・∀・(・∀・*) <br>{self.res.reboot_tip}", color='purple', size=4))
         QTimer.singleShot(50, retry_all)
@@ -444,7 +446,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.log.debug(
                 f'website_index:[{self.input_state.bookSelected}], keyword [{self.input_state.keyword}] success ')
 
-        if self.next_btn.text() != '搜索':
+        if self.next_btn.text() != self.res.Uic.next_btnDefaultText:
             self._next()
         else:
             if self.chooseBox.currentIndex() == 4:

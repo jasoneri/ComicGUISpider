@@ -24,7 +24,7 @@ class ClipTasksThread(QThread):
                 self.info_signal.emit((idx + 1, url, *info[1:]))
                 total[idx + 1] = [info[2], info[0]]
             except Exception as e:
-                err_msg = rf"获取信息失败({url}): [{type(e).__name__}] {str(e)}"
+                err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
                 self.gui.log.exception(e)
                 self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
         self.handle_total(total)
@@ -52,12 +52,8 @@ class ClipTasksThread(QThread):
         self.total = total
         if not total:
             self.total_signal.emit({})
-            self.gui.say(
-                font_color(r"没有一个成功的任务，如http错误请更新配置如代理/cookies后重新运行此功能，若总是失败提issue",
-                           color='red'),
-                ignore_http=True)
-            self.gui.say(
-                font_color(rf"<br>在日志文件查看详细报错堆栈 [{conf.log_path}\GUI.log]", color='red', size=5))
+            self.gui.say(font_color(res.GUI.Clip.all_fail, color='red'), ignore_http=True)
+            self.gui.say(font_color(rf"<br>{res.GUI.Clip.view_log} [{conf.log_path}\GUI.log]", color='red', size=5))
         else:
             self.msleep(1200 if len(self.total) == 1 else 350)
             self.check_condition_and_run_js()

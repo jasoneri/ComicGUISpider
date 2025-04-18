@@ -6,9 +6,10 @@ import shutil
 
 from tqdm import tqdm
 
+from assets import res
 
 def combine_then_mv(root_dir, target_dir, order_book=None) -> list:
-    expect_dir = ('web', 'web_handle', 'log', '本子')
+    expect_dir = ('web', 'web_handle', 'log', res.SPIDER.ERO_BOOK_FOLDER)
     p = pathlib.Path(root_dir)
     target_p = pathlib.Path(target_dir)
     done = []

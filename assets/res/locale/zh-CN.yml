@@ -14,7 +14,6 @@ GUI:
   ACCESS_FAIL: "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
   cookies_copy_err: "格式错误，请看清楚最新gif的操作重新复制"
   copied_tip: "后台将复制[%s]条到剪贴板"
-  ClipTasksPartFail: "部分失败，但仍可继续处理任务窗口的任务"
   textbrowser_load_if_http: "<b><font size=\"5\" color=\"black\">点击右下 `预览` </font></b><font color=\"black\"> 或者 </font><a href=\"%s\" ><b style=\"font-size:20px;\">浏览器查看结果</b></a>"
   WorkThread_finish_flag: "后台完成"
   WorkThread_empty_flag: "后台正常退出没有"
@@ -23,12 +22,25 @@ GUI:
   global_err_hook: "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
   input_format_err: "输入格式错误，请鼠标移到输入框查看规则提示"
   reboot_tip: "CGS内置重启中，将会花一小会重建界面与实例"
+  SearchInputStatusTip:
+    manga_copy: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"'
+    jm: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：时间维度可选 日/周/月/总，例如"收藏总"（3）翻页规则："&page=\d+"'
+    wnacg: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（3）翻页规则：搜索是"&p=\d+" 导航页是"-page-\d+" 如不满足请联系开发者'
+    ehentai: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
+    mangabz: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
+  Clip:
+    process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
+    match_none: "无匹配任务，先进行复制再运行此功能，当前匹配规则：%s"
+    get_info_error: "获取信息失败"
+    partial_fail: "部分失败，但仍可继续处理任务窗口的任务"
+    all_fail: "没有一个成功的任务，如http错误请更新配置如代理/cookies后重新运行此功能，若总是失败提issue"
+    view_log: "在日志文件查看详细报错堆栈"
   ToolMenu:
     action1: "显示已阅最新话数记录"
     action2: "整合章节并移至web目录"
     action2_warning: "未配合[comic_viewer]项目产生记录文件[%s]，\n功能无法正常使用"
     action_ero1: "读取剪贴板创建匹配任务列表"
-    clip_process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
+    combined_tip: "已将%s整合章节并转换至[%s]"
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"
@@ -69,6 +81,8 @@ EHentai:
   ACCESS_FAIL: "当前`eh_cookies`或`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
   GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`eh_cookies`的值，值生成参考配置详情里该字段说明。<br>2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理（需要在此指引弹出前设置好，否则重启CGS）代理服务建议用v2rayN<br>（⚠️测试链接仅设置请求3秒超时，由于测api与GUI共同为主线程，避免请求太久超时使得GUI没响应令用户反而觉得是软件坏了，<br>建议出错后日志等级设debug，边使用边看`scripts/log/GUI.log`排错，结合关程序后重启先试几遍，后续看情况优化）"
   JUMP_TIP: "ehentai跳页情况特殊，没想好应用，暂时设限制取消`跳页`功能"
+  MAPPINGS_INDEX: "首页"
+  MAPPINGS_POPULAR: "热门"
 
 SPIDER:
   SayToGui:

@@ -20,8 +20,8 @@ class EHentaiSpider(BaseComicSpider3):
     domain = domain
     search_url_head = f'https://{domain}/?f_search='
     mappings = {
-        '首页': f'https://{domain}',
-        '热门': f'https://{domain}/popular'
+        res.EHentai.MAPPINGS_INDEX: f'https://{domain}',
+        res.EHentai.MAPPINGS_POPULAR: f'https://{domain}/popular'
     }
     frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)
@@ -33,7 +33,7 @@ class EHentaiSpider(BaseComicSpider3):
     def frame_book(self, response):
         frame_results = {}
         example_b = r' [ {} ]、p_{}、【 {} 】'
-        self.say(example_b.format('序号', '页数', '漫画名') + '<br>')
+        self.say(example_b.format('index', 'pages', 'name') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         for x, target in enumerate(targets):

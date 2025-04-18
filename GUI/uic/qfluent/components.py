@@ -214,7 +214,7 @@ class TableFlyoutView(FlyoutViewBase):
         self.tableView.verticalHeader().hide()
         # 设置数据模型
         model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(["漫画", "已阅最新章节"])
+        model.setHorizontalHeaderLabels(["Name/漫画", "Latest Chapter/已阅最新章节"])
         for book, chapter in data.items():
             row = [
                 QStandardItem(book),
