@@ -31,8 +31,8 @@ GUI:
     clip_process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
   Uic:
     chooseBoxDefault: "选择网站"
-    searchinputPrefix: "输入关键字："
-    chooseinputPrefix: "输入序号："
+    searchinputPlaceholderText: "输入关键字"
+    chooseinputPlaceholderText: "输入序号"
     next_btnDefaultText: "搜索"
     checkisopenDefaultText: "(完成后自动)打开存储目录"
     chooseinputTip: "示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) |  1+7-9 →复合 多选 1、7、8、9 | -3 →倒数3个"
