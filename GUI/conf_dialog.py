@@ -35,6 +35,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def setupUi(self, Dialog):
         super(ConfDialog, self).setupUi(Dialog)
+        self.retranslateUiAgain(Dialog)
         self.acceptBtn.clicked.connect(self.save_conf)
         self.acceptBtn.setIcon(FIF.SAVE)
         self.cancelBtn.setIcon(FIF.CLOSE)
@@ -44,6 +45,17 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self._preset()
         self.insert_btn()
 
+    def retranslateUiAgain(self, Dialog):
+        _translate = QtCore.QCoreApplication.translate
+        self.label_2.setText(_translate("Dialog", res.GUI.Uic.confDia_labelLogLevel))
+        self.isDeduplicate.setText(_translate("Dialog", res.GUI.Uic.confDia_labelDedup))
+        self.addUuid.setText(_translate("Dialog", res.GUI.Uic.confDia_labelAddUuid))
+        self.label_4.setText(_translate("Dialog", res.GUI.Uic.confDia_labelProxy))
+        self.label_3.setText(_translate("Dialog", res.GUI.Uic.confDia_labelMap))
+        self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
+        self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
+        self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
+        
     def _preset(self):
         self.sv_path_card = SvPathCard(self)
         self.sv_path_Layout.addWidget(self.sv_path_card)

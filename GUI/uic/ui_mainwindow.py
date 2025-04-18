@@ -461,9 +461,6 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v1.6.2"))
-        self.checkisopen.setText(_translate("MainWindow", "(完成后自动)打开存储目录"))
-        self.searchinput.setInputMask(_translate("MainWindow", "输入关键字：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
-        self.searchinput.setText(_translate("MainWindow", "输入关键字："))
         self.previousPageBtn.setToolTip(_translate("MainWindow", "previous page/上一页"))
         self.previousPageBtn.setStatusTip(_translate("MainWindow", "previous page/上一页"))
         self.nextPageBtn.setToolTip(_translate("MainWindow", "next page/下一页"))
@@ -473,8 +470,6 @@ class Ui_MainWindow(object):
         self.pageJumpBtn.setToolTip(_translate("MainWindow", "jump page/翻页"))
         self.pageJumpBtn.setStatusTip(_translate("MainWindow", "jump page/翻页"))
         self.pageJumpBtn.setText(_translate("MainWindow", "jump"))
-        self.chooseinput.setInputMask(_translate("MainWindow", "输入序号：################################################################################"))
-        self.chooseinput.setText(_translate("MainWindow", "输入序号："))
         self.toolButton.setToolTip(_translate("MainWindow", "toolBox/工具箱"))
         self.toolButton.setStatusTip(_translate("MainWindow", "toolBox/工具箱"))
         self.confBtn.setToolTip(_translate("MainWindow", "configuration/配置"))
@@ -483,5 +478,4 @@ class Ui_MainWindow(object):
         self.retrybtn.setStatusTip(_translate("MainWindow", "reboot-CGS/重启CGS"))
         self.previewBtn.setToolTip(_translate("MainWindow", ">_<"))
         self.previewBtn.setText(_translate("MainWindow", "预览/preview"))
-        self.next_btn.setText(_translate("MainWindow", "搜索"))
-        self.crawl_btn.setText(_translate("MainWindow", "开始爬取！"))
+        self.crawl_btn.setText(_translate("MainWindow", "开始爬取！/start crawl!"))

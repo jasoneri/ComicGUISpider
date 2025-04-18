@@ -221,13 +221,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if idx == 0:
             return
         this_completer = conf.completer[idx] if idx in conf.completer else DEFAULT_COMPLETER[idx]
-        completer = QCompleter(list(map(lambda x: f"输入关键字：{x}", this_completer)))
+        completer = QCompleter(list(map(lambda x: f"{self.res.Uic.searchinputPrefix}{x}", this_completer)))
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.searchinput.setCompleter(completer)
         completer.activated.connect(lambda :
             self.searchinput.setCursorPosition(len(self.searchinput.text())))
-        _completer = QCompleter(list(map(lambda x: f"输入序号：{x}", ['1', '-1', '-3', '0'])))
+        _completer = QCompleter(list(map(lambda x: f"{self.res.Uic.chooseinputPrefix}{x}", ['1', '-1', '-3', '0'])))
         _completer.setCompletionMode(QCompleter.PopupCompletion)
         self.chooseinput.setCompleter(_completer)
         _completer.activated.connect(lambda :
@@ -235,7 +235,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def btn_logic_bind(self):
         def search_btn(text):
-            self.next_btn.setEnabled(len(text) > 6 and self.chooseBox.currentIndex() != 0)  # else None
+            self.next_btn.setEnabled(len(text) > len(self.res.Uic.searchinputPrefix) and self.chooseBox.currentIndex() != 0)  # else None
         self.searchinput.textChanged.connect(search_btn)
         self.next_btn.setDisabled(True)
         self.previewBtn.setDisabled(True)
@@ -381,7 +381,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                     self.BrowserWindow.topHintBox.click()
                 if len(infos) < len(self.clip_tasks):
                     self.activateWindow()
-                    self.say("===部分失败，但仍可继续处理任务窗口的任务")
+                    self.say(f"==={self.res.ClipTasksPartFail}")
                 self.clip_infos = infos
             else:
                 print("没有内容？？？")
@@ -432,7 +432,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.bThread = WorkThread(self)
 
                 def crawl_btn(text):
-                    if len(text) > 5:
+                    if len(text) > len(self.res.Uic.chooseinputPrefix):
                         refresh_state(self, 'process_state', 'ProcessQueue')
                         self.crawl_btn.setEnabled(self.process_state.process == 'parse section')
                         self.next_btn.setDisabled(self.crawl_btn.isEnabled())
@@ -524,7 +524,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.info(f"===--→ crawl finish (now step: {self.process_state.process})\n")
 
     def q_InputFieldQueue_send(self, input_state, *args):
-        """规范输入"""
+        """format input"""
         _input_idx = input_state.indexes
         if not _input_idx or isinstance(_input_idx, str) and (
                 _input_idx.startswith("[clip]") or _input_idx.startswith("[combine]") or _input_idx == "0" or 
@@ -566,10 +566,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         else:
             self.textBrowser.append(r'<p style="color: black;">%s</p>' % string)
         cursor = self.textBrowser.textCursor()
-        self.textBrowser.moveCursor(cursor.End)  # 光标移到最后，这样就会自动显示出来
+        self.textBrowser.moveCursor(cursor.End)  # move cursor to the end for show dynamicly
 
     def processbar_load(self, i):
-        # 发送item目前信号>更新进度条
         self.progressBar.setValue(i)
         if self.first_tmp_sv_flag:
             self.first_tmp_sv_flag = False
