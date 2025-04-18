@@ -331,7 +331,7 @@ class BaseComicSpider(scrapy.Spider):
                         color='green', size=6))
                 elif not stats.get_value('item_scraped_count') and stats.get_value('process_exception/count', 0) > 0:
                     self.say(font_color(
-                        f'<br>{self.res.finished_err % stats.get_value("process_exception/last_exception")}<br>' + 
+                        f'<br>{self.res.finished_err % stats.get_value("process_exception/last_exception", "")}<br>' + 
                         f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4))
                 else:
                     self.say(font_color(f'{self.res.finished_empty}<br>', color='purple', size=6))

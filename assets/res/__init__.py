@@ -23,6 +23,7 @@ def getUserLanguage():
 
 _path = pathlib.Path(__file__).parent
 lang = getUserLanguage()
+# lang = 'en-US'
 
 gettext.bindtextdomain('res', str(_path / 'locale'))
 gettext.textdomain('res')
@@ -53,6 +54,7 @@ class GUI:
     ACCESS_FAIL = _('GUI.ACCESS_FAIL')
     cookies_copy_err = _('GUI.cookies_copy_err')
     copied_tip = _('GUI.copied_tip')
+    ClipTasksPartFail = _('GUI.ClipTasksPartFail')
     textbrowser_load_if_http = _('GUI.textbrowser_load_if_http')
     WorkThread_finish_flag = _('GUI.WorkThread_finish_flag')
     WorkThread_empty_flag = _('GUI.WorkThread_empty_flag')
@@ -70,6 +72,11 @@ class GUI:
         clip_process_warning = _('GUI.ToolMenu.clip_process_warning')
 
     class Uic:
+        chooseBoxDefault = _('GUI.Uic.chooseBoxDefault')
+        searchinputPrefix = _('GUI.Uic.searchinputPrefix')
+        chooseinputPrefix = _('GUI.Uic.chooseinputPrefix')
+        next_btnDefaultText = _('GUI.Uic.next_btnDefaultText')
+        checkisopenDefaultText = _('GUI.Uic.checkisopenDefaultText')
         chooseinputTip = _('GUI.Uic.chooseinputTip')
         chooseBoxToolTip = _('GUI.Uic.chooseBoxToolTip')
         previewBtnStatusTip = _('GUI.Uic.previewBtnStatusTip')
@@ -81,6 +88,14 @@ class GUI:
         menu_next_page = _('GUI.Uic.menu_next_page')
         menu_prev_page = _('GUI.Uic.menu_prev_page')
         
+        confDia_labelLogLevel = _('GUI.Uic.confDia_labelLogLevel')
+        confDia_labelDedup = _('GUI.Uic.confDia_labelDedup')
+        confDia_labelAddUuid = _('GUI.Uic.confDia_labelAddUuid')
+        confDia_labelProxy = _('GUI.Uic.confDia_labelProxy')
+        confDia_labelMap = _('GUI.Uic.confDia_labelMap')
+        confDia_labelPreset = _('GUI.Uic.confDia_labelPreset')
+        confDia_labelClipDb = _('GUI.Uic.confDia_labelClipDb')
+        confDia_labelClipNum = _('GUI.Uic.confDia_labelClipNum')
         confDia_descBtn = _('GUI.Uic.confDia_descBtn')
         confDia_updateBtn = _('GUI.Uic.confDia_updateBtn')
         confDia_updateDialog_stable = _('GUI.Uic.confDia_updateDialog_stable')
