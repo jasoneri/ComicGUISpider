@@ -3,15 +3,14 @@
 import sys
 import subprocess
 import traceback
-from PyQt5 import QtCore
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtGui import QDesktopServices
+from PyQt5.QtCore import QThread, pyqtSignal, QUrl, QTimer, Qt
 
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
 from utils import ori_path, conf
-from deploy import curr_os
-from deploy.update import create_desc, Proj
+from deploy.update import Proj
 from GUI.uic.qfluent.components import (
     CustomInfoBar, CustomFlyout, IndeterminateBarFView, CustomMessageBox
 )
@@ -20,8 +19,7 @@ from GUI.uic.qfluent.components import (
 class DescCreator:
     @staticmethod
     def run():
-        desc_html = create_desc()
-        curr_os.open_file(desc_html)
+        QDesktopServices.openUrl(QUrl('https://jasoneri.github.io/ComicGUISpider/'))
 
 
 class ProjUpdateThread(QThread):
@@ -97,7 +95,7 @@ class Updater:
                 self.gui.textBrowser, self.proj.update_info.get("html_url"), 
                 f"""<{self.proj.update_info.get("tag_name")}>""", _type=_type)
             _close_thread()
-            QtCore.QTimer.singleShot(reload_time, self.after_update)
+            QTimer.singleShot(reload_time, self.after_update)
 
         def checked(recv):
             try:
@@ -115,7 +113,7 @@ class Updater:
             if recv.update_flag == "local":
                 InfoBar.success(
                     title='', content=self.res.ver_local_latest,
-                    orient=QtCore.Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+                    orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
                     duration=7000, parent=self.conf_dia
                 )
             else:
@@ -139,4 +137,4 @@ class Updater:
 
     def after_update(self):
         subprocess.Popen([sys.executable, ori_path.joinpath("CGS.py")])
-        QtCore.QTimer.singleShot(1000, self.gui.close)
+        QTimer.singleShot(1000, self.gui.close)
