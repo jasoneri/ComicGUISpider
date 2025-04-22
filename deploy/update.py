@@ -339,6 +339,7 @@ def regular_update(ver):
 
 
 def create_desc(proj_path=None):
+    """deprecated, use github-page instead"""
     _p = proj_path or existed_proj_p
     with open(_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
         md_content = f.read().replace(
