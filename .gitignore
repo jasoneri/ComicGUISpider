@@ -32,6 +32,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+node_modules/
+docs/.vitepress/dist
+docs/.vitepress/cache
+package-lock.json
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -184,6 +188,7 @@ Pipfile
 Pipfile.lock
 codecov*
 *_local.yml
+*.-lock.yaml
 # self/conf
 gitee_t.json
 conf.yml

@@ -25,21 +25,18 @@ ComicGUISpider 开发组使用 [GitHub Project](https://github.com/jasoneri/Comi
 - 有什么和你想贡献的方向一致的，可以直接参与实现与优化
 - 有什么已经在进行中的，避免自己重复不必要的工作
 
-在 [Project](https://github.com/jasoneri/ComicGUISpider/projects) 中你可以看到除通常的 `[Feature Request]`, `[BUG]`, 一些小优化项；
+在 [Project](https://github.com/jasoneri/ComicGUISpider/projects) 中你可以看到除通常的 `[Feat]`, `[BUG]`, 一些小优化项；
 
 ### 提案寻求共识 Request for Comments
 
 对于一些小的优化项或者 bug 修复，你大可以直接帮忙调整代码然后提出 Pull Request，只需要简单阅读下 [分支管理](#分支管理-Git-Branch) 章节以基于正确的版本分支修复、以及通过 [Pull Request](#Pull-Request) 章节了解 PR 将如何被合并。
 
-<br/>
-
 而如果你打算做的是一项**较大的**功能重构，改动范围大而涉及的方面比较多，那么希望你能通过 [Issue: 功能提案](https://github.com/jasoneri/ComicGUISpider/issues/new?assignees=&labels=RFC&projects=&template=rfc.yml&title=%5BRFC%5D%3A+) 先写一份 RFC 提案来简单阐述「你打算怎么做」的简短方案，来寻求开发者的讨论和共识。
 
 因为有些方案可能是开发团队原本讨论并且认为不要做的事，而上一步可以避免你浪费大量精力。
   
-> 如果仅希望讨论是否添加或改进某功能本身，而非「要如何实现」，请使用 -> [Issue: 功能改进](https://github.com/jasoneri/ComicGUISpider/issues/new?labels=feature+request&template=feature_request.yml&title=%5BFeature+Request%5D+)
-
-<br/>
+::: info 如果仅希望讨论是否添加或改进某功能本身，而非「要如何实现」，请使用 -> [Issue: 功能改进](https://github.com/jasoneri/ComicGUISpider/issues/new?labels=feature+request&template=feature_request.yml&title=%5BFeature+Request%5D+)
+:::
 
 一份 [提案(RFC)](https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue+is%3Aopen+label%3ARFC) 定位为 **「在某功能/重构的具体开发前，用于开发者间 review 技术设计/方案的文档」**，
 
@@ -48,7 +45,6 @@ ComicGUISpider 开发组使用 [GitHub Project](https://github.com/jasoneri/Comi
 以便评估和讨论产生的影响 (遗漏的考虑、向后兼容性、与现有功能的冲突)，
 
 因此提案侧重在对解决问题的 **方案、设计、步骤** 的描述上。
-
 
 ## 分支管理 Git Branch
 
@@ -74,7 +70,6 @@ ComicGUISpider 项目使用「分支开发，主干发布」的模式，
 
 开发分支的名字为 `<Major>.<Minor>-dev`，如 `2.x-dev`， 你可以在仓库的 [All Branches 中搜索到它们](https://github.com/jasoneri/ComicGUISpider/branches/all?query=-dev)。
 
-
 ### Branch 生命周期
 
 当一个 Minor 开发分支(以 `2.1-dev` 为例) 完成新功能开发，**首次**合入 GUI 分支后，
@@ -88,64 +83,22 @@ ComicGUISpider 项目使用「分支开发，主干发布」的模式，
 - 若「修复 Bug」，则基于**当前发布版本**的 Minor 分支开发修复，并 PR 到这个分支
 - 若「添加新功能/重构」，则基于**还未发布的下一个版本** Minor 分支开发，并 PR 到这个分支
 
-> 「当前发布版本」为 [[Releases 页面]](https://github.com/jasoneri/ComicGUISpider/releases) 最新版本
-
+::: info 「当前发布版本」为 [[Releases 页面]](https://github.com/jasoneri/ComicGUISpider/releases) 最新版本
+:::
 
 ### Git Workflow 一览
 
-> 图中 commit timeline 从左到右 --->
+> [!Info] 图中 commit timeline 从左到右 --->
 
-```mermaid
-%%{init: {'theme': 'base', 'gitGraph': {'showCommitLabel': true}}}%%
-
-gitGraph:
-  checkout main
-  commit id: "."
-  branch 2.0-dev
-  commit id: "feat 1"
-  commit id: "feat 2"
-  commit id: "feat 3"
-
-  checkout main
-  merge 2.0-dev tag: "2.0.9"
-  commit id: ".."
-
-  branch 2.1-dev
-  commit id: "feat 4"
-
-  checkout 2.0-dev
-  commit id: "PR merge (fix)"
-  checkout main
-  merge 2.0-dev tag: "2.0.10"
-
-  checkout 2.1-dev
-  commit id: "feat 5"
-  commit id: "feat 6"
-
-  checkout main
-  merge 2.1-dev tag: "2.1.0"
-  commit id: "..."
-
-  branch 2.2.dev
-  commit id: "feat 7"
-  commit id: "feat 8"
-
-  checkout 2.1-dev
-  commit id: "PR merge (fix) "
-  checkout main
-  merge 2.1-dev tag: "2.1.1"
-
-  checkout 2.2.dev
-  commit id: "PR merge (feat)"
-```
-
+![dev-branch](../assets/img/dev/branch.png)
 
 ## Pull Request
 
 请确保你根据上文的 Git 分支管理 章节选择了正确的 PR 目标分支，
 
-> - 若「修复 Bug」，则 PR 到**当前发布版本**的 Minor 维护分支
-> - 若「添加新功能/重构」，则 PR **下一个版本** Minor 开发分支
+> [!Info] 若「修复 Bug」，则 PR 到**当前发布版本**的 Minor 维护分支
+
+> [!Info] 若「添加新功能/重构」，则 PR **下一个版本** Minor 开发分支
 
 - 一个 PR 应该只对应一件事，而不应引入不相关的更改；
 
@@ -162,7 +115,6 @@ gitGraph:
 - 请确保本地通过了「单元测试」和「代码风格 Lint」，这也会在 PR 的 GitHub CI 上检查
   - 对于 bug fix 和新功能，通常开发组也会请求你添加对应改动的单元测试覆盖
 
-
 开发组会在有时间的最快阶段 Review 贡献者提的 PR 并讨论或批准合并(Approve Merge)。
 
 ## 版本发布介绍
@@ -177,7 +129,8 @@ gitGraph:
 
 如果要为文档做贡献，请注意以下几点：
 
-- 更新分支为 `gh-pages`，并基于它做修改.
-- 请确保你的 PR 标题和描述中包含了你的修改的目的和意图。
+- 文档皆存放在 docs 目录上，仅限 markdown
+- 需基于**当前发布版本**的 Minor 维护分支进行修改，并 PR 到这个分支
+- 请确保你的 PR 标题和描述中包含了你的修改的目的和意图
 
-撰写文档请尽量使用规范的书面化用语，遵照 Markdown 语法，以及 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines) 中的规范。
+撰写文档请使用规范的书面化用语，遵照 Markdown 语法，以及 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines) 中的规范。
