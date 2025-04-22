@@ -41,7 +41,7 @@
 
 + ✨配置窗口新增`去重`勾选开关：分别有预览提示样式和自动过滤
 + ✨增加命令行工具(crawl_only.py)使用
-+ 优化高分辨率(原开发环境为1080p)；若显示不理想可桌面右键显示设置缩放改为100%，或在[`CGS.py`](../CGS.py)中删除带`setAttribute(Qt.AA_` 的两行代码
++ 优化高分辨率(原开发环境为1080p)；若显示不理想可桌面右键显示设置缩放改为100%，或在[`CGS.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/CGS.py)中删除带`setAttribute(Qt.AA_` 的两行代码
 
 ### v1.6.2 | ~ 2024-12-08
 

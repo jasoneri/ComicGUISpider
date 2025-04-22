@@ -4,10 +4,6 @@
 
 + Directly download [📦portable-pkg](https://github.com/jasoneri/ComicGUISpider/releases/latest), and unzip
 
-::: warning macOS users
-Please read the [macOS deployment](./mac-required-reading.md) document
-:::
-
 + Or clone this project `git clone https://github.com/jasoneri/ComicGUISpider.git`  
 You need to install `python3.12+`, the environment package is in the `requirements` in the root directory, install the corresponding architecture with pip
 
@@ -26,7 +22,7 @@ Or using env of portable environment:
 
 ## 3. Configuration
 
-If you have needs of custom requirements, reference [🔨Configuration](../config) for settings
+If you have needs of custom requirements, reference [🔨Configuration](../config/index.md) for settings
 
 ## 4. Update
 

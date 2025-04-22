@@ -8,6 +8,7 @@ const version = `v2.1`
 export default defineConfig({
     title: "ComicGUISpider",
     description: "",
+    base: `/ComicGUISpider/`,
 
     head: [
         ['meta', {property: 'og:site_name', content: 'ComicGUISpider'}],
