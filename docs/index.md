@@ -6,7 +6,9 @@ hero:
   name: "打开 CGS"
   text: "鼠标点几点轻松下漫画"
   tagline: 最自在
-
+  image:
+    src: /CGS-girl.png
+    alt: CGS
   actions:
     - theme: brand
       text: 快速开始
@@ -17,34 +19,29 @@ hero:
     - theme: alt
       text: FAQ
       link: /faq
----
 
-<table><tbody>  
-  <tr>
-    <td><div align="center"><a href="https://www.mangacopy.com/" target="_blank">
-      <img src="./assets/img/icons/website/copy.png" alt="logo" style="max-height: 80px">
-      </a></div></td>
-    <td><div align="center"><a href="https://mangabz.com" target="_blank">
-      <img src="./assets/img/icons/website/mangabz.png" alt="logo" style="max-height: 80px">
-      </a></div></td>
-    <td><div align="center"><a href="https://18comic.vip/" target="_blank">
-      <img src="./assets/img/icons/website/jm.png" alt="logo" style="max-height: 80px">
-      </a></div></td>
-    <td><div align="center"><a href="https://www.wnacg.com/" target="_blank">
-      <img src="./assets/img/icons/website/wnacg.png" alt="logo" style="max-height: 80px">
-      </a></div></td>
-    <td><div align="center"><a href="https://exhentai.org/" target="_blank">
-      <img src="./assets/img/icons/website/ehentai.png" alt="logo" style="max-height: 80px">
-      </a></div></td>
-  </tr>
-  <tr>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json"></td>
-  </tr> 
-</tbody></table>
+features:
+  - icon:
+      src: ./assets/img/icons/website/copy.png
+    title: '<a href="https://www.mangacopy.com/" target="_blank">拷贝漫画</a>'
+    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json">'
+  - icon:
+      src: ./assets/img/icons/website/mangabz.png
+    title: '<a href="https://mangabz.com" target="_blank">Māngabz</a>'
+    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json">'
+  - icon:
+      src: ./assets/img/icons/website/jm.png
+    title: '<a href="https://18comic.vip/" target="_blank">jm</a>'
+    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json">'
+  - icon:
+      src: ./assets/img/icons/website/wnacg.png
+    title: '<a href="https://www.wnacg.com/" target="_blank">绅士漫画</a>'
+    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json">'
+  - icon:
+      src: ./assets/img/icons/website/ehentai.png
+    title: '<a href="https://exhentai.org/" target="_blank">exhentai</a>'
+    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json">'
+---
 
 <table><tbody>
   <tr>
