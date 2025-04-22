@@ -10,13 +10,10 @@ hero:
   actions:
     - theme: brand
       text: Quick-start
-      link: /deploy/quick-start
+      link: /locate/en/deploy/quick-start
     - theme: alt
       text: Config
-      link: /config
-    - theme: alt
-      text: FAQ
-      link: /faq
+      link: /locate/en/config
 ---
 
 <table><tbody>  
