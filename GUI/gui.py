@@ -617,6 +617,6 @@ class TextUtils:
         <p>%s<span style="color: white"> %s</span></p>
         <hr><p></p>
     </div>
-</div>""" % (rf'file:///{ori_path.joinpath("assets/CGS-girl.png")}',
+</div>""" % (rf'file:///{ori_path.joinpath("docs/public/CGS-girl.png")}',
              res.GUI.DESC1 % rf'file:///{ori_path.joinpath("assets/config_icon.png")}', 
              res.GUI.DESC2, res.GUI.DESC_ELSE)

@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="../assets/CGS-girl.png" alt="logo">
+    <img src="../public/CGS-girl.png" alt="logo">
   </a>
   <h1 id="koishi"style="margin: 0.1em 0;">ComicGUISpider</h1>
   <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
@@ -9,6 +9,11 @@
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
+
+  <p align="center">
+  <a href="https://jasoneri.github.io/ComicGUISpider/">🌐website</a> | 
+  <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦portable-pkg</a>
+  </p>
 
 </div>
 
@@ -22,23 +27,13 @@
 
 ### Supported Websites
 
-| Website                                 | Preview<br/>(Multi-select) |       Paging        | Clipboard |          Notes          |                                               status<br>(UTC+8)                                                |
-|:----------------------------------------|:--------------------------:|:-------------------:|:---------:|:-----------------------:|:--------------------------------------------------------------------------------------------------------------:|
-| [MangaCopy](https://www.mangacopy.com/) |             ❌              |          ✅          |     ❌     | Hidden content unlocked |  ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json)  |
-| [Māngabz](https://mangabz.com)          |             ❌              |          ✅          |     ❌     |                         | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
-| [18comic](https://18comic.vip/)         |             ✅              |          ✅          |     ✅     |           🔞            |      ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json)      |
-| [wnacg](https://www.wnacg.com/)         |             ✅              |          ✅          |     ✅     |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
-| [ExHentai](https://exhentai.org/)       |             ✅              | ✅<br/>(No redirect) |     ✅     |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
-
-<table><tbody>  
-  <tr>
-    <td>CGS Navigation</td>
-    <td><a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">🔗 Portable Package</a></td>
-    <td><a href="https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments">🔗 GUI Guide (Video)</a></td>  
-    <td><a href="docs/FAQ_and_EXTRA.md" target="_blank">📖FAQ / extra</a></td>
-    <td><a href="deploy/launcher/mac/EXTRA.md">🔗 macOS Notes</a></td> 
-  </tr>  
-</tbody></table>
+| Website                                 | locale |          Notes          |                                               status<br>(UTC+8)                                                |
+|:----------------------------------------|:------:|:-----------------------:|:--------------------------------------------------------------------------------------------------------------:|
+| [MangaCopy](https://www.mangacopy.com/) |  :cn:  | Hidden content unlocked |  ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json)  |
+| [Māngabz](https://mangabz.com)          |  :cn:  |                         | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
+| [18comic](https://18comic.vip/)         |  :cn:  |           🔞            |      ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json)      |
+| [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
+| [ExHentai](https://exhentai.org/)       |   🌏   |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
 
 <hr>
 
@@ -46,7 +41,7 @@
 
 now support simple `en-US` of Ui, but still need help for i18n of maintenance, such as Documentation  
 
-Come here [🌏i18n Guide](./CONTRIBUTING/i18n.md)
+Come here [🌏i18n Guide](../dev/i18n.md)
 
 <hr>
 
@@ -70,7 +65,7 @@ Or using env of portable package:
 
 ## 🔨 Configuration
 
-![](../assets/conf_usage_en.png)
+![](../assets/img/config/conf_usage_en.png)
 
 <details>
 <summary>Config Details</summary>
@@ -84,14 +79,16 @@ Or using env of portable package:
 | proxies         | -           | Proxy settings                     |
 | custom_map         | -           | -                     |
 | completer         | -           | Completer of search-input |
-| eh_cookies    | -           | Required for ExHentai, [🔗view how to gei it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)              |
+| eh_cookies    | -           | Required for ExHentai<br>[🔗view how to gei it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)<br>[🔗Tool Website](https://tool.lu/curl/)             |
 | clip_db    | -           |  [Ditto](https://github.com/sabrogden/Ditto) or [Maccy](https://github.com/p0deje/Maccy) 's local db path |
 | clip_read_num    | 20           | - |
 
 </details>
 
 ## 🔇 Disclaimer
+
 See [License](LICENSE). By using this project you agree to:
+
 - Non-commercial use only
 - Developer's final interpretation
 

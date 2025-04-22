@@ -1,8 +1,17 @@
-> 有关此脚本集的想法/建议/交流等等，可以在`github`上的`Discussions`进行讨论
+
+# 🚧 其他脚本集
+
+saucenao / kemono / nekohouse  
+
+kemono 用 Motrix 下还不错，可以考虑接入 RPC
+
+::: info （鸽）可能以后能整合 Motrix,Redis 进 docker 做
+:::
 
 ## 须知
 
 ### 脚本目录树: `script`目录
+
 ```shell
 utils
   ├── script
@@ -39,7 +48,7 @@ redis:
 
 ### 注意
 
-运行此目录下脚本的部分第三方依赖并不列在`requirements.txt`, 即绿色安装包的python运行环境不足以运行<br>
+运行此目录下脚本的部分第三方依赖并不列在`requirements.txt`, 即绿色安装包的python运行环境不足以运行  
 因为设计当初没考虑进GUI主界面功能，是作为能单独运行的脚本集合
 
 此脚本目录下的脚本需要具备些少后端技能如 `redis`
@@ -47,23 +56,26 @@ redis:
 暂无开发GUI界面打算
 
 ---
-
-> 以下内容 基于以上须知
+::: tip  
+以下内容 基于以上须知
+:::
 
 ## 内容
 
 ### 1. kemono
 
 无需代理，基于账号对作者的收藏，运行时指定`作者_平台`，`作品创建时间`，来限制一定量的任务
-（kemono一个png能几十M，不过滤任务几个T都不够用）<br>
-> 过滤补充: `kemono_expander.py` 内置部分作者命名习惯的过滤，例如`keihh_patreon`
-> ，其作品通常有无印/v2/v3，而v3会包括无印/v2，这情况就要过滤掉无印/v2 <br>
-> 鉴于作品集命名杂七杂八的，大概率需要对每一位作者做过滤，引用在`kemono.py Kemono.step1_tasks_create_by_favorites._filter`
-> 里
-
+（kemono一个png能几十M，不过滤任务几个T都不够用）  
+::: info 过滤补充:  
+`kemono_expander.py` 内置部分作者命名习惯的过滤，例如`keihh_patreon`
+，其作品通常有无印/v2/v3，而v3会包括无印/v2，这情况就要过滤掉无印/v2  
+鉴于作品集命名杂七杂八的，大概率需要对每一位作者做过滤，引用在 `kemono.py Kemono.step1_tasks_create_by_favorites._filter` 里
+:::
+::: info  
 目录结构及其使用是基于 [comic_viewer](https://github.com/jasoneri/comic_viewer) 项目而调整成这样的
 
 限制文件大小 100Mb 以下，在 `Kemono.file_size_limit`
+:::
 
 ---
 
@@ -134,12 +146,14 @@ saucenao限制30秒搜3张图，有它的账号也才30秒4张没什么好说的
 
 // # TODO(2024-10-02): 重复任务用pathlib.exists()查一下hd文件夹内的，并用saucenao.json记录数据
 
-> 进阶：可以在很多图像的目录上运行脚本，只要在`get_hd_img`加上参数`first='a.png'`，就会以`文件大小`的`顺序`从`a.png`
-> 开始进行搜图 <br>
-> 不过同样要对比和手动删源文件，顺序可以自己调代码在`get_tasks`的`__ = sorted(...`的`key`
+::: tip 进阶：
+可以在很多图像的目录上运行脚本，只要在`get_hd_img`加上参数`first='a.png'`，就会以`文件大小`的`顺序`从`a.png`开始进行搜图  
+不过同样要对比和手动删源文件，顺序可以自己调代码在`get_tasks`的`__ = sorted(...`的`key`
+:::
 
 ---
 
 ### 3. nekohouse 类似kemono的补充
 
-> 除了一些配置等从`kemono`变为`nekohouse`之外，使用方面与`kemono`用法别无二致，参照以上`kemono`即可
+::: info 除了一些配置等从`kemono`变为`nekohouse`之外，使用方面与`kemono`用法别无二致，参照`kemono`即可
+:::
