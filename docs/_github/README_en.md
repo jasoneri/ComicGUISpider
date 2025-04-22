@@ -79,7 +79,7 @@ Or using env of portable package:
 | proxies         | -           | Proxy settings                     |
 | custom_map         | -           | -                     |
 | completer         | -           | Completer of search-input |
-| eh_cookies    | -           | Required for ExHentai<br>[🔗view how to gei it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)<br>[🔗Tool Website](https://tool.lu/curl/)             |
+| eh_cookies    | -           | Required for ExHentai<br>[🔗view how to gei it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)<br>[🔗Tool Website](https://tool.lu/en_US/curl/)             |
 | clip_db    | -           |  [Ditto](https://github.com/sabrogden/Ditto) or [Maccy](https://github.com/p0deje/Maccy) 's local db path |
 | clip_read_num    | 20           | - |
 

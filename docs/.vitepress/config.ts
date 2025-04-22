@@ -10,8 +10,6 @@ export default defineConfig({
     description: "",
 
     head: [
-        ['link', {rel: 'icon', type: 'image/svg+xml', href: '/light-logo.svg'}],
-        ['meta', {property: 'og:image', content: '/social.png'}],
         ['meta', {property: 'og:site_name', content: 'ComicGUISpider'}],
         ['meta', {property: 'og:url', content: 'https://jasoneri.github.io/ComicGUISpider/'}],
     ],
@@ -31,10 +29,9 @@ export default defineConfig({
     themeConfig: {
         // https://vitepress.dev/reference/default-theme-config
         logo: {
-            dark: '/dark-logo.svg',
-            light: '/light-logo.svg',
+            dark: '/CGS-girl.png',
+            light: '/CGS-girl.png',
         },
-
         editLink: {
             pattern: 'https://github.com/jasoneri/ComicGUISpider/edit/main/docs/:path',
             text: 'Edit this page',
