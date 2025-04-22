@@ -32,6 +32,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+node_modules/
+docs/.vitepress/dist
+docs/.vitepress/cache
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
