@@ -1,1 +1,0 @@
-import{_ as e,c as a,o,aj as r}from"./chunks/framework.EbYLngms.js";const x=JSON.parse('{"title":"❓ 常见问题","description":"","frontmatter":{},"headers":[],"relativePath":"faq/index.md","filePath":"faq/index.md"}'),t={name:"faq/index.md"},d=r("",17),n=[d];function i(l,c,s,h,u,m){return o(),a("div",null,n)}const _=e(t,[["render",i]]);export{x as __pageData,_ as default};
