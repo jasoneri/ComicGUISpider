@@ -1,0 +1,1 @@
+import{_ as a,c as e,o as r,aj as t}from"./chunks/framework.EbYLngms.js";const p=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"faq/other.md","filePath":"faq/other.md"}'),o={name:"faq/other.md"},i=t("",19),c=[i];function l(d,h,m,n,s,_){return r(),e("div",null,c)}const b=a(o,[["render",l]]);export{p as __pageData,b as default};
