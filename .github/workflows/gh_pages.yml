@@ -1,19 +1,32 @@
-name: Github Pages Deploy
+name: Build to gh_pages
 
 on:
   pull_request:
-    branches:
-      - GUI
-    paths:
-      - 'docs/**'
     types:
       - closed
   workflow_dispatch:
 
 jobs:
-  pages-deploy:
+  changes:
     if: |
-      github.event.pull_request.merged == true
+      github.event.pull_request.merged == true && 
+      github.event.pull_request.base.ref == 'GUI'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          docs:
+            - 'docs/**'
+
+  pages-deploy:
+    needs: changes
+    if: ${{ needs.changes.outputs.docs == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

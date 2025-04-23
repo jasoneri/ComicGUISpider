@@ -4,12 +4,11 @@ on:
   push:
     tags:
       - 'v*.*.*'
-    branches:
-      - GUI
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: contains(github.event.base_ref, 'GUI')
     container:
       image: python:3.12
       volumes:
