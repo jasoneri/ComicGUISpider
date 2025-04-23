@@ -64,7 +64,7 @@ ComicGUISpider 发布的版本号遵循 [「语义化版本 SemVer」](https://s
 
 ComicGUISpider 项目使用「分支开发，主干发布」的模式，
 
-[**`GUI`**](https://github.com/jasoneri/ComicGUISpider/commits/GUI) 分支是稳定版本的 **「主干分支」**，只用于发布版本，不用于直接开发新功能或修复。
+[**`GUI`**](https://github.com/jasoneri/ComicGUISpider/commits/GUI) 分支是稳定版本的 **「主干分支」**，只用于修改版本号/打 tag 发版，不用于直接开发新功能或修复。
 
 每一个 Minor 版本都有一个对应的 **「开发分支」** 用于开发新功能、与发布后维护修复问题，
 
@@ -119,7 +119,7 @@ ComicGUISpider 项目使用「分支开发，主干发布」的模式，
 
 ## 版本发布介绍
 
-版本发布目前由开发组通过手动合并「特定发版 PR」后自动触发打包与发布。
+版本发布目前由开发组通过合并「PR」后，GUI 分支上修改版本号然后打 tag 自动触发打包与发布。
 
 通常 Bug 修复的 PR 合并后会很快发版，通常不到一周；
 

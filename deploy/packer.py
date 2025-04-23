@@ -168,9 +168,7 @@ class PackerMacOS(Packer):
         super(PackerMacOS, self).__init__(tuple(), ver)
 
     def set_guide(self):
-        with open(prog_path.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
-            md_content = f.read()
-        _html = MarkdownConverter.convert_html(MdHtml(md_content).cdn_replace("jasoneri", "ComicGUISpider", "GUI"))
+        _html = """<!doctype html><html lang="en"><body><h1><p>查看 <a href="https://jasoneri.github.io/ComicGUISpider/deploy/mac-required-reading">mac部署</a></p></h1></body></html>"""
         with open(self.tmp_guide_html, 'w', encoding='utf-8') as f:
             f.write(_html)
 
