@@ -12,9 +12,9 @@
 
   <p align="center">
   <a href="docs/_github/README_en.md">English</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/">🌐官方网站</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/deploy/quick-start/">🚀快速开始</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/faq/">📖FAQ</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider">🌐官方网站</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/deploy/quick-start">🚀快速开始</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/faq">📖FAQ</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
   </p>
 </div>

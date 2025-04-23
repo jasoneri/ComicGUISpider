@@ -52,4 +52,4 @@ hero:
   </tr>  
 </tbody></table>
 
-![CGS](https://count.getloli.com/get/@CGS?theme=asoul)
+![CGS_en](https://count.getloli.com/get/@CGS_en?theme=rule34)

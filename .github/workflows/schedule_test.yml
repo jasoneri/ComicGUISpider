@@ -13,8 +13,6 @@ jobs:
       options: >-
           --ulimit nproc=4096:4096 
           --ulimit nofile=65536:65536 
-          --network=host
-          --ipc=host
           --security-opt seccomp=unconfined
     strategy:
       matrix:
@@ -22,9 +20,9 @@ jobs:
           - crawler_name: "kaobei"
             params: "-w 1 -k 更新 -i 2 -i2 1 -sp 50000"
           - crawler_name: "jm"
-            params: "-w 2 -k 更新周 -i 2 -sp 50021"
+            params: "-w 2 -k ミモネル -i 2 -sp 50021"
           - crawler_name: "wnacg"
-            params: "-w 3 -k 更新 -i 2 -sp 50041"
+            params: "-w 3 -k ミモネル -i 2 -sp 50041"
           - crawler_name: "mangabz"
             params: "-w 5 -k 更新 -i 1 -i2 1 -sp 50061"
 
