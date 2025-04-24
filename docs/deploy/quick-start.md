@@ -7,7 +7,7 @@
 ::: warning 解压路径不能含有中文/中标
 :::
 ::: warning macOS用户
-须阅读 [macOS部署](./mac-required-reading.md) 文档
+须阅读 [macOS 部署](./mac-required-reading.md) 文档
 :::
 
 + 或克隆此项目 `git clone https://github.com/jasoneri/ComicGUISpider.git`  
