@@ -52,4 +52,43 @@ hero:
   </tr>  
 </tbody></table>
 
+## Functional Description
+
+- Easy to use with simple configuration
+- Just click a few times after preview to download, and you can also browse the website on the preview window
+- Convenient to specify selection with input rules like `+3` (select the last three), `0` (select all), etc.
+- Based on page retention, flipping pages is like putting items in a shopping cart
+- Built-in restart is very convenient, and it is even more convenient with multiple launches
+- Read clipboard stream
+- De-duplication, add identifiers, etc.
+
+### Credits
+
+Thanks to 
+- [PyStand](https://github.com/skywind3000/PyStand) / [Platypus](https://github.com/sveinbjornt/Platypus) for providing win/macOS packaging.
+- [Ditto](https://github.com/sabrogden/Ditto) / [Maccy](https://github.com/p0deje/Maccy) for providing great win/macOS Clipboard Soft.
+- [PyQt-Fluent-Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets/) for providing elegant qfluent ui.
+- [VitePress](https://vitepress.dev) for providing a great documentation framework.
+- Every comic production team / translator team / fans.
+
+## contribution
+
+Welcome to provide ISSUE or PR
+
+<a href="https://github.com/jasoneri/ComicGUISpider/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=jasoneri/ComicGUISpider" />
+</a>
+
+## Disclaimer
+
+- **Please do not** use ComicGUISpider for commercial purposes.
+- **Please do not** make ComicGUISpider into video content and disseminate it on domestic video websites (copyright holders).
+- **Please do not** use ComicGUISpider for any behavior that violates laws and regulations.
+
+## Licence
+
+[MIT licence](https://github.com/jasoneri/ComicGUISpider/blob/GUI/LICENSE)
+
+---
+
 ![CGS_en](https://count.getloli.com/get/@CGS_en?theme=rule34)
