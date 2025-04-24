@@ -14,13 +14,14 @@ jobs:
           --ulimit nproc=4096:4096 
           --ulimit nofile=65536:65536 
           --security-opt seccomp=unconfined
+          --dns 8.8.8.8
+          --dns 114.114.114.114
     strategy:
       matrix:
         include:
+          # - "jm" "ehentai" 使用本地 act 运行上传 
           - crawler_name: "kaobei"
             params: "-w 1 -k 更新 -i 2 -i2 1 -sp 50000"
-          - crawler_name: "jm"
-            params: "-w 2 -k ミモネル -i 2 -sp 50021"
           - crawler_name: "wnacg"
             params: "-w 3 -k ミモネル -i 2 -sp 50041"
           - crawler_name: "mangabz"
@@ -28,6 +29,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
+      - name: Install dependencies
+        run: python -m pip install PyExecJS
 
       - name: Run tests and Generate report
         run: |
@@ -52,4 +55,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          mkdir -p __temp/existing_badges
+          set +e
+          for crawler in "jm" "ehentai"; do
+            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "__temp/existing_badges/status_${crawler}.json" || true
+          done
+          if [ -d "__temp/existing_badges" ]; then
+            cp -n __temp/existing_badges/*.json __temp/badges/ 2>/dev/null || true
+          fi
           wrangler pages deploy __temp/badges/ --project-name=cgs-status-badges --branch=main
