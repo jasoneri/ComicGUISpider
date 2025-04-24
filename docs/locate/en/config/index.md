@@ -30,7 +30,8 @@ Add an identifier at the end of the directory when storing, which is used to han
 
 ### Proxy / `proxies`
 
-Use for wall-breaking  
+Proxy
+
 > [!Info] It is recommended to configure the proxy here, rather than the global proxy mode, otherwise a lot of proxy traffic will be consumed when accessing the source
 
 ### Mapping / `custom_map`

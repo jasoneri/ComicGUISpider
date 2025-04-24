@@ -4,6 +4,10 @@
 
 + Directly download [📦portable-pkg](https://github.com/jasoneri/ComicGUISpider/releases/latest), and unzip
 
+::: warning macOS
+need readed [macOS Deploy](./mac-required-reading.md) document
+:::
+
 + Or clone this project `git clone https://github.com/jasoneri/ComicGUISpider.git`  
 You need to install `python3.12+`, the environment package is in the `requirements` in the root directory, install the corresponding architecture with pip
 
@@ -26,7 +30,7 @@ If you have needs of custom requirements, reference [🔨Configuration](../confi
 
 ## 4. Update
 
-+ CGS innerded an update module, you can click the `Check for Updates` button in the configuration window to update
++ CGS innerded an update module, you can click the `Update` button in the configuration window to update
 ::: info When `local version` < `latest stable version` < `latest dev version`
 You need to update to `latest stable version` before you can update to `latest dev version`
 :::

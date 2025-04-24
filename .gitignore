@@ -188,7 +188,7 @@ Pipfile
 Pipfile.lock
 codecov*
 *_local.yml
-*.-lock.yaml
+*-lock.yaml
 # self/conf
 gitee_t.json
 conf.yml

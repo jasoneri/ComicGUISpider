@@ -52,7 +52,6 @@ export default defineConfig({
             },
         ],
         nav: [
-            {text: "简介", link: "/home/"},
             {text: "🎥视频使用指南", link: "https://www.veed.io/view/zh-CN/688ae765-2bfb-4deb-9495-32b24a273373?panel=comments"},
             {text: "📦绿色包下载", link: "https://github.com/jasoneri/ComicGUISpider/releases/latest"},
 
@@ -64,10 +63,6 @@ export default defineConfig({
         sidebar: [
             {
                 items: [
-                    {
-                        text: "简介",
-                        link: "/home/",
-                    },
                     {
                         text: "快速开始",
                         link: "/deploy/quick-start",
