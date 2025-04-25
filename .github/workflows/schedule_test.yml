@@ -50,17 +50,34 @@ jobs:
           cp __temp/status_${{ matrix.crawler_name }}.json __temp/badges/
           exit 0
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: badges-${{ matrix.crawler_name }}
+          path: __temp/badges/
+
+  deploy-job:
+    needs: test-suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: all-artifacts
+
+      - name: Merge artifacts
+        run: |
+          mkdir -p merged-badges
+          find all-artifacts -name '*.json' -exec cp {} merged-badges/ \;
+          
+          set +e
+          for crawler in "jm" "ehentai"; do
+            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "merged-badges/status_${crawler}.json" || true
+          done
+
       - name: Deploy to CloudFlare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          mkdir -p __temp/existing_badges
-          set +e
-          for crawler in "jm" "ehentai"; do
-            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "__temp/existing_badges/status_${crawler}.json" || true
-          done
-          if [ -d "__temp/existing_badges" ]; then
-            cp -n __temp/existing_badges/*.json __temp/badges/ 2>/dev/null || true
-          fi
-          wrangler pages deploy __temp/badges/ --project-name=cgs-status-badges --branch=main
+          wrangler pages deploy merged-badges/ --project-name=cgs-status-badges --branch=main
