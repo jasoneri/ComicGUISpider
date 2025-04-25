@@ -37,6 +37,10 @@ except FileNotFoundError as e:
     _ = gettext.gettext
 
 
+class Vars:
+    ua_accept_language = _('Vars.ua_accept_language')    
+
+
 # GUI
 class GUI:
     DESC1 = _('GUI.DESC1')
