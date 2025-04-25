@@ -19,13 +19,13 @@ jobs:
     strategy:
       matrix:
         include:
-          # - "jm" "ehentai" 使用本地 act 运行上传 
+          # - "mangabz" "ehentai" 使用本地 act 运行上传
           - crawler_name: "kaobei"
             params: "-w 1 -k 更新 -i 2 -i2 1 -sp 50000"
+          - crawler_name: "jm"
+            params: "-w 2 -k ミモネル -i 2 -sp 50021"
           - crawler_name: "wnacg"
             params: "-w 3 -k ミモネル -i 2 -sp 50041"
-          - crawler_name: "mangabz"
-            params: "-w 5 -k 更新 -i 1 -i2 1 -sp 50061"
 
     steps:
       - uses: actions/checkout@master
@@ -59,6 +59,8 @@ jobs:
   deploy-job:
     needs: test-suite
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/jasoneri/comicguispider-dockerimage:latest
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -71,7 +73,7 @@ jobs:
           find all-artifacts -name '*.json' -exec cp {} merged-badges/ \;
           
           set +e
-          for crawler in "jm" "ehentai"; do
+          for crawler in "ehentai" "mangabz"; do
             curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "merged-badges/status_${crawler}.json" || true
           done
 
