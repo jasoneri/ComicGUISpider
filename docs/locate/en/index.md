@@ -47,8 +47,8 @@ hero:
 
 <table><tbody>
   <tr>
-    <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif"></td>
-    <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif"></td>
+    <td><img src="https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif"></td>
+    <td><img src="https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif"></td>
   </tr>  
 </tbody></table>
 
@@ -56,7 +56,7 @@ hero:
 
 - Easy to use with simple configuration
 - Just click a few times after preview to download, and you can also browse the website on the preview window
-- Convenient to specify selection with input rules like `+3` (select the last three), `0` (select all), etc.
+- Convenient to specify selection with input rules like `-3` (select the last three), `0` (select all), etc.
 - Based on page retention, flipping pages is like putting items in a shopping cart
 - Built-in restart is very convenient, and it is even more convenient with multiple launches
 - Read clipboard stream
