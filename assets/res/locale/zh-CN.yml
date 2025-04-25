@@ -74,7 +74,7 @@ GUI:
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_feedback_group: "437774506"
     confDia_feedback_group_copied: "群号已复制"
-    confDia_support_content: "~投喂请随意"
+    confDia_support_content: "~有赞助就买域名等"
 
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`eh_cookies`"
