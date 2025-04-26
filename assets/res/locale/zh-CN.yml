@@ -32,6 +32,7 @@ GUI:
     mangabz: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
   Clip:
     process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
+    db_not_found_guide: "剪贴板 db 不存在，请先查看相关指引"
     match_none: "无匹配任务，先进行复制再运行此功能，当前匹配规则：%s"
     get_info_error: "获取信息失败"
     partial_fail: "部分失败，但仍可继续处理任务窗口的任务"

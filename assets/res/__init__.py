@@ -70,6 +70,7 @@ class GUI:
 
     class Clip:
         process_warning = _('GUI.Clip.process_warning')
+        db_not_found_guide = _('GUI.Clip.db_not_found_guide')
         match_none = _('GUI.Clip.match_none')
         get_info_error = _('GUI.Clip.get_info_error')
         partial_fail = _('GUI.Clip.partial_fail')

@@ -55,6 +55,11 @@ It is necessary to use `exhentai`
 
 ### Clipboard Db / `clip_db`
 
+::: tip If function of read-clip wanted, Need Clipboard Soft be installed  
+win: [🌐Ditto](https://github.com/sabrogden/Ditto)  
+macOS: [🌐Maccy](https://github.com/p0deje/Maccy)  
+:::
+
 When the clipboard reading function cannot be used, check whether the path exists, and change it here after obtaining the correct path
 
 1. ditto(win): Open options → Database path  
@@ -66,10 +71,10 @@ Number of items read from the clipboard software
 
 ## Other `yml` Field
 
-::: info The following fields are not displayed in the Config Dialog, use default values if unset
+::: info The following fields are not displayed in the Config Dialog, set default value unless customize
 :::
 
 ### `img_sv_type`
 
-default: `jpg`
+default: `jpg`  
 image file name suffix
