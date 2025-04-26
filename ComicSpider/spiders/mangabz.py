@@ -117,6 +117,7 @@ class MangabzSpider(FormReqBaseComicSpider):
         return self.say.frame_section_print(frame_results, print_example=example_s)
 
     def parse_fin_page(self, response):
+        meta = response.meta
         js = response.xpath('//script[@type="text/javascript"]/text()').getall()
         target_js = next(filter(lambda t: t.strip().startswith('eval'), js), None)
         real_js = execute_js(
@@ -126,6 +127,7 @@ class MangabzSpider(FormReqBaseComicSpider):
         img_list_ = re.search(r'\[(.*?)]', real_js).group(1)
         img_list = [re.sub(r"""['"]""", '', _) for _ in re.split(', ?', img_list_)]
         group_infos = ComicspiderItem.get_group_infos(response.meta)
+        self.set_task((meta['uuid_md5'], f"{meta['title']}-{meta['section']}", len(img_list), meta['title_url']))
         for img_url in img_list:
             item = ComicspiderItem()
             item.update(**group_infos)

@@ -18,16 +18,34 @@ from utils.processed_class import TaskObj
 from assets import res
 
 
+class PageNamingMgr:
+    img_sv_type = getattr(conf, 'img_sv_type', 'jpg')
+
+    def __init__(self):
+        self.digits_map = {}
+
+    def __call__(self, taskid, page, info):
+        if not self.digits_map.get(taskid):
+            self.digits_map[taskid] = len(str(info.spider.tasks[taskid].tasks_count))
+        digits = self.digits_map[taskid]
+        return f"{str(page).zfill(digits)}.{self.img_sv_type}"
+
+
 class ComicPipeline(ImagesPipeline):
     err_flag = 0
     _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
 
+    def __init__(self, store_uri, download_func=None, settings=None):
+        super(ComicPipeline, self).__init__(store_uri, download_func, settings)
+        self.page_naming = PageNamingMgr()
+
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
         title = self._sub.sub('-', item.get('title'))
         section = self._sub.sub('-', item.get('section'))
-        page = res.SPIDER.PAGE_NAMING % item.get('page')
+        taskid = item.get('uuid_md5')
+        page = self.page_naming(taskid, item.get('page'), info)
         spider = self.spiderinfo.spider
         basepath: pathlib.Path = spider.settings.get('SV_PATH')
         path = self.file_folder(basepath, section, spider, title, item)

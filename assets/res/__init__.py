@@ -174,7 +174,6 @@ class SPIDER:
 
     # pipelines
     ERO_BOOK_FOLDER = _('SPIDER.ERO_BOOK_FOLDER')
-    PAGE_NAMING = _('SPIDER.PAGE_NAMING')
 
     # utils
     DOMAINS_INVALID = _('SPIDER.DOMAINS_INVALID')
