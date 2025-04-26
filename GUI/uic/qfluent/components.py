@@ -24,14 +24,15 @@ class CustomSplashScreen(SplashScreen):
 
 class CustomInfoBar:
     @staticmethod
-    def show(title, content, parent, url, url_name, _type="ERROR"):
-        w = InfoBar(
+    def show(title, content, parent, url, url_name, _type="ERROR", **kw):
+        InfoBar_kw = dict(
             icon=getattr(InfoBarIcon, _type.upper()),
             title=title, content=content,
             orient=Qt.Horizontal, isClosable=True,
             position=InfoBarPosition.BOTTOM, duration=-1,
             parent=parent
         )
+        w = InfoBar(**{**InfoBar_kw, **kw})
         w.addWidget(HyperlinkButton(FluentIcon.LINK, url, url_name, parent=None))
         w.show()
 
