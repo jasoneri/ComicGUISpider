@@ -52,7 +52,7 @@ win: [🌐Ditto](https://github.com/sabrogden/Ditto)、macOS: [🌐Maccy](https:
 ![browser_copyBtn](../assets/img/feature/browser_copyBtn.png)
 
 > [!Tip] 前置设置  
-> 需参考 [📒额外使用说明第三条](../faq/extra.md#3-预览视窗的复制按钮相关) 对剪贴板软件更改设置
+> 需参考 [📒额外使用说明第三条](../faq/extra.md#_3-预览视窗的复制按钮相关) 对剪贴板软件更改设置
 
 将当前未完成链接复制到剪贴板。  
 先`复制`后用`工具箱-读剪贴板`的流程，常用于进度卡死不动重下或补漏页

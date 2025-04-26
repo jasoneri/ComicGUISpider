@@ -1,3 +1,4 @@
+import pathlib
 from copy import deepcopy
 
 from PyQt5.QtCore import Qt, QTimer
@@ -10,7 +11,7 @@ from assets import res
 from utils import conf, curr_os
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
-from GUI.uic.qfluent import CustomFlyout, TableFlyoutView
+from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
 
 
 class ToolMenu(DWMMenu):
@@ -63,6 +64,13 @@ class ToolMenu(DWMMenu):
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
                 duration=3500, parent=self.gui.textBrowser
             )
+        elif not pathlib.Path(conf.clip_db).exists():
+            CustomInfoBar.show(
+                title='Clip-db not found', content=res.GUI.Clip.db_not_found_guide,
+                parent=self.gui.textBrowser,
+                url="https://jasoneri.github.io/ComicGUISpider/config/#剪贴板db-clip-db", url_name="Guide"
+            )
+            # https://jasoneri.github.io/ComicGUISpider/feature/#_4-1-%E8%AF%BB%E5%89%AA%E8%B4%B4%E6%9D%BF
         else:
             clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
                                getattr(self.gui.spiderUtils, "book_url_regex"))

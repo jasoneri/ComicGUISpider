@@ -32,6 +32,7 @@ GUI:
     mangabz: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
   Clip:
     process_warning: "Search process already started - requires restart to use this feature"
+    db_not_found_guide: "Clipboard db not found - check related guides"
     match_none: "No tasks matched. Copy first before running this function. Current matching rule: %s"
     get_info_error: "get info fail"
     partial_fail: "Partial failure (remaining tasks in the Tasks-Dialog can still be processed)"
