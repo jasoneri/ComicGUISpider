@@ -39,7 +39,7 @@ jobs:
           set +e
           timeout 60 python crawl_only.py ${{ matrix.params }} -l INFO -dt 2>&1 | tee ${{ matrix.crawler_name }}.log
           result=$?
-          item_count=$(grep -o "item_scraped_count': [0-9]*" ${{ matrix.crawler_name }}.log | grep -o "[0-9]*" || echo "0")
+          item_count=$(grep -o "image/downloaded': [0-9]*" ${{ matrix.crawler_name }}.log | grep -o "[0-9]*" || echo "0")
           if [ $result -eq 0 ] && [ "$item_count" -ge 2 ]; then
             echo '{"schemaVersion":1,"label":"'"$TODAY"'","message":"pass","color":"success"}' > __temp/status_${{ matrix.crawler_name }}.json
           else
