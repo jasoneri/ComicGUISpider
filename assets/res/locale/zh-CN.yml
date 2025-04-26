@@ -112,7 +112,6 @@ SPIDER:
   close_check_log_guide2: "2、第1步非网络问题的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤"
   close_check_log_guide3: "3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue"
   ERO_BOOK_FOLDER: "本子"
-  PAGE_NAMING: "第%s页.jpg"
   DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>请自行检查 (可参考📒额外使用说明第二条处理[%s])"
 
 Updater:

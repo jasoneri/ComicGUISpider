@@ -63,3 +63,13 @@ When the clipboard reading function cannot be used, check whether the path exist
 ### Read Number / `clip_read_num`
 
 Number of items read from the clipboard software
+
+## Other `yml` Field
+
+::: info The following fields are not displayed in the Config Dialog, use default values if unset
+:::
+
+### `img_sv_type`
+
+default: `jpg`
+image file name suffix

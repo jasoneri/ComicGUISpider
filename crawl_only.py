@@ -91,7 +91,7 @@ def test_normal_process(keyword, input_2, input_3):
     refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=input_3 or False)
     #  上面这行 refresh_state，当测试三步跳转时要加 monitor_change=True
     if input_3:
-        time.sleep(2)
+        time.sleep(3)
         gui.Q('InputFieldQueue').send(state_3)
         time.sleep(2)
 
