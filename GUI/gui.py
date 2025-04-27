@@ -407,6 +407,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.log = conf.cLog(name="GUI")
             self.BrowserWindow = None
             self.guiQueuesManger = None
+            self.Q = None
             # self.setupUi(self)
             QTimer.singleShot(10, lambda : self.setupUi(self))
 

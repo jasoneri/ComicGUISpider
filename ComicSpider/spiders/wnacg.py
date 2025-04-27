@@ -28,12 +28,6 @@ class WnacgSpider(BaseComicSpider2):
         if self.settings.get("PROXY_CUST") is None:  # 不设配置代理就永远走国内可访问域名，无视全局代理模式
             self.domain = WnacgUtils.get_domain()
 
-    @staticmethod
-    def rule_book_index(book_index: str) -> str:
-        len_index = len(book_index)
-        book_index = f"{(6 - len_index) * '0'}{book_index}" if len_index < 6 else book_index
-        return f"{book_index[:-2]}/{book_index[-2:]}"
-
     def frame_book(self, response):
         frame_results = {}
         example_b = r' [ {} ]、【 {} 】'
@@ -52,8 +46,8 @@ class WnacgSpider(BaseComicSpider2):
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [url, title, preview_url]
             _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
-            page = f"p{re.search(r'(\d+)[張张]', _page.strip()).group(1)}" if _page else 0
-            preview.add(x + 1, img_preview, title, preview_url, page)
+            pages = re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0
+            preview.add(x + 1, img_preview, title, preview_url, pages=pages)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=response.url)
 
