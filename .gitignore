@@ -193,6 +193,7 @@ codecov*
 gitee_t.json
 conf.yml
 record.db
+hitomi.db
 # self/desc created html
 desc.html
 docs/*.html

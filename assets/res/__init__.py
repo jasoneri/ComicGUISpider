@@ -49,11 +49,12 @@ class GUI:
 
     BrowserWindow_ensure_warning = _('GUI.BrowserWindow_ensure_warning')
 
-    jm_bookid_support = _('GUI.jm_bookid_support')
-    wnacg_run_slow_in_cn_tip = _('GUI.wnacg_run_slow_in_cn_tip')
+    jm_desc = _('GUI.jm_desc')
+    wnacg_desc = _('GUI.wnacg_desc')
     mangabz_desc = _('GUI.mangabz_desc')
     check_ehetai = _('GUI.check_ehetai')
     check_mangabz = _('GUI.check_mangabz')
+    check_hitomi = _('GUI.check_hitomi')
     checkisopen_text_change = _('GUI.checkisopen_text_change')
     checkisopen_status_tip = _('GUI.checkisopen_status_tip')
     ACCESS_FAIL = _('GUI.ACCESS_FAIL')
@@ -83,6 +84,7 @@ class GUI:
         wnacg = _('GUI.SearchInputStatusTip.wnacg')
         ehentai = _('GUI.SearchInputStatusTip.ehentai')
         mangabz = _('GUI.SearchInputStatusTip.mangabz')
+        hitomi = _('GUI.SearchInputStatusTip.hitomi')
 
     class ToolMenu:
         action1 = _('GUI.ToolMenu.action1')
@@ -129,6 +131,12 @@ class GUI:
         confDia_feedback_group = _('GUI.Uic.confDia_feedback_group')
         confDia_feedback_group_copied = _('GUI.Uic.confDia_feedback_group_copied')
         confDia_support_content = _('GUI.Uic.confDia_support_content')
+        hitomiTools_tip_search = _('GUI.Uic.hitomiTools_tip_search')
+        hitomiTools_tip_sv = _('GUI.Uic.hitomiTools_tip_sv')
+        hitomiTools_tip_send = _('GUI.Uic.hitomiTools_tip_send')
+        hitomiTools_info_copied = _('GUI.Uic.hitomiTools_info_copied')
+        hitomiTools_info_sved = _('GUI.Uic.hitomiTools_info_sved')
+        hitomiTools_info_sended = _('GUI.Uic.hitomiTools_info_sended')
 
 
 # website

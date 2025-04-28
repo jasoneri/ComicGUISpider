@@ -41,6 +41,10 @@ features:
       src: ./assets/img/icons/website/ehentai.png
     title: '<a href="https://exhentai.org/" target="_blank">exhentai</a>'
     details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json">'
+  - icon:
+      src: ./assets/img/icons/website/hitomi.png
+    title: '<a href="https://hitomi.la/" target="_blank">hitomi</a>'
+    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json">'
 ---
 
 <table><tbody>

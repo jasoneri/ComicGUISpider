@@ -12,6 +12,7 @@ from utils import conf, curr_os
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
+from GUI.hitmoti_tools import HitomiTools
 
 
 class ToolMenu(DWMMenu):
@@ -80,6 +81,14 @@ class ToolMenu(DWMMenu):
                              ignore_http=True)
             else:
                 self.gui.init_clip_handle(tf, match_items)
+
+    def add_hitomi_tools(self):
+        if hasattr(self, "action_read_clip"):
+            self.removeAction(self.action_read_clip)
+        self.gui.hitomi_tools = HitomiTools(self.gui)
+        self.action_hitomi_tools = Action(self.tr('hitomi-tools'), triggered=lambda : self.gui.hitomi_tools.show())
+        self.gui.hitomi_tools.hide()
+        self.addAction(self.action_hitomi_tools)
 
 
 class CopyUnfinished:
