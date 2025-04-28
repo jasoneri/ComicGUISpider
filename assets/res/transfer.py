@@ -41,7 +41,7 @@ def compile_po_to_mo(po_file, mo_file):
     po.save_as_mofile(mo_file)
 
 
-def main(lang):
+def main(base_dir, lang):
     locale_dir = base_dir / 'locale' / lang / 'LC_MESSAGES'
     locale_dir.mkdir(parents=True, exist_ok=True)
     
@@ -54,6 +54,5 @@ def main(lang):
 
 
 if __name__ == "__main__":
-    base_dir = pathlib.Path(__file__).parent
-    main('zh-CN') 
-    main('en-US') 
+    main(pathlib.Path(__file__).parent, 'zh-CN') 
+    main(pathlib.Path(__file__).parent, 'en-US') 
