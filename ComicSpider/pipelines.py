@@ -20,12 +20,15 @@ from assets import res
 
 class PageNamingMgr:
     img_sv_type = getattr(conf, 'img_sv_type', 'jpg')
+    img_suffix_regex = re.compile(r'\.(jpg|png|gif|jpeg|bmp|webp|tiff|tif|ico|avif|svg)$')
 
     def __init__(self):
         self.digits_map = {}
 
     def __call__(self, taskid, page, info):
-        if not self.digits_map.get(taskid):
+        if isinstance(page, str) and bool(self.img_suffix_regex.search(page)):
+            return page
+        elif not self.digits_map.get(taskid):
             self.digits_map[taskid] = len(str(info.spider.tasks[taskid].tasks_count))
         digits = self.digits_map[taskid]
         return f"{str(page).zfill(digits)}.{self.img_sv_type}"

@@ -18,6 +18,9 @@ from utils.docs import MarkdownConverter
 class CustomSplashScreen(SplashScreen):
     def __init__(self, parent=None, enableShadow=True):
         super(CustomSplashScreen, self).__init__(QIcon(":/guide.png"), parent, enableShadow)
+        self.titleBar.minBtn.hide()
+        self.titleBar.maxBtn.hide()
+        self.titleBar.closeBtn.hide()
         height = int(parent.height() * 0.7)
         self.setIconSize(QSize(height, height))
 
