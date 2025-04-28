@@ -1,1 +1,2 @@
 .badge-on-img{position:absolute;right:-0.5em;box-shadow:0 0 3px rgba(0,0,0,0.03);opacity:0.7;min-width:1.5em;text-align:center;padding:0.25em;border-radius:0.25em;}
+.badge-on-img:hover {opacity: 0.9;}
