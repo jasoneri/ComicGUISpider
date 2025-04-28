@@ -3,6 +3,9 @@
 import gettext
 import pathlib
 import locale
+
+from assets.res.transfer import main as translation_compile
+
 """usage of `<br>`：
     1. 一行话禁止加 `br` ，换行在 `self.say()` 前解决;
     2. 多行的一段话可在最后加 `br` ，禁止在段落起始处加 `br`
@@ -25,6 +28,9 @@ def getUserLanguage():
 _path = pathlib.Path(__file__).parent
 lang = getUserLanguage()
 # lang = 'en-US'
+
+if not _path.joinpath(f'locale/{lang}/LC_MESSAGES/res.mo').exists():
+    translation_compile(_path, lang)
 
 gettext.bindtextdomain('res', str(_path / 'locale'))
 gettext.textdomain('res')
