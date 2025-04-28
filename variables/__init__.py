@@ -8,18 +8,21 @@ SPIDERS = {
     3: 'wnacg',         # 🇨🇳 
     4: 'ehentai',       # 🌎
     5: 'mangabz',       # 🇨🇳
+    6: 'hitomi',        # 🌎
 }
-SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai']
-SPECIAL_WEBSITES_IDXES = [2, 3, 4]
-SPIDERS_NEED_PROXIES_IDXES = [3, 4]
+SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi']
+SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6]
+SPIDERS_NEED_PROXIES_IDXES = [3, 4, 6]
 
 DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
     1: ['更新', '排名日', '排名周', '排名月', '排名总'],
     2: ['C105', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
     3: ['C105', '更新', '汉化'],
     4: [res.EHentai.MAPPINGS_POPULAR, res.EHentai.MAPPINGS_INDEX, 'C105'],
-    5: ['更新', '人气']
+    5: ['更新', '人气'],
+    6: ['index-all', 'popular/week-all', 'popular/month-all']
 }
+
 STATUS_TIP = {
     0: None,
     1: f"manga_copy: {res.GUI.SearchInputStatusTip.manga_copy}",
@@ -27,4 +30,5 @@ STATUS_TIP = {
     3: f"wnacg: {res.GUI.SearchInputStatusTip.wnacg}",
     4: f"ehentai: {res.GUI.SearchInputStatusTip.ehentai}",
     5: f"mangabz: {res.GUI.SearchInputStatusTip.mangabz}",
+    6: f"hitomi: {res.GUI.SearchInputStatusTip.hitomi}"
 }

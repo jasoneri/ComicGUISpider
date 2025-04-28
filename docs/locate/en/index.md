@@ -35,6 +35,9 @@ hero:
     <td><div align="center"><a href="https://exhentai.org/" target="_blank">
       <img src="../../assets/img/icons/website/ehentai.png" alt="logo" style="max-height: 80px">
       </a></div></td>
+    <td><div align="center"><a href="https://hitomi.la/" target="_blank">
+      <img src="../../assets/img/icons/website/hitomi.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
   </tr>
   <tr>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json"></td>
