@@ -1,0 +1,359 @@
+import sqlite3
+from contextlib import closing
+import urllib.parse as up
+from PyQt5.QtCore import Qt, QUrl, QTimer
+from PyQt5.QtGui import QGuiApplication, QStandardItemModel, QStandardItem, QDesktopServices
+from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QListView, QComboBox, QFrame
+from qfluentwidgets import (
+    ComboBox, VBoxLayout, RoundMenu, Action,
+    PrimaryToolButton, ToolButton, DropDownToolButton, TransparentToolButton, 
+    TransparentToggleToolButton, TransparentTogglePushButton,
+    TitleLabel, StrongBodyLabel, FluentIcon as FIF,
+    InfoBadgePosition, InfoBadge, ToolTipFilter, ToolTipPosition, 
+    InfoBar, InfoBarPosition
+)
+from qframelesswindow import FramelessWindow
+
+from assets import res
+from variables import DEFAULT_COMPLETER
+from utils import ori_path, conf
+
+
+class HitomiTools(FramelessWindow):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.gui = parent
+        self.titleBar.minBtn.hide()
+        self.titleBar.maxBtn.hide()
+        self.titleBar.closeBtn.hide()
+        screen = QGuiApplication.primaryScreen()
+        screen_geo = screen.geometry()
+        window_width = int(screen_geo.width() * 0.4)
+        window_height = int(screen_geo.height() * 0.15)
+        self.setMinimumSize(window_width, window_height)
+        self.resize(window_width, window_height)
+        self.move(
+            int((screen_geo.width() - window_width) / 2),
+            int((screen_geo.height() - window_height) / 2)
+        )
+        
+        self.removed_flag = False
+        self.category_type_flag = False
+        self.order_flag = False
+        self.output_type = ''
+        self.output_mgr = self.OutputMgr(self)
+        self.tmp_map = {}
+        self.conn = sqlite3.connect(ori_path.joinpath('assets/hitomi.db'))
+        self.init_ui()
+        self.set_dataset()
+        self.update_entries()  # Initial update
+        
+    def init_ui(self):
+        main_layout = VBoxLayout(self)
+        
+        # First row
+        first_row = QHBoxLayout()
+        self.category = ComboBox()
+        self.category.addItems(('tag', 'artist', 'series', 'character', 'type'))
+        self.letter = ComboBox()
+        self.letter.addItems(('123', *[chr(i) for i in range(97, 123)]))
+        self.sub_ = ComboBox()
+        self.sub_.addItems(('imageset', 'manga', 'doujinshi', 'artistcg', 'gamecg'))
+        
+        self.removeBtn = TransparentToggleToolButton(FIF.REMOVE_FROM)
+        self.removeBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_remove)
+        self.line = QFrame(self)
+        self.line.setFrameShape(QFrame.VLine)
+        self.line.setFrameShadow(QFrame.Sunken)
+        self.orderbyBtn = TransparentTogglePushButton(FIF.SCROLL, 'OrderBy')
+        self.orderby = ComboBox()
+        self.orderby.addItems(('date', 'popular'))
+        self.orderby.setToolTip(res.GUI.Uic.hitomiTools_tip_orderby)
+        self.orderbyKeyDate = ComboBox()
+        self.orderbyKeyDate.addItems(('published', 'added/index'))
+        self.orderbyKeyPopular = ComboBox()
+        self.orderbyKeyPopular.addItems(('today', 'week', 'month', 'year'))
+        
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.language_label = StrongBodyLabel('language:')
+        self.language = ComboBox()
+        self.language.addItems(('all','indonesian','javanese','catalan','cebuano','czech','danish','german','estonian','english',
+                                'spanish','esperanto','french','hindi','icelandic','italian','latin','hungarian','dutch','norwegian',
+                                'polish','portuguese','romanian','albanian','slovak','serbian','finnish','swedish','tagalog','vietnamese',
+                                'turkish','greek','bulgarian','mongolian','russian','ukrainian','hebrew','arabic','persian','thai',
+                                'burmese','korean','chinese','japanese'))
+        for _ in (self.sub_, self.orderby, self.orderbyKeyDate, self.orderbyKeyPopular):
+            _.hide()
+        first_row_els = (self.category, self.letter, self.sub_, self.removeBtn, self.line, 
+                         self.orderbyBtn, self.orderby, self.orderbyKeyDate, self.orderbyKeyPopular,
+                         self.language_label, self.language)
+        for _ in first_row_els:
+            first_row.addWidget(_)
+        first_row.insertSpacerItem(len(first_row_els)-2, spacer)
+        
+        # Second row
+        second_row = QHBoxLayout()
+        self.entry_label = StrongBodyLabel('tag:')
+        self.entry = QComboBox()
+        self.entry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        second_row.addWidget(self.entry_label)
+        second_row.addWidget(self.entry)
+        
+        # Third row
+        third_row = QHBoxLayout()
+        self.output_num = TitleLabel(' ')
+        self.output_num.setMinimumWidth(40)
+        self.output_num.setAlignment(Qt.AlignCenter)
+        self.output = TitleLabel()
+        self.output.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.output.setAlignment(Qt.AlignCenter)
+        
+        third_row.addWidget(self.output_num)
+        third_row.addWidget(self.output)
+        
+        # Fourth_row
+        spacer_info = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        fourth_row = QHBoxLayout()
+        self.copyBtn = ToolButton(FIF.COPY)
+        self.searchDownToolBtn = DropDownToolButton(FIF.SEARCH)
+        self.searchDownToolBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_search)
+        self.globe_menu = RoundMenu(parent=self)
+        self.set_globe_menu()
+        self.svBtn = PrimaryToolButton(FIF.SAVE)
+        self.svBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_sv)
+        self.sendBtn = PrimaryToolButton(FIF.SEND, self)
+        self.sendBtn.clicked.connect(self.send)
+        self.sendBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_send)
+        self.cancelBtn = TransparentToolButton(FIF.CLOSE, self)
+        self.cancelBtn.clicked.connect(self.close)
+
+        fourth_row.addSpacerItem(spacer_info)
+        for _ in (self.copyBtn, self.searchDownToolBtn, self.svBtn, self.sendBtn, self.cancelBtn):
+            fourth_row.addWidget(_)
+        
+        # Add to main layout
+        for _ in (first_row, second_row, third_row, fourth_row):
+            main_layout.addLayout(_)
+        
+        for btn in (self.removeBtn, self.orderby,
+                self.searchDownToolBtn, self.svBtn, self.sendBtn):
+            btn.installEventFilter(ToolTipFilter(btn, showDelay=300, position=ToolTipPosition.TOP))
+
+        # Signals
+        self.category.currentTextChanged.connect(self.category_changed)
+        self.letter.currentTextChanged.connect(self.update_entries)
+        self.sub_.currentTextChanged.connect(self.update_output)
+        self.removeBtn.clicked.connect(self.toggle_remove)
+        self.orderbyBtn.clicked.connect(self.toggle_orderby)
+        self.orderby.currentTextChanged.connect(self.orderby_change)
+        self.orderbyKeyDate.currentTextChanged.connect(self.update_output)
+        self.orderbyKeyPopular.currentTextChanged.connect(self.update_output)
+        self.language.currentTextChanged.connect(self.update_output)
+        self.entry.currentTextChanged.connect(self.update_output)
+        self.copyBtn.clicked.connect(self.copy_path)
+        self.svBtn.clicked.connect(self.save)
+
+    def set_globe_menu(self):
+        self.globe_menu.clear()
+        sites = [
+            ('https://mzh.moegirl.org/index.php?search=', '萌娘百科'),
+            ('https://myanimelist.net/search/all?q=', 'MyAnimeList'),
+            ('https://www.anime-planet.com/', 'Anime-Planet'),
+        ]
+        for site, name in sites:
+            entry = self.entry.currentText()
+            current_site = site
+            if entry and name != 'Anime-Planet':
+                current_site = site + entry 
+            self.globe_menu.addAction(
+                Action(name, triggered=lambda _, s=current_site: QDesktopServices.openUrl(QUrl(s)))
+            )
+        self.searchDownToolBtn.setMenu(self.globe_menu)
+
+    def set_dataset(self):
+        self.query_cache = {}
+        self.model_cache = {}
+        list_view = QListView()
+        list_view.setUniformItemSizes(True)
+        self.entry.setView(list_view)
+    
+    def toggle_remove(self):
+        """ban category/letter/sub_selector"""
+        widgets = (self.category, self.letter, self.sub_, self.entry, self.searchDownToolBtn)
+        if self.removeBtn.isChecked():
+            for widget in widgets:
+                widget.hide()
+            self.removed_flag = True
+            if not self.orderbyBtn.isChecked():
+                self.orderbyBtn.click()
+            self.orderbyBtn.setDisabled(True)
+        else:
+            self.orderbyBtn.setDisabled(False)
+            for widget in widgets:
+                widget.show()
+            self.removed_flag = False
+            if self.category.currentText() == 'type':
+                self.letter.hide()
+            else:
+                self.sub_.hide()
+        self.update_output()
+    
+    def toggle_orderby(self):
+        if self.orderbyBtn.isChecked():
+            self.orderby.show()
+            self.orderby_change()
+            self.order_flag = True
+        else:
+            for _ in (self.orderby, self.orderbyKeyDate, self.orderbyKeyPopular):
+                _.hide()
+            self.order_flag = False
+        self.update_output()
+    
+    def orderby_change(self):
+        if self.orderby.currentText() == 'popular':
+            self.orderbyKeyDate.hide()
+            self.orderbyKeyPopular.show()
+        else:
+            self.orderbyKeyDate.show()
+            self.orderbyKeyPopular.hide()
+        self.update_output()
+        
+    def send(self):
+        self.gui.searchinput.setText(self.output_mgr.actual)
+        InfoBar.success(
+            title='', content=res.GUI.Uic.hitomiTools_info_sended,
+            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
+            duration=4000, parent=self.gui.textBrowser
+        )
+        QTimer.singleShot(100, self.close)
+
+    def copy_path(self):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.output.text())
+        InfoBar.success(
+            title='', content=res.GUI.Uic.hitomiTools_info_copied,
+            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+            duration=4000, parent=self
+        )
+    
+    def save(self):
+        hitomi_completer = conf.completer.get(6, DEFAULT_COMPLETER.get(6))
+        if self.output_mgr.actual in hitomi_completer:
+            hitomi_completer.remove(self.output_mgr.actual)
+        hitomi_completer.insert(0, self.output_mgr.actual)
+        conf.completer[6] = hitomi_completer
+        conf.update()
+        InfoBar.success(
+            title='', content=res.GUI.Uic.hitomiTools_info_sved,
+            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+            duration=4000, parent=self
+        )
+
+    def category_changed(self):
+        match self.category.currentText():
+            case 'type':
+                for _ in (self.letter, self.entry):
+                    _.hide()
+                self.sub_.show()
+                self.category_type_flag = True
+                self.update_output()
+            case _:
+                self.sub_.hide()
+                for _ in (self.letter, self.entry):
+                    _.show()
+                self.category_type_flag = False
+                self.update_entries()
+
+    def update_entries(self):
+        _category = self.category.currentText()
+        category = f"{_category}s" if _category != 'series' else _category
+        table_name = f"all{category}-{self.letter.currentText()}"
+        if table_name in self.model_cache:
+            self.entry.setModel(self.model_cache[table_name])
+            return
+        if table_name in self.query_cache:
+            self.tmp_map = self.query_cache[table_name]
+        else:
+            with closing(self.conn.cursor()) as cursor:
+                cursor.execute(f"SELECT content, num FROM `{table_name}`")
+                entries = cursor.fetchall()  # content, num
+            self.entry.clear()
+            self.tmp_map = {up.unquote(entry[0]): entry for entry in entries}
+            self.query_cache[table_name] = self.tmp_map
+        
+        model = QStandardItemModel()    # self.entry.addItems is too slow! temp use model instead
+        for entry in self.tmp_map.keys():
+            item = QStandardItem(entry)
+            item.setData(entry, role=Qt.UserRole)
+            model.appendRow(item)
+        self.entry.setModel(model)
+        self.model_cache[table_name] = model
+
+    class OutputMgr:
+        info_badge = None
+        
+        def __init__(self, parent):
+            self.gui = parent
+            self.path = ''
+            self.actual = ''
+        
+        def update(self):
+            area = self.gui.category.currentText()
+            entry = self.gui.entry.currentText()
+            tag = ''
+            lang = self.gui.language.currentText()
+            badge_value = '-------'
+            
+            if self.gui.removed_flag:
+                ...
+            elif self.gui.category_type_flag:
+                tag = self.gui.sub_.currentText()
+            elif not entry:
+                return
+            else:
+                entry_info = self.gui.tmp_map[entry]
+                badge_value = str(entry_info[1]).zfill(5)
+                tag = entry
+
+            output_l = [area, '-'.join((tag, lang))]
+            if self.gui.order_flag:
+                orderby = self.gui.orderby.currentText()
+                orderbykey = self.gui.orderbyKeyDate.currentText() if orderby == 'date' else \
+                    self.gui.orderbyKeyPopular.currentText()
+                
+                if orderbykey == 'added/index':
+                    output_l = ['-'.join(('index', lang))] if not tag else [area, '-'.join((tag, lang))]
+                elif self.gui.removed_flag:
+                    output_l = [orderby, '-'.join((orderbykey, lang))]
+                else:
+                    output_l = [area, orderby, orderbykey, '-'.join((tag, lang))]
+            
+            self.path = '/'.join(output_l)
+            actual_tag = self.gui.tmp_map[tag][0] if tag in self.gui.tmp_map else tag
+            self.actual = '/'.join((*output_l[:-1], '-'.join((actual_tag, lang))))
+            
+            if getattr(self, 'info_badge', None):
+                self.info_badge.setText(badge_value)
+            else:
+                self.info_badge = InfoBadge.success(
+                    badge_value,
+                    parent=self.gui,
+                    target=self.gui.output_num,
+                    position=InfoBadgePosition.RIGHT
+                )
+
+
+    def update_output(self):
+        self.output_mgr.update()        
+        self.output.setText(self.output_mgr.path)
+        self.set_globe_menu()
+
+
+if __name__ == '__main__':
+    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+    app = QApplication([])
+    window = HitomiTools()
+    window.show()
+    app.exec_()

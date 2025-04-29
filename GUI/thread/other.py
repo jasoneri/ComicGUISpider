@@ -12,7 +12,7 @@ from utils import conf, curr_os
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
-from GUI.hitmoti_tools import HitomiTools
+from GUI.hitomi_tools import HitomiTools
 
 
 class ToolMenu(DWMMenu):
@@ -51,12 +51,14 @@ class ToolMenu(DWMMenu):
             duration=3000, parent=self.gui.textBrowser
         )
 
-    def switch_ero(self):
+    def switch_ero(self, index):
         self.removeAction(self.action_show_max)
         self.removeAction(self.action_combine_then_mv)
         
         self.action_read_clip = Action(self.tr(self.res.action_ero1), triggered=self.read_clip)
         self.addAction(self.action_read_clip)
+        if index == 6:
+            self.add_hitomi_tools()
 
     def read_clip(self):
         if self.gui.next_btn.text() != res.GUI.Uic.next_btnDefaultText:
@@ -86,7 +88,7 @@ class ToolMenu(DWMMenu):
         if hasattr(self, "action_read_clip"):
             self.removeAction(self.action_read_clip)
         self.gui.hitomi_tools = HitomiTools(self.gui)
-        self.action_hitomi_tools = Action(self.tr('hitomi-tools'), triggered=lambda : self.gui.hitomi_tools.show())
+        self.action_hitomi_tools = Action(self.tr('hitomi-tools'), triggered=self.gui.hitomi_tools.show)
         self.gui.hitomi_tools.hide()
         self.addAction(self.action_hitomi_tools)
 

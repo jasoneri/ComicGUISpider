@@ -69,6 +69,7 @@ class GUI:
     jm_desc = _('GUI.jm_desc')
     wnacg_desc = _('GUI.wnacg_desc')
     mangabz_desc = _('GUI.mangabz_desc')
+    hitomi_desc = _('GUI.hitomi_desc')
     check_ehetai = _('GUI.check_ehetai')
     check_mangabz = _('GUI.check_mangabz')
     check_hitomi = _('GUI.check_hitomi')
