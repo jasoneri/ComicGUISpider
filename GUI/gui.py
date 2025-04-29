@@ -202,7 +202,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.pageEdit.setDisabled(True)
                 self.say(font_color(res.EHentai.GUIDE, color='purple'))
             case _:
-                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), color='purple'))
+                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), color='purple'), ignore_http=True)
 
     def set_shortcut(self):
         self.previousPageShort = QShortcut(QKeySequence("Ctrl+,"), self)

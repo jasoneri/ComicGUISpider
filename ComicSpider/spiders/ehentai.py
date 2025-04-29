@@ -32,7 +32,7 @@ class EHentaiSpider(BaseComicSpider3):
 
     def frame_book(self, response):
         frame_results = {}
-        example_b = r' [ {} ]、p_{}、【 {} 】'
+        example_b = r' [ {} ], p_{}, ⌈ {} ⌋ '
         self.say(example_b.format('index', 'pages', 'name') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')

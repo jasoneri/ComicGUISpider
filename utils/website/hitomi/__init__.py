@@ -14,17 +14,20 @@ from utils.website.core import EroUtils, Req
 class HitomiUtils(EroUtils, Req):
     name = "hitomi"
     index = "https://hitomi.la/"
+    domain = r"ltn.gold-usergeneratedcontent.net"
+    domain2 = r"gold-usergeneratedcontent.net"
     headers = {
         "accept": "*/*",
         "accept-language": res.Vars.ua_accept_language,
+        "host": domain,
+        "origin": index,
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
         "referer": index
     }
     book_hea = headers
+    galleries_per_page = 100
     uuid_regex = ...
     book_url_regex = ...
-    domain = r"ltn.gold-usergeneratedcontent.net"
-    domain2 = r"gold-usergeneratedcontent.net"
     img_domain = r"w1.gold-usergeneratedcontent.net"  # unsure its source or it's stable
 
     def __init__(self, conf):
@@ -43,6 +46,10 @@ class HitomiUtils(EroUtils, Req):
         data = json.loads(json_str)
         return data
     
+    def get_range(self, page):
+        end_byte = self.galleries_per_page * int(page)
+        return f"bytes={end_byte-self.galleries_per_page}-{end_byte-1}"
+    
     def get_img_url(self, img_hash, hasavif=0):
         g = self.gg.s(img_hash)
         img_type = "avif" if hasavif else "webp"
@@ -51,7 +58,9 @@ class HitomiUtils(EroUtils, Req):
 
     def test_index(self):
         try:
-            resp = self.cli.head(self.index, follow_redirects=True, timeout=3.5)
+            resp = self.cli.head(f'https://{self.domain}/popular/week-all.nozomi', 
+                                 headers={**HitomiUtils.headers, "Range": self.get_range(1)},
+                                 follow_redirects=True, timeout=3.5)
             resp.raise_for_status()
         except httpx.HTTPError as e:
             return False
