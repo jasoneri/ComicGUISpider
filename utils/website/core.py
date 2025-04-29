@@ -96,7 +96,10 @@ class EroUtils(Utils):
 
     @classmethod
     def get_uuid(cls, info):
-        _identity = cls.uuid_regex.search(info).group(1)
+        if hasattr(cls, "uuid_regex"):
+            _identity = cls.uuid_regex.search(info).group(1)
+        else:
+            _identity = info
         return f"{cls.name}-{_identity}"
 
 

@@ -117,19 +117,6 @@ def scrape_and_save():
         json.dump(err, f, ensure_ascii=False, indent=4)
 
 
-def save_language():
-    with closing(sqlite3.connect(db_p)) as db_conn:
-        cursor = db_conn.cursor()
-        cursor.executemany(
-            f"INSERT OR IGNORE INTO `language` (content) VALUES (?)",
-            [(item.strip(),) for item in 
-                ['all','indonesian','javanese','catalan','cebuano','czech','danish','german','estonian','english','spanish','esperanto','french','hindi','icelandic','italian','latin','hungarian','dutch','norwegian','polish','portuguese','romanian','albanian','slovak','serbian','finnish','swedish','tagalog','vietnamese','turkish','greek','bulgarian','mongolian','russian','ukrainian','hebrew','arabic','persian','thai','burmese','korean','chinese','japanese']
-            ]
-        )
-        db_conn.commit()
-
-
 def main():
     Db.create_tables()
     scrape_and_save()
-    save_language()
