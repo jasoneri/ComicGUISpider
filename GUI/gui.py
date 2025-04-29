@@ -190,7 +190,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def chooseBox_changed_tips(self, index):
         self.spiderUtils = spider_utils_map[index]
         if index in SPECIAL_WEBSITES_IDXES:
-            self.tool_menu.switch_ero()
+            self.tool_menu.switch_ero(index)
         match index:
             case 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
