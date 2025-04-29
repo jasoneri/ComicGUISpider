@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import pathlib
+import hashlib
 from datetime import datetime
 import yaml
 import polib
@@ -46,11 +47,14 @@ def main(base_dir, lang):
     locale_dir.mkdir(parents=True, exist_ok=True)
     
     yaml_file = base_dir / 'locale' / f'{lang}.yml'
+    yaml_hash = base_dir / 'locale' / f'{lang}.hash'
     po_file = base_dir / 'locale' / lang / 'LC_MESSAGES' / 'res.po'
     mo_file = base_dir / 'locale' / lang / 'LC_MESSAGES' / 'res.mo'
     
     po = yaml_to_po(lang, yaml_file, po_file)
     compile_po_to_mo(po_file, mo_file)
+    with open(yaml_hash, 'w', encoding='utf-8') as f:
+        f.write(hashlib.sha256(yaml_file.read_bytes()).hexdigest())
 
 
 if __name__ == "__main__":

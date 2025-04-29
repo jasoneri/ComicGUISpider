@@ -190,6 +190,7 @@ Pipfile.lock
 codecov*
 *_local.yml
 *-lock.yaml
+*.hash
 # self/conf
 gitee_t.json
 conf.yml

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import gettext
 import pathlib
+import hashlib
 import locale
 
 from assets.res.transfer import main as translation_compile
@@ -29,7 +30,17 @@ _path = pathlib.Path(__file__).parent
 lang = getUserLanguage()
 # lang = 'en-US'
 
-if not _path.joinpath(f'locale/{lang}/LC_MESSAGES/res.mo').exists():
+
+def is_compiled():
+    if not (_path.joinpath(f'locale/{lang}/LC_MESSAGES/res.mo').exists() and \
+        _path.joinpath(f'locale/{lang}.hash').exists()):
+            return False
+    with open(_path.joinpath(f'locale/{lang}.hash'), 'r', encoding='utf-8') as f:
+        return hashlib.sha256(_path.joinpath(f'locale/{lang}.yml').read_bytes()).hexdigest() == f.read()
+
+
+_ = is_compiled()
+if not _:
     translation_compile(_path, lang)
 
 gettext.bindtextdomain('res', str(_path / 'locale'))
@@ -140,6 +151,8 @@ class GUI:
         hitomiTools_tip_search = _('GUI.Uic.hitomiTools_tip_search')
         hitomiTools_tip_sv = _('GUI.Uic.hitomiTools_tip_sv')
         hitomiTools_tip_send = _('GUI.Uic.hitomiTools_tip_send')
+        hitomiTools_tip_remove = _('GUI.Uic.hitomiTools_tip_remove')
+        hitomiTools_tip_orderby = _('GUI.Uic.hitomiTools_tip_orderby')
         hitomiTools_info_copied = _('GUI.Uic.hitomiTools_info_copied')
         hitomiTools_info_sved = _('GUI.Uic.hitomiTools_info_sved')
         hitomiTools_info_sended = _('GUI.Uic.hitomiTools_info_sended')
