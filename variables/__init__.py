@@ -4,15 +4,15 @@ from assets import res
 
 SPIDERS = {
     1: 'manga_copy',    # 🇨🇳 
-    2: 'jm',            # 🇨🇳 
-    3: 'wnacg',         # 🇨🇳 
-    4: 'ehentai',       # 🌎
+    2: 'jm',            # 🇨🇳 🔞
+    3: 'wnacg',         # 🇨🇳 🔞
+    4: 'ehentai',       # 🌎 🔞
     5: 'mangabz',       # 🇨🇳
-    6: 'hitomi',        # 🌎
+    6: 'hitomi',        # 🌎 🔞
 }
 SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi']
 SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6]
-SPIDERS_NEED_PROXIES_IDXES = [3, 4, 6]
+CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6]
 
 DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
     1: ['更新', '排名日', '排名周', '排名月', '排名总'],
