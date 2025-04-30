@@ -322,9 +322,15 @@ class HitomiTools(FramelessWindow):
                     self.gui.orderbyKeyPopular.currentText()
                 
                 if orderbykey == 'added/index':
-                    output_l = ['-'.join(('index', lang))] if not tag else [area, '-'.join((tag, lang))]
+                    if not tag:
+                        tag = 'index'   # Priority first
+                        output_l = ['-'.join((tag, lang))]
+                    else:
+                        output_l = [area, '-'.join((tag, lang))]
                 elif self.gui.removed_flag:
-                    output_l = [orderby, '-'.join((orderbykey, lang))]
+                    tag = orderbykey
+                    area = orderby
+                    output_l = [area, '-'.join((tag, lang))]
                 else:
                     output_l = [area, orderby, orderbykey, '-'.join((tag, lang))]
             
