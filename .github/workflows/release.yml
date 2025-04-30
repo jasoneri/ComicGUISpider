@@ -22,7 +22,7 @@ jobs:
         path: src
 
     - name: Install dependencies
-      run: python -m pip install pydos2unix py7zr tqdm loguru markdown pyyaml
+      run: python -m pip install -r requirements/mac_x86_64.txt
 
     - name: Clean repository
       run: |
