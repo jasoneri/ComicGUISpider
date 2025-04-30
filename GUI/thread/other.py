@@ -8,7 +8,7 @@ from qfluentwidgets import (
 )
 
 from assets import res
-from utils import conf, curr_os
+from utils import conf, curr_os, ori_path
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
@@ -87,11 +87,23 @@ class ToolMenu(DWMMenu):
     def add_hitomi_tools(self):
         if hasattr(self, "action_read_clip"):
             self.removeAction(self.action_read_clip)
-        self.gui.hitomi_tools = HitomiTools(self.gui)
-        self.action_hitomi_tools = Action(self.tr('hitomi-tools'), triggered=self.gui.hitomi_tools.show)
-        self.gui.hitomi_tools.hide()
+        
+        self.action_hitomi_tools = Action(self.tr('hitomi-tools'), triggered=self.hitomi_tools_run)
         self.addAction(self.action_hitomi_tools)
 
+    def hitomi_tools_run(self):
+        hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
+        if not hitomi_db_path.exists():
+            CustomInfoBar.show(
+                title='', content=res.GUI.hitomiDb_guide % hitomi_db_path,
+                parent=self.gui.textBrowser, _type="WARNING",
+                url="https://github.com/jasoneri/ComicGUISpider/releases/download/v2.2.0-dev/hitomi.db", url_name="Download"
+            )
+            # TODO[1] : 调用 utils/website/hitomi/scape_dataset.py 下载 hitomi.db
+        else:
+            if not hasattr(self.gui, "hitomi_tools"):
+                self.gui.hitomi_tools = HitomiTools(self.gui)
+            self.gui.hitomi_tools.show()
 
 class CopyUnfinished:
     copy_delay = 150 if curr_os != "macOS" else 300

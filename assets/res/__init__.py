@@ -70,6 +70,7 @@ class GUI:
     wnacg_desc = _('GUI.wnacg_desc')
     mangabz_desc = _('GUI.mangabz_desc')
     hitomi_desc = _('GUI.hitomi_desc')
+    hitomiDb_guide = _('GUI.hitomiDb_guide')
     check_ehetai = _('GUI.check_ehetai')
     check_mangabz = _('GUI.check_mangabz')
     check_hitomi = _('GUI.check_hitomi')
