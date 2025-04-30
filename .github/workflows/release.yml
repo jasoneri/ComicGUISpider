@@ -23,7 +23,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: src
-      run: python -m pip install -r requirements/mac_x86_64.txt
+      run: python -m pip install -r requirements/linux.txt
 
     - name: Clean repository
       run: |
