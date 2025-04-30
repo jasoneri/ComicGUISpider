@@ -190,19 +190,19 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def chooseBox_changed_tips(self, index):
         self.spiderUtils = spider_utils_map[index]
         if index in SPECIAL_WEBSITES_IDXES:
-            self.tool_menu.switch_ero()
-        if index == 1:
-            self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
-            self.say(font_color(self.res.copymaga_tips, color='purple'))
-        elif index == 2:
-            self.say(font_color(self.res.jm_bookid_support, color='blue'))
-        elif index == 3 and not conf.proxies:
-            self.say(font_color(self.res.wnacg_run_slow_in_cn_tip, color='purple'), ignore_http=True)
-        elif index == 4:
-            self.pageEdit.setDisabled(True)
-            self.say(font_color(res.EHentai.GUIDE, color='purple'))
-        elif index == 5:
-            self.say(font_color(self.res.mangabz_desc, color='purple'))
+            self.tool_menu.switch_ero(index)
+        match index:
+            case 1:
+                self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
+                self.say(font_color(self.res.copymaga_tips, color='purple'))
+            case 3:
+                if not conf.proxies:
+                    self.say(font_color(self.res.wnacg_desc, color='purple'), ignore_http=True)
+            case 4:
+                self.pageEdit.setDisabled(True)
+                self.say(font_color(res.EHentai.GUIDE, color='purple'))
+            case _:
+                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), color='purple'), ignore_http=True)
 
     def set_shortcut(self):
         self.previousPageShort = QShortcut(QKeySequence("Ctrl+,"), self)
@@ -302,15 +302,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
 
     def set_preview(self):
-        proxies = None if self.chooseBox.currentIndex() not in SPIDERS_NEED_PROXIES_IDXES else \
-            (conf.proxies or [None])[0]  # only wnacg need proxies presently
-        if proxies:
-            BrowserWindow.set_proxies(proxies)
         self.BrowserWindow = BrowserWindow(self, self.tf)
-        if self.chooseBox.currentIndex() == 3 and not proxies:  # wnacg
-            self.BrowserWindow.set_referer_nterceptor(f"https://{self.spiderUtils.get_domain()}")
-        elif self.chooseBox.currentIndex() == 4:  # e-hentai
-            self.BrowserWindow.set_ehentai()
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
@@ -407,6 +399,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.log = conf.cLog(name="GUI")
             self.BrowserWindow = None
             self.guiQueuesManger = None
+            self.Q = None
             # self.setupUi(self)
             QTimer.singleShot(10, lambda : self.setupUi(self))
 
@@ -449,17 +442,18 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.next_btn.text() != self.res.Uic.next_btnDefaultText:
             self._next()
         else:
-            if self.chooseBox.currentIndex() == 4:
-                self.say(f"{self.res.check_ehetai}<br>")
-                if not BrowserWindow.check_ehentai(self):
-                    return
-            elif self.chooseBox.currentIndex() == 5:
-                self.say(f"{self.res.check_mangabz}<br>")
-                obj = self.spiderUtils(conf)
-                if not obj.test_index():
-                    CustomInfoBar.show('', self.res.ACCESS_FAIL, self.textBrowser,
-                        obj.index, obj.name)
-                    return
+            match self.chooseBox.currentIndex():
+                case 4:
+                    self.say(f"{self.res.check_ehetai}<br>")
+                    if not BrowserWindow.check_ehentai(self):
+                        return
+                case 5 | 6:
+                    obj = self.spiderUtils(conf)
+                    self.say(f"{getattr(self.res, f"check_{obj.name}")}<br>")
+                    if not obj.test_index():
+                        CustomInfoBar.show('', self.res.ACCESS_FAIL, self.textBrowser,
+                            obj.index, obj.name)
+                        return
             start_and_search()
 
         self.nextclickCnt += 1

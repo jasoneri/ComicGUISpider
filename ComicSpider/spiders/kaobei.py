@@ -136,12 +136,14 @@ class KaobeiSpider(BaseComicSpider):
 
     def parse_fin_page(self, response):
         result = response.json().get('results', {})
+        meta = response.meta
         if result.get("show_app"):
-            self.say(font_color(f'[{response.meta.get("title")}_{response.meta.get('section')}] 被风控了我擦呢',
+            self.say(font_color(f'[{meta.get("title")}-{meta.get('section')}] 被风控了我擦呢',
                                 color='orange'))
         chapter = result.get('chapter', {})
         targets = dict(zip(chapter.get('words', []), chapter.get('contents', [])))
-        group_infos = ComicspiderItem.get_group_infos(response.meta)
+        group_infos = ComicspiderItem.get_group_infos(meta)
+        self.set_task((meta['uuid_md5'], f"{meta['title']}-{meta['section']}", len(targets), meta['title_url']))
         for page, url_item in targets.items():
             item = ComicspiderItem()
             item.update(**group_infos)

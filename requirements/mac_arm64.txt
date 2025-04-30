@@ -42,10 +42,16 @@ filelock==3.18.0
     # via tldextract
 h11==0.14.0
     # via httpcore
+h2==4.2.0
+    # via httpx
+hpack==4.1.0
+    # via h2
 httpcore==1.0.7
     # via httpx
 httpx==0.28.1
     # via -r requirements-in.txt
+hyperframe==6.1.0
+    # via h2
 hyperlink==21.0.0
     # via twisted
 idna==3.10
@@ -87,6 +93,8 @@ parsel==1.10.0
     #   itemloaders
     #   scrapy
 pillow==11.1.0
+    # via -r requirements-in.txt
+pillow-avif-plugin==1.5.2
     # via -r requirements-in.txt
 ply==3.11
     # via jsonpath-rw

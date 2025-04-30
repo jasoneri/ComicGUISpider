@@ -1,3 +1,4 @@
+import pathlib
 from copy import deepcopy
 
 from PyQt5.QtCore import Qt, QTimer
@@ -7,10 +8,11 @@ from qfluentwidgets import (
 )
 
 from assets import res
-from utils import conf, curr_os
+from utils import conf, curr_os, ori_path
 from utils.comic_viewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
-from GUI.uic.qfluent import CustomFlyout, TableFlyoutView
+from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
+from GUI.hitomi_tools import HitomiTools
 
 
 class ToolMenu(DWMMenu):
@@ -49,12 +51,14 @@ class ToolMenu(DWMMenu):
             duration=3000, parent=self.gui.textBrowser
         )
 
-    def switch_ero(self):
+    def switch_ero(self, index):
         self.removeAction(self.action_show_max)
         self.removeAction(self.action_combine_then_mv)
         
         self.action_read_clip = Action(self.tr(self.res.action_ero1), triggered=self.read_clip)
         self.addAction(self.action_read_clip)
+        if index == 6:
+            self.add_hitomi_tools()
 
     def read_clip(self):
         if self.gui.next_btn.text() != res.GUI.Uic.next_btnDefaultText:
@@ -63,6 +67,13 @@ class ToolMenu(DWMMenu):
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
                 duration=3500, parent=self.gui.textBrowser
             )
+        elif not pathlib.Path(conf.clip_db).exists():
+            CustomInfoBar.show(
+                title='Clip-db not found', content=res.GUI.Clip.db_not_found_guide,
+                parent=self.gui.textBrowser,
+                url="https://jasoneri.github.io/ComicGUISpider/config/#剪贴板db-clip-db", url_name="Guide"
+            )
+            # https://jasoneri.github.io/ComicGUISpider/feature/#_4-1-%E8%AF%BB%E5%89%AA%E8%B4%B4%E6%9D%BF
         else:
             clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
                                getattr(self.gui.spiderUtils, "book_url_regex"))
@@ -73,6 +84,26 @@ class ToolMenu(DWMMenu):
             else:
                 self.gui.init_clip_handle(tf, match_items)
 
+    def add_hitomi_tools(self):
+        if hasattr(self, "action_read_clip"):
+            self.removeAction(self.action_read_clip)
+        
+        self.action_hitomi_tools = Action(self.tr('hitomi-tools'), triggered=self.hitomi_tools_run)
+        self.addAction(self.action_hitomi_tools)
+
+    def hitomi_tools_run(self):
+        hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
+        if not hitomi_db_path.exists():
+            CustomInfoBar.show(
+                title='', content=res.GUI.hitomiDb_guide % hitomi_db_path,
+                parent=self.gui.textBrowser, _type="WARNING",
+                url="https://github.com/jasoneri/ComicGUISpider/releases/download/v2.2.0-dev/hitomi.db", url_name="Download"
+            )
+            # TODO[1] : 调用 utils/website/hitomi/scape_dataset.py 下载 hitomi.db
+        else:
+            if not hasattr(self.gui, "hitomi_tools"):
+                self.gui.hitomi_tools = HitomiTools(self.gui)
+            self.gui.hitomi_tools.show()
 
 class CopyUnfinished:
     copy_delay = 150 if curr_os != "macOS" else 300
