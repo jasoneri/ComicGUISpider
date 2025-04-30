@@ -20,7 +20,7 @@ class HitomiSpider(BaseComicSpider):
         'ComicSpider.middlewares.UAMiddleware': 10,
     }}
     name = 'hitomi'
-    num_of_row = 4
+    num_of_row = 25
     domain = domain
     ua = HitomiUtils.headers
     backend_domain = "ltn.gold-usergeneratedcontent.net"
@@ -31,7 +31,11 @@ class HitomiSpider(BaseComicSpider):
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super(HitomiSpider, cls).from_crawler(crawler, *args, **kwargs)
-        spider.ut = HitomiUtils(conf)
+        try:
+            spider.ut = HitomiUtils(conf)
+        except Exception as e:
+            spider.crawler.engine.close_spider(spider, reason=f"[error]{str(e)}")
+            return
         return spider
 
     def start_requests(self):
@@ -51,7 +55,7 @@ class HitomiSpider(BaseComicSpider):
                 self.process_state.process = 'search'
                 self.Q('ProcessQueue').send(self.process_state)
                 keyword = self.input_state.keyword
-                self.search_start = f"https://{self.backend_domain}/{keyword}.html"
+                self.search_start = f"{self.domain}{keyword}.html"
                 page = 1
                 nozomi = f"https://{self.backend_domain}/{keyword}.nozomi"
                 meta = {"Url": self.search_start, "nozomi": nozomi, "page": page}
@@ -98,11 +102,6 @@ class HitomiSpider(BaseComicSpider):
         resp = self.ut.cli.get(meta.get("nozomi"), 
                     headers={**HitomiUtils.headers, "Range": self.ut.get_range(page)})
         yield from self.parse(response=resp, meta=meta)
-        # yield scrapy.Request(url=meta.get("nozomi"), callback=self.parse, 
-        #                      headers={**HitomiUtils.headers, "Range": self.ut.get_range(page)},
-        #                      meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), 
-        #                            "elect_res": all_elected_res, "page": page},
-        #                      dont_filter=True, **kw)
 
     def actual_parse(self, response):
         self.logger.info("actual_parse called")
@@ -179,7 +178,7 @@ class HitomiSpider(BaseComicSpider):
             _title = datum['title']
             title = _title.split(' | ')[-1] if ' | ' in _title else _title
             preview_url = f"{self.domain}{btype}/{gallery_id}.html"
-            img_preview = self.ut.get_img_url(first_pic['hash'], first_pic['hasavif'])
+            img_preview = self.ut.get_img_url(first_pic['hash'], 0)
             
             self.say(example_b.format(str(x + 1), lang, len(pics), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
