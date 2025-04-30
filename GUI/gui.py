@@ -302,17 +302,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
 
     def set_preview(self):
-        proxies = None if self.chooseBox.currentIndex() not in SPIDERS_NEED_PROXIES_IDXES else \
-            (conf.proxies or [None])[0]  # only wnacg need proxies presently
-        if proxies:
-            BrowserWindow.set_proxies(proxies)
         self.BrowserWindow = BrowserWindow(self, self.tf)
-        if self.chooseBox.currentIndex() == 3 and not proxies:  # wnacg
-            self.BrowserWindow.set_referer_nterceptor(f"https://{self.spiderUtils.get_domain()}")
-        elif self.chooseBox.currentIndex() == 4:  # e-hentai
-            self.BrowserWindow.set_ehentai()
-        elif self.chooseBox.currentIndex() == 6:  # hitomi
-            self.BrowserWindow.set_referer_nterceptor(self.spiderUtils.index)
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),

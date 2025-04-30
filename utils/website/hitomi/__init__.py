@@ -53,6 +53,15 @@ class HitomiUtils(EroUtils, Req):
         retval = f"{img_type[0]}{1 + int(self.gg.m((g)))}"
         return f"https://{retval}.{self.domain2}/{self.gg.b}{g}/{img_hash}.{img_type}"
 
+    @classmethod
+    def get_cli(cls, conf):
+        if conf.proxies:
+            return httpx.Client(http2=True,
+                headers=cls.book_hea,
+                proxies={"https://": f"http://{conf.proxies[0]}"},
+                transport=httpx.HTTPTransport(retries=3))
+        return httpx.Client(headers=cls.book_hea, trust_env=True, http2=True)
+
     def test_index(self):
         try:
             resp = self.cli.head(f'https://{self.domain}/popular/week-all.nozomi', 
