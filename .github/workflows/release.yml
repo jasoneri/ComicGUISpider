@@ -23,8 +23,9 @@ jobs:
 
     - name: Install dependencies
       working-directory: src
-      run: python -m pip install -r requirements/linux.txt
-
+      run: |
+        python -m pip install -r requirements/linux.txt
+        python -m pip install pydos2unix py7zr
     - name: Clean repository
       run: |
         mkdir -p /build/scripts
