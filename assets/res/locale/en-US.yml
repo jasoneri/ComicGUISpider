@@ -1,14 +1,19 @@
+Vars:
+  ua_accept_language: "en-US,en;q=0.9"
 GUI:
   DESC1: "1. First-time users, click <img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\"> button. Then read `Doc(Document)` at the bottom-left corner for Config-details/GUI video guides."
-  DESC2: "2. If encountering issues, check the <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>📖FAQ/Extra Notes</a> document before seeking help."
+  DESC2: "2. If encountering issues, check the <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/Extra Notes</a> document before seeking help."
   DESC_ELSE: "For issues/feature suggestions, contact with an issue."
   
   BrowserWindow_ensure_warning: "Return to selection page and ensure valid selection before proceeding."
-  jm_bookid_support: "Supports multiple book IDs (decimal numbers), e.g. `123456,654321,114514` (comma-separated)<br>\n[Clipboard function: Avoid copying `18comic.vip` domain due to 5-second shield - direct ID input recommended]"
-  wnacg_run_slow_in_cn_tip: "wnacg CN source may be slow/unstable. Common network errors [Errno 11001 10054 10060]/`ReadTimeout`:<br>\nRestart usually resolves. If persistent after multiple attempts, contact group/submit issue."
+  jm_desc: "Supports multiple book IDs (decimal numbers), e.g. `123456,654321,114514` (comma-separated)<br>[Clipboard function: Avoid copying `18comic.vip` domain due to 5-second shield - direct ID input recommended]"
+  wnacg_desc: "wnacg CN source may be slow/unstable. Common network errors [Errno 11001 10054 10060]/`ReadTimeout`:<br>Restart usually resolves. If persistent after multiple attempts, contact group/submit issue."
   mangabz_desc: "Māngabz uses iPhone web version. Note: Volumes/chapters both use numeric labels (e.g. Vol.1 and Ch.1 both labeled '1') - identify via adjacent chapters."
+  hitomi_desc: "Except presets, use `hitomi-tools` for input<a href='https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif'>📹References</a><br>1. Avoid using search-keyword 2. Hitomi does not support mappings"
   check_ehetai: "Checking current environment's access to `exhentai`..."
   check_mangabz: "Checking current environment's access to `Māngabz`..."
+  check_hitomi: "Checking current environment's access to `hitomi`..."
+  hitomiDb_guide: "No dataset found - download and place in this location<br>[%s]"
   checkisopen_text_change: "(Click)Immediately open sv-path"
   checkisopen_status_tip: "sv-path auto-open after completion"
   ACCESS_FAIL: "Current proxy configuration/global proxy environment cannot access<br>Please verify site accessibility (direct CN access unsupported)"
@@ -28,8 +33,10 @@ GUI:
     wnacg: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     ehentai: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     mangabz: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
+    hitomi: Temp only supports using presets or `hitomi-tools` generated words
   Clip:
     process_warning: "Search process already started - requires restart to use this feature"
+    db_not_found_guide: "Clipboard db not found - check related guides"
     match_none: "No tasks matched. Copy first before running this function. Current matching rule: %s"
     get_info_error: "get info fail"
     partial_fail: "Partial failure (remaining tasks in the Tasks-Dialog can still be processed)"
@@ -74,7 +81,15 @@ GUI:
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_feedback_group: "Discord?"
     confDia_feedback_group_copied: "If want, take an issue"
-    confDia_support_content: "Donations: Alipay/Wechat"
+    confDia_support_content: "Donations will use to buy domain etc.."
+    hitomiTools_tip_search: "search selected tags in website"
+    hitomiTools_tip_sv: "save to custom presets"
+    hitomiTools_tip_send: "send to searchInput box"
+    hitomiTools_tip_remove: "unuse tags, force using orderby"
+    hitomiTools_tip_orderby: "[date:added] equals index when no tags, equals default order when tags"
+    hitomiTools_info_copied: "Copied to clipboard, pay attention as urldecoded"
+    hitomiTools_info_sved: "value-of-urlencode saved to head of presets"
+    hitomiTools_info_sended: "sent to searchInput box, CGS is most compatible with urlencoded values, don't worry"
 
 EHentai:
   COOKIES_NOT_SET: "`eh_cookies` must be set for exhentai access"
@@ -110,7 +125,6 @@ SPIDER:
   close_check_log_guide2: "2. For non-network issues: Restart > Adjust config > Set log level to DEBUG > Reproduce error"
   close_check_log_guide3: "3. If same error persists, submit issue"
   ERO_BOOK_FOLDER: "Doujinshi"
-  PAGE_NAMING: "Page_%s.jpg"
   DOMAINS_INVALID: "<a href=\"%s\">Release page</a> domains %s inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution"
 
 Updater:

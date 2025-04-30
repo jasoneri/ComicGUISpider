@@ -111,11 +111,10 @@ class Updater:
             self.proj = recv
             print(f"checked: {recv.update_flag}")
             if recv.update_flag == "local":
-                InfoBar.success(
-                    title='', content=self.res.ver_local_latest,
-                    orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-                    duration=7000, parent=self.conf_dia
-                )
+                CustomInfoBar.show("", self.res.ver_local_latest, 
+                self.conf_dia, f"https://github.com/jasoneri/ComicGUISpider/releases/tag/{recv.local_ver}", 
+                f"""updateInfo-<{recv.local_ver}> """, _type="SUCCESS",
+                duration=7000, position=InfoBarPosition.BOTTOM_LEFT)
             else:
                 match recv.update_flag:
                     case "stable":

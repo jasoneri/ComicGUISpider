@@ -226,12 +226,9 @@ class BaseComicSpider(scrapy.Spider):
                     this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
                     meta = {
                         'title': title, 'section': section,
-                        'uuid_md5': this_md5, 'uuid': this_uuid
+                        'uuid_md5': this_md5, 'uuid': this_uuid, 
+                        'title_url': response.meta.get('preview_url') or response.url,
                     }
-                    task_info = (
-                    this_md5, f"{title}-{section}", len(results), response.meta.get('preview_url') or response.url)
-                    self.tasks[this_md5] = TasksObj(*task_info)
-                    self.Q('TasksQueue').send(task_info)
                     for url in url_list:
                         yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
@@ -270,6 +267,11 @@ class BaseComicSpider(scrapy.Spider):
         else:
             return results
 
+    def set_task(self, task_info):
+        """taskid, title, task_length, title_url"""
+        self.tasks[task_info[0]] = TasksObj(*task_info)
+        self.Q('TasksQueue').send(task_info)
+        
     def makesure_tasks_status(self):
         if conf.isDeduplicate:
             for taskid, _ in self.tasks.items():
@@ -325,11 +327,11 @@ class BaseComicSpider(scrapy.Spider):
         self.sql_handler.close()
         if reason == "finished":
             if 'init' not in self.process_state.process:
-                if self.total != 0 and stats.get_value('item_scraped_count'):
+                if self.total != 0 and stats.get_value('image/downloaded', 0) > 0:
                     self.say(font_color(
                         f'<br>{self.res.finished_success % stats.get_value("image/downloaded", 0)}<br>',
                         color='green', size=6))
-                elif not stats.get_value('item_scraped_count') and stats.get_value('process_exception/count', 0) > 0:
+                elif not stats.get_value('image/downloaded') and stats.get_value('process_exception/count', 0) > 0:
                     self.say(font_color(
                         f'<br>{self.res.finished_err % stats.get_value("process_exception/last_exception", "")}<br>' + 
                         f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4))
@@ -363,9 +365,7 @@ class BaseComicSpider2(BaseComicSpider):
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
             self.say(f'{"=" * 15} 《{title}》')
             results = self.frame_section(response)  # {1: url1……}
-            task_info = (this_md5, title, len(results), response.meta.get('preview_url') or response.url)
-            self.tasks[this_md5] = TasksObj(*task_info)
-            self.Q('TasksQueue').send(task_info)
+            self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url))
             for page, url in results.items():
                 item = ComicspiderItem()
                 item['title'] = title
@@ -381,7 +381,9 @@ class BaseComicSpider2(BaseComicSpider):
 
 
 class BaseComicSpider3(BaseComicSpider):
-    """Antique grade! No section, but three or more jump"""
+    """Antique grade! No section, but three or more jump
+    e.g. ehentai
+    """
 
     def parse_section(self, response):
         self.process_state.process = 'parse section'
@@ -398,9 +400,7 @@ class BaseComicSpider3(BaseComicSpider):
             title = PresetHtmlEl.sub(response.meta.get('title'))
             this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
             if not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5):
-                task_info = (this_md5, title, len(results), response.meta.get('preview_url') or response.url)
-                self.tasks[this_md5] = TasksObj(*task_info)
-                self.Q('TasksQueue').send(task_info)
+                self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url))
                 for page, url in results.items():
                     meta = {
                         'title': title, 'page': page,
@@ -421,6 +421,7 @@ class BodyFormat:
 
 
 class FormReqBaseComicSpider(BaseComicSpider):
+    """e.g. mangabz"""
     body = BodyFormat()
 
     def start_requests(self):

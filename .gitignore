@@ -67,6 +67,7 @@ coverage.xml
 
 # Translations
 *.po
+*.mo
 *.pot
 
 # Django stuff:
@@ -189,10 +190,12 @@ Pipfile.lock
 codecov*
 *_local.yml
 *-lock.yaml
+*.hash
 # self/conf
 gitee_t.json
 conf.yml
 record.db
+hitomi.db
 # self/desc created html
 desc.html
 docs/*.html

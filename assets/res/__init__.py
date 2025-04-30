@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 import gettext
 import pathlib
+import hashlib
 import locale
+
+from assets.res.transfer import main as translation_compile
+
 """usage of `<br>`：
     1. 一行话禁止加 `br` ，换行在 `self.say()` 前解决;
     2. 多行的一段话可在最后加 `br` ，禁止在段落起始处加 `br`
@@ -26,6 +30,19 @@ _path = pathlib.Path(__file__).parent
 lang = getUserLanguage()
 # lang = 'en-US'
 
+
+def is_compiled():
+    if not (_path.joinpath(f'locale/{lang}/LC_MESSAGES/res.mo').exists() and \
+        _path.joinpath(f'locale/{lang}.hash').exists()):
+            return False
+    with open(_path.joinpath(f'locale/{lang}.hash'), 'r', encoding='utf-8') as f:
+        return hashlib.sha256(_path.joinpath(f'locale/{lang}.yml').read_bytes()).hexdigest() == f.read()
+
+
+_ = is_compiled()
+if not _:
+    translation_compile(_path, lang)
+
 gettext.bindtextdomain('res', str(_path / 'locale'))
 gettext.textdomain('res')
 
@@ -37,6 +54,10 @@ except FileNotFoundError as e:
     _ = gettext.gettext
 
 
+class Vars:
+    ua_accept_language = _('Vars.ua_accept_language')    
+
+
 # GUI
 class GUI:
     DESC1 = _('GUI.DESC1')
@@ -45,11 +66,14 @@ class GUI:
 
     BrowserWindow_ensure_warning = _('GUI.BrowserWindow_ensure_warning')
 
-    jm_bookid_support = _('GUI.jm_bookid_support')
-    wnacg_run_slow_in_cn_tip = _('GUI.wnacg_run_slow_in_cn_tip')
+    jm_desc = _('GUI.jm_desc')
+    wnacg_desc = _('GUI.wnacg_desc')
     mangabz_desc = _('GUI.mangabz_desc')
+    hitomi_desc = _('GUI.hitomi_desc')
+    hitomiDb_guide = _('GUI.hitomiDb_guide')
     check_ehetai = _('GUI.check_ehetai')
     check_mangabz = _('GUI.check_mangabz')
+    check_hitomi = _('GUI.check_hitomi')
     checkisopen_text_change = _('GUI.checkisopen_text_change')
     checkisopen_status_tip = _('GUI.checkisopen_status_tip')
     ACCESS_FAIL = _('GUI.ACCESS_FAIL')
@@ -66,6 +90,7 @@ class GUI:
 
     class Clip:
         process_warning = _('GUI.Clip.process_warning')
+        db_not_found_guide = _('GUI.Clip.db_not_found_guide')
         match_none = _('GUI.Clip.match_none')
         get_info_error = _('GUI.Clip.get_info_error')
         partial_fail = _('GUI.Clip.partial_fail')
@@ -78,6 +103,7 @@ class GUI:
         wnacg = _('GUI.SearchInputStatusTip.wnacg')
         ehentai = _('GUI.SearchInputStatusTip.ehentai')
         mangabz = _('GUI.SearchInputStatusTip.mangabz')
+        hitomi = _('GUI.SearchInputStatusTip.hitomi')
 
     class ToolMenu:
         action1 = _('GUI.ToolMenu.action1')
@@ -124,6 +150,14 @@ class GUI:
         confDia_feedback_group = _('GUI.Uic.confDia_feedback_group')
         confDia_feedback_group_copied = _('GUI.Uic.confDia_feedback_group_copied')
         confDia_support_content = _('GUI.Uic.confDia_support_content')
+        hitomiTools_tip_search = _('GUI.Uic.hitomiTools_tip_search')
+        hitomiTools_tip_sv = _('GUI.Uic.hitomiTools_tip_sv')
+        hitomiTools_tip_send = _('GUI.Uic.hitomiTools_tip_send')
+        hitomiTools_tip_remove = _('GUI.Uic.hitomiTools_tip_remove')
+        hitomiTools_tip_orderby = _('GUI.Uic.hitomiTools_tip_orderby')
+        hitomiTools_info_copied = _('GUI.Uic.hitomiTools_info_copied')
+        hitomiTools_info_sved = _('GUI.Uic.hitomiTools_info_sved')
+        hitomiTools_info_sended = _('GUI.Uic.hitomiTools_info_sended')
 
 
 # website
@@ -170,7 +204,6 @@ class SPIDER:
 
     # pipelines
     ERO_BOOK_FOLDER = _('SPIDER.ERO_BOOK_FOLDER')
-    PAGE_NAMING = _('SPIDER.PAGE_NAMING')
 
     # utils
     DOMAINS_INVALID = _('SPIDER.DOMAINS_INVALID')

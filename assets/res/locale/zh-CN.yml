@@ -1,14 +1,19 @@
+Vars:
+  ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
 GUI:
   DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`查看说明`，内有配置详情/GUI视频使用指南等"
-  DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/FAQ_and_EXTRA.md'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
+  DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
   DESC_ELSE: "若有其他问题/功能建议等到群反映/提issue"
   
   BrowserWindow_ensure_warning: "需要返回选择页，并确保有选择的情况下使用"
-  jm_bookid_support: "支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>\n                         【剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号】"
-  wnacg_run_slow_in_cn_tip: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>\n                                网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>\n                                重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>"
+  jm_desc: "支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>【剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号】"
+  wnacg_desc: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>"
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
-  check_ehetai: "正在检测当前环境能否访问`exhentai`中..."
-  check_mangabz: "正在检测当前环境能否访问`Māngabz`中..."
+  hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
+  check_ehetai: "正在检测当前环境能否访问 `exhentai` 中..."
+  check_mangabz: "正在检测当前环境能否访问 `Māngabz` 中..."
+  check_hitomi: "正在检测当前环境能否访问 `hitomi` 中..."
+  hitomiDb_guide: "未发现数据集，请前往下载并置于此位置 <br> [%s]"
   checkisopen_text_change: "现在点击立刻打开存储目录"
   checkisopen_status_tip: "勾选状态下完成后也会自动打开目录的"
   ACCESS_FAIL: "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
@@ -28,8 +33,10 @@ GUI:
     wnacg: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（3）翻页规则：搜索是"&p=\d+" 导航页是"-page-\d+" 如不满足请联系开发者'
     ehentai: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
     mangabz: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
+    hitomi: '暂时仅支持使用预设 或 `hitomi-tools`生成的词'
   Clip:
     process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
+    db_not_found_guide: "剪贴板 db 不存在，请先查看相关指引"
     match_none: "无匹配任务，先进行复制再运行此功能，当前匹配规则：%s"
     get_info_error: "获取信息失败"
     partial_fail: "部分失败，但仍可继续处理任务窗口的任务"
@@ -74,7 +81,15 @@ GUI:
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_feedback_group: "437774506"
     confDia_feedback_group_copied: "群号已复制"
-    confDia_support_content: "~投喂请随意"
+    confDia_support_content: "~有赞助就买域名等"
+    hitomiTools_tip_search: "在网站中搜索选中的tag"
+    hitomiTools_tip_sv: "保存到预设"
+    hitomiTools_tip_send: "发送到输入框"
+    hitomiTools_tip_remove: "不使用tags，将强制使用排序"
+    hitomiTools_tip_orderby: "[date:added] 无tag时等于index，有tag时相当于默认排序"
+    hitomiTools_info_copied: "已复制，注意为 urldecode"
+    hitomiTools_info_sved: "已保存 urlencode 后的值到预设之首"
+    hitomiTools_info_sended: "已发送到搜索框，程序最适配urlencode值无需担心"
 
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`eh_cookies`"
@@ -110,7 +125,6 @@ SPIDER:
   close_check_log_guide2: "2、第1步非网络问题的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤"
   close_check_log_guide3: "3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue"
   ERO_BOOK_FOLDER: "本子"
-  PAGE_NAMING: "第%s页.jpg"
   DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>请自行检查 (可参考📒额外使用说明第二条处理[%s])"
 
 Updater:
