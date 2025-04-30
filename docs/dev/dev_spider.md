@@ -9,9 +9,11 @@ Website crawler develope guide
 
 ### 1. 爬虫代码
 
-参考 [`jm`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/ComicSpider/spiders/jm.py) 或 [`wnacg`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/ComicSpider/spiders/wnacg.py) ，以 wnacg 为例
+以 wnacg 为例
 
 ### WnacgSpider
+
+[`代码位置`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/ComicSpider/spiders/wnacg.py)
 
 #### 类属性
 
@@ -42,6 +44,28 @@ Website crawler develope guide
 + self.say: 能将字符串(可使用部分html标签格式)打印在gui上  
 + utils.processed_class.PreviewHtml: 通过`add`喂预览图链接，结束后用`created_temp_html`  
   生成临时html文件。实例详见`WnacgSpider.frame_book`
+
+### WnacgUtils
+
+[`代码位置`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/utils/website/__init__.py)  
+常规漫与🔞继承基类不同
+
+#### 类属性(Utils)
+
+&emsp;✅ name: 同爬虫名字
+&emsp;✅ uuid_regex: 将 作品id 从作品 预览url 中抽取的正则表达式
+&emsp;🔳 headers: 通用请求头
+&emsp;🔳 book_hea: 读剪贴板功能使用的请求头
+&emsp;🔳 book_url_regex: 读剪贴板功能使用所对应当前网站抽取 作品id 的正则表达式
+
+#### 类方法(Utils)
+
+&emsp;🔳 parse_publish_: 清洗发布页
+&emsp;🔳 parse_book: 清洗出读剪贴板功能的信息
+&emsp;🔳 test_index: 测试网络环境能否访问当前网站
+
+::: tip 最后需要在 spider_utils_map 加上对应的 Utils
+:::
 
 ### 2. 其他代码
 

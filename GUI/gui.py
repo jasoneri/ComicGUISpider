@@ -311,6 +311,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.set_referer_nterceptor(f"https://{self.spiderUtils.get_domain()}")
         elif self.chooseBox.currentIndex() == 4:  # e-hentai
             self.BrowserWindow.set_ehentai()
+        elif self.chooseBox.currentIndex() == 6:  # hitomi
+            self.BrowserWindow.set_referer_nterceptor(self.spiderUtils.index)
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),

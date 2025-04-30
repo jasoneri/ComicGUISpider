@@ -11,19 +11,20 @@ from ComicSpider.items import ComicspiderItem
 
 from .basecomicspider import BaseComicSpider, font_color
 
-domain = "hitomi.la"
+domain = HitomiUtils.index
 
 
 class HitomiSpider(BaseComicSpider):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {
         'ComicSpider.middlewares.ComicDlProxyMiddleware': 5,
-        'ComicSpider.middlewares.RefererMiddleware': 10,
+        'ComicSpider.middlewares.UAMiddleware': 10,
     }}
     name = 'hitomi'
     num_of_row = 4
     domain = domain
+    ua = HitomiUtils.headers
     backend_domain = "ltn.gold-usergeneratedcontent.net"
-    frame_book_format = ["gallery_id", "lang", "title", "preview_url", "pics"]
+    frame_book_format = ["lang", "title", "preview_url", "pics"]
     ut = None
     deferred_list = []
 
@@ -136,7 +137,7 @@ class HitomiSpider(BaseComicSpider):
             yield from self.page_turn(results, meta)
         else:
             for result in [*results, *meta.get("elect_res", [])]:
-                meta = dict(zip(self.frame_book_format, result[1:]))
+                meta = dict(zip(self.frame_book_format, result))
                 yield from self.parse_section(meta)
 
     def parse_section(self, meta):
@@ -144,7 +145,7 @@ class HitomiSpider(BaseComicSpider):
         self.Q('ProcessQueue').send(self.process_state)
 
         title = PresetHtmlEl.sub(meta['title'])
-        this_uuid, this_md5 = Uuid(self.name).id_and_md5(meta.get("gallery_id"))
+        this_uuid, this_md5 = Uuid(self.name).id_and_md5(meta.get('preview_url'))
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
             self.say(f'{"=" * 15} 《{title}》')
             self.set_task((this_md5, title, len(meta['pics']), meta.get('preview_url')))
@@ -177,12 +178,12 @@ class HitomiSpider(BaseComicSpider):
             lang = datum['language_localname']
             _title = datum['title']
             title = _title.split(' | ')[-1] if ' | ' in _title else _title
-            preview_url = f"https://{self.domain}/{btype}/{gallery_id}.html"
+            preview_url = f"{self.domain}{btype}/{gallery_id}.html"
             img_preview = self.ut.get_img_url(first_pic['hash'], first_pic['hasavif'])
             
             self.say(example_b.format(str(x + 1), lang, len(pics), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [gallery_id, lang, title, preview_url, pics]
-            preview.add(x + 1, img_preview, title, preview_url)
+            frame_results[x + 1] = [lang, title, preview_url, pics]
+            preview.add(x + 1, img_preview, title, preview_url, pages=len(pics), lang=lang, btype=btype)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=meta.get("Url"))
