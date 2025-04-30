@@ -92,7 +92,11 @@
   </tr>  
 </tbody></table>
 
-拟借助 [Weblate](https://hosted.weblate.org/engage/comicguispider/) 实现多语言的翻译
+由 [Weblate](https://hosted.weblate.org/engage/comicguispider/) 托管实现多语言的翻译  
+
+<a href="https://hosted.weblate.org/engage/comicguispider/">
+<img src="https://hosted.weblate.org/widget/comicguispider/287x66-grey.png" alt="翻译状态" />
+</a>
 
 ## 🔇免责声明
 
