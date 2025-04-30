@@ -5,6 +5,7 @@ import pathlib
 import warnings
 from io import BytesIO
 
+import pillow_avif
 from itemadapter import ItemAdapter
 from scrapy.http import Request
 from scrapy.http.request import NO_CALLBACK

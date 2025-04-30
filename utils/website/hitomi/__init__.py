@@ -19,15 +19,12 @@ class HitomiUtils(EroUtils, Req):
     headers = {
         "accept": "*/*",
         "accept-language": res.Vars.ua_accept_language,
-        "host": domain,
-        "origin": index,
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
         "referer": index
     }
     book_hea = headers
     galleries_per_page = 100
-    uuid_regex = ...
-    book_url_regex = ...
+    uuid_regex = re.compile(r"(\d+)\.html$")
     img_domain = r"w1.gold-usergeneratedcontent.net"  # unsure its source or it's stable
 
     def __init__(self, conf):
