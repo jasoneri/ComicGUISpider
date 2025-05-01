@@ -57,9 +57,9 @@ class TokenHandler:
         return {**headers, 'Authorization': self.token} if self.token else headers
 
     def check_token(self):
-        if not self.gitee_t_file.exists():
-            self.download_t_file()
         try:
+            if not self.gitee_t_file.exists():
+                self.download_t_file()
             with open(self.gitee_t_file, 'r', encoding='utf-8') as f:
                 tokens = json.load(f)
         except json.decoder.JSONDecodeError:
@@ -249,15 +249,15 @@ class Proj:
         self.ver = ver or self.update_info.get('tag_name') or self.local_ver
         backuper = BackupManager()
         backuper.create_backup()
-        proj_zip = self.git_handler.download_src_code(
-            f"{self.git_handler.zipball_url}/{ver}" if ver else self.update_info.get('zipball_url'))
-        with zipfile.ZipFile(proj_zip, 'r') as zip_f:
-            zip_f.extractall(temp_p)
-        temp_proj_p = next(temp_p.glob(f"*{self.name}*"))
-        # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
-        _, folders, files = next(os.walk(temp_proj_p))
-        all_files = (*folders, *files)
         try:
+            proj_zip = self.git_handler.download_src_code(
+                f"{self.git_handler.zipball_url}/{ver}" if ver else self.update_info.get('zipball_url'))
+            with zipfile.ZipFile(proj_zip, 'r') as zip_f:
+                zip_f.extractall(temp_p)
+            temp_proj_p = next(temp_p.glob(f"*{self.name}*"))
+            # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
+            _, folders, files = next(os.walk(temp_proj_p))
+            all_files = (*folders, *files)
             for file in all_files:
                 if file != "conf.yml" or file != "record.db":
                     move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
@@ -311,7 +311,7 @@ class Proj:
                     updater_logger.debug(result.stdout)
                 else:
                     updater_logger.warning(f"[ pip-returncode <{result.returncode}> ]: {result.stderr}")
-                    # self.updated_success_flag = False
+                    self.updated_success_flag = False
             except Exception as e:
                 self.updated_success_flag = False
                 updater_logger.error(f"[ pip-exception ]: {e}")

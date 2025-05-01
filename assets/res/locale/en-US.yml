@@ -146,4 +146,4 @@ Updater:
   ver_check_fail: "Version check failed - retry or check releases"
   update_ensure: "Confirm Update"
   updated_success: "Update successful - CGS restarts in 5s"
-  updated_fail: "❌ Update failed - rollback complete\nRetry later or download manually (CGS restarts in 10s)"
+  updated_fail: "❌ Update failed - rollback complete\nRetry later or download manually (CGS restarts in 10s)\nError log: [%s]"

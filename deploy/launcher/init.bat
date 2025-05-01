@@ -9,7 +9,7 @@ cd "%_root%"
 set "_pyBin=%_root%\runtime"
 set "PATH=%_root%\site-packages;%_pyBin%;%PATH%"
 
-python scripts\deploy\update.py -d
-
-start "" "file:///%~dp0scripts\desc.html"
-exit
+for /F "tokens=*" %%p in (scripts\requirements\win.txt) do (
+    python -m pip install "%%p" || echo installed %%p failed, continue...
+)
+pause
