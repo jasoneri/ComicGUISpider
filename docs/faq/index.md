@@ -20,10 +20,26 @@ JavaScript 没加载出来，刷新一下页面
 
 ### ModuleNotFoundError: No module named 'xxx'
 
-win: 如果你当前还在使用`CGS-更新`，并且是从`v1.xx`或`v2.0.0-beta`版本过来的话，  
-请到[🔗releases](https://github.com/jasoneri/ComicGUISpider/releases/latest) 下载绿色包并覆盖更新  
+win: 利用脚本安装依赖 `./scripts/deploy/launcher/init.bat`  (脚本执行的 pip)  
 
-macOS: 用`CGS-init`更新下环境
+macOS: 用`CGS-init`更新环境依赖
+
+### 更新失败后程序无法打开
+
+::: tip 最简单 > 备份配置文件和去重记录后到最新 release 下载绿色包（覆盖更新）  
+:::
+
+更新的报错日志已整合进 log/GUI.log 文件里，建议提 issue 并附上 log，帮助 CGS 进行优化  
+
+1. 回退到上一个正常版本: 找到对应版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
+删除文件 `scripts/deploy/version.json`，恢复正常使用
+
+2. 安全使用最新版本: 将最新版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
+
+2.1 按上面 ModuleNotFoundError 的方法用 pip 安装依赖
+
+::: info macOS用户自行切换 python 与 requirements/xxx.txt 文件  
+:::
 
 ### 【win】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
 

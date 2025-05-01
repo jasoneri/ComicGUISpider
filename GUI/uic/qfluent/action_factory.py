@@ -84,7 +84,7 @@ class Updater:
                 pass
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
-                msg = self.res.updated_fail
+                msg = self.res.updated_fail % ori_path.joinpath("logs/GUI.log")
                 _type = "ERROR"
                 reload_time = 10000
             else:
