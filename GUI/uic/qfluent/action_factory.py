@@ -26,17 +26,19 @@ class ProjUpdateThread(QThread):
     checked_signal = pyqtSignal(object)
     update_signal = pyqtSignal()
     updated_signal = pyqtSignal(object)
-    proj = None
+    debug_signal = pyqtSignal(str)
 
     def __init__(self, conf_dia):
+        self.proj = None
         super(ProjUpdateThread, self).__init__()
         self.conf_dia = conf_dia
         self.is_update_requested = False
         self.log = conf.cLog(name="GUI")
+        self.debug_signal.connect(self.conf_dia.gui.say)
 
     def run(self):
         try:
-            self.proj = Proj()
+            self.proj = Proj(debug_signal=self.debug_signal)
             self.proj.check()
             self.checked_signal.emit(self.proj)
             while not self.is_update_requested and not self.isInterruptionRequested():
@@ -46,7 +48,6 @@ class ProjUpdateThread(QThread):
         except Exception as e:
             self.log.exception(f"ProjCheckError: {e}")
             self.checked_signal.emit(traceback.format_exc())
-        
 
     def request_update(self):
         self.is_update_requested = True
