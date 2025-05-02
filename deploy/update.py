@@ -3,6 +3,7 @@
 """code update
 base on client, env-python: embed"""
 import argparse
+import re
 import os
 import time
 import subprocess
@@ -280,14 +281,14 @@ class Proj:
         with open(self.local_ver_file, 'w', encoding='utf-8') as f:
             json.dump({"current": self.ver}, f, ensure_ascii=False, indent=4)
 
-    @updater_logger.catch
+    @updater_logger.catch(reraise=True)
     def env_check_and_replenish(self):
         def check_import():
             for site_package in env_supplements:
                 try:
                     importlib.import_module(site_package)
-                except ImportError:
-                    updater_logger.info(f"pkg-missing: {site_package}")
+                except Exception as e:
+                    updater_logger.warning(f"pkg_missing: {site_package}")
                     return True
 
         record_file = existed_proj_p.joinpath("deploy/env_record.json")
@@ -296,9 +297,9 @@ class Proj:
         with open(record_file, 'r', encoding='utf-8') as f:
             env_supplements = json.load(f)
 
-        pip_flag = check_import()   
-        updater_logger.debug(f"{pip_flag=}")     
-        if pip_flag:
+        pkg_missing = check_import()   
+        updater_logger.debug(f"{pkg_missing=}")     
+        if pkg_missing:
             if existed_proj_p.name == "ComicGUISpider":
                 self.debug_signal.emit(font_color(f"\n\n{res.git_clone_warning}\n\n", color='orange'))
                 return
@@ -307,10 +308,13 @@ class Proj:
                 os.chmod(bash_path, stat.S_IRWXU)
                 cmd = ["/bin/bash", str(bash_path)]
             else:
-                cmd = [str(existed_proj_p.joinpath("deploy/online_scripts/win.ps1"))]
+                ps_cmd = "pwsh" if shutil.which("pwsh") else "powershell"
+                ps_script = existed_proj_p.joinpath("deploy/online_scripts/win.ps1")
+                cmd = [ps_cmd, str(ps_script)]
             try:
+                print(cmd)
                 process = subprocess.Popen(
-                    cmd, cwd=existed_proj_p,
+                    cmd, cwd=existed_proj_p.parent,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, bufsize=1, universal_newlines=True
                 )
@@ -327,7 +331,7 @@ class Proj:
                     full_output.append(line)
                     # 实时发送信号
                     if self.debug_signal:
-                        self.debug_signal.emit(line)
+                        self.debug_signal.emit(clean_ansi_escape(line))
                 # 读取剩余输出
                 remaining = process.stdout.read()
                 if remaining:
@@ -335,7 +339,7 @@ class Proj:
                         cleaned_line = line.strip()
                         full_output.append(cleaned_line)
                         if self.debug_signal:
-                            self.debug_signal.emit(cleaned_line)
+                            self.debug_signal.emit(clean_ansi_escape(cleaned_line))
                 # 等待进程结束
                 exit_code = process.wait()
                 if exit_code != 0:
@@ -387,6 +391,11 @@ def create_desc(proj_path=None):
     transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
     transfer_markdown('docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html')
     return _p.joinpath('desc.html')
+
+
+def clean_ansi_escape(text):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
 
 
 if __name__ == '__main__':

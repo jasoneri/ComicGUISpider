@@ -97,7 +97,7 @@ class ToolMenu(DWMMenu):
             CustomInfoBar.show(
                 title='', content=res.GUI.hitomiDb_guide % hitomi_db_path,
                 parent=self.gui.textBrowser, _type="WARNING",
-                url="https://github.com/jasoneri/imgur/releases/download/preset/hitomi.db", url_name="Download"
+                url=res.Vars.hitomiDb_tmp_url, url_name="Download"
             )
             # TODO[1] : 调用 utils/website/hitomi/scape_dataset.py 下载 hitomi.db
         else:
