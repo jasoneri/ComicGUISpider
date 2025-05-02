@@ -55,8 +55,8 @@ except FileNotFoundError as e:
 
 
 class Vars:
-    ua_accept_language = _('Vars.ua_accept_language')    
-
+    ua_accept_language = _('Vars.ua_accept_language')  
+    hitomiDb_tmp_url = _('Vars.hitomiDb_tmp_url')
 
 # GUI
 class GUI:
