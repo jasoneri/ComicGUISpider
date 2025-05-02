@@ -9,7 +9,14 @@ need readed [macOS Deploy](./mac-required-reading.md) document
 :::
 
 + Or clone this project `git clone https://github.com/jasoneri/ComicGUISpider.git`  
-You need to install `python3.12+`, the environment package is in the `requirements` in the root directory, install the corresponding architecture with pip
+::: tip `python3.12+` is required
+:::
+::: tip requirements manager base on [astral-sh/uv](https://github.com/astral-sh/uv/releases)  
+command example: `"%_uv_path%" pip install -r "requirements\win.txt"`
+:::
+
+::: warning ignore the `scripts` in scripts/xxx of the document, all document are based on the explanation of the 📦portable-pkg
+:::
 
 ## 2. Usage
 
