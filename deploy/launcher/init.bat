@@ -1,15 +1,10 @@
 @rem
 @echo off
+set "_root=%~dp0..\..\.."
+cd /d "%_root%"
 
-set "_root=%~dp0"
-set "_root=%_root:~0,-1%"
-cd "%_root%"
-@echo "%_root%
-
-set "_pyBin=%_root%\runtime"
+echo "%_root%"
 set "PATH=%_root%\site-packages;%_pyBin%;%PATH%"
+set "_uvBin=%_root%\runtime\uv.exe"
 
-for /F "tokens=*" %%p in (scripts\requirements\win.txt) do (
-    python -m pip install "%%p" || echo installed %%p failed, continue...
-)
-pause
+"%_uvBin%" pip install -r "%_root%\scripts\requirements\win.txt" --python "%_root%\runtime\python.exe" %*

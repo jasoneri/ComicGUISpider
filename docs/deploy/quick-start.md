@@ -11,9 +11,13 @@
 :::
 
 + 或克隆此项目 `git clone https://github.com/jasoneri/ComicGUISpider.git`  
-需安装 `python3.12+`，环境包在根目录的 `requirements` 里，pip 安装对应的架构即可
+::: tip 需安装 `python3.12+`
+:::
+::: tip 基于 [astral-sh/uv](https://github.com/astral-sh/uv/releases) 管理依赖（比 pip 快n倍）  
+安装依赖命令示例 `"%_uv_path%" pip install -r "requirements\win.txt"` 可加 --index-url 指定国内源
+:::
 
-::: tip 使用 git 克隆的话请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档是基于绿色包进行的说明
+::: warning 使用 git 克隆的话请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档是基于绿色包进行的说明
 :::
 
 ## 2. 运行

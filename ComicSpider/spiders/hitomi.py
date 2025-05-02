@@ -34,8 +34,11 @@ class HitomiSpider(BaseComicSpider):
         try:
             spider.ut = HitomiUtils(conf)
         except Exception as e:
-            spider.crawler.engine.close_spider(spider, reason=f"[error]{str(e)}")
-            return
+            if spider.crawler and spider.crawler.engine:
+                spider.crawler.engine.close_spider(spider, reason=f"[error]{str(e)}")
+            else:
+                spider.logger.error(f"Failed to initialize HitomiUtils: {str(e)}")
+            return None
         return spider
 
     def start_requests(self):

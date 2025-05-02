@@ -280,6 +280,7 @@ class Proj:
         with open(self.local_ver_file, 'w', encoding='utf-8') as f:
             json.dump({"current": self.ver}, f, ensure_ascii=False, indent=4)
 
+    @updater_logger.catch
     def env_check_and_replenish(self):
         def check_import():
             for site_package in env_supplements:
@@ -295,26 +296,32 @@ class Proj:
         with open(record_file, 'r', encoding='utf-8') as f:
             env_supplements = json.load(f)
 
-        if check_import():
+        pip_flag = check_import()   
+        updater_logger.debug(f"{pip_flag=}")     
+        if pip_flag:
             if curr_os == "macOS":
                 bash_path = existed_proj_p.joinpath("deploy/launcher/mac/init.bash")
                 os.chmod(bash_path, stat.S_IRWXU)
                 cmd = ["/bin/bash", str(bash_path)]
             else:
-                cmd = [sys.executable, "-m", "pip", "install", "-r", 
-                       str(existed_proj_p.joinpath("requirements/win.txt")),
-                       "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
+                bat_path = existed_proj_p.joinpath("deploy/launcher/init.bat")
+                cmd = [str(bat_path)]
+                print(f"{ori_res.lang=}")
+                if ori_res.lang == "zh-CN":
+                    cmd.extend([
+                        "--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", 
+                        "--trusted-host", "pypi.tuna.tsinghua.edu.cn"])
             updater_logger.debug(f"[ pip-command ]: {' '.join(cmd)}")
             try:
                 result = subprocess.run(cmd, check=False, capture_output=True, text=True)
                 if result.returncode == 0:
-                    updater_logger.debug(result.stdout)
+                    updater_logger.debug(result.stdout)  # todo[1] 必须将result.stdout发出去给看
                 else:
                     updater_logger.warning(f"[ pip-returncode <{result.returncode}> ]: {result.stderr}")
                     self.updated_success_flag = False
             except Exception as e:
                 self.updated_success_flag = False
-                updater_logger.error(f"[ pip-exception ]: {e}")
+                updater_logger.exception(f"[ pip-exception ]: {e}")
         else:
             time.sleep(2)
 
