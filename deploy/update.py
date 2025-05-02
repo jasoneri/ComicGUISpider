@@ -4,7 +4,6 @@
 base on client, env-python: embed"""
 import argparse
 import os
-import sys
 import time
 import subprocess
 import importlib
@@ -23,7 +22,7 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
-from utils import conf
+from utils import conf, font_color
 from utils.docs import MarkdownConverter, MdHtml
 
 
@@ -206,8 +205,9 @@ class Proj:
     update_info = {}
     updated_success_flag = True
 
-    def __init__(self):
+    def __init__(self, debug_signal=None):
         self.git_handler = GitHandler(self.github_author, self.name, self.branch)
+        self.debug_signal = debug_signal
 
     def check_existed_version(self):
         if not self.local_ver_file.exists():
@@ -299,29 +299,51 @@ class Proj:
         pip_flag = check_import()   
         updater_logger.debug(f"{pip_flag=}")     
         if pip_flag:
+            if existed_proj_p.name == "ComicGUISpider":
+                self.debug_signal.emit(font_color(f"\n\n{res.git_clone_warning}\n\n", color='orange'))
+                return
             if curr_os == "macOS":
                 bash_path = existed_proj_p.joinpath("deploy/launcher/mac/init.bash")
                 os.chmod(bash_path, stat.S_IRWXU)
                 cmd = ["/bin/bash", str(bash_path)]
             else:
-                bat_path = existed_proj_p.joinpath("deploy/launcher/init.bat")
-                cmd = [str(bat_path)]
-                print(f"{ori_res.lang=}")
-                if ori_res.lang == "zh-CN":
-                    cmd.extend([
-                        "--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", 
-                        "--trusted-host", "pypi.tuna.tsinghua.edu.cn"])
-            updater_logger.debug(f"[ pip-command ]: {' '.join(cmd)}")
+                cmd = [str(existed_proj_p.joinpath("deploy/online_scripts/win.ps1"))]
             try:
-                result = subprocess.run(cmd, check=False, capture_output=True, text=True)
-                if result.returncode == 0:
-                    updater_logger.debug(result.stdout)  # todo[1] 必须将result.stdout发出去给看
-                else:
-                    updater_logger.warning(f"[ pip-returncode <{result.returncode}> ]: {result.stderr}")
+                process = subprocess.Popen(
+                    cmd, cwd=existed_proj_p,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1, universal_newlines=True
+                )
+                # 用于收集完整输出
+                full_output = []
+                # 实时读取输出
+                while True:
+                    line = process.stdout.readline()
+                    if not line:
+                        if process.poll() is not None:
+                            break  # 进程结束且无输出时退出
+                        continue
+                    line = line.strip()
+                    full_output.append(line)
+                    # 实时发送信号
+                    if self.debug_signal:
+                        self.debug_signal.emit(line)
+                # 读取剩余输出
+                remaining = process.stdout.read()
+                if remaining:
+                    for line in remaining.splitlines():
+                        cleaned_line = line.strip()
+                        full_output.append(cleaned_line)
+                        if self.debug_signal:
+                            self.debug_signal.emit(cleaned_line)
+                # 等待进程结束
+                exit_code = process.wait()
+                if exit_code != 0:
+                    error_msg = '\n'.join(full_output)
+                    updater_logger.warning(f"[ pip-returncode <{exit_code}> ]: {error_msg}")
                     self.updated_success_flag = False
             except Exception as e:
-                self.updated_success_flag = False
-                updater_logger.exception(f"[ pip-exception ]: {e}")
+                raise e
         else:
             time.sleep(2)
 

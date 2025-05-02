@@ -22,9 +22,12 @@ JavaScript 没加载出来，刷新一下页面
 
 win:
 
-1. 下载 [astral-sh/uv](https://github.com/astral-sh/uv/releases) 的 x64 版，解压后置于本地 `runtime/uv.exe` 这个位置  
-2. 调用脚本命令 `.\scripts\deploy\launcher\init.bat ` ( 基于 [astral-sh/uv](
-    https://github.com/astral-sh/uv/releases) 管理依赖)  
+1. 在绿色包解压的目录打开 (powershell) 终端执行命令  
+
+``` bash
+irm https://gitproxy.click/https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/online_scripts/win.ps1 | iex
+```
+
 ::: info 非绿色包的用户参考 [🚀 快速开始 > 部署](../deploy/quick-start#1-下载--部署) 的安装依赖命令示例
 :::
 
@@ -43,10 +46,7 @@ macOS: 用`CGS-init`更新环境依赖
 
 2. 安全使用最新版本: 将最新版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
 
-2.1 按上面 ModuleNotFoundError 的方法用 pip 安装依赖
-
-::: info macOS用户自行切换 python 与 requirements/xxx.txt 文件  
-:::
+2.1 按上面 ModuleNotFoundError 的方法安装依赖
 
 ### 【win】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
 

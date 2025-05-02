@@ -65,7 +65,6 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
-        
     
     def insert_btn(self):
         def _create_desc():
