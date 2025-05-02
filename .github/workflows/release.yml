@@ -3,12 +3,48 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*'  
+  workflow_dispatch:
 
 jobs:
+  prebuild-windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+        path: src
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install 7-Zip
+      run: |
+        npm install -g 7zip-bin
+        npm install -g node-7z
+
+    - name: Download and Extract Preset
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile /d/tmp/CGS_preset.7z
+        node -e "require('node-7z').extractFull('/d/tmp/CGS_preset.7z', '/d/build/')"
+
+    - name: Install Dependencies
+      run: |
+        cd /d/build
+        powershell .\scripts\deploy\online_scripts\win.ps1
+
+    - name: Upload Preset
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows-preset
+        path: /d/tmp/CGS_preset.7z
+
   build:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') && github.event.repository.default_branch == 'GUI'
+    needs: [prebuild-windows]
     container:
       image: python:3.12
       volumes:
@@ -22,10 +58,8 @@ jobs:
         path: src
 
     - name: Install dependencies
-      working-directory: src
-      run: |
-        python -m pip install -r requirements/linux.txt
-        python -m pip install pydos2unix py7zr
+      run: python -m pip install pydos2unix py7zr tqdm loguru markdown pyyaml polib
+
     - name: Clean repository
       run: |
         mkdir -p /build/scripts
@@ -33,6 +67,17 @@ jobs:
         rm -rf /build/scripts/.git
         find /build/scripts -name '__pycache__' -exec rm -rf {} +
         find /build/scripts -name '*.pyc' -delete
+
+    - name: Download Windows Preset
+      uses: actions/download-artifact@v3
+      with:
+        name: windows-preset
+        path: /tmp/
+
+    - name: Download macOS Preset
+      run: |
+        wget -O /tmp/CGS-macOS_preset.7z \
+        https://github.com/jasoneri/imgur/releases/download/preset/CGS-macOS_preset.7z
 
     - name: Compose Release Notes
       id: compose_notes
@@ -53,13 +98,6 @@ jobs:
         esac
 
         echo "$base\n$extra" > /build/full_body.md
-
-    - name: Download Presets
-      run: |
-        wget -O /tmp/CGS_preset.7z \
-        https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z
-        wget -O /tmp/CGS-macOS_preset.7z \
-        https://github.com/jasoneri/imgur/releases/download/preset/CGS-macOS_preset.7z
 
     - name: Build packages
       working-directory: /build
