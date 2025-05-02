@@ -20,10 +20,33 @@ JavaScript 没加载出来，刷新一下页面
 
 ### ModuleNotFoundError: No module named 'xxx'
 
-win: 如果你当前还在使用`CGS-更新`，并且是从`v1.xx`或`v2.0.0-beta`版本过来的话，  
-请到[🔗releases](https://github.com/jasoneri/ComicGUISpider/releases/latest) 下载绿色包并覆盖更新  
+win:
 
-macOS: 用`CGS-init`更新下环境
+1. 在绿色包解压的目录打开 (powershell) 终端执行命令  
+
+``` bash
+irm https://gitproxy.click/https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/online_scripts/win.ps1 | iex
+```
+
+::: info 非绿色包的用户参考 [🚀 快速开始 > 部署](../deploy/quick-start#1-下载--部署) 的安装依赖命令示例
+:::
+
+macOS: 用`CGS-init`更新环境依赖
+
+### 更新失败后程序无法打开
+
+::: tip 最简单有效❗️  
+备份配置 scripts/conf.yml 与去重记录 scripts/record.db后 下载📦绿色包 覆盖更新  
+:::
+
+更新的报错日志已整合进 log/GUI.log 文件里，建议提 issue 并附上 log，帮助 CGS 进行优化  
+
+1. 回退到上一个正常版本: 找到对应版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
+删除 `scripts/deploy/version.json`，恢复正常使用
+
+2. 安全使用最新版本: 将最新版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
+
+2.1 按上面 ModuleNotFoundError 的方法安装依赖
 
 ### 【win】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
 
@@ -32,7 +55,8 @@ macOS: 用`CGS-init`更新下环境
 
 ---
 
-> [!Info] 如果存在上述没有覆盖的问题
-> **请带上 `log` 到 [issue](
+::: warning 如果存在上述没有覆盖的问题
+请带上 `log` 到 [issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
-) 反馈 或 进群反馈。**
+) 反馈 或 进群反馈。
+:::

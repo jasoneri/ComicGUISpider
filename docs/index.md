@@ -73,6 +73,7 @@ Thanks to
 - [Ditto](https://github.com/sabrogden/Ditto) / [Maccy](https://github.com/p0deje/Maccy) for providing great win/macOS Clipboard Soft.
 - [PyQt-Fluent-Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets/) for providing elegant qfluent ui.
 - [VitePress](https://vitepress.dev) for providing a great documentation framework.
+- [astral-sh/uv](https://github.com/astral-sh/uv) for providing a great requirements manager.
 - Every comic production team / translator team / fans.
 
 ## 贡献

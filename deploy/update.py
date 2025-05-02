@@ -3,8 +3,8 @@
 """code update
 base on client, env-python: embed"""
 import argparse
+import re
 import os
-import sys
 import time
 import subprocess
 import importlib
@@ -23,7 +23,7 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
-from utils import conf
+from utils import conf, font_color
 from utils.docs import MarkdownConverter, MdHtml
 
 
@@ -57,9 +57,9 @@ class TokenHandler:
         return {**headers, 'Authorization': self.token} if self.token else headers
 
     def check_token(self):
-        if not self.gitee_t_file.exists():
-            self.download_t_file()
         try:
+            if not self.gitee_t_file.exists():
+                self.download_t_file()
             with open(self.gitee_t_file, 'r', encoding='utf-8') as f:
                 tokens = json.load(f)
         except json.decoder.JSONDecodeError:
@@ -206,8 +206,9 @@ class Proj:
     update_info = {}
     updated_success_flag = True
 
-    def __init__(self):
+    def __init__(self, debug_signal=None):
         self.git_handler = GitHandler(self.github_author, self.name, self.branch)
+        self.debug_signal = debug_signal
 
     def check_existed_version(self):
         if not self.local_ver_file.exists():
@@ -249,15 +250,15 @@ class Proj:
         self.ver = ver or self.update_info.get('tag_name') or self.local_ver
         backuper = BackupManager()
         backuper.create_backup()
-        proj_zip = self.git_handler.download_src_code(
-            f"{self.git_handler.zipball_url}/{ver}" if ver else self.update_info.get('zipball_url'))
-        with zipfile.ZipFile(proj_zip, 'r') as zip_f:
-            zip_f.extractall(temp_p)
-        temp_proj_p = next(temp_p.glob(f"*{self.name}*"))
-        # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
-        _, folders, files = next(os.walk(temp_proj_p))
-        all_files = (*folders, *files)
         try:
+            proj_zip = self.git_handler.download_src_code(
+                f"{self.git_handler.zipball_url}/{ver}" if ver else self.update_info.get('zipball_url'))
+            with zipfile.ZipFile(proj_zip, 'r') as zip_f:
+                zip_f.extractall(temp_p)
+            temp_proj_p = next(temp_p.glob(f"*{self.name}*"))
+            # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
+            _, folders, files = next(os.walk(temp_proj_p))
+            all_files = (*folders, *files)
             for file in all_files:
                 if file != "conf.yml" or file != "record.db":
                     move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
@@ -280,13 +281,14 @@ class Proj:
         with open(self.local_ver_file, 'w', encoding='utf-8') as f:
             json.dump({"current": self.ver}, f, ensure_ascii=False, indent=4)
 
+    @updater_logger.catch(reraise=True)
     def env_check_and_replenish(self):
         def check_import():
             for site_package in env_supplements:
                 try:
                     importlib.import_module(site_package)
-                except ImportError:
-                    updater_logger.info(f"pkg-missing: {site_package}")
+                except Exception as e:
+                    updater_logger.warning(f"pkg_missing: {site_package}")
                     return True
 
         record_file = existed_proj_p.joinpath("deploy/env_record.json")
@@ -295,26 +297,57 @@ class Proj:
         with open(record_file, 'r', encoding='utf-8') as f:
             env_supplements = json.load(f)
 
-        if check_import():
+        pkg_missing = check_import()   
+        updater_logger.debug(f"{pkg_missing=}")     
+        if pkg_missing:
+            if existed_proj_p.name == "ComicGUISpider":
+                self.debug_signal.emit(font_color(f"\n\n{res.git_clone_warning}\n\n", color='orange'))
+                return
             if curr_os == "macOS":
                 bash_path = existed_proj_p.joinpath("deploy/launcher/mac/init.bash")
                 os.chmod(bash_path, stat.S_IRWXU)
                 cmd = ["/bin/bash", str(bash_path)]
             else:
-                cmd = [sys.executable, "-m", "pip", "install", "-r", 
-                       str(existed_proj_p.joinpath("requirements/win.txt")),
-                       "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
-            updater_logger.debug(f"[ pip-command ]: {' '.join(cmd)}")
+                ps_cmd = "pwsh" if shutil.which("pwsh") else "powershell"
+                ps_script = existed_proj_p.joinpath("deploy/online_scripts/win.ps1")
+                cmd = [ps_cmd, str(ps_script)]
             try:
-                result = subprocess.run(cmd, check=False, capture_output=True, text=True)
-                if result.returncode == 0:
-                    updater_logger.debug(result.stdout)
-                else:
-                    updater_logger.warning(f"[ pip-returncode <{result.returncode}> ]: {result.stderr}")
-                    # self.updated_success_flag = False
+                print(cmd)
+                process = subprocess.Popen(
+                    cmd, cwd=existed_proj_p.parent,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1, universal_newlines=True
+                )
+                # 用于收集完整输出
+                full_output = []
+                # 实时读取输出
+                while True:
+                    line = process.stdout.readline()
+                    if not line:
+                        if process.poll() is not None:
+                            break  # 进程结束且无输出时退出
+                        continue
+                    line = line.strip()
+                    full_output.append(line)
+                    # 实时发送信号
+                    if self.debug_signal:
+                        self.debug_signal.emit(clean_ansi_escape(line))
+                # 读取剩余输出
+                remaining = process.stdout.read()
+                if remaining:
+                    for line in remaining.splitlines():
+                        cleaned_line = line.strip()
+                        full_output.append(cleaned_line)
+                        if self.debug_signal:
+                            self.debug_signal.emit(clean_ansi_escape(cleaned_line))
+                # 等待进程结束
+                exit_code = process.wait()
+                if exit_code != 0:
+                    error_msg = '\n'.join(full_output)
+                    updater_logger.warning(f"[ pip-returncode <{exit_code}> ]: {error_msg}")
+                    self.updated_success_flag = False
             except Exception as e:
-                self.updated_success_flag = False
-                updater_logger.error(f"[ pip-exception ]: {e}")
+                raise e
         else:
             time.sleep(2)
 
@@ -358,6 +391,11 @@ def create_desc(proj_path=None):
     transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
     transfer_markdown('docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html')
     return _p.joinpath('desc.html')
+
+
+def clean_ansi_escape(text):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
 
 
 if __name__ == '__main__':

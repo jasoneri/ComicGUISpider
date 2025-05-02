@@ -1,5 +1,6 @@
 Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
+  hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
 GUI:
   DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`查看说明`，内有配置详情/GUI视频使用指南等"
   DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
@@ -146,4 +147,5 @@ Updater:
   ver_check_fail: "检查版本失败，可重试或前往releases页面查看"
   update_ensure: "确认更新"
   updated_success: "更新成功，CGS将在5s后重启"
-  updated_fail: "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）" 
+  updated_fail: "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）\n报错日志为[%s]" 
+  git_clone_warning: "检测到目录结构为`git克隆`，在此更新后需要使用本机的 `astral-sh/uv` 对环境进行更新"

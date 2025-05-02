@@ -1,5 +1,6 @@
 Vars:
   ua_accept_language: "en-US,en;q=0.9"
+  hitomiDb_tmp_url: "https://github.com/jasoneri/imgur/releases/download/preset/hitomi.db"
 GUI:
   DESC1: "1. First-time users, click <img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\"> button. Then read `Doc(Document)` at the bottom-left corner for Config-details/GUI video guides."
   DESC2: "2. If encountering issues, check the <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/Extra Notes</a> document before seeking help."
@@ -146,4 +147,5 @@ Updater:
   ver_check_fail: "Version check failed - retry or check releases"
   update_ensure: "Confirm Update"
   updated_success: "Update successful - CGS restarts in 5s"
-  updated_fail: "❌ Update failed - rollback complete\nRetry later or download manually (CGS restarts in 10s)"
+  updated_fail: "❌ Update failed - rollback complete\nRetry later or download manually (CGS restarts in 10s)\nError log: [%s]"
+  git_clone_warning: "git clone detected - need to refresh requirements with local `astral-sh/uv` after this code update"

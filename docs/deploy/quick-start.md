@@ -11,9 +11,19 @@
 :::
 
 + 或克隆此项目 `git clone https://github.com/jasoneri/ComicGUISpider.git`  
-需安装 `python3.12+`，环境包在根目录的 `requirements` 里，pip 安装对应的架构即可
+::: tip 需安装  
++ `python3.12+`
++ 依赖管理工具 [astral-sh/uv](https://github.com/astral-sh/uv/releases)（比 pip 快n倍）
+:::
+::: tip 安装依赖命令示例  
 
-::: tip 使用 git 克隆的话请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档是基于绿色包进行的说明
+``` bash
+"%astral-sh/uv%" pip install -r "requirements\win.txt" --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+```
+
+:::
+
+::: warning 使用 git 克隆的话请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档是基于绿色包进行的说明
 :::
 
 ## 2. 运行
@@ -43,6 +53,9 @@
 + CGS 内置了更新模块，能在配置窗口中点击 `检查更新` 按钮进行更新  
 ::: info 当 `本地版本` < `最新稳定版` < `最新开发版` 时
 需更新到`最新稳定版`后，才能更新到`最新开发版`
+:::
+::: warning git克隆注意：`ComicGUISpider\CGS.py` 的代码结构会被视为`git克隆`  
+若涉及依赖更新，使用内置更新时，会在代码更新后要求用户本机的 `astral-sh/uv` 对依赖进行更新
 :::
 
 + 也可以选择到 releases 手动下载最新版，但需要注意配置等文件不被覆盖丢失
