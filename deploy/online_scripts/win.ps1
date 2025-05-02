@@ -10,24 +10,35 @@ $BLUE = "`e[34m"
 $NC = "`e[0m"
 
 # 获取当前脚本路径
-$scriptDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-$level = 3
-for ($i=0; $i -lt $level; $i++) {
-    $scriptDir = Split-Path -Path $scriptDir -Parent
+$scriptDir = $PSScriptRoot
+if (-not (Test-Path -Path $scriptDir)) {
+    $proj_p = Get-Location
 }
-$proj_p = $scriptDir
+else {
+    $level = 3
+    for ($i=0; $i -lt $level; $i++) {
+        $scriptDir = Split-Path -Path $scriptDir -Parent
+    }
+    $proj_p = $scriptDir
+}
+echo $proj_p
 
 $uv_bin = Join-Path -Path $proj_p -ChildPath "runtime/uv.exe"
 echo $uv_bin
 $python_exe = Join-Path -Path $proj_p -ChildPath "runtime/python.exe"
 echo $python_exe
 
+# 检查 python.exe 是否存在
+if (-not (Test-Path -Path $python_exe)) {
+    Write-Host "runtime/python.exe not found, need excute on unzipped path/请在解压的根目录下执行" -ForegroundColor Red
+    pause
+    exit
+}
+
 # zh-CN 则加速github
 $uiCulture = [System.Threading.Thread]::CurrentThread.CurrentUICulture
 function SpeedUp-Github {
-    param (
-        [string]$url
-    )
+    param ([string]$url)
     if ($uiCulture.Name -eq "zh-CN") {
         $url = "https://gitproxy.click/" + $url
     }
@@ -65,7 +76,7 @@ catch {
 
 # 安装依赖
 if ($uiCulture.Name -eq "zh-CN") {
-    & $uv_bin pip install -r $requirements_file --python $python_exe --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+    & "$uv_bin" pip install -r $requirements_file --python "$python_exe" --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 } else {
-    & $uv_bin pip install -r $requirements_file --python $python_exe
+    & "$uv_bin" pip install -r $requirements_file --python "$python_exe"
 }
