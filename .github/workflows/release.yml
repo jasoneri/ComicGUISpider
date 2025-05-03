@@ -9,38 +9,50 @@ on:
 jobs:
   prebuild-windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 1
-        path: src
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-
-    - name: Install 7-Zip
+    - name: Add PATH
       run: |
-        npm install -g 7zip-bin
-        npm install -g node-7z
+        $7zPath = "C:\Program Files\7-Zip"
+        $PresetPath = "D:\build\CGS_preset"
+        Add-Content $env:GITHUB_PATH "$7zPath"
+        echo "presetP=D:\build\CGS_preset" >> $env:GITHUB_ENV
 
     - name: Download and Extract Preset
       run: |
-        Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile /d/tmp/CGS_preset.7z
-        node -e "require('node-7z').extractFull('/d/tmp/CGS_preset.7z', '/d/build/')"
-
-    - name: Install Dependencies
+        New-Item -ItemType Directory -Path D:\tmp -Force
+        New-Item -ItemType Directory -Path D:\build -Force
+        Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile D:\tmp\CGS_preset.7z
+        7z x D:\tmp\CGS_preset.7z -o"$env:presetP" -spe -y
+        Remove-Item -Path "D:\tmp\CGS_preset.7z" -Force -ErrorAction Stop
+    - name: Put SourceCode in Preset
       run: |
-        cd /d/build
-        powershell .\scripts\deploy\online_scripts\win.ps1
+        $sourcePath = $env:GITHUB_WORKSPACE
+        $targetPath = "D:\build\CGS_preset\scripts"
+        New-Item -ItemType Directory -Path $targetPath -Force
+        Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+    - name: Install Dependencies
+      shell: powershell
+      working-directory: D:\build\CGS_preset
+      run: irm https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/online_scripts/win.ps1 | iex
+    - name: Rebuild Preset
+      working-directory: D:\build\CGS_preset
+      run: |
+        Remove-Item -Path "D:\build\CGS_preset\scripts" -Recurse -Force
+        7z a -t7z -m0=lzma2 -mx9 -o$env:presetP CGS_preset
+        Copy-Item -Path "D:\build\CGS_preset\CGS_preset.7z" -Destination "D:\tmp\CGS_preset.7z" -Force
 
     - name: Upload Preset
       uses: actions/upload-artifact@v4
       with:
         name: windows-preset
-        path: /d/tmp/CGS_preset.7z
+        path: D:\tmp\CGS_preset.7z
 
   build:
     runs-on: ubuntu-latest
