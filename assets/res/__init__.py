@@ -230,4 +230,3 @@ class Updater:
     update_ensure = _('Updater.update_ensure')
     updated_success = _('Updater.updated_success')
     updated_fail = _('Updater.updated_fail')
-    git_clone_warning = _('Updater.git_clone_warning')

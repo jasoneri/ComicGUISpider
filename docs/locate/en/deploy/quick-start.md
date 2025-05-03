@@ -11,12 +11,16 @@ need readed [macOS Deploy](./mac-required-reading.md) document
 + Or clone this project `git clone https://github.com/jasoneri/ComicGUISpider.git`  
 ::: tip required list  
 + `python3.12+`  
-+ requirements manager [`astral-sh/uv`](https://github.com/astral-sh/uv/releases), faster than `pip` !!  
-:::
-::: tip requirements manager command e.g.  
++ install [`astral-sh/uv`](https://github.com/astral-sh/uv), instead `pip` of manage requiredments  
 
 ```bash
-"%_uv_path%" pip install -r "requirements\win.txt"
+python -m pip install uv
+```
+
+**Install command** (CGS's `requiredments/*.txt` base on compilation by uv)  
+
+```bash
+python -m uv pip install -r "requirements/win.txt"
 ```
 
 :::

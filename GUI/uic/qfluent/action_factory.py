@@ -4,9 +4,9 @@ import sys
 import subprocess
 import traceback
 from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtCore import QThread, pyqtSignal, QUrl, QTimer, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, QUrl, QTimer
 
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import InfoBarPosition
 
 from assets import res
 from utils import ori_path, conf

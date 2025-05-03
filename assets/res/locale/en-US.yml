@@ -148,4 +148,3 @@ Updater:
   update_ensure: "Confirm Update"
   updated_success: "Update successful - CGS restarts in 5s"
   updated_fail: "❌ Update failed - rollback complete\nRetry later or download manually (CGS restarts in 10s)\nError log: [%s]"
-  git_clone_warning: "git clone detected - need to refresh requirements with local `astral-sh/uv` after this code update"
