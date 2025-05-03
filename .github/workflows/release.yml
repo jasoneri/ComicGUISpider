@@ -38,7 +38,6 @@ jobs:
         New-Item -ItemType Directory -Path $targetPath -Force
         Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
     - name: Install Dependencies
-      shell: powershell
       working-directory: D:\build\CGS_preset
       run: irm https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/online_scripts/win.ps1 | iex
     - name: Rebuild Preset
