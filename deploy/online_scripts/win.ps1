@@ -29,6 +29,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
     Invoke-WebRequest -Uri $targetUrl -OutFile $pyPath -UseBasicParsing
 }
 catch {
-    exit
+    Write-Output "install pkg_mgr.py failed/下载pkg_mgr.py失败";pause;exit
 }
-& "$python_exe" "$pyPath"
+& "$python_exe" "$pyPath" -l $locale
+Remove-Item -Path $pyPath -Force
