@@ -53,7 +53,7 @@ class PkgMgr:
 
     def print(self, *args, **kwargs):
         if self.debug_signal:
-            self.debug_signal(*args, **kwargs)
+            self.debug_signal.emit(*args, **kwargs)
         print(*args, **kwargs)
 
     def dl(self):
