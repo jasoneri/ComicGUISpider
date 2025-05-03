@@ -1,9 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""code update
-base on client, env-python: embed"""
-import argparse
-import re
+"""code update"""
 import os
 import time
 import subprocess
@@ -13,7 +10,6 @@ import shutil
 import stat
 import pathlib
 import zipfile
-import traceback
 import platform
 import base64
 
@@ -23,8 +19,9 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
-from utils import conf, font_color
-from utils.docs import MarkdownConverter, MdHtml
+from utils import ori_path, conf, font_color
+
+from .pkg_mgr import PkgMgr
 
 
 curr_os = platform.system()
@@ -262,8 +259,8 @@ class Proj:
             for file in all_files:
                 if file != "conf.yml" or file != "record.db":
                     move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
-            self.env_check_and_replenish()
-            if not self.updated_success_flag:
+            env_success_flag = self.env_check_and_replenish()
+            if not self.updated_success_flag or not env_success_flag:
                 raise RuntimeError("update failed")
         except Exception as e:
             try:
@@ -300,120 +297,17 @@ class Proj:
         pkg_missing = check_import()   
         updater_logger.debug(f"{pkg_missing=}")     
         if pkg_missing:
-            if existed_proj_p.name == "ComicGUISpider":
+            if ori_path.parent.name != "scripts":
                 self.debug_signal.emit(font_color(f"\n\n{res.git_clone_warning}\n\n", color='orange'))
-                return
-            if curr_os == "macOS":
-                bash_path = existed_proj_p.joinpath("deploy/launcher/mac/init.bash")
-                os.chmod(bash_path, stat.S_IRWXU)
-                cmd = ["/bin/bash", str(bash_path)]
-            else:
-                ps_cmd = "pwsh" if shutil.which("pwsh") else "powershell"
-                ps_script = existed_proj_p.joinpath("deploy/online_scripts/win.ps1")
-                cmd = [ps_cmd, str(ps_script)]
             try:
-                print(cmd)
-                process = subprocess.Popen(
-                    cmd, cwd=existed_proj_p.parent,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, bufsize=1, universal_newlines=True
-                )
-                # 用于收集完整输出
-                full_output = []
-                # 实时读取输出
-                while True:
-                    line = process.stdout.readline()
-                    if not line:
-                        if process.poll() is not None:
-                            break  # 进程结束且无输出时退出
-                        continue
-                    line = line.strip()
-                    full_output.append(line)
-                    # 实时发送信号
-                    if self.debug_signal:
-                        self.debug_signal.emit(clean_ansi_escape(line))
-                # 读取剩余输出
-                remaining = process.stdout.read()
-                if remaining:
-                    for line in remaining.splitlines():
-                        cleaned_line = line.strip()
-                        full_output.append(cleaned_line)
-                        if self.debug_signal:
-                            self.debug_signal.emit(clean_ansi_escape(cleaned_line))
-                # 等待进程结束
-                exit_code = process.wait()
-                if exit_code != 0:
-                    error_msg = '\n'.join(full_output)
-                    updater_logger.warning(f"[ pip-returncode <{exit_code}> ]: {error_msg}")
-                    self.updated_success_flag = False
+                export_pkg_mgr = PkgMgr(ori_res.lang, existed_proj_p, debug_signal=self.debug_signal)
+                exit_code, full_output = export_pkg_mgr.run()
+                if exit_code == 0:
+                    return True
+                error_msg = '\n'.join(full_output)
+                updater_logger.warning(f"[ pip-returncode <{exit_code}> ]: {error_msg}")
+                self.updated_success_flag = False
             except Exception as e:
                 raise e
         else:
             time.sleep(2)
-
-
-def regular_update(ver):
-    retry_times = 1
-    __ = None
-    update_result = ""
-    while retry_times < 4:
-        try:
-            proj.local_update(ver)
-            break
-        except Exception as e:
-            __ = traceback.format_exc()
-            print(Fore.RED + f"[ {res.refresh_fail_retry}-{retry_times} ]\n{type(e)} {e} ")
-            retry_times += 1
-    if retry_times > 3:
-        print(__)
-        print(Fore.RED + f"[Errno 11001] {res.refresh_fail_retry_over_limit}")
-        update_result = "exception: over_limit"
-    return update_result
-
-
-def create_desc(proj_path=None):
-    """deprecated, use github-page instead"""
-    _p = proj_path or existed_proj_p
-    with open(_p.joinpath('README.md'), 'r', encoding='utf-8') as f:
-        md_content = f.read().replace(
-            'deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html').replace(
-            'docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html').replace(
-            'docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html'
-        )
-    full_html = MarkdownConverter.convert_html(
-        MdHtml(md_content).cdn_replace(Proj.github_author, "imgur", "main").details_formatter)
-    with open(_p.joinpath('desc.html'), 'w', encoding='utf-8') as f:
-        f.write(full_html)
-
-    def transfer_markdown(_in, _out):
-        MarkdownConverter.transfer_markdown(_p.joinpath(_in), _p.joinpath(_out))
-    transfer_markdown('deploy/launcher/mac/EXTRA.md', 'deploy/launcher/mac/desc_macOS.html')
-    transfer_markdown('docs/FAQ_and_EXTRA.md', 'docs/FAQ_and_EXTRA.html')
-    transfer_markdown('docs/UPDATE_RECORD.md', 'docs/UPDATE_RECORD.html')
-    return _p.joinpath('desc.html')
-
-
-def clean_ansi_escape(text):
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    return ansi_escape.sub('', text)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        add_help=False,
-        description="CGS updater",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    args = parser.add_argument_group("Arguments")
-    args.add_argument('-d', '--desc', action=argparse.BooleanOptionalAction, required=False)
-    args.add_argument('-c', '--check', action=argparse.BooleanOptionalAction, required=False)
-    args.add_argument('-v', '--version', required=False, help='指定版本号, 需要先搭配-c/--check查询')
-    parsed = parser.parse_args()
-
-    proj = Proj()
-    if parsed.desc:
-        create_desc()
-    elif parsed.check:
-        proj.check()
-    elif parsed.version:
-        regular_update(parsed.version)
