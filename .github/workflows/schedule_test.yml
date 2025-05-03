@@ -7,37 +7,42 @@ on:
 
 jobs:
   test-suite:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/jasoneri/comicguispider-dockerimage:latest
-      options: >-
-          --ulimit nproc=4096:4096 
-          --ulimit nofile=65536:65536 
-          --security-opt seccomp=unconfined
-          --dns 8.8.8.8
-          --dns 114.114.114.114
+    runs-on: windows-latest
     strategy:
       matrix:
         include:
-          # - "jm" "ehentai" 使用本地 act 运行上传 
+          # - "mangabz" "ehentai" "jm" 使用本地 act 运行上传
           - crawler_name: "kaobei"
             params: "-w 1 -k 更新 -i 2 -i2 1 -sp 50000"
           - crawler_name: "wnacg"
             params: "-w 3 -k ミモネル -i 2 -sp 50041"
-          - crawler_name: "mangabz"
-            params: "-w 5 -k 更新 -i 1 -i2 1 -sp 50061"
 
     steps:
       - uses: actions/checkout@master
-      - name: Install dependencies
-        run: python -m pip install PyExecJS
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install 7-Zip
+        run: |
+          npm install -g 7zip-bin
+          npm install -g node-7z
+      - name: Download and Extract Preset
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile /d/tmp/CGS_preset.7z
+          node -e "require('node-7z').extractFull('/d/tmp/CGS_preset.7z', '/d/build/')"
+      - name: Install Dependencies
+        run: |
+          cd /d/build
+          powershell .\scripts\deploy\online_scripts\win.ps1
 
       - name: Run tests and Generate report
+        working-directory: /d/build
         run: |
           TODAY=$(TZ='Asia/Shanghai' date +%m-%d)
           
           set +e
-          timeout 60 python crawl_only.py ${{ matrix.params }} -l INFO -dt 2>&1 | tee ${{ matrix.crawler_name }}.log
+          timeout 60 ./runtime/python.exe crawl_only.py ${{ matrix.params }} -l INFO -dt 2>&1 | tee ${{ matrix.crawler_name }}.log
           result=$?
           item_count=$(grep -o "image/downloaded': [0-9]*" ${{ matrix.crawler_name }}.log | grep -o "[0-9]*" || echo "0")
           if [ $result -eq 0 ] && [ "$item_count" -ge 2 ]; then
@@ -50,17 +55,40 @@ jobs:
           cp __temp/status_${{ matrix.crawler_name }}.json __temp/badges/
           exit 0
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: badges-${{ matrix.crawler_name }}
+          path: __temp/badges/
+
+  deploy-job:
+    needs: test-suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: |
+          npm install -g wrangler
+
+      - name: Merge artifacts
+        run: |
+          mkdir -p merged-badges
+          find all-artifacts -type f -name 'status_*.json' -exec cp {} merged-badges/ \;
+          
+          set +e
+          for crawler in "ehentai" "mangabz" "jm"; do
+            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "merged-badges/status_${crawler}.json" || true
+          done
       - name: Deploy to CloudFlare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          mkdir -p __temp/existing_badges
-          set +e
-          for crawler in "jm" "ehentai"; do
-            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "__temp/existing_badges/status_${crawler}.json" || true
-          done
-          if [ -d "__temp/existing_badges" ]; then
-            cp -n __temp/existing_badges/*.json __temp/badges/ 2>/dev/null || true
-          fi
-          wrangler pages deploy __temp/badges/ --project-name=cgs-status-badges --branch=main
+          wrangler pages deploy merged-badges/ --project-name=cgs-status-badges --branch=main
