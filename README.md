@@ -51,7 +51,8 @@
 ## 📢更新
 
 > !Tip
-> 开发版 [v2.2.0-beta](https://github.com/jasoneri/ComicGUISpider/releases/tag/v2.2.0-beta) 已发布  
+> <✅20250504> 开发版 [v2.2.0-beta](https://github.com/jasoneri/ComicGUISpider/releases/tag/v2.2.0-beta) 已发布  
+> 五一前搞好hitomi-beta，结果更新出茬，然后大半假期居然在搞这破更新模块，人麻了  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
