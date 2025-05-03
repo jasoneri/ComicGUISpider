@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 """code update"""
 import os
-import time
-import subprocess
-import importlib
 import json
 import shutil
 import stat
@@ -19,7 +16,7 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
-from utils import ori_path, conf, font_color
+from utils import conf
 
 from .pkg_mgr import PkgMgr
 
@@ -280,34 +277,13 @@ class Proj:
 
     @updater_logger.catch(reraise=True)
     def env_check_and_replenish(self):
-        def check_import():
-            for site_package in env_supplements:
-                try:
-                    importlib.import_module(site_package)
-                except Exception as e:
-                    updater_logger.warning(f"pkg_missing: {site_package}")
-                    return True
-
-        record_file = existed_proj_p.joinpath("deploy/env_record.json")
-        if not record_file.exists():
-            return
-        with open(record_file, 'r', encoding='utf-8') as f:
-            env_supplements = json.load(f)
-
-        pkg_missing = check_import()   
-        updater_logger.debug(f"{pkg_missing=}")     
-        if pkg_missing:
-            if ori_path.parent.name != "scripts":
-                self.debug_signal.emit(font_color(f"\n\n{res.git_clone_warning}\n\n", color='orange'))
-            try:
-                export_pkg_mgr = PkgMgr(ori_res.lang, existed_proj_p, debug_signal=self.debug_signal)
-                exit_code, full_output = export_pkg_mgr.run()
-                if exit_code == 0:
-                    return True
-                error_msg = '\n'.join(full_output)
-                updater_logger.warning(f"[ pip-returncode <{exit_code}> ]: {error_msg}")
-                self.updated_success_flag = False
-            except Exception as e:
-                raise e
-        else:
-            time.sleep(2)
+        try:
+            export_pkg_mgr = PkgMgr(ori_res.lang, existed_proj_p, debug_signal=self.debug_signal)
+            exit_code, full_output = export_pkg_mgr.run()
+            if exit_code == 0:
+                return True
+            error_msg = '\n'.join(full_output)
+            updater_logger.warning(f"[ pip-returncode <{exit_code}> ]: {error_msg}")
+            self.updated_success_flag = False
+        except Exception as e:
+            raise e
