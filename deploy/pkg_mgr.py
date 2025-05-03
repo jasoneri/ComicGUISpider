@@ -107,7 +107,7 @@ class PkgMgr:
         # 等待进程结束
         exit_code = process.wait()
         if exit_code == 0:
-            self.print("[√ uv_install_pkgs done!]")
+            self.print("[!uv_install_pkgs done!]")
         return exit_code, full_output
 
     @logger.catch(reraise=True)

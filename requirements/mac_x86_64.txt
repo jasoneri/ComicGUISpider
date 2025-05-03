@@ -335,6 +335,8 @@ typing-extensions==4.13.0
     #   twisted
 urllib3==2.3.0
     # via requests
+uv==0.7.2
+    # via -r requirements-in.txt
 w3lib==2.3.1
     # via
     #   parsel
