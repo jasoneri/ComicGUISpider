@@ -110,6 +110,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     guiQueuesManger: GuiQueuesManger = None
     Q = None
     s: m.Server = None
+    sv_path = None
 
     def __init__(self, parent=None):
         super(SpiderGUI, self).__init__(parent)
@@ -155,6 +156,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
+        self.sv_path = conf.sv_path
         self.btn_logic_bind()
         self.set_shortcut()
         # 预览
@@ -177,6 +179,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
             self.chooseBox_changed_tips(index)
+            if index in SPECIAL_WEBSITES_IDXES:
+                self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             # 输入框联想补全
             self.set_completer()
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
@@ -243,7 +247,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
-                curr_os.open_folder(conf.sv_path)
+                curr_os.open_folder(self.sv_path)
             self.checkisopen.setText(self.res.checkisopen_text_change)
             self.checkisopen.setStatusTip(self.res.checkisopen_status_tip)
             self.checkisopenCnt += 1
@@ -543,7 +547,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.process_state.process = 'fin'
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
-        curr_os.open_folder(imgs_path) if self.checkisopen.isChecked() else None
+        if self.checkisopen.isChecked():
+            curr_os.open_folder(self.sv_path)
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def say(self, string, ignore_http=False):
