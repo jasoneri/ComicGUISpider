@@ -10,7 +10,7 @@
 
 ✅ 页数命名优化：更改为纯数字补零命名，附带可选 [文件命名后缀修改](https://jasoneri.github.io/ComicGUISpider/config/#其他-yml-字段)  
 ✅ i18n 自动编译优化  
-✅ 使用 astral-sh/uv 管理依赖  
+✅ 使用 astral-sh/uv 管理依赖，优化更新模块
 ✅ 修复 jm 读剪贴板部分解析错误  
 ✅ 其他小优化
 
