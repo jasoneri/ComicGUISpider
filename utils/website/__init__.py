@@ -141,7 +141,7 @@ class JmUtils(EroUtils, Req):
     def parse_book(resp_text):
         html = etree.HTML(resp_text)
         cover_el = html.xpath('//div[@id="album_photo_cover"]')[-1]
-        title = html.xpath('//h1[@id="book-name"]/text()')[0]
+        title = html.xpath('//h1/text()')[0]
         img_src = cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src')[0]
         info_el = cover_el.xpath('./following-sibling::div')[0]
         author = (info_el.xpath('.//span[@data-type="author"]/a/text()') or ["-"])[-1]
