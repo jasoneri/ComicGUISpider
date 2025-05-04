@@ -36,7 +36,7 @@
 | [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
-| [hitomi](https://hitomi.la/)     | 🌏 |     🔞     | v2.2.0-beta 公测中 |
+| [hitomi](https://hitomi.la/)     | 🌏 |     🔞     | 升到 v2.2.0-beta 试用 |
 
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
@@ -50,8 +50,7 @@
 
 ## 📢更新
 
-> ❌ [v2.2.0-beta] 继续修，推迟  
-> 放假写代码堪比上班，人麻了  
+> <✅20250504> 开发版 [v2.2.0-beta](https://github.com/jasoneri/ComicGUISpider/releases/tag/v2.2.0-beta) 已发布  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
