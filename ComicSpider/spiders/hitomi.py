@@ -20,7 +20,6 @@ class HitomiSpider(BaseComicSpider):
         'ComicSpider.middlewares.UAMiddleware': 10,
     }}
     name = 'hitomi'
-    num_of_row = 25
     domain = domain
     ua = HitomiUtils.headers
     backend_domain = "ltn.gold-usergeneratedcontent.net"
@@ -113,7 +112,7 @@ class HitomiSpider(BaseComicSpider):
             "text": response.text,
             "meta": {k: v for k, v in meta.items() if k != 'results'}
         })
-        
+        self.say(self.ut.get_uuid(response.request.url))
         if len(meta['results']) == meta['total_requests']:
             self.logger.info("All requests completed, processing results")
             yield from self.defer_parse(meta['results'])
@@ -184,7 +183,6 @@ class HitomiSpider(BaseComicSpider):
             img_preview = self.ut.get_img_url(first_pic['hash'], 0)
             
             self.say(example_b.format(str(x + 1), lang, len(pics), title, chr(12288)))
-            self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [lang, title, preview_url, pics]
             preview.add(x + 1, img_preview, title, preview_url, pages=len(pics), lang=lang, btype=btype)
         self.say(preview.created_temp_html)

@@ -4,7 +4,6 @@ import json
 import struct
 
 import httpx
-import execjs
 
 from assets import res
 from utils import conf
@@ -24,12 +23,12 @@ class HitomiUtils(EroUtils, Req):
     }
     book_hea = headers
     galleries_per_page = 100
-    uuid_regex = re.compile(r"(\d+)\.html$")
+    uuid_regex = re.compile(r"(\d+)\.(html|js)$")
     img_domain = r"w1.gold-usergeneratedcontent.net"  # unsure its source or it's stable
 
     def __init__(self, conf):
         self.cli = self.get_cli(conf)
-        self.gg = gg(self.cli)
+        self.gg = gg(cli=self.cli)
 
     @staticmethod
     def parse_nozomi(data):
@@ -74,17 +73,29 @@ class HitomiUtils(EroUtils, Req):
 
 
 class gg:
-    def __init__(self, cli):
-        script_resp = cli.get(f"https://ltn.{HitomiUtils.domain2}/gg.js?_={int(time.time() * 1000)}")
-        script_text = script_resp.text
-        self.ctx = execjs.compile(script_text.replace('gg = {', 'var gg = {', 1))
-        self.b = self.ctx.eval('gg.b')
+    def __init__(self, cli=None, js_code=None):
+        if not js_code:
+            script_resp = cli.get(f"https://ltn.{HitomiUtils.domain2}/gg.js?_={int(time.time() * 1000)}")
+            script_text = script_resp.text
+        else:
+            script_text = js_code
+        self.m_cases = self._parse_m_cases(script_text)
+        self.b = f"{self._parse_b(script_text)}/"
+        
+    def _parse_m_cases(self, js_code):
+        pattern = r"case (\d+):"
+        return set(map(int, re.findall(pattern, js_code)))
+
+    def _parse_b(self, js_code):
+        match = re.search(r"(\d{10})", js_code)
+        return match.group(1)
+
+    def m(self, g):
+        return 0 if int(g) in self.m_cases else 1
 
     def s(self, h):
-        return self.ctx.call('gg.s', h)
-    
-    def m(self, g):
-        return self.ctx.call('gg.m', int(g))
+        matched = re.match(r"(..)(.)$", h[-3:])
+        return str(int(matched.group(2) + matched.group(1), 16))
 
 
 class DataView:
