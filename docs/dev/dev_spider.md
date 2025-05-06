@@ -52,17 +52,17 @@ Website crawler develope guide
 
 #### 类属性(Utils)
 
-&emsp;✅ name: 同爬虫名字
-&emsp;✅ uuid_regex: 将 作品id 从作品 预览url 中抽取的正则表达式
-&emsp;🔳 headers: 通用请求头
-&emsp;🔳 book_hea: 读剪贴板功能使用的请求头
-&emsp;🔳 book_url_regex: 读剪贴板功能使用所对应当前网站抽取 作品id 的正则表达式
+&emsp;✅ name: 同爬虫名字  
+&emsp;✅ uuid_regex: 将 作品id 从作品 预览url 中抽取的正则表达式  
+&emsp;🔳 headers: 通用请求头  
+&emsp;🔳 book_hea: 读剪贴板功能使用的请求头  
+&emsp;🔳 book_url_regex: 读剪贴板功能使用所对应当前网站抽取 作品id 的正则表达式  
 
 #### 类方法(Utils)
 
-&emsp;🔳 parse_publish_: 清洗发布页
-&emsp;🔳 parse_book: 清洗出读剪贴板功能的信息
-&emsp;🔳 test_index: 测试网络环境能否访问当前网站
+&emsp;🔳 parse_publish_: 清洗发布页  
+&emsp;🔳 parse_book: 清洗出读剪贴板功能的信息  
+&emsp;🔳 test_index: 测试网络环境能否访问当前网站  
 
 ::: tip 最后需要在 spider_utils_map 加上对应的 Utils
 :::
@@ -95,7 +95,7 @@ self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg🔞"))  # 🔞
 ### 4. 无GUI测试
 
 ```python
-python crawl_only.py -w 4 -k 首页 -i 1
+python crawl_only.py -w 3 -k 首页 -i 1
 ```
 
 ### 5. GUI测试
