@@ -57,8 +57,7 @@ class HitomiUtils(EroUtils, Req):
         if conf.proxies:
             return httpx.Client(http2=True,
                 headers=cls.book_hea,
-                proxies={"https://": f"http://{conf.proxies[0]}"},
-                transport=httpx.HTTPTransport(retries=3))
+                transport=httpx.HTTPTransport(proxy=f"http://{conf.proxies[0]}", retries=3))
         return httpx.Client(headers=cls.book_hea, trust_env=True, http2=True)
 
     def test_index(self):

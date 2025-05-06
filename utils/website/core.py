@@ -18,8 +18,7 @@ class Req:
         if conf.proxies:
             return httpx.Client(
                 headers=cls.book_hea,
-                proxies={"https://": f"http://{conf.proxies[0]}"},
-                transport=httpx.HTTPTransport(retries=3))
+                transport=httpx.HTTPTransport(proxy=f"http://{conf.proxies[0]}", retries=3))
         return httpx.Client(headers=cls.book_hea, trust_env=True)
 
     book_url_regex = ""
