@@ -8,58 +8,89 @@ on:
 jobs:
   test-suite:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
     strategy:
       matrix:
         include:
-          # - "mangabz" "ehentai" "jm" 使用本地 act 运行上传
+          # - "ehentai" "jm" 使用本地 act 运行上传
           - crawler_name: "kaobei"
-            params: "-w 1 -k 更新 -i 2 -i2 1 -sp 50000"
+            params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50000"
           - crawler_name: "wnacg"
-            params: "-w 3 -k ミモネル -i 2 -sp 50041"
+            params: "-w 3 -k ミモネル -i 2 -sp 50021"
+          - crawler_name: "mangabz"
+            params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50041"
+          - crawler_name: "hitomi"
+            params: "-w 6 -k artist/date/published/mimonel-japanese -i 2 -sp 50061"
 
     steps:
-      - uses: actions/checkout@master
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          node-version: '20'
-      - name: Install 7-Zip
+          fetch-depth: 1
+      - name: Add PATH
         run: |
-          npm install -g 7zip-bin
-          npm install -g node-7z
-      - name: Download and Extract Preset
+          $7zPath = "C:\Program Files\7-Zip"
+          Add-Content $env:GITHUB_PATH "$7zPath"
+          echo "runtimeP=D:\build\CGS" >> $env:GITHUB_ENV
+      - name: Get Latest Release Tag
+        id: get-latest-tag
         run: |
-          Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile /d/tmp/CGS_preset.7z
-          node -e "require('node-7z').extractFull('/d/tmp/CGS_preset.7z', '/d/build/')"
-      - name: Install Dependencies
+          $response = Invoke-WebRequest -Uri "https://api.github.com/repos/jasoneri/ComicGUISpider/releases?per_page=1" -Headers @{ "Accept" = "application/vnd.github.v3+json" }
+          $latest_tag = ($response.Content | ConvertFrom-Json)[0].tag_name
+          echo "latest_tag=$latest_tag" >> $env:GITHUB_OUTPUT
+      - name: Download Latest CGS
         run: |
-          cd /d/build
-          powershell .\scripts\deploy\online_scripts\win.ps1
-
+          New-Item -ItemType Directory -Path D:\tmp -Force
+          New-Item -ItemType Directory -Path D:\build -Force
+          Invoke-WebRequest -Uri "https://github.com/jasoneri/ComicGUISpider/releases/download/${{ steps.get-latest-tag.outputs.latest_tag }}/CGS.7z" -OutFile D:\tmp\CGS.7z
+          7z x D:\tmp\CGS.7z -o"$env:runtimeP" -spe -y
+          Remove-Item -Path "D:\tmp\CGS.7z" -Force -ErrorAction Stop
+      - name: Put SourceCode in CGS
+        run: |
+          $sourcePath = $env:GITHUB_WORKSPACE
+          $targetPath = "D:\build\CGS\scripts"
+          New-Item -ItemType Directory -Path $targetPath -Force
+          Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
       - name: Run tests and Generate report
-        working-directory: /d/build
+        working-directory: D:\build\CGS
         run: |
-          TODAY=$(TZ='Asia/Shanghai' date +%m-%d)
-          
-          set +e
-          timeout 60 ./runtime/python.exe crawl_only.py ${{ matrix.params }} -l INFO -dt 2>&1 | tee ${{ matrix.crawler_name }}.log
-          result=$?
-          item_count=$(grep -o "image/downloaded': [0-9]*" ${{ matrix.crawler_name }}.log | grep -o "[0-9]*" || echo "0")
-          if [ $result -eq 0 ] && [ "$item_count" -ge 2 ]; then
-            echo '{"schemaVersion":1,"label":"'"$TODAY"'","message":"pass","color":"success"}' > __temp/status_${{ matrix.crawler_name }}.json
-          else
-            echo '{"schemaVersion":1,"label":"'"$TODAY"'","message":"fail","color":"critical"}' > __temp/status_${{ matrix.crawler_name }}.json
-          fi
+          $TODAY = (Get-Date -Format "MM-dd").ToString()
 
-          mkdir -p __temp/badges
-          cp __temp/status_${{ matrix.crawler_name }}.json __temp/badges/
-          exit 0
+          $logFile = "${{ matrix.crawler_name }}.log"
+          $stdoutLog = "${{ matrix.crawler_name }}_stdout.log"
+          $stderrLog = "${{ matrix.crawler_name }}_stderr.log"
+          $pythonArgs = "./scripts/crawl_only.py ${{ matrix.params }} -l INFO -dt"
+
+          $process = Start-Process -FilePath "./runtime/python.exe" -ArgumentList $pythonArgs -NoNewWindow -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+          try {
+            $process | Wait-Process -Timeout 60 -ErrorAction Stop
+            $result = $process.ExitCode
+          } catch [TimeoutException] {
+            $process | Stop-Process -Force
+            $result = 124
+          }
+          $result = $LASTEXITCODE
+          $logContent = Get-Content $stderrLog -Raw
+          $item_count = if ($logContent -match "image/downloaded': (\d+)") { [int]$matches[1] } else { 0 }
+          $statusData = @{
+            schemaVersion = 1
+            label = $TODAY
+            message = $(if ($item_count -eq 0) { "fail" } else { "pass" })
+            color = $(if ($item_count -eq 0) { "critical" } else { "success" })
+          }
+          $artifactPath = "D:\build\badges"
+          New-Item -Path $artifactPath -ItemType Directory -Force | Out-Null
+          $statusData | ConvertTo-Json -Compress | Out-File "$artifactPath\status_${{ matrix.crawler_name }}.json" -Encoding utf8
+          Get-ChildItem -Path $artifactPath -Recurse
+          Copy-Item -Path $stderrLog -Destination "D:\build\badges\$stderrLog" -Force
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: badges-${{ matrix.crawler_name }}
-          path: __temp/badges/
+          path: D:\build\badges/
 
   deploy-job:
     needs: test-suite
@@ -68,7 +99,7 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: all-artifacts
+          path: /tmp/
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
@@ -76,19 +107,18 @@ jobs:
       - name: Install wrangler
         run: |
           npm install -g wrangler
-
       - name: Merge artifacts
         run: |
-          mkdir -p merged-badges
-          find all-artifacts -type f -name 'status_*.json' -exec cp {} merged-badges/ \;
+          mkdir -p /tmp/merged-badges
+          sudo find /tmp/ -type f -name 'status_*.json' -exec cp {} /tmp/merged-badges/ \;
           
           set +e
-          for crawler in "ehentai" "mangabz" "jm"; do
-            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "merged-badges/status_${crawler}.json" || true
+          for crawler in "ehentai" "jm"; do
+            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "/tmp/merged-badges/status_${crawler}.json" || true
           done
       - name: Deploy to CloudFlare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          wrangler pages deploy merged-badges/ --project-name=cgs-status-badges --branch=main
+          wrangler pages deploy /tmp/merged-badges/ --project-name=cgs-status-badges --branch=main

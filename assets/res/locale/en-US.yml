@@ -110,6 +110,8 @@ SPIDER:
     frame_book_print_extra: " →_→ Hover over number field for input rules"
     frame_book_print_retry_tip: "No results found. Possible causes:<br>1. Server blocking 2. End of results 3. Verify URL in browser"
     frame_section_print_extra: " ←_← Click【Start Crawling!】"
+  chooseInput_flag: "Enter Selected Serials"
+  sectionInput_flag: "Start Crawling"
   search_url_head_NotImplementedError: "Custom search URL required"
   choice_list_before_turn_page: "Previous page selections pending"
   parse_step: "Comic"
