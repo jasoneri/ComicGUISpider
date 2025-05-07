@@ -8,6 +8,8 @@ on:
 jobs:
   test-suite:
     runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
     defaults:
       run:
         shell: pwsh
@@ -16,13 +18,13 @@ jobs:
         include:
           # - "ehentai" "jm" 使用本地 act 运行上传
           - crawler_name: "kaobei"
-            params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50000"
+            params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50021"
           - crawler_name: "wnacg"
-            params: "-w 3 -k ミモネル -i 2 -sp 50021"
+            params: "-w 3 -k ミモネル -i 2 -sp 50051"
           - crawler_name: "mangabz"
-            params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50041"
+            params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
           - crawler_name: "hitomi"
-            params: "-w 6 -k artist/date/published/mimonel-japanese -i 2 -sp 50061"
+            params: "-w 6 -k artist/date/published/mimonel-japanese -i 1 -sp 50111"
 
     steps:
       - name: Checkout code
@@ -55,23 +57,24 @@ jobs:
           Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
       - name: Run tests and Generate report
         working-directory: D:\build\CGS
+        env:
+          CRAWLER_NAME: ${{ matrix.crawler_name }}
         run: |
           $TODAY = (Get-Date -Format "MM-dd").ToString()
 
-          $logFile = "${{ matrix.crawler_name }}.log"
-          $stdoutLog = "${{ matrix.crawler_name }}_stdout.log"
-          $stderrLog = "${{ matrix.crawler_name }}_stderr.log"
+          $stdoutLog = $env:CRAWLER_NAME + "_stdout.log"
+          $stderrLog = $env:CRAWLER_NAME+ "_stderr.log"
           $pythonArgs = "./scripts/crawl_only.py ${{ matrix.params }} -l INFO -dt"
-
+          $timeoutSeconds = if ($env:CRAWLER_NAME -eq 'hitomi') { 120 } else { 60 }
+          
           $process = Start-Process -FilePath "./runtime/python.exe" -ArgumentList $pythonArgs -NoNewWindow -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
           try {
-            $process | Wait-Process -Timeout 60 -ErrorAction Stop
+            $process | Wait-Process -Timeout $timeoutSeconds -ErrorAction Stop
             $result = $process.ExitCode
           } catch [TimeoutException] {
             $process | Stop-Process -Force
             $result = 124
           }
-          $result = $LASTEXITCODE
           $logContent = Get-Content $stderrLog -Raw
           $item_count = if ($logContent -match "image/downloaded': (\d+)") { [int]$matches[1] } else { 0 }
           $statusData = @{
@@ -82,7 +85,7 @@ jobs:
           }
           $artifactPath = "D:\build\badges"
           New-Item -Path $artifactPath -ItemType Directory -Force | Out-Null
-          $statusData | ConvertTo-Json -Compress | Out-File "$artifactPath\status_${{ matrix.crawler_name }}.json" -Encoding utf8
+          $statusData | ConvertTo-Json -Compress | Out-File "$artifactPath\status_$env:CRAWLER_NAME.json" -Encoding utf8
           Get-ChildItem -Path $artifactPath -Recurse
           Copy-Item -Path $stderrLog -Destination "D:\build\badges\$stderrLog" -Force
 
@@ -113,7 +116,7 @@ jobs:
           sudo find /tmp/ -type f -name 'status_*.json' -exec cp {} /tmp/merged-badges/ \;
           
           set +e
-          for crawler in "ehentai" "jm"; do
+          for crawler in "ehentai" "jm" "kaobei" "wnacg" "mangabz"; do
             curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "/tmp/merged-badges/status_${crawler}.json" || true
           done
       - name: Deploy to CloudFlare Pages

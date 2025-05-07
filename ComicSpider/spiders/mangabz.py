@@ -11,7 +11,7 @@ domain = "www.mangabz.com"
 
 
 def curr_time_format():
-    return datetime.datetime.now().strftime('%a %b %d %Y %H:%M:%S GMT 0800 (中国标准时间)')
+    return datetime.datetime.now().strftime('%a %b %d %Y %H:%M:%S') + ' GMT 0800 (中国标准时间)'
 
 
 class Body(BodyFormat):
