@@ -3,15 +3,27 @@
 
 saucenao / kemono / nekohouse  
 
-kemono 用 Motrix 下还不错，可以考虑接入 RPC
+<2025-05-11> [Motrix](https://github.com/agalwood/Motrix) yyds!!  
+`kemono` 下载改用 Motrix-PRC ，太稳了！有兴趣看下方 kemono 相关说明  
 
-::: info （鸽）可能以后能整合 Motrix,Redis 进 docker 做
+## ⚠️ 通用前置须知
+
+::: tip 脚本集通用前置安装
+任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
+下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
+ 
+---
+使用 `uv` 安装脚本集依赖 `requirements/script/*.txt`
+```bash
+python -m uv pip install -r "requirements/script/win.txt" --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+```
+绿色包使用的命令为 👇
+```bash
+./runtime/python.exe -m uv pip install -r "./scripts/requirements/script/win.txt" --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+```
 :::
 
-## 须知
-
-### 脚本目录树: `script`目录
-
+::: details 脚本目录树: `script`目录
 ```shell
 utils
   ├── script
@@ -21,17 +33,17 @@ utils
         ├── image  
              ├── __init__.py  
              ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
-             ├── kemono_expander.py   # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
+             ├── expander.py          # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
              ├── nekohouse.py         # 大概就是 kemono 的克隆网站
              ├── saucenao.py          # saucenao 著名的二次元以图搜图网站
 ```
+:::
 
-### 配置文件 `utils/script/conf.yml` （自行创建）
-
+::: details 配置文件 `./scripts/utils/script/conf.yml` （必要❗️自行创建）
 ```yaml
 kemono:
   sv_path: D:\pic\kemono
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://kemono.su/api/schema, F12打开控制台查看cookies, 字段名为 `cookie`
+  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://kemono.su/api/schema, F12打开控制台查看cookies, 字段名为 `session`
   redis_key: kemono
   
 nekohouse:
@@ -45,63 +57,58 @@ redis:
   db: 0
   password:
 ```
-
-### 注意
-
-运行此目录下脚本的部分第三方依赖并不列在`requirements.txt`, 即绿色安装包的python运行环境不足以运行  
-因为设计当初没考虑进GUI主界面功能，是作为能单独运行的脚本集合
-
-此脚本目录下的脚本需要具备些少后端技能如 `redis`
+:::
 
 暂无开发GUI界面打算
 
 ---
-::: tip  
-以下内容 基于以上须知
+::: warning 以下内容 均基于通用前置须知
 :::
 
-## 内容
+## 1. kemono
 
-### 1. kemono
+### 🚀 快速开始
 
-无需代理，基于账号对作者的收藏，运行时指定`作者_平台`，`作品创建时间`，来限制一定量的任务
-（kemono一个png能几十M，不过滤任务几个T都不够用）  
-::: info 过滤补充:  
-`kemono_expander.py` 内置部分作者命名习惯的过滤，例如`keihh_patreon`
+1. 启动 `redis` 服务，打开 `Motrix`
+::: details 2. (可选)增加配置
+```yaml
+kemono:
+  ...
+  filter:                     # 正则过滤
+    Artists:                  # 作品标题过滤
+      normal: "PSD|支援者"     # normal一旦设置则会作为通用的兜底过滤
+      DaikiKase: "支援者様】"   # 单独指定作者过滤规则，作者非纯英文名时需要配合 ArtistsEnum
+    file: "(mp4|zip)$"        # 文件类型过滤
+
+proxies:                      # 设代理访问才算通畅，此处代理设置不影响 Motrix 的下载相关
+  - 127.0.0.1:10809
+```
+:::
+3. 命令行工具参考
+
+::: tip 绿色包使用的命令为 `./runtime/python.exe ./scripts/utils/script/image/kemono.py --help`  
+:::
+
+```bash
+python kemono.py --help
+python kemono.py -c 'fav=[["keihh","fanbox"],"サインこす"]' -sd "2025-03-01"  -ed "2025-05-01"
+python kemono.py -c 'creatorid=[16015726,1145144444444]' -sd "2025-03-01"
+```
+
+### 📒 说明
+
+基于账号收藏 或 作者id，受配置的 filter 所设限制一定量的任务  
+kemono 性质，资源重复多，文件大，基本设置条件过滤才正常  
+
+::: info 过滤扩展:  
+`expander.py` 内置部分作者命名习惯的过滤，例如`keihh_patreon`
 ，其作品通常有无印/v2/v3，而v3会包括无印/v2，这情况就要过滤掉无印/v2  
-鉴于作品集命名杂七杂八的，大概率需要对每一位作者做过滤，引用在 `kemono.py Kemono.step1_tasks_create_by_favorites._filter` 里
-:::
-::: info  
-目录结构及其使用是基于 [comic_viewer](https://github.com/jasoneri/comic_viewer) 项目而调整成这样的
-
-限制文件大小 100Mb 以下，在 `Kemono.file_size_limit`
+鉴于作品集命名杂七杂八的，除通用过滤外可对每一位作者单独增加过滤规则
 :::
 
 ---
 
-#### 运行/操作
-
-启动 `redis` 服务；设置配置如上`conf.yml`内容；
-
-环境：随意`python3`，缺什么包就pip装一下
-
-`python kemono.py` 需要结合注释拆分使用
-
-1. 获取任务
-    ```python
-    loop.run_until_complete(obj.step1_tasks_create_by_favorites(
-        '2024-01-01', ListArtistsInfo(['Gsusart2222'])))
-    loop.run_until_complete(obj.temp_copy_vals(restore=False))
-    ```
-2. 处理任务
-    ```python
-        tasks = loop.run_until_complete(obj.step2_get_tasks())
-        sem = asyncio.Semaphore(7)
-        loop.run_until_complete(obj.step2_run_task(sem, tasks))
-    ```
-
-#### 运行过后所得目录树
-
+::: details 运行过后所得目录树 (目录结构基于 [comic_viewer](https://github.com/jasoneri/comic_viewer))
 ```shell
   kemono_path
     ├── __handle                  # 爬资源本身没有，comic_viewer 项目生成的，处理save/remove
@@ -124,10 +131,11 @@ redis:
     ├── blacklist.json            # 下载过滤名单，避免重复下载用（comic_viewer阅读过后操作会加进去 或 手动添加）
     └── record.txt                # comic_viewer 阅读后操作记录
 ```
+:::
 
 ---
 
-### 2. saucenao 二次元的以图搜图
+## 2. saucenao 二次元的以图搜图
 
 `Danbooru`无需代理，`Yande`（这个指`yande.re`）需要代理，其他图源没做，感觉也没比`Yande`更全更高清的了，
 没代理就去掉`imgur_module`的`Yande`<br>
@@ -153,7 +161,7 @@ saucenao限制30秒搜3张图，有它的账号也才30秒4张没什么好说的
 
 ---
 
-### 3. nekohouse 类似kemono的补充
+## 3. nekohouse 类似kemono的补充
 
 ::: info 除了一些配置等从`kemono`变为`nekohouse`之外，使用方面与`kemono`用法别无二致，参照`kemono`即可
 :::

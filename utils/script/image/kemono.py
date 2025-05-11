@@ -503,7 +503,3 @@ if __name__ == '__main__':
             process.create(**ckw)
             process.run(**rkw)
 
-    """
-python kemono.py -c 'fav=[["keihh","fanbox"],"サインこす"]' -sd "2025-03-01"  -ed "2025-05-01"
-python kemono.py -c 'creatorid=[16015726,1145144444444]' -sd "2025-03-01"
-"""

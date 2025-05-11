@@ -77,8 +77,12 @@ export default defineConfig({
                 text: "配置说明",
                 items: [
                     {
-                        text: "主程序配置",
+                        text: "主配置",
                         link: "/config",
+                    },
+                    {
+                        text: "其他配置",
+                        link: "/config/other",
                     }
                 ]
             },
@@ -86,7 +90,7 @@ export default defineConfig({
                 text: "功能说明",
                 items: [
                     {
-                        text: "常规功能",
+                        text: "主功能",
                         link: "/feature/",
                     },
                     {

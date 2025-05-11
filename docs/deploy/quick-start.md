@@ -15,7 +15,7 @@
 + `python3.12+`
 + 安装 [astral-sh/uv](https://github.com/astral-sh/uv)（然后抛弃 pip ，让 uv 管理依赖）
 ``` bash
-python -m pip install uv --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+python -m pip install uv -i http://mirrors.aliyun.com/pypi/simple/
 ```
 **安装依赖命令示例** （CGS的 `requirements/*.txt` 都是用uv编译的，原生 pip 装你会发现各种麻烦）  
 ``` bash
@@ -45,7 +45,7 @@ python -m uv pip install -r "requirements/win.txt" --index-url http://mirrors.al
 
 ## 3. 配置
 
-有自定义需求的，参考 [🔨配置文档](../config/index.md) 进行设置
+有自定义需求的，参考 [🔨主配置文档](../config/index.md) 进行设置
 
 ## 4. 更新
 
