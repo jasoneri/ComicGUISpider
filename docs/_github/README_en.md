@@ -36,7 +36,7 @@
 | [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
 | [ExHentai](https://exhentai.org/)       |   🌏   |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞<br>need v2.2.0-beta     |  |
-| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒Usage](https://jasoneri.github.io/ComicGUISpider/feature/script)<br>need v2.2.0-beta.2     |  |
+| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒Usage](https://jasoneri.github.io/ComicGUISpider/feature/script)<br>need [v2.2.0-beta.2](https://github.com/jasoneri/ComicGUISpider/releases/tag/v2.2.0-beta.2)     |  |
 
 <hr>
 
