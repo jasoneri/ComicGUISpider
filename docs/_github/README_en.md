@@ -12,6 +12,7 @@
 
   <p align="center">
   <a href="https://jasoneri.github.io/ComicGUISpider/locate/en/">🌐website</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/locate/en/deploy/quick-start">🚀Quick-Start</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦portable-pkg</a>
   </p>
 
@@ -34,7 +35,8 @@
 | [18comic](https://18comic.vip/)         |  :cn:  |           🔞            |      ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json)      |
 | [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
 | [ExHentai](https://exhentai.org/)       |   🌏   |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
-| [hitomi](https://hitomi.la/)     | 🌏 |     🔞     | v2.2.0-beta |
+| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | v2.2.0-beta |
+| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒Usage](https://jasoneri.github.io/ComicGUISpider/feature/script)     |  |
 
 <hr>
 
@@ -66,25 +68,7 @@ Or using env of portable package:
 
 ## 🔨 Configuration
 
-![](../assets/img/config/conf_usage_en.png)
-
-<details>
-<summary>Config Details</summary>
-
-| Yaml-Field         | Default      | Description                          |
-|:--------------|:------------|:-------------------------------------|
-| sv_path  | D:\comic    | Download directory                  |
-| log_level     | WARNING     | Log verbosity                       |
-| isDeduplicate | false       | Auto-skip downloaded content (🔞)   |
-| addUuid       |    false   | Add uuid set end of the title durning folder naming |
-| proxies         | -           | Proxy settings                     |
-| custom_map         | -           | -                     |
-| completer         | -           | Completer of search-input |
-| eh_cookies    | -           | Required for ExHentai<br>[🔗view how to gei it](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)<br>[🔗Tool Website](https://tool.lu/en_US/curl/)             |
-| clip_db    | -           |  [Ditto](https://github.com/sabrogden/Ditto) or [Maccy](https://github.com/p0deje/Maccy) 's local db path |
-| clip_read_num    | 20           | - |
-
-</details>
+[🔨Configuration](https://jasoneri.github.io/ComicGUISpider/locate/en/config)
 
 ## 🔇 Disclaimer
 
