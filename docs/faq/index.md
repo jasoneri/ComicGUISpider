@@ -2,9 +2,10 @@
 
 ## 1. GUI
 
-### 预览窗口选择页面有时一行只有一列/显示有问题/页面空白
+### 预览窗口页面显示异常/页面空白/图片加载等
 
-JavaScript 没加载出来，刷新一下页面
+刷新一下页面  
+有些是 JavaScript 没加载，有些是对方服务器问题  
 
 ## 2. 爬虫
 
@@ -58,5 +59,5 @@ macOS: 用`CGS-init`更新环境依赖
 ::: warning 如果存在上述没有覆盖的问题
 请带上 `log` 到 [issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
-) 反馈 或 进群反馈。
+) 反馈 或 [进群反馈](https://qm.qq.com/q/T2SONVQmiW)。
 :::

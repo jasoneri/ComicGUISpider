@@ -1,4 +1,4 @@
-# 🔨 配置
+# 🔨 主配置
 
 ![conf](../assets/img/config/conf_usage.png)
 
@@ -54,7 +54,7 @@
 ### eh_cookies / `eh_cookies`
 
 使用`exhentai`时必需  
-[🎬获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)  ([ 国内备链 ](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif))  
+[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif)  
 [🔗动图中的curl转换网站](https://tool.lu/curl/)
 
 ### 剪贴板db / `clip_db`
