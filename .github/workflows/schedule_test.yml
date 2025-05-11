@@ -116,7 +116,7 @@ jobs:
           sudo find /tmp/ -type f -name 'status_*.json' -exec cp {} /tmp/merged-badges/ \;
           
           set +e
-          for crawler in "ehentai" "jm" "kaobei" "wnacg" "mangabz"; do
+          for crawler in "ehentai" "jm"; do
             curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "/tmp/merged-badges/status_${crawler}.json" || true
           done
       - name: Deploy to CloudFlare Pages
