@@ -183,6 +183,8 @@ class SPIDER:
         frame_book_print_retry_tip = _('SPIDER.SayToGui.frame_book_print_retry_tip')
         frame_section_print_extra = _('SPIDER.SayToGui.frame_section_print_extra')
 
+    chooseInput_flag = _('SPIDER.chooseInput_flag')
+    sectionInput_flag = _('SPIDER.sectionInput_flag')
     search_url_head_NotImplementedError = _('SPIDER.search_url_head_NotImplementedError')
     choice_list_before_turn_page = _('SPIDER.choice_list_before_turn_page')
     parse_step = _('SPIDER.parse_step')

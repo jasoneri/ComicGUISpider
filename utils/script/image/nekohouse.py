@@ -196,8 +196,8 @@ class Nekohouse:
         async def _filter(posts):
             valid_posts = list(filter(lambda _: time_format(_.get('published')) >= interrupt, posts))
             """get filter from kemono_expander.Artists etc."""
-            from utils.script.image.kemono_expander import Artists
-            valid_posts = Artists.normal(valid_posts)
+            from utils.script.image.expander import Artists
+            valid_posts = Artists.base_process(valid_posts)
             flag = True if not valid_posts and all(map(lambda _: time_format(_.get('published')) < interrupt, posts)) \
                 else False
             return valid_posts, flag

@@ -90,7 +90,7 @@ class QueueHandler:
 class GuiQueuesManger(QueuesManager):
     queue_port: int = None
 
-    def create_server_manager(self):
+    def create_server_manager(self, **extra):
         InputFieldQueue = Queue()
         TextBrowserQueue = Queue(2)
         ProcessQueue = Queue()
@@ -101,8 +101,10 @@ class GuiQueuesManger(QueuesManager):
         QueuesManager.register('ProcessQueue', callable=lambda: ProcessQueue)  # 爬虫 > GUI
         QueuesManager.register('BarQueue', callable=lambda: BarQueue)  # 爬虫 > GUI.thread
         QueuesManager.register('TasksQueue', callable=lambda: TasksQueue)  # 爬虫 > GUI.thread
-        manager = QueuesManager(address=('0.0.0.0', self.queue_port), authkey=b'abracadabra')
-        self.s = manager.get_server()
+        for k, w in extra.items():
+            QueuesManager.register(k, lambda: w)
+        self.manager = QueuesManager(address=('0.0.0.0', self.queue_port), authkey=b'abracadabra')
+        self.s = self.manager.get_server()
         self.s.serve_forever()
 
     def find_free_port(self, start_port=50000):

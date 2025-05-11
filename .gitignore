@@ -183,7 +183,7 @@ assets/res/*.png
 *.qrc
 src/
 temp
-requirements-in.txt
+*-in.txt
 untitled*
 Pipfile
 Pipfile.lock
