@@ -1,0 +1,1 @@
+import{_ as e,c as a,o as t,aj as o}from"./chunks/framework.CLcCQpUA.js";const m=JSON.parse('{"title":"📒 额外使用说明","description":"","frontmatter":{},"headers":[],"relativePath":"faq/extra.md","filePath":"faq/extra.md"}'),c={name:"faq/extra.md"},d=o("",7),r=[d];function i(s,_,n,l,p,h){return t(),a("div",null,r)}const x=e(c,[["render",i]]);export{m as __pageData,x as default};
