@@ -10,7 +10,7 @@ from utils.processed_class import Url
 from utils.website import KaobeiUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
-domain = "api.mangacopy.com"
+domain = "mapi.copy20.com"
 
 
 class FrameBook:
@@ -58,7 +58,7 @@ class KaobeiSpider(BaseComicSpider):
         "version": "2024.01.08",
         "webp": "1",
         "region": "1",
-        "Origin": "https://www.mangacopy.com",
+        "Origin": "https://www.copy20.com",
     }
     domain = domain
     custom_settings = {
@@ -105,7 +105,7 @@ class KaobeiSpider(BaseComicSpider):
                 for attr_name, _path in self.preset_book_frame.rendering_map().items()
             }
             # url = rf"""https://{self.domain}/api/v3/comic/{rendered.pop('book_path')}/group/default/chapters?limit=300&offset=0&_update=false"""
-            url = rf"""https://mangacopy.com/comicdetail/{rendered.pop('book_path')}/chapters"""
+            url = rf"""https://www.copy20.com/comicdetail/{rendered.pop('book_path')}/chapters"""
             self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
             frame_results[index + 1] = [url, rendered['漫画名'], response.url]
         return self.say.frame_book_print(
