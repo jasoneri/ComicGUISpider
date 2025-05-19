@@ -80,8 +80,6 @@ GUI:
     confDia_promote_title: "Recommended VPN"
     confDia_promote_content: "need VPN?"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
-    confDia_feedback_group: "Discord?"
-    confDia_feedback_group_copied: "If want, take an issue"
     confDia_support_content: "Donations will use to buy domain etc.."
     hitomiTools_tip_search: "search selected tags in website"
     hitomiTools_tip_sv: "save to custom presets"

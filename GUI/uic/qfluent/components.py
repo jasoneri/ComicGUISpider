@@ -1,11 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import re
-from PyQt5 import QtCore, QtWidgets
+from enum import Enum
+from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon
 from qfluentwidgets import (
-    TransparentToolButton, TransparentPushButton, HyperlinkButton, FluentIcon, 
+    TransparentToolButton, HyperlinkButton, FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar,
     MessageBoxBase, TextBrowser, BodyLabel, SubtitleLabel, 
@@ -104,19 +105,18 @@ class CustomMessageBox(MessageBoxBase):
         self.show()
 
 
+class CustomIcon(FluentIconBase, Enum):
+    DISCORD = "configDialog/discord"
+    QQ = "configDialog/qq"
+    
+    def path(self, theme=Theme.AUTO):
+        return f':/{self.value}.svg'
+
+
 class SupportView(FlyoutViewBase):
     closed = pyqtSignal()  # 添加closed信号
     res = res.GUI.Uic
     
-    def _copy_group(self):
-        clipboard = QtWidgets.QApplication.clipboard()
-        clipboard.setText(self.res.confDia_feedback_group)
-        InfoBar.success(
-            title='', content=self.res.confDia_feedback_group_copied,
-            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-            duration=2500, parent=self.conf_dia
-        )
-        
     def __init__(self, proj_url, conf_dia=None):
         super(SupportView, self).__init__(conf_dia)
         self.conf_dia = conf_dia
@@ -125,13 +125,14 @@ class SupportView(FlyoutViewBase):
         self.titleLayout = QtWidgets.QHBoxLayout()
         # self.titleLayout.setContentsMargins(8, 0, 8, 0)
         self.githubBtn = HyperlinkButton(FluentIcon.GITHUB, proj_url, "Github")
-        self.feedbackBtn = TransparentPushButton(FluentIcon.CHAT, self.res.confDia_feedback_group)
-        self.feedbackBtn.clicked.connect(self._copy_group)
+        self.qqGroupBtn = HyperlinkButton(CustomIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
+        self.discordBtn = HyperlinkButton(CustomIcon.DISCORD, "https://discord.gg/XAnraEru", "Discord")
         spacerItem = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
         self.closeBtn.clicked.connect(self.closed)
         self.titleLayout.addWidget(self.githubBtn)
-        self.titleLayout.addWidget(self.feedbackBtn)
+        self.titleLayout.addWidget(self.qqGroupBtn)
+        self.titleLayout.addWidget(self.discordBtn)
         self.titleLayout.addItem(spacerItem)
         self.titleLayout.addWidget(self.closeBtn)
         
