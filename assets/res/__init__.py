@@ -147,8 +147,6 @@ class GUI:
         confDia_promote_title = _('GUI.Uic.confDia_promote_title')
         confDia_promote_content = _('GUI.Uic.confDia_promote_content') 
         confDia_promote_url = _('GUI.Uic.confDia_promote_url')
-        confDia_feedback_group = _('GUI.Uic.confDia_feedback_group')
-        confDia_feedback_group_copied = _('GUI.Uic.confDia_feedback_group_copied')
         confDia_support_content = _('GUI.Uic.confDia_support_content')
         hitomiTools_tip_search = _('GUI.Uic.hitomiTools_tip_search')
         hitomiTools_tip_sv = _('GUI.Uic.hitomiTools_tip_sv')
