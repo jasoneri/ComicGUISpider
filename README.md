@@ -36,8 +36,8 @@
 | [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
-| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞<br>需[v2.2.0-beta+](https://github.com/jasoneri/ComicGUISpider/releases)     |  |
-| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feature/script)<br>需[v2.2.0-beta.2+](https://github.com/jasoneri/ComicGUISpider/releases/tag/v2.2.0-beta.2)     |  |
+| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
+| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feature/script)     |  |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -50,19 +50,26 @@
 
 ## 📢更新
 
-> <✅20250513> 开发版 [v2.2.0-beta.3](https://github.com/jasoneri/ComicGUISpider/releases/tag/v2.2.0-beta.3) 已发布  
-
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
 #### 🎁 Features
 
-✅ 支持 i18n , 软件启动时取值，当 `python -c 'import locale;print(locale.getlocale())'` 为 `Chinese (Simplified)`时  
-视为简中环境 `zh-CN` ，否则一律转换成 `en-US`  
-✅ 增加贡献指南等，文档优化，为 `github page` 做准备
+✅ hitomi 支持，有一丢丢黑科技 CGS 内有提示  
+&emsp;✅ 内置 hitomi-tools  
+&emsp;🔳 数据集下载自动化/更新等，方式待定  
+&emsp;🔳 读剪贴板功能开发中  
+&emsp;🔳 优化速度，翻页等  
+✅ Kemono 脚本集更新，详阅[📒相关说明](https://jasoneri.github.io/ComicGUISpider/feature/script)
 
 #### 🐞 Fix
 
-✅ 优化输入框预设相关功能  
+✅ 页数命名优化：更改为纯数字补零命名，附带可选 [文件命名后缀修改](https://jasoneri.github.io/ComicGUISpider/config/#其他-yml-字段)  
+✅ i18n 自动编译优化  
+✅ 使用 astral-sh/uv 管理依赖，优化更新模块  
+✅ 拷贝换了域名  
+✅ 修复 jm 读剪贴板部分解析错误  
+✅ 优化命令行工具的发文等待，替换为循环检测信号，一旦触发即时发文  
+✅ 其他小优化  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
