@@ -59,5 +59,7 @@ macOS: 用`CGS-init`更新环境依赖
 ::: warning 如果存在上述没有覆盖的问题
 请带上 `log` 到 [issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
-) 反馈 或 [进群反馈](https://qm.qq.com/q/T2SONVQmiW)。
+) 反馈 或 进群(右上角qq/discord)反馈。
 :::
+
+<iframe src="https://discord.com/widget?id=1373740034536112138&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
