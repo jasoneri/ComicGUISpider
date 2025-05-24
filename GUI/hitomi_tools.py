@@ -176,7 +176,15 @@ class HitomiTools(FramelessWindow):
             ('https://mzh.moegirl.org/index.php?search=', '萌娘百科'),
             ('https://myanimelist.net/search/all?q=', 'MyAnimeList'),
             ('https://www.anime-planet.com/', 'Anime-Planet'),
+            ('https://danbooru.donmai.us/posts?tags=', 'Danbooru'),
+            ('https://rule34.xxx/index.php?page=post&s=list&tags=', 'Rule34'),
         ]
+        if self.category.currentText() == 'artist':
+            sites = [
+                ('https://www.pixiv.net/search/users?s_mode=s_usr&nick=', 'Pixiv'),
+                ('https://danbooru.donmai.us/posts?tags=', 'Danbooru'),
+                ('https://rule34.xxx/index.php?page=post&s=list&tags=', 'Rule34'),
+            ]
         for site, name in sites:
             entry = self.entry.currentText()
             current_site = site
@@ -364,7 +372,6 @@ class HitomiTools(FramelessWindow):
                     target=self.gui.output_num,
                     position=InfoBadgePosition.RIGHT
                 )
-
 
     def update_output(self):
         self.output_mgr.update()        
