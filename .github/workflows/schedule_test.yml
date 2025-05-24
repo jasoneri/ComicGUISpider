@@ -4,7 +4,7 @@ permissions:
   pull-requests: write
 on:
   schedule:
-    - cron: '0 4 */5 * *'  # UTC 4 == +8 12:00
+    - cron: '0 4 */4 * *'  # UTC 4 == +8 12:00
   workflow_dispatch:
 
 jobs:
@@ -127,3 +127,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           wrangler pages deploy /tmp/merged-badges/ --project-name=cgs-status-badges --branch=main
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 5
