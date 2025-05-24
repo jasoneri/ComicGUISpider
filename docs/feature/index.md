@@ -4,7 +4,7 @@
 
 > [!Info] 没列出的功能全网适用  
 
-|  |  [拷贝](https://www.mangacopy.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) |
+|  |  [拷贝](https://www.copy20.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) |
 |:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----------:|:----------:|
 | 预览 | ❌ |     ❌ | ✔️ | ✔️ | ✔️ | ✔️ |
 | 翻页 | ✔️ |     ✔️ | ✔️ | ✔️ | ✔️<br>禁跳页 | ✔️/🚧 |
