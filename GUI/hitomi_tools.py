@@ -3,20 +3,37 @@ from contextlib import closing
 import urllib.parse as up
 from PyQt5.QtCore import Qt, QUrl, QTimer
 from PyQt5.QtGui import QGuiApplication, QStandardItemModel, QStandardItem, QDesktopServices
-from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QListView, QComboBox, QFrame
+from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QComboBox, QFrame
 from qfluentwidgets import (
     ComboBox, VBoxLayout, RoundMenu, Action,
     PrimaryToolButton, ToolButton, DropDownToolButton, TransparentToolButton, 
     TransparentToggleToolButton, TransparentTogglePushButton,
     TitleLabel, StrongBodyLabel, FluentIcon as FIF,
     InfoBadgePosition, InfoBadge, ToolTipFilter, ToolTipPosition, 
-    InfoBar, InfoBarPosition
+    InfoBar, InfoBarPosition, ListView
 )
 from qframelesswindow import FramelessWindow
 
 from assets import res
 from variables import DEFAULT_COMPLETER
 from utils import ori_path, conf
+
+
+class CustomComboBox(QComboBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._list_view = None
+        
+    def setView(self, view):
+        self._list_view = view
+        super().setView(view)
+
+    def eventFilter(self, obj, event):
+        if obj == self._list_view and (event.type() == event.MouseButtonPress or event.type() == event.MouseButtonRelease):
+            viewport = self._list_view.viewport()
+            if event.pos().x() > viewport.width() - self._list_view.verticalScrollBar().width():
+                return True
+        return super().eventFilter(obj, event)
 
 
 class HitomiTools(FramelessWindow):
@@ -94,7 +111,7 @@ class HitomiTools(FramelessWindow):
         # Second row
         second_row = QHBoxLayout()
         self.entry_label = StrongBodyLabel('tag:')
-        self.entry = QComboBox()
+        self.entry = CustomComboBox()
         self.entry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         second_row.addWidget(self.entry_label)
         second_row.addWidget(self.entry)
@@ -173,9 +190,9 @@ class HitomiTools(FramelessWindow):
     def set_dataset(self):
         self.query_cache = {}
         self.model_cache = {}
-        list_view = QListView()
-        list_view.setUniformItemSizes(True)
-        self.entry.setView(list_view)
+        self.list_view = ListView()
+        self.entry.setView(self.list_view)
+        self.list_view.installEventFilter(self.entry)
     
     def toggle_remove(self):
         """ban category/letter/sub_selector"""
