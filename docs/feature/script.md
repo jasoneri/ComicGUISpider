@@ -4,7 +4,7 @@
 saucenao / kemono / nekohouse  
 
 <2025-05-11> [Motrix](https://github.com/agalwood/Motrix) yyds!!  
-`kemono` 下载改用 Motrix-PRC ，太稳了！有兴趣看下方 kemono 相关说明  
+`kemono` 下载改用 Motrix-PRC ，太稳了！有兴趣看下方 kemono 等相关说明  
 
 ## ⚠️ 通用前置须知
 
@@ -93,6 +93,9 @@ proxies:                      # 设代理访问才算通畅，此处代理设置
 python kemono.py --help
 python kemono.py -c 'fav=[["keihh","fanbox"],"サインこす"]' -sd "2025-03-01"  -ed "2025-05-01"
 python kemono.py -c 'creatorid=[16015726,1145144444444]' -sd "2025-03-01"
+
+# 部分失败任务的补漏命令 👇
+python kemono.py -p run
 ```
 
 ### 📒 说明
@@ -100,7 +103,7 @@ python kemono.py -c 'creatorid=[16015726,1145144444444]' -sd "2025-03-01"
 基于账号收藏 或 作者id，受配置的 filter 所设限制一定量的任务  
 kemono 性质，资源重复多，文件大，基本设置条件过滤才正常  
 
-::: info 过滤扩展:  
+::: tip 过滤扩展:  
 `expander.py` 内置部分作者命名习惯的过滤，例如`keihh_patreon`
 ，其作品通常有无印/v2/v3，而v3会包括无印/v2，这情况就要过滤掉无印/v2  
 鉴于作品集命名杂七杂八的，除通用过滤外可对每一位作者单独增加过滤规则
@@ -152,7 +155,7 @@ saucenao限制30秒搜3张图，有它的账号也才30秒4张没什么好说的
 1. 随意创建个目录例如 `D:\pic`，丢几张图进去，脚本的`get_hd_img`的位置实参改成该目录，然后跑脚本`python saucenao.py`
 2. 成功后会保存在`D:\pic\hd`里，对照下文件大小之类的，合适就回去把原文件删了（不然下次跑会重复做前面的任务）
 
-// # TODO(2024-10-02): 重复任务用pathlib.exists()查一下hd文件夹内的，并用saucenao.json记录数据
+// # TODO[9](2024-10-02): 重复任务用pathlib.exists()查一下hd文件夹内的，并用saucenao.json记录数据
 
 ::: tip 进阶：
 可以在很多图像的目录上运行脚本，只要在`get_hd_img`加上参数`first='a.png'`，就会以`文件大小`的`顺序`从`a.png`开始进行搜图  

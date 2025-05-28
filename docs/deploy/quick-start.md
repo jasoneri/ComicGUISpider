@@ -57,3 +57,10 @@ python -m uv pip install -r "requirements/win.txt" --index-url http://mirrors.al
 + 也可以选择到 releases 手动下载最新版，但需要注意配置等文件不被覆盖丢失
 ::: tip 分别是 配置文件 `scripts/conf.yml` 与去重记录 `scripts/record.db`
 :::
+
+## 5. 其他
+
+CGS 有不少设置是围绕 comic_viewer 而定的，这是我个人平时自用的局域网手机阅读工具  
+欢迎尝试使用，也希望能提供些有创意的功能想法！💑
+
+[![点击前往comic_viewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer&theme=one_dark_pro)](https://github.com/jasoneri/comic_viewer)
