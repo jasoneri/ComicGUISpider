@@ -1,10 +1,14 @@
 # 🎸 常规功能
 
+::: tip 欢迎提供功能建议，提交issue / PR / 此页下方评论区留言 等  
+例如打包 epub 格式 zip（需描述过程结果）
+:::
+
 ## 适用性
 
 > [!Info] 没列出的功能全网适用  
 
-|  |  [拷贝](https://www.mangacopy.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) |
+|  |  [拷贝](https://www.copy20.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) |
 |:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----------:|:----------:|
 | 预览 | ❌ |     ❌ | ✔️ | ✔️ | ✔️ | ✔️ |
 | 翻页 | ✔️ |     ✔️ | ✔️ | ✔️ | ✔️<br>禁跳页 | ✔️/🚧 |

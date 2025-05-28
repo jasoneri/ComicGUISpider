@@ -1,7 +1,7 @@
 # 💻 macOS( mac 操作系统) 部署
 
 > [!Info] WantHelp!
-> 寻找一位 `mac—arm64` 开发者维护 `mac` 应用（本渣配置台式开始跑不动 `mac` 虚拟机了） [查看详情](
+> 寻找 `mac—arm64` 开发者维护 `mac` 应用（本渣配置台式开始跑不动 `mac` 虚拟机了） [查看详情](
   https://github.com/jasoneri/ComicGUISpider/issues/35)
 
 ## 🚩 前置架构相关
@@ -60,13 +60,20 @@ macOS 仅需下载 `CGS-macOS`压缩包
 ### 针对弹窗报错的尝试
 
 ```bash
-# arm64 CGS.app显示损坏无法打开时
+# arm64 CGS.app显示损坏无法打开时，尝试绕过签名 
+sudo xattr -d com.apple.quarantine /Applications/CGS.app
+# 或
+sudo xattr -r -d com.apple.quarantine /Applications/CGS.app
+
+# 或直接运行
 /opt/homebrew/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
 # 或
 /usr/local/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
 ```
 
-::: info 都失败的话可先自行deepseek等寻找方法 / 群内反馈
+::: tip 还是失败无果的情况下可先自行deepseek等寻找方法或群内反馈  
+除上述命令外的成功命令示例请在下方评论区留言，造福后人  
+格式：1.报错信息;2.解决方案;3.结果
 :::
 
 ### 更新相关
