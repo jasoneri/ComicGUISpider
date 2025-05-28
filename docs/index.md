@@ -23,7 +23,7 @@ hero:
 features:
   - icon:
       src: ./assets/img/icons/website/copy.png
-    title: '<a href="https://www.mangacopy.com/" target="_blank">拷贝漫画</a>'
+    title: '<a href="https://www.copy20.com/" target="_blank">拷贝漫画</a>'
     details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json">'
   - icon:
       src: ./assets/img/icons/website/mangabz.png
