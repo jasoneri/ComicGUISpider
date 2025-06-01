@@ -100,6 +100,9 @@ jobs:
   deploy-job:
     needs: test-suite
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4

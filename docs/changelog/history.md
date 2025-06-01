@@ -2,6 +2,14 @@
 
 > [!Info] 此页面会忽略修复动作相关的记录，含引导意义的条目除外
 
+#### v2.2.0 | ~ 2025-05-20
+
++ hitomi 支持（部分）
++ Kemono 脚本集更新（下载引擎使用强大的 `Motrix-PRC`）  
++ 页数命名优化：更改为纯数字补零命名，附带可选 [文件命名后缀修改](https://jasoneri.github.io/ComicGUISpider/config/#其他-yml-字段)  
++ i18n 自动编译优化  
++ 使用 astral-sh/uv 管理依赖
+
 #### v2.1.3 | ~ 2025-04-19
 
 + 支持 i18n  

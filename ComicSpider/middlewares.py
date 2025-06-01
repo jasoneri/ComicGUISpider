@@ -53,6 +53,20 @@ class UAMiddleware(ComicspiderDownloaderMiddleware):
         return None
 
 
+class UAKaobeiMiddleware(ComicspiderDownloaderMiddleware):
+    def process_request(self, request, spider):
+        if request.url.find(spider.pc_domain) != -1:
+            ua = getattr(spider, 'ua', {})
+            if request.url.endswith('/chapters'):
+                ua.update({'Referer': f'https://{spider.pc_domain}/comic/{request.url.split("/")[-2]}'})
+            else:
+                ua.update({'Referer': "/".join(request.url.split("/")[:-2])})
+            request.headers.update(ua)
+        else:
+            request.headers.update(getattr(spider, 'ua_mapi', {}))
+        return None
+
+
 class MangabzUAMiddleware(UAMiddleware):
     def process_request(self, request, spider):
         if request.method == "POST":
