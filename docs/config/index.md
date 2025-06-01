@@ -13,7 +13,7 @@
 ### 存储路径 / `sv_path`
 
 下载目录  
-目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`comic_viewer`](https://github.com/jasoneri/comic_viewer) 项目所以这样设置的
+目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`redViewer`](https://github.com/jasoneri/redViewer) 项目所以这样设置的
 
 ### 日志等级 / `log_level`
 
