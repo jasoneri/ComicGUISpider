@@ -126,6 +126,7 @@ SPIDER:
   close_check_log_guide2: "2. For non-network issues: Restart > Adjust config > Set log level to DEBUG > Reproduce error"
   close_check_log_guide3: "3. If same error persists, submit issue"
   ERO_BOOK_FOLDER: "Doujinshi"
+  PUBLISH_INVALID: "<a href=\"%s\">Release page</a> inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution"
   DOMAINS_INVALID: "<a href=\"%s\">Release page</a> domains %s inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution"
 
 Updater:
