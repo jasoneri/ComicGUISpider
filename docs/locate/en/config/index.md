@@ -12,7 +12,7 @@
 ### Save Path / `sv_path`
 
 Download directory  
-The `web` folder in the directory structure is because the default association with the [`comic_viewer`](https://github.com/jasoneri/comic_viewer) project is set like this
+The `web` folder in the directory structure is because the default association with the [`redViewer`](https://github.com/jasoneri/redViewer) project is set like this
 
 ### LogLevel / `log_level`
 

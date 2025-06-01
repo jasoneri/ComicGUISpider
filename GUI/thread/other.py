@@ -9,7 +9,7 @@ from qfluentwidgets import (
 
 from assets import res
 from utils import conf, curr_os, ori_path
-from utils.comic_viewer_tools import combine_then_mv, show_max
+from utils.redViewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
 from GUI.hitomi_tools import HitomiTools

@@ -54,26 +54,27 @@
 
 #### 🎁 Features
 
-✅ hitomi 支持，有一丢丢黑科技 CGS 内有提示  
-&emsp;✅ 内置 hitomi-tools  
+🔳 hitomi  
 &emsp;🔳 数据集下载自动化/更新等，方式待定  
 &emsp;🔳 读剪贴板功能开发中  
 &emsp;🔳 优化速度，翻页等  
-✅ Kemono 脚本集更新，详阅[📒相关说明](https://jasoneri.github.io/ComicGUISpider/feature/script)
 
 #### 🐞 Fix
 
-✅ 页数命名优化：更改为纯数字补零命名，附带可选 [文件命名后缀修改](https://jasoneri.github.io/ComicGUISpider/config/#其他-yml-字段)  
-✅ i18n 自动编译优化  
-✅ 使用 astral-sh/uv 管理依赖，优化更新模块  
-✅ 拷贝换了域名  
-✅ 修复 jm 读剪贴板部分解析错误  
-✅ 优化命令行工具的发文等待，替换为循环检测信号，一旦触发即时发文  
-✅ 其他小优化  
+✅ 拷x恢复 🙊  
+✅ jm 发布页( WinError 10054 )问题处理详情看软件内 jm 提示，同时本地缓存统一改为48小时，🔜[相关参考指引](https://jasoneri.github.io/ComicGUISpider/faq/extra.html#_2-%E5%9F%9F%E5%90%8D%E7%9B%B8%E5%85%B3)  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
+
+## 🍮食用搭配(阅读器)
+
+完全适配 CGS 而制，取(改)了独特的名字 `RedViewer (RV)`  
+加上最近对其手撕了几十个 commit 血改，还在更新中！所以再次推上  
+
+[![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)
+
 
 ## 💝CGS的部分实现依赖于以下开源项目
 

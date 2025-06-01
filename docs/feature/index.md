@@ -45,12 +45,12 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 #### 4.2 显示记录
 
-需配合 [comic_viewer项目](https://github.com/jasoneri/comic_viewer) 使用，用其阅读后产生的记录文件能知道从哪一话开始下起
+需配合 [redViewer项目](https://github.com/jasoneri/redViewer) 使用，用其阅读后产生的记录文件能知道从哪一话开始下起
 
 #### 4.3 整合章节
 
 批量整合，例如将`D:\Comic\蓝箱\165\第1页`整合转至`D:\Comic\web\蓝箱_165\第1页`  
-> [!Info] 使用comic_viewer项目需要此目录结构
+> [!Info] 使用redViewer项目需要此目录结构
 
 #### 4.4 hitomi-tools
 

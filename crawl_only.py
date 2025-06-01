@@ -159,10 +159,7 @@ if __name__ == '__main__':
         raise e
     p_crawler_kwargs = {"LOG_LEVEL": args.log_level, "LOG_FILE": None}
     if args.daily_test:
-        p_crawler_kwargs.update({
-            "CLOSESPIDER_PAGECOUNT": 20,
-            "CLOSESPIDER_ITEMCOUNT": 13,
-        })
+        p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 20,"CLOSESPIDER_ITEMCOUNT": 13,})
         if spider_choice == 6:
             p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 60, "CLOSESPIDER_ITEMCOUNT": 60})
     p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port), kwargs=p_crawler_kwargs)

@@ -3,7 +3,7 @@
 ![conf](../assets/img/config/conf_usage.png)
 
 ::: info 配置文件为初始使用后产生的 `scripts/conf.yml`  
-有关生效时间节点请查阅 [📒额外使用说明第一条](../faq/extra.md#_1-配置生效相关)  
+有关生效时间节点请查阅 [📒配置生效相关](../faq/extra.md#_1-配置生效相关)  
 :::
 ::: warning 多行的编辑框输入为 `yaml` 格式（除了 eh_cookies ），冒号后要加一个⚠️ `空格` ⚠️  
 :::
@@ -13,7 +13,7 @@
 ### 存储路径 / `sv_path`
 
 下载目录  
-目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`comic_viewer`](https://github.com/jasoneri/comic_viewer) 项目所以这样设置的
+目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`redViewer`](https://github.com/jasoneri/redViewer) 项目所以这样设置的
 
 ### 日志等级 / `log_level`
 

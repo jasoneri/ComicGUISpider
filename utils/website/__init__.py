@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
 from assets import res
-from utils import md5, ori_path
+from utils import md5, ori_path, conf
 from utils.website.core import EroUtils, Req, Utils, Cookies, retry, set_author_ahead
 from utils.website.hitomi import HitomiUtils
 
@@ -25,8 +25,13 @@ class JmUtils(EroUtils, Req):
     publish_url = "https://jm365.work/mJ8rWd"
     status_forever = True
     status_publish = True
+    publish_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+    }
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
         'Connection': 'keep-alive',
@@ -110,6 +115,28 @@ class JmUtils(EroUtils, Req):
     def get_cli(cls, conf):
         cli = httpx.Client(headers={**cls.book_hea, 'Referer': f"https://{cls.get_domain()}"})
         return cli
+
+    @classmethod
+    def by_publish(cls):
+        sess = httpx.Client(headers=cls.publish_headers,transport=httpx.HTTPTransport(retries=2))
+        resp = sess.get(cls.publish_url)
+        while True:
+            try:
+                if str(resp.status_code).startswith('3') and resp.headers.get('location'):
+                    if resp.status_code == 302:
+                        transport=dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
+                        with httpx.Client(headers=cls.publish_headers,transport=httpx.HTTPTransport(**transport),verify=False) as cli:
+                            resp = cli.get(resp.headers.get('location'))
+                    else:
+                        resp = sess.get(resp.headers.get('location'))
+                elif str(resp.status_code).startswith('2'):
+                    return cls.parse_publish(resp.text)
+            except Exception as e:
+                break
+        cls.status_publish = False
+        raise ConnectionError(
+            res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
+        )
 
     @classmethod
     def parse_publish_(cls, html_text):
