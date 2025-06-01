@@ -58,9 +58,8 @@ python -m uv pip install -r "requirements/win.txt" --index-url http://mirrors.al
 ::: tip 分别是 配置文件 `scripts/conf.yml` 与去重记录 `scripts/record.db`
 :::
 
-## 5. 其他
+## 5. 搭配阅读器
 
-CGS 有不少设置是围绕 comic_viewer 而定的，这是我个人平时自用的局域网手机阅读工具  
-欢迎尝试使用，也希望能提供些有创意的功能想法！💑
+欢迎尝试使用 redViewer ，最适 CGS ！也希望能提供有创意的功能想法给 RV ！💑
 
-[![点击前往comic_viewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=comic_viewer&theme=one_dark_pro)](https://github.com/jasoneri/comic_viewer)
+[![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)

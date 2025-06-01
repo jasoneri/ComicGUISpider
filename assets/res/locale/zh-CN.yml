@@ -46,7 +46,7 @@ GUI:
   ToolMenu:
     action1: "显示已阅最新话数记录"
     action2: "整合章节并移至web目录"
-    action2_warning: "未配合[comic_viewer]项目产生记录文件[%s]，\n功能无法正常使用"
+    action2_warning: "未配合[redViewer]项目产生记录文件[%s]，\n功能无法正常使用"
     action_ero1: "读取剪贴板创建匹配任务列表"
     combined_tip: "已将%s整合章节并转换至[%s]"
   Uic:

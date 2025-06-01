@@ -46,7 +46,7 @@ GUI:
   ToolMenu:
     action1: "Display Latest Read Chapter Records"
     action2: "Consolidate Chapters & Move to Web Directory"
-    action2_warning: "Missing [%s] record file from [comic_viewer] project - functionality disabled"
+    action2_warning: "Missing [%s] record file from [redViewer] project - functionality disabled"
     action_ero1: "Create Tasks from Clipboard"
     combined_tip:  "Make %s Chapters merged and move to [%s]"
   Uic:

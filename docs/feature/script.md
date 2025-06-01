@@ -111,11 +111,11 @@ kemono 性质，资源重复多，文件大，基本设置条件过滤才正常
 
 ---
 
-::: details 运行过后所得目录树 (目录结构基于 [comic_viewer](https://github.com/jasoneri/comic_viewer))
+::: details 运行过后所得目录树 (目录结构基于 [redViewer](https://github.com/jasoneri/redViewer))
 ```shell
   kemono_path
-    ├── __handle                  # 爬资源本身没有，comic_viewer 项目生成的，处理save/remove
-    ├── __sorted_record           # 文件/图片下载时无序也不再是第n页这种命名，此时生成任务时记录列表顺序，用于 comic_viewer 人类顺序阅读使用
+    ├── __handle                  # 爬资源本身没有，redViewer 项目生成的，处理save/remove
+    ├── __sorted_record           # 文件/图片下载时无序也不再是第n页这种命名，此时生成任务时记录列表顺序，用于 redViewer 人类顺序阅读使用
           └── a5p74od3_fanbox
                ├── [2023-01-01]今年もよろしくお願いします。.json    # 作品集顺序记录
     
@@ -131,8 +131,8 @@ kemono 性质，资源重复多，文件大，基本设置条件过滤才正常
                     ├── 85fe7ae7-dfea-4ef2-816d-46f378ee2f80.png    # 该作品集的一个文件/图片
                     ├── c57e9b35-608f-471f-8a34-2e56ead4dc70.png
     
-    ├── blacklist.json            # 下载过滤名单，避免重复下载用（comic_viewer阅读过后操作会加进去 或 手动添加）
-    └── record.txt                # comic_viewer 阅读后操作记录
+    ├── blacklist.json            # 下载过滤名单，避免重复下载用（redViewer阅读过后操作会加进去 或 手动添加）
+    └── record.txt                # redViewer 阅读后操作记录
 ```
 :::
 
