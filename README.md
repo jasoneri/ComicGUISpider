@@ -54,22 +54,14 @@
 
 #### 🎁 Features
 
-✅ hitomi 支持，有一丢丢黑科技 CGS 内有提示  
-&emsp;✅ 内置 hitomi-tools  
+🔳 hitomi  
 &emsp;🔳 数据集下载自动化/更新等，方式待定  
 &emsp;🔳 读剪贴板功能开发中  
 &emsp;🔳 优化速度，翻页等  
-✅ Kemono 脚本集更新，详阅[📒相关说明](https://jasoneri.github.io/ComicGUISpider/feature/script)
 
 #### 🐞 Fix
 
-✅ 页数命名优化：更改为纯数字补零命名，附带可选 [文件命名后缀修改](https://jasoneri.github.io/ComicGUISpider/config/#其他-yml-字段)  
-✅ i18n 自动编译优化  
-✅ 使用 astral-sh/uv 管理依赖，优化更新模块  
-✅ 拷贝换了域名  
-✅ 修复 jm 读剪贴板部分解析错误  
-✅ 优化命令行工具的发文等待，替换为循环检测信号，一旦触发即时发文  
-✅ 其他小优化  
+✅ 拷x恢复 🙊不要散播免得应激🙊  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
