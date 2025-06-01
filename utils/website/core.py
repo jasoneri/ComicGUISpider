@@ -43,6 +43,7 @@ class EroUtils(Utils):
     status_forever = True
     status_publish = True
     uuid_regex = NotImplementedError
+    publish_headers = {}
 
     @classmethod
     def by_forever(cls):
@@ -60,11 +61,15 @@ class EroUtils(Utils):
     def by_publish(cls):
         if not cls.publish_url:
             return None
-        with httpx.Client(headers=cls.headers) as cli:
-            resp = retry(cli.get, retry_limit=8, raise_error=True, url=cls.publish_url, follow_redirects=True)
-        if str(resp.status_code).startswith('2'):
-            return cls.parse_publish(resp.text)
-        else:
+        with httpx.Client(headers=cls.publish_headers or cls.headers, 
+                transport=httpx.HTTPTransport(retries=5)) as cli:
+            try:
+                resp = cli.get(cls.publish_url)
+                resp.raise_for_status()
+                if str(resp.status_code).startswith('2'):
+                    return cls.parse_publish(resp.text)
+            except httpx.HTTPError as e:
+                ...
             cls.status_publish = False
             print(f"发布页获取[{cls.publish_url}]失效了")  # logger.warning()
 
@@ -72,8 +77,7 @@ class EroUtils(Utils):
     def get_domain(cls):
         domain_file = temp_p.joinpath(f"{cls.name}_domain.txt")
         current_time = datetime.now()
-        if (domain_file.exists() and
-                current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=24)):
+        if (domain_file.exists() and current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=48)):
             with open(domain_file, 'r', encoding='utf-8') as f:
                 domain = f.read().strip()
         else:
