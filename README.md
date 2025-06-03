@@ -63,6 +63,7 @@
 
 ✅ 拷x恢复 🙊  
 ✅ jm 发布页( WinError 10054 )问题处理详情看软件内 jm 提示，同时本地缓存统一改为48小时，🔜[相关参考指引](https://jasoneri.github.io/ComicGUISpider/faq/extra.html#_2-%E5%9F%9F%E5%90%8D%E7%9B%B8%E5%85%B3)  
+✅ 修复多开端口重复绑定导致的错误  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
@@ -70,7 +71,7 @@
 
 ## 🍮食用搭配(阅读器)
 
-完全适配 CGS 而制，取(改)了独特的名字 `RedViewer (RV)`  
+完全适配 CGS 而制，取(改)了独特的名字 `redViewer (rV)`  
 加上最近对其手撕了几十个 commit 血改，还在更新中！所以再次推上  
 
 [![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)
