@@ -56,8 +56,8 @@ fi
 "$PYTHON_PATH" deploy/__init__.py;
 echo "正在安装依赖（自动过滤macOS不兼容包）..."
 cat "$REQUIREMENTS" | grep -vE 'pywin32==|twisted-iocpsupport==' | "$PYTHON_PATH" -m pip install -r /dev/stdin \
-    -i http://mirrors.aliyun.com/pypi/simple/ \
-    --trusted-host mirrors.aliyun.com \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple \
     --user \
     --break-system-packages;
 

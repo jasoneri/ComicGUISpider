@@ -15,11 +15,11 @@ saucenao / kemono / nekohouse
 ---
 使用 `uv` 安装脚本集依赖 `requirements/script/*.txt`
 ```bash
-python -m uv pip install -r "requirements/script/win.txt" --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+python -m uv pip install -r "requirements/script/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 绿色包使用的命令为 👇
 ```bash
-./runtime/python.exe -m uv pip install -r "./scripts/requirements/script/win.txt" --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+./runtime/python.exe -m uv pip install -r "./scripts/requirements/script/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 
