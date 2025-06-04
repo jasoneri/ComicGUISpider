@@ -79,7 +79,7 @@ class PkgMgr:
         uv = importlib.import_module("uv")
         cmd = [uv.find_uv_bin(), "pip", "install", "-r", str(self.requirements), "--python", sys.executable]
         if self.locale == "zh-CN":
-            cmd.extend(["--index-url", "http://mirrors.aliyun.com/pypi/simple/", "--trusted-host", "mirrors.aliyun.com"])
+            cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--trusted-host", "https://pypi.tuna.tsinghua.edu.cn/simple"])
         self.print("[uv_install_pkgs cmd]" + " ".join(cmd))
         process = subprocess.Popen(
             cmd, cwd=self.run_path,

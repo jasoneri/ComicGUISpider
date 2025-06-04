@@ -115,7 +115,18 @@ def test_normal_process(keyword, input_2, input_3):
 if __name__ == '__main__':
     set_start_method('spawn', force=True)
     parser = argparse.ArgumentParser(
-        description=f"""CGS命令行脚本，目前支持简单下载/调试功能
+        description=f"""
+    ▄████▄    ▄████   ██████ 
+   ▒██▀ ▀█   ██▒ ▀█▒▒██    ▒ 
+   ▒▓█    ▄ ▒██░▄▄▄░░ ▓██▄   
+   ▒▓▓▄ ▄██▒░▓█  ██▓  ▒   ██▒
+   ▒ ▓███▀ ░░▒▓███▀▒▒██████▒▒
+   ░ ░▒ ▒  ░ ░▒   ▒ ▒ ▒▓▒ ▒ ░
+     ░  ▒     ░   ░ ░ ░▒  ░ ░
+            ░ ░   ░ ░  ░  ░  
+                  ░       ░  
+
+CGS命令行脚本，目前支持简单下载/调试功能
 网站对应序号: {SPIDERS}""",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
