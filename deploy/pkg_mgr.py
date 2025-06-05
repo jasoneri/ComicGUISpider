@@ -43,7 +43,8 @@ class PkgMgr:
 
     def github_speed(self, url):
         if self.locale == "zh-CN":
-            url = "https://gitproxy.click/" + url
+            url = url.replace("raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI", 
+                              "gitee.com/json_eri/ComicGUISpider/raw/GUI")
         return url
     
     def set_assets(self):

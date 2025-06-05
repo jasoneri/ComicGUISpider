@@ -7,7 +7,7 @@ if (-not (Test-Path $python_exe)) {Write-Output "runtime/python.exe not found, n
 
 $locale = if ($IsPwsh) { (Get-Culture).Name } else { [System.Threading.Thread]::CurrentThread.CurrentUICulture.Name }
 
-$targetUrl = if ($locale -eq "zh-CN") {"https://gitproxy.click/https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/pkg_mgr.py"} else {"https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/pkg_mgr.py"}
+$targetUrl = if ($locale -eq "zh-CN") {"https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/pkg_mgr.py"} else {"https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/pkg_mgr.py"}
 
 $pyPath = "$proj_p\pkg_mgr.py"
 try {
