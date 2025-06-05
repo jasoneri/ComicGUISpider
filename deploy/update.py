@@ -40,8 +40,7 @@ res = ori_res.Updater
 
 
 class TokenHandler:
-    gitee_t_url = "https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/t.json"
-    gitee_t_file = existed_proj_p.joinpath('deploy/gitee_t.json')
+    token_file = existed_proj_p.joinpath('deploy/token.json')
 
     def __init__(self):
         self.token = self.check_token()
@@ -51,27 +50,11 @@ class TokenHandler:
         return {**headers, 'Authorization': self.token} if self.token else headers
 
     def check_token(self):
-        try:
-            if not self.gitee_t_file.exists():
-                self.download_t_file()
-            with open(self.gitee_t_file, 'r', encoding='utf-8') as f:
-                tokens = json.load(f)
-        except json.decoder.JSONDecodeError:
-            tokens = []
-        for _token in tokens:
-            token = f"Bearer {base64.b64decode(_token).decode()}"
-            with httpx.Client(headers={**headers, 'Authorization': token}) as client:
-                resp = client.head(f"https://api.github.com")
-                if str(resp.status_code).startswith('2'):
-                    return token
-        updater_logger.warning(res.token_invalid_notification)
-        os.remove(self.gitee_t_file)
-
-    def download_t_file(self):
-        with open(self.gitee_t_file, 'w', encoding='utf-8') as f:
-            resp = httpx.get(self.gitee_t_url)
-            resp_json = resp.json()
-            json.dump(resp_json, f, ensure_ascii=False)
+        if not self.token_file.exists():
+            return None
+        with open(self.token_file, 'r', encoding='utf-8') as f:
+            token = f.read().strip()
+            return f"Bearer {token}"
 
 
 class GitHandler:
