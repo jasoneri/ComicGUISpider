@@ -45,7 +45,8 @@ class Conf:
     completer: dict = field(default_factory=dict)
     eh_cookies: dict = field(default_factory=dict)
     clip_db: t.Union[p.Path, str] = curr_os.default_clip_db
-    clip_read_num: str = "20"
+    rv_script: t.Union[p.Path, str] = ''
+    clip_read_num: str = '20'
     clip_sql = curr_os.clip_sql
     file = None
 
@@ -68,6 +69,7 @@ class Conf:
                 self.__setattr__(k, v or getattr(self, k, None))
             self.sv_path = p.Path(self.sv_path)
             self.clip_db = p.Path(self.clip_db)
+            self.rv_script = p.Path(self.rv_script)
             self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
             self.eh_cookies = getattr(self, 'eh_cookies', None)
         except FileNotFoundError:
@@ -81,6 +83,7 @@ class Conf:
         props = asdict(self)
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['clip_db'] = path_like_handle(props['clip_db'])
+        props['rv_script'] = path_like_handle(props['rv_script'])
         yaml_update(self.file, props)
 
     def cLog(self, name: str, level: str = None, **kw):

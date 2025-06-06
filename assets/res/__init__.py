@@ -127,6 +127,8 @@ class GUI:
         
         sv_path_desc = _('GUI.Uic.sv_path_desc')
         sv_path_desc_tip = _('GUI.Uic.sv_path_desc_tip')
+        rv_scriptp_desc = _('GUI.Uic.rv_scriptp_desc')
+        rv_scriptp_desc_tip = _('GUI.Uic.rv_scriptp_desc_tip')
         menu_show_completer = _('GUI.Uic.menu_show_completer')
         menu_next_page = _('GUI.Uic.menu_next_page')
         menu_prev_page = _('GUI.Uic.menu_prev_page')
