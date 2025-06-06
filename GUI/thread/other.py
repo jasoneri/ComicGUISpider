@@ -12,7 +12,7 @@ from utils import conf, curr_os, ori_path
 from utils.redViewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
-from GUI.hitomi_tools import HitomiTools
+from GUI.tools import HitomiTools, rvTool
 
 
 class ToolMenu(DWMMenu):
@@ -25,6 +25,7 @@ class ToolMenu(DWMMenu):
         self.gui.toolButton.setMenu(self)
 
     def init_actions(self):
+        self.add_rv_tool()
         self.action_show_max = Action(self.tr(self.res.action1), triggered=self.show_max)
         self.action_combine_then_mv = Action(self.tr(self.res.action2), triggered=self.combine_then_mv)
         self.addAction(self.action_show_max)
@@ -83,6 +84,12 @@ class ToolMenu(DWMMenu):
                              ignore_http=True)
             else:
                 self.gui.init_clip_handle(tf, match_items)
+
+    def add_rv_tool(self):
+        if not hasattr(self.gui, "rv_tool"):
+            self.gui.rv_tool = rvTool(self.gui)
+        self.action_rv_tool = Action(self.tr('阅读器: redViewer'), triggered=self.gui.rv_tool.show)
+        self.addAction(self.action_rv_tool)
 
     def add_hitomi_tools(self):
         if hasattr(self, "action_read_clip"):

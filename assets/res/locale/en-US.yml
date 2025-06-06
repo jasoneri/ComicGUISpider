@@ -61,6 +61,8 @@ GUI:
     progressBarStatusTip: " >>> Ⅰ. Green 100% = Complete Ⅱ. Even at 100%, some pages may be missing. Use Copy Unfinished and Clip-function to fill gaps"
     sv_path_desc: "Save Path"
     sv_path_desc_tip: "Select directory"
+    rv_scriptp_desc: "rV Script Path"
+    rv_scriptp_desc_tip: "Select Script File (win=bat | macos/linux=sh)"
     menu_show_completer: "Show presets"
     menu_next_page: "Next page"
     menu_prev_page: "Previous page"

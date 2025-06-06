@@ -10,6 +10,7 @@ class Env:
     default_sv_path = r"D:\Comic"
     default_clip_db = pathlib.Path.home().joinpath(r"AppData\Roaming\Ditto\Ditto.db")
     clip_sql = "SELECT `mText` FROM `MAIN` order by `LID` desc"
+    shell = "powershell"
 
     def __init__(self, _p: pathlib.Path):
         self.proj_p = _p
