@@ -74,6 +74,7 @@ GUI:
     confDia_labelPreset: "Preset"
     confDia_labelClipDb: "ClipDB"
     confDia_labelClipNum: "ClipEntries"
+    confDia_svPathWarning: "set Save Path failed, read rule by right-button"
     confDia_descBtn: "Doc"
     confDia_updateBtn: "Update"
     confDia_updateDialog_stable: "New stable version available"

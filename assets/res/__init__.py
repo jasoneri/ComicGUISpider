@@ -141,6 +141,7 @@ class GUI:
         confDia_labelPreset = _('GUI.Uic.confDia_labelPreset')
         confDia_labelClipDb = _('GUI.Uic.confDia_labelClipDb')
         confDia_labelClipNum = _('GUI.Uic.confDia_labelClipNum')
+        confDia_svPathWarning = _('GUI.Uic.confDia_svPathWarning')
         confDia_descBtn = _('GUI.Uic.confDia_descBtn')
         confDia_updateBtn = _('GUI.Uic.confDia_updateBtn')
         confDia_updateDialog_stable = _('GUI.Uic.confDia_updateDialog_stable')
