@@ -74,6 +74,7 @@ GUI:
     confDia_labelPreset: "预设"
     confDia_labelClipDb: "剪贴板db"
     confDia_labelClipNum: "读取条数"
+    confDia_svPathWarning: "设置存储路径失败，点击右侧查阅规则"
     confDia_descBtn: "查看说明"
     confDia_updateBtn: "检查更新"
     confDia_updateDialog_stable: "检测到最新稳定版"
