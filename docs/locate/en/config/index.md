@@ -78,3 +78,8 @@ Number of items read from the clipboard software
 
 default: `jpg`  
 image file name suffix
+
+### `rv_script`
+
+default:  
+bind rV(redViewer) script，use to start etc.  

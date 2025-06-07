@@ -40,6 +40,20 @@ class CustomInfoBar:
         w.addWidget(HyperlinkButton(FluentIcon.LINK, url, url_name, parent=None))
         w.show()
 
+    @staticmethod
+    def show_custom(title, content, parent, _type="ERROR", widgets=[], **kw):
+        InfoBar_kw = dict(
+            icon=getattr(InfoBarIcon, _type.upper()),
+            title=title, content=content,
+            orient=Qt.Horizontal, isClosable=True,
+            position=InfoBarPosition.BOTTOM, duration=-1,
+            parent=parent
+        )
+        w = InfoBar(**{**InfoBar_kw, **kw})
+        for widget in widgets:
+            w.addWidget(widget)
+        w.show()
+
 
 class CustomFlyout:
     @classmethod
@@ -108,6 +122,8 @@ class CustomMessageBox(MessageBoxBase):
 class CustomIcon(FluentIconBase, Enum):
     DISCORD = "configDialog/discord"
     QQ = "configDialog/qq"
+    TOOL_MERGE = "tools/merge"
+    TOOL_BOOK_MARKED = "tools/book_marked"
     
     def path(self, theme=Theme.AUTO):
         return f':/{self.value}.svg'
@@ -188,24 +204,26 @@ class TableFlyoutView(FlyoutViewBase):
         super().__init__(parent)
         p_width = parent.width()
         p_height = parent.height()
-        self.width = int(p_width * 0.6)
-        self.height = int(p_height * 0.85)
+        self.width = int(p_width * 0.8)
+        self.height = int(p_height * 4)
         # 必须设置布局
         self.layout = VBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         # 创建表格视图
         self.set_table(data)
-        # 将表格添加到布局
-        self.bottom_layout = QtWidgets.QHBoxLayout()
-        self.bottom_layout.setObjectName("bottom_layout")
+        first_row = QtWidgets.QHBoxLayout()
+        first_row.addWidget(self.tableView)
+        
+        second_row = QtWidgets.QHBoxLayout()
+        
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
         self.closeBtn.clicked.connect(self.closed)
-        spacerItem3 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.bottom_layout.addItem(spacerItem3)
-        self.bottom_layout.addWidget(self.closeBtn)
+        second_row.addItem(spacerItem)
+        second_row.addWidget(self.closeBtn)
         
-        self.layout.addWidget(self.tableView)
-        self.layout.addLayout(self.bottom_layout, 1)
+        self.layout.addLayout(first_row)
+        self.layout.addLayout(second_row)
         # 必须设置视图尺寸
         self.setFixedSize(self.width, self.height)
 

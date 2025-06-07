@@ -16,7 +16,7 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, ClipTasksThread
-from GUI.thread.other import ToolMenu
+from GUI.thread.other import ToolMenu, rvTool
 
 from variables import *
 from assets import res
@@ -159,6 +159,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sv_path = conf.sv_path
         self.btn_logic_bind()
         self.set_shortcut()
+        self.set_rvtool()
         # 预览
         self.tf = None
         self.previewInit = True
@@ -215,6 +216,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.nextPageShort = QShortcut(QKeySequence("Ctrl+."), self)
         self.nextPageShort.setContext(Qt.ApplicationShortcut)
         self.nextPageShort.activated.connect(self.nextPageBtn.click)
+
+    def set_rvtool(self):
+        if not hasattr(self, "rv_tool"):
+            self.rv_tool = rvTool(self)
+        self.rvBtn.clicked.connect(self.rv_tool.show)
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()

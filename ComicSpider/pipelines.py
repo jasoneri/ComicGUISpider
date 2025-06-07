@@ -11,7 +11,6 @@ from scrapy.http import Request
 from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
 from scrapy.exceptions import ScrapyDeprecationWarning
-from scrapy.utils.python import get_func_args
 
 from utils import conf
 from utils.website import JmUtils, set_author_ahead, MangabzUtils
@@ -39,10 +38,12 @@ class ComicPipeline(ImagesPipeline):
     err_flag = 0
     _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
-
-    def __init__(self, store_uri, download_func=None, settings=None):
-        super(ComicPipeline, self).__init__(store_uri, download_func, settings)
-        self.page_naming = PageNamingMgr()
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        pipe = super(ComicPipeline, cls).from_crawler(crawler)
+        pipe.page_naming = PageNamingMgr()
+        return pipe
 
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):

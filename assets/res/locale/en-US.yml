@@ -43,12 +43,14 @@ GUI:
     partial_fail: "Partial failure (remaining tasks in the Tasks-Dialog can still be processed)"
     all_fail: "Complete failure. Update proxy/cookies config and retry. Report an issue if persistent"
     view_log: "View detailed error stack in log file"
-  ToolMenu:
-    action1: "Display Latest Read Chapter Records"
-    action2: "Consolidate Chapters & Move to Web Directory"
-    action2_warning: "Missing [%s] record file from [redViewer] project - functionality disabled"
-    action_ero1: "Create Tasks from Clipboard"
+  rvTool:
+    book_marked: "Display readed records"
+    book_marked_warning: "Missing [%s] record file from [redViewer] project - functionality disabled"
+    merge_move: "Consolidate then Move"
     combined_tip:  "Make %s Chapters merged and move to [%s]"
+    set_script_err: "set rV script failed，read how to deploy rV by right-button"
+  ToolMenu:
+    action_read_clip: "Create Tasks from Clipboard"
   Uic:
     chooseBoxDefault: "Select Website"
     searchinputPlaceholderText: "Input Keyword"
@@ -61,6 +63,10 @@ GUI:
     progressBarStatusTip: " >>> Ⅰ. Green 100% = Complete Ⅱ. Even at 100%, some pages may be missing. Use Copy Unfinished and Clip-function to fill gaps"
     sv_path_desc: "Save Path"
     sv_path_desc_tip: "Select directory"
+    rv_scriptp_desc: "rV Script Path"
+    rv_scriptp_desc_tip: "Select Script File ( %s )"
+    rv_deployBtn: "Select Directory and Deploy"
+    rv_deployDesc: "You need to deploy rV. Click button to deploy or cancel<br>1. No safeguards - select an empty directory unrelated to CGS and storage<br>2. Follow console instructions, then reselect script after deployment"
     menu_show_completer: "Show presets"
     menu_next_page: "Next page"
     menu_prev_page: "Previous page"
@@ -72,6 +78,7 @@ GUI:
     confDia_labelPreset: "Preset"
     confDia_labelClipDb: "ClipDB"
     confDia_labelClipNum: "ClipEntries"
+    confDia_svPathWarning: "set Save Path failed, read rule by right-button"
     confDia_descBtn: "Doc"
     confDia_updateBtn: "Update"
     confDia_updateDialog_stable: "New stable version available"

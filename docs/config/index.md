@@ -12,8 +12,14 @@
 
 ### 存储路径 / `sv_path`
 
+::: warning 良好的习惯是创建一个空目录，并设于此处  
+因为默认值，⚠️ win 没D盘的必须改  
+同时设置防呆警告，所列情况设置无效：①设在盘符根；②设在 CGS 相关目录内
+:::
+
 下载目录  
-目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`redViewer`](https://github.com/jasoneri/redViewer) 项目所以这样设置的
+默认值：&emsp;`win: D:\Comic`&emsp;`macOS: ~/Downloads/Comic`  
+目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`redViewer`](https://github.com/jasoneri/redViewer) 项目而设的
 
 ### 日志等级 / `log_level`
 
@@ -80,3 +86,8 @@
 
 默认值： `jpg`  
 图片文件命名后缀  
+
+### `rv_script`
+
+默认值：  
+rV(redViewer) 绑定的启动脚本，用于启动 rV 等  

@@ -43,12 +43,14 @@ GUI:
     partial_fail: "部分失败，但仍可继续处理任务窗口的任务"
     all_fail: "没有一个成功的任务，如http错误请更新配置如代理/cookies后重新运行此功能，若总是失败提issue"
     view_log: "在日志文件查看详细报错堆栈"
-  ToolMenu:
-    action1: "显示已阅最新话数记录"
-    action2: "整合章节并移至web目录"
-    action2_warning: "未配合[redViewer]项目产生记录文件[%s]，\n功能无法正常使用"
-    action_ero1: "读取剪贴板创建匹配任务列表"
+  rvTool:
+    book_marked: "已阅记录"
+    book_marked_warning: "未配合[redViewer]项目产生记录文件[%s]，\n功能无法正常使用"
+    merge_move: "整合转移"
     combined_tip: "已将%s整合章节并转换至[%s]"
+    set_script_err: "设置rV脚本无效，点右侧先查阅rV一键部署方法"
+  ToolMenu:
+    action_read_clip: "读取剪贴板创建匹配任务列表"
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"
@@ -61,6 +63,10 @@ GUI:
     progressBarStatusTip: " >>> Ⅰ、绿色100%表示完成 Ⅱ、 任务细化后查得绿色100%也有漏页情况，可结合`复制未完成`与`剪贴板功能`进行补页"
     sv_path_desc: "存储路径"
     sv_path_desc_tip: "选择目录"
+    rv_scriptp_desc: "rV脚本路径"
+    rv_scriptp_desc_tip: "选择脚本文件（ %s ）"
+    rv_deployBtn: "选择目录并部署"
+    rv_deployDesc: "看起来你需要部署rV，点击按钮进行部署，否则取消<br>1. 没设防呆，请选择与 CGS 和存储目录无关的空目录<br>2. 根据控制台进行操作，部署后重新选择脚本"
     menu_show_completer: "展开预设"
     menu_next_page: "下一页"
     menu_prev_page: "上一页"
@@ -72,6 +78,7 @@ GUI:
     confDia_labelPreset: "预设"
     confDia_labelClipDb: "剪贴板db"
     confDia_labelClipNum: "读取条数"
+    confDia_svPathWarning: "设置存储路径失败，点击右侧查阅规则"
     confDia_descBtn: "查看说明"
     confDia_updateBtn: "检查更新"
     confDia_updateDialog_stable: "检测到最新稳定版"
