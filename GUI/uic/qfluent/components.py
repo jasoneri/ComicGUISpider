@@ -40,6 +40,20 @@ class CustomInfoBar:
         w.addWidget(HyperlinkButton(FluentIcon.LINK, url, url_name, parent=None))
         w.show()
 
+    @staticmethod
+    def show_custom(title, content, parent, _type="ERROR", widgets=[], **kw):
+        InfoBar_kw = dict(
+            icon=getattr(InfoBarIcon, _type.upper()),
+            title=title, content=content,
+            orient=Qt.Horizontal, isClosable=True,
+            position=InfoBarPosition.BOTTOM, duration=-1,
+            parent=parent
+        )
+        w = InfoBar(**{**InfoBar_kw, **kw})
+        for widget in widgets:
+            w.addWidget(widget)
+        w.show()
+
 
 class CustomFlyout:
     @classmethod
