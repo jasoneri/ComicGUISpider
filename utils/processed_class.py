@@ -103,7 +103,7 @@ class GuiQueuesManger(QueuesManager):
         QueuesManager.register('TasksQueue', callable=lambda: TasksQueue)  # 爬虫 > GUI.thread
         for k, w in extra.items():
             QueuesManager.register(k, lambda: w)
-        self.manager = QueuesManager(address=('0.0.0.0', self.queue_port), authkey=b'abracadabra')
+        self.manager = QueuesManager(address=('127.0.0.1', self.queue_port), authkey=b'abracadabra')
         self.s = self.manager.get_server()
         self.s.serve_forever()
 
@@ -112,7 +112,7 @@ class GuiQueuesManger(QueuesManager):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 try:
-                    s.bind(('0.0.0.0', port))
+                    s.bind(('127.0.0.1', port))
                     self.queue_port = port
                     return port
                 except Exception as e:
