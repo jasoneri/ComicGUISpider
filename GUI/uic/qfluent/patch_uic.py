@@ -60,7 +60,6 @@ if __name__ == '__main__':
     
     file = f"{args.filename}.py"
     match args.filename:
-
         case "conf_dia":
             cb = ConvertBase('conf_dia.py', 'conf_dia.py', custom_sub={
                 "= QtWidgets.QLabel": "= StrongBodyLabel",
