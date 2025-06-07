@@ -43,12 +43,14 @@ GUI:
     partial_fail: "Partial failure (remaining tasks in the Tasks-Dialog can still be processed)"
     all_fail: "Complete failure. Update proxy/cookies config and retry. Report an issue if persistent"
     view_log: "View detailed error stack in log file"
-  ToolMenu:
-    action1: "Display Latest Read Chapter Records"
-    action2: "Consolidate Chapters & Move to Web Directory"
-    action2_warning: "Missing [%s] record file from [redViewer] project - functionality disabled"
-    action_ero1: "Create Tasks from Clipboard"
+  rvTool:
+    book_marked: "Display readed records"
+    book_marked_warning: "Missing [%s] record file from [redViewer] project - functionality disabled"
+    merge_move: "Consolidate then Move"
     combined_tip:  "Make %s Chapters merged and move to [%s]"
+    set_script_err: "set rV script failed，read how to deploy rV by right-button"
+  ToolMenu:
+    action_read_clip: "Create Tasks from Clipboard"
   Uic:
     chooseBoxDefault: "Select Website"
     searchinputPlaceholderText: "Input Keyword"

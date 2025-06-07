@@ -9,9 +9,8 @@ from qfluentwidgets import (
 
 from assets import res
 from utils import conf, curr_os, ori_path
-from utils.redViewer_tools import combine_then_mv, show_max
 from utils.processed_class import ClipManager
-from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomInfoBar
+from GUI.uic.qfluent import CustomInfoBar
 from GUI.tools import HitomiTools, rvTool
 
 
@@ -25,38 +24,10 @@ class ToolMenu(DWMMenu):
         self.gui.toolButton.setMenu(self)
 
     def init_actions(self):
-        self.add_rv_tool()
-        self.action_show_max = Action(self.tr(self.res.action1), triggered=self.show_max)
-        self.action_combine_then_mv = Action(self.tr(self.res.action2), triggered=self.combine_then_mv)
-        self.addAction(self.action_show_max)
-        self.addAction(self.action_combine_then_mv)
-
-    def show_max(self):
-        record_txt = conf.sv_path.joinpath("web_handle/record.txt")
-        if record_txt.exists():
-            CustomFlyout.make(
-                TableFlyoutView(show_max(record_txt), self.gui.textBrowser), 
-                self.gui.searchinput, self.gui.textBrowser)
-        else:
-            InfoBar.warning(
-                title='show_max', content=self.res.action2_warning % record_txt,
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=5000, parent=self.gui.textBrowser
-            )
-
-    def combine_then_mv(self):
-        done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
-        InfoBar.success(
-            title='combine_then_mv', content=self.res.combined_tip % (done, conf.sv_path.joinpath("web")),
-            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-            duration=3000, parent=self.gui.textBrowser
-        )
+        ...
 
     def switch_ero(self, index):
-        self.removeAction(self.action_show_max)
-        self.removeAction(self.action_combine_then_mv)
-        
-        self.action_read_clip = Action(self.tr(self.res.action_ero1), triggered=self.read_clip)
+        self.action_read_clip = Action(self.tr(self.res.action_read_clip), triggered=self.read_clip)
         self.addAction(self.action_read_clip)
         if index == 6:
             self.add_hitomi_tools()
@@ -85,12 +56,6 @@ class ToolMenu(DWMMenu):
             else:
                 self.gui.init_clip_handle(tf, match_items)
 
-    def add_rv_tool(self):
-        if not hasattr(self.gui, "rv_tool"):
-            self.gui.rv_tool = rvTool(self.gui)
-        self.action_rv_tool = Action(self.tr('阅读器: redViewer'), triggered=self.gui.rv_tool.show)
-        self.addAction(self.action_rv_tool)
-
     def add_hitomi_tools(self):
         if hasattr(self, "action_read_clip"):
             self.removeAction(self.action_read_clip)
@@ -106,7 +71,7 @@ class ToolMenu(DWMMenu):
                 parent=self.gui.textBrowser, _type="WARNING",
                 url=res.Vars.hitomiDb_tmp_url, url_name="Download"
             )
-            # TODO[1] : 调用 utils/website/hitomi/scape_dataset.py 下载 hitomi.db
+            # TODO[3] : 调用 utils/website/hitomi/scape_dataset.py 下载 hitomi.db
         else:
             if not hasattr(self.gui, "hitomi_tools"):
                 self.gui.hitomi_tools = HitomiTools(self.gui)
