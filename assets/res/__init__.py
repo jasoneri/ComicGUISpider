@@ -105,14 +105,15 @@ class GUI:
         mangabz = _('GUI.SearchInputStatusTip.mangabz')
         hitomi = _('GUI.SearchInputStatusTip.hitomi')
 
+    class rvTool:
+        book_marked = _('GUI.rvTool.book_marked')
+        merge_move = _('GUI.rvTool.merge_move')
+        book_marked_warning = _('GUI.rvTool.book_marked_warning')
+        combined_tip = _('GUI.rvTool.combined_tip')
+        set_script_err = _('GUI.rvTool.set_script_err')
+
     class ToolMenu:
-        action1 = _('GUI.ToolMenu.action1')
-        action2 = _('GUI.ToolMenu.action2')
-        action2_warning = _('GUI.ToolMenu.action2_warning')
-        action_ero1 = _('GUI.ToolMenu.action_ero1')
-        combined_tip = _('GUI.ToolMenu.combined_tip')
-        clip_process_warning = _('GUI.ToolMenu.clip_process_warning')
-        clip_match_none = _('GUI.ToolMenu.clip_match_none')
+        action_read_clip = _('GUI.ToolMenu.action_read_clip')
 
     class Uic:
         chooseBoxDefault = _('GUI.Uic.chooseBoxDefault')
@@ -127,6 +128,10 @@ class GUI:
         
         sv_path_desc = _('GUI.Uic.sv_path_desc')
         sv_path_desc_tip = _('GUI.Uic.sv_path_desc_tip')
+        rv_scriptp_desc = _('GUI.Uic.rv_scriptp_desc')
+        rv_scriptp_desc_tip = _('GUI.Uic.rv_scriptp_desc_tip')
+        rv_deployBtn = _('GUI.Uic.rv_deployBtn')
+        rv_deployDesc = _('GUI.Uic.rv_deployDesc')
         menu_show_completer = _('GUI.Uic.menu_show_completer')
         menu_next_page = _('GUI.Uic.menu_next_page')
         menu_prev_page = _('GUI.Uic.menu_prev_page')
@@ -139,6 +144,7 @@ class GUI:
         confDia_labelPreset = _('GUI.Uic.confDia_labelPreset')
         confDia_labelClipDb = _('GUI.Uic.confDia_labelClipDb')
         confDia_labelClipNum = _('GUI.Uic.confDia_labelClipNum')
+        confDia_svPathWarning = _('GUI.Uic.confDia_svPathWarning')
         confDia_descBtn = _('GUI.Uic.confDia_descBtn')
         confDia_updateBtn = _('GUI.Uic.confDia_updateBtn')
         confDia_updateDialog_stable = _('GUI.Uic.confDia_updateDialog_stable')

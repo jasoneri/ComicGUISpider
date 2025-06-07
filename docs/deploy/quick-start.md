@@ -15,11 +15,11 @@
 + `python3.12+`
 + 安装 [astral-sh/uv](https://github.com/astral-sh/uv)（然后抛弃 pip ，让 uv 管理依赖）
 ``` bash
-python -m pip install uv -i http://mirrors.aliyun.com/pypi/simple/
+python -m pip install uv -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 **安装依赖命令示例** （CGS的 `requirements/*.txt` 都是用uv编译的，原生 pip 装你会发现各种麻烦）  
 ``` bash
-python -m uv pip install -r "requirements/win.txt" --index-url http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+python -m uv pip install -r "requirements/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 ::: warning 使用 git 克隆的话请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档是基于绿色包的说明
@@ -60,6 +60,6 @@ python -m uv pip install -r "requirements/win.txt" --index-url http://mirrors.al
 
 ## 5. 搭配阅读器
 
-欢迎尝试使用 redViewer ，最适 CGS ！也希望能提供有创意的功能想法给 RV ！💑
+欢迎尝试使用 redViewer ，最适 CGS ！也希望能提供有创意的功能想法给 rV ！💑
 
 [![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)

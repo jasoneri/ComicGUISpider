@@ -103,7 +103,7 @@ class GuiQueuesManger(QueuesManager):
         QueuesManager.register('TasksQueue', callable=lambda: TasksQueue)  # 爬虫 > GUI.thread
         for k, w in extra.items():
             QueuesManager.register(k, lambda: w)
-        self.manager = QueuesManager(address=('0.0.0.0', self.queue_port), authkey=b'abracadabra')
+        self.manager = QueuesManager(address=('127.0.0.1', self.queue_port), authkey=b'abracadabra')
         self.s = self.manager.get_server()
         self.s.serve_forever()
 

@@ -2,28 +2,39 @@
 # -*- coding: utf-8 -*-
 import ast
 import json
+import pathlib
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
-from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, PushSettingCard
+from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, PushSettingCard, InfoBarPosition
 
 from assets import res
 from variables import SPIDERS
-from utils import conf, yaml, convert_punctuation as cp
+from utils import conf, yaml, convert_punctuation as cp, ori_path
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.uic.qfluent.action_factory import Updater, DescCreator, ProjUpdateThread, Proj
-from GUI.uic.qfluent.components import SupportView, CustomFlyout
+from GUI.uic.qfluent.components import SupportView, CustomFlyout, CustomInfoBar
 
 
 class SvPathCard(PushSettingCard):
     def __init__(self, parent=None):
         super().__init__(res.GUI.Uic.sv_path_desc_tip, FIF.DOWNLOAD, 
                          res.GUI.Uic.sv_path_desc, "D:/Comic", parent)
+        self.conf_dia = parent
         self.clicked.connect(self._onSelectFolder)
 
     def _onSelectFolder(self):
         folder = QFileDialog.getExistingDirectory(self, res.GUI.Uic.sv_path_desc_tip)
         if folder:
+            wanted_p = pathlib.Path(folder)
+            cgs_path = ori_path.parent if ori_path.parent.joinpath("scripts/CGS.py").exists() else ori_path
+            cgs_flag = str(wanted_p).startswith(str(cgs_path))
+            drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
+            if cgs_flag or drive_flag:
+                CustomInfoBar.show("", res.GUI.Uic.confDia_svPathWarning, self.conf_dia, 
+                    "https://jasoneri.github.io/ComicGUISpider/config/#%E9%85%8D%E7%BD%AE%E9%A1%B9-%E5%AF%B9%E5%BA%94-yml-%E5%AD%97%E6%AE%B5", 
+                    "conf desc", _type="ERROR", position=InfoBarPosition.TOP)
+                return
             self.setContent(folder)
 
 

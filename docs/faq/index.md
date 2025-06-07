@@ -26,7 +26,7 @@ win:
 1. 在绿色包解压的目录打开 (powershell) 终端执行命令  
 
 ``` bash
-irm https://gitproxy.click/https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/deploy/online_scripts/win.ps1 | iex
+irm https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/online_scripts/win.ps1 | iex
 ```
 
 ::: info 非绿色包的用户参考 [🚀 快速开始 > 部署](../deploy/quick-start#1-下载--部署) 的安装依赖命令示例
