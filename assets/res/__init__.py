@@ -105,14 +105,15 @@ class GUI:
         mangabz = _('GUI.SearchInputStatusTip.mangabz')
         hitomi = _('GUI.SearchInputStatusTip.hitomi')
 
+    class rvTool:
+        book_marked = _('GUI.rvTool.book_marked')
+        merge_move = _('GUI.rvTool.merge_move')
+        book_marked_warning = _('GUI.rvTool.book_marked_warning')
+        combined_tip = _('GUI.rvTool.combined_tip')
+        set_script_err = _('GUI.rvTool.set_script_err')
+
     class ToolMenu:
-        action1 = _('GUI.ToolMenu.action1')
-        action2 = _('GUI.ToolMenu.action2')
-        action2_warning = _('GUI.ToolMenu.action2_warning')
-        action_ero1 = _('GUI.ToolMenu.action_ero1')
-        combined_tip = _('GUI.ToolMenu.combined_tip')
-        clip_process_warning = _('GUI.ToolMenu.clip_process_warning')
-        clip_match_none = _('GUI.ToolMenu.clip_match_none')
+        action_read_clip = _('GUI.ToolMenu.action_read_clip')
 
     class Uic:
         chooseBoxDefault = _('GUI.Uic.chooseBoxDefault')
