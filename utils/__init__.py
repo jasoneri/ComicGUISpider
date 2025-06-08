@@ -84,7 +84,15 @@ class Conf:
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['clip_db'] = path_like_handle(props['clip_db'])
         props['rv_script'] = path_like_handle(props['rv_script'])
+        self.chain_rv()
         yaml_update(self.file, props)
+
+    def chain_rv(self):
+        # 储存目录更改单向联动 rV path值
+        if self.rv_script and str(self.rv_script) != ".":
+            rv_conf = self.rv_script.parent.joinpath(r"redViewer/backend/conf.yml")
+            if rv_conf.exists():
+                yaml_update(rv_conf,  {"path": str(self.sv_path)})
 
     def cLog(self, name: str, level: str = None, **kw):
         if not hasattr(Conf, '_loggers'):
