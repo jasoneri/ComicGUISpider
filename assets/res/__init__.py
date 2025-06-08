@@ -132,6 +132,7 @@ class GUI:
         rv_scriptp_desc_tip = _('GUI.Uic.rv_scriptp_desc_tip')
         rv_deployBtn = _('GUI.Uic.rv_deployBtn')
         rv_deployDesc = _('GUI.Uic.rv_deployDesc')
+        rv_deployWinRequire = _('GUI.Uic.rv_deployWinRequire')
         menu_show_completer = _('GUI.Uic.menu_show_completer')
         menu_next_page = _('GUI.Uic.menu_next_page')
         menu_prev_page = _('GUI.Uic.menu_prev_page')
