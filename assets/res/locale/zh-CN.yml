@@ -66,7 +66,7 @@ GUI:
     rv_scriptp_desc: "rV脚本路径"
     rv_scriptp_desc_tip: "选择脚本文件（ %s ）"
     rv_deployBtn: "选择目录并部署"
-    rv_deployDesc: "看起来你需要部署rV<br>1. 需选择与 CGS 和存储目录无关的空目录<br>2. 根据控制台进行操作，部署后重新选择脚本"
+    rv_deployDesc: "看起来你需要部署rV<br>1. 需选择与 CGS 和存储目录无关的非中文空目录<br>2. 根据控制台进行操作，部署后重新选择脚本"
     rv_deployWinRequire: "<br>3. win补充：控制面板 > 时钟与区域 > 区域 > 更改系统区域设置 > 勾选beta版 unicode UTF-8 > 重启"
     menu_show_completer: "展开预设"
     menu_next_page: "下一页"
