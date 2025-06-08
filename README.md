@@ -73,13 +73,12 @@
 
 ## 🍮食用搭配(阅读器)
 
-完全适配 CGS 而制，取(改)了独特的名字 `redViewer (rV)`  
-加上最近对其手撕了几十个 commit 血改，还在更新中！所以再次推上  
+完全适配 CGS ， `rV (redViewer)`  
+已内置显眼按钮以及小窗管理，后续会基于 rV 展开  
 
 [![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)
 
-
-## 💝CGS的部分实现依赖于以下开源项目
+## 💝感谢以下开源项目
 
 <table><tbody>  
   <tr>
@@ -95,9 +94,6 @@
     <td><div align="center"><a href="https://github.com/p0deje/Maccy" target="_blank">
       <img src="https://maccy.app/img/maccy/Logo.png" alt="logo" height="50">
       <br>Maccy</a></div></td>
-    <td><div align="center"><a href="https://github.com/zhiyiYo/PyQt-Fluent-Widgets/" target="_blank">
-      <img src="https://qfluentwidgets.com/img/logo.png" alt="logo" height="50">
-      <br>PyQt-Fluent-Widgets</a></div></td>
     <td><div align="center">etc..</div></td>
   </tr>  
 </tbody></table>

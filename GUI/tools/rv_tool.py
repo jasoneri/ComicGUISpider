@@ -5,15 +5,17 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QGuiApplication
 from PyQt5.QtWidgets import QApplication,QSpacerItem,QSizePolicy, QFileDialog, QHBoxLayout
 from qfluentwidgets import (
-    VBoxLayout, PrimaryPushButton, TransparentToolButton, TransparentPushButton, 
-    FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition
+    VBoxLayout, PrimaryPushButton, PrimaryToolButton,
+    TransparentToolButton, TransparentPushButton, HyperlinkButton, 
+    FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition,
+    BodyLabel
 )
 from qframelesswindow import FramelessWindow
 
 from assets import res
 from utils import curr_os, conf, yaml_update
 from utils.redViewer_tools import combine_then_mv, show_max
-from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon, CustomInfoBar
+from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon
 
 
 class WinOS:
@@ -21,6 +23,7 @@ class WinOS:
     script_file_type = "Script Files (*.ps1)"
     run_cmd = ["cmd.exe", "/c", "start", "/B", 'powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File']
     deploy_cmd = [curr_os.shell, "-Command", "irm https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/windows.ps1 | iex"]
+    deploy_desc = res.GUI.Uic.rv_deployDesc + res.GUI.Uic.rv_deployWinRequire
 
 
 class ElseOS:
@@ -28,9 +31,56 @@ class ElseOS:
     script_file_type = "Script Files (*.sh)"
     run_cmd = [curr_os.shell]
     deploy_cmd = [curr_os.shell, "-c", "curl -fsSL https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/macos.sh | zsh"]
-
+    deploy_desc = res.GUI.Uic.rv_deployDesc
 
 TmpCurrOs = WinOS if curr_os.shell == 'powershell' else ElseOS
+
+
+class AskDeployView(FramelessWindow):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.titleBar.minBtn.hide()
+        self.titleBar.maxBtn.hide()
+        self.titleBar.closeBtn.hide()
+        self.main_layout = VBoxLayout(self)
+        self.setLayout(self.main_layout)
+        w = int(parent.width()*0.7)
+        h = int(parent.height()*1.1)
+        self.resize(w, h)
+        screen = QGuiApplication.primaryScreen()
+        screen_geo = screen.geometry()
+        self.move(int((screen_geo.width() - w) / 2.3),int((screen_geo.height() - h) / 2))
+        self.init_ui()
+
+    def init_ui(self):
+        first_row = QHBoxLayout()
+        first_row.addStretch()
+        body = BodyLabel(TmpCurrOs.deploy_desc)
+        first_row.addWidget(body)
+        first_row.addStretch()
+        
+        second_row = QHBoxLayout()
+        first_row.addStretch()
+        def deploy():
+            run_dir = QFileDialog.getExistingDirectory(self, res.GUI.Uic.sv_path_desc_tip)
+            if run_dir:
+                subprocess.Popen(TmpCurrOs.deploy_cmd, cwd=str(run_dir), start_new_session=True, shell=True, 
+                                creationflags=0x00000008 | 0x00000200)
+        deployBtn = PrimaryPushButton(FIF.COMMAND_PROMPT, res.GUI.Uic.rv_deployBtn)
+        deployBtn.clicked.connect(deploy)
+        hyberBtn = HyperlinkButton(FIF.GITHUB, 
+            r"https://github.com/jasoneri/redViewer#%EF%B8%8F%E9%83%A8%E7%BD%B2%E6%9B%B4%E6%96%B0%E8%BF%90%E8%A1%8C%E5%A4%9A%E5%90%88%E4%B8%80%E8%84%9A%E6%9C%AC", 
+            "rV 部署命令说明"
+        )
+        cancelBtn = TransparentToolButton(FIF.CLOSE, self)
+        cancelBtn.clicked.connect(self.close)
+        second_row.addWidget(hyberBtn)
+        second_row.addWidget(deployBtn)
+        second_row.addWidget(cancelBtn)
+        first_row.addStretch()
+
+        self.main_layout.addLayout(first_row)
+        self.main_layout.addLayout(second_row)
 
 
 class SvPathCard(PushSettingCard):
@@ -42,8 +92,8 @@ class SvPathCard(PushSettingCard):
 
     def setContent(self, content: str):
         super().setContent(content)
-        if hasattr(self.rvtool, 'runBtn'):
-            self.rvtool.runBtn.setEnabled(bool(content and content != "."))
+        self.rvtool.runBtn.setEnabled(bool(content and content != "."))
+        self.rvtool.broomBtn.setEnabled(bool(content and content != "."))
 
     def _onSelectScript(self):
         file, _ = QFileDialog.getOpenFileName(self, res.GUI.Uic.sv_path_desc_tip, "", TmpCurrOs.script_file_type)
@@ -65,19 +115,13 @@ class SvPathCard(PushSettingCard):
             self.ask_deploy()
     
     def ask_deploy(self):
-        def deploy():
-            run_dir = QFileDialog.getExistingDirectory(self, res.GUI.Uic.sv_path_desc_tip)
-            if run_dir:
-                subprocess.Popen(TmpCurrOs.deploy_cmd, cwd=str(run_dir), start_new_session=True, shell=True, 
-                                creationflags=0x00000008 | 0x00000200)
-        btn = PrimaryPushButton(FIF.COMMAND_PROMPT, res.GUI.Uic.rv_deployBtn)
-        btn.clicked.connect(deploy)
-        CustomInfoBar.show_custom("", res.GUI.Uic.rv_deployDesc, self.rvtool, "WARNING", [btn])
+        _ = AskDeployView(self.rvtool)
+        _.show()
 
 
 class rvTool(FramelessWindow):
     res = res.GUI.rvTool
-  
+
     def __init__(self, parent=None):
         super().__init__()
         self.gui = parent
@@ -90,9 +134,9 @@ class rvTool(FramelessWindow):
             window_width = int(parent.width() * 0.8)
         else:
             window_width = int(screen_geo.width() * 0.4)
-        window_height = int(screen_geo.height() * 0.12)
+        window_height = int(screen_geo.height() * 0.13)
         self.setMinimumSize(window_width, window_height)
-        self.resize(window_width, window_height)
+        self.resize(window_width, 120)
         self.move(
             int((screen_geo.width() - window_width) / 2),
             int((screen_geo.height() - window_height) / 2)
@@ -102,11 +146,13 @@ class rvTool(FramelessWindow):
     
     def init_ui(self):
         self.main_layout = VBoxLayout(self)
-        
-        # runBtn 受 sv_path_card.setContent 影响，所有置于前面
+        # 受 sv_path_card.setContent 影响的 btn 都置于 sv_path_card 前面
         self.runBtn = PrimaryPushButton(FIF.PLAY, "run rV")
         self.runBtn.clicked.connect(self.run)
         self.runBtn.setDisabled(True)
+        self.broomBtn = PrimaryToolButton(FIF.BROOM, self)
+        self.broomBtn.clicked.connect(self.broom)
+        self.broomBtn.setDisabled(True)
         
         first_row = QHBoxLayout()
         self.sv_path_card = SvPathCard(self)
@@ -124,18 +170,21 @@ class rvTool(FramelessWindow):
         second_row.addSpacerItem(spacer_info)
         second_row.addWidget(self.showMaxBtn)
         second_row.addWidget(self.combineBtn)
+        second_row.addWidget(self.broomBtn)
         second_row.addWidget(self.runBtn)
         second_row.addWidget(self.cancelBtn)
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addLayout(second_row)
-        
+
+    def broom(self):
+        conf.update(rv_script="")
+        self.sv_path_card.setContent("")
+
     def show_max(self):
         record_txt = conf.sv_path.joinpath("web_handle/record.txt")
         if record_txt.exists():
-            CustomFlyout.make(
-                TableFlyoutView(show_max(record_txt), self), 
-                self.sv_path_card, self)
+            CustomFlyout.make(TableFlyoutView(show_max(record_txt), self), self.sv_path_card, self)
         else:
             InfoBar.warning(
                 title='show_max', content=res.GUI.rvTool.book_marked_warning % record_txt,
