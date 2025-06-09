@@ -17,16 +17,6 @@ class ToolMenu(DWMMenu):
         super(ToolMenu, self).__init__(*args, **kwargs)
         self.gui = gui
         self.init_actions()
-        self.gui.toolButton.setMenu(self)
-
-    def init_actions(self):
-        ...
-
-    def switch_ero(self, index):
-        self.action_read_clip = Action(self.tr(self.res.action_read_clip), triggered=self.read_clip)
-        self.addAction(self.action_read_clip)
-        if index == 6:
-            self.add_hitomi_tools()
 
     def read_clip(self):
         if self.gui.next_btn.text() != res.GUI.Uic.next_btnDefaultText:
@@ -51,25 +41,3 @@ class ToolMenu(DWMMenu):
                              ignore_http=True)
             else:
                 self.gui.init_clip_handle(tf, match_items)
-
-    def add_hitomi_tools(self):
-        if hasattr(self, "action_read_clip"):
-            self.removeAction(self.action_read_clip)
-        
-        self.action_hitomi_tools = Action(self.tr('hitomi-tools'), triggered=self.hitomi_tools_run)
-        self.addAction(self.action_hitomi_tools)
-
-    def hitomi_tools_run(self):
-        hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
-        if not hitomi_db_path.exists():
-            CustomInfoBar.show(
-                title='', content=res.GUI.hitomiDb_guide % hitomi_db_path,
-                parent=self.gui.textBrowser, _type="WARNING",
-                url=res.Vars.hitomiDb_tmp_url, url_name="Download"
-            )
-            # TODO[3] : 调用 utils/website/hitomi/scape_dataset.py 下载 hitomi.db
-        else:
-            if not hasattr(self.gui, "hitomi_tools"):
-                self.gui.hitomi_tools = HitomiTools(self.gui)
-            self.gui.hitomi_tools.show()
-

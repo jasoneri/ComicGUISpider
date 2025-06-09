@@ -302,7 +302,7 @@ class Ui_MainWindow(object):
 "    border-radius: 7px;\n"
 "}")
         icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap(":/tools/toolbox_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon5.addPixmap(QtGui.QPixmap(":/tools/clip.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButton.setIcon(icon5)
         self.toolButton.setIconSize(QtCore.QSize(18, 18))
         self.toolButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)

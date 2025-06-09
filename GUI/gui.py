@@ -16,7 +16,7 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, ClipTasksThread
-from GUI.tools import rvTool
+from GUI.tools import ToolWindow
 from GUI.components import ToolMenu
 
 from variables import *
@@ -102,6 +102,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     pageFrameClickCnt = 0
     checkisopenCnt = 0
     BrowserWindow: BrowserWindow = None
+    toolWin = None
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -160,7 +161,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sv_path = conf.sv_path
         self.btn_logic_bind()
         self.set_shortcut()
-        self.set_rvtool()
+        self.set_tool_win()
         # 预览
         self.tf = None
         self.previewInit = True
@@ -181,7 +182,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
             self.chooseBox_changed_tips(index)
+            match index:
+                case 2 | 3:
+                    self.toolWin.addDomainTool()
+                case 6:
+                    self.toolWin.addHitomiTool()
             if index in SPECIAL_WEBSITES_IDXES:
+                self.toolButton.setEnabled(1)
                 self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             # 输入框联想补全
             self.set_completer()
@@ -195,8 +202,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def chooseBox_changed_tips(self, index):
         self.spiderUtils = spider_utils_map[index]
-        if index in SPECIAL_WEBSITES_IDXES:
-            self.tool_menu.switch_ero(index)
         match index:
             case 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
@@ -218,10 +223,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.nextPageShort.setContext(Qt.ApplicationShortcut)
         self.nextPageShort.activated.connect(self.nextPageBtn.click)
 
-    def set_rvtool(self):
-        if not hasattr(self, "rv_tool"):
-            self.rv_tool = rvTool(self)
-        self.rvBtn.clicked.connect(self.rv_tool.show)
+    def set_tool_win(self):
+        self.toolWin = ToolWindow(self)
+        self.rvBtn.clicked.connect(self.toolWin.show)
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()

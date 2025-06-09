@@ -1,39 +1,28 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QGuiApplication
-from PyQt5.QtWidgets import QHBoxLayout
+from PyQt5.QtWidgets import QHBoxLayout, QWidget
 from qfluentwidgets import (
-    VBoxLayout, PrimaryPushButton, TransparentToolButton, 
+    VBoxLayout, PrimaryPushButton, 
     HyperlinkButton, FluentIcon as FIF
 )
-from qframelesswindow import FramelessWindow
 
 
-class DomainToolView(FramelessWindow):
+class DomainToolView(QWidget):
     def __init__(self, parent=None):
         super().__init__()
-        self.titleBar.minBtn.hide()
-        self.titleBar.maxBtn.hide()
-        self.titleBar.closeBtn.hide()
-        self.main_layout = VBoxLayout(self)
-        self.setLayout(self.main_layout)
-        w = int(parent.width()*0.7)
-        h = int(parent.height()*1.1)
-        self.resize(w, h)
-        screen = QGuiApplication.primaryScreen()
-        screen_geo = screen.geometry()
-        self.move(int((screen_geo.width() - w) / 2.3),int((screen_geo.height() - h) / 2))
+        self.gui = parent
         self.init_ui()
 
     def init_ui(self):
+        self.main_layout = VBoxLayout(self)
+        self.setLayout(self.main_layout)
         first_row = QHBoxLayout()
         first_row.addStretch()
-        goBtn = HyperlinkButton()
-        handleBtn = PrimaryPushButton()
-        cancelBtn = TransparentToolButton(FIF.CLOSE, self)
-        cancelBtn.clicked.connect(self.close)
-        for btn in (goBtn, handleBtn, cancelBtn):
-            first_row.addWidget(btn)
+        # 通过gui获取url
+        goBtn = HyperlinkButton(FIF.LINK, '', '发布页')
+        handleBtn = PrimaryPushButton(FIF.HEADPHONE, '', self)
+        # 1. 测试域名是否可用
+        # 2. self.gui.retryBtn.click()
+        first_row.addWidget(goBtn)
+        first_row.addWidget(handleBtn)
         
         first_row.addStretch()
         self.main_layout.addLayout(first_row)
-
