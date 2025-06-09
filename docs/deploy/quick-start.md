@@ -40,7 +40,7 @@ python -m uv pip install -r "requirements/win.txt" --index-url https://pypi.tuna
 
 ::: info 使用方法进help看说明  
 当前版本能进行简单下载/调试功能（后续将逐步扩展）  
-命令行工具的配置可用GUI方式修改 或 直接修改`scripts/conf.yml`文件
+命令行工具的配置可用GUI方式修改 或 直接修改`conf.yml`文件（[📒配置系文件路径](/faq/extra.html#_3-%E9%85%8D%E7%BD%AE%E7%B3%BB%E6%96%87%E4%BB%B6%E8%B7%AF%E5%BE%84)）
 :::
 
 ## 3. 配置
@@ -50,13 +50,11 @@ python -m uv pip install -r "requirements/win.txt" --index-url https://pypi.tuna
 ## 4. 更新
 
 + CGS 内置了更新模块，能在配置窗口中点击 `检查更新` 按钮进行更新  
-::: info 当 `本地版本` < `最新稳定版` < `最新开发版` 时
+::: info 当 `本地版本` < `最新稳定版` < `最新开发版` 时  
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 也可以选择到 releases 手动下载最新版，但需要注意配置等文件不被覆盖丢失
-::: tip 分别是 配置文件 `scripts/conf.yml` 与去重记录 `scripts/record.db`
-:::
++ 也可以选择到 releases 手动下载最新版
 
 ## 5. 搭配阅读器
 

@@ -1,7 +1,7 @@
 # 💻 macOS( mac 操作系统) 部署
 
 > [!Info] WantHelp!
-> 寻找 `mac—arm64` 开发者维护 `mac` 应用（本渣配置台式开始跑不动 `mac` 虚拟机了） [查看详情](
+> 寻找 `mac—arm64` 开发者维护 `mac` 应用（本渣配台式开始跑不动 `mac` 虚拟机了） [查看详情](
   https://github.com/jasoneri/ComicGUISpider/issues/35)
 
 ## 🚩 前置架构相关

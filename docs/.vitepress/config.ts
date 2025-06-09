@@ -6,7 +6,7 @@ const version = `v2.1`
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
 export default defineConfig({
-    title: "ComicGUISpider",
+    title: "点我回主页/Index",
     description: "",
     base: `/ComicGUISpider/`,
 
@@ -70,7 +70,7 @@ export default defineConfig({
             {
                 items: [
                     {
-                        text: "快速开始",
+                        text: "🚀快速开始",
                         link: "/deploy/quick-start",
                     },
                     {
@@ -83,7 +83,7 @@ export default defineConfig({
                 text: "配置说明",
                 items: [
                     {
-                        text: "主配置",
+                        text: "🔨主配置",
                         link: "/config",
                     },
                     {
@@ -96,11 +96,11 @@ export default defineConfig({
                 text: "功能说明",
                 items: [
                     {
-                        text: "主功能",
+                        text: "🎸主功能",
                         link: "/feature/",
                     },
                     {
-                        text: "其他脚本集",
+                        text: "🚧其他脚本集",
                         link: "/feature/script",
                     }
                 ]
@@ -109,11 +109,11 @@ export default defineConfig({
                 text: "FAQ",
                 items: [
                     {
-                        text: "常见问题",
+                        text: "❓常见问题",
                         link: "/faq/",
                     },
                     {
-                        text: "额外说明",
+                        text: "📒额外说明",
                         link: "/faq/extra",
                     },
                     {

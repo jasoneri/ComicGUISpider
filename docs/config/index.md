@@ -2,8 +2,8 @@
 
 ![conf](../assets/img/config/conf_usage.png)
 
-::: info 配置文件为初始使用后产生的 `scripts/conf.yml`  
-有关生效时间节点请查阅 [📒配置生效相关](../faq/extra.md#_1-配置生效相关)  
+::: info 配置文件为初始使用后产生的 `conf.yml` （[📒配置系文件路径](/faq/extra.html#_3-%E9%85%8D%E7%BD%AE%E7%B3%BB%E6%96%87%E4%BB%B6%E8%B7%AF%E5%BE%84)）  
+有关生效时间节点请查阅 [📒配置生效相关](../faq/extra.md#_2-配置生效相关)  
 :::
 ::: warning 多行的编辑框输入为 `yaml` 格式（除了 eh_cookies ），冒号后要加一个⚠️ `空格` ⚠️  
 :::
