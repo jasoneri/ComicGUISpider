@@ -4,6 +4,7 @@ import re
 import ast
 import time
 import html
+import shutil
 import hashlib
 import pathlib as p
 import typing as t
@@ -12,6 +13,7 @@ import multiprocessing.managers as m
 
 import yaml
 from loguru import logger as lg
+from PyQt5.QtCore import QStandardPaths
 
 from variables import DEFAULT_COMPLETER
 from deploy import curr_os
@@ -20,6 +22,8 @@ ori_path = p.Path(__file__).parent.parent
 temp_p = ori_path.joinpath("__temp")
 temp_p.mkdir(exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
+conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
+conf_dir.mkdir(parents=True, exist_ok=True)
 
 
 def yaml_update(_f, dic):
@@ -31,6 +35,14 @@ def yaml_update(_f, dic):
         fp.truncate()
         yaml_data = yaml.dump(ori_yml_config, allow_unicode=True, sort_keys=False)
         fp.write(yaml_data)
+
+
+def toAppConfigLocation(ori_file: p.Path):
+    file = ori_file.name
+    location_file = conf_dir.joinpath(file)
+    if ori_file.exists() and not location_file.exists():
+        shutil.move(str(ori_file), str(location_file))
+    return location_file
 
 
 @dataclass
@@ -117,11 +129,16 @@ class Conf:
     def settings(self):
         return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map
 
-    def __new__(cls, *args, path: t.Optional[p.Path] = None, **kwargs):
-        _instance = f"_instance_{path.name}" if path else "_instance"
+    @classmethod
+    def duel_conf(cls, ori_conf_yml, iname):
+        _i = f"_instance_{iname}" if iname else "_instance"
+        return _i, toAppConfigLocation(ori_conf_yml)
+    
+    def __new__(cls, *args, path: t.Optional[p.Path] = None, iname: str = None, **kwargs):
+        _instance, file = cls.duel_conf((path or ori_path).joinpath("conf.yml"), iname)
         if not hasattr(Conf, _instance):
             setattr(Conf, _instance, object.__new__(cls))
-            getattr(Conf, _instance).file = (path or ori_path).joinpath('conf.yml')
+            getattr(Conf, _instance).file = file
         return getattr(Conf, _instance)
 
 

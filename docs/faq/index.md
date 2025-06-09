@@ -37,7 +37,7 @@ macOS: 用`CGS-init`更新环境依赖
 ### 更新失败后程序无法打开
 
 ::: tip 最简单有效❗️  
-备份配置 scripts/conf.yml 与去重记录 scripts/record.db后 下载📦绿色包 覆盖更新  
+下载📦绿色包 覆盖更新  
 :::
 
 更新的报错日志已整合进 log/GUI.log 文件里，建议提 issue 并附上 log，帮助 CGS 进行优化  

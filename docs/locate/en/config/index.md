@@ -2,7 +2,7 @@
 
 ![conf](../../../assets/img/config/conf_usage_en.png)
 
-::: info config file is `scripts/conf.yml`, generated after initial use
+::: info config file is `conf.yml`, generated after initial use
 :::
 ::: warning The input box of multiple lines is in `yaml` format (except for eh_cookies), and a ⚠️ `space` ⚠️ is required after the `colon`
 :::
