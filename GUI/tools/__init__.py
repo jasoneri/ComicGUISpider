@@ -4,9 +4,11 @@ from PyQt5.QtGui import QGuiApplication
 from qfluentwidgets import Pivot
 from qframelesswindow import FramelessWindow
 from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
+
 from GUI.tools.hitomi_tool import HitomiTools, HitomiNotYet, hitomi_db_path
 from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
+from GUI.tools.chore import *
 
 
 class ToolWindow(FramelessWindow):
