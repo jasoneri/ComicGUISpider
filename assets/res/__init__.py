@@ -4,6 +4,7 @@ import gettext
 import pathlib
 import hashlib
 import locale
+import types
 
 from assets.res.transfer import main as translation_compile
 
@@ -54,187 +55,40 @@ except FileNotFoundError as e:
     _ = gettext.gettext
 
 
-class Vars:
-    ua_accept_language = _('Vars.ua_accept_language')  
-    hitomiDb_tmp_url = _('Vars.hitomiDb_tmp_url')
-
-# GUI
-class GUI:
-    DESC1 = _('GUI.DESC1')
-    DESC2 = _('GUI.DESC2')
-    DESC_ELSE = _('GUI.DESC_ELSE')
-
-    BrowserWindow_ensure_warning = _('GUI.BrowserWindow_ensure_warning')
-
-    jm_desc = _('GUI.jm_desc')
-    wnacg_desc = _('GUI.wnacg_desc')
-    mangabz_desc = _('GUI.mangabz_desc')
-    hitomi_desc = _('GUI.hitomi_desc')
-    hitomiDb_guide = _('GUI.hitomiDb_guide')
-    check_ehetai = _('GUI.check_ehetai')
-    check_mangabz = _('GUI.check_mangabz')
-    check_hitomi = _('GUI.check_hitomi')
-    checkisopen_text_change = _('GUI.checkisopen_text_change')
-    checkisopen_status_tip = _('GUI.checkisopen_status_tip')
-    ACCESS_FAIL = _('GUI.ACCESS_FAIL')
-    cookies_copy_err = _('GUI.cookies_copy_err')
-    copied_tip = _('GUI.copied_tip')
-    textbrowser_load_if_http = _('GUI.textbrowser_load_if_http')
-    WorkThread_finish_flag = _('GUI.WorkThread_finish_flag')
-    WorkThread_empty_flag = _('GUI.WorkThread_empty_flag')
-    copymaga_tips = _('GUI.copymaga_tips')
-    copymaga_page_status_tip = _('GUI.copymaga_page_status_tip')
-    global_err_hook = _('GUI.global_err_hook')
-    input_format_err = _('GUI.input_format_err')
-    reboot_tip = _('GUI.reboot_tip')
-
-    class Clip:
-        process_warning = _('GUI.Clip.process_warning')
-        db_not_found_guide = _('GUI.Clip.db_not_found_guide')
-        match_none = _('GUI.Clip.match_none')
-        get_info_error = _('GUI.Clip.get_info_error')
-        partial_fail = _('GUI.Clip.partial_fail')
-        all_fail = _('GUI.Clip.all_fail')
-        view_log = _('GUI.Clip.view_log')
-
-    class SearchInputStatusTip:
-        manga_copy = _('GUI.SearchInputStatusTip.manga_copy')
-        jm = _('GUI.SearchInputStatusTip.jm')
-        wnacg = _('GUI.SearchInputStatusTip.wnacg')
-        ehentai = _('GUI.SearchInputStatusTip.ehentai')
-        mangabz = _('GUI.SearchInputStatusTip.mangabz')
-        hitomi = _('GUI.SearchInputStatusTip.hitomi')
-
-    class rvTool:
-        book_marked = _('GUI.rvTool.book_marked')
-        merge_move = _('GUI.rvTool.merge_move')
-        book_marked_warning = _('GUI.rvTool.book_marked_warning')
-        combined_tip = _('GUI.rvTool.combined_tip')
-        set_script_err = _('GUI.rvTool.set_script_err')
-
-    class ToolMenu:
-        action_read_clip = _('GUI.ToolMenu.action_read_clip')
-
-    class Uic:
-        chooseBoxDefault = _('GUI.Uic.chooseBoxDefault')
-        searchinputPlaceholderText = _('GUI.Uic.searchinputPlaceholderText')
-        chooseinputPlaceholderText = _('GUI.Uic.chooseinputPlaceholderText')
-        next_btnDefaultText = _('GUI.Uic.next_btnDefaultText')
-        checkisopenDefaultText = _('GUI.Uic.checkisopenDefaultText')
-        chooseinputTip = _('GUI.Uic.chooseinputTip')
-        chooseBoxToolTip = _('GUI.Uic.chooseBoxToolTip')
-        previewBtnStatusTip = _('GUI.Uic.previewBtnStatusTip')
-        progressBarStatusTip = _('GUI.Uic.progressBarStatusTip')
+class TranslationNamespace(types.SimpleNamespace):
+    """动态加载翻译项的命名空间"""
+    def __init__(self, prefix, **kwargs):
+        self._prefix = prefix
+        super().__init__(**kwargs)
         
-        sv_path_desc = _('GUI.Uic.sv_path_desc')
-        sv_path_desc_tip = _('GUI.Uic.sv_path_desc_tip')
-        rv_scriptp_desc = _('GUI.Uic.rv_scriptp_desc')
-        rv_scriptp_desc_tip = _('GUI.Uic.rv_scriptp_desc_tip')
-        rv_deployBtn = _('GUI.Uic.rv_deployBtn')
-        rv_deployDesc = _('GUI.Uic.rv_deployDesc')
-        rv_deployWinRequire = _('GUI.Uic.rv_deployWinRequire')
-        menu_show_completer = _('GUI.Uic.menu_show_completer')
-        menu_next_page = _('GUI.Uic.menu_next_page')
-        menu_prev_page = _('GUI.Uic.menu_prev_page')
+    def __getattr__(self, name):
+        # 动态创建嵌套命名空间
+        if name.startswith('_'):
+            return super().__getattr__(name)
+            
+        nested_prefix = f"{self._prefix}.{name}" if self._prefix else name
+        value = _(nested_prefix)
         
-        confDia_labelLogLevel = _('GUI.Uic.confDia_labelLogLevel')
-        confDia_labelDedup = _('GUI.Uic.confDia_labelDedup')
-        confDia_labelAddUuid = _('GUI.Uic.confDia_labelAddUuid')
-        confDia_labelProxy = _('GUI.Uic.confDia_labelProxy')
-        confDia_labelMap = _('GUI.Uic.confDia_labelMap')
-        confDia_labelPreset = _('GUI.Uic.confDia_labelPreset')
-        confDia_labelClipDb = _('GUI.Uic.confDia_labelClipDb')
-        confDia_labelClipNum = _('GUI.Uic.confDia_labelClipNum')
-        confDia_svPathWarning = _('GUI.Uic.confDia_svPathWarning')
-        confDia_descBtn = _('GUI.Uic.confDia_descBtn')
-        confDia_updateBtn = _('GUI.Uic.confDia_updateBtn')
-        confDia_updateDialog_stable = _('GUI.Uic.confDia_updateDialog_stable')
-        confDia_updateDialog_dev = _('GUI.Uic.confDia_updateDialog_dev')
-        confDia_supportBtn = _('GUI.Uic.confDia_supportBtn')
-        confDia_promote_title = _('GUI.Uic.confDia_promote_title')
-        confDia_promote_content = _('GUI.Uic.confDia_promote_content') 
-        confDia_promote_url = _('GUI.Uic.confDia_promote_url')
-        confDia_support_content = _('GUI.Uic.confDia_support_content')
-        hitomiTools_tip_search = _('GUI.Uic.hitomiTools_tip_search')
-        hitomiTools_tip_sv = _('GUI.Uic.hitomiTools_tip_sv')
-        hitomiTools_tip_send = _('GUI.Uic.hitomiTools_tip_send')
-        hitomiTools_tip_remove = _('GUI.Uic.hitomiTools_tip_remove')
-        hitomiTools_tip_orderby = _('GUI.Uic.hitomiTools_tip_orderby')
-        hitomiTools_info_copied = _('GUI.Uic.hitomiTools_info_copied')
-        hitomiTools_info_sved = _('GUI.Uic.hitomiTools_info_sved')
-        hitomiTools_info_sended = _('GUI.Uic.hitomiTools_info_sended')
+        # 如果返回的是原始键（未翻译），尝试创建嵌套命名空间
+        if value == nested_prefix:
+            return TranslationNamespace(nested_prefix)
+        return value
+
+# 自动创建所有翻译命名空间
+def create_translation_namespaces():
+    modules = {}
+    
+    # 顶级命名空间 (如 Vars, GUI, Updater)
+    for module_name in ['Vars', 'GUI', 'Updater', 'SPIDER', 'EHentai']:
+        modules[module_name] = TranslationNamespace(module_name)
+    return types.SimpleNamespace(**modules)
 
 
-# website
-class EHentai:
-    COOKIES_NOT_SET = _('EHentai.COOKIES_NOT_SET')
-    ACCESS_FAIL = _('EHentai.ACCESS_FAIL')
-    GUIDE = _('EHentai.GUIDE')
-    JUMP_TIP = _('EHentai.JUMP_TIP')
-    MAPPINGS_INDEX = _('EHentai.MAPPINGS_INDEX')
-    MAPPINGS_POPULAR = _('EHentai.MAPPINGS_POPULAR')
+# 创建动态翻译对象
+i18n = create_translation_namespaces()
 
-
-# backend (spider/scrapy)
-class SPIDER:
-    # basecomicspider
-    class SayToGui:
-        exp_txt = _('SPIDER.SayToGui.exp_txt')
-        exp_turn_page = _('SPIDER.SayToGui.exp_turn_page')
-        exp_preview = _('SPIDER.SayToGui.exp_preview')
-        exp_replace_keyword = _('SPIDER.SayToGui.exp_replace_keyword')
-        TextBrowser_error = _('SPIDER.SayToGui.TextBrowser_error')
-        frame_book_print_extra = _('SPIDER.SayToGui.frame_book_print_extra')
-        frame_book_print_retry_tip = _('SPIDER.SayToGui.frame_book_print_retry_tip')
-        frame_section_print_extra = _('SPIDER.SayToGui.frame_section_print_extra')
-
-    chooseInput_flag = _('SPIDER.chooseInput_flag')
-    sectionInput_flag = _('SPIDER.sectionInput_flag')
-    search_url_head_NotImplementedError = _('SPIDER.search_url_head_NotImplementedError')
-    choice_list_before_turn_page = _('SPIDER.choice_list_before_turn_page')
-    parse_step = _('SPIDER.parse_step')
-    parse_sec_step = _('SPIDER.parse_sec_step')
-    parse_sec_not_match = _('SPIDER.parse_sec_not_match')
-    parse_sec_selected = _('SPIDER.parse_sec_selected')
-    parse_sec_now_start_crawl_desc = _('SPIDER.parse_sec_now_start_crawl_desc')
-    page_less_than_one = _('SPIDER.page_less_than_one')
-
-    finished_success = _('SPIDER.finished_success')
-    finished_err = _('SPIDER.finished_err')
-    finished_empty = _('SPIDER.finished_empty')
-    close_backend_error = _('SPIDER.close_backend_error')
-    close_check_log_guide1 = _('SPIDER.close_check_log_guide1')
-    close_check_log_guide2 = _('SPIDER.close_check_log_guide2')
-    close_check_log_guide3 = _('SPIDER.close_check_log_guide3')
-
-    # spiders
-
-    # pipelines
-    ERO_BOOK_FOLDER = _('SPIDER.ERO_BOOK_FOLDER')
-
-    # utils
-    PUBLISH_INVALID = _('SPIDER.PUBLISH_INVALID')
-    DOMAINS_INVALID = _('SPIDER.DOMAINS_INVALID')
-
-
-# folder of deploy
-class Updater:
-    ver_check = _('Updater.ver_check')
-    ver_file_not_exist = _('Updater.ver_file_not_exist')
-    check_refresh_code = _('Updater.check_refresh_code')
-    code_downloading = _('Updater.code_downloading')
-    finish = _('Updater.finish')
-    not_pkg_markdown = _('Updater.not_pkg_markdown')
-    token_invalid_notification = _('Updater.token_invalid_notification')
-    latest_code_overwriting = _('Updater.latest_code_overwriting')
-    too_much_waiting_update = _('Updater.too_much_waiting_update')
-    refreshing_code = _('Updater.refreshing_code')
-    refresh_fail_retry = _('Updater.refresh_fail_retry')
-    refresh_fail_retry_over_limit = _('Updater.refresh_fail_retry_over_limit')
-    code_is_latest = _('Updater.code_is_latest')
-    env_is_latest = _('Updater.env_is_latest')
-    ver_local_latest = _('Updater.ver_local_latest')
-    ver_check_fail = _('Updater.ver_check_fail')
-    update_ensure = _('Updater.update_ensure')
-    updated_success = _('Updater.updated_success')
-    updated_fail = _('Updater.updated_fail')
+Vars = i18n.Vars
+GUI = i18n.GUI
+SPIDER = i18n.SPIDER
+EHentai = i18n.EHentai
+Updater = i18n.Updater
