@@ -10,7 +10,7 @@ from qframelesswindow.webengine import FramelessWebEngineView
 
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
-from GUI.thread.other import CopyUnfinished
+from GUI.tools import CopyUnfinished
 from assets import res
 from variables import CN_PREVIEW_NEED_PROXIES_IDXES
 from utils import conf

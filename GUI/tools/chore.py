@@ -1,9 +1,10 @@
 from copy import deepcopy
 
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QApplication
 
-from utils import conf, curr_os, ori_path
+from utils import curr_os
+
 
 class CopyUnfinished:
     copy_delay = 150 if curr_os != "macOS" else 300

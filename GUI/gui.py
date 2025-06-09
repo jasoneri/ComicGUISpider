@@ -17,77 +17,19 @@ from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, ClipTasksThread
 from GUI.tools import ToolWindow
-from GUI.components import ToolMenu
+from GUI.manager import TaskProgressManager, ClipGUIManager
 
 from variables import *
 from assets import res
 from utils import (
-    font_color, Queues, QueuesManager, conf, p, ori_path
+    font_color, Queues, QueuesManager, conf, p, ori_path, curr_os
 )
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what,
-    PreviewHtml, TaskObj, TasksObj
+    PreviewHtml
 )
 from utils.website import spider_utils_map
-from utils.sql import SqlUtils
-from deploy import curr_os
-
-
-class TaskProgressManager:
-    def __init__(self, gui):
-        self.gui = gui
-        self._tasks = {}
-        self.init_flag = True
-        self.sql_handler = SqlUtils()
-
-    def init(self, add_task):
-        self.init_flag = False
-        if not self.gui.BrowserWindow and self.gui.previewInit:
-            self.gui.tf = self.gui.tf or PreviewHtml().created_temp_html
-            self.gui.previewInit = False
-            self.gui.set_preview()
-        self.gui.BrowserWindow.init_task_panel(add_task)
-
-    def handle(self, task):
-        if isinstance(task, tuple):
-            self.add_task(task)
-        else:
-            self.update_progress(task)
-            
-    def add_task(self, task_info: tuple):
-        if self.init_flag:
-            self.init(lambda: self._real_add_task(task_info))
-        else:
-            self._real_add_task(task_info)
-
-    def _real_add_task(self, task_info: tuple):
-        obj = TasksObj(*task_info)
-        self._tasks[task_info[0]] = obj
-        self.gui.BrowserWindow.add_task(obj)
-
-    def update_progress(self, task_obj: TaskObj):
-        taskid = task_obj.taskid
-        progress_completed = False
-        if taskid in self._tasks:
-            _tasks = self._tasks[taskid]
-            _tasks.downloaded.append(task_obj)
-            curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
-            if conf.isDeduplicate and curr_progress >= 100:
-                progress_completed = True
-            self.gui.BrowserWindow.update_progress(taskid, curr_progress,
-                                                   lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
-            )
-
-    @property
-    def unfinished_tasks(self):
-        _tasks_key = list(self._tasks.keys())
-        downloaded_taskids = self.sql_handler.batch_check_dupe(_tasks_key)
-        un_taskids = set(_tasks_key) - set(downloaded_taskids)
-        return [self._tasks[taskid] for taskid in un_taskids]
-        
-    def close(self):
-        self.sql_handler.close()
 
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
@@ -154,7 +96,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.manager.connect()
         self.Q = QueueHandler(self.manager)
         # 按钮组
-        self.tool_menu = ToolMenu(self)
+        self.tool_menu = ClipGUIManager(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0

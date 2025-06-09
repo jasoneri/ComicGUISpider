@@ -15,7 +15,7 @@ from variables import SPIDERS
 from utils import conf, yaml, convert_punctuation as cp, ori_path
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
-from GUI.uic.qfluent.action_factory import Updater, Proj
+from GUI.manager import Updater, Proj
 from GUI.uic.qfluent.components import SupportView, CustomFlyout, CustomInfoBar
 
 
