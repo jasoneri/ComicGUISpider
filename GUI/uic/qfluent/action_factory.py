@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import subprocess
-import traceback
-from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtCore import QThread, pyqtSignal, QUrl, QTimer
+from PyQt5.QtCore import QTimer
 
 from qfluentwidgets import InfoBarPosition
 
@@ -14,53 +12,6 @@ from deploy.update import Proj
 from GUI.uic.qfluent.components import (
     CustomInfoBar, CustomFlyout, IndeterminateBarFView, CustomMessageBox
 )
-
-
-class DescCreator:
-    @staticmethod
-    def run():
-        QDesktopServices.openUrl(QUrl('https://jasoneri.github.io/ComicGUISpider/'))
-
-
-class ProjUpdateThread(QThread):
-    checked_signal = pyqtSignal(object)
-    update_signal = pyqtSignal()
-    updated_signal = pyqtSignal(object)
-    debug_signal = pyqtSignal(str)
-
-    def __init__(self, conf_dia):
-        self.proj = None
-        super(ProjUpdateThread, self).__init__()
-        self.conf_dia = conf_dia
-        self.is_update_requested = False
-        self.log = conf.cLog(name="GUI")
-        self.debug_signal.connect(self.conf_dia.gui.say)
-
-    def run(self):
-        try:
-            self.proj = Proj(debug_signal=self.debug_signal)
-            self.proj.check()
-            self.checked_signal.emit(self.proj)
-            while not self.is_update_requested and not self.isInterruptionRequested():
-                self.msleep(100)  # 休眠100毫秒，减少CPU使用
-            if self.is_update_requested and not self.isInterruptionRequested():
-                self.run_update()
-        except Exception as e:
-            self.log.exception(f"ProjCheckError: {e}")
-            self.checked_signal.emit(traceback.format_exc())
-
-    def request_update(self):
-        self.is_update_requested = True
-
-    def run_update(self):
-        try:
-            # ⚠️ danger！⚠️ -------------->
-            self.proj.local_update()
-            # <-------------- ⚠️ danger！⚠️
-            self.updated_signal.emit(self.proj)
-        except Exception as e:
-            self.log.exception(f"ProjUpdateError: {e}")
-            self.updated_signal.emit(traceback.format_exc())
 
 
 class Updater:
