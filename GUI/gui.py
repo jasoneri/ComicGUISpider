@@ -16,7 +16,8 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, ClipTasksThread
-from GUI.thread.other import ToolMenu, rvTool
+from GUI.tools import rvTool
+from GUI.components import ToolMenu
 
 from variables import *
 from assets import res

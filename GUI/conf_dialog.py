@@ -6,13 +6,16 @@ import pathlib
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
+from PyQt5.QtGui import QDesktopServices
+from PyQt5.QtCore import QUrl
 from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, PushSettingCard, InfoBarPosition
 
 from assets import res
 from variables import SPIDERS
 from utils import conf, yaml, convert_punctuation as cp, ori_path
+from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
-from GUI.uic.qfluent.action_factory import Updater, DescCreator, ProjUpdateThread, Proj
+from GUI.uic.qfluent.action_factory import Updater, Proj
 from GUI.uic.qfluent.components import SupportView, CustomFlyout, CustomInfoBar
 
 
@@ -79,7 +82,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
     
     def insert_btn(self):
         def _create_desc():
-            DescCreator.run()
+            QDesktopServices.openUrl(QUrl('https://jasoneri.github.io/ComicGUISpider/'))
         self.descBtn = PrimaryPushButton(FIF.LIBRARY, res.GUI.Uic.confDia_descBtn)
         self.descBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.descBtn.setMaximumSize(QtCore.QSize(110, 16777215))
