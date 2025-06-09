@@ -3,10 +3,10 @@ import shutil
 import subprocess
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QGuiApplication
-from PyQt5.QtWidgets import QApplication,QSpacerItem,QSizePolicy, QFileDialog, QHBoxLayout
+from PyQt5.QtWidgets import QSpacerItem, QSizePolicy, QFileDialog, QHBoxLayout, QWidget
 from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, PrimaryToolButton,
-    TransparentToolButton, TransparentPushButton, HyperlinkButton, 
+    TransparentToolButton, PushButton, HyperlinkButton, 
     FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition,
     BodyLabel
 )
@@ -119,29 +119,12 @@ class SvPathCard(PushSettingCard):
         _.show()
 
 
-class rvTool(FramelessWindow):
+class rvTool(QWidget):
     res = res.GUI.rvTool
 
     def __init__(self, parent=None):
-        super().__init__()
-        self.gui = parent
-        self.titleBar.minBtn.hide()
-        self.titleBar.maxBtn.hide()
-        self.titleBar.closeBtn.hide()
-        screen = QGuiApplication.primaryScreen()
-        screen_geo = screen.geometry()
-        if parent:
-            window_width = int(parent.width() * 0.8)
-        else:
-            window_width = int(screen_geo.width() * 0.4)
-        window_height = int(screen_geo.height() * 0.13)
-        self.setMinimumSize(window_width, window_height)
-        self.resize(window_width, 120)
-        self.move(
-            int((screen_geo.width() - window_width) / 2),
-            int((screen_geo.height() - window_height) / 2)
-        )
-        
+        super().__init__(parent)
+        self.toolWin = parent
         self.init_ui()
     
     def init_ui(self):
@@ -161,18 +144,15 @@ class rvTool(FramelessWindow):
         
         second_row = QHBoxLayout()
         spacer_info = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.showMaxBtn = TransparentPushButton(CustomIcon.TOOL_BOOK_MARKED, self.res.book_marked)
+        self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, self.res.book_marked)
         self.showMaxBtn.clicked.connect(self.show_max)
-        self.combineBtn = TransparentPushButton(CustomIcon.TOOL_MERGE, self.res.merge_move)
+        self.combineBtn = PushButton(CustomIcon.TOOL_MERGE, self.res.merge_move)
         self.combineBtn.clicked.connect(self.combine_then_mv)
-        self.cancelBtn = TransparentToolButton(FIF.CLOSE, self)
-        self.cancelBtn.clicked.connect(self.close)
         second_row.addSpacerItem(spacer_info)
         second_row.addWidget(self.showMaxBtn)
         second_row.addWidget(self.combineBtn)
         second_row.addWidget(self.broomBtn)
         second_row.addWidget(self.runBtn)
-        second_row.addWidget(self.cancelBtn)
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addLayout(second_row)
@@ -206,19 +186,4 @@ class rvTool(FramelessWindow):
         cmd = TmpCurrOs.run_cmd + [str(rv_script)]
         subprocess.Popen(cmd, cwd=str(run_dir), start_new_session=True, shell=True, 
                          creationflags=0x00000008 | 0x00000200)
-        self.close()
-
-
-def main():
-    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
-    app = QApplication([])
-    window = rvTool()
-    window.show()
-    app.exec_()
-
-
-if __name__ == '__main__':
-    import GUI.src.material_ct
-    main()
+        self.toolWin.close()

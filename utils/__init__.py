@@ -91,7 +91,7 @@ class Conf:
         def path_like_handle(_p):
             return str(_p) if isinstance(_p, p.Path) else _p
         for k, v in kwargs.items():
-            self.__setattr__(k, p.Path(v) if k == "sv_path" else v)
+            self.__setattr__(k, p.Path(v) if k in ("sv_path","rv_script") else v)
         props = asdict(self)
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['clip_db'] = path_like_handle(props['clip_db'])
