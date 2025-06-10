@@ -182,6 +182,3 @@ class ClipGUIManager:
                              ignore_http=True)
             else:
                 self.gui.init_clip_handle(tf, match_items)
-
-
-

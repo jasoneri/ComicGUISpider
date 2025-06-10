@@ -96,7 +96,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.manager.connect()
         self.Q = QueueHandler(self.manager)
         # 按钮组
-        self.tool_menu = ClipGUIManager(self)
+        self.clip_mgr = ClipGUIManager(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
@@ -130,7 +130,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 case 6:
                     self.toolWin.addHitomiTool()
             if index in SPECIAL_WEBSITES_IDXES:
-                self.toolButton.setEnabled(1)
+                self.clipBtn.setEnabled(1)
                 self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             # 输入框联想补全
             self.set_completer()
@@ -197,6 +197,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.next_btn.clicked.connect(self.next_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
+        self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
@@ -439,7 +440,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.input_state.pageTurn = ""
             self.q_InputFieldQueue_send(self.input_state)
             refresh_state(self, 'process_state', 'ProcessQueue')
-            self.toolButton.setDisabled(True)
+            self.clipBtn.setDisabled(True)
             return
         idxes = self.chooseinput.text().strip()
         if self.BrowserWindow and self.BrowserWindow.output:
