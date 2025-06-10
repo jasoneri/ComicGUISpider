@@ -62,6 +62,10 @@ GUI:
     hitomi_info_copied: "已复制，注意为 urldecode"
     hitomi_info_sved: "已保存 urlencode 后的值到预设之首"
     hitomi_info_sended: "已发送到搜索框，程序最适配urlencode值无需担心"
+    domain_btn: "发布页"
+    domain_desc: "点击发布页然后按图示复制你能用的部分（内地），<br>回来点击执行按键，CGS会花几秒检测是否可用并相应通知，<br>CGS并不能突破你的网络环境， 浏览器开不了CGS也开不了，请知悉"
+    doamin_success_tip: "[%s]已设置进下方临时文件，有效时间为48小时<br>[%s]<br>CGS将在5秒后重启以确保后台进程应用有效域名"
+    doamin_error_tip: "域名全无效，请你自行检查，再次声明CGS并不能突破现网络环境去访问"
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"
@@ -133,7 +137,7 @@ SPIDER:
   close_check_log_guide3: "3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue"
   ERO_BOOK_FOLDER: "本子"
   PUBLISH_INVALID: "<a href=\"%s\">发布页</a>访问失效，<br>请自行检查 (可参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])"
-  DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>请自行检查 (可参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])"
+  DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>请自行检查 (可参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])<br>或通过 domainTool 进行操作"
 
 Updater:
   ver_check: "检查版本中"

@@ -5,6 +5,7 @@ import re
 import math
 import json
 from io import BytesIO
+import asyncio
 
 import httpx
 from PIL import Image
@@ -15,11 +16,11 @@ from cryptography.hazmat.backends import default_backend
 
 from assets import res
 from utils import md5, ori_path, conf
-from utils.website.core import EroUtils, Req, Utils, Cookies, retry, set_author_ahead
+from utils.website.core import *
 from utils.website.hitomi import HitomiUtils
 
 
-class JmUtils(EroUtils, Req):
+class JmUtils(EroUtils, DomainUtils, Req):
     name = "jm"
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
@@ -117,29 +118,31 @@ class JmUtils(EroUtils, Req):
         return cli
 
     @classmethod
-    def by_publish(cls):
-        sess = httpx.Client(headers=cls.publish_headers,transport=httpx.HTTPTransport(retries=2))
-        resp = sess.get(cls.publish_url)
-        while True:
-            try:
-                if str(resp.status_code).startswith('3') and resp.headers.get('location'):
-                    if resp.status_code == 302:
-                        transport=dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
-                        with httpx.Client(headers=cls.publish_headers,transport=httpx.HTTPTransport(**transport),verify=False) as cli:
-                            resp = cli.get(resp.headers.get('location'))
-                    else:
-                        resp = sess.get(resp.headers.get('location'))
-                elif str(resp.status_code).startswith('2'):
-                    return cls.parse_publish(resp.text)
-            except Exception as e:
-                break
-        cls.status_publish = False
-        raise ConnectionError(
-            res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
-        )
+    async def by_publish(cls):
+        async with httpx.AsyncClient(headers=cls.publish_headers,transport=httpx.AsyncHTTPTransport(retries=2)) as sess:
+            resp = await sess.get(cls.publish_url)
+            e = None
+            while True:
+                try:
+                    if str(resp.status_code).startswith('3') and resp.headers.get('location'):
+                        if resp.status_code == 302:
+                            transport=dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
+                            async with httpx.AsyncClient(headers=cls.publish_headers,transport=httpx.AsyncHTTPTransport(**transport),verify=False) as cli:
+                                resp = await cli.get(resp.headers.get('location'))
+                        else:
+                            resp = await sess.get(resp.headers.get('location'))
+                    elif str(resp.status_code).startswith('2'):
+                        return await cls.parse_publish(resp.text)
+                except Exception as _e:
+                    e = _e
+                    break
+            cls.status_publish = False
+            raise e or ConnectionError(
+                res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
+            )
 
     @classmethod
-    def parse_publish_(cls, html_text):
+    async def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
         ps = html.xpath('//div[@class="wrap"]//p')
         domains = []
@@ -152,11 +155,10 @@ class JmUtils(EroUtils, Req):
                     domain = _domain.strip()
                     if "." in domain and not bool(re.search(r"discord|\.work|@|＠|<|/", domain)):
                         domains.append(domain)
-        for domain in domains:
-            url = f"https://{domain}"
-            resp = retry(httpx.head, 1, url, headers={**cls.headers, 'Referer': url}, follow_redirects=True, timeout=4)
-            if resp and str(resp.status_code).startswith('2'):
-                return resp.url.host
+        hosts = await asyncio.gather(*[cls.test_aviable_domain(domain) for domain in domains])
+        for host in hosts:
+            if host:
+                return host
         cls.status_publish = False
         raise ConnectionError(
             res.SPIDER.DOMAINS_INVALID % (cls.publish_url, domains, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
@@ -179,7 +181,7 @@ class JmUtils(EroUtils, Req):
         return url, img_src, title, author, pages, tags[:20]
 
 
-class WnacgUtils(EroUtils, Req):
+class WnacgUtils(EroUtils, DomainUtils, Req):
     name = "wnacg"
     publish_domain = "wnlink.ru"
     publish_domain_old = ["wnacg.date"]
@@ -200,18 +202,18 @@ class WnacgUtils(EroUtils, Req):
     uuid_regex = re.compile(r"-(\d+)\.html$")
 
     @classmethod
-    def parse_publish_(cls, html_text):
+    async def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
         hrefs = html.xpath('//div[@class="main"]//li/a/@href')
         publish_domain_old_str = "|".join(cls.publish_domain_old)
         match_regex = re.compile(f"google|{cls.publish_domain}|email|{publish_domain_old_str}")
-        order_href = list(filter(
+        order_href = list(map(lambda url: re.sub("https?://", "", url).strip("/"), filter(
             lambda href: not bool(match_regex.search(href)), hrefs
-        ))
-        for url in order_href:
-            resp = retry(httpx.head, 2, url, headers=cls.headers, follow_redirects=True, timeout=3)
-            if resp and str(resp.status_code).startswith('2'):
-                return re.sub("https?://", "", url).strip("/")
+        )))
+        hosts = await asyncio.gather(*[cls.test_aviable_domain(domain) for domain in order_href])
+        for host in hosts:
+            if host:
+                return host
         cls.status_publish = False
         raise ConnectionError(
             res.SPIDER.DOMAINS_INVALID % (cls.publish_url, order_href, ori_path.joinpath(f'__temp/{cls.name}_domain.txt'))
