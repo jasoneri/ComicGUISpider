@@ -180,7 +180,7 @@ class HitomiSpider(BaseComicSpider):
             _title = datum['title']
             title = _title.split(' | ')[-1] if ' | ' in _title else _title
             preview_url = f"{self.domain}{btype}/{gallery_id}.html"
-            img_preview = self.ut.get_img_url(first_pic['hash'], 0)
+            img_preview = self.ut.get_img_url(first_pic['hash'], 0, preview=True)
             
             self.say(example_b.format(str(x + 1), lang, len(pics), title, chr(12288)))
             frame_results[x + 1] = [lang, title, preview_url, pics]
