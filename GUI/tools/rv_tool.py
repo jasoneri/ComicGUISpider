@@ -12,10 +12,12 @@ from qfluentwidgets import (
 )
 from qframelesswindow import FramelessWindow
 
-from assets import res
+from assets import res as ori_res
 from utils import curr_os, conf, yaml_update
 from utils.redViewer_tools import combine_then_mv, show_max
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon
+
+tools_res = ori_res.GUI.Tools
 
 
 class WinOS:
@@ -23,7 +25,7 @@ class WinOS:
     script_file_type = "Script Files (*.ps1)"
     run_cmd = ["cmd.exe", "/c", "start", "/B", 'powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File']
     deploy_cmd = [curr_os.shell, "-Command", "irm https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/windows.ps1 | iex"]
-    deploy_desc = res.GUI.Uic.rv_deployDesc + res.GUI.Uic.rv_deployWinRequire
+    deploy_desc = tools_res.rv_deployDesc + tools_res.rv_deployWinRequire
 
 
 class ElseOS:
@@ -31,7 +33,7 @@ class ElseOS:
     script_file_type = "Script Files (*.sh)"
     run_cmd = [curr_os.shell]
     deploy_cmd = [curr_os.shell, "-c", "curl -fsSL https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/macos.sh | zsh"]
-    deploy_desc = res.GUI.Uic.rv_deployDesc
+    deploy_desc = tools_res.rv_deployDesc
 
 TmpCurrOs = WinOS if curr_os.shell == 'powershell' else ElseOS
 
@@ -62,11 +64,11 @@ class AskDeployView(FramelessWindow):
         second_row = QHBoxLayout()
         first_row.addStretch()
         def deploy():
-            run_dir = QFileDialog.getExistingDirectory(self, res.GUI.Uic.sv_path_desc_tip)
+            run_dir = QFileDialog.getExistingDirectory(self, ori_res.GUI.Uic.sv_path_desc_tip)
             if run_dir:
                 subprocess.Popen(TmpCurrOs.deploy_cmd, cwd=str(run_dir), start_new_session=True, shell=True, 
                                 creationflags=0x00000008 | 0x00000200)
-        deployBtn = PrimaryPushButton(FIF.COMMAND_PROMPT, res.GUI.Uic.rv_deployBtn)
+        deployBtn = PrimaryPushButton(FIF.COMMAND_PROMPT, tools_res.rv_deployBtn)
         deployBtn.clicked.connect(deploy)
         hyberBtn = HyperlinkButton(FIF.GITHUB, 
             r"https://github.com/jasoneri/redViewer#%EF%B8%8F%E9%83%A8%E7%BD%B2%E6%9B%B4%E6%96%B0%E8%BF%90%E8%A1%8C%E5%A4%9A%E5%90%88%E4%B8%80%E8%84%9A%E6%9C%AC", 
@@ -85,8 +87,8 @@ class AskDeployView(FramelessWindow):
 
 class SvPathCard(PushSettingCard):
     def __init__(self, parent=None):
-        super().__init__(res.GUI.Uic.rv_scriptp_desc_tip % TmpCurrOs.file_type, FIF.DOCUMENT, 
-                         res.GUI.Uic.rv_scriptp_desc, "", parent)
+        super().__init__(tools_res.rv_scriptp_desc_tip % TmpCurrOs.file_type, FIF.DOCUMENT, 
+                         tools_res.rv_scriptp_desc, "", parent)
         self.rvtool = parent
         self.clicked.connect(self._onSelectScript)
 
@@ -96,7 +98,7 @@ class SvPathCard(PushSettingCard):
         self.rvtool.broomBtn.setEnabled(bool(content and content != "."))
 
     def _onSelectScript(self):
-        file, _ = QFileDialog.getOpenFileName(self, res.GUI.Uic.sv_path_desc_tip, "", TmpCurrOs.script_file_type)
+        file, _ = QFileDialog.getOpenFileName(self, ori_res.GUI.Uic.sv_path_desc_tip, "", TmpCurrOs.script_file_type)
         if file:
             file = pathlib.Path(file)
             with open(file, 'r', encoding='utf-8') as f:
@@ -120,8 +122,6 @@ class SvPathCard(PushSettingCard):
 
 
 class rvTool(QWidget):
-    res = res.GUI.rvTool
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.toolWin = parent
@@ -144,9 +144,9 @@ class rvTool(QWidget):
         
         second_row = QHBoxLayout()
         spacer_info = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, self.res.book_marked)
+        self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
         self.showMaxBtn.clicked.connect(self.show_max)
-        self.combineBtn = PushButton(CustomIcon.TOOL_MERGE, self.res.merge_move)
+        self.combineBtn = PushButton(CustomIcon.TOOL_MERGE, tools_res.rv_merge_move)
         self.combineBtn.clicked.connect(self.combine_then_mv)
         second_row.addSpacerItem(spacer_info)
         second_row.addWidget(self.showMaxBtn)

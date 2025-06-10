@@ -80,14 +80,14 @@ class HitomiTools(QWidget):
         self.sub_.addItems(('imageset', 'manga', 'doujinshi', 'artistcg', 'gamecg'))
         
         self.removeBtn = TransparentToggleToolButton(FIF.REMOVE_FROM)
-        self.removeBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_remove)
+        self.removeBtn.setToolTip(res.GUI.Tools.hitomi_tip_remove)
         self.line = QFrame(self)
         self.line.setFrameShape(QFrame.VLine)
         self.line.setFrameShadow(QFrame.Sunken)
         self.orderbyBtn = TransparentTogglePushButton(FIF.SCROLL, 'OrderBy')
         self.orderby = ComboBox()
         self.orderby.addItems(('date', 'popular'))
-        self.orderby.setToolTip(res.GUI.Uic.hitomiTools_tip_orderby)
+        self.orderby.setToolTip(res.GUI.Tools.hitomi_tip_orderby)
         self.orderbyKeyDate = ComboBox()
         self.orderbyKeyDate.addItems(('published', 'added/index'))
         self.orderbyKeyPopular = ComboBox()
@@ -135,14 +135,14 @@ class HitomiTools(QWidget):
         fourth_row = QHBoxLayout()
         self.copyBtn = ToolButton(FIF.COPY)
         self.searchDownToolBtn = DropDownToolButton(FIF.SEARCH)
-        self.searchDownToolBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_search)
+        self.searchDownToolBtn.setToolTip(res.GUI.Tools.hitomi_tip_search)
         self.globe_menu = RoundMenu(parent=self)
         self.set_globe_menu()
         self.svBtn = PrimaryToolButton(FIF.SAVE)
-        self.svBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_sv)
+        self.svBtn.setToolTip(res.GUI.Tools.hitomi_tip_sv)
         self.sendBtn = PrimaryToolButton(FIF.SEND, self)
         self.sendBtn.clicked.connect(self.send)
-        self.sendBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_send)
+        self.sendBtn.setToolTip(res.GUI.Tools.hitomi_tip_send)
 
         fourth_row.addSpacerItem(spacer_info)
         for _ in (self.copyBtn, self.searchDownToolBtn, self.svBtn, self.sendBtn):
@@ -246,7 +246,7 @@ class HitomiTools(QWidget):
     def send(self):
         self.gui.searchinput.setText(self.output_mgr.actual)
         InfoBar.success(
-            title='', content=res.GUI.Uic.hitomiTools_info_sended,
+            title='', content=res.GUI.Tools.hitomi_info_sended,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
             duration=4000, parent=self.gui.textBrowser
         )
@@ -256,7 +256,7 @@ class HitomiTools(QWidget):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.output.text())
         InfoBar.success(
-            title='', content=res.GUI.Uic.hitomiTools_info_copied,
+            title='', content=res.GUI.Tools.hitomi_info_copied,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
             duration=4000, parent=self
         )
@@ -269,7 +269,7 @@ class HitomiTools(QWidget):
         conf.completer[6] = hitomi_completer
         conf.update()
         InfoBar.success(
-            title='', content=res.GUI.Uic.hitomiTools_info_sved,
+            title='', content=res.GUI.Tools.hitomi_info_sved,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
             duration=4000, parent=self
         )
