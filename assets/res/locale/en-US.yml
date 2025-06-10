@@ -62,6 +62,10 @@ GUI:
     hitomi_info_copied: "Copied to clipboard, pay attention as urldecoded"
     hitomi_info_sved: "value-of-urlencode saved to head of presets"
     hitomi_info_sended: "sent to searchInput box, CGS is most compatible with urlencoded values, don't worry"
+    domain_btn: "Release Page"
+    domain_desc: "Click the release page and copy the usable part (mainland) as shown,<br>then click execute button. CGS will take a few seconds to check availability and notify accordingly,<br>CGS cannot bypass your network environment - if browser can't access it, CGS can't either, please note"
+    doamin_success_tip: "[%s] has been set in the temporary file below, valid for 48 hours<br>[%s]<br>CGS will restart in 5 seconds to ensure background processes apply the valid domain"
+    doamin_error_tip: "All domains are invalid, please check yourself. Again, CGS cannot bypass the current network environment to access"
   Uic:
     chooseBoxDefault: "Select Website"
     searchinputPlaceholderText: "Input Keyword"
