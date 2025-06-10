@@ -14,8 +14,9 @@
 | 翻页 | ✔️ |     ✔️ | ✔️ | ✔️ | ✔️<br>禁跳页 | ✔️/🚧 |
 | rV-显示记录 | ✔️ | ✔️ | ❌ | ❌ | ❌ | ❌ |
 | rV-整合章节 | ✔️ | ✔️ | ❌ | ❌ | ❌ | ❌ |
-| 工具箱-读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
-| hitomi-tools | ❌ | ❌ | ❌ | ❌ | ❌ | ✔️ |
+| 域名工具 | ❌ | ❌ | ✔️ | ✔️ | ❌ | ❌ |
+| hitomiTools | ❌ | ❌ | ❌ | ❌ | ❌ | ✔️ |
+| 读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
 | 预览窗口-复制 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
 
 ## 功能项
@@ -32,21 +33,48 @@
 
 当列表结果出来后开启使用
 
-### 4. rV工具
+---
 
-#### 4.1 显示记录
+### 4. 工具视窗
+
+![toolsWin](../assets/img/feature/toolsWin.png)
+
+点击 rV 按钮触发显示，点击对应标签切换工具，常驻 rV工具  
+ 
+- 域名工具( domainTool )仅选择 jm/wnacg 触发  
+- hitomiTool 仅选择 hitomi 触发  
+
+### 4.1 rV工具 / rvTool
+
+#### 4.1.1 显示记录
 
 配合 [rV(redViewer)](https://github.com/jasoneri/redViewer) 使用，用 rV 阅读产生看到哪最新话，然后配合下载  
 Maybe: 后续能扩展做订阅
 
-#### 4.2 整合章节
+#### 4.1.2 整合章节
 
 批量整合，例如将`D:\Comic\蓝箱\165\第1页`整合转至`D:\Comic\web\蓝箱_165\第1页`  
 > [!Info] 匹配 rV 目录结构
 
-### 5.工具箱
+### 4.2 域名工具 / domainTool
 
-#### 5.1 读剪贴板
+其实本来每次启动 jm/wnacg 就会处理域名，~~这工具纯粹安心了解自己所处的网络情况~~  
+内有使用指引一目了然
+
+::: warning 发布页登不上的情况有两种  
+1. 自身网络问题：自行用手机测、切代理尝试
+2. 发布页崩了（参考 wnacg 之前换过域名）：先参考 [📒域名相关](/faq/extra) 排查，未果则上报  
+:::
+
+### 4.3 hitomiTool
+
+仅 hitomi 用，[📹参考用法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif)
+
+### 5 读剪贴板
+
+::: tip 从`v2.2.3`起该功能单独分配一键，选择 符合适用性 的网站即可开启使用  
+![clipBtn](../assets/img/feature/clipBtn.png)
+:::
 
 读剪贴板匹配生成任务，需配合剪贴板软件使用（自行下载安装）  
 win: [🌐Ditto](https://github.com/sabrogden/Ditto)  
@@ -55,13 +83,14 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 ::: info 不下载剪贴板软件仅影响 `读剪贴板` 功能，不影响常规流程使用
 :::
 
-#### 5.2 hitomi-tools
+### 6. 重启CGS
 
-仅 hitomi 用，[📹参考用法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif)
+![rebootBtn](../assets/img/feature/reboot.png)
+选择网站后开启使用  
 
-### 6.预览窗口功能项
+### 7. 预览窗口功能项
 
-#### 1. 复制未完成任务链接
+#### 7.1. 复制未完成任务链接
 
 ![browser_copyBtn](../assets/img/feature/browser_copyBtn.png)
 

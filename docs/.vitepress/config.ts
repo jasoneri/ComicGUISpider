@@ -28,6 +28,7 @@ export default defineConfig({
       },
 
     themeConfig: {
+        outline: 'deep',
         // https://vitepress.dev/reference/default-theme-config
         logo: {
             dark: '/CGS-girl.png',
