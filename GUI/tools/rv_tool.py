@@ -24,7 +24,9 @@ class WinOS:
     file_type = ".ps1"
     script_file_type = "Script Files (*.ps1)"
     run_cmd = ["cmd.exe", "/c", "start", "/B", 'powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File']
+    run_cmd_kw = dict(start_new_session=True, shell=True, creationflags=0x00000008 | 0x00000200)
     deploy_cmd = [curr_os.shell, "-Command", "irm https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/windows.ps1 | iex"]
+    deploy_cmd_kw = dict(start_new_session=True, shell=True, creationflags=0x00000008 | 0x00000200)
     deploy_desc = tools_res.rv_deployDesc + tools_res.rv_deployWinRequire
 
 
@@ -32,7 +34,9 @@ class ElseOS:
     file_type = ".sh"
     script_file_type = "Script Files (*.sh)"
     run_cmd = [curr_os.shell]
+    run_cmd_kw = dict(start_new_session=True, shell=True)
     deploy_cmd = [curr_os.shell, "-c", "curl -fsSL https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/macos.sh | zsh"]
+    deploy_cmd_kw = dict(start_new_session=True, shell=True)
     deploy_desc = tools_res.rv_deployDesc
 
 TmpCurrOs = WinOS if curr_os.shell == 'powershell' else ElseOS
@@ -66,12 +70,11 @@ class AskDeployView(FramelessWindow):
         def deploy():
             run_dir = QFileDialog.getExistingDirectory(self, ori_res.GUI.Uic.sv_path_desc_tip)
             if run_dir:
-                subprocess.Popen(TmpCurrOs.deploy_cmd, cwd=str(run_dir), start_new_session=True, shell=True, 
-                                creationflags=0x00000008 | 0x00000200)
+                subprocess.Popen(TmpCurrOs.deploy_cmd, cwd=str(run_dir), **TmpCurrOs.deploy_cmd_kw)
         deployBtn = PrimaryPushButton(FIF.COMMAND_PROMPT, tools_res.rv_deployBtn)
         deployBtn.clicked.connect(deploy)
         hyberBtn = HyperlinkButton(FIF.GITHUB, 
-            r"https://github.com/jasoneri/redViewer#%EF%B8%8F%E9%83%A8%E7%BD%B2%E6%9B%B4%E6%96%B0%E8%BF%90%E8%A1%8C%E5%A4%9A%E5%90%88%E4%B8%80%E8%84%9A%E6%9C%AC", 
+            r"https://github.com/jasoneri/redViewer#%EF%B8%8F%E9%83%A8%WE7%BD%B2%E6%9B%B4%E6%96%B0%E8%BF%90%E8%A1%8C%E5%A4%9A%E5%90%88%E4%B8%80%E8%84%9A%E6%9C%AC", 
             "rV 部署命令说明"
         )
         cancelBtn = TransparentToolButton(FIF.CLOSE, self)
@@ -167,7 +170,7 @@ class rvTool(QWidget):
             CustomFlyout.make(TableFlyoutView(show_max(record_txt), self), self.sv_path_card, self)
         else:
             InfoBar.warning(
-                title='show_max', content=res.GUI.rvTool.book_marked_warning % record_txt,
+                title='show_max', content=ori_res.GUI.Tools.rv_book_marked_warning % str(record_txt),
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
                 duration=5000, parent=self
             )
@@ -175,7 +178,7 @@ class rvTool(QWidget):
     def combine_then_mv(self):
         done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
         InfoBar.success(
-            title='combine_then_mv', content=res.GUI.rvTool.combined_tip % (done, conf.sv_path.joinpath("web")),
+            title='combine_then_mv', content=ori_res.GUI.Tools.rv_combined_tip % (done, str(conf.sv_path.joinpath("web"))),
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
             duration=3000, parent=self
         )
@@ -184,6 +187,5 @@ class rvTool(QWidget):
         rv_script = pathlib.Path(getattr(conf, "rv_script"))
         run_dir = rv_script.parent
         cmd = TmpCurrOs.run_cmd + [str(rv_script)]
-        subprocess.Popen(cmd, cwd=str(run_dir), start_new_session=True, shell=True, 
-                         creationflags=0x00000008 | 0x00000200)
+        subprocess.Popen(cmd, cwd=str(run_dir), **TmpCurrOs.run_cmd_kw)
         self.toolWin.close()
