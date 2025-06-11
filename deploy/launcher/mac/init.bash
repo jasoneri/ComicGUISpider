@@ -8,34 +8,47 @@ cd $PROJ_P;
 # 检测是否为 Apple Silicon
 if [ "$(uname -m)" = "arm64" ]; then
     REQUIREMENTS="$PROJ_P/requirements/mac_arm64.txt"
-    PYTHON_PATH="/opt/homebrew/bin/python3.12"
     BREW_PATH="/opt/homebrew/bin/brew"
 else
     REQUIREMENTS="$PROJ_P/requirements/mac_x86_64.txt"
-    PYTHON_PATH="/usr/local/bin/python3.12"
     BREW_PATH="/usr/local/bin/brew"
 fi
 
-# 确保安装 Python
-if [ ! -x "$PYTHON_PATH" ]; then
-    echo "无python3.12环境，正在初始化...";
-    
-    # 如果没有安装 Homebrew，则安装它
-    if [ ! -x "$BREW_PATH" ]; then
-        echo "installing Homebrew..."
-        /bin/zsh -c "$(curl -fsSL https://gitee.com/cunkai/HomebrewCN/raw/master/Homebrew.sh)";
-    fi
-    
-    # 安装 Python
-    echo "installing Python 3.12..."
-    "$BREW_PATH" install python@3.12
-    "$BREW_PATH" link python@3.12
+# 如果没有安装 Homebrew，则安装它
+if [ ! -x "$BREW_PATH" ]; then
+    echo "[CGS]installing Homebrew..."
+    /bin/zsh -c "$(curl -fsSL https://gitee.com/cunkai/HomebrewCN/raw/master/Homebrew.sh)";
 fi
+# 安装 uv
+echo "[CGS]installing uv..."
+"$BREW_PATH" install uv
 
+speed_gtihub() {
+    ori_url=$1
+    speedPrefix=""
+    read -r "enableSpeed?是否启用下载加速？(y/n) "
+    if [[ "$enableSpeed" =~ ^[Yy]$ ]]; then
+        read -r "speedUrl?请粘贴格式链接（进 github.akams.cn 输入任意字符获取，例如：https://aaaa.bbbb/https/114514）"
+        if [[ "$speedUrl" =~ (https?://[^/]+) ]]; then
+            speedPrefix=${match[1]}
+            printf "✈️ 加速前缀: %s\n" "$speedPrefix" >&2
+        else
+            printf "❌ 链接格式无效，不使用加速\n" >&2
+            speedPrefix=""
+        fi
+    fi
+    echo "${speedPrefix}/$ori_url"
+}
 
-"$PYTHON_PATH" -m pip install uv -i https://repo.huaweicloud.com/repository/pypi/simple
-echo "uv installing $REQUIREMENTS..."
-"$PYTHON_PATH" -m uv pip install "$REQUIREMENTS" --index-url https://repo.huaweicloud.com/repository/pypi/simple
+echo "[CGS]uv installing python..."
+mirrorUrl=$(speed_gtihub "https://github.com/astral-sh/python-build-standalone/releases/download")
+uv python install 3.12.11 --mirror "$mirrorUrl" --no-cache
+cd "/Applications/CGS.app/Contents/Resources";
+echo "[CGS]uv installing $REQUIREMENTS..."
+uv venv --python 3.12.11 .venv
+source .venv/bin/activate
+uv pip install -r "$REQUIREMENTS" --index-url https://repo.huaweicloud.com/repository/pypi/simple
+deactivate
 
 echo ""
 echo "===== 初始化/依赖更新完毕，请手动关闭终端窗口 ====="

@@ -66,7 +66,8 @@
 
 ✅ ✨ 设置 rV 后，更改存储目录会联动更改 rV 的配置  
 ✅ ✨ 修复 hitomi 图源  
-✅ ✨ macOS: 修复locale环境中文识别; 打包程序的初始化/使用等问题  
+✅ ✨ 修复语言环境识别  
+✅ ✨ macOS-init.app 去除，改为终端自执行 bash 命令；另外 py 环境等发生改变，详情参考 [💻mac部署](https://jasoneri.github.io/ComicGUISpider/deploy/mac-required-reading)  
 ✅ 修复多开端口重复绑定导致的错误  
 ✅ 设置储存目录防呆  
 

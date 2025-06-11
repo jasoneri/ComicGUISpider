@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /Applications/CGS.app/Contents/Resources/scripts;
+cd /Applications/CGS.app/Contents/Resources;
 
 # 检测是否为 Apple Silicon
 if [ "$(uname -m)" = "arm64" ]; then
@@ -8,4 +8,7 @@ else
     PYTHON_PATH="/usr/local/bin/python3.12"
 fi
 
-"$PYTHON_PATH" CGS.py;
+source .venv/bin/activate
+cd scripts;
+python CGS.py;
+deactivate
