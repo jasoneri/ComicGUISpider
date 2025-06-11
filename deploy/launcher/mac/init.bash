@@ -19,18 +19,21 @@ if [ ! -x "$BREW_PATH" ]; then
     echo "[CGS]installing Homebrew..."
     /bin/zsh -c "$(curl -fsSL https://gitee.com/cunkai/HomebrewCN/raw/master/Homebrew.sh)";
 fi
-# 安装 uv
-echo "[CGS]installing uv..."
-"$BREW_PATH" install uv
+
+# 安装 uv（如果尚未安装）
+if ! command -v uv &> /dev/null; then
+    echo "[CGS]installing uv..."
+    "$BREW_PATH" install uv
+fi
 
 speed_gtihub() {
     ori_url=$1
     speedPrefix=""
-    read -r "enableSpeed?是否启用下载加速？(y/n) "
+    read -p "是否启用下载加速？(y/n) " enableSpeed
     if [[ "$enableSpeed" =~ ^[Yy]$ ]]; then
-        read -r "speedUrl?请粘贴格式链接（进 github.akams.cn 输入任意字符获取，例如：https://aaaa.bbbb/https/114514）"
+        read -p "请粘贴格式链接（进 github.akams.cn 输入任意字符获取，例如：https://aaaa.bbbb/https/114514）" speedUrl
         if [[ "$speedUrl" =~ (https?://[^/]+) ]]; then
-            speedPrefix=${match[1]}
+            speedPrefix="${BASH_REMATCH[1]}"
             printf "✈️ 加速前缀: %s\n" "$speedPrefix" >&2
         else
             printf "❌ 链接格式无效，不使用加速\n" >&2
@@ -43,10 +46,12 @@ speed_gtihub() {
 echo "[CGS]uv installing python..."
 mirrorUrl=$(speed_gtihub "https://github.com/astral-sh/python-build-standalone/releases/download")
 uv python install 3.12.11 --mirror "$mirrorUrl" --no-cache
+
 cd "/Applications/CGS.app/Contents/Resources";
-echo "[CGS]uv installing $REQUIREMENTS..."
+echo "[CGS]Creating virtual environment..."
 uv venv --python 3.12.11 .venv
 source .venv/bin/activate
+echo "[CGS]Installing initial dependencies..."
 uv pip install -r "$REQUIREMENTS" --index-url https://repo.huaweicloud.com/repository/pypi/simple
 deactivate
 

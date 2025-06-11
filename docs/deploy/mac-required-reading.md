@@ -68,10 +68,6 @@ sudo xattr -r -d com.apple.quarantine /Applications/CGS.app
 
 # 或直接运行
 bash /Applications/CGS.app/Contents/Resources/scripts/deploy/launcher/mac/CGS.bash
-# 或
-/opt/homebrew/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
-# 或
-/usr/local/bin/python3.12 /Applications/CGS.app/Contents/Resources/scripts/CGS.py
 ```
 
 ::: tip 还是失败无果的情况下可先自行deepseek等寻找方法或群内反馈  
