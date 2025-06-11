@@ -125,7 +125,7 @@ class Packer(Proj):
         ...
 
     def pre_packup(self):
-        with open(path.joinpath(r"scripts/deploy/version.json"), 'w', encoding='utf-8') as f:
+        with open(path.joinpath(r"scripts/version.json"), 'w', encoding='utf-8') as f:
             json.dump({
                 "current": self.ver, "stable": "", "dev": ""
             }, f, indent=4)
