@@ -3,8 +3,9 @@
 import gettext
 import pathlib
 import hashlib
-import locale
 import types
+
+from PyQt5.QtCore import QLocale
 
 from assets.res.transfer import main as translation_compile
 
@@ -18,18 +19,14 @@ from assets.res.transfer import main as translation_compile
 
 
 def getUserLanguage():
-    """locale.getlocale() get `ISO 639-1`_`ISO 3166-1`
-    return `RFC 1766`"""
-    sys_lang, _ = locale.getlocale()
-    match sys_lang.split('_')[0]:
-        case 'Chinese (Simplified)' | 'zh_CN':
-            return 'zh-CN'
-        case _:
-            return 'en-US'
+    sys_lang = QLocale.system().name()
+    if _path.joinpath(f'locale/{sys_lang}.yml').exists():
+        return sys_lang
+    return 'en_US'
+
 
 _path = pathlib.Path(__file__).parent
 lang = getUserLanguage()
-# lang = 'en-US'
 
 
 def is_compiled():
