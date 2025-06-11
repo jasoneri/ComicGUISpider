@@ -56,5 +56,5 @@ uv pip install -r "$REQUIREMENTS" --index-url https://repo.huaweicloud.com/repos
 deactivate
 
 echo ""
-echo "===== 初始化/依赖更新完毕，请手动关闭终端窗口 ====="
+echo "===== 初始化/依赖更新完毕，现可在启动台启动 CGS 了 ====="
 echo ""
