@@ -53,5 +53,3 @@ You need to update to `latest stable version` before you can update to `latest d
 :::
 
 + You can also choose to download the latest version manually to the releases, but you need to pay attention to the configuration files and duplicate records not being overwritten and lost
-::: tip The configuration file is `scripts/conf.yml` and the duplicate record is `scripts/record.db`
-:::

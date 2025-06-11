@@ -2,21 +2,22 @@ import sqlite3
 from contextlib import closing
 import urllib.parse as up
 from PyQt5.QtCore import Qt, QUrl, QTimer
-from PyQt5.QtGui import QGuiApplication, QStandardItemModel, QStandardItem, QDesktopServices
-from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QComboBox, QFrame
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
+from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QComboBox, QFrame, QWidget
 from qfluentwidgets import (
     ComboBox, VBoxLayout, RoundMenu, Action,
-    PrimaryToolButton, ToolButton, DropDownToolButton, TransparentToolButton, 
-    TransparentToggleToolButton, TransparentTogglePushButton,
+    PrimaryToolButton, ToolButton, DropDownToolButton, 
+    TransparentToggleToolButton, TransparentTogglePushButton, HyperlinkButton,
     TitleLabel, StrongBodyLabel, FluentIcon as FIF,
     InfoBadgePosition, InfoBadge, ToolTipFilter, ToolTipPosition, 
-    InfoBar, InfoBarPosition, ListView
+    InfoBar, InfoBarPosition, ListView, BodyLabel
 )
-from qframelesswindow import FramelessWindow
 
 from assets import res
 from variables import DEFAULT_COMPLETER
 from utils import ori_path, conf
+
+hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
 
 
 class CustomComboBox(QComboBox):
@@ -36,24 +37,25 @@ class CustomComboBox(QComboBox):
         return super().eventFilter(obj, event)
 
 
-class HitomiTools(FramelessWindow):
+class HitomiNotYet(QWidget):
     def __init__(self, parent=None):
-        super().__init__()
+        super().__init__(parent)
         self.gui = parent
-        self.titleBar.minBtn.hide()
-        self.titleBar.maxBtn.hide()
-        self.titleBar.closeBtn.hide()
-        screen = QGuiApplication.primaryScreen()
-        screen_geo = screen.geometry()
-        window_width = int(screen_geo.width() * 0.4)
-        window_height = int(screen_geo.height() * 0.15)
-        self.setMinimumSize(window_width, window_height)
-        self.resize(window_width, window_height)
-        self.move(
-            int((screen_geo.width() - window_width) / 2),
-            int((screen_geo.height() - window_height) / 2)
-        )
-        
+        main_layout = VBoxLayout(self)
+        first_row = QHBoxLayout()
+        body = BodyLabel(str(res.GUI.hitomiDb_guide % ori_path.joinpath('assets/hitomi.db')))
+        linkBtn = HyperlinkButton(res.Vars.hitomiDb_tmp_url, "Download")
+        first_row.addStretch()
+        first_row.addWidget(body)
+        first_row.addWidget(linkBtn)
+        first_row.addStretch()
+        main_layout.addLayout(first_row)
+
+
+class HitomiTools(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.gui = parent
         self.removed_flag = False
         self.category_type_flag = False
         self.order_flag = False
@@ -78,14 +80,14 @@ class HitomiTools(FramelessWindow):
         self.sub_.addItems(('imageset', 'manga', 'doujinshi', 'artistcg', 'gamecg'))
         
         self.removeBtn = TransparentToggleToolButton(FIF.REMOVE_FROM)
-        self.removeBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_remove)
+        self.removeBtn.setToolTip(res.GUI.Tools.hitomi_tip_remove)
         self.line = QFrame(self)
         self.line.setFrameShape(QFrame.VLine)
         self.line.setFrameShadow(QFrame.Sunken)
         self.orderbyBtn = TransparentTogglePushButton(FIF.SCROLL, 'OrderBy')
         self.orderby = ComboBox()
         self.orderby.addItems(('date', 'popular'))
-        self.orderby.setToolTip(res.GUI.Uic.hitomiTools_tip_orderby)
+        self.orderby.setToolTip(res.GUI.Tools.hitomi_tip_orderby)
         self.orderbyKeyDate = ComboBox()
         self.orderbyKeyDate.addItems(('published', 'added/index'))
         self.orderbyKeyPopular = ComboBox()
@@ -133,19 +135,17 @@ class HitomiTools(FramelessWindow):
         fourth_row = QHBoxLayout()
         self.copyBtn = ToolButton(FIF.COPY)
         self.searchDownToolBtn = DropDownToolButton(FIF.SEARCH)
-        self.searchDownToolBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_search)
+        self.searchDownToolBtn.setToolTip(res.GUI.Tools.hitomi_tip_search)
         self.globe_menu = RoundMenu(parent=self)
         self.set_globe_menu()
         self.svBtn = PrimaryToolButton(FIF.SAVE)
-        self.svBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_sv)
+        self.svBtn.setToolTip(res.GUI.Tools.hitomi_tip_sv)
         self.sendBtn = PrimaryToolButton(FIF.SEND, self)
         self.sendBtn.clicked.connect(self.send)
-        self.sendBtn.setToolTip(res.GUI.Uic.hitomiTools_tip_send)
-        self.cancelBtn = TransparentToolButton(FIF.CLOSE, self)
-        self.cancelBtn.clicked.connect(self.close)
+        self.sendBtn.setToolTip(res.GUI.Tools.hitomi_tip_send)
 
         fourth_row.addSpacerItem(spacer_info)
-        for _ in (self.copyBtn, self.searchDownToolBtn, self.svBtn, self.sendBtn, self.cancelBtn):
+        for _ in (self.copyBtn, self.searchDownToolBtn, self.svBtn, self.sendBtn):
             fourth_row.addWidget(_)
         
         # Add to main layout
@@ -246,7 +246,7 @@ class HitomiTools(FramelessWindow):
     def send(self):
         self.gui.searchinput.setText(self.output_mgr.actual)
         InfoBar.success(
-            title='', content=res.GUI.Uic.hitomiTools_info_sended,
+            title='', content=res.GUI.Tools.hitomi_info_sended,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
             duration=4000, parent=self.gui.textBrowser
         )
@@ -256,7 +256,7 @@ class HitomiTools(FramelessWindow):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.output.text())
         InfoBar.success(
-            title='', content=res.GUI.Uic.hitomiTools_info_copied,
+            title='', content=res.GUI.Tools.hitomi_info_copied,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
             duration=4000, parent=self
         )
@@ -269,7 +269,7 @@ class HitomiTools(FramelessWindow):
         conf.completer[6] = hitomi_completer
         conf.update()
         InfoBar.success(
-            title='', content=res.GUI.Uic.hitomiTools_info_sved,
+            title='', content=res.GUI.Tools.hitomi_info_sved,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
             duration=4000, parent=self
         )
@@ -318,33 +318,33 @@ class HitomiTools(FramelessWindow):
         info_badge = None
         
         def __init__(self, parent):
-            self.gui = parent
+            self.ht = parent
             self.path = ''
             self.actual = ''
         
         def update(self):
-            area = self.gui.category.currentText()
-            entry = self.gui.entry.currentText()
+            area = self.ht.category.currentText()
+            entry = self.ht.entry.currentText()
             tag = ''
-            lang = self.gui.language.currentText()
+            lang = self.ht.language.currentText()
             badge_value = '-------'
             
-            if self.gui.removed_flag:
+            if self.ht.removed_flag:
                 ...
-            elif self.gui.category_type_flag:
-                tag = self.gui.sub_.currentText()
+            elif self.ht.category_type_flag:
+                tag = self.ht.sub_.currentText()
             elif not entry:
                 return
             else:
-                entry_info = self.gui.tmp_map[entry]
+                entry_info = self.ht.tmp_map[entry]
                 badge_value = str(entry_info[1]).zfill(5)
                 tag = entry
 
             output_l = [area, '-'.join((tag, lang))]
-            if self.gui.order_flag:
-                orderby = self.gui.orderby.currentText()
-                orderbykey = self.gui.orderbyKeyDate.currentText() if orderby == 'date' else \
-                    self.gui.orderbyKeyPopular.currentText()
+            if self.ht.order_flag:
+                orderby = self.ht.orderby.currentText()
+                orderbykey = self.ht.orderbyKeyDate.currentText() if orderby == 'date' else \
+                    self.ht.orderbyKeyPopular.currentText()
                 
                 if orderbykey == 'added/index':
                     if not tag:
@@ -352,7 +352,7 @@ class HitomiTools(FramelessWindow):
                         output_l = ['-'.join((tag, lang))]
                     else:
                         output_l = [area, '-'.join((tag, lang))]
-                elif self.gui.removed_flag:
+                elif self.ht.removed_flag:
                     tag = orderbykey
                     area = orderby
                     output_l = [area, '-'.join((tag, lang))]
@@ -360,7 +360,7 @@ class HitomiTools(FramelessWindow):
                     output_l = [area, orderby, orderbykey, '-'.join((tag, lang))]
             
             self.path = '/'.join(output_l)
-            actual_tag = self.gui.tmp_map[tag][0] if tag in self.gui.tmp_map else tag
+            actual_tag = self.ht.tmp_map[tag][0] if tag in self.ht.tmp_map else tag
             self.actual = '/'.join((*output_l[:-1], '-'.join((actual_tag, lang))))
             
             if getattr(self, 'info_badge', None):
@@ -368,8 +368,8 @@ class HitomiTools(FramelessWindow):
             else:
                 self.info_badge = InfoBadge.success(
                     badge_value,
-                    parent=self.gui,
-                    target=self.gui.output_num,
+                    parent=self.ht,
+                    target=self.ht.output_num,
                     position=InfoBadgePosition.RIGHT
                 )
 
@@ -377,13 +377,3 @@ class HitomiTools(FramelessWindow):
         self.output_mgr.update()        
         self.output.setText(self.output_mgr.path)
         self.set_globe_menu()
-
-
-if __name__ == '__main__':
-    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
-    app = QApplication([])
-    window = HitomiTools()
-    window.show()
-    app.exec_()

@@ -46,11 +46,15 @@ class HitomiUtils(EroUtils, Req):
         end_byte = self.galleries_per_page * int(page)
         return f"bytes={end_byte-self.galleries_per_page}-{end_byte-1}"
     
-    def get_img_url(self, img_hash, hasavif=0):
+    def get_img_url(self, img_hash, hasavif=0, preview=None):
         g = self.gg.s(img_hash)
-        img_type = "avif" if hasavif else "webp"
-        retval = f"{img_type[0]}{1 + int(self.gg.m((g)))}"
-        return f"https://{retval}.{self.domain2}/{self.gg.b}{g}/{img_hash}.{img_type}"
+        img_type, _dir  = ("avif", "avifbigtn") if hasavif else ("webp", "webpbigtn")
+        _dir = _dir if (not preview and img_type=="avif") else "avifsmallbigtn"
+        real_img_hash = re.sub(r'^.*(..)(.)$', r'\2/\1/' + img_hash, img_hash)
+        # retval = f"{img_type[0]}{1 + int(self.gg.m((g)))}"
+        retval = chr(97 + int(self.gg.m((g)))) + "tn"
+        url = f"https://{retval}.{self.domain2}/{_dir}/{real_img_hash}.{img_type}"
+        return url
 
     @classmethod
     def get_cli(cls, conf):

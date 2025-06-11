@@ -4,6 +4,7 @@ import re
 import ast
 import time
 import html
+import shutil
 import hashlib
 import pathlib as p
 import typing as t
@@ -12,6 +13,7 @@ import multiprocessing.managers as m
 
 import yaml
 from loguru import logger as lg
+from PyQt5.QtCore import QStandardPaths
 
 from variables import DEFAULT_COMPLETER
 from deploy import curr_os
@@ -20,6 +22,8 @@ ori_path = p.Path(__file__).parent.parent
 temp_p = ori_path.joinpath("__temp")
 temp_p.mkdir(exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
+conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
+conf_dir.mkdir(parents=True, exist_ok=True)
 
 
 def yaml_update(_f, dic):
@@ -31,6 +35,14 @@ def yaml_update(_f, dic):
         fp.truncate()
         yaml_data = yaml.dump(ori_yml_config, allow_unicode=True, sort_keys=False)
         fp.write(yaml_data)
+
+
+def toAppConfigLocation(ori_file: p.Path):
+    file = ori_file.name
+    location_file = conf_dir.joinpath(file)
+    if ori_file.exists() and not location_file.exists():
+        shutil.move(str(ori_file), str(location_file))
+    return location_file
 
 
 @dataclass
@@ -79,12 +91,20 @@ class Conf:
         def path_like_handle(_p):
             return str(_p) if isinstance(_p, p.Path) else _p
         for k, v in kwargs.items():
-            self.__setattr__(k, p.Path(v) if k == "sv_path" else v)
+            self.__setattr__(k, p.Path(v) if k in ("sv_path","rv_script") else v)
         props = asdict(self)
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['clip_db'] = path_like_handle(props['clip_db'])
         props['rv_script'] = path_like_handle(props['rv_script'])
+        self.chain_rv()
         yaml_update(self.file, props)
+
+    def chain_rv(self):
+        # 储存目录更改单向联动 rV path值
+        if self.rv_script and str(self.rv_script) != ".":
+            rv_conf = self.rv_script.parent.joinpath(r"redViewer/backend/conf.yml")
+            if rv_conf.exists():
+                yaml_update(rv_conf,  {"path": str(self.sv_path)})
 
     def cLog(self, name: str, level: str = None, **kw):
         if not hasattr(Conf, '_loggers'):
@@ -109,11 +129,16 @@ class Conf:
     def settings(self):
         return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map
 
-    def __new__(cls, *args, path: t.Optional[p.Path] = None, **kwargs):
-        _instance = f"_instance_{path.name}" if path else "_instance"
+    @classmethod
+    def duel_conf(cls, ori_conf_yml, iname):
+        _i = f"_instance_{iname}" if iname else "_instance"
+        return _i, toAppConfigLocation(ori_conf_yml)
+    
+    def __new__(cls, *args, path: t.Optional[p.Path] = None, iname: str = None, **kwargs):
+        _instance, file = cls.duel_conf((path or ori_path).joinpath("conf.yml"), iname)
         if not hasattr(Conf, _instance):
             setattr(Conf, _instance, object.__new__(cls))
-            getattr(Conf, _instance).file = (path or ori_path).joinpath('conf.yml')
+            getattr(Conf, _instance).file = file
         return getattr(Conf, _instance)
 
 

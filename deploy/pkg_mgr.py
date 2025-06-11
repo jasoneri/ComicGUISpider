@@ -4,7 +4,6 @@ import importlib
 import platform
 import subprocess
 import pathlib
-import pip
 
 import httpx
 import tqdm
@@ -69,16 +68,22 @@ class PkgMgr:
             cmd = ["install", "uv"]
             if self.locale == "zh-CN":
                 cmd.extend(["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+            import pip
             exitcode = pip.main(cmd)
             self.print(f"[pip install uv exitcode] {exitcode}")
 
-        _dl_uv()
+        if self.env.startswith("win"):
+            _dl_uv()
         _dl(self.requirements_url, self.requirements)
 
     def uv_install_pkgs(self):
         self.print("uv pip installing pkg...")
-        uv = importlib.import_module("uv")
-        cmd = [uv.find_uv_bin(), "pip", "install", "-r", str(self.requirements), "--python", sys.executable]
+        if self.env.startswith("win"):
+            # Windows 使用原有的 uv 逻辑
+            uv = importlib.import_module("uv")
+            cmd = [uv.find_uv_bin(), "pip", "install", "-r", str(self.requirements), "--python", sys.executable]
+        else:
+            cmd = ["uv", "pip", "install", "-r", str(self.requirements)]
         if self.locale == "zh-CN":
             cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--trusted-host", "https://pypi.tuna.tsinghua.edu.cn/simple"])
         self.print("[uv_install_pkgs cmd]" + " ".join(cmd))

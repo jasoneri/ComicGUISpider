@@ -1,8 +1,12 @@
 import re
+import os
 from datetime import datetime, timedelta
-import httpx
-from utils import temp_p
 
+import httpx
+import asyncio
+import aiofiles
+
+from utils import temp_p
 
 class Cookies:
     @staticmethod
@@ -38,64 +42,7 @@ class Utils:
 
 
 class EroUtils(Utils):
-    forever_url = ""
-    publish_url = ""
-    status_forever = True
-    status_publish = True
-    uuid_regex = NotImplementedError
-    publish_headers = {}
-
-    @classmethod
-    def by_forever(cls):
-        if not cls.forever_url:
-            return None
-        try:
-            resp = httpx.head(cls.forever_url, headers=cls.headers, follow_redirects=True)
-        except httpx.ConnectError:
-            cls.status_forever = False
-            print(f"永久网址[{cls.forever_url}]失效了")  # logger.warning()
-        else:
-            return re.search(r"https?://(.*)/?", str(resp.request.url)).group(1)
-
-    @classmethod
-    def by_publish(cls):
-        if not cls.publish_url:
-            return None
-        with httpx.Client(headers=cls.publish_headers or cls.headers, 
-                transport=httpx.HTTPTransport(retries=5)) as cli:
-            try:
-                resp = cli.get(cls.publish_url)
-                resp.raise_for_status()
-                if str(resp.status_code).startswith('2'):
-                    return cls.parse_publish(resp.text)
-            except httpx.HTTPError as e:
-                ...
-            cls.status_publish = False
-            print(f"发布页获取[{cls.publish_url}]失效了")  # logger.warning()
-
-    @classmethod
-    def get_domain(cls):
-        domain_file = temp_p.joinpath(f"{cls.name}_domain.txt")
-        current_time = datetime.now()
-        if (domain_file.exists() and current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=48)):
-            with open(domain_file, 'r', encoding='utf-8') as f:
-                domain = f.read().strip()
-        else:
-            domain = cls.by_publish() or cls.by_forever() or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
-        if not cls.status_forever and not cls.status_publish:
-            raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
-        return domain
-
-    @classmethod
-    def parse_publish(cls, html):
-        domain = cls.parse_publish_(html)
-        with open(temp_p.joinpath(f"{cls.name}_domain.txt"), 'w', encoding='utf-8') as f:
-            f.write(domain)
-        return domain
-
-    @classmethod
-    def parse_publish_(cls, html):
-        ...
+    uuid_regex = None
 
     @classmethod
     def get_uuid(cls, info):
@@ -104,6 +51,81 @@ class EroUtils(Utils):
         else:
             _identity = info
         return f"{cls.name}-{_identity}"
+
+
+class DomainUtils(Utils):
+    forever_url = ""
+    publish_url = ""
+    status_forever = True
+    status_publish = True
+    publish_headers = {}
+
+    @classmethod
+    async def by_forever(cls):
+        if not cls.forever_url:
+            return None
+        try:
+            async with httpx.AsyncClient(headers=cls.headers, follow_redirects=True) as cli:
+                resp = await cli.head(cls.forever_url)
+                return re.search(r"https?://(.*)/?", str(resp.request.url)).group(1)
+        except httpx.ConnectError:
+            cls.status_forever = False
+            print(f"永久网址[{cls.forever_url}]失效了")  # logger.warning()
+            return None
+
+    @classmethod
+    async def by_publish(cls):
+        if not cls.publish_url:
+            return None
+        async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, 
+                transport=httpx.AsyncHTTPTransport(retries=5)) as cli:
+            try:
+                resp = await cli.get(cls.publish_url)
+                resp.raise_for_status()
+                if str(resp.status_code).startswith('2'):
+                    return await cls.parse_publish(resp.text)
+            except httpx.HTTPError as e:
+                ...
+            cls.status_publish = False
+            print(f"发布页获取[{cls.publish_url}]失效了")  # logger.warning()
+            return None
+
+    @classmethod
+    def get_domain(cls):
+        domain_file = temp_p.joinpath(f"{cls.name}_domain.txt")
+        current_time = datetime.now()
+        if (domain_file.exists() and current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=48)):
+            with open(domain_file, 'r', encoding='utf-8') as f:
+                domain = f.read().strip()
+            if domain:
+                return domain
+            else:
+                os.remove(domain_file)
+        loop = asyncio.get_event_loop()
+        domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever()) or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
+        if not cls.status_forever and not cls.status_publish:
+            raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
+        return domain
+
+    @classmethod
+    async def test_aviable_domain(cls, domain):
+        url = f"https://{domain}"
+        async with httpx.AsyncClient(headers={**cls.headers, 'Referer': url},transport=httpx.AsyncHTTPTransport(retries=1),verify=False) as cli:
+            resp = await cli.head(url, follow_redirects=True, timeout=4)
+            if resp and str(resp.status_code).startswith('2'):
+                return resp.url.host
+        return None
+
+    @classmethod
+    async def parse_publish(cls, html):
+        domain = await cls.parse_publish_(html)
+        async with aiofiles.open(temp_p.joinpath(f"{cls.name}_domain.txt"), 'w', encoding='utf-8') as f:
+            await f.write(domain)
+        return domain
+
+    @classmethod
+    def parse_publish_(cls, html):
+        ...
 
 
 def retry(func, retry_limit, *args, retry_times=0, raise_error=False, **kwargs):
@@ -115,6 +137,7 @@ def retry(func, retry_limit, *args, retry_times=0, raise_error=False, **kwargs):
             return retry(func, retry_limit, *args, retry_times=retry_times, raise_error=raise_error, **kwargs)
         if raise_error:
             raise e
+
 
 tag_regex = re.compile(r"汉化|漢化|粵化|DL版|修正|中国|翻訳|翻译|翻譯|中文|後編|前編|カラー化|個人|" +
                        r"無修|重修|重嵌|机翻|機翻|整合|黑字|Chinese|Japanese|\[Digital]|vol|\[\d+]")

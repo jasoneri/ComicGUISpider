@@ -2,65 +2,59 @@
 # 将终端窗口置于最前
 osascript -e 'tell application "Terminal" to activate' -e 'tell application "System Events" to tell process "Terminal" to set frontmost to true'
 
-curr_p=$(cd "$(dirname "$0")";pwd);
-cd $curr_p/../../../;
-REQUIREMENTS="requirements/mac_x86_64.txt"
+PROJ_P="/Applications/CGS.app/Contents/Resources/scripts";
+cd $PROJ_P;
 
 # 检测是否为 Apple Silicon
 if [ "$(uname -m)" = "arm64" ]; then
-    REQUIREMENTS="requirements/mac_arm64.txt"
-    # 检测 Rosetta 2 是否已安装
-    if ! arch -x86_64 echo > /dev/null 2>&1; then
-        echo "检测到 Apple Silicon Mac，但未安装 Rosetta 2，正在安装..."
-        /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-    fi
+    REQUIREMENTS="$PROJ_P/requirements/mac_arm64.txt"
+    BREW_PATH="/opt/homebrew/bin/brew"
+else
+    REQUIREMENTS="$PROJ_P/requirements/mac_x86_64.txt"
+    BREW_PATH="/usr/local/bin/brew"
 fi
 
-PYTHON_PATH="/usr/local/bin/python3.12"
-# 确保安装的是 x86_64 版本的 Python
-if [ ! -x "$PYTHON_PATH" ]; then
-    echo "无python3.12环境，正在初始化...";
-    # 检测 Homebrew 安装路径
-    if [ -x "/opt/homebrew/bin/brew" ]; then
-        ARM_BREW_PATH="/opt/homebrew/bin/brew"
-    fi
-    if [ -x "/usr/local/bin/brew" ]; then
-        INTEL_BREW_PATH="/usr/local/bin/brew"
-    fi
-    # 如果没有安装 Homebrew，则安装它
-    if [ ! -x "$INTEL_BREW_PATH" ] && [ ! -x "$ARM_BREW_PATH" ]; then
-        echo "未检测到 Homebrew，正在安装..."
-        /bin/zsh -c "$(curl -fsSL https://gitee.com/cunkai/HomebrewCN/raw/master/Homebrew.sh)";
-    fi
-    # 在 Apple Silicon Mac 上，通过 Rosetta 2 安装 x86_64 版的 Python
-    if [ "$(uname -m)" = "arm64" ]; then
-        if [ -x "$INTEL_BREW_PATH" ]; then
-            echo "使用 Intel Homebrew 安装 Python..."
-            "$INTEL_BREW_PATH" install python@3.12
-            "$INTEL_BREW_PATH" link python@3.12
+# 如果没有安装 Homebrew，则安装它
+if [ ! -x "$BREW_PATH" ]; then
+    echo "[CGS]installing Homebrew..."
+    /bin/zsh -c "$(curl -fsSL https://gitee.com/cunkai/HomebrewCN/raw/master/Homebrew.sh)";
+fi
+
+# 安装 uv（如果尚未安装）
+if ! command -v uv &> /dev/null; then
+    echo "[CGS]installing uv..."
+    "$BREW_PATH" install uv
+fi
+
+speed_gtihub() {
+    ori_url=$1
+    speedPrefix=""
+    read -p "是否启用下载加速？(y/n) " enableSpeed
+    if [[ "$enableSpeed" =~ ^[Yy]$ ]]; then
+        read -p "请粘贴格式链接（进 github.akams.cn 输入任意字符获取，例如：https://aaaa.bbbb/https/114514）" speedUrl
+        if [[ "$speedUrl" =~ (https?://[^/]+) ]]; then
+            speedPrefix="${BASH_REMATCH[1]}"
+            printf "✈️ 加速前缀: %s\n" "$speedPrefix" >&2
         else
-            echo "通过 Rosetta 2 安装 Intel 版本的 Python..."
-            arch -x86_64 /bin/zsh -c "$(curl -fsSL https://gitee.com/cunkai/HomebrewCN/raw/master/Homebrew.sh)"
-            arch -x86_64 /usr/local/bin/brew install python@3.12
-            arch -x86_64 /usr/local/bin/brew link python@3.12
-        fi
-    else
-        # 在 Intel Mac 上，直接安装
-        if [ -x "$INTEL_BREW_PATH" ]; then
-            "$INTEL_BREW_PATH" install python@3.12
-            "$INTEL_BREW_PATH" link python@3.12
+            printf "❌ 链接格式无效，不使用加速\n" >&2
+            speedPrefix=""
         fi
     fi
-fi
+    echo "${speedPrefix}/$ori_url"
+}
 
-"$PYTHON_PATH" deploy/__init__.py;
-echo "正在安装依赖（自动过滤macOS不兼容包）..."
-cat "$REQUIREMENTS" | grep -vE 'pywin32==|twisted-iocpsupport==' | "$PYTHON_PATH" -m pip install -r /dev/stdin \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple \
-    --user \
-    --break-system-packages;
+echo "[CGS]uv installing python..."
+mirrorUrl=$(speed_gtihub "https://github.com/astral-sh/python-build-standalone/releases/download")
+uv python install 3.12.11 --mirror "$mirrorUrl" --no-cache
+
+cd "/Applications/CGS.app/Contents/Resources";
+echo "[CGS]Creating virtual environment..."
+uv venv --python 3.12.11 .venv
+source .venv/bin/activate
+echo "[CGS]Installing initial dependencies..."
+uv pip install -r "$REQUIREMENTS" --index-url https://repo.huaweicloud.com/repository/pypi/simple
+deactivate
 
 echo ""
-echo "===== 初始化完毕，请手动关闭终端窗口 ====="
+echo "===== 初始化/依赖更新完毕，现可在启动台启动 CGS 了 ====="
 echo ""
