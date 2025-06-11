@@ -12,7 +12,7 @@
 ::: tip 手动改域名缓存文件示例
  `scripts/__temp/wnacg_domain.txt`，没有则自建，内容填个 `www.wn01.uk` 即可
 :::
-::: tip 简化流程的方法 > [域名工具](/feature/#_4-2-%E5%9F%9F%E5%90%8D%E5%B7%A5%E5%85%B7-domaintool)
+::: tip 简化流程的方法 > [域名工具](/feat/#_4-2-%E5%9F%9F%E5%90%8D%E5%B7%A5%E5%85%B7-domaintool)
 :::
 ::: info `发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用  
 :::
