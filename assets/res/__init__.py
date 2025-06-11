@@ -22,7 +22,7 @@ def getUserLanguage():
     return `RFC 1766`"""
     sys_lang, _ = locale.getlocale()
     match sys_lang.split('_')[0]:
-        case 'Chinese (Simplified)':
+        case 'Chinese (Simplified)' | 'zh_CN':
             return 'zh-CN'
         case _:
             return 'en-US'
