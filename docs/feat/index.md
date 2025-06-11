@@ -15,7 +15,7 @@
 | rV-显示记录 | ✔️ | ✔️ | ❌ | ❌ | ❌ | ❌ |
 | rV-整合章节 | ✔️ | ✔️ | ❌ | ❌ | ❌ | ❌ |
 | 域名工具 | ❌ | ❌ | ✔️ | ✔️ | ❌ | ❌ |
-| hitomiTools | ❌ | ❌ | ❌ | ❌ | ❌ | ✔️ |
+| hitomiTool | ❌ | ❌ | ❌ | ❌ | ❌ | ✔️ |
 | 读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
 | 预览窗口-复制 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
 
@@ -37,7 +37,7 @@
 
 ### 4. 工具视窗
 
-![toolsWin](../assets/img/feature/toolsWin.png)
+![toolsWin](../assets/img/feat/toolsWin.png)
 
 点击 rV 按钮触发显示，点击对应标签切换工具，常驻 rV工具  
  
@@ -73,7 +73,7 @@ Maybe: 后续能扩展做订阅
 ### 5 读剪贴板
 
 ::: tip 从`v2.2.3`起该功能单独分配一键，选择 符合适用性 的网站即可开启使用  
-![clipBtn](../assets/img/feature/clipBtn.png)
+![clipBtn](../assets/img/feat/clipBtn.png)
 :::
 
 读剪贴板匹配生成任务，需配合剪贴板软件使用（自行下载安装）  
@@ -85,14 +85,14 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 ### 6. 重启CGS
 
-![rebootBtn](../assets/img/feature/reboot.png)
+![rebootBtn](../assets/img/feat/reboot.png)
 选择网站后开启使用  
 
 ### 7. 预览窗口功能项
 
 #### 7.1. 复制未完成任务链接
 
-![browser_copyBtn](../assets/img/feature/browser_copyBtn.png)
+![browser_copyBtn](../assets/img/feat/browser_copyBtn.png)
 
 > [!Tip] 前置设置  
 > 需参考 [🔧其他配置 > 复制按钮相关](../config/other.md) 对剪贴板软件更改设置

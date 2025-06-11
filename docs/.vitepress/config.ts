@@ -98,11 +98,11 @@ export default defineConfig({
                 items: [
                     {
                         text: "🎸主功能",
-                        link: "/feature/",
+                        link: "/feat/",
                     },
                     {
                         text: "🚧其他脚本集",
-                        link: "/feature/script",
+                        link: "/feat/script",
                     }
                 ]
             },
