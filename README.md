@@ -37,7 +37,7 @@
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
-| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feature/script)     |  |
+| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)     |  |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -58,14 +58,20 @@
 &emsp;🔳 数据集下载自动化/更新等，方式待定  
 &emsp;🔳 读剪贴板功能开发中  
 &emsp;🔳 优化速度，翻页等  
-✅ ✨ 增设 rV 按钮（很显眼）及其管理窗口，选脚本然后取消有指示可快捷部署 rV，`显示记录`和`整合章节`移至其窗口内  
+✅ 增设 rV 按钮（很显眼）及其管理窗口，选脚本然后取消有指示可快捷部署 rV，`显示记录`和`整合章节`移至其窗口内  
+✅ ✨ 将配置系记录系的文件转移位置，后续更新等都不用再手动备份（ 参考[📒配置系文件路径](https://jasoneri.github.io/ComicGUISpider/faq/extra) ）  
+✅ ✨ 增加工具视窗，内有`jm`等简化设置域名的工具，受影响的有`hotomi-tools`,`读剪贴板` （ 参考[🎸常规功能](https://jasoneri.github.io/ComicGUISpider/feat)里的图示）  
 
 #### 🐞 Fix
 
-✅ copy2恢复  
-✅ jm 发布页( WinError 10054 )问题处理详情看软件内 jm 提示，同时本地缓存统一改为48小时，🔜[相关参考指引](https://jasoneri.github.io/ComicGUISpider/faq/extra.html#_2-%E5%9F%9F%E5%90%8D%E7%9B%B8%E5%85%B3)  
-✅ ✨ 修复多开端口重复绑定导致的错误  
-✅ ✨ 设置储存目录防呆  
+✅ ✨ 设置 rV 后，更改存储目录会联动更改 rV 的配置  
+✅ ✨ 修复 hitomi 图源  
+✅ ✨ 修复语言环境识别  
+✅ ✨ macOS-init.app 去除，改为终端自执行 bash 命令；详情参考 [💻mac部署](https://jasoneri.github.io/ComicGUISpider/deploy/mac-required-reading)  
+&emsp;✅ ✨ 另外 mac python 环境更改为 uv 的虚拟环境，参考 `CGS.bash` 与 `init.bash`  
+&emsp;🔳 rV 部署/运行 会调用后台，但后台启动参数有误，cmd_kw 待更正  
+✅ 修复多开端口重复绑定导致的错误  
+✅ 设置储存目录防呆  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 

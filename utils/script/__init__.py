@@ -8,7 +8,7 @@ from functools import partial
 from redis import asyncio as aioredis
 from utils import Conf, ori_path
 
-conf = Conf(path=ori_path.joinpath("utils/script"))
+conf = Conf(path=ori_path.joinpath("utils/script"), iname='img')
 redis_conf: dict = conf.redis
 
 

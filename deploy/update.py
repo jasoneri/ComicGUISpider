@@ -177,7 +177,7 @@ class Proj:
     ver = ""
     first_flag = False
     local_ver = None
-    local_ver_file = existed_proj_p.joinpath('deploy/version.json')
+    local_ver_file = existed_proj_p.joinpath('version.json')
     changed_files = []
     update_flag = "local"
     update_info = {}
@@ -237,7 +237,7 @@ class Proj:
             _, folders, files = next(os.walk(temp_proj_p))
             all_files = (*folders, *files)
             for file in all_files:
-                if file != "conf.yml" or file != "record.db":
+                if file not in ("conf.yml","record.db","version.json"):
                     move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
             env_success_flag = self.env_check_and_replenish()
             if not self.updated_success_flag or not env_success_flag:

@@ -1,7 +1,7 @@
 ---
 name: "Feature request 👑"
 description: 对程序的需求或建议 / Suggest an idea for program
-title: "👑[Feature Request]"
+title: "👑[Feature Request] (标题这里简述一下，多需求集合的话取最重点的那个)"
 labels: enhancement
 assignees:
   - jasoneri

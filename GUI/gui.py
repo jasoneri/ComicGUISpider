@@ -16,77 +16,20 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, ClipTasksThread
-from GUI.thread.other import ToolMenu, rvTool
+from GUI.tools import ToolWindow
+from GUI.manager import TaskProgressManager, ClipGUIManager
 
 from variables import *
 from assets import res
 from utils import (
-    font_color, Queues, QueuesManager, conf, p, ori_path
+    font_color, Queues, QueuesManager, conf, p, ori_path, curr_os
 )
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what,
-    PreviewHtml, TaskObj, TasksObj
+    PreviewHtml
 )
 from utils.website import spider_utils_map
-from utils.sql import SqlUtils
-from deploy import curr_os
-
-
-class TaskProgressManager:
-    def __init__(self, gui):
-        self.gui = gui
-        self._tasks = {}
-        self.init_flag = True
-        self.sql_handler = SqlUtils()
-
-    def init(self, add_task):
-        self.init_flag = False
-        if not self.gui.BrowserWindow and self.gui.previewInit:
-            self.gui.tf = self.gui.tf or PreviewHtml().created_temp_html
-            self.gui.previewInit = False
-            self.gui.set_preview()
-        self.gui.BrowserWindow.init_task_panel(add_task)
-
-    def handle(self, task):
-        if isinstance(task, tuple):
-            self.add_task(task)
-        else:
-            self.update_progress(task)
-            
-    def add_task(self, task_info: tuple):
-        if self.init_flag:
-            self.init(lambda: self._real_add_task(task_info))
-        else:
-            self._real_add_task(task_info)
-
-    def _real_add_task(self, task_info: tuple):
-        obj = TasksObj(*task_info)
-        self._tasks[task_info[0]] = obj
-        self.gui.BrowserWindow.add_task(obj)
-
-    def update_progress(self, task_obj: TaskObj):
-        taskid = task_obj.taskid
-        progress_completed = False
-        if taskid in self._tasks:
-            _tasks = self._tasks[taskid]
-            _tasks.downloaded.append(task_obj)
-            curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
-            if conf.isDeduplicate and curr_progress >= 100:
-                progress_completed = True
-            self.gui.BrowserWindow.update_progress(taskid, curr_progress,
-                                                   lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
-            )
-
-    @property
-    def unfinished_tasks(self):
-        _tasks_key = list(self._tasks.keys())
-        downloaded_taskids = self.sql_handler.batch_check_dupe(_tasks_key)
-        un_taskids = set(_tasks_key) - set(downloaded_taskids)
-        return [self._tasks[taskid] for taskid in un_taskids]
-        
-    def close(self):
-        self.sql_handler.close()
 
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
@@ -101,6 +44,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     pageFrameClickCnt = 0
     checkisopenCnt = 0
     BrowserWindow: BrowserWindow = None
+    toolWin = None
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -152,14 +96,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.manager.connect()
         self.Q = QueueHandler(self.manager)
         # 按钮组
-        self.tool_menu = ToolMenu(self)
+        self.clip_mgr = ClipGUIManager(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
         self.sv_path = conf.sv_path
         self.btn_logic_bind()
         self.set_shortcut()
-        self.set_rvtool()
+        self.set_tool_win()
         # 预览
         self.tf = None
         self.previewInit = True
@@ -180,7 +124,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
             self.chooseBox_changed_tips(index)
+            match index:
+                case 2 | 3:
+                    self.toolWin.addDomainTool()
+                case 6:
+                    self.toolWin.addHitomiTool()
             if index in SPECIAL_WEBSITES_IDXES:
+                self.clipBtn.setEnabled(1)
                 self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             # 输入框联想补全
             self.set_completer()
@@ -194,8 +144,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def chooseBox_changed_tips(self, index):
         self.spiderUtils = spider_utils_map[index]
-        if index in SPECIAL_WEBSITES_IDXES:
-            self.tool_menu.switch_ero(index)
         match index:
             case 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
@@ -217,10 +165,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.nextPageShort.setContext(Qt.ApplicationShortcut)
         self.nextPageShort.activated.connect(self.nextPageBtn.click)
 
-    def set_rvtool(self):
-        if not hasattr(self, "rv_tool"):
-            self.rv_tool = rvTool(self)
-        self.rvBtn.clicked.connect(self.rv_tool.show)
+    def set_tool_win(self):
+        self.toolWin = ToolWindow(self)
+        self.rvBtn.clicked.connect(self.toolWin.show)
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()
@@ -250,6 +197,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.next_btn.clicked.connect(self.next_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
+        self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
@@ -492,7 +440,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.input_state.pageTurn = ""
             self.q_InputFieldQueue_send(self.input_state)
             refresh_state(self, 'process_state', 'ProcessQueue')
-            self.toolButton.setDisabled(True)
+            self.clipBtn.setDisabled(True)
             return
         idxes = self.chooseinput.text().strip()
         if self.BrowserWindow and self.BrowserWindow.output:
