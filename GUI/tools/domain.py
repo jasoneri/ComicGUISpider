@@ -83,7 +83,7 @@ class DomainToolView(QWidget):
             InfoBar.success(
                 title='', content=tools_res.doamin_success_tip % (_domain, t_f),
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-                duration=1000, parent=self
+                duration=10000, parent=self
             )
             QTimer.singleShot(10000, self.close_later)
         else:
