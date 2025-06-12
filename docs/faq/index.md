@@ -32,7 +32,11 @@ irm https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/online_scripts/win.
 ::: info 非绿色包的用户参考 [🚀 快速开始 > 部署](../deploy/quick-start#1-下载--部署) 的安装依赖命令示例
 :::
 
-macOS: 用`CGS-init`更新环境依赖
+macOS: （与 mac部署 初始化步骤命令一样的）  
+
+```bash
+bash /Applications/CGS.app/Contents/Resources/scripts/deploy/launcher/mac/init.bash
+```
 
 ### 更新失败后程序无法打开
 

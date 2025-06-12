@@ -45,7 +45,11 @@ speed_gtihub() {
 
 echo "[CGS]uv installing python..."
 mirrorUrl=$(speed_gtihub "https://github.com/astral-sh/python-build-standalone/releases/download")
-uv python install 3.12.11 --mirror "$mirrorUrl" --no-cache
+
+# 检查是否已安装 Python 3.12.11
+if ! uv python list | grep "3.12.11"; then
+    uv python install 3.12.11 --mirror "$mirrorUrl" --no-cache
+fi
 
 cd "/Applications/CGS.app/Contents/Resources";
 echo "[CGS]Creating virtual environment..."

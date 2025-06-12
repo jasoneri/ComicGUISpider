@@ -11,15 +11,19 @@
 :::
 
 + 或克隆此项目 `git clone https://github.com/jasoneri/ComicGUISpider.git`  
-::: tip 需安装  
-+ `python3.12+`
-+ 安装 [astral-sh/uv](https://github.com/astral-sh/uv)（然后抛弃 pip ，让 uv 管理依赖）
+
+::: tip 部署流程参考 macOS 的 [`init.bash`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/deploy/launcher/mac/init.bash)，以下节选要点  
+1. 安装 [astral-sh/uv](https://github.com/astral-sh/uv)，示例使用的 brew ，或者使用官方的远程脚本  
+2. 使用 uv 安装 python3.12.11（可以在官方源加上加速外链的前缀）  
 ``` bash
-python -m pip install uv -i https://pypi.tuna.tsinghua.edu.cn/simple
+uv python install 3.12.11 --mirror "https://github.com/astral-sh/python-build-standalone/releases/download" --no-cache
 ```
-**安装依赖命令示例** （CGS的 `requirements/*.txt` 都是用uv编译的，原生 pip 装你会发现各种麻烦）  
+3. 在放源码位置的父目录创建 uv 虚拟环境 `uv venv --python 3.12.11 .venv`  
+4. **安装依赖命令示例** （CGS的 `requirements/*.txt` 都是用uv编译的，原生 pip 装你会发现各种麻烦）  
 ``` bash
-python -m uv pip install -r "requirements/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
+source .venv/bin/activate  # 进虚拟环境
+cd ComicGUISpider          # 一般 git clone 为项目名，否则是你改名的源码目录
+uv pip install -r "requirements/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 ::: warning 使用 git 克隆的话请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档是基于绿色包的说明
@@ -29,8 +33,16 @@ python -m uv pip install -r "requirements/win.txt" --index-url https://pypi.tuna
 
 ### 常规 GUI 运行
 
-`python CGS.py`  
-或使用绿色包程序
+```python
+source .venv/bin/activate  
+cd ComicGUISpider  
+python CGS.py
+```
+
+::: warning 此后所有说明中非📦绿色包的python命令均默认进虚拟环境，不再赘述
+:::
+
+或直接使用📦绿色包程序
 
 ### 命令行工具
 

@@ -35,7 +35,7 @@ ComicGUISpider 开发组使用 [GitHub Project](https://github.com/jasoneri/Comi
 
 因为有些方案可能是开发团队原本讨论并且认为不要做的事，而上一步可以避免你浪费大量精力。
   
-::: info 如果仅希望讨论是否添加或改进某功能本身，而非「要如何实现」，请使用 -> [Issue: 功能改进](https://github.com/jasoneri/ComicGUISpider/issues/new?labels=feature+request&template=feature_request.yml&title=%5BFeature+Request%5D+)
+::: info 如果仅希望讨论是否添加或改进某功能本身，而非「要如何实现」，请使用 -> [Issue: 功能改进](https://github.com/jasoneri/ComicGUISpider/issues/new?labels=feature+request&template=feature-request.yml&title=%5BFeature+Request%5D+)
 :::
 
 一份 [提案(RFC)](https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue+is%3Aopen+label%3ARFC) 定位为 **「在某功能/重构的具体开发前，用于开发者间 review 技术设计/方案的文档」**，

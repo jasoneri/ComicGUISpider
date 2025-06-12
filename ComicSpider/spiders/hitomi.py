@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
-
+import asyncio
 import scrapy
+import httpx
 
 from utils import PresetHtmlEl, conf
 from utils.website import HitomiUtils
@@ -18,6 +19,7 @@ class HitomiSpider(BaseComicSpider):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {
         'ComicSpider.middlewares.ComicDlProxyMiddleware': 5,
         'ComicSpider.middlewares.UAMiddleware': 10,
+        'ComicSpider.middlewares.FakeMiddleware': 30,
     }}
     name = 'hitomi'
     domain = domain
@@ -26,6 +28,7 @@ class HitomiSpider(BaseComicSpider):
     frame_book_format = ["lang", "title", "preview_url", "pics"]
     ut = None
     deferred_list = []
+    async_cli = None
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
@@ -38,6 +41,9 @@ class HitomiSpider(BaseComicSpider):
             else:
                 spider.logger.error(f"Failed to initialize HitomiUtils: {str(e)}")
             return None
+        transport_kw = dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
+        spider.async_cli = httpx.AsyncClient(headers=HitomiUtils.headers,
+            transport=httpx.AsyncHTTPTransport(**transport_kw))
         return spider
 
     def start_requests(self):
@@ -78,12 +84,31 @@ class HitomiSpider(BaseComicSpider):
         meta['results'] = []
         meta['total_requests'] = len(result)
         
-        for gallery_id in result:
-            yield scrapy.Request(
-                url=f"https://{self.backend_domain}/galleries/{gallery_id}.js",
-                callback=self.actual_parse,
-                meta=meta,
-            )
+        # for gallery_id in result:
+        #     yield scrapy.Request(
+        #         url=f"https://{self.backend_domain}/galleries/{gallery_id}.js",
+        #         callback=self.actual_parse,
+        #         meta=meta,
+        #     )
+        async def fetch_gallery(i, gallery_id):
+            url = f"https://{self.backend_domain}/galleries/{gallery_id}.js"
+            resp = await self.async_cli.get(url)
+            return i, resp
+
+        async def fetch_all():
+            tasks = [fetch_gallery(i, gallery_id) for i, gallery_id in enumerate(result)]
+            return await asyncio.gather(*tasks)
+
+        loop = asyncio.get_event_loop()
+        resps = loop.run_until_complete(fetch_all())
+        
+        # 整合actual_parse的功能
+        for _, resp in sorted(resps, key=lambda x: x[0]):  # 按原始索引排序
+            meta['results'].append({
+                "text": resp.text,
+                "meta": {k: v for k, v in meta.items() if k != 'results'}
+            })
+        yield from self.defer_parse(meta['results'])
 
     def page_turn(self, elected_results, meta):
         if not self.input_state.pageTurn:
@@ -159,7 +184,11 @@ class HitomiSpider(BaseComicSpider):
                 item['uuid'] = this_uuid
                 item['uuid_md5'] = this_md5
                 self.total += 1
-                yield item
+                # 使用一个空的请求来触发item处理
+                yield scrapy.Request(
+                    url='https://fakefakefa.com',callback=self.process_item,meta={'item': item},
+                    dont_filter=True
+                )
         self.process_state.process = 'fin'
         self.Q('ProcessQueue').send(self.process_state)
 
@@ -187,3 +216,8 @@ class HitomiSpider(BaseComicSpider):
             preview.add(x + 1, img_preview, title, preview_url, pages=len(pics), lang=lang, btype=btype)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=meta.get("Url"))
+
+    def process_item(self, response):
+        item = response.meta['item']
+        # print(f""">>> [{item['page']}] {item['image_urls'][0]}""")
+        yield item
