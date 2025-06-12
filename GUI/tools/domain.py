@@ -83,13 +83,16 @@ class DomainToolView(QWidget):
             InfoBar.success(
                 title='', content=tools_res.doamin_success_tip % (_domain, t_f),
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-                duration=4500, parent=self
+                duration=10000, parent=self
             )
-            QTimer.singleShot(500, self.gui.retrybtn.click)
-            self.close()
+            QTimer.singleShot(10000, self.close_later)
         else:
             InfoBar.error(
                 title='', content=tools_res.doamin_error_tip,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
                 duration=7500, parent=self
             )
+    
+    def close_later(self):
+        self.gui.toolWin.close()
+        self.gui.retrybtn.click()

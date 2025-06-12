@@ -110,10 +110,13 @@ class DomainUtils(Utils):
     @classmethod
     async def test_aviable_domain(cls, domain):
         url = f"https://{domain}"
-        async with httpx.AsyncClient(headers={**cls.headers, 'Referer': url},transport=httpx.AsyncHTTPTransport(retries=1),verify=False) as cli:
-            resp = await cli.head(url, follow_redirects=True, timeout=4)
-            if resp and str(resp.status_code).startswith('2'):
-                return resp.url.host
+        try:
+            async with httpx.AsyncClient(headers={**cls.headers, 'Referer': url},transport=httpx.AsyncHTTPTransport(retries=1),verify=False) as cli:
+                resp = await cli.head(url, follow_redirects=True, timeout=4)
+                if resp and str(resp.status_code).startswith('2'):
+                    return resp.url.host
+        except Exception as e:
+            return None
         return None
 
     @classmethod

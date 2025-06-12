@@ -84,12 +84,6 @@ class HitomiSpider(BaseComicSpider):
         meta['results'] = []
         meta['total_requests'] = len(result)
         
-        # for gallery_id in result:
-        #     yield scrapy.Request(
-        #         url=f"https://{self.backend_domain}/galleries/{gallery_id}.js",
-        #         callback=self.actual_parse,
-        #         meta=meta,
-        #     )
         async def fetch_gallery(i, gallery_id):
             url = f"https://{self.backend_domain}/galleries/{gallery_id}.js"
             resp = await self.async_cli.get(url)
@@ -219,5 +213,4 @@ class HitomiSpider(BaseComicSpider):
 
     def process_item(self, response):
         item = response.meta['item']
-        # print(f""">>> [{item['page']}] {item['image_urls'][0]}""")
         yield item
