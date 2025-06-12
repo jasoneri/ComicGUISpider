@@ -1,5 +1,5 @@
 
-## 🎁 Feat
+## 🎁 Feat 
 
 ✅ 增设 rV 按钮及其管理窗口，选脚本然后取消有指示可快捷部署 rV，`显示记录`和`整合章节`移至其窗口内  
 ✅ ✨ 将配置系记录系的文件转移位置，此版之后的更新等都不用再手动备份（ 参考[📒配置系文件路径](https://jasoneri.github.io/ComicGUISpider/faq/extra) ）  
@@ -8,7 +8,10 @@
 ## 🐞 Fix
 
 ✅ ✨ 设置 rV 后，更改存储目录会联动更改 rV 的配置  
-✅ ✨ 修复 hitomi 图源  
+
+🔳 hitomi  
+&emsp;✅ ✨ 优化速度，翻页等  
+&emsp;✅ ✨ 修复图源  
 ✅ ✨ 修复语言环境识别  
 ✅ ✨ macOS-init.app 去除，改为终端自执行 bash 命令；详情参考 [💻mac部署](https://jasoneri.github.io/ComicGUISpider/deploy/mac-required-reading)  
 &emsp;✅ ✨ 另外 mac python 环境更改为 uv 的虚拟环境，参考 `CGS.bash` 与 `init.bash`  

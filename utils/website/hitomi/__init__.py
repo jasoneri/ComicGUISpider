@@ -29,6 +29,7 @@ class HitomiUtils(EroUtils, Req):
     def __init__(self, conf):
         self.cli = self.get_cli(conf)
         self.gg = gg(cli=self.cli)
+        self.dec = self.Decrypt(self.gg)
 
     @staticmethod
     def parse_nozomi(data):
@@ -46,14 +47,38 @@ class HitomiUtils(EroUtils, Req):
         end_byte = self.galleries_per_page * int(page)
         return f"bytes={end_byte-self.galleries_per_page}-{end_byte-1}"
     
+    class Decrypt:
+        def __init__(self, gg):
+            self.gg = gg
+
+        def subdomain_from_url(self, base, 
+                               img_type, gg_s):
+            if base:    # 目前仅有"tn"
+                retval = base
+                # retval = chr(97 + self.gg.m(gg_s)) + base
+            else:
+                retval = f"{img_type[0]}{1 + self.gg.m(gg_s)}"
+            return retval
+        
+        def full_path_from_hash(self, img_hash, gg_s):
+            return self.gg.b+gg_s+'/'+img_hash
+
+        def real_full_path_from_hash(self, img_hash, img_type, preview):
+            _dir  = f"{img_type}bigtn"
+            # _dir = _dir if (not preview and img_type=="avif") else "avifsmallbigtn"
+            path2 = re.sub(r'^.*(..)(.)$', r'\2/\1/' + img_hash, img_hash)
+            return f"{_dir}/{path2}"
+    
     def get_img_url(self, img_hash, hasavif=0, preview=None):
-        g = self.gg.s(img_hash)
-        img_type, _dir  = ("avif", "avifbigtn") if hasavif else ("webp", "webpbigtn")
-        _dir = _dir if (not preview and img_type=="avif") else "avifsmallbigtn"
-        real_img_hash = re.sub(r'^.*(..)(.)$', r'\2/\1/' + img_hash, img_hash)
-        # retval = f"{img_type[0]}{1 + int(self.gg.m((g)))}"
-        retval = chr(97 + int(self.gg.m((g)))) + "tn"
-        url = f"https://{retval}.{self.domain2}/{_dir}/{real_img_hash}.{img_type}"
+        gg_s = self.gg.s(img_hash)
+        img_type = "avif" if hasavif else "webp"
+        if not preview:
+            img_path = self.dec.full_path_from_hash(img_hash, gg_s)
+            retval = self.dec.subdomain_from_url("", img_type, gg_s)
+        else:
+            img_path = self.dec.real_full_path_from_hash(img_hash, img_type, preview)
+            retval = self.dec.subdomain_from_url("tn", img_type, gg_s) 
+        url = f"https://{retval}.{self.domain2}/{img_path}.{img_type}"
         return url
 
     @classmethod
@@ -94,7 +119,7 @@ class gg:
         return match.group(1)
 
     def m(self, g):
-        return 0 if int(g) in self.m_cases else 1
+        return 1 if int(g) in self.m_cases else 0
 
     def s(self, h):
         matched = re.match(r"(..)(.)$", h[-3:])

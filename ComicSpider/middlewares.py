@@ -9,6 +9,7 @@ import re
 from scrapy import signals
 import random
 from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
+from scrapy.http import HtmlResponse
 
 
 class ComicspiderDownloaderMiddleware(object):
@@ -122,4 +123,12 @@ class DisableSystemProxyMiddleware(HttpProxyMiddleware):
 class RefererMiddleware(ComicspiderDownloaderMiddleware):
     def process_request(self, request, spider):
         request.headers['Referer'] = spider.domain
+        return None
+
+
+class FakeMiddleware:
+    def process_request(self, request, spider):
+        if request.url == 'https://fakefakefa.com':
+            fake_resp = HtmlResponse(url=request.url, request=request, body=b'fake')
+            return fake_resp
         return None

@@ -250,7 +250,7 @@ class HitomiTools(QWidget):
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
             duration=4000, parent=self.gui.textBrowser
         )
-        QTimer.singleShot(100, self.close)
+        QTimer.singleShot(100, self.gui.toolWin.close)
 
     def copy_path(self):
         clipboard = QApplication.clipboard()
