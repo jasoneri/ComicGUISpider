@@ -37,7 +37,9 @@ def yaml_update(_f, dic):
         fp.write(yaml_data)
 
 
-def toAppConfigLocation(ori_file: p.Path):
+def toAppConfigLocation(ori_file: p.Path, iname=None):
+    if iname:
+        return ori_file
     file = ori_file.name
     location_file = conf_dir.joinpath(file)
     if ori_file.exists() and not location_file.exists():
@@ -62,7 +64,7 @@ class Conf:
     clip_sql = curr_os.clip_sql
     file = None
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, iname=None):
         # super(Conf).__init__()
         self.init_conf()
 
@@ -132,7 +134,7 @@ class Conf:
     @classmethod
     def duel_conf(cls, ori_conf_yml, iname):
         _i = f"_instance_{iname}" if iname else "_instance"
-        return _i, toAppConfigLocation(ori_conf_yml)
+        return _i, toAppConfigLocation(ori_conf_yml, iname)
     
     def __new__(cls, *args, path: t.Optional[p.Path] = None, iname: str = None, **kwargs):
         _instance, file = cls.duel_conf((path or ori_path).joinpath("conf.yml"), iname)
