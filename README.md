@@ -69,7 +69,7 @@
 ✅ ✨ 修复语言环境识别  
 ✅ ✨ macOS-init.app 去除，改为终端自执行 bash 命令；详情参考 [💻mac部署](https://jasoneri.github.io/ComicGUISpider/deploy/mac-required-reading)  
 &emsp;✅ ✨ 另外 mac python 环境更改为 uv 的虚拟环境，参考 `CGS.bash` 与 `init.bash`  
-&emsp;🔳 rV 部署/运行 会调用后台，但后台启动参数有误，cmd_kw 待更正  
+&emsp;🔳 rV 部署/运行 会调用后台，但 mac 后台启动参数有误，cmd_kw 待更正  
 ✅ 修复多开端口重复绑定导致的错误  
 ✅ 设置储存目录防呆  
 
