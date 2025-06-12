@@ -3,6 +3,8 @@
 
 ## 1. 域名相关
 
+::: tip 简化流程的方法 > [域名工具](/feat/#_4-2-%E5%9F%9F%E5%90%8D%E5%B7%A5%E5%85%B7-domaintool)
+:::
 各网站的 `发布页`/`永久链接` 能在 `scripts/utils/website/__init__.py` 里找到  
 （国内域名专用）域名缓存文件为 `scripts/__temp/xxx_domain.txt`（xxx = `wnacg`或`jm`），  
 缓存有效期为 48 小时  
@@ -11,8 +13,6 @@
 
 ::: tip 手动改域名缓存文件示例
  `scripts/__temp/wnacg_domain.txt`，没有则自建，内容填个 `www.wn01.uk` 即可
-:::
-::: tip 简化流程的方法 > [域名工具](/feat/#_4-2-%E5%9F%9F%E5%90%8D%E5%B7%A5%E5%85%B7-domaintool)
 :::
 ::: info `发布页`/`永久链接`失效的情况下鼓励用户向开发者提供新可用网址，让软件能够持续使用  
 :::

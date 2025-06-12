@@ -23,22 +23,6 @@ python -m uv pip install -r "requirements/script/win.txt" --index-url https://py
 ```
 :::
 
-::: details 脚本目录树: `script`目录
-```shell
-utils
-  ├── script
-        ├── __init__.py
-        ├── conf.yml                  # 此目录下的所有脚本配置引用，没上传至git，需要自创建
-        ├── extra.py                  # 作为单个简单类爬虫使用
-        ├── image  
-             ├── __init__.py  
-             ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
-             ├── expander.py          # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
-             ├── nekohouse.py         # 大概就是 kemono 的克隆网站
-             ├── saucenao.py          # saucenao 著名的二次元以图搜图网站
-```
-:::
-
 ::: details 配置文件 `./scripts/utils/script/conf.yml` （必要❗️自行创建）
 ```yaml
 kemono:
@@ -56,6 +40,22 @@ redis:
   port: 6379
   db: 0
   password:
+```
+:::
+
+::: details 脚本目录树: `script`目录
+```shell
+utils
+  ├── script
+        ├── __init__.py
+        ├── conf.yml                  # 此目录下的所有脚本配置引用，没上传至git，需要自创建
+        ├── extra.py                  # 作为单个简单类爬虫使用
+        ├── image  
+             ├── __init__.py  
+             ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
+             ├── expander.py          # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
+             ├── nekohouse.py         # 大概就是 kemono 的克隆网站
+             ├── saucenao.py          # saucenao 著名的二次元以图搜图网站
 ```
 :::
 
@@ -86,10 +86,12 @@ proxies:                      # 设代理访问才算通畅，此处代理设置
 :::
 3. 命令行工具参考
 
-::: tip 绿色包使用的命令为 `./runtime/python.exe ./scripts/utils/script/image/kemono.py --help`  
+::: tip 绿色包使用的命令为 `./runtime/python.exe ./scripts/utils/script/image/kemono.py`  
+对应替换下方的 `python kemono.py`  
 :::
 
 ```bash
+# 先用 --help 测试/查看参数说明
 python kemono.py --help
 python kemono.py -c 'fav=[["keihh","fanbox"],"サインこす"]' -sd "2025-03-01"  -ed "2025-05-01"
 python kemono.py -c 'creatorid=[16015726,1145144444444]' -sd "2025-03-01"
