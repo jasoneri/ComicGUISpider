@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitepress';
 
 
-const version = `v2.1`
+const version = `v2.2`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
@@ -18,12 +18,14 @@ export default defineConfig({
     locales: {
         root: {
           label: '简体中文',
-          lang: 'zh'
+          lang: 'zh',
+          titleTemplate: 'CGS'
         },
         en: {
           label: 'English',
           lang: 'en',
-          link: '/locate/en'
+          link: '/locate/en',
+          titleTemplate: 'CGS'
         }
       },
 
