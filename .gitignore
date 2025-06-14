@@ -173,6 +173,7 @@ dmypy.json
 analyze/
 *.d
 *.zip
+*.psd
 *demo*.py
 __temp
 test/*

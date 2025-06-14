@@ -80,8 +80,9 @@ class DomainToolView(QWidget):
             t_f = temp_p.joinpath(f"{self.spiderUtils.name}_domain.txt")
             with open(t_f, 'w', encoding='utf-8') as f:
                 f.write(_domain)
+            prefix_tip = tools_res.doamin_success_tip % (_domain, t_f)
             InfoBar.success(
-                title='', content=tools_res.doamin_success_tip % (_domain, t_f),
+                title='', content=f"{prefix_tip}{tools_res.reboot_tip % '10'}",
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
                 duration=10000, parent=self
             )
