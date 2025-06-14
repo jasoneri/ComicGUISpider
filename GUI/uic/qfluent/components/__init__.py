@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import re
 from enum import Enum
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
@@ -8,12 +7,11 @@ from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
-    InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar,
-    MessageBoxBase, TextBrowser, BodyLabel, SubtitleLabel, 
+    InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, TeachingTipTailPosition, SplashScreen, ImageLabel
 )
 from assets import res
-from utils.docs import MarkdownConverter
+from .updater import UpdaterMessageBox
 
 
 class CustomSplashScreen(SplashScreen):
@@ -85,38 +83,6 @@ class CustomTeachingTip:
         if hasattr(view, "closed"):
             view.closed.connect(_tip.close)
         return _tip
-
-
-class CustomMessageBox(MessageBoxBase):
-    def __init__(self, title, parent=None):
-        super().__init__(parent)
-        self.gui = parent
-        self.yesButton.setText(res.Updater.update_ensure)
-        self.textBrowser = TextBrowser(self)
-        # self.textBrowser.setWordWrapMode(QtGui.QTextOption.NoWrap)  # 禁用自动换行
-        self.textBrowser.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # 需要时显示水平滚动条
-        if title:
-            self.titleLabel = SubtitleLabel(title)
-            self.viewLayout.addWidget(self.titleLabel)
-        self.viewLayout.addWidget(self.textBrowser)
-        self.widget.setMinimumWidth(int(parent.width() * 0.8))
-
-    def validate(self):
-        self.gui.updating_fly = CustomFlyout.make(
-            view=IndeterminateBarFView(self.gui), 
-            target=self.gui.textBrowser, parent=self.gui, calc_bottom=True
-        )
-        self.gui.conf_dia.puThread.update_signal.emit()
-        return True
-
-    def show_release_note(self, note):
-        def _format_note(note):
-            note = note.split("\n---")[0]
-            return re.sub(r'\s*\(\s*[0-9a-f]{40}.*\)', '', note)
-        html_text = MarkdownConverter.convert_html(_format_note(note))
-        self.textBrowser.setHtml(html_text)
-        self.gui.conf_dia.hide()
-        self.show()
 
 
 class CustomIcon(FluentIconBase, Enum):
