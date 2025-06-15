@@ -8,6 +8,7 @@ from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
 from GUI.tools.hitomi_tool import HitomiTools, HitomiNotYet, hitomi_db_path
 from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
+from GUI.tools.status import StatusToolView
 from GUI.tools.chore import *
 
 
@@ -42,6 +43,8 @@ class ToolWindow(FramelessWindow):
         first_row = QHBoxLayout()
         self.rvInterface = rvTool(self)
         self.addSubInterface(self.rvInterface, 'rvInterface', 'rvTool')
+        self.stInterface = StatusToolView(self.gui)
+        self.addSubInterface(self.stInterface, 'stInterface', 'StatusTool')
 
         # 连接信号并初始化当前标签页
         self.stackedWidget.currentChanged.connect(self.onCurrentIndexChanged)

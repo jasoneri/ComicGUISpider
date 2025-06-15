@@ -4,7 +4,7 @@ import pathlib
 
 from PyQt5.QtCore import Qt, QTimer
 from qfluentwidgets import (
-    InfoBar, InfoBarPosition
+    InfoBar, InfoBarPosition, StateToolTip
 )
 
 from utils.processed_class import (
@@ -15,7 +15,7 @@ from utils import conf, ori_path
 from assets import res
 from deploy.update import Proj
 from GUI.uic.qfluent.components import (
-    CustomInfoBar, CustomFlyout, IndeterminateBarFView, CustomMessageBox
+    CustomInfoBar, UpdaterMessageBox
 )
 
 
@@ -79,6 +79,7 @@ class Updater:
     res = res.Updater
     proj = None
     version = None
+    stateTooltip = None
     
     def __init__(self, gui):
         self.gui = gui
@@ -92,8 +93,10 @@ class Updater:
 
         def updated(recv):
             try:
-                self.gui.updating_fly.close()
-            except RuntimeError:
+                self.gui.updaterStateTooltip.setContent("Finish..")
+                self.gui.updaterStateTooltip.setState(True)
+                self.gui.updaterStateTooltip = None
+            except Exception:
                 pass
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
@@ -112,7 +115,8 @@ class Updater:
 
         def checked(recv):
             try:
-                self.check_fly.close()
+                self.stateTooltip.setState(True)
+                self.stateTooltip = None
             except RuntimeError:
                 pass
             if isinstance(recv, str):
@@ -136,12 +140,10 @@ class Updater:
                         title = f"📫{res.GUI.Uic.confDia_updateDialog_dev} 🧪{recv.update_info.get('tag_name')}"
                     case _:
                         title = ""
-                self.gui.update_dialog = CustomMessageBox(title, self.gui)
+                self.gui.update_dialog = UpdaterMessageBox(title, self.gui)
                 self.gui.update_dialog.show_release_note(recv.update_info.get("body"))
-        self.check_fly = CustomFlyout.make(
-            view=IndeterminateBarFView(self.conf_dia), 
-            target=self.conf_dia, parent=self.conf_dia, calc_bottom=True
-        )
+        self.stateTooltip = StateToolTip("Checking..", "", self.conf_dia.eh_cookiesEdit)
+        self.stateTooltip.show()
         self.conf_dia.puThread.checked_signal.connect(checked)
         self.conf_dia.puThread.update_signal.connect(self.conf_dia.puThread.request_update)
         self.conf_dia.puThread.updated_signal.connect(updated)

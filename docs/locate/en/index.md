@@ -40,12 +40,13 @@ hero:
       </a></div></td>
   </tr>
   <tr>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json"></td>
+    <td>➖</td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json"></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json"></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json"></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json"></td>
-  </tr> 
+    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json"></td>
+  </tr>
 </tbody></table>
 
 <table><tbody>

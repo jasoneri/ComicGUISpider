@@ -16,37 +16,46 @@ hero:
     - theme: alt
       text: 配置
       link: /config
+    - theme: sponsor
+      text: 🎸功能
+      link: /feat
     - theme: alt
       text: FAQ
       link: /faq
 
-features:
-  - icon:
-      src: ./assets/img/icons/website/copy.png
-    title: '<a href="https://www.copy20.com/" target="_blank">拷贝漫画</a>'
-    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json">'
-  - icon:
-      src: ./assets/img/icons/website/mangabz.png
-    title: '<a href="https://mangabz.com" target="_blank">Māngabz</a>'
-    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json">'
-  - icon:
-      src: ./assets/img/icons/website/jm.png
-    title: '<a href="https://18comic.vip/" target="_blank">jm</a>'
-    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json">'
-  - icon:
-      src: ./assets/img/icons/website/wnacg.png
-    title: '<a href="https://www.wnacg.com/" target="_blank">绅士漫画</a>'
-    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json">'
-  - icon:
-      src: ./assets/img/icons/website/ehentai.png
-    title: '<a href="https://exhentai.org/" target="_blank">exhentai</a>'
-    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json">'
-  - icon:
-      src: ./assets/img/icons/website/hitomi.png
-    title: '<a href="https://hitomi.la/" target="_blank">hitomi</a>'
-    details: '<img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json">'
+
 ---
 
+<table><tbody>  
+  <tr>
+    <td><div align="center"><a href="https://www.copy20.com/" target="_blank">
+      <img src="/assets/img/icons/website/copy.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://mangabz.com" target="_blank">
+      <img src="/assets/img/icons/website/mangabz.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://18comic.vip/" target="_blank">
+      <img src="/assets/img/icons/website/jm.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://www.wnacg.com/" target="_blank">
+      <img src="/assets/img/icons/website/wnacg.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://exhentai.org/" target="_blank">
+      <img src="/assets/img/icons/website/ehentai.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://hitomi.la/" target="_blank">
+      <img src="/assets/img/icons/website/hitomi.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+  </tr>
+  <tr>
+    <td>➖</td>
+    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json"></td>
+    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json"></td>
+    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json"></td>
+    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json"></td>
+    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json"></td>
+  </tr>
+</tbody></table>
 <table><tbody>
   <tr>
     <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif"></td>

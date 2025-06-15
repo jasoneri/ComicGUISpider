@@ -31,7 +31,7 @@
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
-| [拷贝漫画](https://www.copy20.com/)    | :cn: |   已解锁隐藏    | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
+| [拷贝漫画](https://www.copy20.com/)    | :cn: | | ➖ |
 | [Māngabz](https://mangabz.com)        | :cn: | 代理 | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
 | [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
@@ -54,24 +54,23 @@
 
 #### 🎁 Features
 
+✅ 将配置系记录系的文件转移位置，后续更新等都不用再手动备份（ 参考[📒配置系文件路径](https://jasoneri.github.io/ComicGUISpider/faq/extra) ）  
+✅ 由 rV 按钮打开工具视窗，受影响的有`hotomi-tools`,`读剪贴板`（ 参考[🎸常规功能](https://jasoneri.github.io/ComicGUISpider/feat)里有各项图示 ）  
+&emsp;✅ ✨ 工具视窗新增常驻 statusTool，与上面的的状态栏一致，隐藏某站状态，内有某种功能  
+&emsp;✅ rvTool: 选脚本然后取消有指示可快捷部署 rV，`显示记录`和`整合章节`移至其 rvTool 内  
+&emsp;✅ 工具视窗内设`jm`等简化设置的域名工具  
 🔳 hitomi  
 &emsp;🔳 数据集下载自动化/更新等，方式待定  
 &emsp;🔳 读剪贴板功能开发中  
-&emsp;✅ ✨ 优化速度，翻页等  
-✅ 增设 rV 按钮（很显眼）及其管理窗口，选脚本然后取消有指示可快捷部署 rV，`显示记录`和`整合章节`移至其窗口内  
-✅ ✨ 将配置系记录系的文件转移位置，后续更新等都不用再手动备份（ 参考[📒配置系文件路径](https://jasoneri.github.io/ComicGUISpider/faq/extra) ）  
-✅ ✨ 增加工具视窗，内有`jm`等简化设置域名的工具，受影响的有`hotomi-tools`,`读剪贴板` （ 参考[🎸常规功能](https://jasoneri.github.io/ComicGUISpider/feat)里的图示）  
 
 #### 🐞 Fix
 
-✅ ✨ 设置 rV 后，更改存储目录会联动更改 rV 的配置  
-✅ ✨ 修复 hitomi 图源  
-✅ ✨ 修复语言环境识别  
-✅ ✨ macOS-init.app 去除，改为终端自执行 bash 命令；详情参考 [💻mac部署](https://jasoneri.github.io/ComicGUISpider/deploy/mac-required-reading)  
-&emsp;✅ ✨ 另外 mac python 环境更改为 uv 的虚拟环境，参考 `CGS.bash` 与 `init.bash`  
+🔳 hitomi  
+&emsp;✅ ✨ 优化速度，翻页等  
+&emsp;✅ 修复 hitomi 图源  
+✅ macOS-init.app 去除，改为终端自执行 bash 命令；详情参考 [💻mac部署](https://jasoneri.github.io/ComicGUISpider/deploy/mac-required-reading)  
+&emsp;✅ 另外 mac python 环境更改为 uv 的虚拟环境，参考 `CGS.bash` 与 `init.bash`  
 &emsp;🔳 rV 部署/运行 会调用后台，但 mac 后台启动参数有误，cmd_kw 待更正  
-✅ 修复多开端口重复绑定导致的错误  
-✅ 设置储存目录防呆  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 

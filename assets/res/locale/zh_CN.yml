@@ -64,8 +64,15 @@ GUI:
     hitomi_info_sended: "已发送到搜索框，程序最适配urlencode值无需担心"
     domain_btn: "发布页"
     domain_desc: "点击发布页然后按图示复制你能用的部分（内地），<br>回来点击执行按键，CGS会花几秒检测是否可用并相应通知，<br>CGS并不能突破你的网络环境， 浏览器开不了CGS也开不了，请知悉"
-    doamin_success_tip: "[%s]已设置进下方临时文件，有效时间为48小时\n[%s]\nCGS将在10秒后重启以确保后台进程应用有效域名"
+    doamin_success_tip: "[%s]已设进下方临时文件，有效时间为48小时\n[%s]\n"
     doamin_error_tip: "域名全无效，请你自行检查，再次声明CGS并不能突破现网络环境去访问"
+    status_desc: "功能1：显示各网站可用状态，网络不稳定的话点 CGS 至官网查看；\n功能2：更新解密相关小变动，应对对岸三天两改之类导致 CGS 被迫发新版的情况"
+    status_fetching: "正在获取网站可用状态"
+    status_waiting: "请等待一会~~"
+    status_web_erratic: "[Warn]网络不稳定未能获取全部状态.."
+    status_cf_error: "国内访问cloudflare的dev域名异常，可移步官网查看"
+    status_no_update: "本地与线上内容一致"
+    reboot_tip: "CGS将在%s秒后重启以确保后台进程应用有效更改"
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"
@@ -98,7 +105,7 @@ GUI:
     confDia_promote_title: "推荐机场"
     confDia_promote_content: "30rmb130G永久流量等"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
-    confDia_support_content: "~有赞助就买域名等"
+    confDia_support_content: "👇请我喝七喜..雪碧太甜了\t请我喝可乐，不要洁厕灵👇"
 
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`eh_cookies`"
@@ -157,5 +164,6 @@ Updater:
   ver_local_latest: "本地版本已是最新.."
   ver_check_fail: "检查版本失败，可重试或前往releases页面查看"
   update_ensure: "确认更新"
+  doing: "过程会涉及代码与依赖的更新，请稍等片刻.."
   updated_success: "更新成功，CGS将在5s后重启"
   updated_fail: "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）\n报错日志为[%s]" 
