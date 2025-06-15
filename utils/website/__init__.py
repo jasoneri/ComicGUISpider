@@ -297,7 +297,7 @@ class EHentaiKits(EroUtils, Req):
 class KaobeiUtils(Utils):
     name = "manga_copy"
     uuid_regex = re.compile(r"(\d+)$")
-    AES_KEY = "xxxmanga.woo.key"
+    AES_KEY = "xxxmanga.wo0.key"
 
     @staticmethod
     def decrypt_chapter_data(ret: str):
