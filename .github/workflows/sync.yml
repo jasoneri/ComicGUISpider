@@ -1,0 +1,39 @@
+name: Sync
+
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      spiders: ${{ steps.filter.outputs.spiders }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            spiders:
+              - 'ComicSpider/spiders/**'
+              - 'utils/website/**'
+
+  sync-gitee:
+    needs: changes
+    if: ${{ needs.changes.outputs.spiders == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Mirror the Github organization repos to Gitee.
+        uses: Yikun/hub-mirror-action@master
+        with:
+          src: github/jasoneri
+          dst: gitee/json_eri
+          dst_key: ${{ secrets.GITEE_RSA_PRIVATE_KEY }}
+          dst_token: ${{ secrets.GITEE_TOKEN }}
+          static_list: "ComicGUISpider"
+          force_update: true
+          clone_style: "ssh"
