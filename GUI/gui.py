@@ -45,6 +45,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     checkisopenCnt = 0
     BrowserWindow: BrowserWindow = None
     toolWin = None
+    webs_status = []
 
     p_crawler: Process = None
     p_qm: Process = None
