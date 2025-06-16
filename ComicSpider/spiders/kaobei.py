@@ -82,6 +82,11 @@ class KaobeiSpider(BaseComicSpider):
     turn_page_info = (r"offset=\d+", None, 30)
     section_limit = 300
 
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        KaobeiUtils.get_aes_key()
+        return super().from_crawler(crawler, *args, **kwargs)
+
     @property
     def search(self):
         keyword = self.input_state.keyword
