@@ -4,18 +4,19 @@ import hashlib
 import re
 import math
 import json
+from datetime import datetime
 from io import BytesIO
 import asyncio
 
 import httpx
 from PIL import Image
-from lxml import etree
+from lxml import etree, html
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
 from assets import res
-from utils import md5, ori_path, conf
+from utils import md5, ori_path, conf, temp_p
 from utils.website.core import *
 from utils.website.hitomi import HitomiUtils
 
@@ -297,10 +298,18 @@ class EHentaiKits(EroUtils, Req):
 class KaobeiUtils(Utils):
     name = "manga_copy"
     uuid_regex = re.compile(r"(\d+)$")
+    pc_domain = "www.copy20.com"
     AES_KEY = "xxxmanga.woo.key"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+    }
+    cachef = temp_p.joinpath("kaobei_aeskey.txt")
 
-    @staticmethod
-    def decrypt_chapter_data(ret: str):
+
+    @classmethod
+    def decrypt_chapter_data(cls, ret: str):
         def _(cipher_hex: str, key: str, iv: str) -> dict:
             cipher_bytes = bytes.fromhex(cipher_hex)
             key_bytes = key.encode('utf-8')
@@ -315,8 +324,41 @@ class KaobeiUtils(Utils):
             unpadder = padding.PKCS7(128).unpadder()
             decrypted = unpadder.update(decrypted_padded) + unpadder.finalize()
             return json.loads(decrypted.decode('utf-8'))
+        try:
+            return _(ret[16:], cls.AES_KEY, ret[:16])
+        except Exception as e:
+            if cls.cachef.exists():
+                os.remove(cls.cachef)
+            raise RuntimeError(f"{cls.cachef.stem} 失效，已删除<br>重启 CGS 以获取新的 ase_key")
 
-        return _(ret[16:], KaobeiUtils.AES_KEY, ret[:16])
+    @classmethod
+    def get_aes_key(cls):
+        def by_normal():
+            async def fetch():
+                async with httpx.AsyncClient(headers=cls.headers) as cli:
+                    resp = await cli.get(f"https://{cls.pc_domain}/comic/xsjzmwls")
+                    return resp.text
+            try:
+                loop = asyncio.get_event_loop()
+                html_text = loop.run_until_complete(fetch())
+                html_doc = html.fromstring(html_text)
+                dio = html_doc.xpath('//script[contains(text(), "dio")]/text()')[0]
+                aes_key = re.findall(r"""=['"](.*?)['"]""",dio.strip().replace(" ", ""))[0]
+                with open(cls.cachef, "w", encoding="utf-8") as f:
+                    f.write(aes_key)
+                cls.AES_KEY = aes_key
+            except Exception as e:
+                print(e)
+                raise ValueError("aes_key 获取 失败")
+
+        def by_cache():
+            with open(cls.cachef, "r", encoding="utf-8") as f:
+                cls.AES_KEY = f.read().strip()
+        end_time = datetime.now().replace(hour=23, minute=59, second=59).timestamp()
+        if cls.cachef.exists() and cls.cachef.stat().st_mtime < end_time:
+            by_cache()
+        else:
+            by_normal()
 
 
 class MangabzUtils(Utils, Req):
