@@ -307,7 +307,6 @@ class KaobeiUtils(Utils):
     }
     cachef = temp_p.joinpath("kaobei_aeskey.txt")
 
-
     @classmethod
     def decrypt_chapter_data(cls, ret: str):
         def _(cipher_hex: str, key: str, iv: str) -> dict:
