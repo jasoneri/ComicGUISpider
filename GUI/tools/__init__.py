@@ -44,7 +44,7 @@ class ToolWindow(FramelessWindow):
         self.rvInterface = rvTool(self)
         self.addSubInterface(self.rvInterface, 'rvInterface', 'rvTool')
         self.stInterface = StatusToolView(self.gui)
-        self.addSubInterface(self.stInterface, 'stInterface', 'StatusTool')
+        self.addSubInterface(self.stInterface, 'stInterface', 'statusTool')
 
         # 连接信号并初始化当前标签页
         self.stackedWidget.currentChanged.connect(self.onCurrentIndexChanged)
