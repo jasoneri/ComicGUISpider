@@ -124,6 +124,25 @@ jobs:
           for crawler in "ehentai" "jm"; do
             curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "/tmp/merged-badges/status_${crawler}.json" || true
           done
+          
+          echo "Generating aggr_status.json..."
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const badgesDir = "/tmp/merged-badges";
+            const aggrData = {};
+            const files = fs.readdirSync(badgesDir)
+              .filter(file => file.startsWith("status_") && file.endsWith(".json"));
+            files.forEach(file => {
+              const crawlerName = file.replace("status_", "").replace(".json", "");
+              const content = JSON.parse(fs.readFileSync(path.join(badgesDir, file), "utf8"));
+              aggrData[crawlerName] = content;
+            });
+            fs.writeFileSync(
+              path.join(badgesDir, "aggr_status.json"),
+              JSON.stringify(aggrData, null, 2)
+            );
+          '
       - name: Deploy to CloudFlare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
