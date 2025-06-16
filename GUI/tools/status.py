@@ -37,7 +37,9 @@ class Api:
         return f"{cls.asset_f}/{filen}"
     
     @staticmethod
-    def cloudflare_status(web):
+    def cloudflare_status(web=None, aggr=False):
+        if  aggr:
+            return "https://cgs-status-badges.pages.dev/aggr_status.json"
         return f"https://cgs-status-badges.pages.dev/status_{web}.json"
 
 
@@ -74,20 +76,20 @@ class StatusToolThread(QThread):
     def stop(self):
         self.wait()
 
-    async def _fetch_web_status(self, web):
+    async def _fetch_aggr_status(self):
         try:
-            resp_body = await fetch(Api.cloudflare_status(web), 
+            resp_body = await fetch(Api.cloudflare_status(aggr=True), 
                                     dict(proxy=f"http://{conf.proxies[0]}") if conf.proxies else {})
             resp_json = json.loads(resp_body)
-            return {"web": web, **resp_json}
+            return resp_json
         except Exception as e:
             return None
 
     async def _fetch_all_status(self):
-        remains = self.webs - set(self.gui.webs_status)
-        tasks = [self._fetch_web_status(remain) for remain in remains]
-        results = await asyncio.gather(*tasks)
-        return [r for r in results if r is not None]
+        resp_json = await self._fetch_aggr_status()
+        if not resp_json:
+            return []
+        return [{"web": web, **info} for web, info in resp_json.items()]
 
     async def _update_file(self, local_f, url):
         def to_md5(body: bytes):
