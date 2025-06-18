@@ -29,7 +29,7 @@ win:
 irm https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/online_scripts/win.ps1 | iex
 ```
 
-::: info 非绿色包的用户参考 [🚀 快速开始 > 部署](../deploy/quick-start#1-下载--部署) 的安装依赖命令示例
+::: info 非绿色包的用户参考 [🚀 快速开始 > 1-部署](../deploy/quick-start#1-下载--部署) 的安装依赖命令示例
 :::
 
 macOS: （与 mac部署 初始化步骤命令一样的）  
