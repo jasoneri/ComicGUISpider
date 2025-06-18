@@ -23,18 +23,19 @@ python -m uv pip install -r "requirements/script/win.txt" --index-url https://py
 ```
 :::
 
-::: details 配置文件 `./scripts/utils/script/conf.yml` （必要❗️自行创建）
+::: details 配置文件 `scripts/utils/script/conf.yml` （虽已自动创建，但改存储目录/cookies时需在此修改）
 ```yaml
 kemono:
-  sv_path: D:\pic\kemono
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://kemono.su/api/schema, F12打开控制台查看cookies, 字段名为 `session`
-  redis_key: kemono
+  sv_path: D:\pic\kemono                              # 存储目录，请使用独立的空目录
+  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 在 kemono 网站上 F12 打开控制台查看cookies, 字段名为 `session`
+  redis_key: kemono                                   # 此项禁止修改
   
-nekohouse:
+nekohouse:                                            # 基本同上
   sv_path: D:\pic\nekohouse
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://nekohouse.su, F12打开控制台查看cookies, 字段名为 `session`
+  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx
   redis_key: nekohouse
 
+proxies: null
 redis:
   host: 127.0.0.1
   port: 6379

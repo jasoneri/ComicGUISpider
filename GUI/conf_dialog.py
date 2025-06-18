@@ -35,7 +35,7 @@ class SvPathCard(PushSettingCard):
             drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
             if cgs_flag or drive_flag:
                 CustomInfoBar.show("", res.GUI.Uic.confDia_svPathWarning, self.conf_dia, 
-                    "https://jasoneri.github.io/ComicGUISpider/config/#%E9%85%8D%E7%BD%AE%E9%A1%B9-%E5%AF%B9%E5%BA%94-yml-%E5%AD%97%E6%AE%B5", 
+                    "https://jasoneri.github.io/ComicGUISpider/config/#配置项-对应-yml-字段", 
                     "conf desc", _type="ERROR", position=InfoBarPosition.TOP)
                 return
             self.setContent(folder)
