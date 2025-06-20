@@ -8,11 +8,13 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtCore import QUrl
-from qfluentwidgets import FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, PushSettingCard, InfoBarPosition
-
+from qfluentwidgets import (
+    FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
+    PushSettingCard, InfoBarPosition
+)
 from assets import res
-from variables import SPIDERS
-from utils import conf, yaml, convert_punctuation as cp, ori_path
+from variables import SPIDERS, COOKIES_SUPPORT
+from utils import conf, yaml, convert_punctuation as cp, ori_path, ConfCookie
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater, Proj
@@ -69,7 +71,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
         self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
         self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
-        
+        # 添加cookie类型选项
+        for cookie_type in COOKIES_SUPPORT:
+            self.cookiesBox.addItem(cookie_type)
+        self.cookiesBox.setCurrentText(COOKIES_SUPPORT[0])
+        # TODO[1] 不同cookies应该对应设置不同的placeholder
+
     def _preset(self):
         self.sv_path_card = SvPathCard(self)
         self.sv_path_Layout.addWidget(self.sv_path_card)
@@ -79,6 +86,9 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
+
+        # 连接信号
+        self.cookiesBox.currentTextChanged.connect(self._on_cookie_type_changed)
     
     def insert_btn(self):
         def _create_desc():
@@ -105,8 +115,10 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
-        for _ in ('proxies', 'custom_map', "completer", "eh_cookies", "clip_db"):
+        for _ in ('proxies', 'custom_map', "completer", "clip_db"):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
+        # 处理cookies配置
+        self._load_cookie_config()
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         # 2. CheckBox类配置
         for _ in ('addUuid', 'isDeduplicate'):
@@ -116,6 +128,24 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         super(ConfDialog, self).show()
         # 4. SettingCard卡片类配置
         self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
+
+    def _on_cookie_type_changed(self, cookie_type):
+        """当cookie类型改变时，先保存当前内容，再切换显示新的cookie"""
+        self.format_cookie(conf.cookies.current_type)
+        # 切换到新的cookie类型
+        conf.cookies.switch(cookie_type)
+        # 显示新的cookie内容
+        current_cookie_data = conf.cookies.show()
+        self.cookiesEdit.setText(self.transfer_to_gui(current_cookie_data))
+
+    def _load_cookie_config(self):
+        """加载cookie配置到界面"""
+        current_type = conf.cookies.current_type
+        self.cookiesBox.setCurrentText(current_type)
+
+        # 显示当前选中的cookie
+        current_cookie_data = conf.cookies.show()
+        self.cookiesEdit.setText(self.transfer_to_gui(current_cookie_data))
 
     @staticmethod
     def transfer_to_gui(val) -> str:
@@ -129,17 +159,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def save_conf(self):
         sv_path = self.sv_path_card.contentLabel.text()
-        eh_cookies_str = cp(getattr(self, "eh_cookiesEdit").toPlainText()).replace("cookies = ", "")
-        if not conf.eh_cookies and eh_cookies_str:
-            try:
-                assert isinstance(ast.literal_eval(eh_cookies_str), dict)
-            except (SyntaxError, ValueError, AssertionError):
-                raise SyntaxError(res.GUI.cookies_copy_err)
+        self.format_cookie(conf.cookies.current_type)
+
         config = {
             "sv_path": sv_path,
             "custom_map": yaml.safe_load(cp(getattr(self, "custom_mapEdit").toPlainText())),
             "completer": yaml.safe_load(cp(getattr(self, "completerEdit").toPlainText())),
-            "eh_cookies": yaml.safe_load(eh_cookies_str),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
             "addUuid": getattr(self, "addUuid").isChecked(),
@@ -148,3 +173,26 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "clip_read_num": getattr(self, "clip_read_numEdit").value()
         }
         conf.update(**config)
+        
+    def format_cookie(self, cookies_type):
+        """格式化并保存当前cookiesEdit的内容到ConfCookie缓存"""
+        cookies_str = cp(getattr(self, "cookiesEdit").toPlainText()).replace("cookies = ", "")
+
+        if cookies_str:
+            try:
+                assert isinstance(ast.literal_eval(cookies_str), dict)
+                cookie_data = ast.literal_eval(cookies_str)
+            except (SyntaxError, ValueError, AssertionError):
+                try:
+                    assert isinstance(yaml.safe_load(cookies_str), dict)
+                    cookie_data = yaml.safe_load(cookies_str)
+                except (SyntaxError, ValueError, AssertionError):
+                    self.cookiesEdit.setText("")
+                    raise SyntaxError(res.GUI.cookies_copy_err)
+        else:
+            cookie_data = {}
+
+        original_type = conf.cookies.current_type
+        conf.cookies.switch(cookies_type)
+        conf.cookies.update_current(cookie_data)
+        conf.cookies.switch(original_type)
