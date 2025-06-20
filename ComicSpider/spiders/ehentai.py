@@ -28,7 +28,7 @@ class EHentaiSpider(BaseComicSpider3):
 
     @property
     def ua(self):
-        return {**EK.headers, "cookie": EK.to_str_(conf.cookies.get("ehentai"))}
+        return {**EK.headers, "cookie": EK.to_str_(conf.cookies.get(self.name))}
 
     def frame_book(self, response):
         frame_results = {}

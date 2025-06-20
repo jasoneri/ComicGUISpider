@@ -4,7 +4,7 @@ import re
 import typing as t
 from urllib.parse import urlencode
 
-from utils import convert_punctuation, correct_domain
+from utils import convert_punctuation, correct_domain, conf
 from utils.website import JmUtils
 from utils.processed_class import PreviewHtml, Url
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
@@ -21,7 +21,7 @@ class JmSpider(BaseComicSpider2):
             'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
             'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4,
             'ComicSpider.middlewares.RefererMiddleware': 10,
-        }
+        }, "COOKIES_ENABLED": False
     }
     num_of_row = 4
     domain = domain
@@ -39,17 +39,11 @@ class JmSpider(BaseComicSpider2):
 
     @property
     def ua(self):
-        return {
-            'Host': self.domain,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0',
-            'Accept': 'image/webp;application/xml;q=0.9;image/avif;application/xhtml+xml;text/html;*/*;q=0.8',
-            'Accept-Language': 'zh;q=0.8;en;q=0.2;zh-CN;zh-TW;q=0.7;zh-HK;q=0.5;en-US;q=0.3',
-            'Accept-Encoding': 'br;deflate;gzip',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
-            'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
-        }
+        _ua = JmUtils.headers
+        _ua = {'Host': self.domain, **_ua}
+        if conf.cookies.get("jm"):
+            _ua.update({'cookie': JmUtils.to_str_(conf.cookies.get(self.name))})
+        return _ua
 
     def start_requests(self):
         try:

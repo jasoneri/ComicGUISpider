@@ -12,7 +12,7 @@ SPIDERS = {
 }
 SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi']
 COOKIES_SUPPORT = {
-    'jm': set(), 
+    'jm': {"AVS",}, 
     'ehentai': {"igneous","ipb_member_id","ipb_pass_hash","sk"}
 }
 COOKIES_PLACEHOLDER = {
