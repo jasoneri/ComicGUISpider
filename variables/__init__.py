@@ -11,6 +11,7 @@ SPIDERS = {
     6: 'hitomi',        # 🌎 🔞
 }
 SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi']
+COOKIES_SUPPORT = ['jm', 'ehentai']
 SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6]
 CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6]
 
