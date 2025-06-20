@@ -245,7 +245,7 @@ class EHentaiKits(EroUtils, Req, Cookies):
     domain = "exhentai.org"
     index = f"https://{domain}/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": res.Vars.ua_accept_language,
         "Accept-Encoding": "gzip, deflate, br"
@@ -274,7 +274,7 @@ class EHentaiKits(EroUtils, Req, Cookies):
     @classmethod
     def get_cli(cls, conf):
         cli = super().get_cli(conf)
-        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(conf.cookies.get("ehentai"))}
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(conf.cookies.get(cls.name))}
         return cli
 
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"

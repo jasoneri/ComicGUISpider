@@ -132,7 +132,10 @@ class Conf:
 
     def transition_eh_cookies(self, eh_cookies):
         """将eh_cookies的配置迁移到ConfCookie中"""
-        self.cookies.cache.update({"ehentai": eh_cookies})
+        if eh_cookies and getattr(self, "eh_cookies"):
+            setattr(self, "eh_cookies", None)
+        if not self.cookies.cache.get("ehentai"):
+            self.cookies.cache.update({"ehentai": eh_cookies})
 
     def update(self, **kwargs):
         def path_like_handle(_p):
