@@ -109,9 +109,9 @@ GUI:
     confDia_support_content: "👇请吃个甜筒吧..."
 
 EHentai:
-  COOKIES_NOT_SET: "访问 exhentai 必须设置`eh_cookies`"
-  ACCESS_FAIL: "当前`eh_cookies`或`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
-  GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`eh_cookies`的值，值生成参考配置详情里该字段说明。<br>2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理（需要在此指引弹出前设置好，否则重启CGS）代理服务建议用v2rayN<br>（⚠️测试链接仅设置请求3秒超时，由于测api与GUI共同为主线程，避免请求太久超时使得GUI没响应令用户反而觉得是软件坏了，<br>建议出错后日志等级设debug，边使用边看`scripts/log/GUI.log`排错，结合关程序后重启先试几遍，后续看情况优化）"
+  COOKIES_NOT_SET: "访问 exhentai 必须设置`cookies-eh`"
+  ACCESS_FAIL: "当前`cookies-eh`或`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
+  GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`cookies-eh`的值，值生成参考配置详情里该字段说明。<br>2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理（需要在此指引弹出前设置好，否则重启CGS）代理服务建议用v2rayN<br>（⚠️测试链接仅设置请求3秒超时，由于测api与GUI共同为主线程，避免请求太久超时使得GUI没响应令用户反而觉得是软件坏了，<br>建议出错后日志等级设debug，边使用边看`scripts/log/GUI.log`排错，结合关程序后重启先试几遍，后续看情况优化）"
   JUMP_TIP: "ehentai跳页情况特殊，没想好应用，暂时设限制取消`跳页`功能"
   MAPPINGS_INDEX: "首页"
   MAPPINGS_POPULAR: "热门"

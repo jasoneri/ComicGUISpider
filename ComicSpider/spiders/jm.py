@@ -39,8 +39,7 @@ class JmSpider(BaseComicSpider2):
 
     @property
     def ua(self):
-        _ua = JmUtils.headers
-        _ua = {'Host': self.domain, **_ua}
+        _ua = {'Host': self.domain, **JmUtils.headers}
         if conf.cookies.get("jm"):
             _ua.update({'cookie': JmUtils.to_str_(conf.cookies.get(self.name))})
         return _ua

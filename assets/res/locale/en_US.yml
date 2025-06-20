@@ -101,9 +101,9 @@ GUI:
     confDia_support_content: "Donations will use to buy domain etc.."
 
 EHentai:
-  COOKIES_NOT_SET: "`eh_cookies` must be set for exhentai access"
-  ACCESS_FAIL: "Current `eh_cookies`/proxy configuration cannot access exhentai<br>Verify site accessibility (direct CN access unsupported)"
-  GUIDE: "exhentai (EH) Usage Guide:<br>1. Ensure account with `exhentai.org` access<br> - Configure `eh_cookies` per setup instructions<br>2. (CN Users) Ensure working proxy (no direct access)<br> - Use global proxy or configure proxy before launch (recommend v2rayN)<br>⚠️ API test uses 3s timeout to prevent UI freeze - check `GUI.log` for debug info if errors persist"
+  COOKIES_NOT_SET: "`eh-cookies` must be set for exhentai access"
+  ACCESS_FAIL: "Current `eh-cookies`/proxy configuration cannot access exhentai<br>Verify site accessibility (direct CN access unsupported)"
+  GUIDE: "exhentai (EH) Usage Guide:<br>1. Ensure account with `exhentai.org` access<br> - Configure `eh-cookies` per setup instructions<br>2. (CN Users) Ensure working proxy (no direct access)<br> - Use global proxy or configure proxy before launch (recommend v2rayN)<br>⚠️ API test uses 3s timeout to prevent UI freeze - check `GUI.log` for debug info if errors persist"
   JUMP_TIP: "EH pagination is special - page jump feature currently disabled"
   MAPPINGS_INDEX: "index"
   MAPPINGS_POPULAR: "popular"
