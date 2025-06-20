@@ -13,7 +13,7 @@ SPIDERS = {
 SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi']
 COOKIES_SUPPORT = {
     'jm': {"AVS",}, 
-    'ehentai': {"igneous","ipb_member_id","ipb_pass_hash","sk"}
+    'ehentai': {"igneous","ipb_member_id","ipb_pass_hash"}
 }
 COOKIES_PLACEHOLDER = {
     k: res.GUI.Uic.confDia_cookies_placeholder % ', '.join(v)

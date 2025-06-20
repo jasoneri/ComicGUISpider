@@ -21,7 +21,7 @@ class JmSpider(BaseComicSpider2):
             'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
             'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4,
             'ComicSpider.middlewares.RefererMiddleware': 10,
-        }, "COOKIES_ENABLED": False
+        }, "COOKIES_ENABLED": not conf.cookies.get(name),
     }
     num_of_row = 4
     domain = domain
