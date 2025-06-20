@@ -170,7 +170,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
 
     def set_ehentai(self):
-        for key, values in conf.eh_cookies.items():
+        for key, values in conf.cookies.get("ehentai").items():
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
             my_cookie.setValue(str(values).encode())
@@ -179,7 +179,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
     @classmethod
     def check_ehentai(cls, gui):
-        if not conf.eh_cookies:
+        if not conf.cookies.get("ehentai"):
             InfoBar.error(
                 title='', content=res.EHentai.COOKIES_NOT_SET,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,

@@ -13,7 +13,7 @@ from qfluentwidgets import (
     PushSettingCard, InfoBarPosition
 )
 from assets import res
-from variables import SPIDERS, COOKIES_SUPPORT
+from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT
 from utils import conf, yaml, convert_punctuation as cp, ori_path, ConfCookie
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
@@ -72,10 +72,10 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
         self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
         # 添加cookie类型选项
-        for cookie_type in COOKIES_SUPPORT:
+        support = list(COOKIES_PLACEHOLDER.keys())
+        for cookie_type in support:
             self.cookiesBox.addItem(cookie_type)
-        self.cookiesBox.setCurrentText(COOKIES_SUPPORT[0])
-        # TODO[1] 不同cookies应该对应设置不同的placeholder
+        self.cookiesBox.setCurrentText(support[0])
 
     def _preset(self):
         self.sv_path_card = SvPathCard(self)
@@ -137,6 +137,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 显示新的cookie内容
         current_cookie_data = conf.cookies.show()
         self.cookiesEdit.setText(self.transfer_to_gui(current_cookie_data))
+        self.cookiesEdit.setPlaceholderText(COOKIES_PLACEHOLDER.get(conf.cookies.current_type, ""))
 
     def _load_cookie_config(self):
         """加载cookie配置到界面"""
@@ -146,6 +147,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 显示当前选中的cookie
         current_cookie_data = conf.cookies.show()
         self.cookiesEdit.setText(self.transfer_to_gui(current_cookie_data))
+        self.cookiesEdit.setPlaceholderText(COOKIES_PLACEHOLDER.get(current_type, ""))
 
     @staticmethod
     def transfer_to_gui(val) -> str:
@@ -173,7 +175,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "clip_read_num": getattr(self, "clip_read_numEdit").value()
         }
         conf.update(**config)
-        
+
     def format_cookie(self, cookies_type):
         """格式化并保存当前cookiesEdit的内容到ConfCookie缓存"""
         cookies_str = cp(getattr(self, "cookiesEdit").toPlainText()).replace("cookies = ", "")
@@ -191,6 +193,16 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                     raise SyntaxError(res.GUI.cookies_copy_err)
         else:
             cookie_data = {}
+
+        # 验证并精简cookie_data到required_fields
+        required_fields = COOKIES_SUPPORT.get(cookies_type, set())
+        if required_fields and cookie_data:
+            cookie_keys = set(cookie_data.keys())
+            if not required_fields.issubset(cookie_keys):
+                missing_keys = required_fields - cookie_keys
+                raise ValueError(f"miss cookies: {', '.join(missing_keys)}")
+            # 精简cookie_data，只保留required_fields中的字段
+            cookie_data = {key: cookie_data[key] for key in required_fields}
 
         original_type = conf.cookies.current_type
         conf.cookies.switch(cookies_type)
