@@ -9,6 +9,8 @@ import aiofiles
 from utils import temp_p
 
 class Cookies:
+    cookies_field = set()
+
     @staticmethod
     def to_str_(cookie):
         return '; '.join([f"{k}={v}" for k, v in cookie.items()])

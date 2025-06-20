@@ -57,10 +57,13 @@
 鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)  
 `🎥视频使用指南3`有介绍用法  
 
-### eh_cookies / `eh_cookies`
+### cookies / `cookies`
 
-使用`exhentai`时必需  
-[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif)  
+目前选择编辑支持 `ehentai`, `jm`
+
+- `ehentai`: 使用 exhentai 时必需设值，[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif)  
+- `jm`:  
+
 [🔗动图中的curl转换网站](https://tool.lu/curl/)
 
 ### 剪贴板db / `clip_db`

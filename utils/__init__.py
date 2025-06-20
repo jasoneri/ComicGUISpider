@@ -49,17 +49,18 @@ def toAppConfigLocation(ori_file: p.Path, iname=None):
 
 class ConfCookie:
     """Cookie配置管理类，承担所有cookie的缓存、管理、展示和保存"""
+    support_key = list(COOKIES_SUPPORT.keys())
     
     def __init__(self, cookies_data=None):
         self.cache = cookies_data or self.empty_cache()  # 所有cookie类型的缓存
-        self.current_type = COOKIES_SUPPORT[0]
+        self.current_type = self.support_key[0]
 
     def empty_cache(self):
-        return {cookie_type: {} for cookie_type in COOKIES_SUPPORT}
+        return {cookie_type: {} for cookie_type in self.support_key}
 
     def switch(self, cookie_type):
         """切换当前选中的cookie类型"""
-        if cookie_type in COOKIES_SUPPORT:
+        if cookie_type in self.support_key:
             self.current_type = cookie_type
             return True
         return False
@@ -74,6 +75,9 @@ class ConfCookie:
             self.cache[self.current_type] = cookie_data
         else:
             self.cache[self.current_type] = {}
+
+    def get(self, name):
+        return self.cache.get(name, {})
 
     def save(self):
         """返回用于保存到yaml的字典格式"""

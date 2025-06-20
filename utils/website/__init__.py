@@ -16,17 +16,19 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
 from assets import res
+from variables import COOKIES_SUPPORT
 from utils import md5, ori_path, conf, temp_p
 from utils.website.core import *
 from utils.website.hitomi import HitomiUtils
 
 
-class JmUtils(EroUtils, DomainUtils, Req):
+class JmUtils(EroUtils, DomainUtils, Req, Cookies):
     name = "jm"
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     status_forever = True
     status_publish = True
+    cookies_field = COOKIES_SUPPORT[name]
     publish_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -236,7 +238,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         return url, img_src, title, author, pages, tags[:20]
 
 
-class EHentaiKits(EroUtils, Req):
+class EHentaiKits(EroUtils, Req, Cookies):
     name = "ehentai"
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
@@ -250,6 +252,7 @@ class EHentaiKits(EroUtils, Req):
     }
     book_hea = headers
     uuid_regex = re.compile(r"/g/(\d+)/")
+    cookies_field = COOKIES_SUPPORT[name]
 
     def __init__(self, conf):
         self.cli = self.get_cli(conf)
@@ -271,7 +274,7 @@ class EHentaiKits(EroUtils, Req):
     @classmethod
     def get_cli(cls, conf):
         cli = super().get_cli(conf)
-        cli.headers = {**cls.book_hea, "Cookie": Cookies.to_str_(conf.eh_cookies)}
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(conf.cookies.get("ehentai"))}
         return cli
 
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"
