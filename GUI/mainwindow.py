@@ -13,7 +13,7 @@ class MitmMainWindow(Ui_MainWindow):
     def setupUi(self, _mainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
-        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.2.4"))
+        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.2.5-beta"))
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
         self.chooseBox.addItem("")
