@@ -175,15 +175,17 @@ class BrowserWindow(QMainWindow, Ui_browser):
         match website:
             case "ehentai":
                 cookies_item = conf.cookies.get("ehentai").items()
+                domain = self.gui.spiderUtils.domain
                 url = self.gui.spiderUtils.index
             case "jm":
                 cookies_item = conf.cookies.get("jm").items()
-                url = f"https://{self.gui.spiderUtils.get_domain()}"
+                domain = self.gui.spiderUtils.get_domain()
+                url = f"https://{domain}"
         for key, values in cookies_item:
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
             my_cookie.setValue(str(values).encode())
-            my_cookie.setDomain(self.gui.spiderUtils.domain)
+            my_cookie.setDomain(domain)
             self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(url))
 
     @classmethod

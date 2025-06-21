@@ -17,6 +17,8 @@ from deploy.update import Proj
 from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox
 )
+from GUI.manager.async_task import AsyncTaskManager, TaskConfig
+from GUI.manager.preprocess import PreprocessManager
 
 
 class TaskProgressManager:
@@ -142,7 +144,7 @@ class Updater:
                         title = ""
                 self.gui.update_dialog = UpdaterMessageBox(title, self.gui)
                 self.gui.update_dialog.show_release_note(recv.update_info.get("body"))
-        self.stateTooltip = StateToolTip("Checking..", "", self.conf_dia.eh_cookiesEdit)
+        self.stateTooltip = StateToolTip("Checking..", "", self.conf_dia.cookiesEdit)
         self.stateTooltip.show()
         self.conf_dia.puThread.checked_signal.connect(checked)
         self.conf_dia.puThread.update_signal.connect(self.conf_dia.puThread.request_update)

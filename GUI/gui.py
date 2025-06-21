@@ -17,7 +17,7 @@ from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, ClipTasksThread
 from GUI.tools import ToolWindow
-from GUI.manager import TaskProgressManager, ClipGUIManager
+from GUI.manager import TaskProgressManager, ClipGUIManager, PreprocessManager
 
 from variables import *
 from assets import res
@@ -135,10 +135,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             # 输入框联想补全
             self.set_completer()
+            # 预处理管理器处理
+            self.preprocess_mgr.handle_choosebox_changed(index)
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
 
         self.first_tmp_sv_flag = True
         self.task_mgr = TaskProgressManager(self)
+        self.preprocess_mgr = PreprocessManager(self)
 
         if hasattr(self, 'splashScreen'):
             self.splashScreen.finish()
@@ -368,6 +371,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.confBtn.setDisabled(False)
         self.log.info('===--→ retry_schedule end\n')
 
+    def disable_start(self):
+        self.searchinput.setDisabled(True)
+        self.next_btn.setDisabled(True)
+        self.clipBtn.setDisabled(True)
+
     def next_schedule(self):
         def start_and_search():
             self.log.info('===--→ -*- searching')
@@ -401,18 +409,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.next_btn.text() != self.res.Uic.next_btnDefaultText:
             self._next()
         else:
-            match self.chooseBox.currentIndex():
-                case 4:
-                    self.say(f"{self.res.check_ehetai}<br>")
-                    if not BrowserWindow.check_ehentai(self):
-                        return
-                case 5 | 6:
-                    obj = self.spiderUtils(conf)
-                    self.say(f"{getattr(self.res, f"check_{obj.name}")}<br>")
-                    if not obj.test_index():
-                        CustomInfoBar.show('', self.res.ACCESS_FAIL, self.textBrowser,
-                            obj.index, obj.name)
-                        return
             start_and_search()
 
         self.nextclickCnt += 1
@@ -547,6 +543,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def closeEvent(self, event):
         if hasattr(self, 'task_mgr'):
             self.task_mgr.close()
+        if hasattr(self, 'preprocess_mgr'):
+            self.preprocess_mgr.cleanup()
         event.accept()
         self.destroy()  # 窗口关闭销毁
         self.close_process()
