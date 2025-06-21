@@ -20,7 +20,7 @@ class PreprocessManager(QObject):
         match index:
             case 1:
                 self._preprocess_manga_copy()
-            case 2:
+            case 2 | 3:
                 self._preprocess_jm()
             case 4:
                 self._preprocess_ehentai()
@@ -32,28 +32,36 @@ class PreprocessManager(QObject):
     def _preprocess_manga_copy(self):
         def manga_copy_task():
             # 1. 更新加密缓存
+            self.gui.spiderUtils.get_aes_key()
             return True
+        
+        def on_success(_):
+            if getattr(self.gui.spiderUtils, "cachef") and self.gui.spiderUtils.cachef.flag != "new":
+                self.gui.say("<br>➖ 缓存处于有效期内，跳过测试")
+            else:
+                self.gui.say("<br>✅ 拷贝预处理完成")
 
         def on_error(_):
-            pass
+            self.gui.disable_start(True)
+            self.gui.say("<br>❌ 解密获取失败，点击 rV按钮 > statusTool > 更新拷贝")
 
         self.task_manager.execute_simple_task(
             task_func=manga_copy_task,
-            success_callback=lambda _: self.gui.say("<br>✅ 拷贝预处理完成"), 
+            success_callback=on_success,
             show_error_info=False, error_callback=on_error,
             tooltip_title="更新copy2相关缓存", task_id="manga_copy_preprocess"
         )
 
     def _preprocess_jm(self):
-        def jm_task():
+        def task():
             # 1. 更新域名缓存
             domain = self.gui.spiderUtils.get_domain()
             # 2. cookies处理？
             return True
 
         def on_success(_):
-            if getattr(self.gui.spiderUtils, "inValidity", False):
-                self.gui.say("<br>➖ 域名缓存处于有效期48小时内，跳过测试")
+            if getattr(self.gui.spiderUtils, "cachef") and self.gui.spiderUtils.cachef.flag != "new":
+                self.gui.say("<br>➖ 缓存处于有效期内，跳过测试")
             else:
                 self.gui.say("<br>✅ 已设置有效域名")
 
@@ -62,9 +70,9 @@ class PreprocessManager(QObject):
             self.gui.say("<br>❌ 域名获取/测试失效，点击 rV按钮 > domainTool, 按指示操作")
 
         self.task_manager.execute_simple_task(
-            task_func=jm_task,
+            task_func=task,
             success_callback=on_success, show_error_info=False, error_callback=on_error,
-            tooltip_title="更新jm域名缓存", task_id="jm_preprocess"
+            tooltip_title="更新域名缓存", task_id="domain_preprocess"
         )
 
     def _preprocess_ehentai(self):
@@ -106,6 +114,7 @@ class PreprocessManager(QObject):
             return True
 
         def on_error(_):
+            self.gui.disable_start(True)
             CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
                     self.gui.spiderUtils.index, self.gui.spiderUtils.name)
 

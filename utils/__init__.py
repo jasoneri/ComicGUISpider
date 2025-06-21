@@ -6,6 +6,7 @@ import time
 import html
 import shutil
 import hashlib
+import asyncio
 import pathlib as p
 import typing as t
 from dataclasses import dataclass, asdict, field
@@ -364,3 +365,12 @@ class Queues:
 
 def md5(_str):
     return hashlib.md5(_str.encode()).hexdigest()
+
+
+def get_loop():
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop

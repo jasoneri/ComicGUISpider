@@ -22,6 +22,7 @@ NEWSPIDER_MODULE = 'ComicSpider.spiders'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
+REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
 
@@ -37,6 +38,10 @@ DOWNLOAD_DELAY = 0.5
 DEFAULT_REQUEST_HEADERS = {
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'en',
+}
+
+SPIDER_MIDDLEWARES = {
+   'ComicSpider.middlewares.GlobalErrorHandlerMiddleware': 100,
 }
 
 DOWNLOADER_MIDDLEWARES = {
