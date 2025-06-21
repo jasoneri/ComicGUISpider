@@ -1,0 +1,1 @@
+import{_ as s,c as i,o as a,aj as n}from"./chunks/framework.CLcCQpUA.js";const g=JSON.parse('{"title":"🚧 其他脚本集","description":"","frontmatter":{},"headers":[],"relativePath":"feat/script.md","filePath":"feat/script.md"}'),e={name:"feat/script.md"},h=n("",35),l=[h];function t(p,k,d,o,r,c){return a(),i("div",null,l)}const y=s(e,[["render",t]]);export{g as __pageData,y as default};
