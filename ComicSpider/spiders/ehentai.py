@@ -4,7 +4,7 @@ from scrapy import Request
 from .basecomicspider import BaseComicSpider3
 from utils import PresetHtmlEl, conf, re
 from utils.processed_class import PreviewHtml, Url
-from utils.website import Cookies, EHentaiKits
+from utils.website import EHentaiKits as EK
 from assets import res
 from ..items import ComicspiderItem
 
@@ -28,7 +28,7 @@ class EHentaiSpider(BaseComicSpider3):
 
     @property
     def ua(self):
-        return {**EHentaiKits.headers, "cookie": Cookies.to_str_(conf.eh_cookies)}
+        return {**EK.headers, "cookie": EK.to_str_(conf.cookies.get(self.name))}
 
     def frame_book(self, response):
         frame_results = {}

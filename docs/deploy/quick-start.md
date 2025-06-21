@@ -52,7 +52,7 @@ python CGS.py
 
 ::: info 使用方法进help看说明  
 当前版本能进行简单下载/调试功能（后续将逐步扩展）  
-命令行工具的配置可用GUI方式修改 或 直接修改`conf.yml`文件（[📒配置系文件路径](/faq/extra.html#_3-%E9%85%8D%E7%BD%AE%E7%B3%BB%E6%96%87%E4%BB%B6%E8%B7%AF%E5%BE%84)）
+命令行工具的配置可用GUI方式修改 或 直接修改`conf.yml`文件（[📒3-配置系文件路径](/faq/extra.html#_3-%E9%85%8D%E7%BD%AE%E7%B3%BB%E6%96%87%E4%BB%B6%E8%B7%AF%E5%BE%84)）
 :::
 
 ## 3. 配置

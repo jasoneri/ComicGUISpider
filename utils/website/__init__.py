@@ -16,17 +16,19 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
 from assets import res
-from utils import md5, ori_path, conf, temp_p
+from variables import COOKIES_SUPPORT
+from utils import md5, ori_path, conf, temp_p, get_loop
 from utils.website.core import *
 from utils.website.hitomi import HitomiUtils
 
 
-class JmUtils(EroUtils, DomainUtils, Req):
+class JmUtils(EroUtils, DomainUtils, Req, Cookies):
     name = "jm"
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     status_forever = True
     status_publish = True
+    cookies_field = COOKIES_SUPPORT[name]
     publish_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -47,7 +49,7 @@ class JmUtils(EroUtils, DomainUtils, Req):
         'Cache-Control': 'no-cache',
     }
     book_hea = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Accept-Encoding": "gzip, deflate, br",
@@ -236,20 +238,21 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         return url, img_src, title, author, pages, tags[:20]
 
 
-class EHentaiKits(EroUtils, Req):
+class EHentaiKits(EroUtils, Req, Cookies):
     name = "ehentai"
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
     domain = "exhentai.org"
     index = f"https://{domain}/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": res.Vars.ua_accept_language,
         "Accept-Encoding": "gzip, deflate, br"
     }
     book_hea = headers
     uuid_regex = re.compile(r"/g/(\d+)/")
+    cookies_field = COOKIES_SUPPORT[name]
 
     def __init__(self, conf):
         self.cli = self.get_cli(conf)
@@ -271,7 +274,7 @@ class EHentaiKits(EroUtils, Req):
     @classmethod
     def get_cli(cls, conf):
         cli = super().get_cli(conf)
-        cli.headers = {**cls.book_hea, "Cookie": Cookies.to_str_(conf.eh_cookies)}
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(conf.cookies.get(cls.name))}
         return cli
 
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"
@@ -299,15 +302,16 @@ class KaobeiUtils(Utils):
     name = "manga_copy"
     uuid_regex = re.compile(r"(\d+)$")
     pc_domain = "www.copy20.com"
-    AES_KEY = "xxxmanga.woo.key"
+    AES_KEY = None
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
     }
-    cachef = temp_p.joinpath("kaobei_aeskey.txt")
+    cachef = Cache("kaobei_aeskey.txt")
 
     @classmethod
+    @cachef.with_error_cleanup()
     def decrypt_chapter_data(cls, ret: str):
         def _(cipher_hex: str, key: str, iv: str) -> dict:
             cipher_bytes = bytes.fromhex(cipher_hex)
@@ -323,41 +327,26 @@ class KaobeiUtils(Utils):
             unpadder = padding.PKCS7(128).unpadder()
             decrypted = unpadder.update(decrypted_padded) + unpadder.finalize()
             return json.loads(decrypted.decode('utf-8'))
-        try:
-            return _(ret[16:], cls.AES_KEY, ret[:16])
-        except Exception as e:
-            if cls.cachef.exists():
-                os.remove(cls.cachef)
-            raise RuntimeError(f"{cls.cachef.stem} 失效，已删除<br>重启 CGS 以获取新的 ase_key")
+        return _(ret[16:], cls.cachef.val, ret[:16])
 
     @classmethod
+    @cachef.with_expiry(datetime.now().replace(hour=23, minute=59, second=59), write_in=True)
     def get_aes_key(cls):
-        def by_normal():
-            async def fetch():
-                async with httpx.AsyncClient(headers=cls.headers) as cli:
-                    resp = await cli.get(f"https://{cls.pc_domain}/comic/xsjzmwls")
-                    return resp.text
-            try:
-                loop = asyncio.get_event_loop()
-                html_text = loop.run_until_complete(fetch())
-                html_doc = html.fromstring(html_text)
-                dio = html_doc.xpath('//script[contains(text(), "dio")]/text()')[0]
-                aes_key = re.findall(r"""=['"](.*?)['"]""",dio.strip().replace(" ", ""))[0]
-                with open(cls.cachef, "w", encoding="utf-8") as f:
-                    f.write(aes_key)
-                cls.AES_KEY = aes_key
-            except Exception as e:
-                print(e)
-                raise ValueError("aes_key 获取 失败")
-
-        def by_cache():
-            with open(cls.cachef, "r", encoding="utf-8") as f:
-                cls.AES_KEY = f.read().strip()
-        end_time = datetime.now().replace(hour=23, minute=59, second=59).timestamp()
-        if cls.cachef.exists() and cls.cachef.stat().st_mtime < end_time:
-            by_cache()
-        else:
-            by_normal()
+        """获取AES密钥，使用缓存装饰器优化"""
+        async def fetch():
+            async with httpx.AsyncClient(headers=cls.headers) as cli:
+                resp = await cli.get(f"https://{cls.pc_domain}/comic/xsjzmwls")
+                return resp.text
+        try:
+            loop = get_loop()
+            html_text = loop.run_until_complete(fetch())
+            html_doc = html.fromstring(html_text)
+            dio = html_doc.xpath('//script[contains(text(), "dio")]/text()')[0]
+            aes_key = re.findall(r"""=['"](.*?)['"]""",dio.strip().replace(" ", ""))[0]
+            return aes_key
+        except Exception as e:
+            print(e)
+            raise ValueError("aes_key 获取失败")
 
 
 class MangabzUtils(Utils, Req):

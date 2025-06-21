@@ -4,7 +4,7 @@
 
 ::: info config file is `conf.yml`, generated after initial use
 :::
-::: warning The input box of multiple lines is in `yaml` format (except for eh_cookies), and a ⚠️ `space` ⚠️ is required after the `colon`
+::: warning The input box of multiple lines is in `yaml` format (except for cookies), and a ⚠️ `space` ⚠️ is required after the `colon`
 :::
 
 ## Config Field / Corresponding `yml` Field
@@ -47,7 +47,7 @@ When the search does not meet the preset, first add the key-value pair here, and
 Custom preset  
 There will be a `number corresponding to the website` prompt when the mouse hovers over the input box (in fact, it is the number of the choose-box)  
 
-### Eh Cookies / `eh_cookies`
+### Cookies / `cookies`
 
 It is necessary to use `exhentai`  
 [🎬 Method of acquisition](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)  

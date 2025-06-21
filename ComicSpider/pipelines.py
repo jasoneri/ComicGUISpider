@@ -2,7 +2,6 @@
 import os
 import re
 import pathlib
-import warnings
 from io import BytesIO
 
 import pillow_avif
@@ -10,7 +9,6 @@ from itemadapter import ItemAdapter
 from scrapy.http import Request
 from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
-from scrapy.exceptions import ScrapyDeprecationWarning
 
 from utils import conf
 from utils.website import JmUtils, set_author_ahead, MangabzUtils

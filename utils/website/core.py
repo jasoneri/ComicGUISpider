@@ -1,14 +1,73 @@
 import re
 import os
+import functools
+import typing as t
 from datetime import datetime, timedelta
 
 import httpx
 import asyncio
 import aiofiles
 
-from utils import temp_p
+from utils import temp_p, get_loop
+
+class Cache:
+    def __init__(self, cache_f):
+        self.cache_f = cache_f
+        self.flag = None
+        self.val = None
+
+    def with_expiry(self, expiry_time: t.Union[int,datetime]=48, write_in=False):
+        """缓存有效期装饰器"""
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                if cache_exists_flag and not expiry_flag:
+                    with open(cache_path, 'r', encoding='utf-8') as f:
+                        cached_data = f.read().strip()
+                    if cached_data:
+                        self.flag = "validate"
+                        self.val = cached_data
+                        return cached_data
+                    else:
+                        os.remove(cache_path)
+                result = func(*args, **kwargs)
+                if result is not None and write_in:
+                    with open(cache_path, 'w', encoding='utf-8') as f:
+                        f.write(str(result))
+                self.flag = "new"        
+                self.val = result
+                return result
+            return wrapper
+        cache_path = temp_p.joinpath(self.cache_f)
+        cache_exists_flag = cache_path.exists()
+        expiry_flag = True
+        if not cache_exists_flag:
+            return decorator
+        match expiry_time:
+            case int():
+                expiry_flag = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime) > timedelta(hours=expiry_time)
+            case datetime():
+                expiry_flag = datetime.fromtimestamp(cache_path.stat().st_mtime) > expiry_time
+        return decorator
+
+    def with_error_cleanup(self):
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if cache_path.exists():
+                        os.remove(cache_path)
+                    raise RuntimeError(f"{cache_path.stem} 失效，已删除<br>重启 CGS 以更新缓存")
+            return wrapper
+        cache_path = temp_p.joinpath(self.cache_f)
+        return decorator
+
 
 class Cookies:
+    cookies_field = set()
+
     @staticmethod
     def to_str_(cookie):
         return '; '.join([f"{k}={v}" for k, v in cookie.items()])
@@ -92,19 +151,14 @@ class DomainUtils(Utils):
 
     @classmethod
     def get_domain(cls):
-        domain_file = temp_p.joinpath(f"{cls.name}_domain.txt")
-        current_time = datetime.now()
-        if (domain_file.exists() and current_time - datetime.fromtimestamp(domain_file.stat().st_mtime) < timedelta(hours=48)):
-            with open(domain_file, 'r', encoding='utf-8') as f:
-                domain = f.read().strip()
-            if domain:
-                return domain
-            else:
-                os.remove(domain_file)
-        loop = asyncio.get_event_loop()
-        domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever()) or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
-        if not cls.status_forever and not cls.status_publish:
-            raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
+        def _():
+            loop = get_loop()
+            domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever()) or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
+            if not cls.status_forever and not cls.status_publish:
+                raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
+            return domain
+        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
+        domain = cls.cachef.with_expiry(48, write_in=True)(_)()
         return domain
 
     @classmethod

@@ -110,26 +110,22 @@ class BaseComicSpider(scrapy.Spider):
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
         self.process_state.process = 'start_requests'
-        try:
-            self.before_search()
-            if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
-                self.process_state.process = 'parse'
-                self.Q('ProcessQueue').send(self.process_state)
-                self.refresh_state('input_state', 'InputFieldQueue')
-                tasks = json.loads(self.input_state.indexes[6:])
-                for title, book_url_path in tasks:
-                    yield scrapy.Request(url=f"https://{self.domain}{book_url_path}",
-                                         callback=self.parse_section, meta={"title": title})
-            else:
-                search_start = self.search
-                if self.domain not in search_start:
-                    search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
-                self.search_start = deepcopy(search_start)
-                meta = {"Url": self.search_start}
-                yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
-        except Exception as e:
-            self.crawler.engine.close_spider(self, reason=f"[error]{str(e)}")
-            return
+        self.before_search()
+        if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
+            self.process_state.process = 'parse'
+            self.Q('ProcessQueue').send(self.process_state)
+            self.refresh_state('input_state', 'InputFieldQueue')
+            tasks = json.loads(self.input_state.indexes[6:])
+            for title, book_url_path in tasks:
+                yield scrapy.Request(url=f"https://{self.domain}{book_url_path}",
+                                        callback=self.parse_section, meta={"title": title})
+        else:
+            search_start = self.search
+            if self.domain not in search_start:
+                search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
+            self.search_start = deepcopy(search_start)
+            meta = {"Url": self.search_start}
+            yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
 
     def before_search(self):
         ...
