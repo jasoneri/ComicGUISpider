@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import re
-
+import random
+import traceback
 # Define here the models for your spider middleware
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
-import random
 from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
 from scrapy.http import HtmlResponse
 
@@ -46,6 +46,35 @@ class ComicspiderDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info(f'Spider opened: 【{spider.name}】')
+
+
+class GlobalErrorHandlerMiddleware:
+    """全局错误处理中间件 - 基于scrapy信号机制"""
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        s = cls()
+        # 连接spider_error信号
+        crawler.signals.connect(s.spider_error, signal=signals.spider_error)
+        return s
+
+    def spider_error(self, failure, response, spider):
+        error_msg = str(failure.value)
+        spider.logger.error(f"Traceback: {failure.getTraceback()}")
+        spider.crawler.engine.close_spider(spider, reason=f"[error]{error_msg}")
+
+    def process_spider_exception(self, response, exception, spider):
+        """处理spider回调函数中的异常"""
+        error_msg = str(exception)
+        spider.logger.error(f"Traceback: {traceback.format_exc()}")
+        network_exceptions = ('ConnectionError', 'TimeoutError', 'ImageException')
+        if any(ex_type in type(exception).__name__ for ex_type in network_exceptions):
+            spider.crawler.stats.inc_value('process_exception/count')
+            spider.crawler.stats.set_value('process_exception/last_exception', 
+                f"[{type(exception).__name__}]{str(exception).replace('<', '')}")
+            return []
+        spider.crawler.engine.close_spider(spider, reason=f"[error]{error_msg}")
+        return []
 
 
 class UAMiddleware(ComicspiderDownloaderMiddleware):
