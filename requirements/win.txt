@@ -155,7 +155,7 @@ requests==2.32.4
     #   tldextract
 requests-file==2.1.0
     # via tldextract
-scrapy==2.12.0
+scrapy==2.13.2
     # via -r requirements-in.txt
 service-identity==24.2.0
     # via scrapy

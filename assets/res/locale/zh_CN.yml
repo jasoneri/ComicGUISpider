@@ -7,7 +7,7 @@ GUI:
   DESC_ELSE: "若有其他问题/功能建议等到群反映/提issue"
   
   BrowserWindow_ensure_warning: "需要返回选择页，并确保有选择的情况下使用"
-  jm_desc: "支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号<br>【发布页：设代理访问发布页时自动用一下代理是其一方法，不翻墙稳定点的方法是：点击 rV 按钮 > domainTool 根据指示操作】"
+  jm_desc: "支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号"
   wnacg_desc: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>"
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
   hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
@@ -111,7 +111,7 @@ GUI:
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`cookies-eh`"
   ACCESS_FAIL: "当前`cookies-eh`或`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
-  GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`cookies-eh`的值，值生成参考配置详情里该字段说明。<br>2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理（需要在此指引弹出前设置好，否则重启CGS）代理服务建议用v2rayN<br>（⚠️测试链接仅设置请求3秒超时，由于测api与GUI共同为主线程，避免请求太久超时使得GUI没响应令用户反而觉得是软件坏了，<br>建议出错后日志等级设debug，边使用边看`scripts/log/GUI.log`排错，结合关程序后重启先试几遍，后续看情况优化）"
+  GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`cookies-eh`的值，值生成参考配置详情里该字段说明。<br>2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理（若环境检测失败，配置后重启 CGS 即可）代理服务建议用v2rayN"
   JUMP_TIP: "ehentai跳页情况特殊，没想好应用，暂时设限制取消`跳页`功能"
   MAPPINGS_INDEX: "首页"
   MAPPINGS_POPULAR: "热门"
