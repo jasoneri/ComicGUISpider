@@ -2,10 +2,10 @@
 
 ![conf](../assets/img/config/conf_usage.png)
 
-::: info 配置文件为初始使用后产生的 `conf.yml` （[📒配置系文件路径](/faq/extra.html#_3-%E9%85%8D%E7%BD%AE%E7%B3%BB%E6%96%87%E4%BB%B6%E8%B7%AF%E5%BE%84)）  
-有关生效时间节点请查阅 [📒配置生效相关](../faq/extra.md#_2-配置生效相关)  
+::: info 配置文件为初始使用后产生的 `conf.yml` （[📒3-配置系文件路径](/faq/extra.html#_3-%E9%85%8D%E7%BD%AE%E7%B3%BB%E6%96%87%E4%BB%B6%E8%B7%AF%E5%BE%84)）  
+有关生效时间节点请查阅 [📒2-配置生效相关](../faq/extra.md#_2-配置生效相关)  
 :::
-::: warning 多行的编辑框输入为 `yaml` 格式（除了 eh_cookies ），冒号后要加一个⚠️ `空格` ⚠️  
+::: warning 多行的编辑框输入为 `yaml` 格式（除了 cookies ），冒号后要加一个⚠️ `空格` ⚠️  
 :::
 
 ## 配置项 / 对应 `yml` 字段
@@ -57,15 +57,22 @@
 鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)  
 `🎥视频使用指南3`有介绍用法  
 
-### eh_cookies / `eh_cookies`
+### cookies / `cookies`
 
-使用`exhentai`时必需  
-[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif)  
+目前选择编辑支持 `ehentai`, `jm`
+
+- `ehentai`: 使用 exhentai 时必需设值，[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif)  
+- `jm`:  
+
 [🔗动图中的curl转换网站](https://tool.lu/curl/)
+
+:::warning 对大量/过量下载的声明：
+一旦设值，对应网站的所有请求都会附带上cookies，由服务器对账号实施处理的后果自行负责  
+:::
 
 ### 剪贴板db / `clip_db`
 
-::: tip 前提：已阅 [`读剪贴板`功能说明](../feat/index#_4-1-读剪贴板)
+::: tip 前提：已阅 [`🎸5-读剪贴板`](/feat/index#_5-读剪贴板) 功能说明
 :::
 
 读取剪贴板功能无法使用时可查看路径是否存在，通过以下查得正确路径后在此更改  

@@ -146,13 +146,11 @@ class Packer(Proj):
             mode = "w"
         elif self.preset_zip_file.exists():
             shutil.copy(self.preset_zip_file, self.zip_file)
-        # 仅 CI 环境，处理 【过滤.git后的script、version.json、CGS.bat】 进经 workflow 安装了 runtime 全部依赖的 perset 包
+        # 仅 CI 环境，处理 【过滤.git后的script、CGS.bat】 进经 workflow 安装了 runtime 全部依赖的 perset 包
         with py7zr.SevenZipFile(zip_file, mode, filters=[{"id": py7zr.FILTER_LZMA2}]) as zip_f:
             for file in tqdm(tuple(specified)):
                 if file == f'{Proj.proj}.bat':
                     zip_f.write(path.joinpath(f"scripts/deploy/launcher/{file}"), arcname=file)
-                elif file == 'version.json':
-                    zip_f.write(path.joinpath(f"scripts/{file}"), arcname=f"scripts/{file}")
                 elif path.joinpath(file).exists():
                     zip_f.writeall(file)
         if not self.zip_file.exists():
@@ -215,7 +213,7 @@ def packup_windows(ver):
     # # clean()
     Clean.end_work(path.joinpath("scripts").rglob("__pycache__"), path.joinpath("runtime").rglob("__pycache__"),
         (path.joinpath("scripts/log"), path.joinpath("scripts/deploy/gitee_t.json")))  # step 0 必清runtime cache，太大了
-    packer = Packer(('scripts', 'version.json', f'{Proj.proj}.bat'), ver=ver)
+    packer = Packer(('scripts', f'{Proj.proj}.bat'), ver=ver)
     packer.packup()  # step 2
     # # Clean.end_work(('CGS.7z',))  # step 4
     # # If error occur, exegesis previous step and run again

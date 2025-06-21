@@ -11,6 +11,14 @@ SPIDERS = {
     6: 'hitomi',        # 🌎 🔞
 }
 SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi']
+COOKIES_SUPPORT = {
+    'jm': {"AVS",}, 
+    'ehentai': {"igneous","ipb_member_id","ipb_pass_hash"}
+}
+COOKIES_PLACEHOLDER = {
+    k: res.GUI.Uic.confDia_cookies_placeholder % ', '.join(v)
+    for k, v in COOKIES_SUPPORT.items()
+}
 SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6]
 CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6]
 

@@ -1,4 +1,5 @@
 import pathlib
+import platform
 import shutil
 import subprocess
 from PyQt5.QtCore import Qt
@@ -34,9 +35,8 @@ class ElseOS:
     file_type = ".sh"
     script_file_type = "Script Files (*.sh)"
     run_cmd = [curr_os.shell]
-    run_cmd_kw = dict(start_new_session=True, shell=True)
-    deploy_cmd = [curr_os.shell, "-c", "curl -fsSL https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/macos.sh | zsh"]
-    deploy_cmd_kw = dict(start_new_session=True, shell=True)
+    deploy_cmd = [curr_os.shell, "-c", "curl -fsSL https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/linux.sh | zsh"]
+    deploy_cmd_kw = run_cmd_kw = dict(start_new_session=True, shell=True)
     deploy_desc = tools_res.rv_deployDesc
 
 TmpCurrOs = WinOS if curr_os.shell == 'powershell' else ElseOS
@@ -70,6 +70,13 @@ class AskDeployView(FramelessWindow):
         def deploy():
             run_dir = QFileDialog.getExistingDirectory(self, ori_res.GUI.Uic.sv_path_desc_tip)
             if run_dir:
+                if platform.system() == "Darwin":
+                    TmpCurrOs.deploy_cmd_kw = dict(start_new_session=True)
+                    TmpCurrOs.deploy_cmd = [
+                        "osascript",
+                        "-e",
+                        f'''tell application "Terminal" to do script "cd {str(run_dir)};zsh -c \\"curl -fsSL https://gitee.com/json_eri/redViewer/raw/master/deploy/online_scripts/macos.sh | zsh\\""'''
+                    ]
                 subprocess.Popen(TmpCurrOs.deploy_cmd, cwd=str(run_dir), **TmpCurrOs.deploy_cmd_kw)
         deployBtn = PrimaryPushButton(FIF.COMMAND_PROMPT, tools_res.rv_deployBtn)
         deployBtn.clicked.connect(deploy)
@@ -187,5 +194,12 @@ class rvTool(QWidget):
         rv_script = pathlib.Path(getattr(conf, "rv_script"))
         run_dir = rv_script.parent
         cmd = TmpCurrOs.run_cmd + [str(rv_script)]
+        if platform.system() == "Darwin":
+            TmpCurrOs.run_cmd_kw = dict(start_new_session=True)
+            cmd = [
+                "osascript", 
+                "-e", 
+                f'''tell application "Terminal" to do script "zsh {str(rv_script)}"'''
+            ]
         subprocess.Popen(cmd, cwd=str(run_dir), **TmpCurrOs.run_cmd_kw)
         self.toolWin.close()

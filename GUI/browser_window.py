@@ -60,8 +60,10 @@ class BrowserWindow(QMainWindow, Ui_browser):
                 BrowserWindow.set_proxies(proxies)
         elif conf_proxy:   # set proxy to browser if proxy exist on conf.yml
             BrowserWindow.set_proxies(conf_proxy)
-        if index == 4:  # e-hentai
-            self.set_ehentai()
+        if index == 2 and conf.cookies.get("jm"):  # e-hentai
+            self.set_cookies("jm")
+        elif index == 4:  # e-hentai
+            self.set_cookies("ehentai")
         elif index == 6:  # hitomi
             self.set_referer_nterceptor(self.gui.spiderUtils.index)
         # from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
@@ -169,17 +171,26 @@ class BrowserWindow(QMainWindow, Ui_browser):
         proxy.setPort(int(port))
         QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
 
-    def set_ehentai(self):
-        for key, values in conf.eh_cookies.items():
+    def set_cookies(self, website):
+        match website:
+            case "ehentai":
+                cookies_item = conf.cookies.get("ehentai").items()
+                domain = self.gui.spiderUtils.domain
+                url = self.gui.spiderUtils.index
+            case "jm":
+                cookies_item = conf.cookies.get("jm").items()
+                domain = self.gui.spiderUtils.get_domain()
+                url = f"https://{domain}"
+        for key, values in cookies_item:
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
             my_cookie.setValue(str(values).encode())
-            my_cookie.setDomain(EHentaiKits.domain)
-            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(EHentaiKits.index))
+            my_cookie.setDomain(domain)
+            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(url))
 
     @classmethod
     def check_ehentai(cls, gui):
-        if not conf.eh_cookies:
+        if not conf.cookies.get("ehentai"):
             InfoBar.error(
                 title='', content=res.EHentai.COOKIES_NOT_SET,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
