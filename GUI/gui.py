@@ -306,11 +306,18 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.clipTasksThread = ClipTasksThread(self, match_urls)
         self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
         self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
-        self.clipTasksThread.start()
+
+        def start_clip_thread_once(ok):
+            if ok:
+                self.clipTasksThread.start()
+                self.BrowserWindow.view.loadFinished.disconnect(start_clip_thread_once)
+        self.BrowserWindow.view.loadFinished.connect(start_clip_thread_once)
 
     def single_clip_tasks_data(self, info):
-        idx, url, img_src, title, author, pages, tags = info
-        js_code = rf'addEL({idx}, "{url}", "{img_src}", "{title}", "{author}","{pages}",{tags})'
+        def js_param(val):
+            return '"' + val.replace('"', '\\"') + '"' if isinstance(val, str) else str(val)
+        params = ','.join(map(js_param, info))
+        js_code = f'addEL({params})'
         self.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
 
     def all_clip_tasks_data(self, infos):
@@ -331,7 +338,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                     self.BrowserWindow.topHintBox.click()
                 if len(infos) < len(self.clip_tasks):
                     self.activateWindow()
-                    self.say(f"==={self.res.Clip.partial_fail}")
+                    self.say(f"➖ {self.res.Clip.partial_fail}")
                 self.clip_infos = infos
             else:
                 print("没有内容？？？")
