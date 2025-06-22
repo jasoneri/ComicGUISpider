@@ -5,7 +5,7 @@ from qfluentwidgets import Pivot
 from qframelesswindow import FramelessWindow
 from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
 
-from GUI.tools.hitomi_tool import HitomiTools, HitomiNotYet, hitomi_db_path
+from GUI.tools.hitomi_tool import HitomiTools, hitomi_db_path
 from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
 from GUI.tools.status import StatusToolView
@@ -67,11 +67,9 @@ class ToolWindow(FramelessWindow):
         self.addSubInterface(self.dmInterface, 'dmInterface', 'domainTool')
 
     def addHitomiTool(self):
-        if not hitomi_db_path.exists():
-            self.htInterface = HitomiNotYet(self.gui)
-        else:
+        if hitomi_db_path.exists():
             self.htInterface = HitomiTools(self.gui)
-        self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
+            self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
 
     def addSubInterface(self, widget: QWidget, objectName: str, text: str):
         widget.setObjectName(objectName)

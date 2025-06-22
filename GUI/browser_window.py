@@ -60,7 +60,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
                 BrowserWindow.set_proxies(proxies)
         elif conf_proxy:   # set proxy to browser if proxy exist on conf.yml
             BrowserWindow.set_proxies(conf_proxy)
-        if index == 2 and conf.cookies.get("jm"):  # e-hentai
+        if index == 2 and conf.cookies.get("jm"):  # jm
             self.set_cookies("jm")
         elif index == 4:  # e-hentai
             self.set_cookies("ehentai")
