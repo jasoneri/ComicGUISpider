@@ -7,10 +7,10 @@ from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout,
 from qfluentwidgets import (
     ComboBox, VBoxLayout, RoundMenu, Action,
     PrimaryToolButton, ToolButton, DropDownToolButton, 
-    TransparentToggleToolButton, TransparentTogglePushButton, HyperlinkButton,
+    TransparentToggleToolButton, TransparentTogglePushButton,
     TitleLabel, StrongBodyLabel, FluentIcon as FIF,
     InfoBadgePosition, InfoBadge, ToolTipFilter, ToolTipPosition, 
-    InfoBar, InfoBarPosition, ListView, BodyLabel
+    InfoBar, InfoBarPosition, ListView
 )
 
 from assets import res
@@ -35,21 +35,6 @@ class CustomComboBox(QComboBox):
             if event.pos().x() > viewport.width() - self._list_view.verticalScrollBar().width():
                 return True
         return super().eventFilter(obj, event)
-
-
-class HitomiNotYet(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.gui = parent
-        main_layout = VBoxLayout(self)
-        first_row = QHBoxLayout()
-        body = BodyLabel(str(res.GUI.hitomiDb_guide % ori_path.joinpath('assets/hitomi.db')))
-        linkBtn = HyperlinkButton(res.Vars.hitomiDb_tmp_url, "Download")
-        first_row.addStretch()
-        first_row.addWidget(body)
-        first_row.addWidget(linkBtn)
-        first_row.addStretch()
-        main_layout.addLayout(first_row)
 
 
 class HitomiTools(QWidget):
