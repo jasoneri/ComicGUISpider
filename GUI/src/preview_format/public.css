@@ -1,2 +1,8 @@
-.badge-on-img{position:absolute;right:-0.5em;box-shadow:0 0 3px rgba(0,0,0,0.03);opacity:0.7;min-width:1.5em;text-align:center;padding:0.25em;border-radius:0.25em;}
-.badge-on-img:hover {opacity: 0.9;}
+.badge-right-top{position:absolute;right:-0.5em;box-shadow:0 0 3px rgba(0,0,0,0.03);opacity:0.7;min-width:1.5em;text-align:center;padding:0.25em;border-radius:0.25em;}
+.badge-right-top:hover {opacity: 0.9;}
+
+.badge-lang{opacity:0.3;}
+.badge-btype{opacity:0.5;}
+
+.badge-left-bottom{position:absolute;left:-2em;bottom:0em;box-shadow:0 0 3px rgba(0,0,0,0.03);opacity:0.7;min-width:1.5em;text-align:center;padding:0.25em;border-radius:0.25em;z-index:10;}
+.badge-left-bottom:hover {opacity: 0.9;}

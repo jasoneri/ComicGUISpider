@@ -110,7 +110,9 @@ class JmSpider(BaseComicSpider2):
             frame_results[x + 1] = [url, title, preview_url]
             _likes = target.xpath('.//span[contains(@id,"albim_likes")]/text()').get()
             likes = _likes.strip() if _likes else 0
-            preview.add(x+1, img_preview, title, preview_url, likes=likes)
+            _btypes = target.xpath('.//div[@class="category-icon"]/div/text()').getall()
+            btype = " ".join(_btypes).strip()
+            preview.add(x+1, img_preview, title, preview_url, likes=likes, btype=btype)
         self.say(preview.created_temp_html)
         self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", color='purple'))
         return self.say.frame_book_print(frame_results, url=response.url)
