@@ -2,7 +2,7 @@
 import json
 import re
 import typing as t
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from utils import convert_punctuation, correct_domain, conf
 from utils.website import JmUtils
@@ -81,7 +81,10 @@ class JmSpider(BaseComicSpider2):
         keyword = self.input_state.keyword
         __t = self.time_regex.search(keyword)
         __k = self.kind_regex.search(keyword)
-        if not bool(__k):  # 不好说标题匹配到关键字情况，视情况返至前置带*触发
+        if keyword in self.mappings.keys():
+            url = self.mappings[keyword]
+            return Url(f"https://{self.domain}{urlparse(url).path}").set_next(*self.turn_page_info)
+        elif not bool(__k):  # 不好说标题匹配到关键字情况，视情况返至前置带*触发
             return Url(f"{self.search_url_head}{keyword}").set_next(*self.turn_page_info)
         _t = __t.group(1) if bool(__t) else '周'
         _k = __k.group(1) if bool(__k) else '点击'

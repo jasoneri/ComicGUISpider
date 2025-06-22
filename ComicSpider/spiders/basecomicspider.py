@@ -5,6 +5,7 @@ from typing import Union
 from abc import abstractmethod
 from copy import deepcopy
 from time import sleep
+from urllib.parse import urlparse
 
 import httpx
 import scrapy
@@ -137,7 +138,8 @@ class BaseComicSpider(scrapy.Spider):
         keyword = self.input_state.keyword
         # kind = re.search(rf"(({')|('.join(self.kind)}))(.*)", keyword) if bool(self.kind) else None
         if keyword in self.mappings.keys():
-            search_start = Url(self.mappings[keyword]).set_next(*self.turn_page_info)
+            url = self.mappings[keyword]
+            search_start = Url(f"https://{self.domain}{urlparse(url).path}").set_next(*self.turn_page_info)
         # elif bool(kind):    # 应对get请求非QueryParams形式，例子如`BaseComicSpider.kind`下面注释的e.g.
         #     search_start = f"{self.kind[kind.group(1)]}{kind.group(len(self.kind) + 2)}/"
         else:

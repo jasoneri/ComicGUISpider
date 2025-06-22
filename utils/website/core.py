@@ -77,13 +77,18 @@ class Req:
     book_hea = {}
 
     @classmethod
-    def get_cli(cls, conf):
+    def get_cli(cls, conf, is_async=False, **kwargs):
+        client_class = httpx.AsyncClient if is_async else httpx.Client
+        transport_class = httpx.AsyncHTTPTransport if is_async else httpx.HTTPTransport
         if conf.proxies:
-            return httpx.Client(
-                headers=cls.book_hea,
-                transport=httpx.HTTPTransport(proxy=f"http://{conf.proxies[0]}", retries=3))
-        return httpx.Client(headers=cls.book_hea, trust_env=True)
-
+            base_kwargs = {
+                'headers': cls.book_hea,
+                'transport': transport_class(proxy=f"http://{conf.proxies[0]}", retries=3)
+            }
+        else:
+            base_kwargs = {'headers': cls.book_hea, 'trust_env': True}
+        base_kwargs.update(kwargs)
+        return client_class(**base_kwargs)
     book_url_regex = ""
 
     @classmethod
