@@ -11,6 +11,7 @@ import asyncio
 import httpx
 from PIL import Image
 from lxml import etree, html
+from scrapy import Selector
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
@@ -54,7 +55,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Accept-Encoding": "gzip, deflate, br",
     }
-    uuid_regex = re.compile(r"(\d+)$")
+    uuid_regex = re.compile(r"/(\d{5,})")
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")
@@ -116,9 +117,10 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
             return obj
 
     @classmethod
-    def get_cli(cls, conf):
-        cli = httpx.Client(headers={**cls.book_hea, 'Referer': f"https://{cls.get_domain()}"})
-        return cli
+    def get_cli(cls, conf, is_async=False, **kwargs):
+        client_class = httpx.AsyncClient if is_async else httpx.Client
+        headers = {**cls.book_hea, 'Referer': f"https://{cls.get_domain()}"}
+        return client_class(headers=headers, **kwargs)
 
     @classmethod
     async def by_publish(cls):
@@ -171,17 +173,25 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
 
     @staticmethod
     def parse_book(resp_text):
-        html = etree.HTML(resp_text)
+        html = Selector(text=resp_text)
         cover_el = html.xpath('//div[@id="album_photo_cover"]')[-1]
-        title = html.xpath('//h1/text()')[0]
-        img_src = cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src')[0]
+        title = html.xpath('//h1/text()').get()
+        img_src = cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src').get()
         info_el = cover_el.xpath('./following-sibling::div')[0]
-        author = (info_el.xpath('.//span[@data-type="author"]/a/text()') or ["-"])[-1]
-        pages = re.search(
-            r'\d+', info_el.xpath('./div/div[contains(text(), "頁數") or contains(text(), "页数")]/text()')[0]).group(0)
-        tags = info_el.xpath('.//span[@data-type="tags"]/a/text()')
+        author = (info_el.xpath('.//span[@data-type="author"]/a/text()').getall() or ["-"])[-1]
+        pages_text = info_el.xpath('./div/div[contains(text(), "頁數") or contains(text(), "页数")]/text()').get()
+        pages = re.search(r'\d+', pages_text).group(0)
+        tags = info_el.xpath('.//span[@data-type="tags"]/a/text()').getall()
         url = jm_id = re.search(r"var aid = (\d+);", resp_text).group(1)
-        return url, img_src, title, author, pages, tags[:20]
+        epa_els = html.xpath('(//div[@class="episode"])[last()]/ul/a')
+        episodes = []
+        for epa_el in epa_els:
+            _ep_title = epa_el.xpath('.//h3/text()[normalize-space()]').get().strip()
+            ep_title = re.split(r"\s+", _ep_title)[0]
+            bid = epa_el.xpath('./@data-album').get()
+            idx = int(epa_el.xpath('./@data-index').get()) + 1  # 转换为1开始的索引
+            episodes.append({"ep": ep_title, "idx": idx, "bid": bid})
+        return url, img_src, title, author, pages, tags[:20], episodes
 
 
 class WnacgUtils(EroUtils, DomainUtils, Req):
@@ -203,6 +213,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         'Cache-Control': 'no-cache',
     }
     uuid_regex = re.compile(r"-(\d+)\.html$")
+    cate_mappings = {"cate-5": "同人誌","cate-1": "同人誌 / 漢化","cate-12": "同人誌 / 日語","cate-16": "同人誌 / English","cate-2": "同人誌 / CG畫集","cate-37": "同人誌 / AI圖集","cate-22": "同人誌 / 3D漫畫","cate-3": "同人誌 / Cosplay","cate-6": "單行本","cate-9": "單行本 / 漢化","cate-13": "單行本 / 日語","cate-17": "單行本 / English","cate-7": "雜誌&短篇","cate-10": "雜誌&短篇 / 漢化","cate-14": "雜誌&短篇 / 日語","cate-18": "雜誌&短篇 / English","cate-19": "韓漫","cate-20": "韓漫 / 漢化","cate-21": "韓漫 / 其他",}
 
     @classmethod
     async def parse_publish_(cls, html_text):
@@ -226,16 +237,17 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
 
     @staticmethod
     def parse_book(resp_text):
-        html = etree.HTML(resp_text)
-        title = html.xpath('//body/div/h2/text()')[0]
+        html = Selector(text=resp_text)
+        title = html.xpath('//body/div/h2/text()').get()
         thumb_el = html.xpath('//div[contains(@class, "uwthumb")]')[0]
-        img_src = thumb_el.xpath('./img/@src')[0].replace("////", "https://")
-        url = thumb_el.xpath('./a/@href')[0].replace('slide', 'gallery')
+        img_src = thumb_el.xpath('./img/@src').get().replace("////", "https://")
+        url = thumb_el.xpath('./a/@href').get().replace('slide', 'gallery')
         info_el = html.xpath('//div[contains(@class, "uwconn")]')[0]
-        pages = re.search(r'\d+', next(filter(lambda _: "頁數" in _, info_el.xpath('./label/text()')))).group(0)
-        tags = info_el.xpath('.//a[@class="tagshow"]/text()')
+        label_texts = info_el.xpath('./label/text()').getall()
+        pages = re.search(r'\d+', next(filter(lambda _: "頁數" in _, label_texts))).group(0)
+        tags = info_el.xpath('.//a[@class="tagshow"]/text()').getall()
         author = "-"
-        return url, img_src, title, author, pages, tags[:20]
+        return url, img_src, title, author, pages, tags[:20], []
 
 
 class EHentaiKits(EroUtils, Req, Cookies):
@@ -272,8 +284,8 @@ class EHentaiKits(EroUtils, Req, Cookies):
         return True
 
     @classmethod
-    def get_cli(cls, conf):
-        cli = super().get_cli(conf)
+    def get_cli(cls, conf, is_async=False, **kwargs):
+        cli = super().get_cli(conf, is_async=is_async, **kwargs)
         cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(conf.cookies.get(cls.name))}
         return cli
 
@@ -281,21 +293,21 @@ class EHentaiKits(EroUtils, Req, Cookies):
 
     @staticmethod
     def parse_book(resp_text):
-        html = etree.HTML(resp_text)
-        title = (html.xpath('//h1[@id="gj"]/text()') or html.xpath('//div[@id="gd2"]/h1/text()'))[0]
-        script_string = html.xpath('//script[contains(text(), "var base_url")]/text()')[0]
+        html = Selector(text=resp_text)
+        title = (html.xpath('//h1[@id="gj"]/text()').get() or html.xpath('//div[@id="gd2"]/h1/text()').get())
+        script_string = html.xpath('//script[contains(text(), "var base_url")]/text()').get()
         gid = re.search(r"gid = ([0-9a-z]+)", script_string).group(1)
         token = re.search(r"""token = "?([0-9a-z]+)""", script_string).group(1)
         url = f"/g/{gid}/{token}/"
         pages = re.search(r">(\d+) pages<", resp_text).group(1)
-        tags_ = html.xpath('//td[@class="tc" and text()="female:"]/following-sibling::td/div/a/@id')
+        tags_ = html.xpath('//td[@class="tc" and text()="female:"]/following-sibling::td/div/a/@id').getall()
         tags = list(map(lambda x: x.split(":")[-1], tags_))
-        author_ = html.xpath('//div[contains(@id, "td_artist:")]/@id')
+        author_ = html.xpath('//div[contains(@id, "td_artist:")]/@id').getall()
         author = author_[0].split(':')[-1] if author_ else '-'
-        img_src_el = html.xpath('//div[@id="gleft"]/div/div/@style')[0]
+        img_src_el = html.xpath('//div[@id="gleft"]/div/div/@style').get()
         img_src = re.search(r"url\((.*?)\)", img_src_el.replace("&quot;", "").replace('"', '')
                             ).group(1)
-        return url, img_src, title, author, pages, tags[:20] if tags else []
+        return url, img_src, title, author, pages, tags[:20] if tags else [], []
 
 
 class KaobeiUtils(Utils):

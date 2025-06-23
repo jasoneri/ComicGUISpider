@@ -57,14 +57,19 @@ class ComicPipeline(ImagesPipeline):
         return fin
 
     def file_folder(self, basepath, section, spider, title, item):
+        if item['uuid_md5'] in spider.tasks_path:
+            return spider.tasks_path[item['uuid_md5']]
         if spider.name in spider.settings.get('SPECIAL'):
             parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             _title = self._sub_index.sub('', set_author_ahead(title))
-            path = parent_p.joinpath(f"{_title}[{item['uuid']}]" if conf.addUuid else _title)
+            if section != 'meaningless':
+                base_title_path = parent_p.joinpath(_title)
+                path = base_title_path.joinpath(f"{section}[{item['uuid']}]" if conf.addUuid else section)
+            else:
+                path = parent_p.joinpath(f"{_title}[{item['uuid']}]" if conf.addUuid else _title)
         else:
             path = basepath.joinpath(f"{title}/{section}")
-        if item['uuid_md5'] not in spider.tasks_path:
-            spider.tasks_path[item['uuid_md5']] = path
+        spider.tasks_path[item['uuid_md5']] = path
         return path
 
     def image_downloaded(self, response, request, info, *, item=None):

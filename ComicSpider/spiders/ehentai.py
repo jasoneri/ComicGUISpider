@@ -44,11 +44,12 @@ class EHentaiSpider(BaseComicSpider3):
                      .replace(" pages", ""))
             url = preview_url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
             img_preview = (item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
+            byte = target.xpath('./td[contains(@class, "glcat")]/div/text()').get()
             # book_idx = re.search(r"g/(\d+)/", url).group(1)
             self.say(example_b.format(str(x + 1), pages, title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [url, title, pages, preview_url]  # , book_idx]
-            preview.add(x + 1, img_preview, title, preview_url, pages=pages)
+            preview.add(x + 1, img_preview, title, preview_url, pages=pages, btype=byte)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
 

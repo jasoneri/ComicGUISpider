@@ -1,8 +1,10 @@
+import re
+import json
 import tempfile
 from lxml import etree
 from utils import ori_path, temp_p
 from utils.sql import SqlUtils
-from utils.website import Uuid
+from utils.website import Uuid, spider_utils_map
 from utils.preview.el import El
 
 
@@ -34,48 +36,86 @@ class PreviewHtml:
         return f
 
     @staticmethod
-    def tip_duplication(spider, tf):
-        handler = InfoHandler(spider, tf)
-        infos = handler.get_infos()
-        if not infos:
-            print("tip_duplication got info None")
-            return
-        batch_md5 = handler.batch_md5(infos)
-        sql_utils = SqlUtils()
-        downloaded_md5 = sql_utils.batch_check_dupe(list(batch_md5.keys()))
-        sql_utils.close()
+    def tip_duplication(spider_name, tf, page):
+        handler = InfoHandler(spider_name, tf)
+        urls, episode_bids = handler.get_all_urls()
 
-        with open(tf, 'r+', encoding='utf-8') as fp:
-            html_content = fp.read()
-            for _md5 in downloaded_md5:
-                info = batch_md5[_md5]
-                html_content = html_content.replace(
-                    f'href="{info}"',
-                    f'href="{info}" class="downloaded"'
-                )
-            fp.seek(0)
-            fp.truncate()
-            fp.write(html_content)
+        if not urls and not episode_bids:
+            return
+
+        sql_utils = SqlUtils()
+        downloaded_urls, downloaded_episode_bids = [], []
+
+        # 统一处理所有URLs
+        if urls:
+            try:
+                url_batch_md5 = handler.batch_md5(urls)
+                url_downloaded_md5 = sql_utils.batch_check_dupe(list(url_batch_md5.keys()))
+                downloaded_urls = [url_batch_md5[md5] for md5 in url_downloaded_md5]
+            except Exception as e:
+                print(f"处理URLs时出错: {e}")
+
+        if episode_bids:
+            try:
+                bid_to_url = {bid: handler.construct_url(bid) for bid in episode_bids}
+                episode_urls = list(bid_to_url.values())
+                episode_batch_md5 = handler.batch_md5(episode_urls)
+                episode_downloaded_md5 = sql_utils.batch_check_dupe(list(episode_batch_md5.keys()))
+                url_to_bid = {url: bid for bid, url in bid_to_url.items()}
+                downloaded_episode_bids = [url_to_bid[episode_batch_md5[md5]] for md5 in episode_downloaded_md5]
+            except Exception as e:
+                print(f"处理episode URLs时出错: {e}")
+
+        sql_utils.close()
+        PreviewHtml._mark_downloads_via_js(tf, page, downloaded_urls, downloaded_episode_bids)
+
+    @staticmethod
+    def _mark_downloads_via_js(tf, page, downloaded_urls, downloaded_episode_bids=None):
+        """通过JS回调标记下载状态"""
+        def refresh_tf(html):
+            if html:
+                with open(tf, 'w', encoding='utf-8') as f:
+                    f.write(html)
+        if not downloaded_episode_bids:
+            downloaded_episode_bids = []
+        urls_param = json.dumps(downloaded_urls)
+        episodes_param = json.dumps(downloaded_episode_bids)
+        js_code = f'window.tryMarkDownloadStatus && window.tryMarkDownloadStatus({urls_param}, {episodes_param});'
+        try:
+            page.runJavaScript(js_code, refresh_tf)
+        except Exception as e:
+            print(f"JS callback failed: {e}")
 
 
 class InfoHandler:
     def __init__(self, spider, tf):
         self.spider = spider
         self.tf = tf
+        self._capture_group_regex = re.compile(r'\([^)]+\)')
+        self._spider_utils = spider_utils_map.get(self.spider)
+        self._pattern = (self._spider_utils.uuid_regex.pattern
+                        if self._spider_utils and hasattr(self._spider_utils, 'uuid_regex')
+                        else None)
 
-    def get_infos(self):
+    def get_all_urls(self):
         with open(self.tf, 'r', encoding='utf-8') as file:
             html_content = file.read()
             html = etree.HTML(html_content)
-        # titles = html.xpath('//div[@class="col-md-3"]//img/@title')
-        urls = html.xpath('//div[contains(@class, "singal-task")]//a/@href')
-        return urls
 
-    def batch_md5(self, infos):
-        # return {md5(title): title for title in titles}
+        urls = html.xpath('//div[contains(@class, "singal-task")]//a/@href')
+        episode_bids = html.xpath('//input[@class="btn-check"]/@value')
+        episode_bids = [bid.strip() for bid in episode_bids if bid and bid.strip()]
+        return urls, episode_bids
+
+    def construct_url(self, bid):
+        if not self._pattern:
+            return bid
+        url_part = self._capture_group_regex.sub(bid, self._pattern)
+        return url_part.replace('$', '').replace('^', '').replace('\\', '')
+
+    def batch_md5(self, urls):
         uuid_obj = Uuid(self.spider)
-        _ = {uuid_obj.id_and_md5(info)[-1]: info for info in infos}
-        return _
+        return {uuid_obj.id_and_md5(url)[-1]: url for url in urls}
 
 
 class PreviewByClipHtml:

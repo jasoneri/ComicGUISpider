@@ -2,7 +2,6 @@
 import re
 
 from .basecomicspider import BaseComicSpider2, font_color
-from utils import PresetHtmlEl
 from utils.website import WnacgUtils
 from utils.processed_class import PreviewHtml
 
@@ -34,9 +33,9 @@ class WnacgSpider(BaseComicSpider2):
         self.say(example_b.format('序号', '漫画名') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
-        title_xpath = './div[contains(@class, "pic")]/a'
+        tar_xpath = './div[contains(@class, "pic")]'
         for x, target in enumerate(targets):
-            item_elem = target.xpath(title_xpath)
+            item_elem = target.xpath(f"{tar_xpath}/a")
             title = item_elem.xpath('./@title').get()
             pre_url = item_elem.xpath('./@href').get()
             preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
@@ -47,7 +46,9 @@ class WnacgSpider(BaseComicSpider2):
             frame_results[x + 1] = [url, title, preview_url]
             _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
             pages = re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0
-            preview.add(x + 1, img_preview, title, preview_url, pages=pages)
+            _cate = (target.xpath(f"{tar_xpath}/@class").get() or "").split(" ")[-1]
+            btype = WnacgUtils.cate_mappings.get(_cate, "")
+            preview.add(x + 1, img_preview, title, preview_url, pages=pages, btype=btype)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=response.url)
 

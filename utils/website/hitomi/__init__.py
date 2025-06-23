@@ -82,12 +82,8 @@ class HitomiUtils(EroUtils, Req):
         return url
 
     @classmethod
-    def get_cli(cls, conf):
-        if conf.proxies:
-            return httpx.Client(http2=True,
-                headers=cls.book_hea,
-                transport=httpx.HTTPTransport(proxy=f"http://{conf.proxies[0]}", retries=3))
-        return httpx.Client(headers=cls.book_hea, trust_env=True, http2=True)
+    def get_cli(cls, conf, is_async=False, **kwargs):
+        return super().get_cli(conf, is_async=is_async, http2=True, **kwargs)
 
     def test_index(self):
         try:

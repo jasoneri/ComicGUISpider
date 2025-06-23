@@ -3,6 +3,7 @@
 提供类似微服务的便捷接入方式，支持QThread处理、回调和可视化状态提示
 """
 import traceback
+import time
 from typing import Callable, Optional, Any, Dict
 from PyQt5.QtCore import QThread, pyqtSignal, QObject
 from qfluentwidgets import StateToolTip, InfoBar, InfoBarPosition
@@ -80,12 +81,13 @@ class TaskConfig:
 
 class AsyncTaskManager(QObject):
     """异步任务管理器 - 流程化耗时操作处理"""
-    
+
     def __init__(self, parent_widget=None):
         super().__init__()
         self.parent_widget = parent_widget
         self.current_tasks: Dict[str, AsyncTaskThread] = {}
         self.current_tooltips: Dict[str, StateToolTip] = {}
+        self._tooltip_offset_counter = 0  # 用于计算tooltip位置偏移
     
     def execute_task(self, 
                     task_id: str,
@@ -155,7 +157,8 @@ class AsyncTaskManager(QObject):
             bool: 是否成功启动任务
         """
         if task_id is None:
-            task_id = f"task_{id(task_func)}"
+            # 使用时间戳和函数名生成唯一ID，避免重复
+            task_id = f"task_{task_func.__name__}_{int(time.time() * 1000000)}"
 
         config = TaskConfig(
             task_func=task_func,
@@ -256,8 +259,11 @@ class AsyncTaskManager(QObject):
             # 使用自定义位置
             tooltip.move(position[0], position[1])
         else:
-            # 使用默认位置（右上角）
-            tooltip.move(tooltip_parent.width() - tooltip.width() - 30, 20)
+            # 计算智能位置，避免重叠
+            x = tooltip_parent.width() - tooltip.width() - 30
+            y = 20 + (self._tooltip_offset_counter * 80)  # 每个tooltip垂直间隔80像素
+            tooltip.move(x, y)
+            self._tooltip_offset_counter += 1
         tooltip.setState(False)  # 设置为加载状态
         tooltip.show()
         self.current_tooltips[task_id] = tooltip
@@ -280,7 +286,24 @@ class AsyncTaskManager(QObject):
             tooltip = self.current_tooltips[task_id]
             tooltip.close()
             del self.current_tooltips[task_id]
-    
+            # 重新排列剩余的tooltip位置
+            self._rearrange_tooltips()
+
+    def _rearrange_tooltips(self):
+        """重新排列剩余tooltip的位置，避免空隙"""
+        if not self.current_tooltips or not self.parent_widget:
+            self._tooltip_offset_counter = 0
+            return
+
+        # 按创建顺序重新排列tooltip位置
+        for i, tooltip in enumerate(self.current_tooltips.values()):
+            x = self.parent_widget.width() - tooltip.width() - 30
+            y = 20 + (i * 80)  # 每个tooltip垂直间隔80像素
+            tooltip.move(x, y)
+
+        # 更新偏移计数器
+        self._tooltip_offset_counter = len(self.current_tooltips)
+
     def _cleanup_task(self, task_id: str):
         if task_id in self.current_tasks:
             thread = self.current_tasks[task_id]
@@ -323,3 +346,4 @@ class AsyncTaskManager(QObject):
             tooltip.close()
         self.current_tooltips.clear()
         self.current_tasks.clear()
+        self._tooltip_offset_counter = 0  # 重置偏移计数器

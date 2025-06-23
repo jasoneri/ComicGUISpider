@@ -14,7 +14,6 @@ GUI:
   check_ehetai: "正在检测当前环境能否访问 `exhentai` 中..."
   check_mangabz: "正在检测当前环境能否访问 `Māngabz` 中..."
   check_hitomi: "正在检测当前环境能否访问 `hitomi` 中..."
-  hitomiDb_guide: "未发现数据集，请前往下载并置于此位置 <br> [%s] <br> 放置后切换下标签就可以用了"
   checkisopen_text_change: "现在点击立刻打开存储目录"
   checkisopen_status_tip: "勾选状态下完成后也会自动打开目录的"
   ACCESS_FAIL: "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
