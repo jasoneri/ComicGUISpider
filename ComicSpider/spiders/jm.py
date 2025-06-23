@@ -6,7 +6,7 @@ from urllib.parse import urlencode, urlparse
 
 from utils import convert_punctuation, correct_domain, conf
 from utils.website import JmUtils
-from utils.processed_class import PreviewHtml, Url
+from utils.processed_class import PreviewHtml, Url, Selected
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
 domain = "18comic-zzz.xyz"
@@ -44,17 +44,31 @@ class JmSpider(BaseComicSpider2):
             _ua.update({'cookie': JmUtils.to_str_(conf.cookies.get(self.name))})
         return _ua
 
+    def get_b_url(self):
+        self.domain = JmUtils.get_domain()
+        b_url = self.book_id_url
+        b_url = b_url if self.domain in b_url else correct_domain(self.domain, b_url)
+        return b_url
+        
     def start_requests(self):
         try:
             self.refresh_state('input_state', 'InputFieldQueue')
             keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
-            if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
-                tasks = json.loads(self.input_state.indexes[6:])
-                keyword = ','.join([_[-1] for _ in tasks])
-            if ',' in keyword or keyword.isdecimal():
-                self.domain = JmUtils.get_domain()
-                b_url = self.book_id_url
-                b_url = b_url if self.domain in b_url else correct_domain(self.domain, b_url)
+            # 处理Selected列表格式
+            indexes = self.input_state.indexes
+            meta = {}
+            if isinstance(indexes, list) and all(isinstance(s, Selected) for s in indexes):
+                b_url = self.get_b_url()
+                for i in indexes:
+                    if i.bid.startswith("http"):
+                        i.bid = JmUtils.get_uuid(i.bid, only_id=True)
+                    url = b_url + i.bid
+                    yield scrapy.Request(url=url, callback=self.parse_section,
+                        headers={**self.ua, 'Referer': self.domain},
+                        meta={'book_id': i.bid, 'title': i.title, 'episode_name': i.episode_name},
+                        dont_filter=True)
+            elif ',' in keyword or keyword.isdecimal():
+                b_url = self.get_b_url()
                 for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
                     yield scrapy.Request(url=b_url + key, callback=self.parse_section,
                                          headers={**self.ua, 'Referer': self.domain},
@@ -65,10 +79,12 @@ class JmSpider(BaseComicSpider2):
             raise e
 
     def parse_section(self, response):
+        self.process_state.process = 'parse section'
+        self.Q('ProcessQueue').send(self.process_state)
         if response.url.endswith("album_missing"):
-            self.process_state.process = 'parse section'
-            self.Q('ProcessQueue').send(self.process_state)
-            yield self.say(font_color(f"===== 无效车号：{response.meta.get('book_id')}", color="red"))
+            yield self.say(font_color(f"➖ 无效车号：{response.meta.get('book_id')}", color="red"))
+        elif response.url.endswith("login"):
+            yield self.say(font_color(f"⚠️ 需要登录/甚至JCoins：{response.meta.get('book_id')}", color="red"))
         else:
             if not response.meta.get("title"):
                 title = response.xpath('//title/text()').extract_first()

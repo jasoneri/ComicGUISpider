@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import sys
@@ -10,12 +9,12 @@ from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect, QTimer
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
 from GUI.uic.qfluent import (
-    MonkeyPatch as FluentMonkeyPatch, CustomInfoBar, CustomSplashScreen
+    MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
 )
 from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
-from GUI.thread import WorkThread, ClipTasksThread
+from GUI.thread import WorkThread
 from GUI.tools import ToolWindow
 from GUI.manager import TaskProgressManager, ClipGUIManager, PreprocessManager
 
@@ -27,7 +26,7 @@ from utils import (
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, QueueHandler, refresh_state, crawl_what,
-    PreviewHtml
+    PreviewHtml, Selected
 )
 from utils.website import spider_utils_map
 
@@ -110,8 +109,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.previewInit = True
         self.previewSecondInit = False
         self.BrowserWindow = None
-        # 剪贴板
-        self.clip_is_triggered = False
 
         def chooseBox_changed_handle(index):
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
@@ -221,7 +218,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 while i < 1000:  # i * 3ms = 极限等待3s
                     if self.tf != _prev_tf:
                         if conf.isDeduplicate:
-                            PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
+                            page = self.BrowserWindow.view.page() if self.BrowserWindow else None
+                            PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
                         self.BrowserWindow.second_init(self.tf)
                         self.previewSecondInit = False
                         break
@@ -275,8 +273,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
         # webEngine / page
-        if conf.isDeduplicate and not self.clip_is_triggered:
-            PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
+        if conf.isDeduplicate and not self.clip_mgr.is_triggered:
+            def mark_downloads_after_load(ok):
+                if ok:
+                    def delayed_mark():
+                        page = self.BrowserWindow.view.page()
+                        PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
+                    QTimer.singleShot(200, delayed_mark)
+                    self.BrowserWindow.view.loadFinished.disconnect(mark_downloads_after_load)
+            self.BrowserWindow.view.loadFinished.connect(mark_downloads_after_load)
 
     def show_preview(self):
         """prevent PreviewWindow is None when init"""
@@ -293,59 +298,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.clean_temp_file()
             self.BrowserWindow.destroy()
 
-    def init_clip_handle(self, tf, match_urls):
-        self.searchinput.setDisabled(True)
-        self.previewInit = False
-        self.clip_is_triggered = True
-        self.tf = tf
-        self.clip_tasks = match_urls
-        self.set_preview()
-        self.BrowserWindow.resize(self.BrowserWindow.width(), 860)
-        self.BrowserWindow.show()
-        self.page = self.BrowserWindow.view.page()
-        self.clipTasksThread = ClipTasksThread(self, match_urls)
-        self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
-        self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
-
-        def start_clip_thread_once(ok):
-            if ok:
-                self.clipTasksThread.start()
-                self.BrowserWindow.view.loadFinished.disconnect(start_clip_thread_once)
-        self.BrowserWindow.view.loadFinished.connect(start_clip_thread_once)
-
-    def single_clip_tasks_data(self, info):
-        def js_param(val):
-            return '"' + val.replace('"', '\\"') + '"' if isinstance(val, str) else str(val)
-        params = ','.join(map(js_param, info))
-        js_code = f'addEL({params})'
-        self.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
-
-    def all_clip_tasks_data(self, infos):
-        def refresh_tf(html):
-            if html:
-                with open(self.tf, 'w', encoding='utf-8') as f:
-                    # 实在搞不懂怎么跨端正常关掉已经打开的模态框，只能硬改标签属性了
-                    html = re.sub(r"<body.*?>", "<body>", html)
-                    html = re.sub(r"""aria-labelledby="exampleModalLabel".*?>""",
-                                  """aria-labelledby="exampleModalLabel">""", html)
-                    html = html.replace(r"""<div class="modal-backdrop fade show"></div>""", "")
-                    f.write(html)
-                if conf.isDeduplicate:
-                    PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf)
-                    self.BrowserWindow.refreshBtn.click()
-                # self.BrowserWindow.second_init(self.tf)
-                if self.BrowserWindow.topHintBox.isChecked():
-                    self.BrowserWindow.topHintBox.click()
-                if len(infos) < len(self.clip_tasks):
-                    self.activateWindow()
-                    self.say(f"➖ {self.res.Clip.partial_fail}")
-                self.clip_infos = infos
-            else:
-                print("没有内容？？？")
-        if not infos:
-            self.BrowserWindow.hide()
-        else:
-            self.BrowserWindow.js_execute("finishTasks();", refresh_tf)
 
     def clean_temp_file(self):
         """when: 1. preview BrowserWindow destroy; 2. pageTurn btn group clicked"""
@@ -432,15 +384,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageFrame.setEnabled(False)
         if self.BrowserWindow:
             self.BrowserWindow.ensureBtn.setDisabled(True)
-        if self.clip_is_triggered:  # 剪贴板支线走向
+        if self.clip_mgr.is_triggered:  # 剪贴板支线走向
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
             self.bThread.item_count_signal.connect(self.processbar_load)
             self.bThread.tasks_signal.connect(self.task_mgr.handle)
             self.bThread.finish_signal.connect(self.crawl_end)
             self.bThread.start()
-            results = [self.clip_infos[i] for i in self.BrowserWindow.output]
-            self.input_state.indexes = "[clip]" + json.dumps(results)
+
+            selected_list = self.clip_mgr.create_selected_list(self.BrowserWindow.output)
+            self.input_state.indexes = selected_list
             self.input_state.pageTurn = ""
             self.q_InputFieldQueue_send(self.input_state)
             refresh_state(self, 'process_state', 'ProcessQueue')
@@ -480,10 +433,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def q_InputFieldQueue_send(self, input_state, *args):
         """format input"""
         _input_idx = input_state.indexes
-        if not _input_idx or isinstance(_input_idx, str) and (
-                _input_idx.startswith("[clip]") or _input_idx.startswith("[combine]") or _input_idx == "0" or 
+        if (not _input_idx or
+            isinstance(_input_idx, Selected) or  # 支持单个Selected对象
+            isinstance(_input_idx, list) and all(isinstance(s, Selected) for s in _input_idx) or  # 支持Selected列表
+            isinstance(_input_idx, str) and (
+                _input_idx.startswith("[combine]") or _input_idx == "0" or
                 bool(re.match(r'^-\d+$', _input_idx)) or bool(re.match(r'^\d+[0-9\+\-]*$', _input_idx))
-            ):
+            )):
             self.Q('InputFieldQueue').send(input_state)
         else:
             raise ValueError(self.res.input_format_err)

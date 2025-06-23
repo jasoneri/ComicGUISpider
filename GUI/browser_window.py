@@ -152,7 +152,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
     def page(self, after_callback):
         def callback(ret):
-            self.output = list(map(int, ret)) if ret else []
+            self.output = ret
             after_callback()
 
         self.js_execute("scanChecked()", callback)
@@ -217,7 +217,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.js_execute("initTaskPanel();", lambda _: callback())
 
     def add_task(self, tasks_obj):
-        _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
+        _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.display_title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
         js_code = """if (typeof addTask === 'function') {
                 %s;
             } else { false; }""" % _js_code

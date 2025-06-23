@@ -71,6 +71,16 @@
             max-width: 65%; /* 您可以将此值更改为所需的宽度，例如 600px、80% 等 */
             align-items: center;
         }
+        .episodes-section {
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .episodes-list {
+            max-height: 100px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -79,62 +89,10 @@
 <script src="../GUI/src/preview_format/tip_downloaded.js"></script>
 <script src="../GUI/src/preview_format/tasks_extend.js"></script>
 <script>
-  let taskCount = 0;
-  const maxTasks = {_match_num};
-
-  function addEL(idx, url, img_src, title, author, pages, tags) {
-    const htmlString1 = `
-      <div class="list-group-item"><div class="row g-1">
-        <div class="col-11 singal-task">
-            <div class="thumbnail-container"><label class="form-check-label" for="${idx}" style="height: 100%">
-                <img src="${img_src}" title="${title}" alt="${title}" class="img-thumbnail">
-            </label></div>
-            <ul style="list-style:none">
-                <li class="text-truncate"><a href="${url}"><span class="title">${title}</span></a></li>
-                <li><span class="author">${author}</span></li>
-                <li><span class="pages">${pages}pages</span></li>`
-    let tags_html = `<li>`;
-    for (let i = 0; i < tags.length; i++) {
-      tags_html += `<span class="tag">${tags[i]}</span> `;
-    }
-    tags_html += `</li>`
-    const htmlString2 = `</ul>
-            </div>
-        <div class="col-1"><div class="checkbox checkbox-div"><label style="width: 50%;height: 95%;float: right;">
-            <input class="form-check-input" type="checkbox" name="img" value="" id="${idx}" checked>
-        </label></div></div>
-    </div></div>
-    `;
-    const parentElement = document.querySelector(".list-group");
-    const progressBar = document.getElementById('progress-bar');
-
-    parentElement.insertAdjacentHTML('beforeend', htmlString1 + tags_html + htmlString2);
-
-    taskCount++;
-    if (taskCount >= maxTasks) {
-      progressBar.style.width = `100%`;
-      progressBar.setAttribute('aria-valuenow', "100");
-      progressBar.className = "progress-bar bg-success"
-      progressBar.innerText = "100% Completed"
-    } else {
-      const progressPercent = Math.round((taskCount / maxTasks) * 100);
-      progressBar.style.width = `${progressPercent}%`;
-      progressBar.setAttribute('aria-valuenow', String(progressPercent));
-    }
-  }
-
-  function checkDoneTasks() {
-    const El = document.querySelectorAll(".list-group-item");
-    return El.length;
-  }
-  function finishTasks() {
-    var modal = bootstrap.Modal.getInstance(document.getElementById('myModal'));
-    if (modal) {
-      modal.hide();
-    }
-    return document.documentElement.outerHTML;
-  }
+  // 设置全局变量供clip.js使用
+  window.CLIP_MAX_TASKS = {_match_num};
 </script>
+<script src="../GUI/src/preview_format/clip.js"></script>
 
 <div class="modal fade" id="myModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

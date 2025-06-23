@@ -19,6 +19,7 @@ from GUI.uic.qfluent.components import (
 )
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.manager.preprocess import PreprocessManager
+from GUI.manager.clip import ClipGUIManager
 
 
 class TaskProgressManager:
@@ -154,35 +155,3 @@ class Updater:
     def after_update(self):
         subprocess.Popen([sys.executable, ori_path.joinpath("CGS.py")])
         QTimer.singleShot(1000, self.gui.close)
-
-
-class ClipGUIManager:
-    res = res.GUI.ClipGUIManager
-
-    def __init__(self, gui, *args, **kwargs):
-        super(ClipGUIManager, self).__init__(*args, **kwargs)
-        self.gui = gui
-
-    def read_clip(self):
-        if self.gui.next_btn.text() != res.GUI.Uic.next_btnDefaultText:
-            InfoBar.warning(
-                title='Clip start error', content=res.GUI.Clip.process_warning,
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=3500, parent=self.gui.textBrowser
-            )
-        elif not pathlib.Path(conf.clip_db).exists():
-            CustomInfoBar.show(
-                title='Clip-db not found', content=res.GUI.Clip.db_not_found_guide,
-                parent=self.gui.textBrowser,
-                url="https://jasoneri.github.io/ComicGUISpider/config/#剪贴板db-clip-db", url_name="Guide"
-            )
-            # https://jasoneri.github.io/ComicGUISpider/feature/#_4-1-%E8%AF%BB%E5%89%AA%E8%B4%B4%E6%9D%BF
-        else:
-            clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
-                               getattr(self.gui.spiderUtils, "book_url_regex"))
-            tf, match_items = clip.main()
-            if not match_items:
-                self.gui.say(res.GUI.Clip.match_none % self.gui.spiderUtils.book_url_regex,
-                             ignore_http=True)
-            else:
-                self.gui.init_clip_handle(tf, match_items)
