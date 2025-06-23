@@ -5,6 +5,7 @@ from typing import Union
 from abc import abstractmethod
 from copy import deepcopy
 from time import sleep
+from urllib.parse import urlparse
 
 import httpx
 import scrapy
@@ -137,7 +138,8 @@ class BaseComicSpider(scrapy.Spider):
         keyword = self.input_state.keyword
         # kind = re.search(rf"(({')|('.join(self.kind)}))(.*)", keyword) if bool(self.kind) else None
         if keyword in self.mappings.keys():
-            search_start = Url(self.mappings[keyword]).set_next(*self.turn_page_info)
+            url = self.mappings[keyword]
+            search_start = Url(f"https://{self.domain}{urlparse(url).path}").set_next(*self.turn_page_info)
         # elif bool(kind):    # 应对get请求非QueryParams形式，例子如`BaseComicSpider.kind`下面注释的e.g.
         #     search_start = f"{self.kind[kind.group(1)]}{kind.group(len(self.kind) + 2)}/"
         else:
@@ -199,34 +201,36 @@ class BaseComicSpider(scrapy.Spider):
         need_sec_next_page = self.need_sec_next_page(response)
         if need_sec_next_page:
             yield scrapy.Request(url=need_sec_next_page, callback=self.parse_section, meta=response.meta)
-        else:
-            title = response.meta.get('title')
-            self.say(f'{"=" * 15} 《{title}》')
-            frame_sec_result = self.frame_section(response)
+            return
 
-            self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-            choose = self.input_state.indexes
-            results = self.elect_res(choose, frame_sec_result, step=self.res.parse_sec_step)
-            if results is None or not len(results):
-                self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', color="red"))
-                self.logger.info(f'no result return, choose_input is wrong: {choose}')
-            else:
-                self.say(f'{"-" * 10}《{title}》 {self.res.parse_sec_selected}: {choose}')
-                for result in results:
-                    self.say(f"{result[0]:>>55}")
-                self.session = httpx.Client()
-                for section, section_url in results:
-                    url_list = self.mk_page_tasks(url=section_url, session=self.session)  # 用scrapy的next吧
-                    now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % title
-                    self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
-                    this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
-                    meta = {
-                        'title': title, 'section': section,
-                        'uuid_md5': this_md5, 'uuid': this_uuid, 
-                        'title_url': response.meta.get('preview_url') or response.url,
-                    }
-                    for url in url_list:
-                        yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
+        title = response.meta.get('title')
+        self.say(f'{"=" * 15} 《{title}》')
+        frame_sec_result = self.frame_section(response)
+
+        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
+        choose = self.input_state.indexes
+        results = self.elect_res(choose, frame_sec_result, step=self.res.parse_sec_step)
+
+        if not results:
+            self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', color="red"))
+            self.logger.info(f'no result return, choose_input is wrong: {choose}')
+            return
+
+        self.say(f'{"-" * 10}《{title}》 {self.res.parse_sec_selected}: {choose}')
+        for result in results:
+            self.say(f"{result[0]:>>55}")
+
+        for section, section_url in results:
+            url_list = self.mk_page_tasks(url=section_url)
+            now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % title
+            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
+            this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
+            meta = {
+                'title': title, 'section': section, 'uuid_md5': this_md5, 'uuid': this_uuid,
+                'title_url': response.meta.get('preview_url') or response.url,
+            }
+            for url in url_list:
+                yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
     def need_sec_next_page(self, resp):
         pass
@@ -264,7 +268,7 @@ class BaseComicSpider(scrapy.Spider):
             return results
 
     def set_task(self, task_info):
-        """taskid, title, task_length, title_url"""
+        """taskid, title, task_length, title_url, episode_name"""
         self.tasks[task_info[0]] = TasksObj(*task_info)
         self.Q('TasksQueue').send(task_info)
         
@@ -308,45 +312,51 @@ class BaseComicSpider(scrapy.Spider):
             domain_cache = temp_p.joinpath(f"{self.name}_domain.txt")
             if domain_cache.exists():
                 os.remove(domain_cache)
-
         stats = self.crawler.stats
-
+        resources_to_close = (('manager', lambda: delattr(self, 'manager')),)
         try:
-            del self.manager
-            if hasattr(self, "session"):
-                self.session.close()
+            for attr_name, close_func in resources_to_close:
+                if hasattr(self, attr_name):
+                    close_func()
             self.makesure_tasks_status()
         except Exception as e:
             self.logger.error(f"Error closing resources: {e}")
             reason = "error"
         sleep(0.3)
         self.sql_handler.close()
-        if reason == "finished":
-            if 'init' not in self.process_state.process:
-                if self.total != 0 and stats.get_value('image/downloaded', 0) > 0:
-                    self.say(font_color(
-                        f'<br>{self.res.finished_success % stats.get_value("image/downloaded", 0)}<br>',
-                        color='green', size=6))
-                elif not stats.get_value('image/downloaded') and stats.get_value('process_exception/count', 0) > 0:
-                    self.say(font_color(
-                        f'<br>{self.res.finished_err % stats.get_value("process_exception/last_exception", "")}<br>' + 
-                        f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4))
-                else:
-                    self.say(font_color(f'{self.res.finished_empty}<br>', color='purple', size=6))
-            else:
-                self.say(font_color('unknown init error, please contact maintainer with operation-process', color='red', size=6))
-        elif reason == "ConnectionResetError":
+        if reason == "ConnectionResetError":
             return
+        elif reason == "finished":
+            self._handle_finished_status(stats)
         elif "error" in reason:
-            if reason.startswith("[error]"):
-                self.say(font_color(f"[httpok]{reason}" if "http" in reason else reason, color='red', size=4))
-            self.say(
-                font_color(f'{self.res.close_backend_error}<br>', size=5) +
-                font_color('<br>'.join((self.res.close_check_log_guide1, self.res.close_check_log_guide2,
-                                        self.res.close_check_log_guide3)), color='blue', size=4) + "<br>" +
-                font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
-            )
+            self._handle_error_status(reason)
             _remove_cache()
+
+    def _handle_finished_status(self, stats):
+        if 'init' in self.process_state.process:
+            self.say(font_color('unknown init error, please contact maintainer with operation-process', color='red', size=6))
+            return
+        downloaded_count = stats.get_value('image/downloaded', 0)
+        exception_count = stats.get_value('process_exception/count', 0)
+        if self.total != 0 and downloaded_count > 0:
+            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}<br>', color='green', size=6))
+        elif not downloaded_count and exception_count > 0:
+            last_exception = stats.get_value("process_exception/last_exception", "")
+            self.say(font_color(
+                f'<br>{self.res.finished_err % last_exception}<br>log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', 
+            color='red', size=4))
+        else:
+            self.say(font_color(f'{self.res.finished_empty}<br>', color='purple', size=6))
+
+    def _handle_error_status(self, reason):
+        if reason.startswith("[error]"):
+            self.say(font_color(f"[httpok]{reason}" if "http" in reason else reason, color='red', size=4))
+        error_guides = (self.res.close_check_log_guide1, self.res.close_check_log_guide2, self.res.close_check_log_guide3)
+        self.say(
+            font_color(f'{self.res.close_backend_error}<br>', size=5) +
+            font_color('<br>'.join(error_guides), color='blue', size=4) + "<br>" +
+            font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
+        )
 
 
 class BaseComicSpider2(BaseComicSpider):
@@ -359,14 +369,18 @@ class BaseComicSpider2(BaseComicSpider):
         title = PresetHtmlEl.sub(response.meta.get('title'))
         this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
-            self.say(f'{"=" * 15} 《{title}》')
+            # 处理episode显示
+            episode_name = response.meta.get('episode_name')
+            display_title = f"{title} - {episode_name}" if episode_name else title
+            self.say(f'''{"=" * 15} 《{display_title}》''')
+
             results = self.frame_section(response)  # {1: url1……}
-            self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url))
+            self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url, episode_name))
             for page, url in results.items():
                 item = ComicspiderItem()
                 item['title'] = title
                 item['page'] = str(page)
-                item['section'] = 'meaningless'
+                item['section'] = episode_name if episode_name else 'meaningless'
                 item['image_urls'] = [url]
                 item['uuid'] = this_uuid
                 item['uuid_md5'] = this_md5
@@ -396,7 +410,7 @@ class BaseComicSpider3(BaseComicSpider):
             title = PresetHtmlEl.sub(response.meta.get('title'))
             this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
             if not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5):
-                self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url))
+                self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url, None))
                 for page, url in results.items():
                     meta = {
                         'title': title, 'page': page,

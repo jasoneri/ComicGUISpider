@@ -1,6 +1,7 @@
 import traceback
+import asyncio
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils import font_color, conf
+from utils import font_color, conf, get_loop
 from assets import res
 from deploy.update import Proj
 
@@ -10,35 +11,49 @@ class ClipTasksThread(QThread):
     total_signal = pyqtSignal(dict)
 
     def __init__(self, gui, tasks):
-        super(ClipTasksThread, self).__init__()
+        super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
         self.gui = gui
         self.tasks = tasks
 
     def run(self):
-        self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
-        cli = self.gui.spiderUtils.get_cli(conf)
-        total = {}
-        for idx, url in enumerate(self.tasks):
-            try:
-                resp = cli.get(url, follow_redirects=True, timeout=3)
-                info = self.gui.spiderUtils.parse_book(resp.text)
-                self.msleep(50)
-                self.info_signal.emit((idx + 1, url, *info[1:]))
-                total[idx + 1] = [info[2], info[0]]
-            except Exception as e:
-                err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
-                self.gui.log.exception(e)
-                self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
+        self.msleep(500)  # 延时，否则子线程太快导致主界面没跟上
+        loop = get_loop()
+        total = loop.run_until_complete(self._async_run())
         self.handle_total(total)
+
+    async def _async_run(self):
+        async with self.gui.spiderUtils.get_cli(conf, is_async=True) as cli:
+            total = {}
+            async def fetch_single(idx, url):
+                try:
+                    resp = await cli.get(url, follow_redirects=True, timeout=3)
+                    info = self.gui.spiderUtils.parse_book(resp.text)
+                    self.msleep(50)
+                    # 确保传递所有信息，包括episodes（如果存在）
+                    self.info_signal.emit((idx + 1, url, *info[1:]))
+                    return idx + 1, info
+                except Exception as e:
+                    err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
+                    self.gui.log.exception(e)
+                    self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
+                    return idx + 1, None
+            # 并发执行所有任务
+            tasks = [fetch_single(idx, url) for idx, url in enumerate(self.tasks)]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    continue
+                if result[1] is not None:
+                    total[result[0]] = result[1]
+            return total
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:
             print("[clip tasks loop]❌over max_iterations, fail.")
             self.total_signal.emit(self.total)
             return
-        else:
-            self.iterations += 1
-            self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
+        self.iterations += 1
+        self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
 
     def handle_js_result(self, num):
         if num and num >= len(self.total):
@@ -49,8 +64,8 @@ class ClipTasksThread(QThread):
         self.check_condition_and_run_js()
 
     def handle_total(self, total):
-        self.max_iterations = 7 * len(self.tasks)  # 一个任务约给1.5秒
-        self.iterations = 0  # 当前循环次数
+        self.max_iterations = 7 * len(self.tasks)
+        self.iterations = 0
         self.total = total
         if not total:
             self.total_signal.emit({})
@@ -70,7 +85,7 @@ class WorkThread(QThread):
     active = True
 
     def __init__(self, gui):
-        super(WorkThread, self).__init__()
+        super(WorkThread, self).__init__(gui)
         self.gui = gui
         self.flag = 1
 
@@ -91,7 +106,7 @@ class WorkThread(QThread):
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     else:
                         self.print_signal.emit(_)
-                    self.msleep(5)
+                    self.msleep(2)
                 if not Bar.empty():
                     self.item_count_signal.emit(Bar.get())
                     # self.msleep(5)
@@ -122,7 +137,7 @@ class ProjUpdateThread(QThread):
 
     def __init__(self, conf_dia):
         self.proj = None
-        super(ProjUpdateThread, self).__init__()
+        super(ProjUpdateThread, self).__init__(conf_dia)
         self.conf_dia = conf_dia
         self.is_update_requested = False
         self.log = conf.cLog(name="GUI")

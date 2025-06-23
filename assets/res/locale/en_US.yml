@@ -14,7 +14,6 @@ GUI:
   check_ehetai: "Checking current environment's access to `exhentai`..."
   check_mangabz: "Checking current environment's access to `Māngabz`..."
   check_hitomi: "Checking current environment's access to `hitomi`..."
-  hitomiDb_guide: "No dataset found - download and place in this location<br>[%s]"
   checkisopen_text_change: "(Click)Immediately open sv-path"
   checkisopen_status_tip: "sv-path auto-open after completion"
   ACCESS_FAIL: "Current proxy configuration/global proxy environment cannot access<br>Please verify site accessibility (direct CN access unsupported)"

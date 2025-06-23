@@ -33,10 +33,10 @@ def El(custom_style) -> ElMinix:
 
 
 class Badges:
-    pages = '<span class="badge bg-info badge-on-img">p%s</span>'
-    likes = '<span class="badge bg-danger badge-on-img">♥️%s</span>'
-    lang = '<span class="badge rounded-pill bg-light text-dark badge-on-img" style="opacity: 0.3;">%s</span>'
-    btype = '<span class="badge bg-light text-dark badge-on-img" style="opacity: 0.3;">%s</span>'
+    pages = '<span class="badge bg-info badge-left-bottom">p%s</span>'
+    likes = '<span class="badge bg-danger badge-left-bottom">♥️%s</span>'
+    lang = '<span class="badge rounded-pill bg-light text-dark badge-right-top badge-lang">%s</span>'
+    btype = '<span class="badge bg-light text-dark badge-right-top badge-btype">%s</span>'
 
     def __init__(self, **badges_kw):
         self._content = []

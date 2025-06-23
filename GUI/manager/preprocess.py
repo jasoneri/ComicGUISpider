@@ -1,13 +1,14 @@
+import httpx
 from PyQt5.QtCore import QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 from PyQt5.QtCore import Qt
 
-from utils import conf
+from assets import res
+from utils import conf, ori_path
 from utils.website import EHentaiKits
 from GUI.browser_window import BrowserWindow
 from GUI.manager.async_task import AsyncTaskManager
 from GUI.uic.qfluent.components import CustomInfoBar
-from assets import res
 
 
 class PreprocessManager(QObject):
@@ -126,7 +127,7 @@ class PreprocessManager(QObject):
         )
 
     def _preprocess_hitomi(self):
-        def hitomi_task():
+        def hitomi_check():
             self.gui.spiderUtils = self.gui.spiderUtils(conf)
             if not self.gui.spiderUtils.test_index():
                 raise RuntimeError(f"access_fail:{self.gui.spiderUtils.name}:{self.gui.spiderUtils.index}")
@@ -137,11 +138,32 @@ class PreprocessManager(QObject):
                     self.gui.spiderUtils.index, self.gui.spiderUtils.name)
 
         self.task_manager.execute_simple_task(
-            task_func=hitomi_task,
+            task_func=hitomi_check,
             success_callback=lambda _: self.gui.say("<br>✅ hitomi 访问检测通过"),
             error_callback=on_error,
             tooltip_title="hitomi 访问检测", task_id="hitomi_preprocess"
         )
+
+        def dl_db():
+            with httpx.stream("GET", res.Vars.hitomiDb_tmp_url, follow_redirects=True) as resp:
+                with open(hitomi_db_path, 'wb') as f:
+                    for chunk in resp.iter_bytes():
+                        f.write(chunk)
+
+        hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
+        if not hitomi_db_path.exists():
+            self.gui.say("⚠️ hitomi db not found, ready to download..")
+            def on_db_download_success(_):
+                self.gui.say("<br>✅ hitomi db downloaded")
+                if hasattr(self.gui, 'toolWin'):
+                    self.gui.toolWin.addHitomiTool()
+
+            self.task_manager.execute_simple_task(
+                task_func=dl_db,
+                success_callback=on_db_download_success,
+                error_callback=lambda _: self.gui.say("<br>❌ hitomi-db failed"),
+                tooltip_title="hitomi-db predownloading", task_id="hitomi_db"
+            )
 
     def cleanup(self):
         self.task_manager.cleanup()

@@ -16,10 +16,36 @@ from variables import SPIDERS
 
 
 @dataclass
+class Selected(State):
+    """替代[clip]JSON格式的结构化数据传输类
+    一个章节一个Selected！[Selected1-1,Selected1-2,Selected1-3]
+    以往的无章节会归为[Selected2]
+    """
+    title: str
+    bid: str
+    episode_name: t.Optional[str] = None
+
+    def __post_init__(self):
+        """确保数据格式正确并缓存"""
+        if not self.title or not self.bid:
+            raise ValueError("title and bid are required")
+        self.sv_cache()
+
+    @property
+    def section(self) -> str:
+        return self.episode_name if self.episode_name else 'meaningless'
+
+    def __str__(self):
+        if self.episode_name:
+            return f"Selected({self.title} - {self.episode_name})"
+        return f"Selected({self.title})"
+
+
+@dataclass
 class InputFieldState(State):
     keyword: str
     bookSelected: int
-    indexes: t.Union[str, list]
+    indexes: t.Union[str, list, t.List[Selected]]
     pageTurn: t.Union[str, int]
 
 
@@ -34,12 +60,17 @@ class ProcessState(State):
 
 
 class TasksObj:
-    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None):
+    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None, episode_name: str = None):
         self.taskid = taskid
         self.title = title
         self.tasks_count = tasks_count
         self.title_url = title_url
+        self.episode_name = episode_name
         self.downloaded = []
+
+    @property
+    def display_title(self) -> str:
+        return f"{self.title} - {self.episode_name}" if self.episode_name else self.title
 
 
 class TaskObj:

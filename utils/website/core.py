@@ -77,13 +77,18 @@ class Req:
     book_hea = {}
 
     @classmethod
-    def get_cli(cls, conf):
+    def get_cli(cls, conf, is_async=False, **kwargs):
+        client_class = httpx.AsyncClient if is_async else httpx.Client
+        transport_class = httpx.AsyncHTTPTransport if is_async else httpx.HTTPTransport
         if conf.proxies:
-            return httpx.Client(
-                headers=cls.book_hea,
-                transport=httpx.HTTPTransport(proxy=f"http://{conf.proxies[0]}", retries=3))
-        return httpx.Client(headers=cls.book_hea, trust_env=True)
-
+            base_kwargs = {
+                'headers': cls.book_hea,
+                'transport': transport_class(proxy=f"http://{conf.proxies[0]}", retries=3)
+            }
+        else:
+            base_kwargs = {'headers': cls.book_hea, 'trust_env': True}
+        base_kwargs.update(kwargs)
+        return client_class(**base_kwargs)
     book_url_regex = ""
 
     @classmethod
@@ -104,12 +109,16 @@ class EroUtils(Utils):
     uuid_regex = None
 
     @classmethod
-    def get_uuid(cls, info):
+    def get_uuid(cls, info, only_id=False):
         if hasattr(cls, "uuid_regex"):
-            _identity = cls.uuid_regex.search(info).group(1)
+            try:
+                _identity = cls.uuid_regex.search(info).group(1)
+            except AttributeError as e:
+                print(f"{cls.uuid_regex}\n{info}")
+                raise e
         else:
             _identity = info
-        return f"{cls.name}-{_identity}"
+        return f"{cls.name}-{_identity}" if not only_id else _identity
 
 
 class DomainUtils(Utils):
