@@ -168,7 +168,7 @@ class HitomiSpider(BaseComicSpider):
         this_uuid, this_md5 = Uuid(self.name).id_and_md5(meta.get('preview_url'))
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
             self.say(f'{"=" * 15} 《{title}》')
-            self.set_task((this_md5, title, len(meta['pics']), meta.get('preview_url')))
+            self.set_task((this_md5, title, len(meta['pics']), meta.get('preview_url'), None))
             for pic_info in meta['pics']:
                 item = ComicspiderItem()
                 item['title'] = title

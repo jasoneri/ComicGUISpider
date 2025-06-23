@@ -11,12 +11,12 @@ class ClipTasksThread(QThread):
     total_signal = pyqtSignal(dict)
 
     def __init__(self, gui, tasks):
-        super(ClipTasksThread, self).__init__()
+        super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
         self.gui = gui
         self.tasks = tasks
 
     def run(self):
-        self.msleep(300)  # 延后1s，否则子线程太快导致主界面没跟上
+        self.msleep(500)  # 延时，否则子线程太快导致主界面没跟上
         loop = get_loop()
         total = loop.run_until_complete(self._async_run())
         self.handle_total(total)
@@ -24,17 +24,27 @@ class ClipTasksThread(QThread):
     async def _async_run(self):
         async with self.gui.spiderUtils.get_cli(conf, is_async=True) as cli:
             total = {}
-            for idx, url in enumerate(self.tasks):
+            async def fetch_single(idx, url):
                 try:
                     resp = await cli.get(url, follow_redirects=True, timeout=3)
                     info = self.gui.spiderUtils.parse_book(resp.text)
                     self.msleep(50)
+                    # 确保传递所有信息，包括episodes（如果存在）
                     self.info_signal.emit((idx + 1, url, *info[1:]))
-                    total[idx + 1] = [info[2], info[0]]
+                    return idx + 1, info
                 except Exception as e:
                     err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
                     self.gui.log.exception(e)
                     self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
+                    return idx + 1, None
+            # 并发执行所有任务
+            tasks = [fetch_single(idx, url) for idx, url in enumerate(self.tasks)]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    continue
+                if result[1] is not None:
+                    total[result[0]] = result[1]
             return total
 
     def check_condition_and_run_js(self):
@@ -75,7 +85,7 @@ class WorkThread(QThread):
     active = True
 
     def __init__(self, gui):
-        super(WorkThread, self).__init__()
+        super(WorkThread, self).__init__(gui)
         self.gui = gui
         self.flag = 1
 
@@ -127,7 +137,7 @@ class ProjUpdateThread(QThread):
 
     def __init__(self, conf_dia):
         self.proj = None
-        super(ProjUpdateThread, self).__init__()
+        super(ProjUpdateThread, self).__init__(conf_dia)
         self.conf_dia = conf_dia
         self.is_update_requested = False
         self.log = conf.cLog(name="GUI")

@@ -109,12 +109,16 @@ class EroUtils(Utils):
     uuid_regex = None
 
     @classmethod
-    def get_uuid(cls, info):
+    def get_uuid(cls, info, only_id=False):
         if hasattr(cls, "uuid_regex"):
-            _identity = cls.uuid_regex.search(info).group(1)
+            try:
+                _identity = cls.uuid_regex.search(info).group(1)
+            except AttributeError as e:
+                print(f"{cls.uuid_regex}\n{info}")
+                raise e
         else:
             _identity = info
-        return f"{cls.name}-{_identity}"
+        return f"{cls.name}-{_identity}" if not only_id else _identity
 
 
 class DomainUtils(Utils):

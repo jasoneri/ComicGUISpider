@@ -268,7 +268,7 @@ class BaseComicSpider(scrapy.Spider):
             return results
 
     def set_task(self, task_info):
-        """taskid, title, task_length, title_url"""
+        """taskid, title, task_length, title_url, episode_name"""
         self.tasks[task_info[0]] = TasksObj(*task_info)
         self.Q('TasksQueue').send(task_info)
         
@@ -369,14 +369,18 @@ class BaseComicSpider2(BaseComicSpider):
         title = PresetHtmlEl.sub(response.meta.get('title'))
         this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
-            self.say(f'{"=" * 15} 《{title}》')
+            # 处理episode显示
+            episode_name = response.meta.get('episode_name')
+            display_title = f"{title} - {episode_name}" if episode_name else title
+            self.say(f'''{"=" * 15} 《{display_title}》''')
+
             results = self.frame_section(response)  # {1: url1……}
-            self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url))
+            self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url, episode_name))
             for page, url in results.items():
                 item = ComicspiderItem()
                 item['title'] = title
                 item['page'] = str(page)
-                item['section'] = 'meaningless'
+                item['section'] = episode_name if episode_name else 'meaningless'
                 item['image_urls'] = [url]
                 item['uuid'] = this_uuid
                 item['uuid_md5'] = this_md5
@@ -406,7 +410,7 @@ class BaseComicSpider3(BaseComicSpider):
             title = PresetHtmlEl.sub(response.meta.get('title'))
             this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
             if not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5):
-                self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url))
+                self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url, None))
                 for page, url in results.items():
                     meta = {
                         'title': title, 'page': page,

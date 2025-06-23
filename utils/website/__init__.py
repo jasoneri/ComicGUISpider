@@ -191,7 +191,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
             bid = epa_el.xpath('./@data-album').get()
             idx = int(epa_el.xpath('./@data-index').get()) + 1  # 转换为1开始的索引
             episodes.append({"ep": ep_title, "idx": idx, "bid": bid})
-        return url, img_src, title, author, pages, tags[:20]
+        return url, img_src, title, author, pages, tags[:20], episodes
 
 
 class WnacgUtils(EroUtils, DomainUtils, Req):
@@ -247,7 +247,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         pages = re.search(r'\d+', next(filter(lambda _: "頁數" in _, label_texts))).group(0)
         tags = info_el.xpath('.//a[@class="tagshow"]/text()').getall()
         author = "-"
-        return url, img_src, title, author, pages, tags[:20]
+        return url, img_src, title, author, pages, tags[:20], []
 
 
 class EHentaiKits(EroUtils, Req, Cookies):
@@ -307,7 +307,7 @@ class EHentaiKits(EroUtils, Req, Cookies):
         img_src_el = html.xpath('//div[@id="gleft"]/div/div/@style').get()
         img_src = re.search(r"url\((.*?)\)", img_src_el.replace("&quot;", "").replace('"', '')
                             ).group(1)
-        return url, img_src, title, author, pages, tags[:20] if tags else []
+        return url, img_src, title, author, pages, tags[:20] if tags else [], []
 
 
 class KaobeiUtils(Utils):
