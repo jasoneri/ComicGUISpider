@@ -52,8 +52,11 @@
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
+> jm 的章节下载 基于 v2.2.5-beta.2  
+
 #### 🎁 Features
 
+✅ ✨ jm 支持章节，仅在读剪贴板可用；去重机制对于章节同样生效  
 ✅ ✨ 配置栏 eh_cookies 改为 cookies，选择框切换网站编辑/保存  
 ✅ 工具视窗新增常驻 statusTool，与上面的的状态栏一致，隐藏某站状态，内有某种功能  
 🔳 hitomi  
