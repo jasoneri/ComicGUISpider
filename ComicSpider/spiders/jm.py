@@ -6,7 +6,7 @@ from urllib.parse import urlencode, urlparse
 
 from utils import convert_punctuation, conf
 from utils.website import JmUtils, correct_domain
-from utils.processed_class import PreviewHtml, Url, Selected
+from utils.processed_class import PreviewHtml, Url
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
 domain = "18comic-zzz.xyz"
@@ -26,7 +26,8 @@ class JmSpider(BaseComicSpider2):
     num_of_row = 4
     domain = domain
     search_url_head = f'https://{domain}/search/photos?main_tag=0&search_query='
-    book_id_url = f'https://{domain}/photo/'
+    book_id_url = f'https://{domain}/photo/%s'
+    transfer_url = staticmethod(lambda url: url.replace('album', 'photo'))
     mappings = {}
 
     time_regex = re.compile(r".*?([日周月总])")
@@ -44,39 +45,21 @@ class JmSpider(BaseComicSpider2):
             _ua.update({'cookie': JmUtils.to_str_(conf.cookies.get(self.name))})
         return _ua
 
-    def get_b_url(self):
+    def preready(self):
         self.domain = JmUtils.get_domain()
-        b_url = self.book_id_url
-        b_url = b_url if self.domain in b_url else correct_domain(self.domain, b_url)
-        return b_url
-        
+        self.book_id_url = correct_domain(self.domain, self.book_id_url)
+
     def start_requests(self):
-        try:
-            self.refresh_state('input_state', 'InputFieldQueue')
-            keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
-            # 处理Selected列表格式
-            indexes = self.input_state.indexes
-            meta = {}
-            if isinstance(indexes, list) and all(isinstance(s, Selected) for s in indexes):
-                b_url = self.get_b_url()
-                for i in indexes:
-                    if i.bid.startswith("http"):
-                        i.bid = JmUtils.get_uuid(i.bid, only_id=True)
-                    url = b_url + i.bid
-                    yield scrapy.Request(url=url, callback=self.parse_section,
-                        headers={**self.ua, 'Referer': self.domain},
-                        meta={'book_id': i.bid, 'title': i.title, 'episode_name': i.episode_name},
-                        dont_filter=True)
-            elif ',' in keyword or keyword.isdecimal():
-                b_url = self.get_b_url()
-                for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
-                    yield scrapy.Request(url=b_url + key, callback=self.parse_section,
-                                         headers={**self.ua, 'Referer': self.domain},
-                                         meta={'book_id': key}, dont_filter=True)
-            else:
-                yield from super(JmSpider, self).start_requests()
-        except Exception as e:
-            raise e
+        self.preready()
+        self.refresh_state('input_state', 'InputFieldQueue')
+        keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
+        if ',' in keyword or keyword.isdecimal():
+            for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
+                yield scrapy.Request(url=self.book_id_url % key, callback=self.parse_section,
+                                        headers={**self.ua, 'Referer': self.domain},
+                                        meta={'book_id': key}, dont_filter=True)
+        else:
+            yield from super(JmSpider, self).start_requests()
 
     def parse_section(self, response):
         self.process_state.process = 'parse section'
@@ -120,7 +103,7 @@ class JmSpider(BaseComicSpider2):
             title = target.xpath('.//img/@title').get().strip().replace("\n", "")
             pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
             preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
-            url = preview_url.replace('album', 'photo')  # 压缩步骤，此链直接返回该本全页uri
+            url = self.transfer_url(preview_url)
             img_preview = target.xpath('./a/img/@src | ./img/@src').get()
             if (img_preview or "").endswith("blank.jpg"):
                 img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()

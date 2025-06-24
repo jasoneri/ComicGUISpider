@@ -26,7 +26,7 @@ class ClipTasksThread(QThread):
             total = {}
             async def fetch_single(idx, url):
                 try:
-                    resp = await cli.get(url, follow_redirects=True, timeout=3)
+                    resp = await cli.get(url, follow_redirects=True, timeout=6)
                     info = self.gui.spiderUtils.parse_book(resp.text)
                     self.msleep(50)
                     # 确保传递所有信息，包括episodes（如果存在）
