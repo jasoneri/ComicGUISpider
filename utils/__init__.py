@@ -99,11 +99,11 @@ class Conf:
     clip_db: t.Union[p.Path, str] = curr_os.default_clip_db
     rv_script: t.Union[p.Path, str] = ''
     clip_read_num: str = '20'
+    concurr_num: str = '16'
     clip_sql = curr_os.clip_sql
     file = None
 
     def __init__(self, path=None, iname=None):
-        # super(Conf).__init__()
         self.init_conf()
 
     def init_conf(self):  # 脱敏，储存路径和代理等用外部文件读
@@ -181,7 +181,7 @@ class Conf:
 
     @property
     def settings(self):
-        return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map
+        return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map, self.concurr_num
 
     @classmethod
     def duel_conf(cls, ori_conf_yml, iname):
@@ -265,14 +265,6 @@ def fin_transfer(_elect, _results_keys):
             set(transfer_input(_input)) if not bool(minus_regex.search(_input)) else 
             set(sorted(_results_keys)[int(_input):])))
     return transfer_input(_elect)
-
-
-domain_regex = re.compile("https?://(.*?)/")
-
-
-def correct_domain(spider_domain, url) -> str:
-    _domain = domain_regex.search(url).group(1)
-    return url.replace(_domain, spider_domain)
 
 
 cn_character = r'，。！？；：（）《》【】“”\‘\’、'

@@ -88,6 +88,7 @@ GUI:
     confDia_labelPreset: "Preset"
     confDia_labelClipDb: "ClipDB"
     confDia_labelClipNum: "ClipEntries"
+    confDia_labelConcurrNum: "ConcurrNum"
     confDia_svPathWarning: "set Save Path failed, read rule by right-button"
     confDia_descBtn: "Doc"
     confDia_updateBtn: "Update"

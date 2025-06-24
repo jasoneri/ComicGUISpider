@@ -118,8 +118,8 @@ class HitomiSpider(BaseComicSpider):
             yield from self.page_turn_(elected_results, int(self.input_state.pageTurn), meta)
 
     def page_turn_(self, elected_results, page, meta, **kw):
-        all_elected_res = [*elected_results, *meta.get("elect_res", [])]
-        meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), "elect_res": all_elected_res, "page": page}
+        all_elected_res = [*elected_results, *meta.get("selected", [])]
+        meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), "selected": all_elected_res, "page": page}
         resp = self.ut.cli.get(meta.get("nozomi"), 
                     headers={**HitomiUtils.headers, "Range": self.ut.get_range(page)})
         yield from self.parse(response=resp, meta=meta)
@@ -146,17 +146,17 @@ class HitomiSpider(BaseComicSpider):
             {json.dumps(ret.pop('meta')) for ret in rets}.pop()
         )
         frame_book_results = self.frame_book(rets, meta)
-        elect_res = meta.get("elect_res", [])
-        if elect_res:
-            elected_titles = list(map(lambda x: x[1], elect_res))
+        selected = meta.get("selected", [])
+        if selected:
+            elected_titles = list(map(lambda x: x[1], selected))
             self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
                                 f"{'<br>'.join(elected_titles)}", color='green'))
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        results = self.elect_res(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
+        results = self.select(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
         if self.input_state.pageTurn:
             yield from self.page_turn(results, meta)
         else:
-            for result in [*results, *meta.get("elect_res", [])]:
+            for result in [*results, *meta.get("selected", [])]:
                 meta = dict(zip(self.frame_book_format, result))
                 yield from self.parse_section(meta)
 

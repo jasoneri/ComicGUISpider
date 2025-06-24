@@ -14,7 +14,7 @@ from qfluentwidgets import (
 )
 from assets import res
 from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT
-from utils import conf, yaml, convert_punctuation as cp, ori_path, ConfCookie
+from utils import conf, yaml, convert_punctuation as cp, ori_path
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater, Proj
@@ -71,6 +71,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
         self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
         self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
+        self.concurr_numLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_labelConcurrNum))
         # 添加cookie类型选项
         support = list(COOKIES_PLACEHOLDER.keys())
         for cookie_type in support:
@@ -124,7 +125,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         for _ in ('addUuid', 'isDeduplicate'):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         # 3. SpinBox类配置
-        getattr(self, "clip_read_numEdit").setValue(int(getattr(conf, "clip_read_num")))
+        for _ in ('clip_read_num', 'concurr_num'):
+            getattr(self, f"{_}Edit").setValue(int(getattr(conf, _)))
         super(ConfDialog, self).show()
         # 4. SettingCard卡片类配置
         self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
@@ -172,7 +174,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "addUuid": getattr(self, "addUuid").isChecked(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "clip_db": getattr(self, "clip_dbEdit").text(),
-            "clip_read_num": getattr(self, "clip_read_numEdit").value()
+            "clip_read_num": getattr(self, "clip_read_numEdit").value(),
+            "concurr_num": getattr(self, "concurr_numEdit").value()
         }
         conf.update(**config)
 
