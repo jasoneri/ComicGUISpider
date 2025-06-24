@@ -24,7 +24,6 @@ NEWSPIDER_MODULE = 'ComicSpider.spiders'
 ROBOTSTXT_OBEY = False
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-#CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
@@ -53,8 +52,9 @@ ITEM_PIPELINES = {
 }
 
 IMAGES_STORE = '/'
-SV_PATH, log_path, PROXY_CUST, LOG_LEVEL, CUSTOM_MAP = conf.settings
+SV_PATH, log_path, PROXY_CUST, LOG_LEVEL, CUSTOM_MAP, CONCURR_NUM = conf.settings
 
+CONCURRENT_REQUESTS = int(CONCURR_NUM)
 UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/101.0",
       r'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
       ]

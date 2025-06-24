@@ -4,8 +4,8 @@ import re
 import typing as t
 from urllib.parse import urlencode, urlparse
 
-from utils import convert_punctuation, correct_domain, conf
-from utils.website import JmUtils
+from utils import convert_punctuation, conf
+from utils.website import JmUtils, correct_domain
 from utils.processed_class import PreviewHtml, Url, Selected
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 

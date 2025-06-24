@@ -14,13 +14,13 @@ from variables import *
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from utils import (
-    font_color, Queues, QueuesManager, PresetHtmlEl, correct_domain, temp_p, conf,
+    font_color, Queues, QueuesManager, PresetHtmlEl, temp_p, conf,
     fin_transfer
 )
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, Url, TasksObj
 )
-from utils.website import Uuid
+from utils.website import Uuid, correct_domain
 from utils.sql import SqlUtils
 
 
@@ -309,11 +309,12 @@ class BaseComicSpider(scrapy.Spider):
         spider.sql_handler = SqlUtils()
         return spider
 
+    def _remove_cache(self):
+        domain_cache = temp_p.joinpath(f"{self.name}_domain.txt")
+        if domain_cache.exists():
+            os.remove(domain_cache)
+
     def close(self, reason):
-        def _remove_cache():
-            domain_cache = temp_p.joinpath(f"{self.name}_domain.txt")
-            if domain_cache.exists():
-                os.remove(domain_cache)
         stats = self.crawler.stats
         resources_to_close = (('manager', lambda: delattr(self, 'manager')),)
         try:
@@ -332,7 +333,7 @@ class BaseComicSpider(scrapy.Spider):
             self._handle_finished_status(stats)
         elif "error" in reason:
             self._handle_error_status(reason)
-            _remove_cache()
+            self._remove_cache()
 
     def _handle_finished_status(self, stats):
         if 'init' in self.process_state.process:
@@ -347,6 +348,7 @@ class BaseComicSpider(scrapy.Spider):
             self.say(font_color(
                 f'<br>{self.res.finished_err % last_exception}<br>log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', 
             color='red', size=4))
+            self._remove_cache()
         else:
             self.say(font_color(f'{self.res.finished_empty}<br>', color='purple', size=6))
 
