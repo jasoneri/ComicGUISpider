@@ -8,8 +8,13 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import warnings
+from scrapy.exceptions import ScrapyDeprecationWarning
+
 from variables import SPECIAL_WEBSITES
 from utils import conf
+
+warnings.filterwarnings("ignore", message=".*deprecated start_requests.*", category=ScrapyDeprecationWarning)
 
 BOT_NAME = 'ComicSpider'
 
@@ -22,7 +27,6 @@ NEWSPIDER_MODULE = 'ComicSpider.spiders'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
-REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 
 # Configure a delay for requests for the same website (default: 0)
