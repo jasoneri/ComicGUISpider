@@ -43,7 +43,7 @@ class PreprocessManager(QObject):
                 self.gui.say("<br>✅ 拷贝预处理完成")
 
         def on_error(_):
-            self.gui.disable_start(True)
+            self.gui.disable_start()
             self.gui.say("<br>❌ 解密获取失败，点击 rV按钮 > statusTool > 更新拷贝")
 
         self.task_manager.execute_simple_task(
@@ -67,7 +67,7 @@ class PreprocessManager(QObject):
                 self.gui.say("<br>✅ 已设置有效域名")
 
         def on_error(_):
-            self.gui.disable_start(True)
+            self.gui.disable_start()
             self.gui.say("<br>❌ 域名获取/测试失效，点击 rV按钮 > domainTool, 按指示操作")
 
         self.task_manager.execute_simple_task(
@@ -115,7 +115,7 @@ class PreprocessManager(QObject):
             return True
 
         def on_error(_):
-            self.gui.disable_start(True)
+            self.gui.disable_start()
             CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
                     self.gui.spiderUtils.index, self.gui.spiderUtils.name)
 
