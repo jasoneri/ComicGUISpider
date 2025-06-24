@@ -11,7 +11,7 @@ from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
 
 from utils import conf
-from utils.website import JmUtils, set_author_ahead, MangabzUtils
+from utils.website import JmUtils, MangabzUtils, set_author_ahead
 from utils.processed_class import TaskObj
 from assets import res
 

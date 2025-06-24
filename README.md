@@ -52,21 +52,17 @@
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
-> jm 的章节下载 基于 v2.2.5-beta.2  
-
 #### 🎁 Features
 
-✅ ✨ jm 支持章节，仅在读剪贴板可用；去重机制对于章节同样生效  
-✅ ✨ 配置栏 eh_cookies 改为 cookies，选择框切换网站编辑/保存  
-✅ 工具视窗新增常驻 statusTool，与上面的的状态栏一致，隐藏某站状态，内有某种功能  
-🔳 hitomi  
-&emsp;🔳 ...
+✅ jm 支持章节，仅在读剪贴板可用；去重机制对于章节同样生效  
+✅ 新增配置项：`并发数`，慎改  
+✅ 配置栏 eh_cookies 改为 cookies，选择框切换网站编辑/保存  
 
 #### 🐞 Fix
 
-✅ ✨ 将耗时操作置于预处理后台线程，例如域名缓存/访问检测，优化体验  
-✅ ✨ 修复 macOS rvTool 的后台 部署/运行  
-✅ ✨ 预览标签/配置映射/读剪贴板异步 等优化  
+✅ 将耗时操作置于预处理后台线程，例如域名缓存/访问检测，优化体验  
+✅ 修复 macOS rvTool 的后台 部署/运行  
+✅ 预览badges/配置映射/读剪贴板异步/缓存 等优化  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
