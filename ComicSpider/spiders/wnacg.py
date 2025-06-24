@@ -2,7 +2,7 @@
 import re
 
 from .basecomicspider import BaseComicSpider2, font_color
-from utils.website import WnacgUtils
+from utils.website import WnacgUtils, correct_domain
 from utils.processed_class import PreviewHtml
 
 domain = "wnacg.com"
@@ -22,10 +22,13 @@ class WnacgSpider(BaseComicSpider2):
                 '汉化': f'https://{domain}/albums-index-cate-1.html', }
     turn_page_search = r"p=\d+"
     turn_page_info = (r"-page-\d+", "albums-index%s")
+    book_id_url = f'https://{domain}/photos-gallery-aid-%s.html'
+    transfer_url = staticmethod(lambda url: url.replace('index', 'gallery'))
 
-    def before_search(self):
-        if self.settings.get("PROXY_CUST") is None:  # 不设配置代理就永远走国内可访问域名，无视全局代理模式
-            self.domain = WnacgUtils.get_domain()
+    def preready(self):
+        if self.settings.get("PROXY_CUST") is None:
+            self.domain = self.ut.get_domain()
+            self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def frame_book(self, response):
         frame_results = {}
@@ -39,7 +42,7 @@ class WnacgSpider(BaseComicSpider2):
             title = item_elem.xpath('./@title').get()
             pre_url = item_elem.xpath('./@href').get()
             preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
-            url = preview_url.replace('index', 'gallery')  # 压缩步骤，此链直接返回该本全页uri
+            url = self.transfer_url(preview_url)
             img_preview = 'http:' + item_elem.xpath('./img/@src').get()
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None

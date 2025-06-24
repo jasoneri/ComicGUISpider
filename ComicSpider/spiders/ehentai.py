@@ -25,6 +25,7 @@ class EHentaiSpider(BaseComicSpider3):
     }
     frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)
+    book_id_url = f'https://{domain}/g/%s'
 
     @property
     def ua(self):

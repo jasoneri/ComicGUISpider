@@ -234,6 +234,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
             res.SPIDER.DOMAINS_INVALID % (cls.publish_url, order_href, ori_path.joinpath(f'__temp/{cls.name}_domain.txt'))
         )
 
+    book_id_url = "https://www.wnacg02.cc/photos-index-aid-%s.html"
     book_url_regex = r"^https://(www\.)?wn.*?/photos-index-aid-\d+\.html$"
 
     @staticmethod
