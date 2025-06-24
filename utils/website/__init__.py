@@ -20,6 +20,7 @@ from assets import res
 from variables import COOKIES_SUPPORT
 from utils import md5, ori_path, conf, temp_p, get_loop
 from utils.website.core import *
+from utils.website.chore import *
 from utils.website.hitomi import HitomiUtils
 
 
