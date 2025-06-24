@@ -17,7 +17,7 @@ from variables import SPIDERS
 
 @dataclass
 class Selected(State):
-    """替代[clip]JSON格式的结构化数据传输类
+    """仅替代[clip]JSON格式的结构化数据传输类，作为附带必要少量信息的input_state.indexes
     一个章节一个Selected！[Selected1-1,Selected1-2,Selected1-3]
     以往的无章节会归为[Selected2]
     """
@@ -43,6 +43,9 @@ class Selected(State):
 
 @dataclass
 class InputFieldState(State):
+    """
+    indexes: preference 'def select... param elect'
+    """
     keyword: str
     bookSelected: int
     indexes: t.Union[str, list, t.List[Selected]]
