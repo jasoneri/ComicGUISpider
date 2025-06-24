@@ -7,7 +7,6 @@ from copy import deepcopy
 from time import sleep
 from urllib.parse import urlparse
 
-import httpx
 import scrapy
 
 from variables import *
@@ -18,9 +17,10 @@ from utils import (
     fin_transfer
 )
 from utils.processed_class import (
-    TextBrowserState, ProcessState, QueueHandler, refresh_state, Url, TasksObj
+    TextBrowserState, ProcessState, QueueHandler, refresh_state, 
+    Url, TasksObj, Selected
 )
-from utils.website import Uuid, correct_domain
+from utils.website import Uuid, correct_domain, spider_utils_map
 from utils.sql import SqlUtils
 
 
@@ -92,6 +92,7 @@ class BaseComicSpider(scrapy.Spider):
     manager: QueuesManager = None
     Q: QueueHandler = None
     say: SayToGui = None
+    ut = None
     sql_handler: SqlUtils = None
     ua = {}
     total = 0
@@ -101,6 +102,8 @@ class BaseComicSpider(scrapy.Spider):
     num_of_row = 5
     search_url_head = NotImplementedError(res.search_url_head_NotImplementedError)
     domain = None  # REMARK(2024-08-16): 使用时用self.domain, 保留作出更改的余地
+    book_id_url = ""  # book链接中id用%s转换符的形态，此为preview_url
+    transfer_url = staticmethod(lambda _:_)  # 由preview_url转化为机器读的url
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
     mappings = {}  # mappings自定义关键字对应"固定"uri
@@ -108,18 +111,26 @@ class BaseComicSpider(scrapy.Spider):
     turn_page_search: str = None
     turn_page_info: tuple = None
 
+    def preready(self):
+        ...
+
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
         self.process_state.process = 'start_requests'
-        self.before_search()
-        if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
+        self.preready()
+        indexes = self.input_state.indexes
+        if isinstance(indexes, list) and all(isinstance(s, Selected) for s in indexes):
+            # clip分支，仅传t.List[Selected]
             self.process_state.process = 'parse'
             self.Q('ProcessQueue').send(self.process_state)
             self.refresh_state('input_state', 'InputFieldQueue')
-            tasks = json.loads(self.input_state.indexes[6:])
-            for title, book_url_path in tasks:
-                yield scrapy.Request(url=f"https://{self.domain}{book_url_path}",
-                                        callback=self.parse_section, meta={"title": title})
+            for i in indexes:
+                url = i.bid if i.bid.startswith("http") else self.book_id_url % i.bid
+                yield scrapy.Request(
+                    url=self.transfer_url(url), callback=self.parse_section,
+                    headers={**self.ua, 'Referer': self.domain},
+                    meta={'book_id': i.bid, 'title': i.title, 'episode_name': i.episode_name},
+                    dont_filter=True)
         else:
             search_start = self.search
             if self.domain not in search_start:
@@ -127,9 +138,6 @@ class BaseComicSpider(scrapy.Spider):
             self.search_start = deepcopy(search_start)
             meta = {"Url": self.search_start}
             yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
-
-    def before_search(self):
-        ...
 
     @property
     def search(self) -> Union[Url, tuple]:
@@ -307,6 +315,7 @@ class BaseComicSpider(scrapy.Spider):
 
         spider.say = SayToGui(spider, q, spider.text_browser_state)
         spider.sql_handler = SqlUtils()
+        spider.ut = spider_utils_map[spider.name]
         return spider
 
     def _remove_cache(self):
@@ -442,7 +451,7 @@ class FormReqBaseComicSpider(BaseComicSpider):
         self.refresh_state('input_state', 'InputFieldQueue')
         try:
             self.process_state.process = 'start_requests'
-            self.before_search()
+            self.preready()
             search_start = self.search
             if self.domain not in search_start:
                 search_start = correct_domain(self.domain, search_start)
