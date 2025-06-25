@@ -26,7 +26,7 @@ jobs:
           - crawler_name: "mangabz"
             params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
           - crawler_name: "hitomi"
-            params: "-w 6 -k artist/date/published/mimonel-japanese -i 1 -sp 50111"
+            params: "-w 6 -k artist/date/published/mimonel-japanese -i 15 -sp 50111"
 
     steps:
       - name: Checkout code

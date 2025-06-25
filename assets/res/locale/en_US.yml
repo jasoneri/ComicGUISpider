@@ -106,7 +106,7 @@ GUI:
     confDia_promote_content: "need VPN?"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_support_content: "Donations will use to buy domain etc.."
-    confDia_cookies_placeholder: "Refer to the animated guide in the configuration documentation for cookie acquisition methods\nMust include the following fields:\n %s"
+    confDia_cookies_placeholder: "Refer to the animated guide in the configuration documentation for cookie acquisition methods\nIncluding fields:\n"
 
 EHentai:
   COOKIES_NOT_SET: "`eh-cookies` must be set for exhentai access"
