@@ -2,7 +2,7 @@
 (() => {
   window.scanChecked = function () {
     var selectedValues = [];
-
+    // 2.2 clip的带章节checkbox
     if (window.selectedObjectsMap) {
       window.selectedObjectsMap.forEach((selectedObjects) => {
         selectedObjects.forEach(selected => {
@@ -13,8 +13,8 @@
         });
       });
     } else {
-      // 备用方案：直接扫描页面上的所有选中的checkbox
-      // 这适用于页面预填充内容或手动创建的checkbox
+      // 1.普通preview的checkbox  
+      // 2.clip的无章节checkbox
       const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
       checkedBoxes.forEach(checkbox => {
         if (checkbox.id) {
