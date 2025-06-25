@@ -66,15 +66,17 @@ class BrowserWindow(QMainWindow, Ui_browser):
             self.set_cookies("ehentai")
         elif index == 6:  # hitomi
             self.set_referer_nterceptor(self.gui.spiderUtils.index)
-        # from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
-        # settings = self.view.settings()
-        # settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
-        # settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
-        # settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
-        # self.dev_tools = QWebEngineView()
-        # self.dev_tools.setWindowTitle("DevTools")
-        # self.dev_tools.page().setInspectedPage(self.view.page())
-        # self.dev_tools.show()
+    
+    def _set_sev_tools(self):
+        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+        settings = self.view.settings()
+        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
+        settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        self.dev_tools = QWebEngineView()
+        self.dev_tools.setWindowTitle("DevTools")
+        self.dev_tools.page().setInspectedPage(self.view.page())
+        self.dev_tools.show()
 
     def setupUi(self, _window):
         super(BrowserWindow, self).setupUi(_window)
