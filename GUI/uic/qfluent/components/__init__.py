@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
@@ -12,7 +13,7 @@ from qfluentwidgets import (
 )
 from assets import res
 from .updater import UpdaterMessageBox
-
+from utils.redViewer_tools import BookShow
 
 class CustomSplashScreen(SplashScreen):
     def __init__(self, parent=None, enableShadow=True):
@@ -193,7 +194,7 @@ class TableFlyoutView(FlyoutViewBase):
         # 必须设置视图尺寸
         self.setFixedSize(self.width, self.height)
 
-    def set_table(self, data: dict):
+    def set_table(self, data: t.List[BookShow]):
         self.tableView = TableView(self)
         self.tableView.setBorderRadius(15)
         self.tableView.setWordWrap(False)
@@ -203,15 +204,17 @@ class TableFlyoutView(FlyoutViewBase):
         self.tableView.verticalHeader().hide()
         # 设置数据模型
         model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(["Name/漫画", "Latest Chapter/已阅最新章节"])
-        for book, chapter in data.items():
+        model.setHorizontalHeaderLabels(["漫画", "已阅最新章节", "已下载最新章节"])
+        for book in data:
             row = [
-                QStandardItem(book),
-                QStandardItem(chapter)
+                QStandardItem(book.name),
+                QStandardItem(book.show_max),
+                QStandardItem(book.dl_max)
             ]
             model.appendRow(row)
         self.tableView.setModel(model)
         self.tableView.horizontalHeader().setStretchLastSection(True)
         # 调整列宽
-        self.tableView.setColumnWidth(0, int(tb_width * 0.6))
-        self.tableView.setColumnWidth(1, int(tb_width * 0.25))
+        self.tableView.setColumnWidth(0, int(tb_width * 0.5))
+        self.tableView.setColumnWidth(1, int(tb_width * 0.2))
+        self.tableView.setColumnWidth(2, int(tb_width * 0.2))
