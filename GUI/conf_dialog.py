@@ -3,6 +3,7 @@
 import ast
 import json
 import pathlib
+import codecs
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
@@ -12,6 +13,8 @@ from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
     PushSettingCard, InfoBarPosition
 )
+import uncurl
+
 from assets import res
 from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT
 from utils import conf, yaml, convert_punctuation as cp, ori_path
@@ -132,30 +135,26 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
 
     def _on_cookie_type_changed(self, cookie_type):
-        """当cookie类型改变时，先保存当前内容，再切换显示新的cookie"""
-        self.format_cookie(conf.cookies.current_type)
-        # 切换到新的cookie类型
         conf.cookies.switch(cookie_type)
-        # 显示新的cookie内容
-        current_cookie_data = conf.cookies.show()
-        self.cookiesEdit.setText(self.transfer_to_gui(current_cookie_data))
-        self.cookiesEdit.setPlaceholderText(COOKIES_PLACEHOLDER.get(conf.cookies.current_type, ""))
+        self._update_cookie_display()
 
     def _load_cookie_config(self):
-        """加载cookie配置到界面"""
         current_type = conf.cookies.current_type
         self.cookiesBox.setCurrentText(current_type)
+        self._update_cookie_display()
 
-        # 显示当前选中的cookie
-        current_cookie_data = conf.cookies.show()
-        self.cookiesEdit.setText(self.transfer_to_gui(current_cookie_data))
-        self.cookiesEdit.setPlaceholderText(COOKIES_PLACEHOLDER.get(current_type, ""))
+    def _update_cookie_display(self):
+        self.cookiesEdit.setText(self.transfer_to_gui(conf.cookies.show(), is_cookies=True))
+        self.cookiesEdit.setPlaceholderText(COOKIES_PLACEHOLDER.get(conf.cookies.current_type, ""))
 
     @staticmethod
-    def transfer_to_gui(val) -> str:
+    def transfer_to_gui(val, is_cookies=False) -> str:
         if isinstance(val, list):
             return ",".join(val)
         elif isinstance(val, dict):
+            if is_cookies:
+                return "{\n" + \
+            "\n".join([f"""'{k}': {v if not isinstance(v, str) else f"'{v}'"},""" for k, v in val.items()]) + "\n}"
             return "\n".join([f"{k}: {v}" for k, v in val.items()]).replace("'", "")
             # return yaml.dump(val, allow_unicode=True)
         else:
@@ -163,7 +162,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def save_conf(self):
         sv_path = self.sv_path_card.contentLabel.text()
-        self.format_cookie(conf.cookies.current_type)
+        self.format_cookie()
 
         config = {
             "sv_path": sv_path,
@@ -179,26 +178,27 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         }
         conf.update(**config)
 
-    def format_cookie(self, cookies_type):
-        """格式化并保存当前cookiesEdit的内容到ConfCookie缓存"""
+    def format_cookie(self):
+        """格式化并保存当前cookiesEdit的内容到当前所选"""
         cookies_str = cp(getattr(self, "cookiesEdit").toPlainText()).replace("cookies = ", "")
-
         if cookies_str:
             try:
-                assert isinstance(ast.literal_eval(cookies_str), dict)
-                cookie_data = ast.literal_eval(cookies_str)
-            except (SyntaxError, ValueError, AssertionError):
-                try:
-                    assert isinstance(yaml.safe_load(cookies_str), dict)
-                    cookie_data = yaml.safe_load(cookies_str)
-                except (SyntaxError, ValueError, AssertionError):
-                    self.cookiesEdit.setText("")
-                    raise SyntaxError(res.GUI.cookies_copy_err)
+                if cookies_str.startswith("curl"):
+                    cookies_str = codecs.decode(cookies_str, 'unicode_escape')
+                    context = uncurl.parse_context(cookies_str)
+                    cookie_data = dict(context.cookies)
+                else:
+                    assert isinstance(ast.literal_eval(cookies_str), dict)
+                    cookie_data = ast.literal_eval(cookies_str)
+            except (SyntaxError, ValueError, AssertionError) as e:
+                self.cookiesEdit.setText("")
+                raise SyntaxError(res.GUI.cookies_copy_err)
         else:
             cookie_data = {}
 
         # 验证并精简cookie_data到required_fields
-        required_fields = COOKIES_SUPPORT.get(cookies_type, set())
+        current_type = conf.cookies.current_type
+        required_fields = COOKIES_SUPPORT.get(current_type, set())
         if required_fields and cookie_data:
             cookie_keys = set(cookie_data.keys())
             if not required_fields.issubset(cookie_keys):
@@ -207,7 +207,4 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             # 精简cookie_data，只保留required_fields中的字段
             cookie_data = {key: cookie_data[key] for key in required_fields}
 
-        original_type = conf.cookies.current_type
-        conf.cookies.switch(cookies_type)
         conf.cookies.update_current(cookie_data)
-        conf.cookies.switch(original_type)
