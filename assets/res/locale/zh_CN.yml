@@ -48,6 +48,8 @@ GUI:
     rv_deployBtn: "选择目录并部署"
     rv_deployDesc: "看起来你需要部署rV<br>1. 需选择与 CGS 和存储目录无关的非中文空目录<br>2. 根据控制台进行操作，部署后重新选择脚本"
     rv_deployWinRequire: "<br>3. win补充：控制面板 > 时钟与区域 > 区域 > 更改系统区域设置 > 勾选beta版 unicode UTF-8 > 重启"
+    rv_deploy_desc: "rV 部署说明"
+    rv_deploy_desc_content: "点击选择脚本，然后取消或关闭选择窗口，会更新出部署的详细说明步骤"
     rv_book_marked: "记录"
     rv_merge_move: "整合转移"
     rv_combined_tip: "已将%s整合章节并转换至[%s]"
