@@ -172,15 +172,7 @@ class rvTool(QWidget):
         self.sv_path_card.setContent("")
 
     def show_max(self):
-        record_txt = conf.sv_path.joinpath("web_handle/record.txt")
-        if record_txt.exists():
-            CustomFlyout.make(TableFlyoutView(show_max(record_txt), self), self.sv_path_card, self)
-        else:
-            InfoBar.warning(
-                title='show_max', content=ori_res.GUI.Tools.rv_book_marked_warning % str(record_txt),
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-                duration=5000, parent=self
-            )
+        CustomFlyout.make(TableFlyoutView(show_max(), self), self.sv_path_card, self)
 
     def combine_then_mv(self):
         done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
