@@ -167,7 +167,7 @@ class IndeterminateBarFView(FlyoutViewBase):
 class TableFlyoutView(FlyoutViewBase):
     closed = pyqtSignal()
 
-    def __init__(self, data: dict, parent=None):
+    def __init__(self, data, parent=None):
         super().__init__(parent)
         p_width = parent.width()
         p_height = parent.height()
