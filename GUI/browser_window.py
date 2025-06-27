@@ -67,7 +67,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         elif index == 6:  # hitomi
             self.set_referer_nterceptor(self.gui.spiderUtils.index)
     
-    def _set_sev_tools(self):
+    def _set_dev_tools(self):
         from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
         settings = self.view.settings()
         settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)

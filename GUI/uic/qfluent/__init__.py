@@ -1,7 +1,7 @@
 import types
-from PyQt5.QtWebEngineWidgets import QWebEngineContextMenuData, QWebEngineSettings, QWebEnginePage
+from PyQt5.QtWidgets import QWidget, QHBoxLayout
 from qfluentwidgets import (
-    Action, RoundMenu, FluentIcon
+    Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType
 )
 from assets import res as ori_res
 
@@ -15,6 +15,59 @@ __all__ = [
 res = ori_res.GUI.Uic
 
 
+class NumberKeypadWidget(QWidget):
+    def __init__(self, line_edit, parent=None):
+        super().__init__(parent)
+        self.line_edit = line_edit
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(2, 0, 2, 0)
+        layout.setSpacing(2)
+
+        _size = (32, 32)
+        for i in range(10):
+            btn = PushButton(str(i))
+            btn.setFixedSize(*_size)
+            btn.clicked.connect(lambda _, num=str(i): self.append_to_input(num))
+            layout.addWidget(btn)
+
+        layout.addSpacing(8)
+        for i in ("+", "-"):
+            btn = PushButton(i)
+            btn.setFixedSize(*_size)
+            btn.clicked.connect(lambda _, num=i: self.append_to_input(num))
+            layout.addWidget(btn)
+
+        layout.addSpacing(8)
+        close_btn = PushButton("×")
+        close_btn.setFixedSize(*_size)
+        close_btn.clicked.connect(self.close_keypad)
+        layout.addWidget(close_btn)
+
+    def append_to_input(self, text):
+        self.line_edit.insert(text)
+
+    def close_keypad(self):
+        parent = self.parent()
+        while parent:
+            if hasattr(parent, 'close') and 'Flyout' in parent.__class__.__name__:
+                parent.close()
+                break
+            parent = parent.parent()
+
+
+def show_number_keypad(line_edit, target_widget):
+    keypad_widget = NumberKeypadWidget(line_edit)
+    Flyout.make(
+        view=keypad_widget,
+        target=target_widget,
+        parent=target_widget.window(),
+        aniType=FlyoutAnimationType.DROP_DOWN
+    )
+
+
 class MonkeyPatch:
     @staticmethod
     def rbutton_menu_lineEdit(line_edit):
@@ -23,18 +76,26 @@ class MonkeyPatch:
                 if not self.text().strip():
                     self.setText(" ")
                 self._showCompleterMenu()
+
+            def _showNumberKeypad():
+                show_number_keypad(self, self)
+
             menu = RoundMenu(parent=self)
             undo_action = Action(FluentIcon.CANCEL, text=self.tr("Cancel"), triggered=self.undo)
             paste_action = Action(FluentIcon.PASTE, text=self.tr("Paste"), triggered=self.paste)
             select_all_action = Action(self.tr("Select all"), triggered=self.selectAll)
-            show_completer = Action(FluentIcon.ALIGNMENT, text=self.tr(res.menu_show_completer), 
+            show_completer = Action(FluentIcon.ALIGNMENT, text=self.tr(res.menu_show_completer),
                                     triggered=_showCompleterMenu)
             menu.addAction(show_completer)
+            if hasattr(self, 'objectName') and self.objectName() == 'chooseinput':
+                number_keypad_action = Action(
+                    FluentIcon.EDIT, text="点击输入", triggered=_showNumberKeypad)
+                menu.addAction(number_keypad_action)
             menu.addSeparator()
             menu.addAction(paste_action)
             menu.addAction(undo_action)
             menu.addAction(select_all_action)
-            
+
             menu.exec_(event.globalPos())
             event.accept()
         line_edit.contextMenuEvent = types.MethodType(new_context_menu, line_edit)
@@ -92,4 +153,3 @@ class MonkeyPatch:
 
         web_view = browserWindow.view
         web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
-
