@@ -16,6 +16,8 @@ class MitmMainWindow(Ui_MainWindow):
         _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.2.5"))
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
+        self.searchinput.setClearButtonEnabled(1)
+        self.chooseinput.setClearButtonEnabled(1)
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(0, _translate("MainWindow", res.chooseBoxDefault))
         self.chooseBox.addItem("")
