@@ -26,7 +26,8 @@ GUI:
   copymaga_page_status_tip: "Page offset: Each page contains 30 items. For page 3, enter 60 (outputs 60-89), etc."
   global_err_hook: "Last operation caused GUI exception - check GUI logs for details"
   input_format_err: "Input format error - hover over field for rules"
-  reboot_tip: "CGS rebooting - reconstructing UI and instances"
+  reboot_tip: "♻️ rebooting: cleaning background processes..."
+  reboot_tip2: "⛺️ rebooting: reconstructing UI and instances.."
   SearchInputStatusTip:
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer

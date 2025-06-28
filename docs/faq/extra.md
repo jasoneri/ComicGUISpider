@@ -35,3 +35,4 @@ python -c "from pathlib import Path;from PyQt5.QtCore import QStandardPaths;prin
 
 - `conf.yml`: 配置文件  
 - `reccord.db`: 去重记录  
+- `cookies.pkl`: cookies序列化文件  

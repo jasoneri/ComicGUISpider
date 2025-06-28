@@ -2,7 +2,7 @@ Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
   hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
 GUI:
-  DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`查看说明`，内有配置详情/GUI视频使用指南等"
+  DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`使用手册`，内有配置详情/GUI视频使用指南等"
   DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
   DESC_ELSE: "若有其他问题/功能建议等到群反映/提issue"
   
@@ -26,7 +26,8 @@ GUI:
   copymaga_page_status_tip: "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
   global_err_hook: "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
   input_format_err: "输入格式错误，请鼠标移到输入框查看规则提示"
-  reboot_tip: "CGS内置重启中，将会花一小会重建界面与实例"
+  reboot_tip: "♻️ 内置重启中: 正在清除残留后台进程.."
+  reboot_tip2: "⛺️ 内置重启中: 正在重建ui与后台通讯管道.."
   SearchInputStatusTip:
     manga_copy: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"'
     jm: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：时间维度可选 日/周/月/总，例如"收藏总"（3）翻页规则："&page=\d+"'
@@ -50,7 +51,7 @@ GUI:
     rv_deployWinRequire: "<br>3. win补充：控制面板 > 时钟与区域 > 区域 > 更改系统区域设置 > 勾选beta版 unicode UTF-8 > 重启"
     rv_deploy_desc: "rV 部署说明"
     rv_deploy_desc_content: "点击选择脚本，然后取消或关闭选择窗口，会更新出部署的详细说明步骤"
-    rv_book_marked: "记录"
+    rv_book_marked: "显示记录"
     rv_merge_move: "整合转移"
     rv_combined_tip: "已将%s整合章节并转换至[%s]"
     rv_set_script_err: "设置rV脚本无效，点右侧先查阅rV一键部署方法"
@@ -99,7 +100,7 @@ GUI:
     confDia_labelConcurrNum: "并发数"
     confDia_cookies_placeholder: "cookies获取方式参考配置说明页此栏目的动图\n需要包含以下字段：\n"
     confDia_svPathWarning: "设置存储路径失败，点击右侧查阅规则"
-    confDia_descBtn: "查看说明"
+    confDia_descBtn: "使用手册"
     confDia_updateBtn: "检查更新"
     confDia_updateDialog_stable: "检测到最新稳定版"
     confDia_updateDialog_dev: "检测到最新开发版"
@@ -119,7 +120,7 @@ EHentai:
 
 SPIDER:
   SayToGui:
-    exp_txt: "请于【 输入序号 】框输入要选的序号  "
+    exp_txt: "请于【 输入序号 】框输入或框里右键菜单用点击输入要选的序号  "
     exp_turn_page: "搜索输入框右侧为`翻页按钮组`，分别是 上一页/下一页/输入页数跳转"
     exp_preview: "进预览页面能直接点击封面进行多选，预览页面右上确认选择(确认选择能额外与【输入序号】框的序号相叠加)"
     exp_replace_keyword: "请于【"

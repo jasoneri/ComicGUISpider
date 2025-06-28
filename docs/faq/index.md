@@ -9,13 +9,17 @@
 
 ## 2. 爬虫
 
+### jm的章节下载
+
+仅能在 [📋读剪贴板](/feat/clip.md) 流程中使用，点进去看相关教程
+
 ### 拷贝漫画部分无法出列表
 
-拷贝有些漫画卷和话是分开的，api结构转换的当前是有结果的，但没做解析，如需前往群里反馈
+拷贝有些漫画卷和话是分开的，api结构转换的当前是有结果的，但没解析，如需前往群里反馈
 
 ### 拷贝/Māngabz多选书情况
 
-多选书时，在章节序号输入时可以直接点击`开始爬取`跳过当前书的章节选择，只要出进度条即可
+多选书时，在章节序号输入时可直接点击`开始爬取`跳过当前书的章节选择，只要出进度条即可
 
 ## 3. 其他
 
@@ -46,10 +50,9 @@ bash /Applications/CGS.app/Contents/Resources/scripts/deploy/launcher/mac/init.b
 
 更新的报错日志已整合进 log/GUI.log 文件里，建议提 issue 并附上 log，帮助 CGS 进行优化  
 
-1. 回退到上一个正常版本: 找到对应版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
-删除 `scripts/deploy/version.json`，恢复正常使用
+1. 若 CGS 还能打开，删除 `scripts/deploy/version.json`，重新用内置更新
 
-2. 安全使用最新版本: 将最新版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
+2. 不能打开时: 将最新版本的 `Source code (zip)` 源码包，解压后将全部源码覆盖到 scripts 目录下  
 
 2.1 按上面 ModuleNotFoundError 的方法安装依赖
 

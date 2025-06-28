@@ -3,6 +3,7 @@
 from PyQt5 import QtCore
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
+from GUI.uic.qfluent.components import TextBrowserWithBg
 from assets import res as ori_res
 
 
@@ -18,6 +19,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.clipBtn.setDisabled(1)
         self.searchinput.setClearButtonEnabled(1)
         self.chooseinput.setClearButtonEnabled(1)
+        self._repaint_textBrowser()
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(0, _translate("MainWindow", res.chooseBoxDefault))
         self.chooseBox.addItem("")
@@ -41,3 +43,12 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.setToolTip(_translate("MainWindow", res.chooseBoxToolTip))
         self.previewBtn.setStatusTip(_translate("MainWindow", res.previewBtnStatusTip))
         self.progressBar.setStatusTip(_translate("MainWindow", res.progressBarStatusTip))
+
+    def _repaint_textBrowser(self):
+        if getattr(self, 'textBrowser', None):
+            self.textBrowser.setParent(None)
+            self.textBrowser.deleteLater()
+        self.textBrowser = TextBrowserWithBg(self.centralwidget)
+        self.textBrowser.setMinimumSize(QtCore.QSize(200, 350))
+        self.textBrowser.setObjectName("textBrowser")
+        self.funcLayout.insertWidget(0, self.textBrowser)
