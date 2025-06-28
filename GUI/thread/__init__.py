@@ -1,7 +1,9 @@
 import traceback
 import asyncio
+from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils import font_color, conf, get_loop
+from utils import font_color, conf, get_loop, QueuesManager
+from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
 
@@ -74,6 +76,29 @@ class ClipTasksThread(QThread):
         else:
             self.msleep(1200 if len(self.total) == 1 else 350)
             self.check_condition_and_run_js()
+
+
+class QueueInitThread(QThread):
+    init_completed = pyqtSignal(object, object, int)
+
+    def __init__(self, gui):
+        super().__init__(gui)
+        self.gui = gui
+
+    def run(self):
+        guiQueuesManger = GuiQueuesManger()
+        queue_port = guiQueuesManger.find_free_port()
+        p_qm = Process(target=guiQueuesManger.create_server_manager)
+        p_qm.start()
+        manager = QueuesManager.create_manager(
+            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
+            address=('127.0.0.1', queue_port), authkey=b'abracadabra'
+        )
+        manager.connect()
+        Q = QueueHandler(manager)
+        self.gui.p_qm = p_qm
+        self.gui.guiQueuesManger = guiQueuesManger
+        self.init_completed.emit(manager, Q, queue_port)
 
 
 class WorkThread(QThread):

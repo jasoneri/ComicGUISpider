@@ -14,8 +14,8 @@ from GUI.uic.qfluent import (
 from GUI.mainwindow import MitmMainWindow
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
-from GUI.thread import WorkThread
-from GUI.tools import ToolWindow
+from GUI.thread import WorkThread, QueueInitThread
+from GUI.tools import ToolWindow, TextUtils
 from GUI.manager import TaskProgressManager, ClipGUIManager, PreprocessManager
 
 from variables import *
@@ -78,23 +78,33 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             QTimer.singleShot(10, self.setupUi_)
             self.first_init = False
         else:
+            self.say(font_color(f"<br>{self.res.reboot_tip2}", color='purple', size=4))
+            self.chooseBox.setDisabled(True)
+            if getattr(self, 'bg_f', None):
+                self.textBrowser.set_fixed_image(self.bg_f)
             self.setupUi_()
-    
+
     def setupUi_(self):
-        self.init_queue()
+        """启动队列初始化线程"""
+        self.queue_init_thread = QueueInitThread(self)
+        self.queue_init_thread.init_completed.connect(self.on_queue_init_completed)
+        self.queue_init_thread.start()
+
+    def on_queue_init_completed(self, manager, Q, queue_port):
+        self.manager = manager
+        self.Q = Q
+        self.queue_port = queue_port
+        self.textBrowser.clear()
+        self.chooseBox.setEnabled(True)
+        self.finish_setup()
+
+    def finish_setup(self):
         self.conf_dia = ConfDialog(self)
         self.textBrowser.setOpenExternalLinks(True)
-        self.textBrowser.append(TextUtils.description)
+        self.textBrowser.append(TextUtils.description())
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
-        # 初始化通信管道相关
         self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='', pageTurn='')
-        self.manager = QueuesManager.create_manager(
-            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
-            address=('127.0.0.1', self.queue_port), authkey=b'abracadabra'
-        )
-        self.manager.connect()
-        self.Q = QueueHandler(self.manager)
         # 按钮组
         self.clip_mgr = ClipGUIManager(self)
         self.nextclickCnt = 0
@@ -136,12 +146,18 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preprocess_mgr.handle_choosebox_changed(index)
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
 
+        self.setup_chooseinput_number_keypad()
+
         self.first_tmp_sv_flag = True
         self.task_mgr = TaskProgressManager(self)
         self.preprocess_mgr = PreprocessManager(self)
 
         if hasattr(self, 'splashScreen'):
             self.splashScreen.finish()
+
+    def setup_chooseinput_number_keypad(self):
+        if not hasattr(self.chooseinput, 'objectName') or not self.chooseinput.objectName():
+            self.chooseinput.setObjectName('chooseinput')
 
     def chooseBox_changed_tips(self, index):
         self.spiderUtils = spider_utils_map[index]
@@ -298,13 +314,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.clean_temp_file()
             self.BrowserWindow.destroy()
 
-
     def clean_temp_file(self):
         """when: 1. preview BrowserWindow destroy; 2. pageTurn btn group clicked"""
         if self.tf and p.Path(self.tf).exists():
             os.remove(self.tf)
 
-    def retry_schedule(self):  # 烂逻辑
+    def retry_schedule(self):
         if getattr(self, 'p_crawler', None):
             try:
                 refresh_state(self, 'process_state', 'ProcessQueue')
@@ -321,13 +336,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow = None
             self.guiQueuesManger = None
             self.Q = None
-            # self.setupUi(self)
             QTimer.singleShot(10, lambda : self.setupUi(self))
 
-        self.say(font_color(f"<br>(・∀・(・∀・(・∀・(・∀・*)(・∀・(・∀・(・∀・*) <br>{self.res.reboot_tip}", color='purple', size=4))
+        self.say(font_color(f"{self.res.reboot_tip}", color='purple', size=4))
         QTimer.singleShot(50, retry_all)
         self.retrybtn.setDisabled(True)
-        self.confBtn.setDisabled(False)
         self.log.info('===--→ retry_schedule end\n')
 
     def disable_start(self):
@@ -486,7 +499,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.tmp_sv_local()
 
     def enterEvent(self, QEvent):
-        self.textBrowser.setStyleSheet('background-color: white;')
+        self.textBrowser.setStyleSheet('background-color: transparent;')
 
     def leaveEvent(self, QEvent):
         self.textBrowser.setStyleSheet('background-color: pink;')
@@ -520,18 +533,3 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.error(exception)
         self.say(font_color(rf"{type(exc_value)}{exc_value}", color='red', size=4), ignore_http=True)
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", color='red', size=5))
-
-
-class TextUtils:
-    description = r"""<style>* {margin: 1px;padding: 1px;}</style><div>
-    <div style="text-align: center;align-items: center;height: 75px">
-        <img alt="描述" src="%s" height="128"><span style="font-weight: bold;font-size: 40px">CGS</span>
-    </div>
-    <div style="color: blue">
-        <p>%s</p>
-        <p>%s<span style="color: white"> %s</span></p>
-        <hr><p></p>
-    </div>
-</div>""" % (rf'file:///{ori_path.joinpath("docs/public/CGS-girl.png")}',
-             res.GUI.DESC1 % rf'file:///{ori_path.joinpath("assets/config_icon.png")}', 
-             res.GUI.DESC2, res.GUI.DESC_ELSE)

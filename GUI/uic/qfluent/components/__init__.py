@@ -1,27 +1,21 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, TeachingTipTailPosition, SplashScreen, ImageLabel
+    TeachingTip, TeachingTipTailPosition, ImageLabel
 )
 from assets import res
 from .updater import UpdaterMessageBox
-
-
-class CustomSplashScreen(SplashScreen):
-    def __init__(self, parent=None, enableShadow=True):
-        super(CustomSplashScreen, self).__init__(QIcon(":/guide.png"), parent, enableShadow)
-        self.titleBar.minBtn.hide()
-        self.titleBar.maxBtn.hide()
-        self.titleBar.closeBtn.hide()
-        height = int(parent.height() * 0.7)
-        self.setIconSize(QSize(height, height))
+from .splash_screen import *
+from .text_browser import *
+from utils.redViewer_tools import BookShow
 
 
 class CustomInfoBar:
@@ -105,7 +99,6 @@ class SupportView(FlyoutViewBase):
         self.width = int(conf_dia.width() * 0.8)
         self.layout = VBoxLayout(self)
         self.titleLayout = QtWidgets.QHBoxLayout()
-        # self.titleLayout.setContentsMargins(8, 0, 8, 0)
         self.githubBtn = HyperlinkButton(FluentIcon.GITHUB, proj_url, "Github")
         self.qqGroupBtn = HyperlinkButton(CustomIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
         self.discordBtn = HyperlinkButton(CustomIcon.DISCORD, "https://discord.gg/XAnraEru", "Discord")
@@ -166,7 +159,7 @@ class IndeterminateBarFView(FlyoutViewBase):
 class TableFlyoutView(FlyoutViewBase):
     closed = pyqtSignal()
 
-    def __init__(self, data: dict, parent=None):
+    def __init__(self, data, parent=None):
         super().__init__(parent)
         p_width = parent.width()
         p_height = parent.height()
@@ -193,7 +186,7 @@ class TableFlyoutView(FlyoutViewBase):
         # 必须设置视图尺寸
         self.setFixedSize(self.width, self.height)
 
-    def set_table(self, data: dict):
+    def set_table(self, data: t.List[BookShow]):
         self.tableView = TableView(self)
         self.tableView.setBorderRadius(15)
         self.tableView.setWordWrap(False)
@@ -203,15 +196,17 @@ class TableFlyoutView(FlyoutViewBase):
         self.tableView.verticalHeader().hide()
         # 设置数据模型
         model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(["Name/漫画", "Latest Chapter/已阅最新章节"])
-        for book, chapter in data.items():
+        model.setHorizontalHeaderLabels(["漫画", "已阅最新章节", "已下载最新章节"])
+        for book in data:
             row = [
-                QStandardItem(book),
-                QStandardItem(chapter)
+                QStandardItem(book.name),
+                QStandardItem(book.show_max),
+                QStandardItem(book.dl_max)
             ]
             model.appendRow(row)
         self.tableView.setModel(model)
         self.tableView.horizontalHeader().setStretchLastSection(True)
         # 调整列宽
-        self.tableView.setColumnWidth(0, int(tb_width * 0.6))
-        self.tableView.setColumnWidth(1, int(tb_width * 0.25))
+        self.tableView.setColumnWidth(0, int(tb_width * 0.5))
+        self.tableView.setColumnWidth(1, int(tb_width * 0.2))
+        self.tableView.setColumnWidth(2, int(tb_width * 0.2))

@@ -88,10 +88,6 @@ export default defineConfig({
                     {
                         text: "🔨主配置",
                         link: "/config",
-                    },
-                    {
-                        text: "其他配置",
-                        link: "/config/other",
                     }
                 ]
             },
@@ -101,6 +97,10 @@ export default defineConfig({
                     {
                         text: "🎸主功能",
                         link: "/feat/",
+                    },
+                    {
+                        text: "📋读剪贴板",
+                        link: "/feat/clip",
                     },
                     {
                         text: "🚧其他脚本集",

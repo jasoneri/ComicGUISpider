@@ -5,6 +5,7 @@ import ast
 import time
 import html
 import shutil
+import pickle
 import hashlib
 import asyncio
 import pathlib as p
@@ -51,10 +52,12 @@ def toAppConfigLocation(ori_file: p.Path, iname=None):
 class ConfCookie:
     """Cookie配置管理类，承担所有cookie的缓存、管理、展示和保存"""
     support_key = list(COOKIES_SUPPORT.keys())
-    
+    pickle_file = conf_dir.joinpath("cookies.pkl")
+
     def __init__(self, cookies_data=None):
         self.cache = cookies_data or self.empty_cache()  # 所有cookie类型的缓存
         self.current_type = self.support_key[0]
+        self.load_from_pickle()
 
     def empty_cache(self):
         return {cookie_type: {} for cookie_type in self.support_key}
@@ -71,11 +74,22 @@ class ConfCookie:
         return self.cache.get(self.current_type, {})
 
     def update_current(self, cookie_data):
-        """更新当前选中的cookie配置"""
         if isinstance(cookie_data, dict):
             self.cache[self.current_type] = cookie_data
         else:
             self.cache[self.current_type] = {}
+        self.save_to_pickle()
+
+    def save_to_pickle(self):
+        with open(self.pickle_file, 'wb') as f:
+            pickle.dump(self.cache, f)
+
+    def load_from_pickle(self):
+        if self.pickle_file.exists():
+            with open(self.pickle_file, 'rb') as f:
+                self.cache = pickle.load(f)
+            return True
+        return False
 
     def get(self, name):
         return self.cache.get(name, {})
@@ -95,7 +109,7 @@ class Conf:
     isDeduplicate: bool = False
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
-    cookies: ConfCookie = field(default_factory=ConfCookie)  # ConfCookie实例
+    cookies = None
     clip_db: t.Union[p.Path, str] = curr_os.default_clip_db
     rv_script: t.Union[p.Path, str] = ''
     clip_read_num: str = '20'
@@ -125,18 +139,9 @@ class Conf:
             self.clip_db = p.Path(self.clip_db)
             self.rv_script = p.Path(self.rv_script)
             self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
-            # 初始化ConfCookie，从yml_config["cookies"]获取数据
-            self.cookies = ConfCookie(yml_config.get("cookies", {}))
-            self.transition_eh_cookies(yml_config.get("eh_cookies", {}))
+            self.cookies = ConfCookie()
         except FileNotFoundError:
             pass
-
-    def transition_eh_cookies(self, eh_cookies):
-        """将eh_cookies的配置迁移到ConfCookie中"""
-        if eh_cookies and getattr(self, "eh_cookies"):
-            setattr(self, "eh_cookies", None)
-        if not self.cookies.cache.get("ehentai"):
-            self.cookies.cache.update({"ehentai": eh_cookies})
 
     def update(self, **kwargs):
         def path_like_handle(_p):
@@ -147,9 +152,6 @@ class Conf:
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['clip_db'] = path_like_handle(props['clip_db'])
         props['rv_script'] = path_like_handle(props['rv_script'])
-        # 使用ConfCookie.save()来处理cookies配置的序列化
-        cookies_dict = self.cookies.save()
-        props.update(cookies_dict)
         self.chain_rv()
         yaml_update(self.file, props)
 
@@ -275,6 +277,9 @@ character_table = str.maketrans(cn_character, en_character)
 def convert_punctuation(text):
     return text.translate(character_table)
 
+
+def clean_escape_chars(text):
+    return text.replace('\\\\', '\\').replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
 
 class State:
     """gui与后端需要共用的一个状态变量时，使用此类；

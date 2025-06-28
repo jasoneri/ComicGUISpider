@@ -28,8 +28,6 @@
 ### 并发数 / `concurr_num`
 
 影响后台下载速度  
-:::warning 问别改🙉，改别问🙊  
-:::
 
 ### 去重 / `isDeduplicate`
 
@@ -67,13 +65,12 @@
 
 目前选择编辑支持 `ehentai`, `jm`
 
-- `ehentai`: 使用 exhentai 时必需设值，[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif)  
-- `jm`:  
+[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif) | [🔗动图中的curl转换网站](https://tool.lu/curl/)  
+任意网站同理，登录状态下开 F12 控制台然后点首页用 html 类型请求复制 curl (POSIX)  
+`v2.2.6-beta` 之后版本支持直接将 curl 文本粘贴到编辑框内，程序已内置转换处理  
 
-[🔗动图中的curl转换网站](https://tool.lu/curl/)
-
-:::warning 对大量/过量下载的声明：
-一旦设值，对应网站的所有请求都会附带上cookies，由服务器对账号实施处理的后果自行负责  
+:::warning 使用 exhentai 时必需设值
+设值后，大量下载导致被服务器对账号实施处理的后果自行负责  
 :::
 
 ### 剪贴板db / `clip_db`
