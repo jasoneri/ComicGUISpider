@@ -62,8 +62,10 @@
 ✅ 修复 macOS rvTool 的后台 部署/运行  
 ✅ 预览badges/配置映射/读剪贴板异步/缓存 等优化  
 
+⚠️ v2.2.6-beta.2 修复去重勾选下预览窗口翻页后仍停滞显示第一页的异常
+
 <details>
-<summary> <code>v2.2.6-beta</code> 开发版特性👈看就点</summary>
+<summary> <code>v2.2.6-beta.2</code> 开发版特性👈看就点</summary>
 
 #### 🎁 Features
 

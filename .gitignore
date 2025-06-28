@@ -179,8 +179,8 @@ __temp
 test/*
 .lh/
 assets/res/*.png
-custom/*.png
-custom/*.gif
+custom/bg/*
+custom/start/*
 # self/build
 *.ico
 *.qrc
