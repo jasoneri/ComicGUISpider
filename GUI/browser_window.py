@@ -32,7 +32,7 @@ class RefererInterceptor(QWebEngineUrlRequestInterceptor):
 
 
 class BrowserWindow(QMainWindow, Ui_browser):
-    def __init__(self, gui, tf, proxies: str = None):
+    def __init__(self, gui, proxies: str = None):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
@@ -40,11 +40,10 @@ class BrowserWindow(QMainWindow, Ui_browser):
         if proxies:
             self.set_proxies(proxies)
         self.gui = gui
-        self.tf = tf
         self.view = FramelessWebEngineView(self)
         self.profile = self.view.page().profile()
         self.profile.setUrlRequestInterceptor(self.interceptor)
-        self.home_url = QUrl.fromLocalFile(self.tf)
+        self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.set_env_mode()
         self.load_home()
         self.output = []
@@ -131,10 +130,9 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
 
-    def second_init(self, tf):
+    def second_init(self):
         """翻页时，页面变更tf文件，需要刷新"""
-        self.tf = tf
-        self.home_url = QUrl.fromLocalFile(self.tf)
+        self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.load_home()
 
     def keep_top_hint(self):
@@ -209,7 +207,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
     def tmp_sv_local(self):
         def refresh_tf(html):
             if html:
-                with open(self.tf, 'w', encoding='utf-8') as f:
+                with open(self.gui.tf, 'w', encoding='utf-8') as f:
                     f.write(html)
 
         self.js_execute("get_curr_hml();", refresh_tf)

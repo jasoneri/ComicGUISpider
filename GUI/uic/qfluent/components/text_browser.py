@@ -21,8 +21,9 @@ class TextBrowserWithBg(TextBrowser):
         self.image_label = ImageLabel(self)
         self.image_label.setImage(image_path)
         if not height:
-            height = int(self.height()*0.6)
-        self.image_label.setFixedSize(int(1.5*height), height)
+            height = int(self.height()*1.0)
+        pixmap = self.image_label.pixmap()
+        self.image_label.setFixedSize(int(height * (pixmap.width() / pixmap.height())), height)
         self.image_label.setScaledContents(True)
 
         self.image_margin = margin
