@@ -152,6 +152,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         if isinstance(val, list):
             return ",".join(val)
         elif isinstance(val, dict):
+            if not val:
+                return ""
             if is_cookies:
                 return "{\n" + \
             "\n".join([f"""'{k}': {v if not isinstance(v, str) else f"'{v}'"},""" for k, v in val.items()]) + "\n}"
