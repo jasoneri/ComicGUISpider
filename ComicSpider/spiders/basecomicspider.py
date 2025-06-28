@@ -231,7 +231,7 @@ class BaseComicSpider(scrapy.Spider):
         for section, section_url in results:
             url_list = self.mk_page_tasks(url=section_url)
             now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % title
-            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}<br>", color='blue', size=5))
+            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}", color='blue', size=5))
             this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
             meta = {
                 'title': title, 'section': section, 'uuid_md5': this_md5, 'uuid': this_uuid,
@@ -351,7 +351,7 @@ class BaseComicSpider(scrapy.Spider):
         downloaded_count = stats.get_value('image/downloaded', 0)
         exception_count = stats.get_value('process_exception/count', 0)
         if self.total != 0 and downloaded_count > 0:
-            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}<br>', color='green', size=6))
+            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}', color='green', size=6))
         elif not downloaded_count and exception_count > 0:
             last_exception = stats.get_value("process_exception/last_exception", "")
             self.say(font_color(

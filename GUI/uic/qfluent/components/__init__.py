@@ -3,26 +3,19 @@
 import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, TeachingTipTailPosition, SplashScreen, ImageLabel
+    TeachingTip, TeachingTipTailPosition, ImageLabel
 )
 from assets import res
 from .updater import UpdaterMessageBox
+from .splash_screen import *
+from .text_browser import *
 from utils.redViewer_tools import BookShow
-
-class CustomSplashScreen(SplashScreen):
-    def __init__(self, parent=None, enableShadow=True):
-        super(CustomSplashScreen, self).__init__(QIcon(":/guide.png"), parent, enableShadow)
-        self.titleBar.minBtn.hide()
-        self.titleBar.maxBtn.hide()
-        self.titleBar.closeBtn.hide()
-        height = int(parent.height() * 0.7)
-        self.setIconSize(QSize(height, height))
 
 
 class CustomInfoBar:
@@ -106,7 +99,6 @@ class SupportView(FlyoutViewBase):
         self.width = int(conf_dia.width() * 0.8)
         self.layout = VBoxLayout(self)
         self.titleLayout = QtWidgets.QHBoxLayout()
-        # self.titleLayout.setContentsMargins(8, 0, 8, 0)
         self.githubBtn = HyperlinkButton(FluentIcon.GITHUB, proj_url, "Github")
         self.qqGroupBtn = HyperlinkButton(CustomIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
         self.discordBtn = HyperlinkButton(CustomIcon.DISCORD, "https://discord.gg/XAnraEru", "Discord")

@@ -50,9 +50,6 @@ class Ui_MainWindow(object):
         font.setBold(False)
         font.setWeight(50)
         self.textBrowser.setFont(font)
-        self.textBrowser.setStyleSheet("QTextBrowser {\n"
-"color: black;\n"
-"}")
         self.textBrowser.setObjectName("textBrowser")
         self.funcLayout.addWidget(self.textBrowser)
         self.funcGroupBox = QtWidgets.QGroupBox(self.centralwidget)
