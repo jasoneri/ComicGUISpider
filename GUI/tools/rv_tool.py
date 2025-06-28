@@ -9,7 +9,7 @@ from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, PrimaryToolButton,
     TransparentToolButton, PushButton, HyperlinkButton, 
     FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition,
-    BodyLabel
+    BodyLabel, Flyout
 )
 from qframelesswindow import FramelessWindow
 
@@ -154,11 +154,14 @@ class rvTool(QWidget):
         
         second_row = QHBoxLayout()
         spacer_info = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.deployDescBtn = PrimaryPushButton(FIF.DICTIONARY, tools_res.rv_deploy_desc)
         self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
+        self.deployDescBtn.clicked.connect(self.deploy_desc)
         self.showMaxBtn.clicked.connect(self.show_max)
         self.combineBtn = PushButton(CustomIcon.TOOL_MERGE, tools_res.rv_merge_move)
         self.combineBtn.clicked.connect(self.combine_then_mv)
         second_row.addSpacerItem(spacer_info)
+        second_row.addWidget(self.deployDescBtn)
         second_row.addWidget(self.showMaxBtn)
         second_row.addWidget(self.combineBtn)
         second_row.addWidget(self.broomBtn)
@@ -171,16 +174,13 @@ class rvTool(QWidget):
         conf.update(rv_script="")
         self.sv_path_card.setContent("")
 
+    def deploy_desc(self):
+        Flyout.create(
+            title='', content=tools_res.rv_deploy_desc_content, target=self.deployDescBtn, parent=self, isClosable=True,
+        )
+    
     def show_max(self):
-        record_txt = conf.sv_path.joinpath("web_handle/record.txt")
-        if record_txt.exists():
-            CustomFlyout.make(TableFlyoutView(show_max(record_txt), self), self.sv_path_card, self)
-        else:
-            InfoBar.warning(
-                title='show_max', content=ori_res.GUI.Tools.rv_book_marked_warning % str(record_txt),
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-                duration=5000, parent=self
-            )
+        CustomFlyout.make(TableFlyoutView(show_max(), self), self.sv_path_card, self)
 
     def combine_then_mv(self):
         done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))

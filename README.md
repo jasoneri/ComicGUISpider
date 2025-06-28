@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
   <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
-    <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fcgs-downloaded-cn.jsoneri.workers.dev%2F&style=social&logo=github" alt="tag">
+    <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
 
   <p align="center">
@@ -27,11 +27,9 @@
 
 ## 📑介绍
 
-是否有过看漫加载慢，频跳广告而烦躁过😫，用 `CGS` 先下后看就行了啊嗯☝️  
-
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
-| [拷贝漫画](https://www.copy20.com/)    | :cn: | | ➖ |
+| [拷贝漫画](https://www.copy20.com/)    | :cn: | | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
 | [Māngabz](https://mangabz.com)        | :cn: | 代理 | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
 | [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
@@ -44,7 +42,7 @@
 ---
 
 **[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
-)](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;若觉得体验还不错的话，要不回头点个⭐️star吧👻**
+)](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;有建议提建议，没建议..点个⭐️star吧🗿**
 
 ---
 
@@ -55,7 +53,7 @@
 #### 🎁 Features
 
 ✅ jm 支持章节，仅在读剪贴板可用；去重机制对于章节同样生效  
-✅ 新增配置项：`并发数`  
+✅ 新增配置项：并发数  
 ✅ 配置栏 eh_cookies 改为 cookies，选择框切换网站编辑/保存  
 
 #### 🐞 Fix
@@ -63,6 +61,22 @@
 ✅ 将耗时操作置于预处理后台线程，例如域名缓存/访问检测，优化体验  
 ✅ 修复 macOS rvTool 的后台 部署/运行  
 ✅ 预览badges/配置映射/读剪贴板异步/缓存 等优化  
+
+<details>
+<summary> <code>v2.2.6-beta</code> 开发版特性👈看就点</summary>
+
+#### 🎁 Features
+
+✅ rvTool 中的`已阅记录`表格增加`已下载记录`列（暂时以本地目录计算）  
+✅ 序号输入框右键菜单增加`点击输入`项，免敲键盘了  
+
+#### 🐞 Fix
+
+✅ 配置栏 cookies 简化，可直接将 curl 文本粘贴，程序已内置转换  
+✅ 基与某些原因，主题色暂时强制使用浅色  
+
+</details>
+
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 

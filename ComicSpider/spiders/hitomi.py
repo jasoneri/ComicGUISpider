@@ -5,7 +5,7 @@ import scrapy
 import httpx
 
 from utils import PresetHtmlEl, conf
-from utils.website import HitomiUtils
+from utils.website import HitomiUtils, get_loop
 from utils.processed_class import PreviewHtml
 from utils.website import Uuid
 from ComicSpider.items import ComicspiderItem
@@ -49,30 +49,16 @@ class HitomiSpider(BaseComicSpider):
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
         self.process_state.process = 'start_requests'
-        try:
-            if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
-                self.process_state.process = 'parse'
-                self.Q('ProcessQueue').send(self.process_state)
-                self.refresh_state('input_state', 'InputFieldQueue')
-                tasks = json.loads(self.input_state.indexes[6:])
-                for title, book_url_path in tasks:
-                    yield scrapy.Request(url=f"https://{self.backend_domain}/galleries/{book_url_path}.js",
-                                         headers=HitomiUtils.headers,
-                                         callback=self.parse_section, meta={"title": title})
-            else:
-                self.process_state.process = 'search'
-                self.Q('ProcessQueue').send(self.process_state)
-                keyword = self.input_state.keyword
-                self.search_start = f"{self.domain}{keyword}.html"
-                page = 1
-                nozomi = f"https://{self.backend_domain}/{keyword}.nozomi"
-                meta = {"Url": self.search_start, "nozomi": nozomi, "page": page}
-                resp = self.ut.cli.get(nozomi, 
-                    headers={**HitomiUtils.headers, "Range": self.ut.get_range(page)})
-                yield from self.parse(response=resp, meta=meta)
-        except Exception as e:
-            self.crawler.engine.close_spider(self, reason=f"[error]{str(e)}")
-            return
+        self.Q('ProcessQueue').send(self.process_state)
+        
+        keyword = self.input_state.keyword
+        self.search_start = f"{self.domain}{keyword}.html"
+        page = 1
+        nozomi = f"https://{self.backend_domain}/{keyword}.nozomi"
+        meta = {"Url": self.search_start, "nozomi": nozomi, "page": page}
+        resp = self.ut.cli.get(nozomi, 
+            headers={**HitomiUtils.headers, "Range": self.ut.get_range(page)})
+        yield from self.parse(response=resp, meta=meta)
     
     # ==============================================
     def parse(self, response, meta):
@@ -93,7 +79,7 @@ class HitomiSpider(BaseComicSpider):
             tasks = [fetch_gallery(i, gallery_id) for i, gallery_id in enumerate(result)]
             return await asyncio.gather(*tasks)
 
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         resps = loop.run_until_complete(fetch_all())
         
         # 整合actual_parse的功能

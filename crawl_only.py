@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """cli,no gui,no wait for Interaction"""
+import os
 import time
 import re
 import argparse
@@ -13,6 +14,8 @@ from utils.processed_class import (
     GuiQueuesManger, crawl_what, QueuesManager, QueueHandler, InputFieldState, refresh_state, ProcessState
 )
 from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
+
+is_debugging = os.getenv('CGS_DEBUG') == '1'
 
 
 def say_to_textBrowser(textBrowserQueue, TasksQueue, flagQueue, daily_test_flag=False):
@@ -95,6 +98,7 @@ def test_normal_process(keyword, input_2, input_3):
     input_2: 选书
     input_3: 选章节
     """
+    wait_flag_ts = 600 if is_debugging else 30
     # TODO[8](2024-08-19): debug 拷贝漫画轻小说book请求
     state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='', pageTurn='')
     state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=input_2, pageTurn='')
@@ -103,12 +107,12 @@ def test_normal_process(keyword, input_2, input_3):
     flag_queue = gui.Q('FlagQueue')
     gui.Q('InputFieldQueue').send(state_1)
     refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
-    wait_for_flag(flag_queue)
+    wait_for_flag(flag_queue, wait_flag_ts)
     gui.Q('InputFieldQueue').send(state_2)
     refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=input_3 or False)
     #  上面这行 refresh_state，当测试三步跳转时要加 monitor_change=True
     if input_3:
-        wait_for_flag(flag_queue)
+        wait_for_flag(flag_queue, wait_flag_ts)
         gui.Q('InputFieldQueue').send(state_3)
 
 

@@ -26,7 +26,8 @@ GUI:
   copymaga_page_status_tip: "Page offset: Each page contains 30 items. For page 3, enter 60 (outputs 60-89), etc."
   global_err_hook: "Last operation caused GUI exception - check GUI logs for details"
   input_format_err: "Input format error - hover over field for rules"
-  reboot_tip: "CGS rebooting - reconstructing UI and instances"
+  reboot_tip: "♻️ rebooting: cleaning background processes..."
+  reboot_tip2: "⛺️ rebooting: reconstructing UI and instances.."
   SearchInputStatusTip:
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
@@ -43,16 +44,15 @@ GUI:
     all_fail: "Complete failure. Update proxy/cookies config and retry. Report an issue if persistent"
     view_log: "View detailed error stack in log file"
   Tools:
-    rv_book_marked: "Display readed records"
-    rv_book_marked_warning: "Missing [%s] record file from [redViewer] project - functionality disabled"
-    rv_merge_move: "Consolidate then Move"
-    rv_combined_tip:  "Make %s Chapters merged and move to [%s]"
-    rv_set_script_err: "set rV script failed，read how to deploy rV by right-button"
     rv_scriptp_desc: "rV Script Path"
     rv_scriptp_desc_tip: "Select Script File ( %s )"
     rv_deployBtn: "Select Directory and Deploy"
     rv_deployDesc: "You need to deploy rV. <br>1. Select an empty directory unrelated to CGS and storage<br>2. Follow console instructions, then reselect script after deployment"
     rv_deployWinRequire: "<br>3. Windows additional: Control Panel > Clock and Region > Region > Change system locale > Check Beta: Use Unicode UTF-8 > Restart"
+    rv_book_marked: "Records"
+    rv_merge_move: "Consolidate then Move"
+    rv_combined_tip:  "Make %s Chapters merged and move to [%s]"
+    rv_set_script_err: "set rV script failed，read how to deploy rV by right-button"
     hitomi_tip_search: "search selected tags in website"
     hitomi_tip_sv: "save to custom presets"
     hitomi_tip_send: "send to searchInput box"
@@ -65,6 +65,13 @@ GUI:
     domain_desc: "Click the release page and copy the usable part (mainland) as shown,<br>then click execute button. CGS will take a few seconds to check availability and notify accordingly,<br>CGS cannot bypass your network environment - if browser can't access it, CGS can't either, please note"
     doamin_success_tip: "[%s] has been set in the temporary file below, valid for 48 hours<br>[%s]<br>CGS will restart in 5 seconds to ensure background processes apply the valid domain"
     doamin_error_tip: "All domains are invalid, please check yourself. Again, CGS cannot bypass the current network environment to access"
+    status_desc: "Function 1: Display website availability status. If network unstable, click CGS to official site for status;\nFunction 2: Button group updates decryption-related changes. Successful updates will restart (avoid clicking before status appears)"
+    status_fetching: "Fetching website availability status"
+    status_waiting: "Please wait a moment~~"
+    status_web_erratic: "[Warn] Network unstable - unable to fetch all status.."
+    status_cf_error: "CN access to cloudflare dev domain abnormal, visit official site for status"
+    status_no_update: "Local content matches online version"
+    reboot_tip: "CGS will restart in %s seconds to ensure background processes apply valid changes"
   Uic:
     chooseBoxDefault: "Select Website"
     searchinputPlaceholderText: "Input Keyword"
@@ -99,6 +106,7 @@ GUI:
     confDia_promote_content: "need VPN?"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_support_content: "Donations will use to buy domain etc.."
+    confDia_cookies_placeholder: "Refer to the animated guide in the configuration documentation for cookie acquisition methods\nIncluding fields:\n"
 
 EHentai:
   COOKIES_NOT_SET: "`eh-cookies` must be set for exhentai access"
@@ -137,7 +145,7 @@ SPIDER:
   close_check_log_guide3: "3. If same error persists, submit issue"
   ERO_BOOK_FOLDER: "Doujinshi"
   PUBLISH_INVALID: "<a href=\"%s\">Release page</a> inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution"
-  DOMAINS_INVALID: "<a href=\"%s\">Release page</a> domains %s inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution"
+  DOMAINS_INVALID: "<a href=\"%s\">Release page</a> domains %s inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution or use domainTool"
 
 Updater:
   ver_check: "Checking version"
@@ -158,4 +166,5 @@ Updater:
   ver_check_fail: "Version check failed - retry or check releases"
   update_ensure: "Confirm Update"
   updated_success: "Update successful - CGS restarts in 5s"
+  doing: "Involves code and dependency updates, Wait a moment.."
   updated_fail: "❌ Update failed - rollback complete\nRetry later or download manually (CGS restarts in 10s)\nError log: [%s]"
