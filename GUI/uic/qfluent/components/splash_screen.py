@@ -1,4 +1,5 @@
 import io
+import random
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QIcon, QMovie, QPixmap
 from qfluentwidgets import (
@@ -16,11 +17,17 @@ class BgMgr:
         self.bg_f, self.ext = self._find_custom_bg("bg")
         self.movie = None
 
-    def _find_custom_bg(self, kind="start"):
-        for ext in ('.gif', '.png'):
-            _f = cus_p.joinpath(f"{kind}{ext}")
-            if _f.exists():
-                return _f.as_posix(), ext
+    def _find_custom_bg(self, kind: str = "start"):
+        target_dir = cus_p / kind
+        if not target_dir.is_dir():
+            return None, None
+        valid_exts = ('.gif', '.png')
+        matched_files = []
+        for file in target_dir.iterdir():
+            if file.is_file() and file.suffix.lower() in valid_exts:
+                matched_files.append((file.as_posix(), file.suffix))
+        if matched_files:
+            return random.choice(matched_files)
         return None, None
 
     def create_edge_blur_image(self, pil_image, fade_distance=50, blur_radius=10):

@@ -233,14 +233,20 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 i = 0
                 while i < 1000:  # i * 3ms = 极限等待3s
                     if self.tf != _prev_tf:
+                        self.BrowserWindow.second_init()
                         if conf.isDeduplicate:
-                            page = self.BrowserWindow.view.page() if self.BrowserWindow else None
-                            PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
-                        self.BrowserWindow.second_init(self.tf)
+                            def mark_downloads_after_load(ok):
+                                if ok:
+                                    def delayed_mark():
+                                        page = self.BrowserWindow.view.page() if self.BrowserWindow else None
+                                        PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
+                                    QTimer.singleShot(200, delayed_mark)
+                                    self.BrowserWindow.view.loadFinished.disconnect(mark_downloads_after_load)
+                            self.BrowserWindow.view.loadFinished.connect(mark_downloads_after_load)
                         self.previewSecondInit = False
                         break
                     i += 1
-                    QThread.msleep(3)
+                    QThread.msleep(4)
                 if self.tf == _prev_tf:
                     self.previewSecondInit = True
                     self.BrowserWindow.close()
@@ -278,7 +284,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
 
     def set_preview(self):
-        self.BrowserWindow = BrowserWindow(self, self.tf)
+        self.BrowserWindow = BrowserWindow(self)
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
@@ -305,7 +311,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.set_preview()
             self.previewInit = False
         elif self.previewSecondInit:
-            self.BrowserWindow.second_init(self.tf)
+            self.BrowserWindow.second_init()
             self.previewSecondInit = False
         self.BrowserWindow.show()
 
