@@ -1,6 +1,11 @@
+import traceback
+import asyncio
+from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils import font_color, conf
+from utils import font_color, conf, get_loop, QueuesManager
+from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
+from deploy.update import Proj
 
 
 class ClipTasksThread(QThread):
@@ -8,35 +13,49 @@ class ClipTasksThread(QThread):
     total_signal = pyqtSignal(dict)
 
     def __init__(self, gui, tasks):
-        super(ClipTasksThread, self).__init__()
+        super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
         self.gui = gui
         self.tasks = tasks
 
     def run(self):
-        self.msleep(1200)  # 延后1s，否则子线程太快导致主界面没跟上
-        cli = self.gui.spiderUtils.get_cli(conf)
-        total = {}
-        for idx, url in enumerate(self.tasks):
-            try:
-                resp = cli.get(url, follow_redirects=True, timeout=3)
-                info = self.gui.spiderUtils.parse_book(resp.text)
-                self.msleep(50)
-                self.info_signal.emit((idx + 1, url, *info[1:]))
-                total[idx + 1] = [info[2], info[0]]
-            except Exception as e:
-                err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
-                self.gui.log.exception(e)
-                self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
+        self.msleep(500)  # 延时，否则子线程太快导致主界面没跟上
+        loop = get_loop()
+        total = loop.run_until_complete(self._async_run())
         self.handle_total(total)
+
+    async def _async_run(self):
+        async with self.gui.spiderUtils.get_cli(conf, is_async=True) as cli:
+            total = {}
+            async def fetch_single(idx, url):
+                try:
+                    resp = await cli.get(url, follow_redirects=True, timeout=6)
+                    info = self.gui.spiderUtils.parse_book(resp.text)
+                    self.msleep(50)
+                    # 确保传递所有信息，包括episodes（如果存在）
+                    self.info_signal.emit((idx + 1, url, *info[1:]))
+                    return idx + 1, info
+                except Exception as e:
+                    err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
+                    self.gui.log.exception(e)
+                    self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
+                    return idx + 1, None
+            # 并发执行所有任务
+            tasks = [fetch_single(idx, url) for idx, url in enumerate(self.tasks)]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    continue
+                if result[1] is not None:
+                    total[result[0]] = result[1]
+            return total
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:
             print("[clip tasks loop]❌over max_iterations, fail.")
             self.total_signal.emit(self.total)
             return
-        else:
-            self.iterations += 1
-            self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
+        self.iterations += 1
+        self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
 
     def handle_js_result(self, num):
         if num and num >= len(self.total):
@@ -47,8 +66,8 @@ class ClipTasksThread(QThread):
         self.check_condition_and_run_js()
 
     def handle_total(self, total):
-        self.max_iterations = 7 * len(self.tasks)  # 一个任务约给1.5秒
-        self.iterations = 0  # 当前循环次数
+        self.max_iterations = 7 * len(self.tasks)
+        self.iterations = 0
         self.total = total
         if not total:
             self.total_signal.emit({})
@@ -57,6 +76,29 @@ class ClipTasksThread(QThread):
         else:
             self.msleep(1200 if len(self.total) == 1 else 350)
             self.check_condition_and_run_js()
+
+
+class QueueInitThread(QThread):
+    init_completed = pyqtSignal(object, object, int)
+
+    def __init__(self, gui):
+        super().__init__(gui)
+        self.gui = gui
+
+    def run(self):
+        guiQueuesManger = GuiQueuesManger()
+        queue_port = guiQueuesManger.find_free_port()
+        p_qm = Process(target=guiQueuesManger.create_server_manager)
+        p_qm.start()
+        manager = QueuesManager.create_manager(
+            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
+            address=('127.0.0.1', queue_port), authkey=b'abracadabra'
+        )
+        manager.connect()
+        Q = QueueHandler(manager)
+        self.gui.p_qm = p_qm
+        self.gui.guiQueuesManger = guiQueuesManger
+        self.init_completed.emit(manager, Q, queue_port)
 
 
 class WorkThread(QThread):
@@ -68,7 +110,7 @@ class WorkThread(QThread):
     active = True
 
     def __init__(self, gui):
-        super(WorkThread, self).__init__()
+        super(WorkThread, self).__init__(gui)
         self.gui = gui
         self.flag = 1
 
@@ -89,7 +131,7 @@ class WorkThread(QThread):
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     else:
                         self.print_signal.emit(_)
-                    self.msleep(5)
+                    self.msleep(2)
                 if not Bar.empty():
                     self.item_count_signal.emit(Bar.get())
                     # self.msleep(5)
@@ -110,3 +152,44 @@ class WorkThread(QThread):
 
     def stop(self):
         self.flag = 0
+
+
+class ProjUpdateThread(QThread):
+    checked_signal = pyqtSignal(object)
+    update_signal = pyqtSignal()
+    updated_signal = pyqtSignal(object)
+    debug_signal = pyqtSignal(str)
+
+    def __init__(self, conf_dia):
+        self.proj = None
+        super(ProjUpdateThread, self).__init__(conf_dia)
+        self.conf_dia = conf_dia
+        self.is_update_requested = False
+        self.log = conf.cLog(name="GUI")
+        self.debug_signal.connect(self.conf_dia.gui.say)
+
+    def run(self):
+        try:
+            self.proj = Proj(debug_signal=self.debug_signal)
+            self.proj.check()
+            self.checked_signal.emit(self.proj)
+            while not self.is_update_requested and not self.isInterruptionRequested():
+                self.msleep(100)  # 休眠100毫秒，减少CPU使用
+            if self.is_update_requested and not self.isInterruptionRequested():
+                self.run_update()
+        except Exception as e:
+            self.log.exception(f"ProjCheckError: {e}")
+            self.checked_signal.emit(traceback.format_exc())
+
+    def request_update(self):
+        self.is_update_requested = True
+
+    def run_update(self):
+        try:
+            # ⚠️ danger！⚠️ -------------->
+            self.proj.local_update()
+            # <-------------- ⚠️ danger！⚠️
+            self.updated_signal.emit(self.proj)
+        except Exception as e:
+            self.log.exception(f"ProjUpdateError: {e}")
+            self.updated_signal.emit(traceback.format_exc())

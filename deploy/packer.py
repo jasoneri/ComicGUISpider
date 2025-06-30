@@ -29,7 +29,6 @@ else:
     tmp_p = prog_path.parent.joinpath("temp")
 path = prog_path.parent
 sys.path.append(str(prog_path))
-from utils.docs import MarkdownConverter, MdHtml
 
 api_github = "https://api.github.com"
 github_token = "**create token by your github account**"
@@ -125,7 +124,7 @@ class Packer(Proj):
         ...
 
     def pre_packup(self):
-        with open(path.joinpath(r"scripts/deploy/version.json"), 'w', encoding='utf-8') as f:
+        with open(path.joinpath(r"scripts/version.json"), 'w', encoding='utf-8') as f:
             json.dump({
                 "current": self.ver, "stable": "", "dev": ""
             }, f, indent=4)
@@ -145,8 +144,9 @@ class Packer(Proj):
             specified = ('runtime', '_pystand_static.int',
                          f'{self._proj}.exe')
             mode = "w"
-        else:
+        elif self.preset_zip_file.exists():
             shutil.copy(self.preset_zip_file, self.zip_file)
+        # 仅 CI 环境，处理 【过滤.git后的script、CGS.bat】 进经 workflow 安装了 runtime 全部依赖的 perset 包
         with py7zr.SevenZipFile(zip_file, mode, filters=[{"id": py7zr.FILTER_LZMA2}]) as zip_f:
             for file in tqdm(tuple(specified)):
                 if file == f'{Proj.proj}.bat':
@@ -162,24 +162,14 @@ class PackerMacOS(Packer):
     zip_file = path.joinpath(f'{_proj}.7z')
     preset_zip_file = tmp_p.joinpath(f'{_proj}_preset.7z')
     scripts_path = "CGS.app/Contents/Resources/scripts"
-    tmp_guide_html = tmp_p.joinpath('CGS_macOS_first_guide.html')
 
     def __init__(self, ver):
         super(PackerMacOS, self).__init__(tuple(), ver)
 
-    def set_guide(self):
-        with open(prog_path.joinpath('deploy/launcher/mac/EXTRA.md'), 'r', encoding='utf-8') as f:
-            md_content = f.read()
-        _html = MarkdownConverter.convert_html(MdHtml(md_content).cdn_replace("jasoneri", "ComicGUISpider", "GUI"))
-        with open(self.tmp_guide_html, 'w', encoding='utf-8') as f:
-            f.write(_html)
-
     def pre_packup(self):
-        """ 1. 生成guide.html
-            2. 预处理CGS.app的结构
-            3. dos2unix处理项目文本文件"""
+        """ 1. 预处理CGS.app的结构
+            2. dos2unix处理项目文本文件"""
         super(PackerMacOS, self).pre_packup()
-        self.set_guide()
         mac_7z_p = path.joinpath(self.scripts_path.rsplit("/", maxsplit=1)[0])
         mac_7z_p.mkdir(parents=True, exist_ok=True)
         mac_scripts_path = mac_7z_p.joinpath("scripts")
@@ -208,7 +198,6 @@ class PackerMacOS(Packer):
             for file in tqdm(tuple(specified)):
                 if path.joinpath(file).exists():
                     zip_f.writeall(path.joinpath(file), arcname=file)
-            zip_f.write(self.tmp_guide_html, arcname='CGS_macOS_first_guide.html')
         if not self.zip_file.exists():
             self.packup()
 

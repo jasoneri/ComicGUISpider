@@ -1,57 +1,151 @@
 name: Schedule Test Status
-
+permissions:
+  contents: read
+  pull-requests: write
 on:
   schedule:
-    - cron: '0 4 */5 * *'  # UTC 4 == +8 12:00
+    - cron: '0 4 */4 * *'  # UTC 4 == +8 12:00
   workflow_dispatch:
 
 jobs:
   test-suite:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/jasoneri/comicguispider-dockerimage:latest
-      options: >-
-          --ulimit nproc=4096:4096 
-          --ulimit nofile=65536:65536 
-          --network=host
-          --ipc=host
-          --security-opt seccomp=unconfined
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+    defaults:
+      run:
+        shell: pwsh
     strategy:
       matrix:
         include:
+          # - "ehentai" "jm" 使用本地 act 运行上传
           - crawler_name: "kaobei"
-            params: "-w 1 -k 更新 -i 2 -i2 1 -sp 50000"
-          - crawler_name: "jm"
-            params: "-w 2 -k 更新周 -i 2 -sp 50021"
+            params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50021"
           - crawler_name: "wnacg"
-            params: "-w 3 -k 更新 -i 2 -sp 50041"
+            params: "-w 3 -k ミモネル -i 2 -sp 50051"
           - crawler_name: "mangabz"
-            params: "-w 5 -k 更新 -i 1 -i2 1 -sp 50061"
+            params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
+          - crawler_name: "hitomi"
+            params: "-w 6 -k artist/date/published/mimonel-japanese -i 15 -sp 50111"
 
     steps:
-      - uses: actions/checkout@master
-
-      - name: Run tests and Generate report
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Add PATH
         run: |
-          TODAY=$(TZ='Asia/Shanghai' date +%m-%d)
+          $7zPath = "C:\Program Files\7-Zip"
+          Add-Content $env:GITHUB_PATH "$7zPath"
+          echo "runtimeP=D:\build\CGS" >> $env:GITHUB_ENV
+      - name: Get Latest Release Tag
+        id: get-latest-tag
+        run: |
+          $response = Invoke-WebRequest -Uri "https://api.github.com/repos/jasoneri/ComicGUISpider/releases?per_page=1" -Headers @{ "Accept" = "application/vnd.github.v3+json" }
+          $latest_tag = ($response.Content | ConvertFrom-Json)[0].tag_name
+          echo "latest_tag=$latest_tag" >> $env:GITHUB_OUTPUT
+      - name: Download Latest CGS
+        run: |
+          New-Item -ItemType Directory -Path D:\tmp -Force
+          New-Item -ItemType Directory -Path D:\build -Force
+          Invoke-WebRequest -Uri "https://github.com/jasoneri/ComicGUISpider/releases/download/${{ steps.get-latest-tag.outputs.latest_tag }}/CGS.7z" -OutFile D:\tmp\CGS.7z
+          7z x D:\tmp\CGS.7z -o"$env:runtimeP" -spe -y
+          Remove-Item -Path "D:\tmp\CGS.7z" -Force -ErrorAction Stop
+      - name: Put SourceCode in CGS
+        run: |
+          $sourcePath = $env:GITHUB_WORKSPACE
+          $targetPath = "D:\build\CGS\scripts"
+          New-Item -ItemType Directory -Path $targetPath -Force
+          Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+      - name: Run tests and Generate report
+        working-directory: D:\build\CGS
+        env:
+          CRAWLER_NAME: ${{ matrix.crawler_name }}
+        run: |
+          $TODAY = (Get-Date -Format "MM-dd").ToString()
+
+          $stdoutLog = $env:CRAWLER_NAME + "_stdout.log"
+          $stderrLog = $env:CRAWLER_NAME+ "_stderr.log"
+          $pythonArgs = "./scripts/crawl_only.py ${{ matrix.params }} -l INFO -dt"
+          $timeoutSeconds = if ($env:CRAWLER_NAME -eq 'hitomi') { 120 } else { 60 }
+          
+          $process = Start-Process -FilePath "./runtime/python.exe" -ArgumentList $pythonArgs -NoNewWindow -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+          try {
+            $process | Wait-Process -Timeout $timeoutSeconds -ErrorAction Stop
+            $result = $process.ExitCode
+          } catch [TimeoutException] {
+            $process | Stop-Process -Force
+            $result = 124
+          }
+          $logContent = Get-Content $stderrLog -Raw
+          $item_count = if ($logContent -match "image/downloaded': (\d+)") { [int]$matches[1] } else { 0 }
+          $statusData = @{
+            schemaVersion = 1
+            label = $TODAY
+            message = $(if ($item_count -eq 0) { "fail" } else { "pass" })
+            color = $(if ($item_count -eq 0) { "critical" } else { "success" })
+          }
+          $artifactPath = "D:\build\badges"
+          New-Item -Path $artifactPath -ItemType Directory -Force | Out-Null
+          $statusData | ConvertTo-Json -Compress | Out-File "$artifactPath\status_$env:CRAWLER_NAME.json" -Encoding utf8
+          Get-ChildItem -Path $artifactPath -Recurse
+          Copy-Item -Path $stderrLog -Destination "D:\build\badges\$stderrLog" -Force
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: badges-${{ matrix.crawler_name }}
+          path: D:\build\badges/
+
+  deploy-job:
+    needs: test-suite
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: |
+          npm install -g wrangler
+      - name: Merge artifacts
+        run: |
+          mkdir -p /tmp/merged-badges
+          sudo find /tmp/ -type f -name 'status_*.json' -exec cp {} /tmp/merged-badges/ \;
           
           set +e
-          timeout 60 python crawl_only.py ${{ matrix.params }} -l INFO -dt 2>&1 | tee ${{ matrix.crawler_name }}.log
-          result=$?
-          item_count=$(grep -o "item_scraped_count': [0-9]*" ${{ matrix.crawler_name }}.log | grep -o "[0-9]*" || echo "0")
-          if [ $result -eq 0 ] && [ "$item_count" -ge 2 ]; then
-            echo '{"schemaVersion":1,"label":"'"$TODAY"'","message":"pass","color":"success"}' > __temp/status_${{ matrix.crawler_name }}.json
-          else
-            echo '{"schemaVersion":1,"label":"'"$TODAY"'","message":"fail","color":"critical"}' > __temp/status_${{ matrix.crawler_name }}.json
-          fi
-
-          mkdir -p __temp/badges
-          cp __temp/status_${{ matrix.crawler_name }}.json __temp/badges/
-          exit 0
-
+          for crawler in "ehentai" "jm"; do
+            curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "/tmp/merged-badges/status_${crawler}.json" || true
+          done
+          
+          echo "Generating aggr_status.json..."
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const badgesDir = "/tmp/merged-badges";
+            const aggrData = {};
+            const files = fs.readdirSync(badgesDir)
+              .filter(file => file.startsWith("status_") && file.endsWith(".json"));
+            files.forEach(file => {
+              const crawlerName = file.replace("status_", "").replace(".json", "");
+              const content = JSON.parse(fs.readFileSync(path.join(badgesDir, file), "utf8"));
+              aggrData[crawlerName] = content;
+            });
+            fs.writeFileSync(
+              path.join(badgesDir, "aggr_status.json"),
+              JSON.stringify(aggrData, null, 2)
+            );
+          '
       - name: Deploy to CloudFlare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          wrangler pages deploy __temp/badges/ --project-name=cgs-status-badges --branch=main
+          wrangler pages deploy /tmp/merged-badges/ --project-name=cgs-status-badges --branch=main

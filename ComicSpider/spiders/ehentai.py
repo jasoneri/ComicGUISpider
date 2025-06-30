@@ -4,7 +4,7 @@ from scrapy import Request
 from .basecomicspider import BaseComicSpider3
 from utils import PresetHtmlEl, conf, re
 from utils.processed_class import PreviewHtml, Url
-from utils.website import Cookies, EHentaiKits
+from utils.website import EHentaiKits as EK
 from assets import res
 from ..items import ComicspiderItem
 
@@ -25,14 +25,15 @@ class EHentaiSpider(BaseComicSpider3):
     }
     frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)
+    book_id_url = f'https://{domain}/g/%s'
 
     @property
     def ua(self):
-        return {**EHentaiKits.headers, "cookie": Cookies.to_str_(conf.eh_cookies)}
+        return {**EK.headers, "cookie": EK.to_str_(conf.cookies.get(self.name))}
 
     def frame_book(self, response):
         frame_results = {}
-        example_b = r' [ {} ]、p_{}、【 {} 】'
+        example_b = r' [ {} ], p_{}, ⌈ {} ⌋ '
         self.say(example_b.format('index', 'pages', 'name') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
@@ -44,11 +45,12 @@ class EHentaiSpider(BaseComicSpider3):
                      .replace(" pages", ""))
             url = preview_url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
             img_preview = (item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
+            byte = target.xpath('./td[contains(@class, "glcat")]/div/text()').get()
             # book_idx = re.search(r"g/(\d+)/", url).group(1)
             self.say(example_b.format(str(x + 1), pages, title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [url, title, pages, preview_url]  # , book_idx]
-            preview.add(x + 1, img_preview, title, preview_url, f"p{pages}")
+            preview.add(x + 1, img_preview, title, preview_url, pages=pages, btype=byte)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
 

@@ -2,6 +2,7 @@
 import pathlib
 from copy import deepcopy
 import re
+import argparse
 
 _p = pathlib.Path(__file__).parent.parent
 # 定义需要替换的控件映射
@@ -53,17 +54,25 @@ class ConvertBase:
 
 
 if __name__ == '__main__':
-    # ConvertBase('untitled.py', 'untitled.py').run()
-    # ConvertBase('ui_mainwindow.py', 'ui_mainwindow.py').run()
-    ConvertBase('conf_dia.py', 'conf_dia.py', custom_sub={
-        "= QtWidgets.QLabel": "= StrongBodyLabel",
-        "acceptBtn = QtWidgets.QToolButton": "acceptBtn = PrimaryToolButton",
-        "cancelBtn = QtWidgets.QToolButton": "cancelBtn = TransparentToolButton",
-        }, 
-        custom_fluent_widgets=['StrongBodyLabel', 'TransparentToolButton', 'PrimaryToolButton']).run()
-    # ConvertBase('browser.py', 'browser.py', custom_sub={
-    #     "topHintBox = QtWidgets.QToolButton": "topHintBox = TransparentToggleToolButton",
-    #     "ensureBtn = QtWidgets.QToolButton": "ensureBtn = PrimaryToolButton",
-    #     "QtWidgets.QToolButton": "TransparentToolButton",
-    # }, custom_fluent_widgets=['TransparentToolButton', 'PrimaryToolButton', 'TransparentToggleToolButton']).run()
-    ...
+    parser = argparse.ArgumentParser(description='转换UI文件为Fluent风格')
+    parser.add_argument('filename', help='要转换的UI文件名（不含路径）')
+    args = parser.parse_args()
+    
+    file = f"{args.filename}.py"
+    match args.filename:
+        case "conf_dia":
+            cb = ConvertBase('conf_dia.py', 'conf_dia.py', custom_sub={
+                "= QtWidgets.QLabel": "= StrongBodyLabel",
+                "acceptBtn = QtWidgets.QToolButton": "acceptBtn = PrimaryToolButton",
+                "cancelBtn = QtWidgets.QToolButton": "cancelBtn = TransparentToolButton",
+            }, 
+            custom_fluent_widgets=['StrongBodyLabel', 'TransparentToolButton', 'PrimaryToolButton'])
+        case "browser":
+            cb = ConvertBase('browser.py', 'browser.py', custom_sub={
+                "topHintBox = QtWidgets.QToolButton": "topHintBox = TransparentToggleToolButton",
+                "ensureBtn = QtWidgets.QToolButton": "ensureBtn = PrimaryToolButton",
+                "QtWidgets.QToolButton": "TransparentToolButton",
+            }, custom_fluent_widgets=['TransparentToolButton', 'PrimaryToolButton', 'TransparentToggleToolButton'])
+        case _:
+            cb = ConvertBase(file, file)
+    cb.run()

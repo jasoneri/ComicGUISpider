@@ -1,0 +1,16 @@
+kemono:
+  sv_path: D:\pic\kemono
+  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://kemono.su/api/schema, F12打开控制台查看cookies, 字段名为 `session`
+  redis_key: kemono
+  
+nekohouse:
+  sv_path: D:\pic\nekohouse
+  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://nekohouse.su, F12打开控制台查看cookies, 字段名为 `session`
+  redis_key: nekohouse
+
+proxies: null
+redis:
+  host: 127.0.0.1
+  port: 6379
+  db: 0
+  password:

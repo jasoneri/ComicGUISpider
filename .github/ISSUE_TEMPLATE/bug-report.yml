@@ -1,6 +1,6 @@
 name: Bug Report 🐛
 description: 创建 Bug 报告以帮助我们改进 / Create a report to help us improve
-title: 🐛[Bug]
+title: 🐛[Bug] (标题这里简述一下，多问题集合的话取最重点的那个)
 assignees:
   - jasoneri
 labels: bug
@@ -53,10 +53,8 @@ body:
   - type: textarea
     attributes:
       label: 📄 配置文件(Configuration file)
-      description: "上传配置文件`scripts/conf.yml` 或 配置窗口的截图 (github是公开的记得脱敏!下面字段的值使用马赛克等手段模糊化)
-      /Upload configure file`scripts/conf.yml` or configure-dialog screenshots (remember desensitization! The value of below field must be blur)"
-      placeholder: >-
-        储存路径, 代理，eh_cookies / sv_path, proxies, eh_cookies
+      description: "配置窗口的截图，私人信息用马赛克模糊一下
+      / configure-dialog screenshots, remember blur personal information"
   - type: textarea
     attributes:
       label: ' 🖼 其他截图(Screenshots)'

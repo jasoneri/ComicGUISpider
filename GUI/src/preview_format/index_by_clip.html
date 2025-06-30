@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.net/bootstrap/5.3.2/css/bootstrap.min.css">
+    <style>
+        .list-group-item {
+            height: auto;
+        }
+
+        .checkbox-div {
+            width: 100%;
+            height: 100%;
+            float: right;
+        }
+
+        input[type="checkbox"] {
+            width: 100%;
+            height: 100%;
+            /*float: right;*/
+        }
+
+        /* 确保缩略图容器具有适当的宽度和居中显示 */
+        .thumbnail-container {
+            height: 125px; /* 可以根据需要调整 */
+            margin: 5px;
+            border: 1px solid #ccc; /* 可选，添加边框以区分 */
+            padding: 3px; /* 可选，添加内边距 */
+            box-sizing: border-box; /* 确保内边距和边框包含在宽度内 */
+            float: left;
+        }
+
+        /* 设置缩略图的宽高和保持宽高比 */
+        .img-thumbnail {
+            width: auto;
+            height: 100%;
+            display: block; /* 移除图片底部的间隙 */
+            margin: 0 auto; /* 水平和垂直居中（在容器内） */
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            .thumbnail-container {
+                width: 80%; /* 在小屏幕上调整宽度 */
+            }
+        }
+
+        .title {
+            font-weight: bold;
+            font-size: large;
+        }
+
+        .author {
+            color: #2df500;
+        }
+
+        .pages {
+            font-size: small;
+        }
+
+        .tag {
+            background-color: #989a9d;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .modal-dialog {
+            max-width: 65%; /* 您可以将此值更改为所需的宽度，例如 600px、80% 等 */
+            align-items: center;
+        }
+        .episodes-section {
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .episodes-list {
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+<script src="../GUI/src/preview_format/bootstrap.min.js"></script>
+<script src="../GUI/src/preview_format/public.js"></script>
+<script src="../GUI/src/preview_format/tip_downloaded.js"></script>
+<script src="../GUI/src/preview_format/tasks_extend.js"></script>
+<script>
+  // 设置全局变量供clip.js使用
+  window.CLIP_MAX_TASKS = {_match_num};
+</script>
+<script src="../GUI/src/preview_format/clip.js"></script>
+
+<div class="modal fade" id="myModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">额外说明</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                1. 功能流程使用看`视频3`剪贴板部分<br>
+                2. 书页url匹配规则仅基于当前选择的网站<br>
+                &emsp;像jm这种内地域名经常变化的，你有更好的匹配规则请联系开发者<br>
+                &emsp;也可以自行更改，在`utils/website/__init__.py`里查找`book_url_regex`<br>
+                3. ⚠️ 关于代理：获取任务信息是基于配置是否设了代理，<br>
+                &emsp;当剪贴板复制国内域名时需配置代理置空，复制翻墙域名时需设置代理，<br>
+                &emsp;请勿将翻墙与国内的域名网址混合一起复制，不慎操作时可改读取条数做调整或在剪贴板软件上删除对应条目或按指示只跑已出的正常任务;<br>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-auto me-auto"><h5>Current Regex：{_url_regex}</h5></div>
+        <div class="col-auto">
+            <button id="fixed-button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                    data-bs-target="#myModal">额外说明
+            </button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-ms"><h5>Match Tasks-num <span
+                style="font-size: larger;color: #00aa00">{_match_num}</span></h5></div>
+        <div class="col-ms-auto">
+            <div class="progress">
+                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                     role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0"></div>
+            </div>
+        </div>
+    </div>
+    <div class="list-group">
+    </div>
+</div>
+</body>
+</html>

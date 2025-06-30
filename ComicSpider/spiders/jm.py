@@ -2,10 +2,10 @@
 import json
 import re
 import typing as t
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
-from utils import convert_punctuation, correct_domain
-from utils.website import JmUtils
+from utils import convert_punctuation, conf
+from utils.website import JmUtils, correct_domain
 from utils.processed_class import PreviewHtml, Url
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
@@ -21,12 +21,13 @@ class JmSpider(BaseComicSpider2):
             'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
             'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4,
             'ComicSpider.middlewares.RefererMiddleware': 10,
-        }
+        }, "COOKIES_ENABLED": not conf.cookies.get(name),
     }
     num_of_row = 4
     domain = domain
     search_url_head = f'https://{domain}/search/photos?main_tag=0&search_query='
-    book_id_url = f'https://{domain}/photo/'
+    book_id_url = f'https://{domain}/photo/%s'
+    transfer_url = staticmethod(lambda url: url.replace('album', 'photo'))
     mappings = {}
 
     time_regex = re.compile(r".*?([日周月总])")
@@ -39,43 +40,34 @@ class JmSpider(BaseComicSpider2):
 
     @property
     def ua(self):
-        return {
-            'Host': self.domain,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0',
-            'Accept': 'image/webp;application/xml;q=0.9;image/avif;application/xhtml+xml;text/html;*/*;q=0.8',
-            'Accept-Language': 'zh;q=0.8;en;q=0.2;zh-CN;zh-TW;q=0.7;zh-HK;q=0.5;en-US;q=0.3',
-            'Accept-Encoding': 'br;deflate;gzip',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-User': '?1',
-            'Priority': 'u=1', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache', 'TE': 'trailers'
-        }
+        _ua = {'Host': self.domain, **JmUtils.headers}
+        if conf.cookies.get("jm"):
+            _ua.update({'cookie': JmUtils.to_str_(conf.cookies.get(self.name))})
+        return _ua
+
+    def preready(self):
+        self.domain = JmUtils.get_domain()
+        self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def start_requests(self):
-        try:
-            self.refresh_state('input_state', 'InputFieldQueue')
-            keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
-            if isinstance(self.input_state.indexes, str) and self.input_state.indexes.startswith("[clip]"):
-                tasks = json.loads(self.input_state.indexes[6:])
-                keyword = ','.join([_[-1] for _ in tasks])
-            if ',' in keyword or keyword.isdecimal():
-                self.domain = JmUtils.get_domain()
-                b_url = self.book_id_url
-                b_url = b_url if self.domain in b_url else correct_domain(self.domain, b_url)
-                for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
-                    yield scrapy.Request(url=b_url + key, callback=self.parse_section,
-                                         headers={**self.ua, 'Referer': self.domain},
-                                         meta={'book_id': key}, dont_filter=True)
-            else:
-                yield from super(JmSpider, self).start_requests()
-        except Exception as e:
-            raise e
+        self.preready()
+        self.refresh_state('input_state', 'InputFieldQueue')
+        keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
+        if ',' in keyword or keyword.isdecimal():
+            for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
+                yield scrapy.Request(url=self.book_id_url % key, callback=self.parse_section,
+                                        headers={**self.ua, 'Referer': self.domain},
+                                        meta={'book_id': key}, dont_filter=True)
+        else:
+            yield from super(JmSpider, self).start_requests()
 
     def parse_section(self, response):
+        self.process_state.process = 'parse section'
+        self.Q('ProcessQueue').send(self.process_state)
         if response.url.endswith("album_missing"):
-            self.process_state.process = 'parse section'
-            self.Q('ProcessQueue').send(self.process_state)
-            yield self.say(font_color(f"===== 无效车号：{response.meta.get('book_id')}", color="red"))
+            yield self.say(font_color(f"➖ 无效车号：{response.meta.get('book_id')}", color="red"))
+        elif response.url.endswith("login"):
+            yield self.say(font_color(f"⚠️ 需要登录/甚至JCoins：{response.meta.get('book_id')}", color="red"))
         else:
             if not response.meta.get("title"):
                 title = response.xpath('//title/text()').extract_first()
@@ -84,12 +76,14 @@ class JmSpider(BaseComicSpider2):
 
     @property
     def search(self):
-        self.say("getting jm domain...\n")
         self.domain = JmUtils.get_domain()
         keyword = self.input_state.keyword
         __t = self.time_regex.search(keyword)
         __k = self.kind_regex.search(keyword)
-        if not bool(__k):  # 不好说标题匹配到关键字情况，视情况返至前置带*触发
+        if keyword in self.mappings.keys():
+            url = self.mappings[keyword]
+            return Url(f"https://{self.domain}{urlparse(url).path}").set_next(*self.turn_page_info)
+        elif not bool(__k):  # 不好说标题匹配到关键字情况，视情况返至前置带*触发
             return Url(f"{self.search_url_head}{keyword}").set_next(*self.turn_page_info)
         _t = __t.group(1) if bool(__t) else '周'
         _k = __k.group(1) if bool(__k) else '点击'
@@ -109,7 +103,7 @@ class JmSpider(BaseComicSpider2):
             title = target.xpath('.//img/@title').get().strip().replace("\n", "")
             pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
             preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
-            url = preview_url.replace('album', 'photo')  # 压缩步骤，此链直接返回该本全页uri
+            url = self.transfer_url(preview_url)
             img_preview = target.xpath('./a/img/@src | ./img/@src').get()
             if (img_preview or "").endswith("blank.jpg"):
                 img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()
@@ -117,8 +111,10 @@ class JmSpider(BaseComicSpider2):
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [url, title, preview_url]
             _likes = target.xpath('.//span[contains(@id,"albim_likes")]/text()').get()
-            likes = f"♥️{_likes.strip()}" if _likes else 0
-            preview.add(x+1, img_preview, title, preview_url, likes)
+            likes = _likes.strip() if _likes else 0
+            _btypes = target.xpath('.//div[@class="category-icon"]/div/text()').getall()
+            btype = " ".join(_btypes).strip()
+            preview.add(x+1, img_preview, title, preview_url, likes=likes, btype=btype)
         self.say(preview.created_temp_html)
         self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", color='purple'))
         return self.say.frame_book_print(frame_results, url=response.url)

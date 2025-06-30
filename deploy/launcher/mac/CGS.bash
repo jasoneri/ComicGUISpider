@@ -1,3 +1,7 @@
 #!/bin/bash
+cd /Applications/CGS.app/Contents/Resources;
+
+source .venv/bin/activate
 cd scripts;
-/usr/local/bin/python3.12 CGS.py;
+python CGS.py;
+deactivate

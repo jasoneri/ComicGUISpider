@@ -1,8 +1,8 @@
 ## 配置文件，使用方法详情至readme.md了解
 
 custom_map:
-  更新4: https://wnacg.com/albums-index-page-4.html
   杂志: https://wnacg.com/albums-index-cate-10.html
+  禁漫去码: https://18comic-cnye.org/promotes/30
 log_level: WARNING
 proxies: null
 sv_path: D:\Comic

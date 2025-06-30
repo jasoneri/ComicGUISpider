@@ -4,7 +4,10 @@ import re
 import ast
 import time
 import html
+import shutil
+import pickle
 import hashlib
+import asyncio
 import pathlib as p
 import typing as t
 from dataclasses import dataclass, asdict, field
@@ -12,14 +15,17 @@ import multiprocessing.managers as m
 
 import yaml
 from loguru import logger as lg
+from PyQt5.QtCore import QStandardPaths
 
-from variables import DEFAULT_COMPLETER
+from variables import DEFAULT_COMPLETER, COOKIES_SUPPORT
 from deploy import curr_os
 
 ori_path = p.Path(__file__).parent.parent
 temp_p = ori_path.joinpath("__temp")
 temp_p.mkdir(exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
+conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
+conf_dir.mkdir(parents=True, exist_ok=True)
 
 
 def yaml_update(_f, dic):
@@ -33,6 +39,66 @@ def yaml_update(_f, dic):
         fp.write(yaml_data)
 
 
+def toAppConfigLocation(ori_file: p.Path, iname=None):
+    if iname:
+        return ori_file
+    file = ori_file.name
+    location_file = conf_dir.joinpath(file)
+    if ori_file.exists() and not location_file.exists():
+        shutil.move(str(ori_file), str(location_file))
+    return location_file
+
+
+class ConfCookie:
+    """Cookie配置管理类，承担所有cookie的缓存、管理、展示和保存"""
+    support_key = list(COOKIES_SUPPORT.keys())
+    pickle_file = conf_dir.joinpath("cookies.pkl")
+
+    def __init__(self, cookies_data=None):
+        self.cache = cookies_data or self.empty_cache()  # 所有cookie类型的缓存
+        self.current_type = self.support_key[0]
+        self.load_from_pickle()
+
+    def empty_cache(self):
+        return {cookie_type: {} for cookie_type in self.support_key}
+
+    def switch(self, cookie_type):
+        """切换当前选中的cookie类型"""
+        if cookie_type in self.support_key:
+            self.current_type = cookie_type
+            return True
+        return False
+
+    def show(self):
+        """返回当前选中的cookie配置用于显示"""
+        return self.cache.get(self.current_type, {})
+
+    def update_current(self, cookie_data):
+        if isinstance(cookie_data, dict):
+            self.cache[self.current_type] = cookie_data
+        else:
+            self.cache[self.current_type] = {}
+        self.save_to_pickle()
+
+    def save_to_pickle(self):
+        with open(self.pickle_file, 'wb') as f:
+            pickle.dump(self.cache, f)
+
+    def load_from_pickle(self):
+        if self.pickle_file.exists():
+            with open(self.pickle_file, 'rb') as f:
+                self.cache = pickle.load(f)
+            return True
+        return False
+
+    def get(self, name):
+        return self.cache.get(name, {})
+
+    def save(self):
+        """返回用于保存到yaml的字典格式"""
+        return {"cookies": self.cache.copy()}
+
+
 @dataclass
 class Conf:
     sv_path: t.Union[p.Path, str] = curr_os.default_sv_path
@@ -43,14 +109,15 @@ class Conf:
     isDeduplicate: bool = False
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
-    eh_cookies: dict = field(default_factory=dict)
+    cookies = None
     clip_db: t.Union[p.Path, str] = curr_os.default_clip_db
-    clip_read_num: str = "20"
+    rv_script: t.Union[p.Path, str] = ''
+    clip_read_num: str = '20'
+    concurr_num: str = '16'
     clip_sql = curr_os.clip_sql
     file = None
 
-    def __init__(self, path=None):
-        # super(Conf).__init__()
+    def __init__(self, path=None, iname=None):
         self.init_conf()
 
     def init_conf(self):  # 脱敏，储存路径和代理等用外部文件读
@@ -65,11 +132,14 @@ class Conf:
             for k, v in yml_config.items():
                 if k == "sv_path" and v == r"D:\Comic":
                     v = curr_os.default_sv_path
-                self.__setattr__(k, v or getattr(self, k, None))
+                # 跳过cookie相关字段，由ConfCookie处理
+                if k != "cookies":
+                    setattr(self, k, v or getattr(self, k, None))
             self.sv_path = p.Path(self.sv_path)
             self.clip_db = p.Path(self.clip_db)
+            self.rv_script = p.Path(self.rv_script)
             self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
-            self.eh_cookies = getattr(self, 'eh_cookies', None)
+            self.cookies = ConfCookie()
         except FileNotFoundError:
             pass
 
@@ -77,11 +147,20 @@ class Conf:
         def path_like_handle(_p):
             return str(_p) if isinstance(_p, p.Path) else _p
         for k, v in kwargs.items():
-            self.__setattr__(k, p.Path(v) if k == "sv_path" else v)
+            setattr(self, k, p.Path(v) if k in ("sv_path","rv_script") else v)
         props = asdict(self)
         props['sv_path'] = path_like_handle(props['sv_path'])
         props['clip_db'] = path_like_handle(props['clip_db'])
+        props['rv_script'] = path_like_handle(props['rv_script'])
+        self.chain_rv()
         yaml_update(self.file, props)
+
+    def chain_rv(self):
+        # 储存目录更改单向联动 rV path值
+        if self.rv_script and str(self.rv_script) != ".":
+            rv_conf = self.rv_script.parent.joinpath(r"redViewer/backend/conf.yml")
+            if rv_conf.exists():
+                yaml_update(rv_conf,  {"path": str(self.sv_path)})
 
     def cLog(self, name: str, level: str = None, **kw):
         if not hasattr(Conf, '_loggers'):
@@ -104,13 +183,18 @@ class Conf:
 
     @property
     def settings(self):
-        return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map
+        return self.sv_path, self.log_path, self.proxies, self.log_level, self.custom_map, self.concurr_num
 
-    def __new__(cls, *args, path: t.Optional[p.Path] = None, **kwargs):
-        _instance = f"_instance_{path.name}" if path else "_instance"
+    @classmethod
+    def duel_conf(cls, ori_conf_yml, iname):
+        _i = f"_instance_{iname}" if iname else "_instance"
+        return _i, toAppConfigLocation(ori_conf_yml, iname)
+    
+    def __new__(cls, *args, path: t.Optional[p.Path] = None, iname: str = None, **kwargs):
+        _instance, file = cls.duel_conf((path or ori_path).joinpath("conf.yml"), iname)
         if not hasattr(Conf, _instance):
             setattr(Conf, _instance, object.__new__(cls))
-            getattr(Conf, _instance).file = (path or ori_path).joinpath('conf.yml')
+            getattr(Conf, _instance).file = file
         return getattr(Conf, _instance)
 
 
@@ -185,14 +269,6 @@ def fin_transfer(_elect, _results_keys):
     return transfer_input(_elect)
 
 
-domain_regex = re.compile("https?://(.*?)/")
-
-
-def correct_domain(spider_domain, url) -> str:
-    _domain = domain_regex.search(url).group(1)
-    return url.replace(_domain, spider_domain)
-
-
 cn_character = r'，。！？；：（）《》【】“”\‘\’、'
 en_character = r',.!?;:()<>[]""\'\' '
 character_table = str.maketrans(cn_character, en_character)
@@ -201,6 +277,9 @@ character_table = str.maketrans(cn_character, en_character)
 def convert_punctuation(text):
     return text.translate(character_table)
 
+
+def clean_escape_chars(text):
+    return text.replace('\\\\', '\\').replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
 
 class State:
     """gui与后端需要共用的一个状态变量时，使用此类；
@@ -283,3 +362,12 @@ class Queues:
 
 def md5(_str):
     return hashlib.md5(_str.encode()).hexdigest()
+
+
+def get_loop():
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
