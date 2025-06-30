@@ -14,6 +14,7 @@ class macOS:
     default_clip_db = pathlib.Path.home().joinpath(
         "Library/Containers/org.p0deje.Maccy/Data/Library/Application Support/Maccy/Storage.sqlite")
     clip_sql = "SELECT `ZTITLE` FROM `ZHISTORYITEM` order by `Z_PK` desc"
+    shell = "zsh"
 
     def __init__(self, _p):
         self.proj_p = _p

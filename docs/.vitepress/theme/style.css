@@ -1,0 +1,24 @@
+/**
+ * Customize default theme styling by overriding CSS variables:
+ * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
+ */
+
+/**
+ * Component: Home
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: -webkit-linear-gradient(
+    120deg,
+    #eea320f4 60%,
+    #441bd900
+  );
+
+  --vp-home-hero-image-background-image: -webkit-linear-gradient(
+    125deg,
+    #f4c03bd5 40%,
+    #fd3e94de 80%
+  );
+  --vp-home-hero-image-filter: blur(40px);
+}

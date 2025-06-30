@@ -1,28 +1,54 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import tempfile
 import time
 import typing as t
 import socket
 from dataclasses import dataclass
 from multiprocessing import Queue, freeze_support
 import urllib.parse as up
-from lxml import etree
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
-from utils import State, QueuesManager, Queues, ori_path, re, temp_p, PresetHtmlEl
-from utils.sql import SqlUtils
-from utils.website import Uuid
+from utils import State, QueuesManager, Queues, re
+from utils.preview import PreviewHtml, PreviewByClipHtml
 from variables import SPIDERS
 
 
 @dataclass
+class Selected(State):
+    """仅替代[clip]JSON格式的结构化数据传输类，作为附带必要少量信息的input_state.indexes
+    一个章节一个Selected！[Selected1-1,Selected1-2,Selected1-3]
+    以往的无章节会归为[Selected2]
+    """
+    title: str
+    bid: str
+    episode_name: t.Optional[str] = None
+
+    def __post_init__(self):
+        """确保数据格式正确并缓存"""
+        if not self.title or not self.bid:
+            raise ValueError("title and bid are required")
+        self.sv_cache()
+
+    @property
+    def section(self) -> str:
+        return self.episode_name if self.episode_name else 'meaningless'
+
+    def __str__(self):
+        if self.episode_name:
+            return f"Selected({self.title} - {self.episode_name})"
+        return f"Selected({self.title})"
+
+
+@dataclass
 class InputFieldState(State):
+    """
+    indexes: preference 'def select... param elect'
+    """
     keyword: str
     bookSelected: int
-    indexes: t.Union[str, list]
+    indexes: t.Union[str, list, t.List[Selected]]
     pageTurn: t.Union[str, int]
 
 
@@ -37,12 +63,17 @@ class ProcessState(State):
 
 
 class TasksObj:
-    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None):
+    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None, episode_name: str = None):
         self.taskid = taskid
         self.title = title
         self.tasks_count = tasks_count
         self.title_url = title_url
+        self.episode_name = episode_name
         self.downloaded = []
+
+    @property
+    def display_title(self) -> str:
+        return f"{self.title} - {self.episode_name}" if self.episode_name else self.title
 
 
 class TaskObj:
@@ -93,7 +124,7 @@ class QueueHandler:
 class GuiQueuesManger(QueuesManager):
     queue_port: int = None
 
-    def create_server_manager(self):
+    def create_server_manager(self, **extra):
         InputFieldQueue = Queue()
         TextBrowserQueue = Queue(2)
         ProcessQueue = Queue()
@@ -104,8 +135,10 @@ class GuiQueuesManger(QueuesManager):
         QueuesManager.register('ProcessQueue', callable=lambda: ProcessQueue)  # 爬虫 > GUI
         QueuesManager.register('BarQueue', callable=lambda: BarQueue)  # 爬虫 > GUI.thread
         QueuesManager.register('TasksQueue', callable=lambda: TasksQueue)  # 爬虫 > GUI.thread
-        manager = QueuesManager(address=('0.0.0.0', self.queue_port), authkey=b'abracadabra')
-        self.s = manager.get_server()
+        for k, w in extra.items():
+            QueuesManager.register(k, lambda: w)
+        self.manager = QueuesManager(address=('127.0.0.1', self.queue_port), authkey=b'abracadabra')
+        self.s = self.manager.get_server()
         self.s.serve_forever()
 
     def find_free_port(self, start_port=50000):
@@ -113,7 +146,7 @@ class GuiQueuesManger(QueuesManager):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 try:
-                    s.bind(('0.0.0.0', port))
+                    s.bind(('127.0.0.1', port))
                     self.queue_port = port
                     return port
                 except Exception as e:
@@ -133,95 +166,6 @@ def crawl_what(what, queue_port, **settings_kw):
     process.start()
     process.join()
     process.stop()
-
-
-class PreviewHtml:
-    format_path = ori_path.joinpath("GUI/src/preview_format")
-
-    class bootstrap:
-        @staticmethod
-        def create_element(idx, img_src, title, url, num=0):
-            max_width = 170
-            title = PresetHtmlEl.sub(title)
-            abbreviated_title = title[:18] + "..."
-            el = f"""<div class="col-md-3 singal-task" style="max-width:{max_width}px"><div class="form-check">
-            <input class="form-check-input" type="checkbox" name="img" id="{idx}">
-            <label class="form-check-label" for="{idx}">
-                <div style="position: relative; display: inline-block;">
-                    <img src="{img_src}" title="{title}" alt="{title}" class="img-thumbnail"/>%s
-                </div>
-            </label></div>
-            <a href="{url}"><p>[{idx}]、{abbreviated_title}</p></a>
-            </div>"""
-            el = el % (f'''<span class="badge bg-info badge-on-img">{num}</span>''' if num else "")
-            return el
-
-    def __init__(self, url=None, html_style="bootstrap"):
-        self.contents = []
-        self.html_style = html_style
-        self.url = url
-
-    def add(self, *args):
-        self.contents.append(getattr(self, self.html_style).create_element(*args))
-
-    @property
-    def created_temp_html(self):
-        temp_p.mkdir(exist_ok=True)
-        with open(self.format_path.joinpath(rf"{self.html_style}.html"), 'r', encoding='utf-8') as f:
-            format_text = f.read()
-        _content = "\n".join(self.contents)
-        if self.url:
-            _content += f'\n<div class="col-md-3"><p>for check current page</p><p>检查当前页数</p><p>{self.url}</p></div>'
-        html = format_text.replace("{body}", _content)
-        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
-        tf.write(bytes(html, 'utf-8'))
-        f = str(tf.name)
-        tf.close()
-        return f
-
-    @staticmethod
-    def tip_duplication(spider, tf):
-        handler = InfoHandler(spider, tf)
-        infos = handler.get_infos()
-        if not infos:
-            print("tip_duplication got info None")
-            return
-        batch_md5 = handler.batch_md5(infos)
-        sql_utils = SqlUtils()
-        downloaded_md5 = sql_utils.batch_check_dupe(list(batch_md5.keys()))
-        sql_utils.close()
-
-        with open(tf, 'r+', encoding='utf-8') as fp:
-            html_content = fp.read()
-            for _md5 in downloaded_md5:
-                info = batch_md5[_md5]
-                html_content = html_content.replace(
-                    f'href="{info}"',
-                    f'href="{info}" class="downloaded"'
-                )
-            fp.seek(0)
-            fp.truncate()
-            fp.write(html_content)
-
-
-class InfoHandler:
-    def __init__(self, spider, tf):
-        self.spider = spider
-        self.tf = tf
-
-    def get_infos(self):
-        with open(self.tf, 'r', encoding='utf-8') as file:
-            html_content = file.read()
-            html = etree.HTML(html_content)
-        # titles = html.xpath('//div[@class="col-md-3"]//img/@title')
-        urls = html.xpath('//div[contains(@class, "singal-task")]//a/@href')
-        return urls
-
-    def batch_md5(self, infos):
-        # return {md5(title): title for title in titles}
-        uuid_obj = Uuid(self.spider)
-        _ = {uuid_obj.id_and_md5(info)[-1]: info for info in infos}
-        return _
 
 
 class Url(str):
@@ -296,22 +240,6 @@ def execute_js(js_code, func, arg):
     _js = execjs.compile(js_code)
     out = _js.call(func, arg)
     return out
-
-
-class PreviewByClipHtml:
-    format_path = ori_path.joinpath("GUI/src/preview_format")
-    html_style = "bootstrap"
-
-    @classmethod
-    def created_temp_html(cls, url_regex, match_num):
-        with open(cls.format_path.joinpath(rf"{cls.html_style}_by_clip.html"), 'r', encoding='utf-8') as f:
-            format_text = f.read()
-        html = format_text.replace("{_url_regex}", url_regex).replace("{_match_num}", str(match_num))
-        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
-        tf.write(bytes(html, 'utf-8'))
-        f = str(tf.name)
-        tf.close()
-        return f
 
 
 class ClipManager:

@@ -2,32 +2,53 @@
 import os
 import re
 import pathlib
-import warnings
 from io import BytesIO
 
+import pillow_avif
 from itemadapter import ItemAdapter
 from scrapy.http import Request
 from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
-from scrapy.exceptions import ScrapyDeprecationWarning
-from scrapy.utils.python import get_func_args
 
 from utils import conf
-from utils.website import JmUtils, set_author_ahead, MangabzUtils
+from utils.website import JmUtils, MangabzUtils, set_author_ahead
 from utils.processed_class import TaskObj
 from assets import res
+
+
+class PageNamingMgr:
+    img_sv_type = getattr(conf, 'img_sv_type', 'jpg')
+    img_suffix_regex = re.compile(r'\.(jpg|png|gif|jpeg|bmp|webp|tiff|tif|ico|avif|svg)$')
+
+    def __init__(self):
+        self.digits_map = {}
+
+    def __call__(self, taskid, page, info):
+        if isinstance(page, str) and bool(self.img_suffix_regex.search(page)):
+            return page
+        elif not self.digits_map.get(taskid):
+            self.digits_map[taskid] = len(str(info.spider.tasks[taskid].tasks_count))
+        digits = self.digits_map[taskid]
+        return f"{str(page).zfill(digits)}.{self.img_sv_type}"
 
 
 class ComicPipeline(ImagesPipeline):
     err_flag = 0
     _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        pipe = super(ComicPipeline, cls).from_crawler(crawler)
+        pipe.page_naming = PageNamingMgr()
+        return pipe
 
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
         title = self._sub.sub('-', item.get('title'))
         section = self._sub.sub('-', item.get('section'))
-        page = res.SPIDER.PAGE_NAMING % item.get('page')
+        taskid = item.get('uuid_md5')
+        page = self.page_naming(taskid, item.get('page'), info)
         spider = self.spiderinfo.spider
         basepath: pathlib.Path = spider.settings.get('SV_PATH')
         path = self.file_folder(basepath, section, spider, title, item)
@@ -36,14 +57,19 @@ class ComicPipeline(ImagesPipeline):
         return fin
 
     def file_folder(self, basepath, section, spider, title, item):
+        if item['uuid_md5'] in spider.tasks_path:
+            return spider.tasks_path[item['uuid_md5']]
         if spider.name in spider.settings.get('SPECIAL'):
             parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             _title = self._sub_index.sub('', set_author_ahead(title))
-            path = parent_p.joinpath(f"{_title}[{item['uuid']}]" if conf.addUuid else _title)
+            if section != 'meaningless':
+                base_title_path = parent_p.joinpath(_title)
+                path = base_title_path.joinpath(f"{section}[{item['uuid']}]" if conf.addUuid else section)
+            else:
+                path = parent_p.joinpath(f"{_title}[{item['uuid']}]" if conf.addUuid else _title)
         else:
             path = basepath.joinpath(f"{title}/{section}")
-        if item['uuid_md5'] not in spider.tasks_path:
-            spider.tasks_path[item['uuid_md5']] = path
+        spider.tasks_path[item['uuid_md5']] = path
         return path
 
     def image_downloaded(self, response, request, info, *, item=None):

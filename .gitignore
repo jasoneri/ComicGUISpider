@@ -32,6 +32,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+node_modules/
+docs/.vitepress/dist
+docs/.vitepress/cache
+package-lock.json
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -63,6 +67,7 @@ coverage.xml
 
 # Translations
 *.po
+*.mo
 *.pot
 
 # Django stuff:
@@ -168,26 +173,32 @@ dmypy.json
 analyze/
 *.d
 *.zip
+*.psd
 *demo*.py
 __temp
 test/*
 .lh/
 assets/res/*.png
+custom/bg/*
+custom/start/*
 # self/build
 *.ico
 *.qrc
 src/
 temp
-requirements-in.txt
+*-in.txt
 untitled*
 Pipfile
 Pipfile.lock
 codecov*
 *_local.yml
+*-lock.yaml
+*.hash
 # self/conf
 gitee_t.json
 conf.yml
 record.db
+hitomi.db
 # self/desc created html
 desc.html
 docs/*.html

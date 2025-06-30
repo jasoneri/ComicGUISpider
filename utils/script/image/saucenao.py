@@ -18,7 +18,7 @@ sys.path.append(str(proj_p))
 from utils import Conf, ori_path
 
 init(autoreset=True)
-conf = Conf(path=proj_p.joinpath("utils/script"))
+conf = Conf(path=proj_p.joinpath("utils/script"), iname='img')
 proxy = {"https://": f"http://{conf.proxies[0]}"}
 
 

@@ -10,37 +10,72 @@ from qframelesswindow.webengine import FramelessWebEngineView
 
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
-from GUI.thread.other import CopyUnfinished
+from GUI.tools import CopyUnfinished
 from assets import res
+from variables import CN_PREVIEW_NEED_PROXIES_IDXES
 from utils import conf
 from utils.website import EHentaiKits
 
 
 class RefererInterceptor(QWebEngineUrlRequestInterceptor):
-    def __init__(self, referer_url):
+    def __init__(self):
         super().__init__()
+        self.referer_url = None
+
+    def set_referer_url(self, referer_url):
         self.referer_url = referer_url
 
     def interceptRequest(self, info):
-        if info.requestUrl().toString().endswith(('png', 'jpg', 'jpeg', 'webp')):
-            info.setHttpHeader(b"Referer", self.referer_url.encode())
+        if self.referer_url and info.requestUrl().toString().endswith(('png', 'jpg', 'jpeg', 'webp', 'avif')):
+            # print(f"[{self.referer_url}]{info.requestUrl().toString()}")
+            info.setHttpHeader(b"referer", self.referer_url.encode())
 
 
 class BrowserWindow(QMainWindow, Ui_browser):
-    eh_kits = None
-
-    def __init__(self, gui, tf, parent=None, proxies: str = None):
-        super(BrowserWindow, self).__init__(parent)
+    def __init__(self, gui, proxies: str = None):
+        super(BrowserWindow, self).__init__()
+        self.eh_kits = None
+        self._set_referer_nterceptor = False
+        self.interceptor = RefererInterceptor()
         if proxies:
             self.set_proxies(proxies)
         self.gui = gui
-        self.tf = tf
-        self._set_referer_nterceptor = False
         self.view = FramelessWebEngineView(self)
-        self.home_url = QUrl.fromLocalFile(self.tf)
+        self.profile = self.view.page().profile()
+        self.profile.setUrlRequestInterceptor(self.interceptor)
+        self.home_url = QUrl.fromLocalFile(self.gui.tf)
+        self.set_env_mode()
         self.load_home()
         self.output = []
         self.setupUi(self)
+
+    def set_env_mode(self):
+        index = self.gui.chooseBox.currentIndex()
+        conf_proxy = (conf.proxies or [None])[0]
+        if res.lang == 'zh-CN':  # 中文圈环境
+            proxies = None if index not in CN_PREVIEW_NEED_PROXIES_IDXES else \
+                conf_proxy
+            if proxies:
+                BrowserWindow.set_proxies(proxies)
+        elif conf_proxy:   # set proxy to browser if proxy exist on conf.yml
+            BrowserWindow.set_proxies(conf_proxy)
+        if index == 2 and conf.cookies.get("jm"):  # jm
+            self.set_cookies("jm")
+        elif index == 4:  # e-hentai
+            self.set_cookies("ehentai")
+        elif index == 6:  # hitomi
+            self.set_referer_nterceptor(self.gui.spiderUtils.index)
+    
+    def _set_dev_tools(self):
+        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+        settings = self.view.settings()
+        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
+        settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        self.dev_tools = QWebEngineView()
+        self.dev_tools.setWindowTitle("DevTools")
+        self.dev_tools.page().setInspectedPage(self.view.page())
+        self.dev_tools.show()
 
     def setupUi(self, _window):
         super(BrowserWindow, self).setupUi(_window)
@@ -82,22 +117,22 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.copyBtn.clicked.connect(copyUnfinishedTasks)
 
     def set_referer_nterceptor(self, url):
-        self.interceptor_referer = url    
         self._set_referer_nterceptor = True
+        self.interceptor.set_referer_url(url)
 
     def load_home(self):
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
-            self.view.page().profile().setUrlRequestInterceptor(RefererInterceptor(self.interceptor_referer))
-        
+            self.profile = self.view.page().profile()
+            self.profile.setUrlRequestInterceptor(self.interceptor)
+
     def set_html(self):
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
 
-    def second_init(self, tf):
+    def second_init(self):
         """翻页时，页面变更tf文件，需要刷新"""
-        self.tf = tf
-        self.home_url = QUrl.fromLocalFile(self.tf)
+        self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.load_home()
 
     def keep_top_hint(self):
@@ -117,7 +152,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
     def page(self, after_callback):
         def callback(ret):
-            self.output = list(map(int, ret)) if ret else []
+            self.output = ret
             after_callback()
 
         self.js_execute("scanChecked()", callback)
@@ -136,26 +171,35 @@ class BrowserWindow(QMainWindow, Ui_browser):
         proxy.setPort(int(port))
         QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
 
-    def set_ehentai(self):
-        for key, values in conf.eh_cookies.items():
+    def set_cookies(self, website):
+        match website:
+            case "ehentai":
+                cookies_item = conf.cookies.get("ehentai").items()
+                domain = self.gui.spiderUtils.domain
+                url = self.gui.spiderUtils.index
+            case "jm":
+                cookies_item = conf.cookies.get("jm").items()
+                domain = self.gui.spiderUtils.get_domain()
+                url = f"https://{domain}"
+        for key, values in cookies_item:
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
             my_cookie.setValue(str(values).encode())
-            my_cookie.setDomain(EHentaiKits.domain)
-            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(EHentaiKits.index))
+            my_cookie.setDomain(domain)
+            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(url))
 
     @classmethod
-    def check_ehentai(cls, window):
-        if not conf.eh_cookies:
+    def check_ehentai(cls, gui):
+        if not conf.cookies.get("ehentai"):
             InfoBar.error(
                 title='', content=res.EHentai.COOKIES_NOT_SET,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=-1, parent=window.textBrowser
+                duration=-1, parent=gui.textBrowser
             )
             return
         cls.eh_kits = EHentaiKits(conf)
         if not cls.eh_kits.test_index():
-            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, window.textBrowser,
+            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, gui.textBrowser,
                 cls.eh_kits.index, cls.eh_kits.name)
             return
         return True
@@ -163,7 +207,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
     def tmp_sv_local(self):
         def refresh_tf(html):
             if html:
-                with open(self.tf, 'w', encoding='utf-8') as f:
+                with open(self.gui.tf, 'w', encoding='utf-8') as f:
                     f.write(html)
 
         self.js_execute("get_curr_hml();", refresh_tf)
@@ -173,7 +217,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.js_execute("initTaskPanel();", lambda _: callback())
 
     def add_task(self, tasks_obj):
-        _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
+        _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.display_title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
         js_code = """if (typeof addTask === 'function') {
                 %s;
             } else { false; }""" % _js_code

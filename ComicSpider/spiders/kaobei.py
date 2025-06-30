@@ -10,7 +10,8 @@ from utils.processed_class import Url
 from utils.website import KaobeiUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
-domain = "api.mangacopy.com"
+pc_domain = "www.copy20.com"
+domain = "mapi.copy20.com"
 
 
 class FrameBook:
@@ -48,21 +49,29 @@ class FrameBook:
 
 class KaobeiSpider(BaseComicSpider):
     name = 'manga_copy'
-    ua = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-        "Accept-Encoding": "gzip",
-        "Content-Encoding": "gzip",
-        "platform": "1",
-        "version": "2024.01.08",
-        "webp": "1",
-        "region": "1",
-        "Origin": "https://www.mangacopy.com",
+    ua = headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
+        'Accept': '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'Connection': 'keep-alive',
+    }
+    ua_mapi = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+        'Origin': f'https://{pc_domain}',
+        'Connection': 'keep-alive',
+        'Content-Encoding': 'gzip, compress, br',
+        'platform': '1',
+        'version': '2025.05.09',
+        'webp': '1',
+        'region': '0',
     }
     domain = domain
+    pc_domain = pc_domain
     custom_settings = {
-        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAMiddleware': 5,
+        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAKaobeiMiddleware': 5,
                                    'ComicSpider.middlewares.ComicDlProxyMiddleware': 6},
         "REFERER_ENABLED": False
     }
@@ -72,6 +81,11 @@ class KaobeiSpider(BaseComicSpider):
     preset_book_frame = FrameBook(domain)
     turn_page_info = (r"offset=\d+", None, 30)
     section_limit = 300
+
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        KaobeiUtils.get_aes_key()
+        return super().from_crawler(crawler, *args, **kwargs)
 
     @property
     def search(self):
@@ -105,7 +119,7 @@ class KaobeiSpider(BaseComicSpider):
                 for attr_name, _path in self.preset_book_frame.rendering_map().items()
             }
             # url = rf"""https://{self.domain}/api/v3/comic/{rendered.pop('book_path')}/group/default/chapters?limit=300&offset=0&_update=false"""
-            url = rf"""https://mangacopy.com/comicdetail/{rendered.pop('book_path')}/chapters"""
+            url = rf"""https://{pc_domain}/comicdetail/{rendered.pop('book_path')}/chapters"""
             self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
             frame_results[index + 1] = [url, rendered['漫画名'], response.url]
         return self.say.frame_book_print(
@@ -126,7 +140,8 @@ class KaobeiSpider(BaseComicSpider):
         comic_path_word = resp_data['build']['path_word']
         chapters_data = resp_data['groups']['default']['chapters']
         for x, chapter_datum in enumerate(chapters_data):
-            section_url = rf"""https://{self.domain}/api/v3/comic/{comic_path_word}/chapter2/{chapter_datum['id']}?_update=false&format=json&platform=4"""
+            # section_url = rf"""https://{self.domain}/api/v3/comic/{comic_path_word}/chapter2/{chapter_datum['id']}?_update=false&platform=1"""
+            section_url = rf"""https://{self.pc_domain}/comic/{comic_path_word}/chapter/{chapter_datum['id']}"""
             section = chapter_datum['name']
             frame_results[x + 1] = [section, section_url]
         return self.say.frame_section_print(frame_results, print_example=example_s)
@@ -134,15 +149,34 @@ class KaobeiSpider(BaseComicSpider):
     def mk_page_tasks(self, **kw):
         return [kw['url']]
 
-    def parse_fin_page(self, response):
+    def mapi_parse_fin_page(self, response):
+        self.logger.warning("mapi_parse_fin_page is deprecated")
         result = response.json().get('results', {})
+        meta = response.meta
         if result.get("show_app"):
-            self.say(font_color(f'[{response.meta.get("title")}_{response.meta.get('section')}] 被风控了我擦呢',
+            self.say(font_color(f'[{meta.get("title")}-{meta.get('section')}] 被风控了我擦呢',
                                 color='orange'))
         chapter = result.get('chapter', {})
         targets = dict(zip(chapter.get('words', []), chapter.get('contents', [])))
-        group_infos = ComicspiderItem.get_group_infos(response.meta)
+        group_infos = ComicspiderItem.get_group_infos(meta)
+        self.set_task((meta['uuid_md5'], f"{meta['title']}-{meta['section']}", len(targets), meta['title_url']))
         for page, url_item in targets.items():
+            item = ComicspiderItem()
+            item.update(**group_infos)
+            item['page'] = page + 1
+            item['image_urls'] = [url_item['url']]
+            self.total += 1
+            yield item
+        self.process_state.process = 'fin'
+        self.Q('ProcessQueue').send(self.process_state)
+
+    def parse_fin_page(self, response):
+        meta = response.meta
+        group_infos = ComicspiderItem.get_group_infos(meta)
+        contentKey = response.xpath('//div[@contentkey]/@contentkey').get()
+        imageData = KaobeiUtils.decrypt_chapter_data(contentKey)
+        self.set_task((meta['uuid_md5'], f"{meta['title']}-{meta['section']}", len(imageData), meta['title_url']))
+        for page, url_item in enumerate(imageData):
             item = ComicspiderItem()
             item.update(**group_infos)
             item['page'] = page + 1

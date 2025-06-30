@@ -2,8 +2,7 @@
 import re
 
 from .basecomicspider import BaseComicSpider2, font_color
-from utils import PresetHtmlEl
-from utils.website import WnacgUtils
+from utils.website import WnacgUtils, correct_domain
 from utils.processed_class import PreviewHtml
 
 domain = "wnacg.com"
@@ -23,16 +22,13 @@ class WnacgSpider(BaseComicSpider2):
                 '汉化': f'https://{domain}/albums-index-cate-1.html', }
     turn_page_search = r"p=\d+"
     turn_page_info = (r"-page-\d+", "albums-index%s")
+    book_id_url = f'https://{domain}/photos-gallery-aid-%s.html'
+    transfer_url = staticmethod(lambda url: url.replace('index', 'gallery'))
 
-    def before_search(self):
-        if self.settings.get("PROXY_CUST") is None:  # 不设配置代理就永远走国内可访问域名，无视全局代理模式
-            self.domain = WnacgUtils.get_domain()
-
-    @staticmethod
-    def rule_book_index(book_index: str) -> str:
-        len_index = len(book_index)
-        book_index = f"{(6 - len_index) * '0'}{book_index}" if len_index < 6 else book_index
-        return f"{book_index[:-2]}/{book_index[-2:]}"
+    def preready(self):
+        if self.settings.get("PROXY_CUST") is None:
+            self.domain = self.ut.get_domain()
+            self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def frame_book(self, response):
         frame_results = {}
@@ -40,20 +36,22 @@ class WnacgSpider(BaseComicSpider2):
         self.say(example_b.format('序号', '漫画名') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
-        title_xpath = './div[contains(@class, "pic")]/a'
+        tar_xpath = './div[contains(@class, "pic")]'
         for x, target in enumerate(targets):
-            item_elem = target.xpath(title_xpath)
+            item_elem = target.xpath(f"{tar_xpath}/a")
             title = item_elem.xpath('./@title').get()
             pre_url = item_elem.xpath('./@href').get()
             preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
-            url = preview_url.replace('index', 'gallery')  # 压缩步骤，此链直接返回该本全页uri
+            url = self.transfer_url(preview_url)
             img_preview = 'http:' + item_elem.xpath('./img/@src').get()
             self.say(example_b.format(str(x + 1), title, chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
             frame_results[x + 1] = [url, title, preview_url]
             _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
-            page = f"p{re.search(r'(\d+)[張张]', _page.strip()).group(1)}" if _page else 0
-            preview.add(x + 1, img_preview, title, preview_url, page)
+            pages = re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0
+            _cate = (target.xpath(f"{tar_xpath}/@class").get() or "").split(" ")[-1]
+            btype = WnacgUtils.cate_mappings.get(_cate, "")
+            preview.add(x + 1, img_preview, title, preview_url, pages=pages, btype=btype)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=response.url)
 
