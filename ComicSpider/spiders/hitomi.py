@@ -2,7 +2,6 @@
 import json
 import asyncio
 import scrapy
-import httpx
 
 from utils import PresetHtmlEl, conf
 from utils.website import HitomiUtils, get_loop
@@ -41,9 +40,7 @@ class HitomiSpider(BaseComicSpider):
             else:
                 spider.logger.error(f"Failed to initialize HitomiUtils: {str(e)}")
             return None
-        transport_kw = dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
-        spider.async_cli = httpx.AsyncClient(headers=HitomiUtils.headers,
-            transport=httpx.AsyncHTTPTransport(**transport_kw))
+        spider.async_cli = spider.ut.get_cli(conf, is_async=True)
         return spider
 
     def start_requests(self):
