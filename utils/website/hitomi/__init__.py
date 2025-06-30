@@ -83,7 +83,7 @@ class HitomiUtils(EroUtils, Req):
 
     @classmethod
     def get_cli(cls, conf, is_async=False, **kwargs):
-        return super().get_cli(conf, is_async=is_async, http2=True, **kwargs)
+        return super().get_cli(conf, is_async=is_async, **kwargs)
 
     def test_index(self):
         try:

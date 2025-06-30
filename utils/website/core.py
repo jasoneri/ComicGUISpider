@@ -75,6 +75,7 @@ class Cookies:
 
 class Req:
     book_hea = {}
+    book_url_regex = ""
 
     @classmethod
     def get_cli(cls, conf, is_async=False, **kwargs):
@@ -89,7 +90,6 @@ class Req:
             base_kwargs = {'headers': cls.book_hea, 'trust_env': True}
         base_kwargs.update(kwargs)
         return client_class(**base_kwargs)
-    book_url_regex = ""
 
     @classmethod
     def parse_book(cls):
@@ -161,14 +161,27 @@ class DomainUtils(Utils):
     @classmethod
     def get_domain(cls):
         def _():
-            loop = get_loop()
-            domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever()) or None  # 控制顺序，例如永久页长期没恢复就前置从发布页获取
+            try:
+                asyncio.get_running_loop()
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    return executor.submit(cls._get_domain_thread).result()
+            except RuntimeError:
+                return cls._get_domain_thread()
+                
+        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
+        return cls.cachef.with_expiry(48, write_in=True)(_)()
+
+    @classmethod
+    def _get_domain_thread(cls):
+        loop = get_loop()
+        try:
+            domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever()) or None
             if not cls.status_forever and not cls.status_publish:
                 raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
             return domain
-        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
-        domain = cls.cachef.with_expiry(48, write_in=True)(_)()
-        return domain
+        finally:
+            loop.close()
 
     @classmethod
     async def test_aviable_domain(cls, domain):
