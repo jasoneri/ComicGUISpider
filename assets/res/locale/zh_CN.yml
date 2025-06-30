@@ -2,15 +2,18 @@ Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
   hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
 GUI:
-  DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`使用手册`，内有配置详情/GUI视频使用指南等"
-  DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
+  DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0,
+    255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`使用手册`，内有配置详情/GUI视频使用指南等"
+  DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/额外说明</a>
+    文档，看能否解决疑惑 "
   DESC_ELSE: "若有其他问题/功能建议等到群反映/提issue"
-  
   BrowserWindow_ensure_warning: "需要返回选择页，并确保有选择的情况下使用"
   jm_desc: "支持多车号输入（检测十进制数字），例如`123456，654321，114514`（逗号分隔）<br>剪贴板功能相关：不要复制`18comic.vip`这个域名(即翻墙后的jm)，莫名其妙有5秒盾，还不如直接输入车号"
-  wnacg_desc: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>"
+  wnacg_desc: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次）
+    / `ReadTimeout` 一般重启就好了，<br>重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>"
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
-  hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
+  hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效
+    2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
   check_ehetai: "正在检测当前环境能否访问 `exhentai` 中..."
   check_mangabz: "正在检测当前环境能否访问 `Māngabz` 中..."
   check_hitomi: "正在检测当前环境能否访问 `hitomi` 中..."
@@ -19,7 +22,8 @@ GUI:
   ACCESS_FAIL: "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
   cookies_copy_err: "格式错误，请看清楚最新gif的操作重新复制"
   copied_tip: "后台将复制[%s]条到剪贴板"
-  textbrowser_load_if_http: "<b><font size=\"5\" color=\"black\">点击右下 `预览` </font></b><font color=\"black\"> 或者 </font><a href=\"%s\" ><b style=\"font-size:20px;\">浏览器查看结果</b></a>"
+  textbrowser_load_if_http: "<b><font size=\"5\" color=\"black\">点击右下 `预览` </font></b><font
+    color=\"black\"> 或者 </font><a href=\"%s\" ><b style=\"font-size:20px;\">浏览器查看结果</b></a>"
   WorkThread_finish_flag: "后台完成"
   WorkThread_empty_flag: "后台正常退出没有"
   copymaga_tips: "拷贝已解锁章节，例如福利连"
@@ -48,7 +52,8 @@ GUI:
     rv_scriptp_desc_tip: "选择脚本文件（ %s ）"
     rv_deployBtn: "选择目录并部署"
     rv_deployDesc: "看起来你需要部署rV<br>1. 需选择与 CGS 和存储目录无关的非中文空目录<br>2. 根据控制台进行操作，部署后重新选择脚本"
-    rv_deployWinRequire: "<br>3. win补充：控制面板 > 时钟与区域 > 区域 > 更改系统区域设置 > 勾选beta版 unicode UTF-8 > 重启"
+    rv_deployWinRequire: "<br>3. win补充：控制面板 > 时钟与区域 > 区域 > 更改系统区域设置 > 勾选beta版 unicode
+      UTF-8 > 重启"
     rv_deploy_desc: "rV 部署说明"
     rv_deploy_desc_content: "点击选择脚本，然后取消或关闭选择窗口，会更新出部署的详细说明步骤"
     rv_book_marked: "显示记录"
@@ -64,10 +69,12 @@ GUI:
     hitomi_info_sved: "已保存 urlencode 后的值到预设之首"
     hitomi_info_sended: "已发送到搜索框，程序最适配urlencode值无需担心"
     domain_btn: "发布页"
-    domain_desc: "点击发布页然后按图示复制你能用的部分（内地），<br>回来点击执行按键，CGS会花几秒检测是否可用并相应通知，<br>CGS并不能突破你的网络环境， 浏览器开不了CGS也开不了，请知悉"
+    domain_desc: "点击发布页然后按图示复制你能用的部分（内地），<br>回来点击执行按键，CGS会花几秒检测是否可用并相应通知，<br>CGS并不能突破你的网络环境，
+      浏览器开不了CGS也开不了，请知悉"
     doamin_success_tip: "[%s]已设进下方临时文件，有效时间为48小时\n[%s]\n"
     doamin_error_tip: "域名全无效，请你自行检查，再次声明CGS并不能突破现网络环境去访问"
-    status_desc: "功能1：显示各网的`远程最新版本代码`是否可用的状态，网络不稳定的话点 CGS 至官网查看；\n状态补充：当issue或群讨论后修改，会在对应网站状态里加*号，此时方可用功能2，否则别乱点可能导致瘫痪\n功能2：按钮组对应更新解密相关小变动，更新成功会重启（避免状态出来前点击）"
+    status_desc: "功能1：显示各网的`远程最新版本代码`是否可用的状态，网络不稳定的话点 CGS 至官网查看；\n状态补充：当issue或群讨论后修改，会在对应网站状态里加*号，此时方可用功能2，否则别乱点可能导致瘫痪\n\
+      功能2：按钮组对应更新解密相关小变动，更新成功会重启（避免状态出来前点击）"
     status_fetching: "正在获取网站可用状态"
     status_waiting: "请等待一会~~"
     status_web_erratic: "[Warn]网络不稳定未能获取全部状态.."
@@ -80,7 +87,8 @@ GUI:
     chooseinputPlaceholderText: "输入序号"
     next_btnDefaultText: "搜索"
     checkisopenDefaultText: "(完成后自动)打开存储目录"
-    chooseinputTip: "示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) |  1+7-9 →复合 多选 1、7、8、9 | -3 →倒数3个"
+    chooseinputTip: "示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5
+      (减号) |  1+7-9 →复合 多选 1、7、8、9 | -3 →倒数3个"
     chooseBoxToolTip: "选中网站后看状态栏有输入提示"
     previewBtnStatusTip: "点击打开预览窗口，仅当出现书列表后才能使用"
     progressBarStatusTip: " >>> Ⅰ、绿色100%表示完成 Ⅱ、 任务细化后查得绿色100%也有漏页情况，可结合`复制未完成`与`剪贴板功能`进行补页"
@@ -113,7 +121,8 @@ GUI:
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`cookies-eh`"
   ACCESS_FAIL: "当前`cookies-eh`或`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
-  GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`cookies-eh`的值，值生成参考配置详情里该字段说明。<br>2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理（若环境检测失败，配置后重启 CGS 即可）代理服务建议用v2rayN"
+  GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`cookies-eh`的值，值生成参考配置详情里该字段说明。<br>2.
+    (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理（若环境检测失败，配置后重启 CGS 即可）代理服务建议用v2rayN"
   JUMP_TIP: "ehentai跳页情况特殊，没想好应用，暂时设限制取消`跳页`功能"
   MAPPINGS_INDEX: "首页"
   MAPPINGS_POPULAR: "热门"
@@ -126,7 +135,8 @@ SPIDER:
     exp_replace_keyword: "请于【"
     TextBrowser_error: "选择{1}步骤时错误的输入：{0}<br> {2}"
     frame_book_print_extra: " →_→ 鼠标移到序号栏有教输入规则"
-    frame_book_print_retry_tip: "什么意思？唔……就是你搜的在放✈(飞机)<br>翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没 / 重开换种姿势再搜"
+    frame_book_print_retry_tip: "什么意思？唔……就是你搜的在放✈(飞机)<br>翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没
+      / 重开换种姿势再搜"
     frame_section_print_extra: " ←_← 点击【开始爬取！】"
   chooseInput_flag: "输入要选的序号"
   sectionInput_flag: "开始爬取"
@@ -146,8 +156,11 @@ SPIDER:
   close_check_log_guide2: "2、第1步非网络问题的话，重启(retry)程序 > 更改配置 > 日志等级设为`DEBUG` > 重复引发出错的步骤"
   close_check_log_guide3: "3、第2步得出的日志同一种错误一直重复的话，请到群反映或提issue"
   ERO_BOOK_FOLDER: "本子"
-  PUBLISH_INVALID: "<a href=\"%s\">发布页</a>访问失效，<br>(简单)建议点击 rV 按钮 > domainTool 根据指示操作<br>(稍微复杂)或参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])"
-  DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>(简单)建议点击 rV 按钮 > domainTool 根据指示操作<br>(稍微复杂)或参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])<br>或通过 domainTool 进行操作"
+  PUBLISH_INVALID: "<a href=\"%s\">发布页</a>访问失效，<br>(简单)建议点击 rV 按钮 > domainTool 根据指示操作<br>(稍微复杂)或参考<a
+    href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])"
+  DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>(简单)建议点击 rV 按钮 > domainTool
+    根据指示操作<br>(稍微复杂)或参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\"\
+    >📒域名相关</a>处理[%s])<br>或通过 domainTool 进行操作"
 
 Updater:
   ver_check: "检查版本中"
@@ -156,7 +169,8 @@ Updater:
   code_downloading: "下载代码文件中"
   finish: "更新完毕"
   not_pkg_markdown: "当前环境无法使用此功能，需要重新下载绿色安装包"
-  token_invalid_notification: "[ 本地文件的token全部失效/读取失误，当前将使用无状态去请求github api（受限60请求/小时）]\n下次使用更新会重新下载token文件，还是全部失效/读取失误的话可截图告知开发者"
+  token_invalid_notification: "[ 本地文件的token全部失效/读取失误，当前将使用无状态去请求github api（受限60请求/小时）]\n\
+    下次使用更新会重新下载token文件，还是全部失效/读取失误的话可截图告知开发者"
   latest_code_overwriting: "使用最新版本代码覆盖中"
   too_much_waiting_update: "检测到堆积过多待更新版本，将忽略更新消息直接拉至最新版本代码"
   refreshing_code: "更新代码中"
@@ -169,4 +183,4 @@ Updater:
   update_ensure: "确认更新"
   doing: "过程会涉及代码与依赖的更新，请稍等片刻.."
   updated_success: "更新成功，CGS将在5s后重启"
-  updated_fail: "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）\n报错日志为[%s]" 
+  updated_fail: "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）\n报错日志为[%s]"
