@@ -227,6 +227,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.page_turn_frame()
 
+    def tip_duplication(self):
+        def trigger_mark_downloads():
+            page = self.BrowserWindow.view.page() if self.BrowserWindow else None
+            if page and page.contentsSize().width() > 0:
+                PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
+                page.contentsSizeChanged.disconnect(trigger_mark_downloads)
+        self.BrowserWindow.view.page().contentsSizeChanged.connect(trigger_mark_downloads)
+
     def page_turn_frame(self):
         def refresh_view(_prev_tf):
             if self.BrowserWindow and self.BrowserWindow.isVisible():
@@ -235,14 +243,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                     if self.tf != _prev_tf:
                         self.BrowserWindow.second_init()
                         if conf.isDeduplicate:
-                            def mark_downloads_after_load(ok):
-                                if ok:
-                                    def delayed_mark():
-                                        page = self.BrowserWindow.view.page() if self.BrowserWindow else None
-                                        PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
-                                    QTimer.singleShot(200, delayed_mark)
-                                    self.BrowserWindow.view.loadFinished.disconnect(mark_downloads_after_load)
-                            self.BrowserWindow.view.loadFinished.connect(mark_downloads_after_load)
+                            self.tip_duplication()
                         self.previewSecondInit = False
                         break
                     i += 1
@@ -296,14 +297,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.previewBtn.setFocus()
         # webEngine / page
         if conf.isDeduplicate and not self.clip_mgr.is_triggered:
-            def mark_downloads_after_load(ok):
-                if ok:
-                    def delayed_mark():
-                        page = self.BrowserWindow.view.page()
-                        PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
-                    QTimer.singleShot(200, delayed_mark)
-                    self.BrowserWindow.view.loadFinished.disconnect(mark_downloads_after_load)
-            self.BrowserWindow.view.loadFinished.connect(mark_downloads_after_load)
+            self.tip_duplication()
 
     def show_preview(self):
         """prevent PreviewWindow is None when init"""
