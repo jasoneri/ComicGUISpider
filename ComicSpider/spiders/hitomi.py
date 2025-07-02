@@ -2,7 +2,6 @@
 import json
 import asyncio
 import scrapy
-import httpx
 
 from utils import PresetHtmlEl, conf
 from utils.website import HitomiUtils, get_loop
@@ -40,10 +39,8 @@ class HitomiSpider(BaseComicSpider):
                 spider.crawler.engine.close_spider(spider, reason=f"[error]{str(e)}")
             else:
                 spider.logger.error(f"Failed to initialize HitomiUtils: {str(e)}")
-            return None
-        transport_kw = dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
-        spider.async_cli = httpx.AsyncClient(headers=HitomiUtils.headers,
-            transport=httpx.AsyncHTTPTransport(**transport_kw))
+                raise e
+        spider.async_cli = spider.ut.get_cli(conf, is_async=True)
         return spider
 
     def start_requests(self):
@@ -79,8 +76,13 @@ class HitomiSpider(BaseComicSpider):
             tasks = [fetch_gallery(i, gallery_id) for i, gallery_id in enumerate(result)]
             return await asyncio.gather(*tasks)
 
-        loop = get_loop()
-        resps = loop.run_until_complete(fetch_all())
+        try:
+            running_loop = asyncio.get_running_loop()
+            future = asyncio.run_coroutine_threadsafe(fetch_all(), running_loop)
+            resps = future.result()
+        except RuntimeError:
+            loop = get_loop()
+            resps = loop.run_until_complete(fetch_all())
         
         # 整合actual_parse的功能
         for _, resp in sorted(resps, key=lambda x: x[0]):  # 按原始索引排序

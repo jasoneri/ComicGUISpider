@@ -11,6 +11,7 @@ from assets import res
 from utils import conf
 
 expect_dir = ('web', 'web_handle', 'log', res.SPIDER.ERO_BOOK_FOLDER)
+record_file = conf.sv_path.joinpath("web_handle/record.txt")
 
 
 def combine_then_mv(root_dir, target_dir, order_book=None) -> list:
@@ -50,7 +51,6 @@ def show_max() -> list[BookShow]:
     sec_regex = re.compile(r'.*?(\d+\.?\d*)')
     format_regex = re.compile('<(del|save|remove)>')
     show_map_raw = {}
-    record_file = conf.sv_path.joinpath("web_handle/record.txt")
     if record_file.exists():
         with open(record_file, 'r', encoding='utf-8') as f:
             for line in f.readlines():
@@ -91,6 +91,18 @@ def show_max() -> list[BookShow]:
     all_books = show_map.keys() | dl_map.keys()
     result = [BookShow(name=book, show_max=show_map.get(book, ""), dl_max=dl_map.get(book, "")) for book in all_books]
     return result
+
+
+def delete_record(bn):
+    regex = re.compile(f'{bn}.*')
+    temp_file = record_file.with_suffix('.tmp')
+    with open(record_file, 'r', encoding='utf-8') as f_in, \
+            open(temp_file, 'w', encoding='utf-8') as f_out:
+        for line in f_in:
+            if bool(regex.search(line)):
+                continue
+            f_out.write(line)
+    temp_file.replace(record_file)
 
 
 if __name__ == '__main__':
