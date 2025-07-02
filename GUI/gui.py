@@ -21,11 +21,11 @@ from GUI.manager import TaskProgressManager, ClipGUIManager, PreprocessManager
 from variables import *
 from assets import res
 from utils import (
-    font_color, Queues, QueuesManager, conf, p, ori_path, curr_os
+    font_color, Queues, QueuesManager, conf, p, curr_os
 )
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
-    GuiQueuesManger, QueueHandler, refresh_state, crawl_what,
+    GuiQueuesManger, refresh_state, crawl_what,
     PreviewHtml, Selected
 )
 from utils.website import spider_utils_map
@@ -509,11 +509,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.bThread is not None:  # 线程停止
             self.bThread.stop()
         for _ in ['p_qm', 'p_crawler']:
-            p = getattr(self, _)
-            if p is not None:  # 进程停止
-                p.kill()
-                p.join()
-                p.close()
+            _p = getattr(self, _)
+            if _p is not None:  # 进程停止
+                _p.kill()
+                _p.join()
+                _p.close()
                 delattr(self, _)
 
     def closeEvent(self, event):
