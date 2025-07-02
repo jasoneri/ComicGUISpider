@@ -96,7 +96,7 @@ parsel==1.10.0
     # via
     #   itemloaders
     #   scrapy
-pillow==11.1.0
+pillow==11.3.0
     # via -r requirements-in.txt
 pillow-avif-plugin==1.5.2
     # via -r requirements-in.txt
@@ -344,8 +344,10 @@ typing-extensions==4.13.0
     #   twisted
 uncurl==0.0.11
     # via -r requirements-in.txt
-urllib3==2.3.0
-    # via requests
+urllib3==2.5.0
+    # via
+    #   -r requirements-in.txt
+    #   requests
 uv==0.7.2
     # via -r requirements-in.txt
 w3lib==2.3.1

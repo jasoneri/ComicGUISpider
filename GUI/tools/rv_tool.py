@@ -9,7 +9,7 @@ from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, PrimaryToolButton,
     TransparentToolButton, PushButton, HyperlinkButton, 
     FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition,
-    BodyLabel, Flyout
+    BodyLabel
 )
 from qframelesswindow import FramelessWindow
 
@@ -114,8 +114,12 @@ class SvPathCard(PushSettingCard):
             with open(file, 'r', encoding='utf-8') as f:
                 content = f.read(700)
             if not ",' ,'/ /|" in content:
-                self.ask_deploy()
-                return
+                InfoBar.error(
+                    title='', content=tools_res.rv_deploy_desc_content,
+                    orient=Qt.Horizontal, isClosable=True,
+                    position=InfoBarPosition.TOP_LEFT,
+                    duration=5000, parent=self.rvtool
+                )
             self.setContent(str(file))
             conf.update(rv_script=str(file))
             # 将 CGS 的存储目录同步到 rV 里
@@ -125,10 +129,6 @@ class SvPathCard(PushSettingCard):
             yaml_update(rv_conf, {"path": str(conf.sv_path)})
         if not self.contentLabel.text() or self.contentLabel.text() == ".":
             self.ask_deploy()
-    
-    def ask_deploy(self):
-        _ = AskDeployView(self.rvtool)
-        _.show()
 
 
 class rvTool(QWidget):
@@ -154,14 +154,14 @@ class rvTool(QWidget):
         
         second_row = QHBoxLayout()
         spacer_info = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.deployDescBtn = PrimaryPushButton(FIF.DICTIONARY, tools_res.rv_deploy_desc)
+        self.deployBtn = PrimaryPushButton(FIF.DICTIONARY, tools_res.rv_deploy_desc)
         self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
-        self.deployDescBtn.clicked.connect(self.deploy_desc)
+        self.deployBtn.clicked.connect(self.deploy)
         self.showMaxBtn.clicked.connect(self.show_max)
         self.combineBtn = PushButton(CustomIcon.TOOL_MERGE, tools_res.rv_merge_move)
         self.combineBtn.clicked.connect(self.combine_then_mv)
         second_row.addSpacerItem(spacer_info)
-        second_row.addWidget(self.deployDescBtn)
+        second_row.addWidget(self.deployBtn)
         second_row.addWidget(self.showMaxBtn)
         second_row.addWidget(self.combineBtn)
         second_row.addWidget(self.broomBtn)
@@ -174,10 +174,9 @@ class rvTool(QWidget):
         conf.update(rv_script="")
         self.sv_path_card.setContent("")
 
-    def deploy_desc(self):
-        Flyout.create(
-            title='', content=tools_res.rv_deploy_desc_content, target=self.deployDescBtn, parent=self, isClosable=True,
-        )
+    def deploy(self):
+        _ = AskDeployView(self)
+        _.show()
     
     def show_max(self):
         CustomFlyout.make(TableFlyoutView(show_max(), self), self.sv_path_card, self)
