@@ -261,7 +261,7 @@ class Proj:
     @updater_logger.catch(reraise=True)
     def env_check_and_replenish(self):
         try:
-            export_pkg_mgr = PkgMgr(ori_res.lang.replace("-", "_"), existed_proj_p, debug_signal=self.debug_signal)
+            export_pkg_mgr = PkgMgr(ori_res.lang.replace("_", "-"), existed_proj_p, debug_signal=self.debug_signal)
             exit_code, full_output = export_pkg_mgr.run()
             if exit_code == 0:
                 return True
