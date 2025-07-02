@@ -9,7 +9,7 @@ from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, PrimaryToolButton,
     TransparentToolButton, PushButton, HyperlinkButton, 
     FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition,
-    BodyLabel, Flyout
+    BodyLabel
 )
 from qframelesswindow import FramelessWindow
 
