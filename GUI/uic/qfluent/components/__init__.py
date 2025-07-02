@@ -6,16 +6,17 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, FluentIcon, FluentIconBase, Theme,
+    TransparentToolButton, HyperlinkButton, PrimaryPushButton,
+    FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, TeachingTipTailPosition, ImageLabel
 )
 from assets import res
+from utils.redViewer_tools import BookShow, delete_record
 from .updater import UpdaterMessageBox
 from .splash_screen import *
 from .text_browser import *
-from utils.redViewer_tools import BookShow
 
 
 class CustomInfoBar:
@@ -161,6 +162,7 @@ class TableFlyoutView(FlyoutViewBase):
 
     def __init__(self, data, parent=None):
         super().__init__(parent)
+        self.toolWin = parent
         p_width = parent.width()
         p_height = parent.height()
         self.width = int(p_width * 0.8)
@@ -178,6 +180,9 @@ class TableFlyoutView(FlyoutViewBase):
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
         self.closeBtn.clicked.connect(self.closed)
+        self.delBtn = PrimaryPushButton(FluentIcon.DELETE, "删除选中记录", self)
+        self.delBtn.clicked.connect(self.delete_selected_record)
+        second_row.addWidget(self.delBtn)
         second_row.addItem(spacerItem)
         second_row.addWidget(self.closeBtn)
         
@@ -210,3 +215,22 @@ class TableFlyoutView(FlyoutViewBase):
         self.tableView.setColumnWidth(0, int(tb_width * 0.5))
         self.tableView.setColumnWidth(1, int(tb_width * 0.2))
         self.tableView.setColumnWidth(2, int(tb_width * 0.2))
+
+        self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.tableView.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+
+    def delete_selected_record(self):
+        selection_model = self.tableView.selectionModel()
+        if not selection_model.hasSelection():
+            InfoBar.warning(
+                title='', content='请先选择要删除的记录',
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+                duration=5000, parent=self.toolWin
+            )
+            return
+        selected_indexes = selection_model.selectedRows()
+        row = selected_indexes[0].row()
+        model = self.tableView.model()
+        book_name = model.item(row, 0).text()
+        delete_record(book_name)
+        model.removeRow(row)
