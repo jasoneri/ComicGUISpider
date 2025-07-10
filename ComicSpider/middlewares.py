@@ -157,7 +157,7 @@ class RefererMiddleware(ComicspiderDownloaderMiddleware):
 
 class FakeMiddleware:
     def process_request(self, request, spider):
-        if request.url == 'https://fakefakefa.com':
+        if request.url.startswith('https://fakefakefa.com'):
             fake_resp = HtmlResponse(url=request.url, request=request, body=b'fake')
             return fake_resp
         return None

@@ -469,25 +469,32 @@ class Process:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description="kemono script",
+        description="""
+  ┏┓┏┓┏┓  ┓            
+  ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
+  ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
+""",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-p', '--process', type=str, nargs='?', default='main', help='optinal: create/run')
     parser.add_argument('-c', '--ckw', type=str, nargs='?', default=None, 
                         help='''创建任务传参，支持`fav`,`creatorid`,`postid`，就算只爬一个最外层也必须是列表，例子如下
-                        fav=[["keihh","fanbox"],"サインこす"]
-                        creatorid=[16015726,70050825]
-                        postid=[9789567,9819349]''')
-    parser.add_argument('-sd', '--start_date', type=str, nargs='?', default='2025-01-01', help='[筛选]发布时间大于此时间')
-    parser.add_argument('-ed', '--end_date', type=str, nargs='?', default='2035-01-01', help='[筛选]发布时间小于此时间')
+    fav=[["keihh","fanbox"],"サインこす"]
+    creatorid=[16015726,70050825]
+使用fav时必须设置cookies''')
+    parser.add_argument('-sd', '--start_date', type=str, nargs='?', default='2005-01-01', help='[筛选]发布时间大于此时间，default: 2005-01-01')
+    parser.add_argument('-ed', '--end_date', type=str, nargs='?', default='2045-01-01', help='[筛选]发布时间小于此时间，default: 2045-01-01')
     parser.add_argument('--sem', type=int, default=3, help='[post]并发数')
     args = parser.parse_args()
-    
-    uri_ckw = json.loads("{"+re.sub(r'([a-zA-Z_]\w*)=', r'"\1":', args.ckw)+"}")
+
+    # 简易处理：当process为create时，ckw为必须参数
+    if args.process != "run" and args.ckw is None:
+        parser.error("当process非run时，必须提供--ckw参数")
+    uri_ckw = json.loads("{"+re.sub(r'([a-zA-Z_]\w*)=', r'"\1":', args.ckw)+"}") if args.ckw else {}
     filter_ckw = {_: getattr(args, _)
-        for _ in ("start_date", "end_date") 
+        for _ in ("start_date", "end_date")
         if getattr(args, _)
-    }    
+    }
     ckw = {**uri_ckw, **filter_ckw}
     print(ckw)
     rkw = {
@@ -502,4 +509,3 @@ if __name__ == '__main__':
         case _:
             process.create(**ckw)
             process.run(**rkw)
-

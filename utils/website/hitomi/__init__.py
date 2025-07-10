@@ -83,7 +83,7 @@ class HitomiUtils(EroUtils, Req):
 
     @classmethod
     def get_cli(cls, conf, is_async=False, **kwargs):
-        return super().get_cli(conf, is_async=is_async, **kwargs)
+        return super().get_cli(conf, is_async=is_async, http2=True, **kwargs)
 
     def test_index(self):
         try:
@@ -99,13 +99,13 @@ class HitomiUtils(EroUtils, Req):
 class gg:
     def __init__(self, cli=None, js_code=None):
         if not js_code:
-            script_resp = cli.get(f"https://ltn.{HitomiUtils.domain2}/gg.js?_={int(time.time() * 1000)}", timeout=8)
+            script_resp = httpx.get(f"https://ltn.{HitomiUtils.domain2}/gg.js", timeout=8, headers=HitomiUtils.headers)
             script_text = script_resp.text
         else:
             script_text = js_code
         self.m_cases = self._parse_m_cases(script_text)
         self.b = f"{self._parse_b(script_text)}/"
-        
+
     def _parse_m_cases(self, js_code):
         pattern = r"case (\d+):"
         return set(map(int, re.findall(pattern, js_code)))

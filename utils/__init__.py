@@ -40,8 +40,6 @@ def yaml_update(_f, dic):
 
 
 def toAppConfigLocation(ori_file: p.Path, iname=None):
-    if iname:
-        return ori_file
     file = ori_file.name
     location_file = conf_dir.joinpath(file)
     if ori_file.exists() and not location_file.exists():
@@ -191,7 +189,8 @@ class Conf:
         return _i, toAppConfigLocation(ori_conf_yml, iname)
     
     def __new__(cls, *args, path: t.Optional[p.Path] = None, iname: str = None, **kwargs):
-        _instance, file = cls.duel_conf((path or ori_path).joinpath("conf.yml"), iname)
+        _ori_conf_yml = (path or ori_path).joinpath("conf.yml" if not iname else f"conf_{iname}.yml")
+        _instance, file = cls.duel_conf(_ori_conf_yml, iname)
         if not hasattr(Conf, _instance):
             setattr(Conf, _instance, object.__new__(cls))
             getattr(Conf, _instance).file = file
