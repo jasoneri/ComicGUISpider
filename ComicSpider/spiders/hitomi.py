@@ -43,18 +43,31 @@ class HitomiSpider(BaseComicSpider):
         spider.async_cli = spider.ut.get_cli(conf, is_async=True)
         return spider
 
+    def _get_nozomi_sync(self, nozomi_url, page):
+        """同步包装的异步nozomi获取方法"""
+        async def _async_get():
+            headers = {**HitomiUtils.headers, "Range": self.ut.get_range(page)}
+            return await self.async_cli.get(nozomi_url, headers=headers)
+
+        try:
+            running_loop = asyncio.get_running_loop()
+            future = asyncio.run_coroutine_threadsafe(_async_get(), running_loop)
+            return future.result()
+        except RuntimeError:
+            loop = get_loop()
+            return loop.run_until_complete(_async_get())
+
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
         self.process_state.process = 'start_requests'
         self.Q('ProcessQueue').send(self.process_state)
-        
+
         keyword = self.input_state.keyword
         self.search_start = f"{self.domain}{keyword}.html"
         page = 1
         nozomi = f"https://{self.backend_domain}/{keyword}.nozomi"
         meta = {"Url": self.search_start, "nozomi": nozomi, "page": page}
-        resp = self.ut.cli.get(nozomi, 
-            headers={**HitomiUtils.headers, "Range": self.ut.get_range(page)})
+        resp = self._get_nozomi_sync(nozomi, page)
         yield from self.parse(response=resp, meta=meta)
     
     # ==============================================
@@ -94,8 +107,7 @@ class HitomiSpider(BaseComicSpider):
 
     def page_turn(self, elected_results, meta):
         if not self.input_state.pageTurn:
-            resp = self.ut.cli.get(meta.get("nozomi"), 
-                    headers={**HitomiUtils.headers, "Range": self.ut.get_range(meta.get("page"))})
+            resp = self._get_nozomi_sync(meta.get("nozomi"), meta.get("page"))
             yield from self.parse(response=resp, meta=meta)
             # yield scrapy.Request(url=meta.get("nozomi"), callback=self.parse, meta=meta, dont_filter=True)
         elif 'next' in self.input_state.pageTurn:
@@ -108,8 +120,7 @@ class HitomiSpider(BaseComicSpider):
     def page_turn_(self, elected_results, page, meta, **kw):
         all_elected_res = [*elected_results, *meta.get("selected", [])]
         meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), "selected": all_elected_res, "page": page}
-        resp = self.ut.cli.get(meta.get("nozomi"), 
-                    headers={**HitomiUtils.headers, "Range": self.ut.get_range(page)})
+        resp = self._get_nozomi_sync(meta.get("nozomi"), page)
         yield from self.parse(response=resp, meta=meta)
 
     def actual_parse(self, response):
@@ -162,13 +173,14 @@ class HitomiSpider(BaseComicSpider):
                 item['title'] = title
                 item['page'] = str(pic_info['name'])
                 item['section'] = 'meaningless'
-                item['image_urls'] = [self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])]
+                img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
+                item['image_urls'] = [img_url]
                 item['uuid'] = this_uuid
                 item['uuid_md5'] = this_md5
                 self.total += 1
                 # 使用一个空的请求来触发item处理
                 yield scrapy.Request(
-                    url='https://fakefakefa.com',callback=self.process_item,meta={'item': item},
+                    url=f'https://fakefakefa.com/{img_url}',callback=self.process_item,meta={'item': item},
                     dont_filter=True
                 )
         self.process_state.process = 'fin'

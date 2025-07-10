@@ -6,12 +6,13 @@ import pathlib as p
 from functools import partial
 
 from redis import asyncio as aioredis
-from utils import Conf, ori_path
+from utils import Conf, ori_path, conf_dir
 
 conffp = ori_path.joinpath('utils/script')
-if not conffp.joinpath('conf.yml').exists():
+conff = 'conf_img.yml'
+if not conf_dir.joinpath(conff).exists() and not conffp.joinpath(conff).exists():
     with open(ori_path.joinpath('assets/conf_sample_script.yml'), 'r', encoding='utf-8') as fps:
-        with open(conffp.joinpath('conf.yml'), 'w', encoding='utf-8') as fpw:
+        with open(conffp.joinpath(conff), 'w', encoding='utf-8') as fpw:
             fpw.write(fps.read())
 conf = Conf(path=conffp, iname='img')
 redis_conf: dict = conf.redis
