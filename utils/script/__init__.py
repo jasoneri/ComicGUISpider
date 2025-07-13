@@ -6,15 +6,9 @@ import pathlib as p
 from functools import partial
 
 from redis import asyncio as aioredis
-from utils import Conf, ori_path, conf_dir
+from utils.config import ScriptConf
 
-conffp = ori_path.joinpath('utils/script')
-conff = 'conf_img.yml'
-if not conf_dir.joinpath(conff).exists() and not conffp.joinpath(conff).exists():
-    with open(ori_path.joinpath('assets/conf_sample_script.yml'), 'r', encoding='utf-8') as fps:
-        with open(conffp.joinpath(conff), 'w', encoding='utf-8') as fpw:
-            fpw.write(fps.read())
-conf = Conf(path=conffp, iname='img')
+conf = ScriptConf(iname="img")
 redis_conf: dict = conf.redis
 
 

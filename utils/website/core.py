@@ -2,6 +2,7 @@ import re
 import os
 import functools
 import typing as t
+import pickle
 from datetime import datetime, timedelta
 
 import httpx
@@ -22,19 +23,29 @@ class Cache:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
                 if cache_exists_flag and not expiry_flag:
-                    with open(cache_path, 'r', encoding='utf-8') as f:
-                        cached_data = f.read().strip()
+                    if cache_path.suffix == '.pkl':
+                        with open(cache_path, 'rb') as f:
+                            cached_data = pickle.load(f)
+                    else:
+                        with open(cache_path, 'r', encoding='utf-8') as f:
+                            cached_data = f.read().strip()
+
                     if cached_data:
                         self.flag = "validate"
                         self.val = cached_data
                         return cached_data
                     else:
                         os.remove(cache_path)
+
                 result = func(*args, **kwargs)
                 if result is not None and write_in:
-                    with open(cache_path, 'w', encoding='utf-8') as f:
-                        f.write(str(result))
-                self.flag = "new"        
+                    if cache_path.suffix == '.pkl':
+                        with open(cache_path, 'wb') as f:
+                            pickle.dump(result, f)
+                    else:
+                        with open(cache_path, 'w', encoding='utf-8') as f:
+                            f.write(str(result))
+                self.flag = "new"
                 self.val = result
                 return result
             return wrapper

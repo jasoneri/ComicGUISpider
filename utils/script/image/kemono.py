@@ -8,9 +8,11 @@ import os
 import sys
 import shutil
 import asyncio
+import pickle
 import pathlib as p
 from dataclasses import dataclass, asdict
 
+import yaml
 import httpx
 import pandas as pd
 from loguru import logger
@@ -20,10 +22,16 @@ proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList
 from utils.script.image.expander import ArtistsEnum, Filter
+from utils.config.qc import filter_cfg
+from GUI.script.kemono import KemonoAuthor
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
 
-
+kemono_topic = """
+  ┏┓┏┓┏┓  ┓            
+  ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
+  ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
+"""
 domain = "kemono.su"
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
@@ -139,6 +147,7 @@ class RPC:
         except Exception as e:
             return (gid, {"error": str(e)})
 
+
 class Kemono:
     """
     Api-service:
@@ -165,7 +174,12 @@ class Kemono:
         self.conf = conf.kemono
         self.api = Api(conf)
         self.rpc = RPC()
-        self.f = Filter(self.conf.get('filter', {}))
+        qconfig_text = filter_cfg.filterText.value
+        if qconfig_text.strip():
+            filter_dict = yaml.safe_load(qconfig_text)
+        else:
+            filter_dict = self.conf.get('filter', {})
+        self.f = Filter(filter_dict)
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
         self.sv_path = p.Path(self.conf.get('sv_path'))
@@ -174,6 +188,8 @@ class Kemono:
         self.blacklist = self.blacklist_obj.read()
 
     class Creator:
+        cache_path = temp_p.joinpath("kemono_data.pkl")
+        
         def __init__(self, parent, **ckw):
             self.k = parent
             self.ckw = ckw
@@ -261,11 +277,31 @@ class Kemono:
         @logger.catch
         async def by_creatorid(self, order_creatorids=None):
             order_creatorids = set(map(str, order_creatorids))
+            all_creators = None
+            if self.cache_path.exists():
+                with open(self.cache_path, 'rb') as f:
+                    all_creators = pickle.load(f)
+            else:
+                all_creators = await self._download_and_cache_kemono_data()
+
+            found_ids = set()
+            for creator_id in order_creatorids:
+                if creator_id in all_creators:
+                    creator = all_creators[creator_id]
+                    found_ids.add(creator_id)
+                    creatorinfo = asdict(creator)
+                    await self.posts_of_creator(creatorinfo)
+            not_found = order_creatorids - found_ids
+            if not_found:
+                logger.warning(f"not found creatorid: {not_found}")
+
+        async def _download_and_cache_kemono_data(self):
+            """下载kemono创作者数据并转换为KemonoAuthor映射字典"""
             creators_txt = temp_p.joinpath("creators.txt")
             if not creators_txt.exists():
                 _data = [[Api.creators_txt], {"dir": str(temp_p)}]
                 resp = await self.k.rpc.sess.request(
-                    "POST", RPC.url, headers={"Content-Type": "application/json"}, 
+                    "POST", RPC.url, headers={"Content-Type": "application/json"},
                     json=RPC.format_data(_data, _id="creators.txt"))
                 add_result = resp.json()
                 gid = add_result.get('result')
@@ -286,14 +322,19 @@ class Kemono:
                             then put it into {creators_txt}""")
                     await asyncio.sleep(1.5)
             with open(creators_txt, 'r', encoding='utf-8') as f:
-                all_creators = json.load(f)
-            found_ids = set()
-            for creatorinfo in filter(lambda post: post["id"] in order_creatorids, all_creators):
-                found_ids.add(creatorinfo["id"])
-                await self.posts_of_creator(creatorinfo)
-            not_found = order_creatorids - found_ids
-            if not_found:
-                logger.warning(f"not found creatorid: {not_found}")
+                json_data = json.load(f)
+            author_dict = {}
+            for item in json_data:
+                author_id = item['id']
+                author = KemonoAuthor(
+                    id=author_id, name=item['name'], service=item['service'],
+                    updated=item['updated'], favorited=item['favorited']
+                )
+                author_dict[author_id] = author
+            with open(self.cache_path, 'wb') as f:
+                pickle.dump(author_dict, f)
+
+            return author_dict
 
     def run_filter(self, u_s, p_t, _task) -> bool:
         """
@@ -469,11 +510,7 @@ class Process:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description="""
-  ┏┓┏┓┏┓  ┓            
-  ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
-  ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
-""",
+        description=kemono_topic,
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-p', '--process', type=str, nargs='?', default='main', help='optinal: create/run')
