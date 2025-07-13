@@ -14,7 +14,7 @@ class MitmMainWindow(Ui_MainWindow):
     def setupUi(self, _mainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
-        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.2.6"))
+        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.3.0-beta"))
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
         self.searchinput.setClearButtonEnabled(1)
@@ -34,6 +34,8 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.setItemText(5, _translate("MainWindow", "5、Māngabz"))
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(6, _translate("MainWindow", "6、hitomi🔞"))
+        self.chooseBox.addItem("")
+        self.chooseBox.setItemText(7, _translate("MainWindow", "7、kemono🔞"))
         self.chooseBox.setCurrentIndex(0)
         self.checkisopen.setText(_translate("MainWindow", res.checkisopenDefaultText))
         self.searchinput.setPlaceholderText(_translate("MainWindow", res.searchinputPlaceholderText))
