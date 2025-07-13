@@ -5,6 +5,7 @@ import json
 import pathlib
 import codecs
 
+import yaml
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
 from PyQt5.QtGui import QDesktopServices
@@ -17,7 +18,7 @@ import uncurl
 
 from assets import res
 from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT
-from utils import conf, yaml, convert_punctuation as cp, ori_path
+from utils import conf, convert_punctuation as cp, ori_path
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater, Proj
