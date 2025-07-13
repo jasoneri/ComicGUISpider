@@ -50,9 +50,9 @@ class CustomInfoBar:
 
 class CustomFlyout:
     @classmethod
-    def make(cls, view, target, parent, calc_bottom=False):
+    def make(cls, view, target, parent, calc_bottom=False, aniType=FlyoutAnimationType.PULL_UP):
         _fly = Flyout.make(
-            view=view, parent=parent, aniType=FlyoutAnimationType.PULL_UP, 
+            view=view, parent=parent, aniType=aniType, 
             target=cls.calculate_target_position(target) if calc_bottom else target
         )
         if hasattr(view, "closed"):

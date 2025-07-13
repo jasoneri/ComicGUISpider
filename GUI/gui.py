@@ -16,8 +16,8 @@ from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils
-from GUI.manager import TaskProgressManager, ClipGUIManager, PreprocessManager
-
+from GUI.manager import TaskProgressManager, ClipGUIManager
+from GUI.manager.preprocess import PreprocessManager
 from variables import *
 from assets import res
 from utils import (
@@ -80,8 +80,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         else:
             self.say(font_color(f"<br>{self.res.reboot_tip2}", color='purple', size=4))
             self.chooseBox.setDisabled(True)
-            if getattr(self, 'bg_f', None):
-                self.textBrowser.set_fixed_image(self.bg_f)
+            if getattr(self, 'bg_mgr', None):
+                self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
             self.setupUi_()
 
     def setupUi_(self):
@@ -121,6 +121,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.BrowserWindow = None
 
         def chooseBox_changed_handle(index):
+            if index not in SPIDERS.keys() and index != 0:
+                self.retrybtn.setEnabled(True)
+                self.preprocess_mgr.handle_choosebox_changed(index)
+                return
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
             FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)

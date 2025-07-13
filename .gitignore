@@ -196,7 +196,7 @@ codecov*
 *.hash
 # self/conf
 gitee_t.json
-conf.yml
+conf*.yml
 record.db
 hitomi.db
 # self/desc created html
