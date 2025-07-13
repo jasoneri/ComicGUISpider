@@ -4,7 +4,6 @@ import pathlib as p
 import pickle
 import typing as t
 from datetime import datetime
-from dataclasses import dataclass
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
@@ -20,18 +19,9 @@ from qframelesswindow import FramelessWindow
 
 from deploy import curr_os
 from utils import ori_path, temp_p, font_color
-from utils.script.image.kemono import kemono_topic, conf
+from utils.script.image.kemono import kemono_topic, conf, KemonoAuthor
 from utils.config.qc import filter_cfg
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
-
-
-@dataclass
-class KemonoAuthor:
-    id: str
-    name: str
-    service: str
-    updated: int
-    favorited: int
 
 
 class FilterView(FlyoutViewBase):

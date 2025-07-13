@@ -14,9 +14,7 @@ from utils import conf, ori_path
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
-from GUI.script.kemono import KemonoAuthor
 from GUI.uic.qfluent.components import CustomInfoBar
-from GUI.script import ScriptWindow
 
 
 class PreprocessManager(QObject):
@@ -143,7 +141,7 @@ class PreprocessManager(QObject):
                 raise RuntimeError(f"access_fail:{self.gui.spiderUtils.name}:{self.gui.spiderUtils.index}")
             return True
 
-        def on_error(error):
+        def on_error(_):
             CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
                     self.gui.spiderUtils.index, self.gui.spiderUtils.name)
 
@@ -176,15 +174,18 @@ class PreprocessManager(QObject):
             )
 
     def _preprocess_kemono(self):
-        kemono_flag = []
+        kemono_flag = {}
         
-        def triggle_or_not(_):
+        def triggle_or_not(k, v):
             def run_scriptWin():
                 self.gui.hide()
+                from GUI.script import ScriptWindow
                 scriptWin = ScriptWindow()
                 scriptWin.show()
-            kemono_flag.append(_)
-            if len(kemono_flag) == 3 and all(kemono_flag):
+            if k == "dependencies" and v:
+                _data_check()
+            kemono_flag[k] = v
+            if len(kemono_flag) == 3 and all(kemono_flag.values()):
                 run_scriptWin()
 
         def _services_check():
@@ -201,9 +202,9 @@ class PreprocessManager(QObject):
 
             def on_success(_):
                 self.gui.say("<br>✅ 后台服务检测通过")
-                triggle_or_not(True)
+                triggle_or_not("services", True)
 
-            def on_err(error):
+            def on_err(_):
                 CustomInfoBar.show(
                     title="服务检测失败",
                     content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
@@ -217,15 +218,15 @@ class PreprocessManager(QObject):
                 error_callback=on_err,
                 tooltip_title="检测服务运行情况", task_id="services_check"
             )
-        
+
         def _dependencies_check():
             def dependencies_check(progress_callback=None):
                 def emit_progress(msg):
                     if progress_callback:
                         progress_callback(msg)
-
+                pkgs = ("redis", "pandas")
                 missing_packages = []
-                for pkg in ("redis", "pandas"):
+                for pkg in pkgs:
                     try:
                         importlib.import_module(pkg)
                     except ImportError:
@@ -252,7 +253,8 @@ class PreprocessManager(QObject):
                     exit_code = process.wait()
                     if exit_code != 0:
                         raise RuntimeError(f"依赖安装失败，退出码: {exit_code}")
-                    emit_progress("依赖安装完成")
+                    for pkg in pkgs:
+                        importlib.import_module(pkg)
                 return True
 
             def on_dependencies_check_process(progress_msg):
@@ -260,7 +262,7 @@ class PreprocessManager(QObject):
 
             def on_dependencies_success(_):
                 self.gui.say("<br>✅ 额外依赖检测通过")
-                triggle_or_not(True)
+                triggle_or_not("dependencies", True)
 
             config = TaskConfig(
                 task_func=dependencies_check,
@@ -276,6 +278,7 @@ class PreprocessManager(QObject):
                     if progress_callback:
                         progress_callback(msg)
 
+                from GUI.script.kemono import KemonoAuthor
                 cache = Cache("kemono_data.pkl")
                 @cache.with_expiry(240, write_in=True)
                 def download_kemono_data():
@@ -293,7 +296,7 @@ class PreprocessManager(QObject):
                         for item in json_data:
                             author_id = item['id']
                             author = KemonoAuthor(
-                                id=author_id, name=item['name'], service=item['service'], 
+                                id=author_id, name=item['name'], service=item['service'],
                                 updated=item['updated'], favorited=item['favorited']
                             )
                             author_dict[author_id] = author
@@ -309,7 +312,7 @@ class PreprocessManager(QObject):
 
             def on_data_check_success(_):
                 self.gui.say("<br>✅ 数据缓存检测通过")
-                triggle_or_not(True)
+                triggle_or_not("data", True)
 
             data_checkconfig = TaskConfig(
                 task_func=data_check,
@@ -321,7 +324,6 @@ class PreprocessManager(QObject):
 
         _services_check()
         _dependencies_check()
-        _data_check()
 
     def cleanup(self):
         self.task_manager.cleanup()
