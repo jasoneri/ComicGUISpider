@@ -74,9 +74,9 @@ class BgMgr:
 class CustomSplashScreen(SplashScreen):
     def __init__(self, parent=None, enableShadow=True):
         self.gui = parent
-        self.bg_mgr = BgMgr()
+        self.gui.bg_mgr = BgMgr()
 
-        if self.bg_mgr.start_bg_f:
+        if self.gui.bg_mgr.start_bg_f:
             ico = QIcon()
         else:
             ico = QIcon(":/guide.png")
@@ -86,14 +86,14 @@ class CustomSplashScreen(SplashScreen):
         self.titleBar.maxBtn.hide()
         self.titleBar.closeBtn.hide()
 
-        if self.bg_mgr.start_bg_f:
+        if self.gui.bg_mgr.start_bg_f:
             self._set_start_bg()
         else:
             height = int(self.gui.height() * 0.7)
             self.setIconSize(QSize(height, height))
         
-        if self.bg_mgr.bg_f:
-            self.gui.bg_f = self.bg_mgr.bg_f
+        if self.gui.bg_mgr.bg_f:
+            self.gui.bg_f = self.gui.bg_mgr.bg_f
             self.gui.textBrowser.set_fixed_image(self.gui.bg_f)
 
     @staticmethod
@@ -117,13 +117,13 @@ class CustomSplashScreen(SplashScreen):
 
         target_height = self.gui.height()
 
-        if self.bg_mgr.start_ext == '.gif':
-            self.bg_mgr.movie = QMovie(str(self.bg_mgr.start_bg_f))
-            self.iconWidget.setMovie(self.bg_mgr.movie)
-            self.bg_mgr.movie.start()
-            pixmap = self.bg_mgr.movie.currentPixmap()
+        if self.gui.bg_mgr.start_ext == '.gif':
+            self.gui.bg_mgr.movie = QMovie(str(self.gui.bg_mgr.start_bg_f))
+            self.iconWidget.setMovie(self.gui.bg_mgr.movie)
+            self.gui.bg_mgr.movie.start()
+            pixmap = self.gui.bg_mgr.movie.currentPixmap()
         else:
-            pil_img = self.bg_mgr.create_splash_pil_image()
+            pil_img = self.gui.bg_mgr.create_splash_pil_image()
             pixmap = self.pil_to_qpixmap(pil_img)
 
         # 先根据原图比例计算正确的容器尺寸
@@ -135,6 +135,6 @@ class CustomSplashScreen(SplashScreen):
         self.setIconSize(QSize(target_width, target_height))
 
         # 最后让pixmap适应容器尺寸
-        if self.bg_mgr.start_ext != '.gif':
+        if self.gui.bg_mgr.start_ext != '.gif':
             scaled_pixmap = scale_pixmap_to_size(pixmap, target_width, target_height)
             self.iconWidget.setPixmap(scaled_pixmap)

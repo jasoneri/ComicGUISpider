@@ -1,14 +1,22 @@
+import sys
+import json
+import importlib
+import subprocess
+import psutil
+
+import uv
 import httpx
-from PyQt5.QtCore import QObject
+from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
-from PyQt5.QtCore import Qt
 
 from assets import res
 from utils import conf, ori_path
-from utils.website import EHentaiKits
+from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
-from GUI.manager.async_task import AsyncTaskManager
+from GUI.manager.async_task import AsyncTaskManager, TaskConfig
+from GUI.script.kemono import KemonoAuthor
 from GUI.uic.qfluent.components import CustomInfoBar
+from GUI.script import ScriptWindow
 
 
 class PreprocessManager(QObject):
@@ -29,6 +37,8 @@ class PreprocessManager(QObject):
                 self._preprocess_mangabz()
             case 6:
                 self._preprocess_hitomi()
+            case 7:
+                self._preprocess_kemono()
 
     def _preprocess_manga_copy(self):
         def manga_copy_task():
@@ -164,6 +174,154 @@ class PreprocessManager(QObject):
                 error_callback=lambda _: self.gui.say("<br>❌ hitomi-db failed"),
                 tooltip_title="hitomi-db predownloading", task_id="hitomi_db"
             )
+
+    def _preprocess_kemono(self):
+        kemono_flag = []
+        
+        def triggle_or_not(_):
+            def run_scriptWin():
+                self.gui.hide()
+                scriptWin = ScriptWindow()
+                scriptWin.show()
+            kemono_flag.append(_)
+            if len(kemono_flag) == 3 and all(kemono_flag):
+                run_scriptWin()
+
+        def _services_check():
+            def services_check():
+                running_processes = {proc.info['name'].lower() for proc in psutil.process_iter(['name'])}
+                required_services = {
+                    'motrix': any('motrix' in name for name in running_processes),
+                    'redis-server': any('redis-server' in name for name in running_processes)
+                }
+                missing_services = [name.title() for name, running in required_services.items() if not running]
+                if missing_services:
+                    return False
+                return True
+
+            def on_success(_):
+                self.gui.say("<br>✅ 后台服务检测通过")
+                triggle_or_not(True)
+
+            def on_err(error):
+                CustomInfoBar.show(
+                    title="服务检测失败",
+                    content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
+                    parent=self.gui.textBrowser,
+                    url="https://jasoneri.github.io/ComicGUISpider/feat/script", url_name="部署指南"
+                )
+
+            self.task_manager.execute_simple_task(
+                task_func=services_check,
+                success_callback=on_success,
+                error_callback=on_err,
+                tooltip_title="检测服务运行情况", task_id="services_check"
+            )
+        
+        def _dependencies_check():
+            def dependencies_check(progress_callback=None):
+                def emit_progress(msg):
+                    if progress_callback:
+                        progress_callback(msg)
+
+                missing_packages = []
+                for pkg in ("redis", "pandas"):
+                    try:
+                        importlib.import_module(pkg)
+                    except ImportError:
+                        missing_packages.append(pkg)
+
+                if missing_packages:
+                    from deploy.pkg_mgr import which_env
+                    requirements = f"requirements/script/{which_env()}.txt"
+                    cmd = [uv.find_uv_bin(), "pip", "install", "-r", str(ori_path.joinpath(requirements)), "--python", sys.executable]
+                    if res.lang == "zh_CN":
+                        cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--trusted-host", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+                    process = subprocess.Popen(
+                        cmd, cwd=ori_path,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, bufsize=1, universal_newlines=True
+                    )
+                    while True:
+                        line = process.stdout.readline()
+                        if not line:
+                            if process.poll() is not None:
+                                break
+                            continue
+                        emit_progress(f"{line.strip()}")
+                    exit_code = process.wait()
+                    if exit_code != 0:
+                        raise RuntimeError(f"依赖安装失败，退出码: {exit_code}")
+                    emit_progress("依赖安装完成")
+                return True
+
+            def on_dependencies_check_process(progress_msg):
+                self.gui.say(progress_msg)
+
+            def on_dependencies_success(_):
+                self.gui.say("<br>✅ 额外依赖检测通过")
+                triggle_or_not(True)
+
+            config = TaskConfig(
+                task_func=dependencies_check,
+                success_callback=on_dependencies_success,
+                progress_callback=on_dependencies_check_process,
+                tooltip_title="检测额外依赖是否安装", tooltip_content="处理中...",
+            )
+            self.task_manager.execute_task("dependencies_check", config)
+
+        def _data_check():
+            def data_check(progress_callback=None):
+                def emit_progress(msg):
+                    if progress_callback:
+                        progress_callback(msg)
+
+                cache = Cache("kemono_data.pkl")
+                @cache.with_expiry(240, write_in=True)
+                def download_kemono_data():
+                    emit_progress("正在更新缓存数据...")
+                    url = "https://kemono.su/api/v1/creators.txt"
+                    try:
+                        with httpx.stream("GET", url, follow_redirects=True, timeout=60) as resp:
+                            resp.raise_for_status()
+                            content = b""
+                            for chunk in resp.iter_bytes():
+                                content += chunk
+                        json_data = json.loads(content.decode('utf-8'))
+                        author_dict = {}
+
+                        for item in json_data:
+                            author_id = item['id']
+                            author = KemonoAuthor(
+                                id=author_id, name=item['name'], service=item['service'], 
+                                updated=item['updated'], favorited=item['favorited']
+                            )
+                            author_dict[author_id] = author
+                        return author_dict
+                    except Exception as e:
+                        raise RuntimeError(f"数据下载失败: {str(e)}")
+                data = download_kemono_data()
+                return True
+
+            def on_data_check_process(progress_msg):
+                # 处理进度信息的回调
+                self.gui.say(progress_msg)
+
+            def on_data_check_success(_):
+                self.gui.say("<br>✅ 数据缓存检测通过")
+                triggle_or_not(True)
+
+            data_checkconfig = TaskConfig(
+                task_func=data_check,
+                success_callback=on_data_check_success,
+                progress_callback=on_data_check_process,
+                tooltip_title="检测数据是否已缓存", tooltip_content="处理中...",
+            )
+            self.task_manager.execute_task("data_check", data_checkconfig)
+
+        _services_check()
+        _dependencies_check()
+        _data_check()
 
     def cleanup(self):
         self.task_manager.cleanup()

@@ -18,7 +18,6 @@ from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox
 )
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
-from GUI.manager.preprocess import PreprocessManager
 from GUI.manager.clip import ClipGUIManager
 
 

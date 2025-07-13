@@ -3,16 +3,17 @@
 
 saucenao / kemono / nekohouse  
 
-<2025-05-11> [Motrix](https://github.com/agalwood/Motrix) yyds!!  
-`kemono` 下载改用 Motrix-PRC ，太稳了！有兴趣看下方 kemono 等相关说明  
+[Motrix](https://github.com/agalwood/Motrix) yyds!!  
+
+`v2.3.0-beta` 之后支持 GUI 使用 kemono  
 
 ## ⚠️ 通用前置须知
 
 ::: tip 脚本集通用前置安装
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
- 
----
+:::
+::: tip 🔔`v2.3.0-beta` 分界线，以上安装是统一要做，以下前置操作是非 GUI 方式或旧版本要做  
 使用 `uv` 安装脚本集依赖 `requirements/script/*.txt`
 ```bash
 python -m uv pip install -r "requirements/script/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
@@ -60,8 +61,6 @@ utils
 ```
 :::
 
-暂无开发GUI界面打算
-
 ---
 ::: warning 以下内容 均基于通用前置须知
 :::
@@ -71,7 +70,7 @@ utils
 ### 🚀 快速开始
 
 1. 启动 `redis` 服务，打开 `Motrix`
-::: details 2. (可选)增加配置
+::: details 2.0 (可选)增加配置（将在`v2.3.0`之后废弃）
 ```yaml
 kemono:
   ...
@@ -83,6 +82,14 @@ kemono:
 
 proxies:                      # 设代理访问才算通畅，此处代理设置不影响 Motrix 的下载相关
   - 127.0.0.1:10809
+```
+:::
+::: details 2. 额外过滤示例，在`v2.3.0-beta`之后的 GUI 里支持
+```yaml
+Artists:
+  normal: "PSD|支援者"
+  DaikiKase: "支援者様】"
+file: "(mp4|zip)$"
 ```
 :::
 3. 命令行工具参考
@@ -100,6 +107,16 @@ python kemono.py -c 'creatorid=[16015726,1145144444444]' -sd "2025-03-01"
 # 部分失败任务的补漏命令 👇
 python kemono.py -p run
 ```
+
+3.2 GUI 方式运行 (`v2.3.0-beta`以及之后版本)
+
+![run_png](../assets/img/feat/scriptTool.png)
+
+::: tip 一些使用心得说明:
+
+- 当出现 "✅ done!" 提示即当前任务完成，可在窗口内无缝启动下一个"运行"  
+- 反之在 done 提示前就接下一个"运行"的话，不要问此带来的报错，没人会为此回答
+:::
 
 ### 📒 说明
 

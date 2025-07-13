@@ -34,5 +34,6 @@ python -c "from pathlib import Path;from PyQt5.QtCore import QStandardPaths;prin
 此路径设有文件如下:  
 
 - `conf.yml`: 配置文件  
+- `conf_img.yml`: scriptTool配置文件  
 - `reccord.db`: 去重记录  
 - `cookies.pkl`: cookies序列化文件  

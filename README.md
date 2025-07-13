@@ -35,7 +35,7 @@
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
-| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)     |  |
+| [Kemono](https://kemono.su)     | 🌏 |     🔞/[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)<br>v2.3.0-beta支持GUI     |  |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -61,6 +61,15 @@
 ✅ 基与某些原因，主题色暂时强制使用浅色  
 ✅ 修复内置更新真实使用gitee，加速内置更新  
 ✅ 修复去重勾选下预览窗口翻页后仍停滞显示第一页的异常  
+
+<details>
+<summary> <code>v2.3.0-beta</code> 开发版特性👈看就点</summary>
+
+#### 🎁 Features
+
+✅ kemono做了GUI界面，详情看[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)  
+
+</details>
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
