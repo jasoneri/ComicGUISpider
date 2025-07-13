@@ -23,9 +23,18 @@ sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList
 from utils.script.image.expander import ArtistsEnum, Filter
 from utils.config.qc import filter_cfg
-from GUI.script.kemono import KemonoAuthor
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
+class KemonoAuthor:
+    id: str
+    name: str
+    service: str
+    updated: int
+    favorited: int
+
 
 kemono_topic = """
   ┏┓┏┓┏┓  ┓            
