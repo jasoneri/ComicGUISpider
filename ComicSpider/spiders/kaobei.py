@@ -10,8 +10,8 @@ from utils.processed_class import Url
 from utils.website import KaobeiUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
-pc_domain = "www.copy20.com"
-domain = "mapi.copy20.com"
+pc_domain = "copy2000.site"
+domain = "mapi.copy2000.site"
 
 
 class FrameBook:
