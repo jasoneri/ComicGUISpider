@@ -180,7 +180,7 @@ class PreprocessManager(QObject):
             def run_scriptWin():
                 self.gui.hide()
                 from GUI.script import ScriptWindow
-                scriptWin = ScriptWindow()
+                scriptWin = ScriptWindow(self.gui)
                 scriptWin.show()
             if k == "dependencies" and v:
                 _data_check()
