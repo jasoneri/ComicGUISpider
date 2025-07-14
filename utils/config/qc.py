@@ -6,29 +6,25 @@ from utils.config import conf_dir
 class KemonoConfig(QConfig):
     """Kemono配置管理，包含过滤和收藏功能"""
     filterText = ConfigItem("Filter", "FilterText", "", restart=False)
-    favoriteAuthors = ConfigItem("Favorites", "Authors", {}, restart=False)
+    favoriteAuthors = ConfigItem("Favorites", "Authors", [], restart=False)
 
-    def add_favorite(self, author_data):
-        """添加收藏"""
-        favorites = self.favoriteAuthors.value
-        favorites[author_data['id']] = {
-            'id': author_data['id'],
-            'name': author_data['name'],
-            'service': author_data['service'],
-            'updated': author_data['updated'],
-            'favorited': author_data['favorited'],
-            'favorite_time': int(time.time())
-        }
+    def is_favorite(self, author_id):
+        """检查是否已收藏"""
+        return author_id in self.favoriteAuthors.value
+
+    def toggle_favorite(self, author_id):
+        """切换收藏状态，返回新状态"""
+        favorites = self.favoriteAuthors.value.copy()
+        if author_id in favorites:
+            favorites.remove(author_id)
+            is_favorited = False
+        else:
+            favorites.append(author_id)
+            is_favorited = True
+
         self.favoriteAuthors.value = favorites
         qconfig.save()
-
-    def remove_favorite(self, author_id):
-        """移除收藏"""
-        favorites = self.favoriteAuthors.value
-        if author_id in favorites:
-            del favorites[author_id]
-            self.favoriteAuthors.value = favorites
-            qconfig.save()
+        return is_favorited
 
     def is_favorited(self, author_id):
         """检查是否已收藏"""
