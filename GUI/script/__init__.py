@@ -193,8 +193,9 @@ class SettingInterface(QFrame):
 
 
 class ScriptWindow(FluentWindow):
-    def __init__(self):
+    def __init__(self, parent=None):
         super().__init__()
+        self.gui = parent
         self.kemonoInterface = KemonoInterface(self)
         self.settingInterface = SettingInterface(self)
 
@@ -207,13 +208,19 @@ class ScriptWindow(FluentWindow):
         self.addSubInterface(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM)
 
     def initWindow(self):
-        self.resize(750, 600)
+        if self.gui:
+            self.resize(self.gui.width(), self.gui.height())
+        else:
+            self.resize(750, 600)
         self.setWindowIcon(QIcon(':/CGS-logo.png'))
         self.setWindowTitle('CGS - ScriptTool')
 
         # 初始化设置界面的内容
         self.settingInterface.show_self()
-
+        
+    def closeEvent(self, event):
+        event.accept()
+        self.gui.close()
 
 if __name__ == '__main__':
     import GUI.src.material_ct
