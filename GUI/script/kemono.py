@@ -13,14 +13,15 @@ from qfluentwidgets import (
     LineEdit, PrimaryPushButton,
     VBoxLayout, FluentIcon as FIF, ZhDatePicker, StrongBodyLabel,
     TransparentToolButton, TransparentPushButton, HyperlinkButton, PushButton, PrimaryToolButton,
-    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, qconfig
+    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, qconfig,
+    Flyout, CommandBarView, Action
 )
 from qframelesswindow import FramelessWindow
 
 from deploy import curr_os
 from utils import ori_path, temp_p, font_color
 from utils.script.image.kemono import kemono_topic, conf, KemonoAuthor
-from utils.config.qc import filter_cfg
+from utils.config.qc import kemono_cfg
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 
 
@@ -39,7 +40,7 @@ class FilterView(FlyoutViewBase):
         first_row = QtWidgets.QHBoxLayout()
         self.textEdit = TextEdit(self)
         self.textEdit.setPlaceholderText("基于示例，格式严格遵循yml，过滤方式为正则匹配")
-        self.textEdit.setPlainText(filter_cfg.filterText.value)
+        self.textEdit.setPlainText(kemono_cfg.filterText.value)
         first_row.addWidget(self.textEdit)
         
         second_row = QtWidgets.QHBoxLayout()
@@ -60,7 +61,7 @@ class FilterView(FlyoutViewBase):
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
 
     def save(self):
-        filter_cfg.filterText.value = self.textEdit.toPlainText()
+        kemono_cfg.filterText.value = self.textEdit.toPlainText()
         qconfig.save()
         self.closeBtn.click()
 
@@ -74,6 +75,7 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         self.authors_list = sorted(data_dict.values(), key=lambda x: x.favorited, reverse=True)
         self.filtered_indices = list(range(len(self.authors_list)))  # 用于搜索过滤
         self.headers = ["作者", "平台", "更新时间", "收藏数"]
+        self.current_row_author = None  # 存储当前选中行的作者数据
 
     def rowCount(self, parent=QModelIndex()):
         return len(self.filtered_indices)
@@ -103,7 +105,6 @@ class VirtualKemonoTableModel(QAbstractTableModel):
                 return author.updated
             elif col == 3:
                 return author.favorited
-
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
@@ -219,19 +220,13 @@ class KemonoTableView(FramelessWindow):
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FIF.CLOSE, self)
         self.closeBtn.clicked.connect(self.hide)
-        selectBtn = PrimaryPushButton(FIF.SEND, "发送所选至输入框", self)
-        selectBtn.clicked.connect(self.select_author)
         self.searchEdit = LineEdit(self)
         self.searchEdit.setPlaceholderText("搜索...")
         self.searchEdit.textChanged.connect(self.filter_table)
         self.searchEdit.setClearButtonEnabled(True)
-        linkBtn = TransparentPushButton(FIF.LINK, "查看其作品", self)
-        linkBtn.clicked.connect(self.link_author)
         # favBtn = PushButton(FIF.HEART, "查看收藏", self)
         # favBtn.clicked.connect(self.show_favorites)
-        second_row.addWidget(selectBtn)
         second_row.addWidget(self.searchEdit)
-        second_row.addWidget(linkBtn)
         # second_row.addWidget(favBtn)
         second_row.addItem(spacerItem)
         second_row.addWidget(self.closeBtn)
@@ -267,34 +262,56 @@ class KemonoTableView(FramelessWindow):
         self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.tableView.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
+        # 启用右键菜单
+        self.tableView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tableView.customContextMenuRequested.connect(self.on_right_click)
+
     def filter_table(self, text):
-        """筛选表格数据"""
         self.virtual_model.apply_filter(text)
 
-    def select_author(self):
-        """选择作者功能"""
-        selection = self.tableView.selectionModel().selectedRows()
-        if not selection:
+    def on_right_click(self, position):
+        index = self.tableView.indexAt(position)
+        if not index.isValid():
             return
 
-        model_row = selection[0].row()
+        model_row = index.row()
         selected_author = self.virtual_model.get_author_at_row(model_row)
+        if not selected_author:
+            return
 
+        self.virtual_model.current_row_author = selected_author
+
+        commandBar = CommandBarView()
+        send_action = Action(FIF.SEND, '发送至输入框')
+        send_action.triggered.connect(lambda: self.send_author_to_input(selected_author))
+        link_action = Action(FIF.LINK, '查看其作品')
+        link_action.triggered.connect(lambda: self.open_author_link(selected_author))
+        fav_action = Action(FIF.HEART, '收藏该作者')
+        fav_action.triggered.connect(lambda: self.fav_author(selected_author))
+        commandBar.addAction(send_action)
+        commandBar.addAction(link_action)
+        commandBar.addAction(fav_action)
+        commandBar.resizeToSuitableWidth()
+
+        target_pos = self.tableView.mapToGlobal(position)
+        Flyout.make(commandBar, target=target_pos, parent=self, aniType=FlyoutAnimationType.FADE_IN)
+
+    def send_author_to_input(self, author):
         self.interface.kemonoTextBrowser.append(
-            f"已选ID({selected_author.id}): 作者「{selected_author.name}」({selected_author.service})"
+            f"已选ID({author.id}): 作者「{author.name}」({author.service})"
         )
-        self.interface.selected.append(selected_author.id)
+        self.interface.selected.append(author.id)
         self.interface.kwEdit.setText(f"creatorid={self.interface.selected}".replace("'", '"'))
-        self.closed.emit()
 
-    def link_author(self):
-        author_url = "https://kemono.su"
-        selection = self.tableView.selectionModel().selectedRows()
-        if selection:
-            model_row = selection[0].row()
-            selected_author = self.virtual_model.get_author_at_row(model_row)
-            author_url = f"{author_url}/{selected_author.service}/user/{selected_author.id}"
+    def open_author_link(self, author):
+        """打开作者链接"""
+        author_url = f"https://kemono.su/{author.service}/user/{author.id}"
         QDesktopServices.openUrl(QUrl(author_url))
+
+    def fav_author(self, author):
+        """收藏作者"""
+        # kemono_cfg.add_favorite()
+        ...
 
 
 class KemonoInterface(QFrame):
@@ -314,7 +331,7 @@ class KemonoInterface(QFrame):
 
         first_row = QHBoxLayout()
         self.kwEdit = LineEdit(self)
-        self.kwEdit.setPlaceholderText("输入样例：creatorid=[1234,4321] 推荐使用作者表格方式输入，支持多次发送叠加")
+        self.kwEdit.setPlaceholderText("打开作者表格，对某行右键点击发送，支持多次发送叠加")
         self.kwEdit.setClearButtonEnabled(True)
         self.eraseBtn = TransparentToolButton(FIF.ERASE_TOOL, self)
         self.eraseBtn.clicked.connect(self.erase_selected)

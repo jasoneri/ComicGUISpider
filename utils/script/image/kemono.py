@@ -22,7 +22,7 @@ proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList
 from utils.script.image.expander import ArtistsEnum, Filter
-from utils.config.qc import filter_cfg
+from utils.config.qc import kemono_cfg
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
 
@@ -183,7 +183,7 @@ class Kemono:
         self.conf = conf.kemono
         self.api = Api(conf)
         self.rpc = RPC()
-        qconfig_text = filter_cfg.filterText.value
+        qconfig_text = kemono_cfg.filterText.value
         if qconfig_text.strip():
             filter_dict = yaml.safe_load(qconfig_text)
         else:
