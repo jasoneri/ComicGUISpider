@@ -67,7 +67,8 @@
 
 #### 🎁 Features
 
-✅ kemono做了GUI界面，详情看[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)  
+✅ kemono做了GUI，详情看[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)  
+✅ 自定义背景  
 
 </details>
 

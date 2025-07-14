@@ -180,7 +180,7 @@ class PreprocessManager(QObject):
             def run_scriptWin():
                 self.gui.hide()
                 from GUI.script import ScriptWindow
-                scriptWin = ScriptWindow()
+                scriptWin = ScriptWindow(self.gui)
                 scriptWin.show()
             if k == "dependencies" and v:
                 _data_check()
@@ -197,25 +197,27 @@ class PreprocessManager(QObject):
                 }
                 missing_services = [name.title() for name, running in required_services.items() if not running]
                 if missing_services:
-                    return False
+                    raise RuntimeError(missing_services)
                 return True
 
             def on_success(_):
-                self.gui.say("<br>✅ 后台服务检测通过")
-                triggle_or_not("services", True)
+                if isinstance(_, bool) and _:
+                    self.gui.say("✅ 后台服务检测")
+                triggle_or_not("services", _)
 
             def on_err(_):
+                self.gui.say("❌ 后台服务检测")
                 CustomInfoBar.show(
                     title="服务检测失败",
                     content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
                     parent=self.gui.textBrowser,
-                    url="https://jasoneri.github.io/ComicGUISpider/feat/script", url_name="部署指南"
+                    url="https://jasoneri.github.io/ComicGUISpider/feat/script", url_name="脚本集指南"
                 )
 
             self.task_manager.execute_simple_task(
                 task_func=services_check,
                 success_callback=on_success,
-                error_callback=on_err,
+                error_callback=on_err, show_error_info=False, 
                 tooltip_title="检测服务运行情况", task_id="services_check"
             )
 
@@ -251,8 +253,6 @@ class PreprocessManager(QObject):
                             continue
                         emit_progress(f"{line.strip()}")
                     exit_code = process.wait()
-                    if exit_code != 0:
-                        raise RuntimeError(f"依赖安装失败，退出码: {exit_code}")
                     for pkg in pkgs:
                         importlib.import_module(pkg)
                 return True
@@ -260,14 +260,25 @@ class PreprocessManager(QObject):
             def on_dependencies_check_process(progress_msg):
                 self.gui.say(progress_msg)
 
+            def on_err(_):
+                self.gui.say("❌ 额外依赖检测")
+                CustomInfoBar.show(
+                    title="依赖安装失败",
+                    content="点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）",
+                    parent=self.gui.textBrowser,
+                    url="https://jasoneri.github.io/ComicGUISpider/feat/script", url_name="脚本集指南"
+                )
+
             def on_dependencies_success(_):
-                self.gui.say("<br>✅ 额外依赖检测通过")
-                triggle_or_not("dependencies", True)
+                if isinstance(_, bool) and _:
+                    self.gui.say("✅ 额外依赖检测")
+                triggle_or_not("dependencies", _)
 
             config = TaskConfig(
                 task_func=dependencies_check,
                 success_callback=on_dependencies_success,
                 progress_callback=on_dependencies_check_process,
+                error_callback=on_err, show_error_info=False,
                 tooltip_title="检测额外依赖是否安装", tooltip_content="处理中...",
             )
             self.task_manager.execute_task("dependencies_check", config)
@@ -311,8 +322,9 @@ class PreprocessManager(QObject):
                 self.gui.say(progress_msg)
 
             def on_data_check_success(_):
-                self.gui.say("<br>✅ 数据缓存检测通过")
-                triggle_or_not("data", True)
+                if isinstance(_, bool) and _:
+                    self.gui.say("✅ 数据缓存检测")
+                triggle_or_not("data", bool(_))
 
             data_checkconfig = TaskConfig(
                 task_func=data_check,
