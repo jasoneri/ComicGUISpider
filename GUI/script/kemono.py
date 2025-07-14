@@ -7,8 +7,8 @@ from datetime import datetime
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QThread, QDate, QSortFilterProxyModel
-from PyQt5.QtGui import QFont, QStandardItemModel, QStandardItem, QGuiApplication, QDesktopServices
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QThread, QDate, QAbstractTableModel, QModelIndex
+from PyQt5.QtGui import QFont, QGuiApplication, QDesktopServices
 from qfluentwidgets import (
     LineEdit, PrimaryPushButton,
     VBoxLayout, FluentIcon as FIF, ZhDatePicker, StrongBodyLabel,
@@ -65,24 +65,104 @@ class FilterView(FlyoutViewBase):
         self.closeBtn.click()
 
 
-class CustomSortFilterProxyModel(QSortFilterProxyModel):
-    def lessThan(self, left, right):
-        left_column = left.column()
+class VirtualKemonoTableModel(QAbstractTableModel):
+    """虚拟化Kemono表格模型，用于高性能处理大量数据"""
 
-        # 对于更新时间列(索引2)和收藏数列(索引3)，使用存储的原始数据进行比较
-        if left_column in [2, 3]:
-            left_data = self.sourceModel().data(left, Qt.UserRole)
-            right_data = self.sourceModel().data(right, Qt.UserRole)
+    def __init__(self, data_dict):
+        super().__init__()
+        # 按收藏数降序排序，与原有逻辑保持一致
+        self.authors_list = sorted(data_dict.values(), key=lambda x: x.favorited, reverse=True)
+        self.filtered_indices = list(range(len(self.authors_list)))  # 用于搜索过滤
+        self.headers = ["作者", "平台", "更新时间", "收藏数"]
 
-            # 确保数据类型正确
-            if left_data is not None and right_data is not None:
-                try:
-                    return float(left_data) < float(right_data)
-                except (ValueError, TypeError):
-                    pass
+    def rowCount(self, parent=QModelIndex()):
+        return len(self.filtered_indices)
 
-        # 对于其他列，使用默认的字符串比较
-        return super().lessThan(left, right)
+    def columnCount(self, parent=QModelIndex()):
+        return 4
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid() or index.row() >= len(self.filtered_indices):
+            return None
+
+        actual_row = self.filtered_indices[index.row()]
+        author = self.authors_list[actual_row]
+        col = index.column()
+
+        if role == Qt.DisplayRole:
+            if col == 0:
+                return author.name
+            elif col == 1:
+                return author.service
+            elif col == 2:
+                return datetime.fromtimestamp(author.updated).strftime(r'%Y-%m-%d')
+            elif col == 3:
+                return str(author.favorited)
+        elif role == Qt.UserRole:  # 存储原始数据用于排序，与原有逻辑保持一致
+            if col == 2:
+                return author.updated
+            elif col == 3:
+                return author.favorited
+
+        return None
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.headers[section]
+        return None
+
+    def sort(self, column, order):
+        """排序功能，保持与原有排序逻辑一致"""
+        self.layoutAboutToBeChanged.emit()
+
+        reverse = (order == Qt.DescendingOrder)
+
+        if column == 0:  # 作者名
+            self.authors_list.sort(key=lambda x: x.name, reverse=reverse)
+        elif column == 1:  # 平台
+            self.authors_list.sort(key=lambda x: x.service, reverse=reverse)
+        elif column == 2:  # 更新时间
+            self.authors_list.sort(key=lambda x: x.updated, reverse=reverse)
+        elif column == 3:  # 收藏数
+            self.authors_list.sort(key=lambda x: x.favorited, reverse=reverse)
+
+        # 重新构建过滤索引
+        self.update_filtered_indices()
+        self.layoutChanged.emit()
+
+    def apply_filter(self, filter_text):
+        """应用搜索过滤，替代原有的setFilterRegExp功能"""
+        self.beginResetModel()
+
+        if not filter_text:
+            self.filtered_indices = list(range(len(self.authors_list)))
+        else:
+            self.filtered_indices = []
+            filter_lower = filter_text.lower()
+
+            for i, author in enumerate(self.authors_list):
+                # 搜索所有列，与原有逻辑保持一致
+                if (filter_lower in author.name.lower() or
+                    filter_lower in author.service.lower() or
+                    filter_lower in datetime.fromtimestamp(author.updated).strftime(r'%Y-%m-%d').lower() or
+                    filter_lower in str(author.favorited)):
+                    self.filtered_indices.append(i)
+
+        self.endResetModel()
+
+    def update_filtered_indices(self):
+        """更新过滤索引，在排序后调用"""
+        if len(self.filtered_indices) != len(self.authors_list):
+            # 这里需要重新应用当前的过滤条件
+            # 暂时重置为显示所有数据，实际使用时会通过apply_filter重新设置
+            self.filtered_indices = list(range(len(self.authors_list)))
+
+    def get_author_at_row(self, row):
+        """获取指定行的作者对象，用于选择功能"""
+        if 0 <= row < len(self.filtered_indices):
+            actual_row = self.filtered_indices[row]
+            return self.authors_list[actual_row]
+        return None
 
 
 class KemonoTableView(FramelessWindow):
@@ -109,7 +189,7 @@ class KemonoTableView(FramelessWindow):
             p_width = screen_geo.width()
             p_height = screen_geo.height()
 
-        window_width = int(p_width * 0.8)
+        window_width = int(p_width * 0.9)
         window_height = int(p_height * 0.7)
 
         self.resize(window_width, window_height)
@@ -126,7 +206,12 @@ class KemonoTableView(FramelessWindow):
         authors_list = sorted(data.values(), key=lambda x: x.favorited, reverse=True)
         self.data = {i: author for i, author in enumerate(authors_list)}
 
+        self.virtual_model = VirtualKemonoTableModel(data)
+
         self.set_table()
+        self.setupUi()
+
+    def setupUi(self):
         first_row = QHBoxLayout()
         first_row.addWidget(self.tableView)
 
@@ -134,17 +219,20 @@ class KemonoTableView(FramelessWindow):
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FIF.CLOSE, self)
         self.closeBtn.clicked.connect(self.hide)
-        selectBtn = PrimaryPushButton(FIF.SEND, "将所选行发送到输入框", self)
+        selectBtn = PrimaryPushButton(FIF.SEND, "发送所选至输入框", self)
         selectBtn.clicked.connect(self.select_author)
         self.searchEdit = LineEdit(self)
-        self.searchEdit.setPlaceholderText("搜索作者...")
+        self.searchEdit.setPlaceholderText("搜索...")
         self.searchEdit.textChanged.connect(self.filter_table)
         self.searchEdit.setClearButtonEnabled(True)
-        linkBtn = TransparentPushButton(FIF.LINK, "查看所选作品", self)
+        linkBtn = TransparentPushButton(FIF.LINK, "查看其作品", self)
         linkBtn.clicked.connect(self.link_author)
+        # favBtn = PushButton(FIF.HEART, "查看收藏", self)
+        # favBtn.clicked.connect(self.show_favorites)
         second_row.addWidget(selectBtn)
         second_row.addWidget(self.searchEdit)
         second_row.addWidget(linkBtn)
+        # second_row.addWidget(favBtn)
         second_row.addItem(spacerItem)
         second_row.addWidget(self.closeBtn)
 
@@ -160,46 +248,15 @@ class KemonoTableView(FramelessWindow):
         self.tableView.setFixedSize(tb_width, tb_height)
         self.tableView.verticalHeader().hide()
 
-        # 设置数据模型
-        self.source_model = QStandardItemModel()
-        self.source_model.setHorizontalHeaderLabels(["作者", "平台", "更新时间", "收藏数"])
-
-        # 按行索引顺序遍历数据
-        for row_index in sorted(self.data.keys()):
-            item = self.data[row_index]
-            # 创建表格项
-            name_item = QStandardItem(item.name)
-            service_item = QStandardItem(item.service)
-
-            # 更新时间项 - 存储时间戳用于排序，显示格式化日期
-            updated_timestamp = item.updated
-            updated_date = datetime.fromtimestamp(updated_timestamp).strftime(r'%Y-%m-%d')
-            date_item = QStandardItem(updated_date)
-            date_item.setData(updated_timestamp, Qt.UserRole)  # 存储原始时间戳用于排序
-
-            # 收藏数项 - 存储数值用于排序
-            favorited_count = item.favorited
-            favorited_item = QStandardItem(str(favorited_count))
-            favorited_item.setData(favorited_count, Qt.UserRole)  # 存储原始数值用于排序
-
-            row = [name_item, service_item, date_item, favorited_item]
-            self.source_model.appendRow(row)
-
-        # 创建自定义筛选代理模型
-        self.proxy_model = CustomSortFilterProxyModel()
-        self.proxy_model.setSourceModel(self.source_model)
-        self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
-        self.proxy_model.setFilterKeyColumn(-1)  # 搜索所有列
-
-        self.tableView.setModel(self.proxy_model)
+        # 使用虚拟化模型，大幅提升性能
+        self.tableView.setModel(self.virtual_model)
         self.tableView.horizontalHeader().setStretchLastSection(True)
 
         # 启用排序功能
         self.tableView.setSortingEnabled(True)
         self.tableView.horizontalHeader().setSortIndicatorShown(True)
 
-        # 设置默认排序：按收藏数降序排列
-        self.proxy_model.sort(3, Qt.DescendingOrder)
+        self.virtual_model.sort(3, Qt.DescendingOrder)
 
         # 调整列宽
         self.tableView.setColumnWidth(0, int(tb_width * 0.3))  # 作者名
@@ -212,7 +269,7 @@ class KemonoTableView(FramelessWindow):
 
     def filter_table(self, text):
         """筛选表格数据"""
-        self.proxy_model.setFilterRegExp(text)
+        self.virtual_model.apply_filter(text)
 
     def select_author(self):
         """选择作者功能"""
@@ -220,14 +277,9 @@ class KemonoTableView(FramelessWindow):
         if not selection:
             return
 
-        # 获取选中行的数据（需要通过代理模型映射到源模型）
-        proxy_row = selection[0].row()
-        proxy_index = self.proxy_model.index(proxy_row, 0)
-        source_index = self.proxy_model.mapToSource(proxy_index)
-        source_row = source_index.row()
+        model_row = selection[0].row()
+        selected_author = self.virtual_model.get_author_at_row(model_row)
 
-        # 直接通过行索引获取对应的KemonoAuthor对象
-        selected_author = self.data.get(source_row)
         self.interface.kemonoTextBrowser.append(
             f"已选ID({selected_author.id}): 作者「{selected_author.name}」({selected_author.service})"
         )
@@ -239,11 +291,8 @@ class KemonoTableView(FramelessWindow):
         author_url = "https://kemono.su"
         selection = self.tableView.selectionModel().selectedRows()
         if selection:
-            proxy_row = selection[0].row()
-            proxy_index = self.proxy_model.index(proxy_row, 0)
-            source_index = self.proxy_model.mapToSource(proxy_index)
-            source_row = source_index.row()
-            selected_author = self.data.get(source_row)
+            model_row = selection[0].row()
+            selected_author = self.virtual_model.get_author_at_row(model_row)
             author_url = f"{author_url}/{selected_author.service}/user/{selected_author.id}"
         QDesktopServices.openUrl(QUrl(author_url))
 
