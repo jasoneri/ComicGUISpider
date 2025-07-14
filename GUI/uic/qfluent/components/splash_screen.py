@@ -6,24 +6,32 @@ from qfluentwidgets import (
     ImageLabel, SplashScreen
 )
 from PIL import Image, ImageFilter, ImageDraw
-from utils import ori_path
+from utils import ori_path, conf
 
 cus_p = ori_path.joinpath(r"custom")
 
 
 class BgMgr:
     def __init__(self):
-        self.start_bg_f, self.start_ext = self._find_custom_bg()
-        self.bg_f, self.ext = self._find_custom_bg("bg")
+        self.start_bg_f, self.start_ext = self._find_start_bg()
+        self.bg_f, self.ext = self._find_bg()
         self.movie = None
 
-    def _find_custom_bg(self, kind: str = "start"):
-        target_dir = cus_p / kind
-        if not target_dir.is_dir():
+    def _find_bg(self):
+        target_dir = conf.bg_path
+        if not target_dir or not target_dir.is_dir():
             return None, None
+        matched_files = []
+        for file in target_dir.rglob('*.png'):
+            matched_files.append((file.as_posix(), file.suffix))
+        if matched_files:
+            return random.choice(matched_files)
+        return None, None
+
+    def _find_start_bg(self, kind: str = "start"):
         valid_exts = ('.gif', '.png')
         matched_files = []
-        for file in target_dir.iterdir():
+        for file in cus_p.iterdir():
             if file.is_file() and file.suffix.lower() in valid_exts:
                 matched_files.append((file.as_posix(), file.suffix))
         if matched_files:
