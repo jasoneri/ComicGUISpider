@@ -315,7 +315,7 @@ class EHentaiKits(EroUtils, Req, Cookies):
 class KaobeiUtils(Utils):
     name = "manga_copy"
     uuid_regex = re.compile(r"(\d+)$")
-    pc_domain = "www.copy20.com"
+    pc_domain = "copy2000.site"
     AES_KEY = None
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
