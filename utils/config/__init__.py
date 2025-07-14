@@ -143,6 +143,7 @@ class Conf(BaseConf):
     cookies = None
     clip_db: t.Union[p.Path, str] = curr_os.default_clip_db
     rv_script: t.Union[p.Path, str] = ''
+    bg_path: t.Union[p.Path, str] = ''
     clip_read_num: str = '20'
     concurr_num: str = '16'
     clip_sql = curr_os.clip_sql
@@ -164,9 +165,8 @@ class Conf(BaseConf):
             # 跳过cookie相关字段，由ConfCookie处理
             if k != "cookies":
                 setattr(self, k, v or getattr(self, k, None))
-        self.sv_path = p.Path(self.sv_path)
-        self.clip_db = p.Path(self.clip_db)
-        self.rv_script = p.Path(self.rv_script)
+        for _ in ("sv_path", "clip_db", "rv_script", "bg_path"):
+            setattr(self, _, p.Path(getattr(self, _)))
         self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
         self.cookies = ConfCookie()
 
@@ -174,9 +174,9 @@ class Conf(BaseConf):
         def path_like_handle(_p):
             return str(_p) if isinstance(_p, p.Path) else _p
         for k, v in kwargs.items():
-            setattr(self, k, p.Path(v) if k in ("sv_path","rv_script") else v)
+            setattr(self, k, p.Path(v) if k in ("sv_path","rv_script","bg_path") else v)
         props = asdict(self)
-        for _ in ("sv_path", "clip_db", "rv_script"):
+        for _ in ("sv_path", "clip_db", "rv_script", "bg_path"):
             props[_] = path_like_handle(props[_])
         self.chain_rv()
         yaml_update(self.file, props)
