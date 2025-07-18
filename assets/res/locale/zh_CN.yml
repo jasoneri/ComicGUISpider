@@ -104,9 +104,9 @@ GUI:
     confDia_updateBtn: "检查更新"
     confDia_updateDialog_stable: "检测到最新稳定版"
     confDia_updateDialog_dev: "检测到最新开发版"
-    confDia_supportBtn: "其他"
-    confDia_promote_title: "推荐机场"
-    confDia_promote_content: "30rmb130G永久流量等"
+    confDia_supportBtn: "支持开发者"
+    confDia_promote_title: "机场"
+    confDia_promote_content: "永久流量等"
     confDia_promote_url: "https://hxlm.cc/#/register?code=UfFbIfOq"
     confDia_support_content: "👇请吃个甜筒吧..."
 
