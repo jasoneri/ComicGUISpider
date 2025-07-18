@@ -19,7 +19,7 @@ class BgMgr:
 
     def _find_bg(self):
         target_dir = conf.bg_path
-        if not target_dir or not target_dir.is_dir():
+        if not target_dir or str(target_dir) == "." or not target_dir.is_dir():
             return None, None
         matched_files = []
         for file in target_dir.rglob('*.png'):

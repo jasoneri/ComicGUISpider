@@ -10,7 +10,7 @@ from utils.processed_class import Url
 from utils.website import KaobeiUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
-pc_domain = "copy2000.site"
+pc_domain = "www.2025copy.com"
 domain = "mapi.copy2000.site"
 
 
@@ -57,16 +57,16 @@ class KaobeiSpider(BaseComicSpider):
         'Connection': 'keep-alive',
     }
     ua_mapi = {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
         'Accept': 'application/json',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
         'Origin': f'https://{pc_domain}',
         'Connection': 'keep-alive',
-        'Content-Encoding': 'gzip, compress, br',
+        'Accept-Encoding': 'gzip, compress, br',
         'platform': '1',
-        'version': '2025.05.09',
+        'version': '2025.07.15',
         'webp': '1',
-        'region': '0',
+        'region': '0'
     }
     domain = domain
     pc_domain = pc_domain
