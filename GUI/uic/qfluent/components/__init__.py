@@ -102,7 +102,7 @@ class SupportView(FlyoutViewBase):
         self.titleLayout = QtWidgets.QHBoxLayout()
         self.githubBtn = HyperlinkButton(FluentIcon.GITHUB, proj_url, "Github")
         self.qqGroupBtn = HyperlinkButton(CustomIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
-        self.discordBtn = HyperlinkButton(CustomIcon.DISCORD, "https://discord.gg/XAnraEru", "Discord")
+        self.discordBtn = HyperlinkButton(CustomIcon.DISCORD, "https://discord.gg/znD4p2fpSE", "Discord")
         spacerItem = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
         self.closeBtn.clicked.connect(self.closed)

@@ -18,15 +18,13 @@ jobs:
     strategy:
       matrix:
         include:
-          # - "ehentai" "jm" 使用本地 act 运行上传
+          # - "ehentai" "jm" "hitomi"使用本地 act 运行上传
           - crawler_name: "kaobei"
             params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50021"
           - crawler_name: "wnacg"
             params: "-w 3 -k ミモネル -i 2 -sp 50051"
           - crawler_name: "mangabz"
             params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
-          - crawler_name: "hitomi"
-            params: "-w 6 -k artist/date/published/mimonel-japanese -i 15 -sp 50111"
 
     steps:
       - name: Checkout code
@@ -121,7 +119,7 @@ jobs:
           sudo find /tmp/ -type f -name 'status_*.json' -exec cp {} /tmp/merged-badges/ \;
           
           set +e
-          for crawler in "ehentai" "jm"; do
+          for crawler in "ehentai" "jm" "hitomi"; do
             curl -s "https://cgs-status-badges.pages.dev/status_${crawler}.json" -o "/tmp/merged-badges/status_${crawler}.json" || true
           done
           
