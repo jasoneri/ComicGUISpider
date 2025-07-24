@@ -8,7 +8,7 @@
 
 > [!Info] 没列出的功能全网适用，一眼独占的工具如 hitomiTool 也不会列出  
 
-|  |  [拷贝](https://www.copy20.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) |
+|  |  [拷贝](https://www.2025copy.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) |
 |:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----------:|:----------:|
 | 预览 | ❌ |     ❌ | ✔️ | ✔️ | ✔️ | ✔️ |
 | rV-显示记录 | ✔️ | ✔️ | ❌ | ❌ | ❌ | ❌ |

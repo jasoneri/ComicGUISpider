@@ -2,9 +2,9 @@ import sys
 import json
 import importlib
 import subprocess
-import psutil
 
 import uv
+import psutil
 import httpx
 from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
@@ -15,6 +15,10 @@ from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import CustomInfoBar
+
+
+transport=dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
+data_cli = httpx.Client(transport=httpx.HTTPTransport(**transport))
 
 
 class PreprocessManager(QObject):
@@ -41,7 +45,7 @@ class PreprocessManager(QObject):
     def _preprocess_manga_copy(self):
         def manga_copy_task():
             # 1. 更新加密缓存
-            self.gui.spiderUtils.get_aes_key()
+            key = self.gui.spiderUtils.get_aes_key()
             return True
         
         def on_success(_):
@@ -153,7 +157,7 @@ class PreprocessManager(QObject):
         )
 
         def dl_db():
-            with httpx.stream("GET", res.Vars.hitomiDb_tmp_url, follow_redirects=True) as resp:
+            with data_cli.stream("GET", res.Vars.hitomiDb_tmp_url, follow_redirects=True) as resp:
                 with open(hitomi_db_path, 'wb') as f:
                     for chunk in resp.iter_bytes():
                         f.write(chunk)
@@ -296,7 +300,7 @@ class PreprocessManager(QObject):
                     emit_progress("正在更新缓存数据...")
                     url = "https://kemono.su/api/v1/creators.txt"
                     try:
-                        with httpx.stream("GET", url, follow_redirects=True, timeout=60) as resp:
+                        with data_cli.stream("GET", url, follow_redirects=True, timeout=60) as resp:
                             resp.raise_for_status()
                             content = b""
                             for chunk in resp.iter_bytes():

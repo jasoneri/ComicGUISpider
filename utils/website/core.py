@@ -17,8 +17,16 @@ class Cache:
         self.flag = None
         self.val = None
 
-    def with_expiry(self, expiry_time: t.Union[int,datetime]=48, write_in=False):
-        """缓存有效期装饰器"""
+    def with_expiry(self, expiry_time: t.Union[int, datetime, str, callable]=48, write_in=False):
+        """缓存有效期装饰器
+
+        Args:
+            expiry_time: 过期时间设置
+                - int: 小时数，如48表示48小时后过期
+                - datetime: 具体的过期时间点
+                - str: 预定义策略，如"daily"表示每日23:59:59过期
+                - callable: 返回datetime的函数，用于动态计算过期时间
+        """
         def decorator(func):
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
@@ -49,16 +57,27 @@ class Cache:
                 self.val = result
                 return result
             return wrapper
+
         cache_path = temp_p.joinpath(self.cache_f)
         cache_exists_flag = cache_path.exists()
         expiry_flag = True
         if not cache_exists_flag:
             return decorator
+
+        # 计算过期标志
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        file_time = datetime.fromtimestamp(cache_path.stat().st_mtime)
         match expiry_time:
             case int():
-                expiry_flag = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime) > timedelta(hours=expiry_time)
+                expiry_flag = now - file_time > timedelta(hours=expiry_time)
             case datetime():
-                expiry_flag = datetime.fromtimestamp(cache_path.stat().st_mtime) > expiry_time
+                expiry_flag = now > expiry_time
+            case str() if expiry_time == "daily":
+                expiry_flag = file_time < today_start
+            case _ if callable(expiry_time):
+                dynamic_expiry = expiry_time()
+                expiry_flag = now > dynamic_expiry
         return decorator
 
     def with_error_cleanup(self):
