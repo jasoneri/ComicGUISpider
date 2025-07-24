@@ -4,7 +4,6 @@ import hashlib
 import re
 import math
 import json
-from datetime import datetime
 from io import BytesIO
 import asyncio
 
@@ -344,7 +343,7 @@ class KaobeiUtils(Utils):
         return _(ret[16:], cls.cachef.val, ret[:16])
 
     @classmethod
-    @cachef.with_expiry(datetime.now().replace(hour=23, minute=59, second=59), write_in=True)
+    @cachef.with_expiry("daily", write_in=True)
     def get_aes_key(cls):
         """获取AES密钥，使用缓存装饰器优化"""
         async def fetch():

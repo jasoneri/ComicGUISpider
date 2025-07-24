@@ -30,7 +30,7 @@
 
 | Website                                 | locale |          Notes          |                                               status<br>(UTC+8)                                                |
 |:----------------------------------------|:------:|:-----------------------:|:--------------------------------------------------------------------------------------------------------------:|
-| [MangaCopy](https://www.copy20.com/) |  :cn:  | Hidden content unlocked |  ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json)  |
+| [MangaCopy](https://www.2025copy.com/) |  :cn:  | Hidden content unlocked |  ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json)  |
 | [Māngabz](https://mangabz.com)          |  :cn:  |                         | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
 | [18comic](https://18comic.vip/)         |  :cn:  |           🔞            |      ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json)      |
 | [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
