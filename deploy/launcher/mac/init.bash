@@ -7,10 +7,8 @@ cd $PROJ_P;
 
 # 检测是否为 Apple Silicon
 if [ "$(uname -m)" = "arm64" ]; then
-    REQUIREMENTS="$PROJ_P/requirements/mac_arm64.txt"
     BREW_PATH="/opt/homebrew/bin/brew"
 else
-    REQUIREMENTS="$PROJ_P/requirements/mac_x86_64.txt"
     BREW_PATH="/usr/local/bin/brew"
 fi
 
@@ -51,13 +49,9 @@ if ! uv python list | grep "3.12.11"; then
     uv python install 3.12.11 --mirror "$mirrorUrl" --no-cache
 fi
 
-cd "/Applications/CGS.app/Contents/Resources";
-echo "[CGS]Creating virtual environment..."
-uv venv --python 3.12.11 .venv
-source .venv/bin/activate
-echo "[CGS]Installing initial dependencies..."
-uv pip install -r "$REQUIREMENTS" --index-url https://repo.huaweicloud.com/repository/pypi/simple
-deactivate
+cd "/Applications/CGS.app/Contents/Resources/scripts";
+echo "[CGS]Installing dependencies using pyproject.toml..."
+uv sync --index-url https://repo.huaweicloud.com/repository/pypi/simple
 
 echo ""
 echo "===== 初始化/依赖更新完毕，现可在启动台启动 CGS 了 ====="

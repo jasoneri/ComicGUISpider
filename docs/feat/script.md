@@ -13,36 +13,19 @@ saucenao / kemono / nekohouse
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
 :::
-::: tip 🔔`v2.3.0-beta` 分界线，以上安装是统一要做，以下前置操作是非 GUI 方式或旧版本要做  
-使用 `uv` 安装脚本集依赖 `requirements/script/*.txt`
+::: tip 🔔`v2.3.1` 分界线，以上安装是统一要做，以下前置操作是非 GUI 方式或旧版本要做
+
+使用 `uv` 安装脚本集依赖
 ```bash
-python -m uv pip install -r "requirements/script/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
+uv sync --extra script
 ```
 绿色包使用的命令为 👇
 ```bash
-./runtime/python.exe -m uv pip install -r "./scripts/requirements/script/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
+./runtime/python.exe -m uv sync --extra script
 ```
 :::
 
-::: details 配置文件 `scripts/utils/script/conf.yml` （虽已自动创建，但改存储目录/cookies时需在此修改）
-```yaml
-kemono:
-  sv_path: D:\pic\kemono                              # 存储目录，请使用独立的空目录
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 在 kemono 网站上 F12 打开控制台查看cookies, 字段名为 `session`
-  redis_key: kemono                                   # 此项禁止修改
-  
-nekohouse:                                            # 基本同上
-  sv_path: D:\pic\nekohouse
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx
-  redis_key: nekohouse
-
-proxies: null
-redis:
-  host: 127.0.0.1
-  port: 6379
-  db: 0
-  password:
-```
+::: warning 配置相关：改存储目录/cookies等请使用GUI方式修改
 :::
 
 ::: details 脚本目录树: `script`目录

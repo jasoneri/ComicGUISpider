@@ -30,8 +30,6 @@ class macOS:
     def env_init(self):
         # 1. 更换字体
         self.font_replace()
-        # 2. requirements.txt去掉window相关的包
-        self.handle_requirements()
 
     def font_replace(self):
         def _repl(content):
@@ -49,11 +47,7 @@ class macOS:
         for _f in ["conf_dia.py", "browser.py", "ui_mainwindow.py"]:
             self.file_content_replace(uic_p.joinpath(_f), _repl)
 
-    def handle_requirements(self):
-        self.file_content_replace(
-            self.proj_p.joinpath('requirements.txt'),
-            lambda content: re.sub(r'^(twisted-iocpsupport==.*|pywin32==.*)[\r\n]*', "", content, flags=re.MULTILINE)
-        )
+    # handle_requirements方法已移除，因为现在使用pyproject.toml管理依赖
 
     @staticmethod
     def file_content_replace(file, repl_func):

@@ -47,9 +47,9 @@ class PkgMgr:
         return url
     
     def set_assets(self):
-        requirements = f"requirements/{self.env}.txt"
-        self.requirements_url = self.github_speed(f"https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/{requirements}")
-        self.requirements = self.proj_p.joinpath(requirements)
+        # 使用pyproject.toml替代requirements文件
+        self.pyproject_url = self.github_speed("https://raw.githubusercontent.com/jasoneri/ComicGUISpider/refs/heads/GUI/pyproject.toml")
+        self.pyproject = self.proj_p.joinpath("pyproject.toml")
 
     def print(self, *args, **kwargs):
         if self.debug_signal:
@@ -63,7 +63,7 @@ class PkgMgr:
                     for chunk in tqdm.tqdm(r.iter_bytes(1000), desc=f"downloading {out.name}"):
                         f.write(chunk)
             self.print(f"[downloaded] {out.name}")
-        
+
         def _dl_uv():
             cmd = ["install", "uv"]
             if self.locale == "zh-CN":
@@ -74,19 +74,19 @@ class PkgMgr:
 
         if self.env.startswith("win"):
             _dl_uv()
-        _dl(self.requirements_url, self.requirements)
+        _dl(self.pyproject_url, self.pyproject)
 
     def uv_install_pkgs(self):
-        self.print("uv pip installing pkg...")
+        self.print("uv sync installing packages...")
         if self.env.startswith("win"):
             # Windows 使用原有的 uv 逻辑
             uv = importlib.import_module("uv")
-            cmd = [uv.find_uv_bin(), "pip", "install", "-r", str(self.requirements), "--python", sys.executable]
+            cmd = [uv.find_uv_bin(), "sync", "--python", sys.executable]
         else:
-            cmd = ["uv", "pip", "install", "-r", str(self.requirements)]
+            cmd = ["uv", "sync"]
         if self.locale == "zh-CN":
-            cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--trusted-host", "https://pypi.tuna.tsinghua.edu.cn/simple"])
-        self.print("[uv_install_pkgs cmd]" + " ".join(cmd))
+            cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+        self.print("[uv_sync cmd]" + " ".join(cmd))
         process = subprocess.Popen(
             cmd, cwd=self.run_path,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
