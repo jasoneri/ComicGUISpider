@@ -23,6 +23,9 @@ class TextBrowserWithBg(TextBrowser):
         if not height:
             height = int(self.height()*1.0)
         pixmap = self.image_label.pixmap()
+        if pixmap.isNull() or pixmap.height() == 0:
+            self.image_label = None
+            return
         self.image_label.setFixedSize(int(height * (pixmap.width() / pixmap.height())), height)
         self.image_label.setScaledContents(True)
 
