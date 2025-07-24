@@ -20,7 +20,7 @@ hero:
 
 <table><tbody>  
   <tr>
-    <td><div align="center"><a href="https://www.copy20.com/" target="_blank">
+    <td><div align="center"><a href="https://www.2025copy.com/" target="_blank">
       <img src="../../assets/img/icons/website/copy.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://mangabz.com" target="_blank">

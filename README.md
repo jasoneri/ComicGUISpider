@@ -29,7 +29,7 @@
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
-| [拷贝漫画](https://www.copy20.com/)    | :cn: | | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
+| [拷贝漫画](https://www.2025copy.com/)    | :cn: | | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
 | [Māngabz](https://mangabz.com)        | :cn: | 代理 | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
 | [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
@@ -42,7 +42,9 @@
 ---
 
 **[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
-)](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;有建议提建议，没建议..点个⭐️star吧🗿**
+)](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;
+关注/取消关注项目是你的自由，个人开发比较难做到一错不漏，  
+提issue/群反映 → 项目改进修复，尤其对这种实时性强且多变的项目，才算得上开源社区形态**
 
 ---
 
@@ -54,6 +56,10 @@
 
 ✅ 选网站可直接选kemono，单独窗口供后续脚本集扩展，详情看[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)  
 ✅ 自定义背景，[配置key](https://jasoneri.github.io/ComicGUISpider/config/#bg-path)  
+
+#### 🐞 Fix
+
+✅ 修复包缺失导致的无法运行、kb缓存时间逻辑、内部重启的 division by zero 报错等
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 

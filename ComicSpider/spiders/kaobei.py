@@ -11,7 +11,7 @@ from utils.website import KaobeiUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 pc_domain = "www.2025copy.com"
-domain = "mapi.copy2000.site"
+domain = "api.2025copy.com"
 
 
 class FrameBook:

@@ -106,6 +106,8 @@ polib==1.2.0
     # via -r requirements-in.txt
 protego==0.4.0
     # via scrapy
+psutil==7.0.0
+    # via -r requirements-in.txt
 pyasn1==0.6.1
     # via
     #   pyasn1-modules
