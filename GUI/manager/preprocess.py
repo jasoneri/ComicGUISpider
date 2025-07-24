@@ -239,11 +239,10 @@ class PreprocessManager(QObject):
                         missing_packages.append(pkg)
 
                 if missing_packages:
-                    from deploy.pkg_mgr import which_env
-                    requirements = f"requirements/script/{which_env()}.txt"
-                    cmd = [uv.find_uv_bin(), "pip", "install", "-r", str(ori_path.joinpath(requirements)), "--python", sys.executable]
+                    # 使用pyproject.toml安装脚本依赖
+                    cmd = [uv.find_uv_bin(), "sync", "--extra", "script", "--python", sys.executable]
                     if res.lang == "zh_CN":
-                        cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--trusted-host", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+                        cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
                     process = subprocess.Popen(
                         cmd, cwd=ori_path,
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
