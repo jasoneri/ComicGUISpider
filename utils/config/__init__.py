@@ -14,6 +14,13 @@ from variables import DEFAULT_COMPLETER, COOKIES_SUPPORT
 from deploy import curr_os
 
 ori_path = p.Path(__file__).parent.parent.parent
+
+code_env = "git"
+if ori_path.name == "scripts":
+    if ori_path.parent.joinpath("_pystand_static.int").exists() or ori_path.parent.joinpath("AppSettings.plist").exists():
+        code_env = "portable"
+elif ori_path.name == "site-packages":
+    code_env = "uv"
 conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
 conf_dir.mkdir(parents=True, exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
