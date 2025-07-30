@@ -2,7 +2,7 @@ import traceback
 import asyncio
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils import font_color, conf, get_loop, QueuesManager
+from utils import font_color, conf, get_loop, QueuesManager, code_env
 from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
@@ -187,7 +187,8 @@ class ProjUpdateThread(QThread):
     def run_update(self):
         try:
             # ⚠️ danger！⚠️ -------------->
-            self.proj.local_update()
+            if code_env == "portable":
+                self.proj.local_update()
             # <-------------- ⚠️ danger！⚠️
             self.updated_signal.emit(self.proj)
         except Exception as e:

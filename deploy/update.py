@@ -237,7 +237,7 @@ class Proj:
             _, folders, files = next(os.walk(temp_proj_p))
             all_files = (*folders, *files)
             for file in all_files:
-                if file not in ("conf.yml","record.db","version.json"):
+                if file not in ("version.json",):
                     move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
             env_success_flag = self.env_check_and_replenish()
             if not self.updated_success_flag or not env_success_flag:

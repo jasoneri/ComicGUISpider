@@ -1,17 +1,16 @@
 import sys
 import subprocess
-import pathlib
 
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import QTimer
 from qfluentwidgets import (
-    InfoBar, InfoBarPosition, StateToolTip
+    InfoBarPosition, StateToolTip
 )
 
 from utils.processed_class import (
     PreviewHtml, TaskObj, TasksObj, ClipManager
 )
 from utils.sql import SqlUtils
-from utils import conf, ori_path
+from utils import conf, ori_path, code_env
 from assets import res
 from deploy.update import Proj
 from GUI.uic.qfluent.components import (
@@ -152,5 +151,6 @@ class Updater:
         self.conf_dia.puThread.start()
 
     def after_update(self):
-        subprocess.Popen([sys.executable, ori_path.joinpath("CGS.py")])
+        if code_env == "portable":
+            subprocess.Popen([sys.executable, ori_path.joinpath("CGS.py")])
         QTimer.singleShot(1000, self.gui.close)
