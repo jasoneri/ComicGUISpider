@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import pickle
-import shutil
 import pathlib as p
 import typing as t
 from dataclasses import dataclass, asdict, field
@@ -35,14 +34,6 @@ def yaml_update(_f, dic):
         fp.truncate()
         yaml_data = yaml.dump(ori_yml_config, allow_unicode=True, sort_keys=False)
         fp.write(yaml_data)
-
-
-def toAppConfigLocation(ori_file: p.Path, iname=None):
-    file = ori_file.name
-    location_file = conf_dir.joinpath(file)
-    if ori_file.exists() and not location_file.exists():
-        shutil.move(str(ori_file), str(location_file))
-    return location_file
 
 
 class ConfCookie:
@@ -127,7 +118,7 @@ class BaseConf:
     @classmethod
     def duel_conf(cls, ori_conf_yml, iname):
         _i = f"_instance_{iname}" if iname else "_instance"
-        return _i, toAppConfigLocation(ori_conf_yml, iname)
+        return _i, conf_dir.joinpath(ori_conf_yml.name)
 
     def __new__(cls, *args, path: t.Optional[p.Path] = None, iname: str = None, **kwargs):
         _ori_conf_yml = (path or ori_path).joinpath("conf.yml" if not iname else f"conf_{iname}.yml")
