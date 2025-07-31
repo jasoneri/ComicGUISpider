@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
-from utils import conf, ori_path
+from utils import conf, ori_path, code_env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
@@ -25,6 +25,7 @@ class PreprocessManager(QObject):
     def __init__(self, gui):
         super().__init__()
         self.gui = gui
+        self.show_err = conf.log_level.lower() == "debug"
         self.task_manager = AsyncTaskManager(gui)
 
     def handle_choosebox_changed(self, index: int):
@@ -61,7 +62,7 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=manga_copy_task,
             success_callback=on_success,
-            show_error_info=False, error_callback=on_error,
+            show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="更新copy2相关缓存", task_id="manga_copy_preprocess"
         )
 
@@ -84,7 +85,7 @@ class PreprocessManager(QObject):
 
         self.task_manager.execute_simple_task(
             task_func=task,
-            success_callback=on_success, show_error_info=False, error_callback=on_error,
+            success_callback=on_success, show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="更新域名缓存", task_id="domain_preprocess"
         )
 
@@ -115,7 +116,7 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=ehentai_task,
             success_callback=lambda _: self.gui.say("<br>✅ exhentai 访问检测通过"),
-            show_error_info=False, error_callback=on_error,
+            show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="exhentai 访问检测", task_id="ehentai_preprocess"
         )
 
@@ -134,7 +135,7 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=mangabz_task,
             success_callback=lambda _: self.gui.say("<br>✅ mangabz 访问检测通过"),
-            show_error_info=False, error_callback=on_error,
+            show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="mangabz 访问检测", task_id="mangabz_preprocess"
         )
 
@@ -221,7 +222,7 @@ class PreprocessManager(QObject):
             self.task_manager.execute_simple_task(
                 task_func=services_check,
                 success_callback=on_success,
-                error_callback=on_err, show_error_info=False, 
+                error_callback=on_err, show_error_info=self.show_err, 
                 tooltip_title="检测服务运行情况", task_id="services_check"
             )
 
@@ -241,6 +242,8 @@ class PreprocessManager(QObject):
                 if missing_packages:
                     # 使用pyproject.toml安装脚本依赖
                     cmd = [uv.find_uv_bin(), "sync", "--extra", "script", "--python", sys.executable]
+                    if code_env == "uv":
+                        cmd = ["uv", "tool", "install", "--force", "ComicGUISpider[script]"]
                     if res.lang == "zh_CN":
                         cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
                     process = subprocess.Popen(
@@ -281,7 +284,7 @@ class PreprocessManager(QObject):
                 task_func=dependencies_check,
                 success_callback=on_dependencies_success,
                 progress_callback=on_dependencies_check_process,
-                error_callback=on_err, show_error_info=False,
+                error_callback=on_err, show_error_info=self.show_err,
                 tooltip_title="检测额外依赖是否安装", tooltip_content="处理中...",
             )
             self.task_manager.execute_task("dependencies_check", config)

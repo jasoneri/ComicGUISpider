@@ -20,6 +20,9 @@ python -c "import platform; print(platform.machine())"
 
 ## 📑 绿色包说明
 
+::: tip 也推荐直接使用 [uv tool方式安装](/deploy/quick-start#1-下载--部署)，使用/管理便捷性跟绿色包不相上下  
+:::
+
 macOS 仅需下载 `CGS-macOS`压缩包
 
 ::: details 解压后目录树(点击展开)
