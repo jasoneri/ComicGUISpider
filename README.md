@@ -44,7 +44,8 @@
 **[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
 )](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;
 关注/取消关注项目是你的自由，个人开发比较难做到一错不漏，  
-提issue/群反映 → 项目改进修复，尤其对这种实时性强且多变的项目，才算得上开源社区形态**
+提issue/群反映 → 项目改进修复，尤其对这种实时性强且多变的项目，才算得上开源社区形态...  
+但无反馈/无效反馈/有效反馈比较难平衡，鉴于CGS目前还仅单人开发，反馈前三思，已阅文档已观issue而再起**
 
 ---
 
@@ -54,12 +55,11 @@
 
 #### 🎁 Features
 
-✅ 选网站可直接选kemono，单独窗口供后续脚本集扩展，详情看[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)  
-✅ 自定义背景，[配置key](https://jasoneri.github.io/ComicGUISpider/config/#bg-path)  
+✅ 已打包上传至 pypi ，可使用 uv tool 管理/运行 CGS [查看细则](https://jasoneri.github.io/ComicGUISpider/deploy/quick-start)  
 
 #### 🐞 Fix
 
-✅ 修复包缺失导致的无法运行、kb缓存时间逻辑、内部重启的 division by zero 报错等
+✅ kemono域名更换  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 

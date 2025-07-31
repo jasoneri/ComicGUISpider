@@ -17,6 +17,100 @@ from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
 
 is_debugging = os.getenv('CGS_DEBUG') == '1'
 
+# 全局变量声明
+gui = None
+spider_choice = None
+
+
+def main():
+    """CLI入口函数"""
+    global gui, spider_choice  # 声明全局变量
+
+    set_start_method('spawn', force=True)
+    parser = argparse.ArgumentParser(
+        description=f"""
+    ▄████▄    ▄████   ██████
+   ▒██▀ ▀█   ██▒ ▀█▒▒██    ▒
+   ▒▓█    ▄ ▒██░▄▄▄░░ ▓██▄
+   ▒▓▓▄ ▄██▒░▓█  ██▓  ▒   ██▒
+   ▒ ▓███▀ ░░▒▓███▀▒▒██████▒▒
+   ░ ░▒ ▒  ░ ░▒   ▒ ▒ ▒▓▒ ▒ ░
+     ░  ▒     ░   ░ ░ ░▒  ░ ░
+            ░ ░   ░ ░  ░  ░
+                  ░       ░
+
+CGS命令行脚本，目前支持简单下载/调试功能
+网站对应序号: {SPIDERS}""",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument('-w', '--website', type=int, help='选择网站序号')
+    parser.add_argument('-k', '--keyword', help='关键字（作品名）')
+    parser.add_argument('-i', '--indexes', type=str, nargs='?',
+                        help=res.GUI.Uic.chooseinputTip)
+    parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
+    parser.add_argument('-l', '--log_level', type=str, nargs='?', default='DEBUG', help='log level')
+    parser.add_argument('-tw', '--time_wait',
+                        help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')
+    parser.add_argument('-tp', '--turn_page', action='store_true', help='Run turn_page_test')
+    parser.add_argument('-dt', '--daily_test', action='store_true', help='Run daily_test')
+    parser.add_argument('-sp', '--start_port', type=int, nargs='?', default=50000, help='bind start port')
+    args = parser.parse_args()
+
+    if not args.keyword or not args.indexes:
+        parser.error("the following arguments are required: -k/--keyword and -i/--indexes")
+
+    if args.website not in SPECIAL_WEBSITES_IDXES:
+        if not args.indexes2:
+            parser.error(
+                "the following argument is required when website is not in SPECIAL_WEBSITES_IDXES: -i2/--indexes2")
+    else:
+        if args.indexes2:
+            parser.error("the argument -i2/--indexes2 is not allowed when website is in SPECIAL_WEBSITES_IDXES")
+
+    spider_choice = args.website if args.website else 1  # 选网站/爬虫，转crawl_what方法一目了然
+
+    FlagQueue = Queue()
+    guiQueuesManger = GuiQueuesManger()
+    queue_port = guiQueuesManger.find_free_port(start_port=args.start_port)
+    p_qm = Process(target=guiQueuesManger.create_server_manager, kwargs={"FlagQueue": FlagQueue})
+    p_qm.start()
+
+    try:
+        gui = Gui(queue_port)
+    except Exception as e:
+        if p_qm.is_alive():
+            p_qm.terminate()
+        raise e
+    p_crawler_kwargs = {"LOG_LEVEL": args.log_level, "LOG_FILE": None}
+    if args.daily_test:
+        p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 20,"CLOSESPIDER_ITEMCOUNT": 13,})
+        if spider_choice == 6:
+            p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 60, "CLOSESPIDER_ITEMCOUNT": 60})
+    p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port), kwargs=p_crawler_kwargs)
+    p_crawler.start()
+
+    p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'), gui.Q('TasksQueue'), gui.Q('FlagQueue'), args.daily_test))
+    p_bThread.start()
+
+    if args.turn_page:
+        test_turn_page()
+    else:
+        test_normal_process(args.keyword, args.indexes, args.indexes2)
+
+    try:
+        p_bThread.join(timeout=args.time_wait or 300)
+        gui.Q('TextBrowserQueue').send(None)
+        for p in [p_crawler, p_qm]:
+            if p.is_alive():
+                p.terminate()
+        for p in [p_crawler, p_qm, p_bThread]:
+            p.join(timeout=3)
+    finally:
+        for p in [p_crawler, p_qm, p_bThread]:
+            if p.is_alive():
+                p.kill()
+            p.close()
+
 
 def say_to_textBrowser(textBrowserQueue, TasksQueue, flagQueue, daily_test_flag=False):
     text_browser_q = textBrowserQueue.queue
@@ -117,87 +211,4 @@ def test_normal_process(keyword, input_2, input_3):
 
 
 if __name__ == '__main__':
-    set_start_method('spawn', force=True)
-    parser = argparse.ArgumentParser(
-        description=f"""
-    ▄████▄    ▄████   ██████ 
-   ▒██▀ ▀█   ██▒ ▀█▒▒██    ▒ 
-   ▒▓█    ▄ ▒██░▄▄▄░░ ▓██▄   
-   ▒▓▓▄ ▄██▒░▓█  ██▓  ▒   ██▒
-   ▒ ▓███▀ ░░▒▓███▀▒▒██████▒▒
-   ░ ░▒ ▒  ░ ░▒   ▒ ▒ ▒▓▒ ▒ ░
-     ░  ▒     ░   ░ ░ ░▒  ░ ░
-            ░ ░   ░ ░  ░  ░  
-                  ░       ░  
-
-CGS命令行脚本，目前支持简单下载/调试功能
-网站对应序号: {SPIDERS}""",
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument('-w', '--website', type=int, help='选择网站序号')
-    parser.add_argument('-k', '--keyword', help='关键字（作品名）')
-    parser.add_argument('-i', '--indexes', type=str, nargs='?',
-                        help=res.GUI.Uic.chooseinputTip)
-    parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
-    parser.add_argument('-l', '--log_level', type=str, nargs='?', default='DEBUG', help='log level')
-    parser.add_argument('-tw', '--time_wait',
-                        help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')
-    parser.add_argument('-tp', '--turn_page', action='store_true', help='Run turn_page_test')
-    parser.add_argument('-dt', '--daily_test', action='store_true', help='Run daily_test')
-    parser.add_argument('-sp', '--start_port', type=int, nargs='?', default=50000, help='bind start port')
-    args = parser.parse_args()
-
-    if not args.keyword or not args.indexes:
-        parser.error("the following arguments are required: -k/--keyword and -i/--indexes")
-
-    if args.website not in SPECIAL_WEBSITES_IDXES:
-        if not args.indexes2:
-            parser.error(
-                "the following argument is required when website is not in SPECIAL_WEBSITES_IDXES: -i2/--indexes2")
-    else:
-        if args.indexes2:
-            parser.error("the argument -i2/--indexes2 is not allowed when website is in SPECIAL_WEBSITES_IDXES")
-
-    spider_choice = args.website if args.website else 1  # 选网站/爬虫，转crawl_what方法一目了然
-
-    FlagQueue = Queue()
-    guiQueuesManger = GuiQueuesManger()
-    queue_port = guiQueuesManger.find_free_port(start_port=args.start_port)
-    p_qm = Process(target=guiQueuesManger.create_server_manager, kwargs={"FlagQueue": FlagQueue})
-    p_qm.start()
-
-    try:
-        gui = Gui(queue_port)
-    except Exception as e:
-        if p_qm.is_alive():
-            p_qm.terminate()
-        raise e
-    p_crawler_kwargs = {"LOG_LEVEL": args.log_level, "LOG_FILE": None}
-    if args.daily_test:
-        p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 20,"CLOSESPIDER_ITEMCOUNT": 13,})
-        if spider_choice == 6:
-            p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 60, "CLOSESPIDER_ITEMCOUNT": 60})
-    p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port), kwargs=p_crawler_kwargs)
-    p_crawler.start()
-
-    p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'), gui.Q('TasksQueue'), gui.Q('FlagQueue'), args.daily_test))
-    p_bThread.start()
-
-    if args.turn_page:
-        test_turn_page()
-    else:
-        test_normal_process(args.keyword, args.indexes, args.indexes2)
-
-    try:
-        p_bThread.join(timeout=args.time_wait or 300)
-        gui.Q('TextBrowserQueue').send(None)
-        for p in [p_crawler, p_qm]:
-            if p.is_alive():
-                p.terminate()
-        for p in [p_crawler, p_qm, p_bThread]:
-            p.join(timeout=3)
-    finally:
-        for p in [p_crawler, p_qm, p_bThread]:
-            if p.is_alive():
-                p.kill()
-            p.close()
+    main()

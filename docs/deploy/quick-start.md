@@ -1,48 +1,55 @@
 # 🚀 快速开始
 
+::: warning CGS 代码/解压的路径不能含有中文/中标
+:::
+
 ## 1. 下载 / 部署
 
 + 直接下载 [📦绿色包](https://github.com/jasoneri/ComicGUISpider/releases/latest)，并解压
 
-::: warning 解压路径不能含有中文/中标
-:::
 ::: warning macOS用户
 须阅读 [macOS 部署](./mac-required-reading.md) 文档
 :::
 
-+ 或克隆此项目 `git clone https://github.com/jasoneri/ComicGUISpider.git`  
++ 或使用`uv tool`  
 
-::: tip 部署流程参考 macOS 的 [`init.bash`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/deploy/launcher/mac/init.bash)，以下节选要点  
-1. 安装 [astral-sh/uv](https://github.com/astral-sh/uv)，示例使用的 brew ，或者使用官方的远程脚本  
-2. 使用 uv 安装 python3.12.11（可以在官方源加上加速外链的前缀）  
+::: info 不建议克隆此项目，否则需要自行管理环境，同样需要用到 uv，那还是不如直接用 uv tool
+:::
+::: tip 流程：  
+1. 安装 [astral-sh/uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的远程安装脚本  
+2. （可选）设置 uv tool 的环境变量，否则 win 会默认装在C盘上  
+    win: 新建用户级的环境变量，设置后需开新终端窗口生效  
+    &emsp;`UV_TOOL_DIR`(uv tool安装项目的位置),  
+    &emsp;`UV_TOOL_BIN_DIR`(uv编译执行程序的放置位置)  
+    mac(示例bash): `echo "export UV_TOOL_DIR=放置tool的位置" >> ~/.bashrc`,  
+    &emsp;`UV_TOOL_BIN_DIR`同理操作，`source ~/.bashrc`后生效  
+    最后执行 `uv tool update-shell` 更新进 PATH，之后任何位置可直接运行 cgs / cgs-cli
+3. uv tool 安装 CGS  
 ``` bash
-uv python install 3.12.11 --mirror "https://github.com/astral-sh/python-build-standalone/releases/download" --no-cache
-```
-3. 在放源码位置的父目录使用 uv 同步依赖
-``` bash
-cd ComicGUISpider          # 一般 git clone 为项目名，否则是你改名的源码目录
-uv sync --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
-::: warning 使用 git 克隆的话请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档是基于绿色包的说明
+::: warning 非绿色包安装时请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档大多是基于绿色包的说明
 :::
 
 ## 2. 运行
 
+::: tip 以下非绿色包命令均基于已执行 `uv tool update-shell`
+:::
+
 ### 常规 GUI 运行
 
 ```cmd
-uv run .\scripts\CGS.py
+cgs
 ```
-
-::: warning 此后所有说明中源码安装方式使用的命令均默认用`uv run`等代替原始`python`
-:::
 
 或直接使用📦绿色包程序
 
 ### 命令行工具
 
-`uv run crawl_only.py --help`  
+```cmd
+cgs-cli --help
+```
 或使用绿色包的环境，在解压目录打开终端执行  
 `.\runtime\python.exe .\scripts\crawl_only.py --help`
 
