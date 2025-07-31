@@ -41,7 +41,7 @@ kemono_topic = """
   ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
   ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
 """
-domain = "kemono.su"
+domain = "kemono.cr"
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
     "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
@@ -95,7 +95,7 @@ class Api:
     creator_posts = base + "/{service}/user/{creator_id}"
     post = base + "/{service}/user/{creator_id}/post/{post_id}"
     favorites = base + "/account/favorites"
-    file_prefix = "https://n3.kemono.su"
+    file_prefix = "https://n3.kemono.cr"
     creators_txt = base + "/creators.txt"
 
     def __init__(self, conf):
