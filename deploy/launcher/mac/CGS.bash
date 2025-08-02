@@ -1,7 +1,6 @@
 #!/bin/bash
-cd /Applications/CGS.app/Contents/Resources;
-
-source .venv/bin/activate
-cd scripts;
-python CGS.py;
-deactivate
+if [ ! -x "cgs" ]; then
+    curl -fsSL https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/launcher/mac/init.bash | bash && cgs
+else
+    cgs
+fi

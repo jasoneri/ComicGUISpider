@@ -187,8 +187,7 @@ class ProjUpdateThread(QThread):
     def run_update(self):
         try:
             # ⚠️ danger！⚠️ -------------->
-            if code_env == "portable":
-                self.proj.local_update()
+            self.proj.local_update()
             # <-------------- ⚠️ danger！⚠️
             self.updated_signal.emit(self.proj)
         except Exception as e:

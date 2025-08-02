@@ -29,12 +29,7 @@ class UpdaterMessageBox(MessageBoxBase):
         self.widget.setMinimumWidth(int(parent.width() * 0.8))
 
     def validate(self):
-        if code_env == "uv":
-            copy_command_btn = PrimaryPushButton(FIF.COPY, res.Updater.uv_update_command_btn, self)
-            copy_command_btn.clicked.connect(self.copy_command)
-            CustomInfoBar.show_custom("", res.Updater.uv_update_desc, self.gui.textBrowser, 
-                widgets=[copy_command_btn], _type="INFORMATION")
-        elif code_env == "git":
+        if code_env == "git":
             CustomInfoBar.show_custom("", res.Updater.git_update_desc, self.gui.textBrowser, _type="INFORMATION")
             QTimer.singleShot(3000, self.gui.conf_dia.puThread.update_signal.emit)
         else:
@@ -51,11 +46,3 @@ class UpdaterMessageBox(MessageBoxBase):
         self.textBrowser.setHtml(html_text)
         self.gui.conf_dia.hide()
         self.show()
-
-    def copy_command(self):
-        clipboard = QApplication.clipboard()
-        cmd = "uv tool upgrade ComicGUISpider"
-        if res.lang == "zh_CN":
-            cmd += " --index-url https://pypi.tuna.tsinghua.edu.cn/simple"
-        clipboard.setText(cmd)
-        self.gui.conf_dia.puThread.update_signal.emit()

@@ -60,7 +60,7 @@ utils
 > :::
 > 注: 使用的是正则过滤 post 标题；Artists-normal 是兜底的通用过滤规则
 
-3. GUI 方式运行 (`v2.3.0-beta`以及之后版本)
+3. GUI 方式运行 (`v2.3.0`以及之后版本)
 
 ![run_png](../assets/img/feat/scriptTool.png)
 
