@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
 import pickle
 import pathlib as p
 import typing as t
@@ -12,14 +13,22 @@ from PyQt5.QtCore import QStandardPaths
 from variables import DEFAULT_COMPLETER, COOKIES_SUPPORT
 from deploy import curr_os
 
-ori_path = p.Path(__file__).parent.parent.parent
+exc_p = ori_path = p.Path(__file__).parent.parent.parent
+env = os.environ.copy()
+uv_exc = "uv"
 
 code_env = "git"
-if ori_path.name == "scripts":
-    if ori_path.parent.joinpath("_pystand_static.int").exists() or ori_path.parent.joinpath("AppSettings.plist").exists():
-        code_env = "portable"
-elif ori_path.name == "site-packages":
+if ori_path.name == "site-packages":
     code_env = "uv"
+try:
+    if ori_path.parent.parent.parent.joinpath("_pystand_static.int").exists():
+        code_env = "portable"   # REMARK[20250802] 需要区分绿色包的原因为绿色包的 uv 非系统级 uv,仅限 win 
+        exc_p = ori_path.parent.parent.parent
+        env['UV_TOOL_DIR'] = str(exc_p)
+        env['UV_TOOL_BIN_DIR'] = str(exc_p.joinpath("bin"))
+        uv_exc = str(exc_p.joinpath("runtime/uv.exe"))
+except (OSError, ValueError):
+    pass
 conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
 conf_dir.mkdir(parents=True, exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})

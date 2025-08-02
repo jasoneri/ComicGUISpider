@@ -13,7 +13,7 @@
 
 + 或使用`uv tool`  
 
-::: info 不建议克隆此项目，否则需要自行管理环境，同样需要用到 uv，那还是不如直接用 uv tool
+::: info 仅使用时不建议用克隆源码方式，否则需要自行管理环境，同样需要用到 uv，那还是不如直接用 uv tool
 :::
 ::: tip 流程：  
 1. 安装 [astral-sh/uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的远程安装脚本  
@@ -29,12 +29,13 @@
 uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
-::: warning 非绿色包安装时请忽视全篇文档中的 scripts/xxx 的 `scripts`，文档大多是基于绿色包的说明
+::: warning v2.4.0-beta 之后的绿色包均转为套壳操作 `uv tool`
 :::
 
 ## 2. 运行
 
 ::: tip 以下非绿色包命令均基于已执行 `uv tool update-shell`
+否则为 `uv tool run --from comicguispider cgs`
 :::
 
 ### 常规 GUI 运行
@@ -51,7 +52,9 @@ cgs
 cgs-cli --help
 ```
 或使用绿色包的环境，在解压目录打开终端执行  
-`.\runtime\python.exe .\scripts\crawl_only.py --help`
+```cmd
+.\bin\cgs-cli.exe --help
+```
 
 ::: info 使用方法进help看说明  
 当前版本能进行简单下载/调试功能（后续将逐步扩展）  

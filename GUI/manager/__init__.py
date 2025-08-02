@@ -10,7 +10,7 @@ from utils.processed_class import (
     PreviewHtml, TaskObj, TasksObj, ClipManager
 )
 from utils.sql import SqlUtils
-from utils import conf, ori_path, code_env
+from utils import conf, ori_path, env, uv_exc, exc_p
 from assets import res
 from deploy.update import Proj
 from GUI.uic.qfluent.components import (
@@ -151,6 +151,6 @@ class Updater:
         self.conf_dia.puThread.start()
 
     def after_update(self):
-        if code_env == "portable":
-            subprocess.Popen([sys.executable, ori_path.joinpath("CGS.py")])
+        cmd = [uv_exc, "tool","run","--from","comicguispider","cgs"]
+        subprocess.Popen(cmd, cwd=exc_p, env=env)
         QTimer.singleShot(1000, self.gui.close)

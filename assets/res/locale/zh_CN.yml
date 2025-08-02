@@ -156,8 +156,6 @@ Updater:
   code_downloading: "下载代码文件中"
   finish: "更新完毕"
   not_pkg_markdown: "当前环境无法使用此功能，需要重新下载绿色安装包"
-  uv_update_command_btn: "复制命令"
-  uv_update_desc: "检测为uv环境遵循操作进行更新：Ⅰ.点击右侧复制命令按钮(将自动关闭CGS)；Ⅱ.新开控制台粘贴命令运行"
   git_update_desc: "检测为git环境，需自行git pull并自行更新依赖"
   token_invalid_notification: "[ 本地文件的token全部失效/读取失误，当前将使用无状态去请求github api（受限60请求/小时）]\n下次使用更新会重新下载token文件，还是全部失效/读取失误的话可截图告知开发者"
   latest_code_overwriting: "使用最新版本代码覆盖中"

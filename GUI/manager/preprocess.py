@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
-from utils import conf, ori_path, code_env
+from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
@@ -241,13 +241,11 @@ class PreprocessManager(QObject):
 
                 if missing_packages:
                     # 使用pyproject.toml安装脚本依赖
-                    cmd = [uv.find_uv_bin(), "sync", "--extra", "script", "--python", sys.executable]
-                    if code_env == "uv":
-                        cmd = ["uv", "tool", "install", "--force", "ComicGUISpider[script]"]
+                    cmd = [uv_exc, "tool", "install", "--force", "ComicGUISpider[script]"]
                     if res.lang == "zh_CN":
                         cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
                     process = subprocess.Popen(
-                        cmd, cwd=ori_path,
+                        cmd, cwd=exc_p, env=env,
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                         text=True, bufsize=1, universal_newlines=True
                     )

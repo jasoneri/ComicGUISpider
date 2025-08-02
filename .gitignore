@@ -198,6 +198,7 @@ codecov*
 *-lock.yaml
 *.hash
 uv.lock
+version.json
 # self/conf
 gitee_t.json
 conf*.yml
