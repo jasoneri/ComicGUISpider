@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
 import pickle
-import shutil
 import pathlib as p
 import typing as t
 from dataclasses import dataclass, asdict, field
@@ -13,7 +13,22 @@ from PyQt5.QtCore import QStandardPaths
 from variables import DEFAULT_COMPLETER, COOKIES_SUPPORT
 from deploy import curr_os
 
-ori_path = p.Path(__file__).parent.parent.parent
+exc_p = ori_path = p.Path(__file__).parent.parent.parent
+env = os.environ.copy()
+uv_exc = "uv"
+
+code_env = "git"
+if ori_path.name == "site-packages":
+    code_env = "uv"
+try:
+    if ori_path.parent.parent.parent.joinpath("_pystand_static.int").exists():
+        code_env = "portable"   # REMARK[20250802] 需要区分绿色包的原因为绿色包的 uv 非系统级 uv,仅限 win 
+        exc_p = ori_path.parent.parent.parent
+        env['UV_TOOL_DIR'] = str(exc_p)
+        env['UV_TOOL_BIN_DIR'] = str(exc_p.joinpath("bin"))
+        uv_exc = str(exc_p.joinpath("runtime/uv.exe"))
+except (OSError, ValueError):
+    pass
 conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
 conf_dir.mkdir(parents=True, exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
@@ -28,14 +43,6 @@ def yaml_update(_f, dic):
         fp.truncate()
         yaml_data = yaml.dump(ori_yml_config, allow_unicode=True, sort_keys=False)
         fp.write(yaml_data)
-
-
-def toAppConfigLocation(ori_file: p.Path, iname=None):
-    file = ori_file.name
-    location_file = conf_dir.joinpath(file)
-    if ori_file.exists() and not location_file.exists():
-        shutil.move(str(ori_file), str(location_file))
-    return location_file
 
 
 class ConfCookie:
@@ -120,7 +127,7 @@ class BaseConf:
     @classmethod
     def duel_conf(cls, ori_conf_yml, iname):
         _i = f"_instance_{iname}" if iname else "_instance"
-        return _i, toAppConfigLocation(ori_conf_yml, iname)
+        return _i, conf_dir.joinpath(ori_conf_yml.name)
 
     def __new__(cls, *args, path: t.Optional[p.Path] = None, iname: str = None, **kwargs):
         _ori_conf_yml = (path or ori_path).joinpath("conf.yml" if not iname else f"conf_{iname}.yml")

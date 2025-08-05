@@ -2,15 +2,10 @@
 # 将终端窗口置于最前
 osascript -e 'tell application "Terminal" to activate' -e 'tell application "System Events" to tell process "Terminal" to set frontmost to true'
 
-PROJ_P="/Applications/CGS.app/Contents/Resources/scripts";
-cd $PROJ_P;
-
 # 检测是否为 Apple Silicon
 if [ "$(uname -m)" = "arm64" ]; then
-    REQUIREMENTS="$PROJ_P/requirements/mac_arm64.txt"
     BREW_PATH="/opt/homebrew/bin/brew"
 else
-    REQUIREMENTS="$PROJ_P/requirements/mac_x86_64.txt"
     BREW_PATH="/usr/local/bin/brew"
 fi
 
@@ -26,39 +21,18 @@ if ! command -v uv &> /dev/null; then
     "$BREW_PATH" install uv
 fi
 
-speed_gtihub() {
-    ori_url=$1
-    speedPrefix=""
-    read -p "是否启用下载加速？(y/n) " enableSpeed
-    if [[ "$enableSpeed" =~ ^[Yy]$ ]]; then
-        read -p "请粘贴格式链接（进 github.akams.cn 输入任意字符获取，例如：https://aaaa.bbbb/https/114514）" speedUrl
-        if [[ "$speedUrl" =~ (https?://[^/]+) ]]; then
-            speedPrefix="${BASH_REMATCH[1]}"
-            printf "✈️ 加速前缀: %s\n" "$speedPrefix" >&2
-        else
-            printf "❌ 链接格式无效，不使用加速\n" >&2
-            speedPrefix=""
-        fi
-    fi
-    echo "${speedPrefix}/$ori_url"
-}
-
-echo "[CGS]uv installing python..."
-mirrorUrl=$(speed_gtihub "https://github.com/astral-sh/python-build-standalone/releases/download")
-
-# 检查是否已安装 Python 3.12.11
-if ! uv python list | grep "3.12.11"; then
-    uv python install 3.12.11 --mirror "$mirrorUrl" --no-cache
+locale=$(defaults read -g AppleLocale)
+if [[ "$locale" == "zh_CN"* ]]; then
+    INDEX_URL="--index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+else
+    INDEX_URL=""
 fi
 
-cd "/Applications/CGS.app/Contents/Resources";
-echo "[CGS]Creating virtual environment..."
-uv venv --python 3.12.11 .venv
-source .venv/bin/activate
-echo "[CGS]Installing initial dependencies..."
-uv pip install -r "$REQUIREMENTS" --index-url https://repo.huaweicloud.com/repository/pypi/simple
-deactivate
+uv tool install ComicGUISpider --force $INDEX_URL
 
-echo ""
-echo "===== 初始化/依赖更新完毕，现可在启动台启动 CGS 了 ====="
-echo ""
+uv tool update-shell
+
+echo "5s后将自动关闭终端窗口, 请新开终端手动重启cgs/重开 CGS.app ..."
+echo "Terminal will close in 5s, please open new terminal to run cgs/reopen CGS.app ..."
+sleep 5
+exit 0

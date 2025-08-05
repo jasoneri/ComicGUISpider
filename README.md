@@ -35,7 +35,7 @@
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
-| [Kemono](https://kemono.su)     | 🌏 |     🔞     |  |
+| [Kemono](https://kemono.cr)     | 🌏 |     🔞     |  |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -44,7 +44,8 @@
 **[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
 )](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;
 关注/取消关注项目是你的自由，个人开发比较难做到一错不漏，  
-提issue/群反映 → 项目改进修复，尤其对这种实时性强且多变的项目，才算得上开源社区形态**
+提issue/群反映 → 项目改进修复，尤其对这种实时性强且多变的项目，才算得上开源社区形态...  
+但无反馈/无效反馈/有效反馈比较难平衡，鉴于CGS目前还仅单人开发，反馈前三思，已阅文档已观issue而再起**
 
 ---
 
@@ -60,6 +61,20 @@
 #### 🐞 Fix
 
 ✅ 修复包缺失导致的无法运行、kb缓存时间逻辑、内部重启的 division by zero 报错等
+
+<details>
+<summary> <code>v2.4.0-beta</code> 开发版特性👈看就点</summary>
+
+#### 🎁 Features
+
+✅ 已打包上传至 pypi ，可使用 uv tool 管理/运行 CGS [查看细则](https://jasoneri.github.io/ComicGUISpider/deploy/quick-start)  
+
+#### 🐞 Fix
+
+✅ kemono域名更换  
+
+🍗使用开发版遇到报错时请积极提 issue 等提供线索，谢谢
+</details>
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 

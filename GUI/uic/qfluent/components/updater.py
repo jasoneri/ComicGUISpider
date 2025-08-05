@@ -1,12 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import re
-from PyQt5.QtCore import Qt
+
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QApplication
 from qfluentwidgets import (
-    MessageBoxBase, TextBrowser, SubtitleLabel, StateToolTip
+    MessageBoxBase, TextBrowser, SubtitleLabel, StateToolTip, PrimaryPushButton, FluentIcon as FIF
 )
+
 from assets import res
+from utils import code_env
 from utils.docs import MarkdownConverter
+from GUI.uic.qfluent.components.cust import CustomInfoBar
 
 
 class UpdaterMessageBox(MessageBoxBase):
@@ -24,9 +29,13 @@ class UpdaterMessageBox(MessageBoxBase):
         self.widget.setMinimumWidth(int(parent.width() * 0.8))
 
     def validate(self):
-        self.gui.updaterStateTooltip = StateToolTip("Updating", res.Updater.doing, self.gui.textBrowser)
-        self.gui.updaterStateTooltip.show()
-        self.gui.conf_dia.puThread.update_signal.emit()
+        if code_env == "git":
+            CustomInfoBar.show_custom("", res.Updater.git_update_desc, self.gui.textBrowser, _type="INFORMATION")
+            QTimer.singleShot(3000, self.gui.conf_dia.puThread.update_signal.emit)
+        else:
+            self.gui.updaterStateTooltip = StateToolTip("Updating", res.Updater.doing, self.gui.textBrowser)
+            self.gui.updaterStateTooltip.show()
+            self.gui.conf_dia.puThread.update_signal.emit()
         return True
 
     def show_release_note(self, note):

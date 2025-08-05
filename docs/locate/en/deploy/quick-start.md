@@ -17,10 +17,10 @@ need readed [macOS Deploy](./mac-required-reading.md) document
 python -m pip install uv
 ```
 
-**Install command** (CGS's `requiredments/*.txt` base on compilation by uv)  
+**Install command** 
 
 ```bash
-python -m uv pip install -r "requirements/win.txt"
+uv sync
 ```
 
 :::

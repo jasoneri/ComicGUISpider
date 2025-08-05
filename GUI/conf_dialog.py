@@ -18,7 +18,7 @@ import uncurl
 
 from assets import res
 from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT
-from utils import conf, convert_punctuation as cp, ori_path
+from utils import conf, convert_punctuation as cp, exc_p
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater, Proj
@@ -36,7 +36,7 @@ class SvPathCard(PushSettingCard):
         folder = QFileDialog.getExistingDirectory(self, res.GUI.Uic.sv_path_desc_tip)
         if folder:
             wanted_p = pathlib.Path(folder)
-            cgs_path = ori_path.parent if ori_path.parent.joinpath("scripts/CGS.py").exists() else ori_path
+            cgs_path = exc_p
             cgs_flag = str(wanted_p).startswith(str(cgs_path))
             drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
             if cgs_flag or drive_flag:
