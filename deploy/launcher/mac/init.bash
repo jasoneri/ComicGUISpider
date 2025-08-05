@@ -31,3 +31,8 @@ fi
 uv tool install ComicGUISpider --force $INDEX_URL
 
 uv tool update-shell
+
+echo "5s后将自动关闭终端窗口, 请新开终端手动重启cgs/重开 CGS.app ..."
+echo "Terminal will close in 5s, please open new terminal to run cgs/reopen CGS.app ..."
+sleep 5
+exit 0
