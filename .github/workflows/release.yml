@@ -17,6 +17,11 @@ jobs:
         - /tmp/build:/build
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
     - name: Download Preset
       run: |
         wget -O /build/CGS-macOS.7z \
@@ -29,15 +34,15 @@ jobs:
       run: |
         TAG_NAME="${GITHUB_REF#refs/tags/}"
         echo "version: $TAG_NAME"
-        base=$(cat /build/scripts/docs/_github/release_notes.md)
+        base=$(cat docs/_github/release_notes.md)
 
         case "$TAG_NAME" in
           *beta*)
-            extra=$(cat /build/scripts/docs/_github/preset_preview.md)
+            extra=$(cat docs/_github/preset_preview.md)
             echo "is_beta=true" >> $GITHUB_OUTPUT
             ;;
           *)
-            extra=$(cat /build/scripts/docs/_github/preset_stable.md)
+            extra=$(cat docs/_github/preset_stable.md)
             echo "is_beta=false" >> $GITHUB_OUTPUT
             ;;
         esac
