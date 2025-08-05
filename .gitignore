@@ -201,7 +201,6 @@ uv.lock
 version.json
 # self/conf
 gitee_t.json
-conf*.yml
 record.db
 hitomi.db
 # self/desc created html

@@ -2,6 +2,7 @@ name: Publish
 permissions:
   contents: write
   pull-requests: read
+  id-token: write
 on:
   push:
     tags:
@@ -25,7 +26,5 @@ jobs:
       run: uv build
 
     - name: Publish to PyPI
-      env:
-        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
       run: uv publish
     
