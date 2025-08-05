@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import sqlite3
 
-from utils import ori_path, toAppConfigLocation
+from utils import conf_dir
 from variables import SPECIAL_WEBSITES
 
 
@@ -10,7 +10,7 @@ class SqlUtils:
     init_flag = False
 
     def __init__(self):
-        self.db = toAppConfigLocation(ori_path.joinpath("record.db"))
+        self.db = conf_dir.joinpath("record.db")
         if not self.db.exists():
             self.init_flag = True
         self.conn = sqlite3.connect(self.db)

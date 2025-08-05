@@ -25,7 +25,7 @@ class AioRClient(aioredis.Redis):
     """
 
     def __init__(self):
-        """preset redis conf of utils/script/conf.yml"""
+        """preset redis conf of assets/conf_sample_script.yml"""
         super(AioRClient, self).__init__(host=redis_conf['host'], port=redis_conf['port'], db=redis_conf['db'])
 
     async def hgetall(self, name):

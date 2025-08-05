@@ -339,7 +339,7 @@ class KemonoTableView(FramelessWindow):
 
     def open_author_link(self, author):
         """打开作者链接"""
-        author_url = f"https://kemono.su/{author.service}/user/{author.id}"
+        author_url = f"https://kemono.cr/{author.service}/user/{author.id}"
         QDesktopServices.openUrl(QUrl(author_url))
 
     def fav_author(self, author):

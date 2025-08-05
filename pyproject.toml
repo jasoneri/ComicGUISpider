@@ -1,0 +1,85 @@
+[project]
+name = "ComicGUISpider"
+version = "2.4.0-beta"
+description = "GUI Comic Downloader"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx[http2]",
+    "jsonpath_rw",
+    "aiofiles",
+    "colorama",
+    "loguru",
+    "lxml",
+    "PyQt5",
+    "pyqt5-qt5==5.15.2 ; platform_system == 'Windows'",
+    "PyYAML",
+    "tqdm",
+    "brotli",
+    "markdown",
+    "PyQtWebEngine",
+    "pyqtwebengine-qt5==5.15.2 ; platform_system == 'Windows'",
+    "PyExecJS",
+    "PyQt-Fluent-Widgets",
+    "polib",
+    "pillow-avif-plugin",
+    "uv",
+    "uncurl",
+    "urllib3>=2.5.0",
+    "Pillow>=11.3.0",
+    "Scrapy>=2.13.0",
+    "setuptools>=78.1.1",
+    "h11>=0.16.0",
+    "requests>=2.32.4",
+    "psutil",
+]
+authors = [
+    {name = "jsoneri", email = "jsoneri@outlook.com"},
+]
+keywords = ["comic", "spider", "downloader", "gui"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+script = [
+    "redis",
+    "pandas",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "assets/",
+    "ComicSpider/",
+    "deploy/",
+    "GUI/",
+    "utils/",
+    "variables/",
+    "custom/",
+    "docs/public/*.png",
+    "CGS.py",
+    "crawl_only.py",
+    "scrapy.cfg"
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[project.urls]
+Repository = "https://github.com/jasoneri/ComicGUISpider"
+Documentation = "https://jasoneri.github.io/ComicGUISpider/"
+Changelog = "https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/changelog/history.md"
+Releases = "https://github.com/jasoneri/ComicGUISpider/releases"
+
+[project.scripts]
+cgs-cli = "crawl_only:main"
+
+[project.gui-scripts]
+cgs = "CGS:start"

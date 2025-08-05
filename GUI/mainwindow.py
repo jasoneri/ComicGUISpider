@@ -14,7 +14,7 @@ class MitmMainWindow(Ui_MainWindow):
     def setupUi(self, _mainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
-        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.3.1"))
+        _mainWindow.setWindowTitle(_translate("MainWindow", "ComicGUISpider v2.4.0-beta"))
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
         self.searchinput.setClearButtonEnabled(1)

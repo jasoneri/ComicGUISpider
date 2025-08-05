@@ -4,11 +4,9 @@
 import os
 import json
 import shutil
-import stat
 import pathlib
-import zipfile
 import platform
-import base64
+import subprocess
 
 import httpx
 from tqdm import tqdm
@@ -16,9 +14,7 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
-from utils import conf
-
-from .pkg_mgr import PkgMgr
+from utils import conf, exc_p, uv_exc, env
 
 
 curr_os = platform.system()
@@ -187,6 +183,11 @@ class Proj:
         self.git_handler = GitHandler(self.github_author, self.name, self.branch)
         self.debug_signal = debug_signal
 
+    def print(self, *args, **kwargs):
+        if self.debug_signal:
+            self.debug_signal.emit(*args, **kwargs)
+        print(*args, **kwargs)
+
     def check_existed_version(self):
         if not self.local_ver_file.exists():
             self.first_flag = True
@@ -211,62 +212,43 @@ class Proj:
         updater_logger.info(f"local_ver: {self.local_ver}")
 
     def local_update(self, ver=None):
-        def delete(func, _path, execinfo):
-            os.chmod(_path, stat.S_IWUSR)
-            func(_path)
-
-        def move(src, dst):
-            if src.is_dir() and dst.exists():
-                shutil.rmtree(dst, ignore_errors=True)
-                if dst.exists():  # fix
-                    os.rmdir(dst)
-            dst.parent.mkdir(exist_ok=True)
-            if src.exists():
-                shutil.move(src, dst)
-
         self.ver = ver or self.update_info.get('tag_name') or self.local_ver
         backuper = BackupManager()
         backuper.create_backup()
         try:
-            proj_zip = self.git_handler.download_src_code(
-                f"{self.git_handler.zipball_url}/{ver}" if ver else self.update_info.get('zipball_url'))
-            with zipfile.ZipFile(proj_zip, 'r') as zip_f:
-                zip_f.extractall(temp_p)
-            temp_proj_p = next(temp_p.glob(f"*{self.name}*"))
-            # REMARK(2024-08-08):      # f"{self.name}-{self.branch}"  this naming by src_url-"github.com/owner/repo/...zip"
-            _, folders, files = next(os.walk(temp_proj_p))
-            all_files = (*folders, *files)
-            for file in all_files:
-                if file not in ("conf.yml","record.db","version.json"):
-                    move(temp_proj_p.joinpath(file), existed_proj_p.joinpath(file))
-            env_success_flag = self.env_check_and_replenish()
-            if not self.updated_success_flag or not env_success_flag:
-                raise RuntimeError("update failed")
+            cmd = [uv_exc,"tool","upgrade","ComicGUISpider"]
+            if ori_res.lang == "zh_CN":
+                cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+            self.print("[uv cmd]" + " ".join(cmd))
+            process = subprocess.Popen(
+                cmd, cwd=exc_p, env=env,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1, universal_newlines=True
+            )
+            full_output = []
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    if process.poll() is not None:
+                        break  # 进程结束且无输出时退出
+                    continue
+                line = line.strip()
+                full_output.append(line)
+                self.print(line)
+            remaining = process.stdout.read()
+            if remaining:
+                for line in remaining.splitlines():
+                    cleaned_line = line.strip()
+                    full_output.append(cleaned_line)
+                    self.print(cleaned_line)
+            exit_code = process.wait()
+            if exit_code == 0:
+                self.print("[!uv upgrade done!]")
         except Exception as e:
-            try:
-                if existed_proj_p.exists():
-                    shutil.rmtree(existed_proj_p, ignore_errors=True)
-                backuper.restore_backup()
-                raise e
-            except Exception as _e:
-                raise _e
+            raise e
         else:
-            shutil.rmtree(temp_p, onexc=delete, ignore_errors=True)
             self.update_end()
 
     def update_end(self):
         with open(self.local_ver_file, 'w', encoding='utf-8') as f:
             json.dump({"current": self.ver}, f, ensure_ascii=False, indent=4)
-
-    @updater_logger.catch(reraise=True)
-    def env_check_and_replenish(self):
-        try:
-            export_pkg_mgr = PkgMgr(ori_res.lang.replace("_", "-"), existed_proj_p, debug_signal=self.debug_signal)
-            exit_code, full_output = export_pkg_mgr.run()
-            if exit_code == 0:
-                return True
-            error_msg = '\n'.join(full_output)
-            updater_logger.warning(f"[ pip-returncode <{exit_code}> ]: {error_msg}")
-            self.updated_success_flag = False
-        except Exception as e:
-            raise e

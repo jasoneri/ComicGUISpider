@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
-from utils import conf, ori_path
+from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
@@ -25,6 +25,7 @@ class PreprocessManager(QObject):
     def __init__(self, gui):
         super().__init__()
         self.gui = gui
+        self.show_err = conf.log_level.lower() == "debug"
         self.task_manager = AsyncTaskManager(gui)
 
     def handle_choosebox_changed(self, index: int):
@@ -61,7 +62,7 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=manga_copy_task,
             success_callback=on_success,
-            show_error_info=False, error_callback=on_error,
+            show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="更新copy2相关缓存", task_id="manga_copy_preprocess"
         )
 
@@ -84,7 +85,7 @@ class PreprocessManager(QObject):
 
         self.task_manager.execute_simple_task(
             task_func=task,
-            success_callback=on_success, show_error_info=False, error_callback=on_error,
+            success_callback=on_success, show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="更新域名缓存", task_id="domain_preprocess"
         )
 
@@ -115,7 +116,7 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=ehentai_task,
             success_callback=lambda _: self.gui.say("<br>✅ exhentai 访问检测通过"),
-            show_error_info=False, error_callback=on_error,
+            show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="exhentai 访问检测", task_id="ehentai_preprocess"
         )
 
@@ -134,7 +135,7 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=mangabz_task,
             success_callback=lambda _: self.gui.say("<br>✅ mangabz 访问检测通过"),
-            show_error_info=False, error_callback=on_error,
+            show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="mangabz 访问检测", task_id="mangabz_preprocess"
         )
 
@@ -221,7 +222,7 @@ class PreprocessManager(QObject):
             self.task_manager.execute_simple_task(
                 task_func=services_check,
                 success_callback=on_success,
-                error_callback=on_err, show_error_info=False, 
+                error_callback=on_err, show_error_info=self.show_err, 
                 tooltip_title="检测服务运行情况", task_id="services_check"
             )
 
@@ -239,13 +240,12 @@ class PreprocessManager(QObject):
                         missing_packages.append(pkg)
 
                 if missing_packages:
-                    from deploy.pkg_mgr import which_env
-                    requirements = f"requirements/script/{which_env()}.txt"
-                    cmd = [uv.find_uv_bin(), "pip", "install", "-r", str(ori_path.joinpath(requirements)), "--python", sys.executable]
+                    # 使用pyproject.toml安装脚本依赖
+                    cmd = [uv_exc, "tool", "install", "--force", "ComicGUISpider[script]"]
                     if res.lang == "zh_CN":
-                        cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--trusted-host", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+                        cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
                     process = subprocess.Popen(
-                        cmd, cwd=ori_path,
+                        cmd, cwd=exc_p, env=env,
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                         text=True, bufsize=1, universal_newlines=True
                     )
@@ -282,7 +282,7 @@ class PreprocessManager(QObject):
                 task_func=dependencies_check,
                 success_callback=on_dependencies_success,
                 progress_callback=on_dependencies_check_process,
-                error_callback=on_err, show_error_info=False,
+                error_callback=on_err, show_error_info=self.show_err,
                 tooltip_title="检测额外依赖是否安装", tooltip_content="处理中...",
             )
             self.task_manager.execute_task("dependencies_check", config)
@@ -298,7 +298,7 @@ class PreprocessManager(QObject):
                 @cache.with_expiry(240, write_in=True)
                 def download_kemono_data():
                     emit_progress("正在更新缓存数据...")
-                    url = "https://kemono.su/api/v1/creators.txt"
+                    url = "https://kemono.cr/api/v1/creators.txt"
                     try:
                         with data_cli.stream("GET", url, follow_redirects=True, timeout=60) as resp:
                             resp.raise_for_status()

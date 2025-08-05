@@ -5,44 +5,23 @@ saucenao / kemono / nekohouse
 
 [Motrix](https://github.com/agalwood/Motrix) yyds!!  
 
-`v2.3.0-beta` 之后支持 GUI 使用 kemono  
+`v2.3.0` 之后支持 GUI 使用 kemono  
 
 ## ⚠️ 通用前置须知
 
-::: tip 脚本集通用前置安装
+::: warning (🔔必装)脚本集通用前置安装
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
 :::
-::: tip 🔔`v2.3.0-beta` 分界线，以上安装是统一要做，以下前置操作是非 GUI 方式或旧版本要做  
-使用 `uv` 安装脚本集依赖 `requirements/script/*.txt`
+::: tip 分界线，以下是针对用源码操作的说明
+
+使用 `uv` 安装脚本集依赖（GUI下的程序内切到 kemono 时已自动化处理了）
 ```bash
-python -m uv pip install -r "requirements/script/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
-```
-绿色包使用的命令为 👇
-```bash
-./runtime/python.exe -m uv pip install -r "./scripts/requirements/script/win.txt" --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host https://pypi.tuna.tsinghua.edu.cn/simple
+uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 
-::: details 配置文件 `scripts/utils/script/conf.yml` （虽已自动创建，但改存储目录/cookies时需在此修改）
-```yaml
-kemono:
-  sv_path: D:\pic\kemono                              # 存储目录，请使用独立的空目录
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 在 kemono 网站上 F12 打开控制台查看cookies, 字段名为 `session`
-  redis_key: kemono                                   # 此项禁止修改
-  
-nekohouse:                                            # 基本同上
-  sv_path: D:\pic\nekohouse
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx
-  redis_key: nekohouse
-
-proxies: null
-redis:
-  host: 127.0.0.1
-  port: 6379
-  db: 0
-  password:
-```
+::: warning 配置相关：改存储目录/cookies等请使用GUI方式修改
 :::
 
 ::: details 脚本目录树: `script`目录
@@ -70,29 +49,31 @@ utils
 ### 🚀 快速开始
 
 1. 启动 `redis` 服务，打开 `Motrix`
-::: details 2.0 (可选)增加配置（将在`v2.3.0`之后废弃）
-```yaml
-kemono:
-  ...
-  filter:                     # 正则过滤
-    Artists:                  # 作品标题过滤
-      normal: "PSD|支援者"     # normal一旦设置则会作为通用的兜底过滤
-      DaikiKase: "支援者様】"   # 单独指定作者过滤规则，作者非纯英文名时需要配合 ArtistsEnum
-    file: "(mp4|zip)$"        # 文件类型过滤
+> [!TIP] 2. 额外过滤示例，在 GUI 里设置
+> ::: details 点击展开  
+> ```yaml
+> Artists:
+>   normal: "PSD|支援者"
+>   DaikiKase: "支援者様】"
+> file: "(mp4|zip)$"
+> ```
+> :::
+> 注: 使用的是正则过滤 post 标题；Artists-normal 是兜底的通用过滤规则
 
-proxies:                      # 设代理访问才算通畅，此处代理设置不影响 Motrix 的下载相关
-  - 127.0.0.1:10809
-```
+3. GUI 方式运行 (`v2.3.0`以及之后版本)
+
+![run_png](../assets/img/feat/scriptTool.png)
+
+::: tip 一些使用心得说明:
+
+- 作者表格按钮左侧的 `橡皮擦按钮` 作用是清除输入框
+- 表格点击首行列名能进行排序
+- 表格内右键是命令菜单，分别是对该行作者 Ⅰ发送至输入框 Ⅱ浏览器查看其作品 Ⅲ收藏至本地
+- `加瀬大輝`这种非纯英的作者名，因为过滤方案问题，需要把额外过滤示例粘贴进过滤规则中，目前仅他一人
+
 :::
-::: details 2. 额外过滤示例，在`v2.3.0-beta`之后的 GUI 里支持
-```yaml
-Artists:
-  normal: "PSD|支援者"
-  DaikiKase: "支援者様】"
-file: "(mp4|zip)$"
-```
-:::
-3. 命令行工具参考
+
+3.2 命令行工具参考
 
 ::: tip 绿色包使用的命令为 `./runtime/python.exe ./scripts/utils/script/image/kemono.py`  
 对应替换下方的 `python kemono.py`  
@@ -107,19 +88,6 @@ python kemono.py -c 'creatorid=[16015726,1145144444444]' -sd "2025-03-01"
 # 部分失败任务的补漏命令 👇
 python kemono.py -p run
 ```
-
-3.2 GUI 方式运行 (`v2.3.0-beta`以及之后版本)
-
-![run_png](../assets/img/feat/scriptTool.png)
-
-::: tip 一些使用心得说明:
-
-- 作者表格按钮左侧的 `橡皮擦按钮` 作用是清除输入框
-- 表格点击首行列名能进行排序
-- 表格内右键是命令菜单，分别是对该行作者 Ⅰ发送至输入框 Ⅱ浏览器查看其作品 Ⅲ收藏至本地
-- `加瀬大輝`这种非纯英的作者名，因为过滤方案问题，需要把额外过滤示例粘贴进过滤规则中，目前仅他一人
-
-:::
 
 ### 📒 说明
 
@@ -191,3 +159,5 @@ saucenao限制30秒搜3张图，有它的账号也才30秒4张没什么好说的
 
 ::: info 除了一些配置等从`kemono`变为`nekohouse`之外，使用方面与`kemono`用法别无二致，参照`kemono`即可
 :::
+
+nekohouse 看数据到25年3月已停很久，哪天它死者苏生的话会考虑重新维护此脚本

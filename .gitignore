@@ -185,6 +185,9 @@ custom/start/*
 *.ico
 *.qrc
 src/
+!GUI/src/preview_format/
+!GUI/src/material_ct.py
+!GUI/src/__init__.py
 temp
 *-in.txt
 untitled*
@@ -194,9 +197,10 @@ codecov*
 *_local.yml
 *-lock.yaml
 *.hash
+uv.lock
+version.json
 # self/conf
 gitee_t.json
-conf*.yml
 record.db
 hitomi.db
 # self/desc created html
