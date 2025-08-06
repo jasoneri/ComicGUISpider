@@ -75,8 +75,7 @@ utils
 
 3.2 命令行工具参考
 
-::: tip 绿色包使用的命令为 `./runtime/python.exe ./scripts/utils/script/image/kemono.py`  
-对应替换下方的 `python kemono.py`  
+::: tip 脚本相对位置 `utils/script/image/kemono.py`  
 :::
 
 ```bash

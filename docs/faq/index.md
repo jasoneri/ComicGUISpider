@@ -11,6 +11,30 @@
 刷新一下页面  
 有些是 JavaScript 没加载，有些是对方服务器问题  
 
+### pypi换源指引
+
+先选出一个目前你的网络环境能打开的（[清华源](https://pypi.tuna.tsinghua.edu.cn/simple)
+ / [阿里源](https://mirrors.aliyun.com/pypi/simple)
+ / [华为源](https://repo.huaweicloud.com/repository/pypi/simple)
+）
+
+::: warning 不限以下两种，所有文档的所有涉及pypi源命令因网络问题出错的都是更换源网址这样去处理
+:::
+
+#### Ⅰ. 初次部署换源
+
+::: tip 默认安装时使用pypi清华源  
+以下是切换至阿里源命令示例，在解压目录开终端
+
+```cmd
+.\CGS.exe -i https://mirrors.aliyun.com/pypi/simple
+```
+:::
+
+#### Ⅱ. CGS更新/脚本集(kemono)额外依赖换源
+
+默认使用pypi清华源，换源通过 [配置窗口点选更换](/config/#pypi%E6%BA%90-pypi-source)  
+
 ## 2. 爬虫
 
 ### jm的章节下载

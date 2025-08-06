@@ -1,15 +1,14 @@
-import sys
 import json
 import importlib
 import subprocess
 
-import uv
 import psutil
 import httpx
 from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
+from variables import PYPI_SOURCE
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -242,8 +241,7 @@ class PreprocessManager(QObject):
                 if missing_packages:
                     # 使用pyproject.toml安装脚本依赖
                     cmd = [uv_exc, "tool", "install", "--force", "ComicGUISpider[script]"]
-                    if res.lang == "zh_CN":
-                        cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+                    cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
                     process = subprocess.Popen(
                         cmd, cwd=exc_p, env=env,
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

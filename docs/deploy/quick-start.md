@@ -1,14 +1,18 @@
 # 🚀 快速开始
 
-::: warning CGS 代码/解压的路径不能含有中文/中标
+::: warning ⚠️ CGS 代码/解压的路径不能含有中文/中标
 :::
 
 ## 1. 下载 / 部署
 
-+ 直接下载 [📦绿色包](https://github.com/jasoneri/ComicGUISpider/releases/latest)，并解压
++ 直接下载 [📦绿色包](https://github.com/jasoneri/ComicGUISpider/releases/latest)，并解压，初次打开应用时会进入自动部署流程
 
 ::: warning macOS用户
 须阅读 [macOS 部署](./mac-required-reading.md) 文档
+:::
+
+::: warning ⚠️ 当自动部署流程出现403等pypi源网络问题时，查看 [pypi换源指引](/faq/#pypi%E6%8D%A2%E6%BA%90%E6%8C%87%E5%BC%95)  
+
 :::
 
 + 或使用`uv tool`  
@@ -21,9 +25,9 @@
     win: 新建用户级的环境变量，设置后需开新终端窗口生效  
     &emsp;`UV_TOOL_DIR`(uv tool安装项目的位置),  
     &emsp;`UV_TOOL_BIN_DIR`(uv编译执行程序的放置位置)  
-    mac(示例bash): `echo "export UV_TOOL_DIR=放置tool的位置" >> ~/.bashrc`,  
-    &emsp;`UV_TOOL_BIN_DIR`同理操作，`source ~/.bashrc`后生效  
-    最后执行 `uv tool update-shell` 更新进 PATH，之后任何位置可直接运行 cgs / cgs-cli
+    mac(示例zsh): `echo "export UV_TOOL_DIR=放置tool的位置" >> ~/.zshrc`,  
+    &emsp;`UV_TOOL_BIN_DIR`同理操作，`source ~/.zshrc`后生效  
+    最后执行 `uv tool update-shell` 更新进 PATH，之后新终端窗口可直接运行 cgs / cgs-cli
 3. uv tool 安装 CGS  
 ``` bash
 uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple

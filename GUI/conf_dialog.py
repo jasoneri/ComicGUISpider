@@ -80,6 +80,11 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         support = list(COOKIES_PLACEHOLDER.keys())
         for cookie_type in support:
             self.cookiesBox.addItem(cookie_type)
+        
+        self.pypiSourceBox.setItemText(0, _translate("Dialog", "pypi"))
+        self.pypiSourceBox.setItemText(1, _translate("Dialog", "清华源"))
+        self.pypiSourceBox.setItemText(2, _translate("Dialog", "阿里源"))
+        self.pypiSourceBox.setItemText(3, _translate("Dialog", "华为源"))
         self.cookiesBox.setCurrentText(support[0])
 
     def _preset(self):
@@ -125,6 +130,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 处理cookies配置
         self._load_cookie_config()
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
+        self.pypiSourceBox.setCurrentIndex(getattr(conf, "pypi_source"))
         # 2. CheckBox类配置
         for _ in ('addUuid', 'isDeduplicate'):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
@@ -173,6 +179,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "completer": yaml.safe_load(cp(getattr(self, "completerEdit").toPlainText())),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
+            "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
             "addUuid": getattr(self, "addUuid").isChecked(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "clip_db": getattr(self, "clip_dbEdit").text(),
