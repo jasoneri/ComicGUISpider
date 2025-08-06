@@ -14,6 +14,7 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
+from variables import PYPI_SOURCE
 from utils import conf, exc_p, uv_exc, env
 
 
@@ -217,8 +218,7 @@ class Proj:
         backuper.create_backup()
         try:
             cmd = [uv_exc,"tool","upgrade","ComicGUISpider"]
-            if ori_res.lang == "zh_CN":
-                cmd.extend(["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+            cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
             self.print("[uv cmd]" + " ".join(cmd))
             process = subprocess.Popen(
                 cmd, cwd=exc_p, env=env,
