@@ -54,18 +54,6 @@ Left-bottom of the config-dialog has `Check Update` button, please update accord
 
 > [🕑Full History](docs/UPDATE_RECORD.md)
 
-## 🚀 Usage
-
-### GUI
-
-`python CGS.py`
-
-### CLI
-
-`python crawl_only.py --help`  
-Or using env of portable package:  
-`.\runtime\python.exe .\scripts\crawl_only.py --help`
-
 ## 🔨 Configuration
 
 [🔨Configuration](https://jasoneri.github.io/ComicGUISpider/locate/en/config)

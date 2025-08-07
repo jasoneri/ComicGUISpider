@@ -10,6 +10,7 @@ import yaml
 from loguru import logger as lg
 from PyQt5.QtCore import QStandardPaths
 
+from assets import res
 from variables import DEFAULT_COMPLETER, COOKIES_SUPPORT
 from deploy import curr_os
 
@@ -143,6 +144,7 @@ class Conf(BaseConf):
     sv_path: t.Union[p.Path, str] = curr_os.default_sv_path
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
+    pypi_source: int = 0
     addUuid: bool = False
     isDeduplicate: bool = False
     custom_map: dict = field(default_factory=dict)
@@ -170,7 +172,9 @@ class Conf(BaseConf):
             if k == "sv_path" and v == r"D:\Comic":
                 v = curr_os.default_sv_path
             # 跳过cookie相关字段，由ConfCookie处理
-            if k != "cookies":
+            if k == "pypi_source" and res.lang == "zh_CN":
+                setattr(self, k, v or 1)
+            elif k != "cookies":
                 setattr(self, k, v or getattr(self, k, None))
         for _ in ("sv_path", "clip_db", "rv_script", "bg_path"):
             setattr(self, _, p.Path(getattr(self, _)))

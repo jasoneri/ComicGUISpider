@@ -6,7 +6,10 @@
 win: [🌐Ditto](https://github.com/sabrogden/Ditto)  
 macOS: [🌐Maccy](https://github.com/p0deje/Maccy)  
 
-不下载剪贴板软件仅影响 `读剪贴板` 功能，不影响常规流程使用
+
+::: tip 不下载剪贴板软件仅影响 `读剪贴板` 功能，不影响常规流程使用  
+但需要 下载jm带章节作品 的话必须
+:::
 
 ## 使用
 
