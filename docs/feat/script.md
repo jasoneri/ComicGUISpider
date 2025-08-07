@@ -29,7 +29,6 @@ uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsi
 utils
   ├── script
         ├── __init__.py
-        ├── conf.yml                  # 此目录下的所有脚本配置引用，没上传至git，需要自创建
         ├── extra.py                  # 作为单个简单类爬虫使用
         ├── image  
              ├── __init__.py  
@@ -75,8 +74,7 @@ utils
 
 3.2 命令行工具参考
 
-::: tip 绿色包使用的命令为 `./runtime/python.exe ./scripts/utils/script/image/kemono.py`  
-对应替换下方的 `python kemono.py`  
+::: tip 脚本相对位置 `utils/script/image/kemono.py`  
 :::
 
 ```bash
