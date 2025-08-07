@@ -29,7 +29,6 @@ uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsi
 utils
   ├── script
         ├── __init__.py
-        ├── conf.yml                  # 此目录下的所有脚本配置引用，没上传至git，需要自创建
         ├── extra.py                  # 作为单个简单类爬虫使用
         ├── image  
              ├── __init__.py  

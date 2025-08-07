@@ -8,38 +8,26 @@
 need readed [macOS Deploy](./mac-required-reading.md) document
 :::
 
-+ Or clone this project `git clone https://github.com/jasoneri/ComicGUISpider.git`  
-::: tip required list  
-+ `python3.12+`  
-+ install [`astral-sh/uv`](https://github.com/astral-sh/uv), instead `pip` of manage requiredments  
++ Or use [astral-sh/uv](https://github.com/astral-sh/uv)  
 
 ```bash
-python -m pip install uv
+uv tool install comicguispider
+uv tool update-shell
 ```
-
-**Install command** 
-
-```bash
-uv sync
-```
-
-:::
-
-::: warning ignore the `scripts` in scripts/xxx of the document, all document are based on the explanation of the 📦portable-pkg
-:::
 
 ## 2. Usage
 
 ### GUI
 
-`python CGS.py`  
-Or using Portable-Applications
+```bash
+cgs
+```
 
 ### CLI
 
-`python crawl_only.py --help`  
-Or using env of portable environment:  
-`.\runtime\python.exe .\scripts\crawl_only.py --help`
+```bash
+cgs-cli --help
+```
 
 ## 3. Configuration
 
