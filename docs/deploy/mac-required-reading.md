@@ -3,15 +3,6 @@
 ## 📑 说明
 
 ::: tip v2.4.0-beta 之后的绿色包均转为套壳的 `uv tool`
-绿色包 `CGS-macOS.7z` 里 `CGS.app` 其执行内容为
-
-```bash
-if [ ! -x "cgs" ]; then
-    curl -fsSL https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/launcher/mac/init.bash | bash && cgs
-else
-    cgs
-fi
-```
 
 ---
 
@@ -26,7 +17,6 @@ fi
 |   初次化步骤    | 解析说明                                                                                                                                                                                                                                                                           |
 |:------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1   | 每次解压后，将`CGS.app`移至应用程序<br/> ![图示](../assets/img/deploy/mac-app-move.jpg)|
-| 1.5   | （可选，需要在第2步前进行）由于macOS没微软雅黑字体，默认替换成`冬青黑体简体中文`<br/>不清楚是否每种macOS必有，留了后门替换，在 `scripts/deploy/launcher/mac/__init__.py` 的`font`值，有注释说明 |
 | 2   | 运行`CGS.app`（点击app前阅读下方签名收费的提示），初始会自动启动 `uv tool` 处理 |
 
 ::: warning mac 由于认证签名收费，个人开发的 app 初次打开可能会有限制，正确操作如下
@@ -36,11 +26,15 @@ fi
 3. 后续就能双击打开，不用右键打开了
 :::
 
-::: tip 单独 初始化/环境更新/CGS更新 等命令：
+::: tip 单独 初始化/环境更新/CGS更新等 执行命令：
 ```bash
-curl -fsSL https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/launcher/mac/init.bash | bash
+curl -fsSL https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/launcher/mac/init.bash | bash -s 1
 ```
-⚠️ _**根据终端提示操作**_ （对应第1.5步改字体可以反复执行此操作）
+_**根据终端提示操作**_  
+:::
+::: danger 换源相关
+CGS.app 初始化中非 brew 失败的话尝试进行换源，执行上方的命令  
+命令中 `...-s 1` 最后的数字序号对应 pypi 国内源，序号参考 [序号映射](/config/#pypi%E6%BA%90-pypi-source)  
 :::
 
 ::: warning _**源码根目录**_ (执行以下命令获取)
@@ -48,9 +42,9 @@ curl -fsSL https://gitee.com/json_eri/ComicGUISpider/raw/GUI/deploy/launcher/mac
 echo "$(uv tool dir)/comicguispider/Lib/site-packages"
 ```
 
-所有文档中包含`scripts`目录的  
+所有文档中由`site-packages`开始的目录的  
 包括此mac部署说明，主说明README，release页面，issue的等等等等，  
-`scripts`目录就是命令得出的源码根目录
+`site-packages`目录就是命令得出的源码根目录
 :::
 
 ## 🔰 其他

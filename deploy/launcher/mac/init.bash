@@ -21,18 +21,32 @@ if ! command -v uv &> /dev/null; then
     "$BREW_PATH" install uv
 fi
 
-locale=$(defaults read -g AppleLocale)
-if [[ "$locale" == "zh_CN"* ]]; then
-    INDEX_URL="--index-url https://pypi.tuna.tsinghua.edu.cn/simple"
-else
-    INDEX_URL=""
-fi
+DEFAULT_SOURCE="1"
+SOURCE_OPTION=${1:-$DEFAULT_SOURCE}
 
-uv tool install ComicGUISpider --force $INDEX_URL
+INDEX_URL=""
 
+case $SOURCE_OPTION in
+    1 | "")
+        INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple/"
+        ;;
+    2)
+        INDEX_URL="https://mirrors.aliyun.com/pypi/simple/"
+        ;;
+    3)
+        INDEX_URL="https://repo.huaweicloud.com/repository/pypi/simple/"
+        ;;
+    *) 
+        echo "将使用pypi官方源。"
+        INDEX_URL="https://pypi.org/simple"
+        ;;
+esac
+
+echo "$INDEX_URL"
+uv tool install ComicGUISpider --force --index-url "$INDEX_URL"
 uv tool update-shell
 
-echo "5s后将自动关闭终端窗口, 请新开终端手动重启cgs/重开 CGS.app ..."
-echo "Terminal will close in 5s, please open new terminal to run cgs/reopen CGS.app ..."
-sleep 5
+echo "此次程序停止后, 请新开终端手动重启cgs/重开 CGS.app ..."
+echo "Later need to open new terminal to run cgs/reopen CGS.app ..."
+sleep 3
 exit 0
