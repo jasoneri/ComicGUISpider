@@ -12,8 +12,10 @@ from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
 )
 from GUI.mainwindow import MitmMainWindow
+from GUI.core.font import font_color
+from GUI.core.theme import theme_mgr
 from GUI.conf_dialog import ConfDialog
-from GUI.browser_window import BrowserWindow
+from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils
 from GUI.manager import TaskProgressManager, ClipGUIManager
@@ -21,7 +23,7 @@ from GUI.manager.preprocess import PreprocessManager
 from variables import *
 from assets import res
 from utils import (
-    font_color, Queues, QueuesManager, conf, p, curr_os
+    Queues, QueuesManager, conf, p, curr_os
 )
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
@@ -42,7 +44,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     nextclickCnt = 0
     pageFrameClickCnt = 0
     checkisopenCnt = 0
-    BrowserWindow: BrowserWindow = None
+    BrowserWindow: BrowserWindowCls = None
     toolWin = None
     webs_status = []
 
@@ -72,6 +74,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def setupUi(self, MainWindow):
         super(SpiderGUI, self).setupUi(MainWindow)
+        self.setupTheme()
         if self.first_init:
             self.splashScreen = CustomSplashScreen(self)
             self.show()
@@ -89,6 +92,18 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.queue_init_thread = QueueInitThread(self)
         self.queue_init_thread.init_completed.connect(self.on_queue_init_completed)
         self.queue_init_thread.start()
+
+    def setupTheme(self):
+        def apply_theme_to_textbrowser():
+            color = theme_mgr.font_color
+            css = f"""
+p.theme-text {{ color: {color}; }}
+"""
+            doc = self.textBrowser.document()
+            doc.setDefaultStyleSheet(css)
+
+        theme_mgr.set_dark(conf.darkTheme)
+        theme_mgr.subscribe(lambda theme: apply_theme_to_textbrowser())
 
     def on_queue_init_completed(self, manager, Q, queue_port):
         self.manager = manager
@@ -501,12 +516,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.first_tmp_sv_flag:
             self.first_tmp_sv_flag = False
             self.BrowserWindow.tmp_sv_local()
-
-    def enterEvent(self, QEvent):
-        self.textBrowser.setStyleSheet('background-color: transparent;')
-
-    def leaveEvent(self, QEvent):
-        self.textBrowser.setStyleSheet('background-color: pink;')
 
     def close_process(self):
         self.clean_preview()

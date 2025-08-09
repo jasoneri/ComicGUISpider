@@ -5,10 +5,9 @@ from urllib.parse import urlencode
 
 import jsonpath_rw as jsonp
 
-from utils import font_color
 from utils.processed_class import Url
 from utils.website import KaobeiUtils
-from .basecomicspider import BaseComicSpider, ComicspiderItem
+from .basecomicspider import BaseComicSpider, ComicspiderItem, font_color
 
 pc_domain = "www.2025copy.com"
 domain = "api.2025copy.com"

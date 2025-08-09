@@ -147,6 +147,7 @@ class Conf(BaseConf):
     pypi_source: int = 0
     addUuid: bool = False
     isDeduplicate: bool = False
+    darkTheme: bool = False
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
     cookies = None

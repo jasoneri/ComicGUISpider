@@ -19,9 +19,10 @@ from qfluentwidgets import (
 from qframelesswindow import FramelessWindow
 
 from deploy import curr_os
-from utils import ori_path, temp_p, font_color
+from utils import ori_path, temp_p
 from utils.script.image.kemono import kemono_topic, conf, KemonoAuthor
 from utils.config.qc import kemono_cfg
+from GUI.core.font import font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 
 
