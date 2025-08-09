@@ -4,7 +4,6 @@ from multiprocessing import freeze_support
 
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
-from qfluentwidgets import setTheme, Theme
 
 # 自己项目用到的
 from GUI.gui import SpiderGUI
@@ -21,7 +20,7 @@ def start():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    setTheme(Theme.LIGHT)
+    app.setPalette(app.style().standardPalette())
     ui = SpiderGUI()
     sys.excepthook = ui.hook_exception
     QApplication.processEvents()

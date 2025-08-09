@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 import re
 import typing as t
 from urllib.parse import urlencode, urlparse

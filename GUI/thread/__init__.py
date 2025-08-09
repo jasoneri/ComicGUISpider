@@ -2,10 +2,11 @@ import traceback
 import asyncio
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils import font_color, conf, get_loop, QueuesManager, code_env
+from utils import conf, get_loop, QueuesManager, code_env
 from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
+from GUI.core.font import font_color
 
 
 class ClipTasksThread(QThread):

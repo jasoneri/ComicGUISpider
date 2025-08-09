@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 import os
 from typing import Union
 from abc import abstractmethod
@@ -12,8 +11,9 @@ import scrapy
 from variables import *
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
+from GUI.core.font import font_color
 from utils import (
-    font_color, Queues, QueuesManager, PresetHtmlEl, temp_p, conf,
+    Queues, QueuesManager, PresetHtmlEl, temp_p, conf,
     fin_transfer
 )
 from utils.processed_class import (
@@ -57,7 +57,7 @@ class SayToGui:
         extra = extra or self.res.frame_book_print_extra
         self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         self(
-            f"<hr><p>{''.join(self.exp_txt)}{font_color(extra, color='blue')}</p><br>"
+            f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, color='blue')}</p><br>"""
             if len(frame_results) else
             f"{'✈' * 15}{font_color(self.res.frame_book_print_retry_tip, color='red', size=5)}"
         )
@@ -73,7 +73,7 @@ class SayToGui:
                 print_npc = []
         self(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(
             print_npc) else None
-        self(f"<hr><p>{''.join(self.exp_txt)}{font_color(extra, color='purple')}</p><br>")
+        self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, color='purple')}</p><br>""")
         return frame_results
 
 
