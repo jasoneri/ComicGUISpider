@@ -64,9 +64,9 @@ class JmSpider(BaseComicSpider2):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
         if response.url.endswith("album_missing"):
-            yield self.say(font_color(f"➖ 无效车号：{response.meta.get('book_id')}", color="red"))
+            yield self.say(font_color(f"➖ 无效车号：{response.meta.get('book_id')}", color='red'))
         elif response.url.endswith("login"):
-            yield self.say(font_color(f"⚠️ 需要登录/甚至JCoins：{response.meta.get('book_id')}", color="red"))
+            yield self.say(font_color(f"⚠️ 需要登录/甚至JCoins：{response.meta.get('book_id')}", color='red'))
         else:
             if not response.meta.get("title"):
                 title = response.xpath('//title/text()').extract_first()
@@ -115,7 +115,7 @@ class JmSpider(BaseComicSpider2):
             btype = " ".join(_btypes).strip()
             preview.add(x+1, img_preview, title, preview_url, likes=likes, btype=btype)
         self.say(preview.created_temp_html)
-        self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", color='purple'))
+        self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))
         return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
@@ -124,5 +124,5 @@ class JmSpider(BaseComicSpider2):
         for x, target in enumerate(targets):
             img_url = target.xpath('./@data-original').get()
             frame_results[x + 1] = img_url
-        self.say("=" * 15 + font_color(' 本子网没章节的 这本已经扔进任务了', color='blue'))
+        self.say("=" * 15 + font_color(' 本子网没章节的 这本已经扔进任务了', cls='theme-tip'))
         return frame_results

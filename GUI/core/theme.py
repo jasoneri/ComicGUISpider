@@ -14,10 +14,14 @@ class CustTheme(Enum):
 
 class LightFontColor:
     text = "black"
+    tip = "blue"
+    highlight = "purple"
 
 
 class DarkFontColor:
     text = "white"
+    tip = "blue"
+    highlight = "purple"
 
 
 class Light:
@@ -36,6 +40,7 @@ class Light:
         self.palette.setColor(QPalette.Highlight, QColor(61, 174, 255))
         self.palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
         self.font_color = LightFontColor
+        self.c = Theme.LIGHT
 
 
 class Dark:
@@ -54,6 +59,7 @@ class Dark:
         self.palette.setColor(QPalette.Highlight, QColor(61, 174, 255))
         self.palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
         self.font_color = DarkFontColor
+        self.c = Theme.DARK
 
 
 _DEFAULT_COLORS = {
@@ -123,3 +129,18 @@ def _apply_theme_globally(theme: CustTheme):
         app.setPalette(theme_mgr.theme.palette)
 
 theme_mgr.subscribe(_apply_theme_globally)
+
+
+def setupTheme(self):
+    def apply_theme_to_textbrowser(_t):
+        color = theme_mgr.font_color
+        css = f"""
+p.theme-text {{ color: {color.text}; }}
+font.theme-tip {{ color: {color.tip}; }}
+"""
+        doc = self.textBrowser.document()
+        doc.setDefaultStyleSheet(css)
+
+    theme_mgr.set_dark(conf.darkTheme)
+    apply_theme_to_textbrowser(0)
+    theme_mgr.subscribe(apply_theme_to_textbrowser)

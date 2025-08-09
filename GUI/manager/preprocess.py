@@ -5,7 +5,7 @@ import subprocess
 import psutil
 import httpx
 from PyQt5.QtCore import Qt, QObject
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
 from variables import PYPI_SOURCE
@@ -14,6 +14,7 @@ from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import CustomInfoBar
+from GUI.core.theme import setupTheme, theme_mgr
 
 
 transport=dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
@@ -185,6 +186,8 @@ class PreprocessManager(QObject):
                 self.gui.hide()
                 from GUI.script import ScriptWindow
                 scriptWin = ScriptWindow(self.gui)
+                setupTheme(scriptWin.kemonoInterface)
+                setTheme(theme_mgr.theme.c)
                 scriptWin.show()
             if k == "dependencies" and v:
                 _data_check()

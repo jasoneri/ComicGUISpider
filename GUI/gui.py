@@ -13,7 +13,7 @@ from GUI.uic.qfluent import (
 )
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
-from GUI.core.theme import theme_mgr
+from GUI.core.theme import setupTheme
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
@@ -74,14 +74,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def setupUi(self, MainWindow):
         super(SpiderGUI, self).setupUi(MainWindow)
-        self.setupTheme()
         if self.first_init:
             self.splashScreen = CustomSplashScreen(self)
             self.show()
+            setupTheme(self)
             QTimer.singleShot(10, self.setupUi_)
             self.first_init = False
         else:
-            self.say(font_color(f"<br>{self.res.reboot_tip2}", color='purple', size=4))
+            self.say(font_color(f"<br>{self.res.reboot_tip2}", cls='theme-highlight', size=4))
             self.chooseBox.setDisabled(True)
             if getattr(self, 'bg_mgr', None):
                 self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
@@ -92,18 +92,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.queue_init_thread = QueueInitThread(self)
         self.queue_init_thread.init_completed.connect(self.on_queue_init_completed)
         self.queue_init_thread.start()
-
-    def setupTheme(self):
-        def apply_theme_to_textbrowser():
-            color = theme_mgr.font_color
-            css = f"""
-p.theme-text {{ color: {color}; }}
-"""
-            doc = self.textBrowser.document()
-            doc.setDefaultStyleSheet(css)
-
-        theme_mgr.set_dark(conf.darkTheme)
-        theme_mgr.subscribe(lambda theme: apply_theme_to_textbrowser())
 
     def on_queue_init_completed(self, manager, Q, queue_port):
         self.manager = manager
@@ -183,15 +171,15 @@ p.theme-text {{ color: {color}; }}
         match index:
             case 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
-                self.say(font_color(self.res.copymaga_tips, color='purple'))
+                self.say(font_color(self.res.copymaga_tips, cls='theme-highlight'))
             case 3:
                 if not conf.proxies:
-                    self.say(font_color(self.res.wnacg_desc, color='purple'), ignore_http=True)
+                    self.say(font_color(self.res.wnacg_desc, cls='theme-highlight'), ignore_http=True)
             case 4:
                 self.pageEdit.setDisabled(True)
-                self.say(font_color(res.EHentai.GUIDE, color='purple'))
+                self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
-                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), color='purple'), ignore_http=True)
+                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
 
     def set_shortcut(self):
         self.previousPageShort = QShortcut(QKeySequence("Ctrl+,"), self)
@@ -304,7 +292,7 @@ p.theme-text {{ color: {color}; }}
         self.pageEdit.valueChanged.connect(page_edit)
 
     def set_preview(self):
-        self.BrowserWindow = BrowserWindow(self)
+        self.BrowserWindow = BrowserWindowCls(self)
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
@@ -357,7 +345,7 @@ p.theme-text {{ color: {color}; }}
             self.Q = None
             QTimer.singleShot(10, lambda : self.setupUi(self))
 
-        self.say(font_color(f"{self.res.reboot_tip}", color='purple', size=4))
+        self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
         QTimer.singleShot(50, retry_all)
         self.retrybtn.setDisabled(True)
         self.log.info('===--→ retry_schedule end\n')
@@ -498,16 +486,17 @@ p.theme-text {{ color: {color}; }}
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def say(self, string, ignore_http=False):
+        fin_s = ""
         if isinstance(string, str) and string.startswith('[httpok]'):
             string = string[len('[httpok]'):]
             ignore_http = True
         if not ignore_http and 'http' in string:
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
-                self.textBrowser.append(self.res.textbrowser_load_if_http % string)
-        elif "</p>" in string:
-            self.textBrowser.append(string.replace('<p>', '<p style="color: black;">'))
+                fin_s = self.res.textbrowser_load_if_http % string
         else:
-            self.textBrowser.append(r'<p style="color: black;">%s</p>' % string)
+            fin_s = string
+        if fin_s:
+            self.textBrowser.append(fin_s)
         cursor = self.textBrowser.textCursor()
         self.textBrowser.moveCursor(cursor.End)  # move cursor to the end for show dynamicly
 

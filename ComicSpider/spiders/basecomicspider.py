@@ -57,7 +57,7 @@ class SayToGui:
         extra = extra or self.res.frame_book_print_extra
         self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         self(
-            f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, color='blue')}</p><br>"""
+            f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-tip')}</p><br>"""
             if len(frame_results) else
             f"{'✈' * 15}{font_color(self.res.frame_book_print_retry_tip, color='red', size=5)}"
         )
@@ -73,7 +73,7 @@ class SayToGui:
                 print_npc = []
         self(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(
             print_npc) else None
-        self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, color='purple')}</p><br>""")
+        self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-highlight')}</p><br>""")
         return frame_results
 
 
@@ -220,7 +220,7 @@ class BaseComicSpider(scrapy.Spider):
         results = self.select(choose, frame_sec_result, step=self.res.parse_sec_step)
 
         if not results:
-            self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', color="red"))
+            self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', color='red'))
             self.logger.info(f'no result return, choose_input is wrong: {choose}')
             return
 
@@ -231,7 +231,7 @@ class BaseComicSpider(scrapy.Spider):
         for section, section_url in results:
             url_list = self.mk_page_tasks(url=section_url)
             now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % title
-            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}", color='blue', size=5))
+            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}", cls='theme-tip', size=5))
             this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
             meta = {
                 'title': title, 'section': section, 'uuid_md5': this_md5, 'uuid': this_uuid,
@@ -359,7 +359,7 @@ class BaseComicSpider(scrapy.Spider):
             color='red', size=4))
             self._remove_cache()
         else:
-            self.say(font_color(f'{self.res.finished_empty}<br>', color='purple', size=6))
+            self.say(font_color(f'{self.res.finished_empty}<br>', cls='theme-highlight', size=6))
 
     def _handle_error_status(self, reason):
         if reason.startswith("[error]"):
@@ -367,7 +367,7 @@ class BaseComicSpider(scrapy.Spider):
         error_guides = (self.res.close_check_log_guide1, self.res.close_check_log_guide2, self.res.close_check_log_guide3)
         self.say(
             font_color(f'{self.res.close_backend_error}<br>', size=5) +
-            font_color('<br>'.join(error_guides), color='blue', size=4) + "<br>" +
+            font_color('<br>'.join(error_guides), cls='theme-tip', size=4) + "<br>" +
             font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
         )
 
