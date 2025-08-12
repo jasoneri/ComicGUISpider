@@ -64,9 +64,9 @@ class JmSpider(BaseComicSpider2):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
         if response.url.endswith("album_missing"):
-            yield self.say(font_color(f"➖ 无效车号：{response.meta.get('book_id')}", color='red'))
+            yield self.say(font_color(f"➖ 无效车号：{response.meta.get('book_id')}", cls='theme-err'))
         elif response.url.endswith("login"):
-            yield self.say(font_color(f"⚠️ 需要登录/甚至JCoins：{response.meta.get('book_id')}", color='red'))
+            yield self.say(font_color(f"⚠️ 需要登录/甚至JCoins：{response.meta.get('book_id')}", cls='theme-err'))
         else:
             if not response.meta.get("title"):
                 title = response.xpath('//title/text()').extract_first()

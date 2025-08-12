@@ -533,5 +533,5 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             return sys.__excepthook__(exc_type, exc_value, exc_traceback)
         exception = str("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         self.log.error(exception)
-        self.say(font_color(rf"{type(exc_value)}{exc_value}", color='red', size=4), ignore_http=True)
-        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", color='red', size=5))
+        self.say(font_color(rf"{type(exc_value)}{exc_value}", cls='theme-err', size=4), ignore_http=True)
+        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))

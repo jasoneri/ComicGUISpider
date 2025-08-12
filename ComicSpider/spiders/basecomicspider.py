@@ -27,7 +27,7 @@ from utils.sql import SqlUtils
 class SayToGui:
     res = ori_res.SPIDER.SayToGui
     exp_txt = res.exp_txt
-    exp_turn_page = font_color(res.exp_turn_page, color='darkgreen')
+    exp_turn_page = font_color(res.exp_turn_page, cls='theme-success')
     exp_preview = font_color(res.exp_preview, color='chocolate')
     exp_extra = f"{exp_turn_page}<br>{exp_preview}<br>{res.exp_replace_keyword}"
 
@@ -59,7 +59,7 @@ class SayToGui:
         self(
             f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-tip')}</p><br>"""
             if len(frame_results) else
-            f"{'✈' * 15}{font_color(self.res.frame_book_print_retry_tip, color='red', size=5)}"
+            f"{'✈' * 15}{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=5)}"
         )
         return frame_results
 
@@ -164,7 +164,7 @@ class BaseComicSpider(scrapy.Spider):
         if selected:
             elected_titles = list(map(lambda x: x[1], selected))
             self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
-                                f"{'<br>'.join(elected_titles)}", color='green'))
+                                f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         results = self.select(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
@@ -220,7 +220,7 @@ class BaseComicSpider(scrapy.Spider):
         results = self.select(choose, frame_sec_result, step=self.res.parse_sec_step)
 
         if not results:
-            self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', color='red'))
+            self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', cls='theme-err'))
             self.logger.info(f'no result return, choose_input is wrong: {choose}')
             return
 
@@ -346,29 +346,29 @@ class BaseComicSpider(scrapy.Spider):
 
     def _handle_finished_status(self, stats):
         if 'init' in self.process_state.process:
-            self.say(font_color('unknown init error, please contact maintainer with operation-process', color='red', size=6))
+            self.say(font_color('unknown init error, please contact maintainer with operation-process', cls='theme-err', size=6))
             return
         downloaded_count = stats.get_value('image/downloaded', 0)
         exception_count = stats.get_value('process_exception/count', 0)
         if self.total != 0 and downloaded_count > 0:
-            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}', color='green', size=6))
+            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}', cls='theme-success', size=6))
         elif not downloaded_count and exception_count > 0:
             last_exception = stats.get_value("process_exception/last_exception", "")
             self.say(font_color(
                 f'<br>{self.res.finished_err % last_exception}<br>log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', 
-            color='red', size=4))
+            cls='theme-err', size=4))
             self._remove_cache()
         else:
             self.say(font_color(f'{self.res.finished_empty}<br>', cls='theme-highlight', size=6))
 
     def _handle_error_status(self, reason):
         if reason.startswith("[error]"):
-            self.say(font_color(f"[httpok]{reason}" if "http" in reason else reason, color='red', size=4))
+            self.say(font_color(f"[httpok]{reason}" if "http" in reason else reason, cls='theme-err', size=4))
         error_guides = (self.res.close_check_log_guide1, self.res.close_check_log_guide2, self.res.close_check_log_guide3)
         self.say(
             font_color(f'{self.res.close_backend_error}<br>', size=5) +
             font_color('<br>'.join(error_guides), cls='theme-tip', size=4) + "<br>" +
-            font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', color='red', size=4)
+            font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', cls='theme-err', size=4)
         )
 
 
