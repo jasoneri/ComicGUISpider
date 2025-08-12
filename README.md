@@ -63,11 +63,12 @@
 ✅ 修复包缺失导致的无法运行、kb缓存时间逻辑、内部重启的 division by zero 报错等
 
 <details>
-<summary> <code>v2.4.0-beta</code> 开发版特性👈看就点</summary>
+<summary> <code>v2.4.0-beta.3</code> 开发版特性👈看就点</summary>
 
 #### 🎁 Features
 
 ✅ 已打包上传至 pypi ，可使用 uv tool 管理/运行 CGS [查看细则](https://jasoneri.github.io/ComicGUISpider/deploy/quick-start)  
+✅ ✨支持日夜模式切换，已做字体颜色优化  
 
 #### 🐞 Fix
 
