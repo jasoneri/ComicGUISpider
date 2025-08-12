@@ -16,28 +16,32 @@ class LightFontColor:
     text = "black"
     tip = "blue"
     highlight = "purple"
+    success = "green"
+    err = "red"
 
 
 class DarkFontColor:
     text = "white"
-    tip = "blue"
-    highlight = "purple"
+    tip = "aqua"
+    highlight = "gold"
+    err = "lightcoral"
+    success = "lightgreen"
 
 
 class Light:
     def __init__(self):
         self.palette = QPalette()
-        self.palette.setColor(QPalette.Window, QColor(249, 249, 249))
-        self.palette.setColor(QPalette.WindowText, QColor(20, 20, 20))
+        self.palette.setColor(QPalette.Window, QColor(245, 245, 245))
+        self.palette.setColor(QPalette.WindowText, QColor(40, 40, 40))
         self.palette.setColor(QPalette.Base, QColor(255, 255, 255))
-        self.palette.setColor(QPalette.AlternateBase, QColor(242, 242, 242))
+        self.palette.setColor(QPalette.AlternateBase, QColor(238, 238, 238))
         self.palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 220))
-        self.palette.setColor(QPalette.ToolTipText, QColor(20, 20, 20))
-        self.palette.setColor(QPalette.Text, QColor(20, 20, 20))
-        self.palette.setColor(QPalette.Button, QColor(238, 238, 238))
-        self.palette.setColor(QPalette.ButtonText, QColor(20, 20, 20))
-        self.palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        self.palette.setColor(QPalette.Highlight, QColor(61, 174, 255))
+        self.palette.setColor(QPalette.ToolTipText, QColor(40, 40, 40))
+        self.palette.setColor(QPalette.Text, QColor(40, 40, 40))
+        self.palette.setColor(QPalette.Button, QColor(230, 230, 230))
+        self.palette.setColor(QPalette.ButtonText, QColor(40, 40, 40))
+        self.palette.setColor(QPalette.BrightText, QColor(239, 83, 80))
+        self.palette.setColor(QPalette.Highlight, QColor(100, 181, 246))
         self.palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
         self.font_color = LightFontColor
         self.c = Theme.LIGHT
@@ -137,6 +141,9 @@ def setupTheme(self):
         css = f"""
 p.theme-text {{ color: {color.text}; }}
 font.theme-tip {{ color: {color.tip}; }}
+font.theme-highlight {{ color: {color.highlight}; }}
+font.theme-success {{ color: {color.success}; }}
+font.theme-err {{ color: {color.err}; }}
 """
         doc = self.textBrowser.document()
         doc.setDefaultStyleSheet(css)

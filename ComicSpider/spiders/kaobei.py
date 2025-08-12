@@ -154,7 +154,7 @@ class KaobeiSpider(BaseComicSpider):
         meta = response.meta
         if result.get("show_app"):
             self.say(font_color(f'[{meta.get("title")}-{meta.get('section')}] 被风控了我擦呢',
-                                color='orange'))
+                                cls='theme-err'))
         chapter = result.get('chapter', {})
         targets = dict(zip(chapter.get('words', []), chapter.get('contents', [])))
         group_infos = ComicspiderItem.get_group_infos(meta)

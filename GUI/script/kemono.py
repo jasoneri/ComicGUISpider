@@ -446,7 +446,8 @@ class KemonoInterface(QFrame):
             self.say("input empty")
             return
         
-        self.say(font_color("""<br>🔔留意 Motrix 有任务开始即可<br>任务提示done后运行键会恢复，可继续接下一轮任务<br>""", color='purple'))
+        self.say(font_color("""<br>🔔留意 Motrix 有任务开始即可<br>任务提示done后运行键会恢复，可继续接下一轮任务<br>""", 
+                            cls='theme-highlight'))
         self.backend_thread = KemonoBackendThread(backend_kw, self)
         self.backend_thread.output_signal.connect(self.say)
         self.backend_thread.finished_signal.connect(self._on_kemono_finished)
@@ -455,7 +456,7 @@ class KemonoInterface(QFrame):
 
     def _on_kemono_finished(self, exit_code):
         if exit_code != 0:
-            self.say(font_color("任务执行失败，退出码: {exit_code}", color='red'))
+            self.say(font_color("任务执行失败，退出码: {exit_code}", cls='theme-err'))
 
     def say(self, text):
         self.textBrowser.append(text)
@@ -526,6 +527,6 @@ class KemonoBackendThread(QThread):
                 self.print(cleaned_line)
         exit_code = process.wait()
         if exit_code == 0:
-            self.print(font_color("✅ done!", color='green'))
+            self.print(font_color("✅ done!", cls='theme-success'))
         self.interface.runBtn.setEnabled(True)
         self.finished_signal.emit(exit_code)
