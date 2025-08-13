@@ -9,16 +9,15 @@ on:
 
 jobs:
   test-suite:
-    runs-on: windows-latest
+    runs-on: macos-latest
     env:
       PYTHONIOENCODING: utf-8
     defaults:
       run:
-        shell: pwsh
+        shell: bash
     strategy:
       matrix:
         include:
-          # - "ehentai" "jm" "hitomi"使用本地 act 运行上传
           - crawler_name: "kaobei"
             params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50021"
           - crawler_name: "wnacg"
@@ -27,74 +26,42 @@ jobs:
             params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Add PATH
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Install ComicGUISpider CLI
         run: |
-          $7zPath = "C:\Program Files\7-Zip"
-          Add-Content $env:GITHUB_PATH "$7zPath"
-          echo "runtimeP=D:\build\CGS" >> $env:GITHUB_ENV
-      - name: Get Latest Release Tag
-        id: get-latest-tag
-        run: |
-          $response = Invoke-WebRequest -Uri "https://api.github.com/repos/jasoneri/ComicGUISpider/releases?per_page=1" -Headers @{ "Accept" = "application/vnd.github.v3+json" }
-          $latest_tag = ($response.Content | ConvertFrom-Json)[0].tag_name
-          echo "latest_tag=$latest_tag" >> $env:GITHUB_OUTPUT
-      - name: Download Latest CGS
-        run: |
-          New-Item -ItemType Directory -Path D:\tmp -Force
-          New-Item -ItemType Directory -Path D:\build -Force
-          Invoke-WebRequest -Uri "https://github.com/jasoneri/ComicGUISpider/releases/download/${{ steps.get-latest-tag.outputs.latest_tag }}/CGS.7z" -OutFile D:\tmp\CGS.7z
-          7z x D:\tmp\CGS.7z -o"$env:runtimeP" -spe -y
-          Remove-Item -Path "D:\tmp\CGS.7z" -Force -ErrorAction Stop
-      - name: Put SourceCode in CGS
-        run: |
-          $sourcePath = $env:GITHUB_WORKSPACE
-          $targetPath = "D:\build\CGS\scripts"
-          New-Item -ItemType Directory -Path $targetPath -Force
-          Copy-Item -Path "$sourcePath\*" -Destination $targetPath -Recurse -Force
+          uv tool install comicguispider
+          uv tool update-shell
+      - name: Install coreutils (for gtimeout)
+        run: brew install coreutils
       - name: Run tests and Generate report
-        working-directory: D:\build\CGS
         env:
           CRAWLER_NAME: ${{ matrix.crawler_name }}
         run: |
-          $TODAY = (Get-Date -Format "MM-dd").ToString()
-
-          $stdoutLog = $env:CRAWLER_NAME + "_stdout.log"
-          $stderrLog = $env:CRAWLER_NAME+ "_stderr.log"
-          $pythonArgs = "./scripts/crawl_only.py ${{ matrix.params }} -l INFO -dt"
-          $timeoutSeconds = if ($env:CRAWLER_NAME -eq 'hitomi') { 120 } else { 60 }
-          
-          $process = Start-Process -FilePath "./runtime/python.exe" -ArgumentList $pythonArgs -NoNewWindow -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
-          try {
-            $process | Wait-Process -Timeout $timeoutSeconds -ErrorAction Stop
-            $result = $process.ExitCode
-          } catch [TimeoutException] {
-            $process | Stop-Process -Force
-            $result = 124
-          }
-          $logContent = Get-Content $stderrLog -Raw
-          $item_count = if ($logContent -match "image/downloaded': (\d+)") { [int]$matches[1] } else { 0 }
-          $statusData = @{
-            schemaVersion = 1
-            label = $TODAY
-            message = $(if ($item_count -eq 0) { "fail" } else { "pass" })
-            color = $(if ($item_count -eq 0) { "critical" } else { "success" })
-          }
-          $artifactPath = "D:\build\badges"
-          New-Item -Path $artifactPath -ItemType Directory -Force | Out-Null
-          $statusData | ConvertTo-Json -Compress | Out-File "$artifactPath\status_$env:CRAWLER_NAME.json" -Encoding utf8
-          Get-ChildItem -Path $artifactPath -Recurse
-          Copy-Item -Path $stderrLog -Destination "D:\build\badges\$stderrLog" -Force
+          export LANG=C.UTF-8
+          TODAY=$(date +%m-%d)
+          STDOUT_LOG="${CRAWLER_NAME}_stdout.log"
+          STDERR_LOG="${CRAWLER_NAME}_stderr.log"
+          if [[ "$CRAWLER_NAME" == "hitomi" ]]; then TIMEOUT_SECONDS=120; else TIMEOUT_SECONDS=60; fi
+          CMD="cgs-cli ${{ matrix.params }} -l INFO -dt"
+          gtimeout "$TIMEOUT_SECONDS" bash -lc "$CMD" > "$STDOUT_LOG" 2> "$STDERR_LOG" || true
+          ITEM_COUNT=$(grep -oE "'image/downloaded': *[0-9]+" "$STDERR_LOG" | tail -n1 | grep -oE '[0-9]+')
+          [[ -z "$ITEM_COUNT" ]] && ITEM_COUNT=0
+          STATUS=fail; COLOR=critical
+          if [[ $ITEM_COUNT -gt 0 ]]; then STATUS=pass; COLOR=success; fi
+          ARTIFACT_PATH="badges"
+          mkdir -p "$ARTIFACT_PATH"
+          cat > "$ARTIFACT_PATH/status_$CRAWLER_NAME.json" <<EOF
+          {"schemaVersion":1,"label":"$TODAY","message":"$STATUS","color":"$COLOR"}
+          EOF
+          cp "$STDERR_LOG" "$ARTIFACT_PATH/"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: badges-${{ matrix.crawler_name }}
-          path: D:\build\badges/
-
+          path: badges/
+  
   deploy-job:
     needs: test-suite
     runs-on: ubuntu-latest
