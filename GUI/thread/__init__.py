@@ -2,10 +2,11 @@ import traceback
 import asyncio
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils import font_color, conf, get_loop, QueuesManager, code_env
+from utils import conf, get_loop, QueuesManager, code_env
 from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
+from GUI.core.font import font_color
 
 
 class ClipTasksThread(QThread):
@@ -37,7 +38,7 @@ class ClipTasksThread(QThread):
                 except Exception as e:
                     err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
                     self.gui.log.exception(e)
-                    self.gui.say(font_color(err_msg + '<br>', color='red'), ignore_http=True)
+                    self.gui.say(font_color(err_msg + '<br>', cls='theme-err'), ignore_http=True)
                     return idx + 1, None
             # 并发执行所有任务
             tasks = [fetch_single(idx, url) for idx, url in enumerate(self.tasks)]
@@ -71,8 +72,8 @@ class ClipTasksThread(QThread):
         self.total = total
         if not total:
             self.total_signal.emit({})
-            self.gui.say(font_color(res.GUI.Clip.all_fail, color='red'), ignore_http=True)
-            self.gui.say(font_color(rf"<br>{res.GUI.Clip.view_log} [{conf.log_path}\GUI.log]", color='red', size=5))
+            self.gui.say(font_color(res.GUI.Clip.all_fail, cls='theme-err'), ignore_http=True)
+            self.gui.say(font_color(rf"<br>{res.GUI.Clip.view_log} [{conf.log_path}\GUI.log]", cls='theme-err', size=5))
         else:
             self.msleep(1200 if len(self.total) == 1 else 350)
             self.check_condition_and_run_js()

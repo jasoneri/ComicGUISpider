@@ -12,7 +12,7 @@ from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtCore import QUrl
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
-    PushSettingCard, InfoBarPosition
+    PushSettingCard, InfoBarPosition, TransparentToggleToolButton,
 )
 import uncurl
 
@@ -22,6 +22,7 @@ from utils import conf, convert_punctuation as cp, exc_p
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater, Proj
+from GUI.core.theme import theme_mgr, CustTheme
 from GUI.uic.qfluent.components import SupportView, CustomFlyout, CustomInfoBar
 
 
@@ -123,6 +124,16 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
 
+        self.darkTheme = TransparentToggleToolButton(FIF.QUIET_HOURS)
+        def switch_mode():
+            if self.darkTheme.isChecked():
+                conf.darkTheme = True
+            else:
+                conf.darkTheme = False
+            theme_mgr.set_dark(conf.darkTheme)
+        self.darkTheme.clicked.connect(switch_mode)
+        self.horizontalLayout_proxies.addWidget(self.darkTheme)
+
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
         for _ in ('proxies', 'custom_map', "completer", "clip_db"):
@@ -132,7 +143,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         self.pypiSourceBox.setCurrentIndex(getattr(conf, "pypi_source"))
         # 2. CheckBox类配置
-        for _ in ('addUuid', 'isDeduplicate'):
+        for _ in ('addUuid', 'isDeduplicate', "darkTheme"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
@@ -182,6 +193,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
             "addUuid": getattr(self, "addUuid").isChecked(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
+            "darkTheme": getattr(self, "darkTheme").isChecked(),
             "clip_db": getattr(self, "clip_dbEdit").text(),
             "clip_read_num": getattr(self, "clip_read_numEdit").value(),
             "concurr_num": getattr(self, "concurr_numEdit").value()

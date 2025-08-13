@@ -149,7 +149,7 @@ class HitomiSpider(BaseComicSpider):
         if selected:
             elected_titles = list(map(lambda x: x[1], selected))
             self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
-                                f"{'<br>'.join(elected_titles)}", color='green'))
+                                f"{'<br>'.join(elected_titles)}", cls='theme-success'))
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         results = self.select(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
         if self.input_state.pageTurn:

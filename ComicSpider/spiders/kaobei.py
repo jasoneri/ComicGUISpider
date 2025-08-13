@@ -5,10 +5,9 @@ from urllib.parse import urlencode
 
 import jsonpath_rw as jsonp
 
-from utils import font_color
 from utils.processed_class import Url
 from utils.website import KaobeiUtils
-from .basecomicspider import BaseComicSpider, ComicspiderItem
+from .basecomicspider import BaseComicSpider, ComicspiderItem, font_color
 
 pc_domain = "www.2025copy.com"
 domain = "api.2025copy.com"
@@ -155,7 +154,7 @@ class KaobeiSpider(BaseComicSpider):
         meta = response.meta
         if result.get("show_app"):
             self.say(font_color(f'[{meta.get("title")}-{meta.get('section')}] 被风控了我擦呢',
-                                color='orange'))
+                                cls='theme-err'))
         chapter = result.get('chapter', {})
         targets = dict(zip(chapter.get('words', []), chapter.get('contents', [])))
         group_infos = ComicspiderItem.get_group_infos(meta)
