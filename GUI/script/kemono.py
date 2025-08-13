@@ -19,9 +19,10 @@ from qfluentwidgets import (
 from qframelesswindow import FramelessWindow
 
 from deploy import curr_os
-from utils import ori_path, temp_p, font_color
+from utils import ori_path, temp_p
 from utils.script.image.kemono import kemono_topic, conf, KemonoAuthor
 from utils.config.qc import kemono_cfg
+from GUI.core.font import font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 
 
@@ -331,7 +332,7 @@ class KemonoTableView(FramelessWindow):
         Flyout.make(commandBar, target=target_pos, parent=self, aniType=FlyoutAnimationType.FADE_IN)
 
     def send_author_to_input(self, author):
-        self.interface.kemonoTextBrowser.append(
+        self.interface.textBrowser.append(
             f"已选ID({author.id}): 作者「{author.name}」({author.service})"
         )
         self.interface.selected.append(author.id)
@@ -407,12 +408,12 @@ class KemonoInterface(QFrame):
         third_row.addWidget(self.openBtn)
 
         fourth_row = QHBoxLayout()
-        self.kemonoTextBrowser = TextBrowserWithBg(self)
+        self.textBrowser = TextBrowserWithBg(self)
         font = QFont()
         font.setFamily("Consolas, Monaco, 'Courier New', monospace")  # 等宽字体，支持Unicode
         font.setPointSize(10)
-        self.kemonoTextBrowser.setFont(font)
-        fourth_row.addWidget(self.kemonoTextBrowser)
+        self.textBrowser.setFont(font)
+        fourth_row.addWidget(self.textBrowser)
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addLayout(second_row)
@@ -420,11 +421,11 @@ class KemonoInterface(QFrame):
         self.main_layout.addLayout(fourth_row)
         self.bg_mgr = BgMgr()
         if self.bg_mgr.bg_f:
-            self.kemonoTextBrowser.set_fixed_image(self.bg_mgr.bg_f, int(self.parent_window.height()*0.7))
+            self.textBrowser.set_fixed_image(self.bg_mgr.bg_f, int(self.parent_window.height()*0.7))
         self.reset_browser()
     
     def reset_browser(self):
-        self.kemonoTextBrowser.clear()
+        self.textBrowser.clear()
         self.say(kemono_topic)
         self.say("当前仅支持作者作品集层面下载（不支持下载单个post的小操作）")
         self.say("<hr><p></p>")
@@ -445,7 +446,8 @@ class KemonoInterface(QFrame):
             self.say("input empty")
             return
         
-        self.say(font_color("""<br>🔔留意 Motrix 有任务开始即可<br>任务提示done后运行键会恢复，可继续接下一轮任务<br>""", color="purple"))
+        self.say(font_color("""<br>🔔留意 Motrix 有任务开始即可<br>任务提示done后运行键会恢复，可继续接下一轮任务<br>""", 
+                            cls='theme-highlight'))
         self.backend_thread = KemonoBackendThread(backend_kw, self)
         self.backend_thread.output_signal.connect(self.say)
         self.backend_thread.finished_signal.connect(self._on_kemono_finished)
@@ -454,10 +456,10 @@ class KemonoInterface(QFrame):
 
     def _on_kemono_finished(self, exit_code):
         if exit_code != 0:
-            self.say(font_color("任务执行失败，退出码: {exit_code}", color="red"))
+            self.say(font_color("任务执行失败，退出码: {exit_code}", cls='theme-err'))
 
     def say(self, text):
-        self.kemonoTextBrowser.append(text)
+        self.textBrowser.append(text)
         
     def erase_selected(self):
         self.selected = []
@@ -525,6 +527,6 @@ class KemonoBackendThread(QThread):
                 self.print(cleaned_line)
         exit_code = process.wait()
         if exit_code == 0:
-            self.print(font_color("✅ done!", color="green"))
+            self.print(font_color("✅ done!", cls='theme-success'))
         self.interface.runBtn.setEnabled(True)
         self.finished_signal.emit(exit_code)

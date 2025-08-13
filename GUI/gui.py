@@ -12,8 +12,10 @@ from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
 )
 from GUI.mainwindow import MitmMainWindow
+from GUI.core.font import font_color
+from GUI.core.theme import setupTheme
 from GUI.conf_dialog import ConfDialog
-from GUI.browser_window import BrowserWindow
+from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils
 from GUI.manager import TaskProgressManager, ClipGUIManager
@@ -21,7 +23,7 @@ from GUI.manager.preprocess import PreprocessManager
 from variables import *
 from assets import res
 from utils import (
-    font_color, Queues, QueuesManager, conf, p, curr_os
+    Queues, QueuesManager, conf, p, curr_os
 )
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
@@ -42,7 +44,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     nextclickCnt = 0
     pageFrameClickCnt = 0
     checkisopenCnt = 0
-    BrowserWindow: BrowserWindow = None
+    BrowserWindow: BrowserWindowCls = None
     toolWin = None
     webs_status = []
 
@@ -75,10 +77,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.first_init:
             self.splashScreen = CustomSplashScreen(self)
             self.show()
+            setupTheme(self)
             QTimer.singleShot(10, self.setupUi_)
             self.first_init = False
         else:
-            self.say(font_color(f"<br>{self.res.reboot_tip2}", color='purple', size=4))
+            self.say(font_color(f"<br>{self.res.reboot_tip2}", cls='theme-highlight', size=4))
             self.chooseBox.setDisabled(True)
             if getattr(self, 'bg_mgr', None):
                 self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
@@ -168,15 +171,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         match index:
             case 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
-                self.say(font_color(self.res.copymaga_tips, color='purple'))
+                self.say(font_color(self.res.copymaga_tips, cls='theme-highlight'))
             case 3:
                 if not conf.proxies:
-                    self.say(font_color(self.res.wnacg_desc, color='purple'), ignore_http=True)
+                    self.say(font_color(self.res.wnacg_desc, cls='theme-highlight'), ignore_http=True)
             case 4:
                 self.pageEdit.setDisabled(True)
-                self.say(font_color(res.EHentai.GUIDE, color='purple'))
+                self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
-                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), color='purple'), ignore_http=True)
+                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
 
     def set_shortcut(self):
         self.previousPageShort = QShortcut(QKeySequence("Ctrl+,"), self)
@@ -289,7 +292,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
 
     def set_preview(self):
-        self.BrowserWindow = BrowserWindow(self)
+        self.BrowserWindow = BrowserWindowCls(self)
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
         self.BrowserWindow.setGeometry(QRect(
             self.x() + self.funcGroupBox.x(),
@@ -342,7 +345,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.Q = None
             QTimer.singleShot(10, lambda : self.setupUi(self))
 
-        self.say(font_color(f"{self.res.reboot_tip}", color='purple', size=4))
+        self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
         QTimer.singleShot(50, retry_all)
         self.retrybtn.setDisabled(True)
         self.log.info('===--→ retry_schedule end\n')
@@ -483,16 +486,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def say(self, string, ignore_http=False):
+        fin_s = ""
         if isinstance(string, str) and string.startswith('[httpok]'):
             string = string[len('[httpok]'):]
             ignore_http = True
         if not ignore_http and 'http' in string:
             if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
-                self.textBrowser.append(self.res.textbrowser_load_if_http % string)
-        elif "</p>" in string:
-            self.textBrowser.append(string.replace('<p>', '<p style="color: black;">'))
+                fin_s = self.res.textbrowser_load_if_http % string
         else:
-            self.textBrowser.append(r'<p style="color: black;">%s</p>' % string)
+            fin_s = string
+        if fin_s:
+            self.textBrowser.append(fin_s)
         cursor = self.textBrowser.textCursor()
         self.textBrowser.moveCursor(cursor.End)  # move cursor to the end for show dynamicly
 
@@ -501,12 +505,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.first_tmp_sv_flag:
             self.first_tmp_sv_flag = False
             self.BrowserWindow.tmp_sv_local()
-
-    def enterEvent(self, QEvent):
-        self.textBrowser.setStyleSheet('background-color: transparent;')
-
-    def leaveEvent(self, QEvent):
-        self.textBrowser.setStyleSheet('background-color: pink;')
 
     def close_process(self):
         self.clean_preview()
@@ -535,5 +533,5 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             return sys.__excepthook__(exc_type, exc_value, exc_traceback)
         exception = str("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         self.log.error(exception)
-        self.say(font_color(rf"{type(exc_value)}{exc_value}", color='red', size=4), ignore_http=True)
-        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", color='red', size=5))
+        self.say(font_color(rf"{type(exc_value)}{exc_value}", cls='theme-err', size=4), ignore_http=True)
+        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))

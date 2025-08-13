@@ -17,7 +17,6 @@
 同时设置防呆警告，所列情况设置无效：①设在盘符根；②设在 CGS 相关目录内
 :::
 
-下载目录  
 默认值：&emsp;`win: D:\Comic`&emsp;`macOS: ~/Downloads/Comic`  
 目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`redViewer`](https://github.com/jasoneri/redViewer) 项目而设的
 
@@ -48,7 +47,7 @@
 
 ### pypi源 / `pypi_source`
 
-代理输入框右方的选择框  
+「代理输入框」右侧的选择框  
 涉及到 CGS更新、脚本集额外依赖安装等，其序号映射如下
 
 ```yaml
@@ -57,6 +56,11 @@
 2: 阿里源
 3: 华为源
 ```
+
+### 夜间模式 / `darkTheme`
+
+「pypi源选择框」右侧的「月亮图标」按钮  
+形式为开关布尔值，根据值切换日间/夜间模式
 
 ### 映射 / `custom_map`
 
