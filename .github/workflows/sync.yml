@@ -20,6 +20,7 @@ jobs:
             spiders:
               - 'ComicSpider/spiders/**'
               - 'utils/website/**'
+              - 'deploy/**'
 
   sync-gitee:
     needs: changes
