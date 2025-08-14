@@ -85,6 +85,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.chooseBox.setDisabled(True)
             if getattr(self, 'bg_mgr', None):
                 self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
+            setupTheme(self)
             self.setupUi_()
 
     def setupUi_(self):
