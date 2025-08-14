@@ -8,7 +8,7 @@
 need readed [macOS Deploy](./mac-required-reading.md) document
 :::
 
-+ Or use [astral-sh/uv](https://github.com/astral-sh/uv)  
++ Or use [astral-sh/uv](https://github.com/astral-sh/uv) ( easily install by `brew install uv` )  
 
 ```bash
 uv tool install comicguispider

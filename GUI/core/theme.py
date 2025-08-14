@@ -136,7 +136,8 @@ theme_mgr.subscribe(_apply_theme_globally)
 
 
 def setupTheme(self):
-    def apply_theme_to_textbrowser(_t):
+    def apply_theme(_t):
+        # 1. gui/kemonoInterface .textBrowser
         color = theme_mgr.font_color
         css = f"""
 p.theme-text {{ color: {color.text}; }}
@@ -149,5 +150,5 @@ font.theme-err {{ color: {color.err}; }}
         doc.setDefaultStyleSheet(css)
 
     theme_mgr.set_dark(conf.darkTheme)
-    apply_theme_to_textbrowser(0)
-    theme_mgr.subscribe(apply_theme_to_textbrowser)
+    apply_theme(0)
+    theme_mgr.subscribe(apply_theme)
