@@ -27,6 +27,8 @@
 
 ## 📑介绍
 
+📣 C106了, 用 CGS 框框地下下下吧 🍻 （顺便给⭐️）
+
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
 | [拷贝漫画](https://www.2025copy.com/)    | :cn: | | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
@@ -55,27 +57,13 @@
 
 #### 🎁 Features
 
-✅ 选网站可直接选kemono，单独窗口供后续脚本集扩展，详情看[📒使用指引](https://jasoneri.github.io/ComicGUISpider/feat/script)  
-✅ 自定义背景，[配置key](https://jasoneri.github.io/ComicGUISpider/config/#bg-path)  
-
-#### 🐞 Fix
-
-✅ 修复包缺失导致的无法运行、kb缓存时间逻辑、内部重启的 division by zero 报错等
-
-<details>
-<summary> <code>v2.4.0-beta.3</code> 开发版特性👈看就点</summary>
-
-#### 🎁 Features
-
 ✅ 已打包上传至 pypi ，可使用 uv tool 管理/运行 CGS [查看细则](https://jasoneri.github.io/ComicGUISpider/deploy/quick-start)  
-✅ ✨支持日夜模式切换，已做字体颜色优化  
+✅ 支持日夜模式切换，已做字体颜色优化  
 
 #### 🐞 Fix
 
-✅ kemono域名更换  
-
-🍗使用开发版遇到报错时请积极提 issue 等提供线索，谢谢
-</details>
+✅ kemono 域名更换  
+✅ 修复 domainTool 的 jm 域名检测  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
