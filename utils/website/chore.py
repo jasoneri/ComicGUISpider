@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlparse
 
 
 tag_regex = re.compile(r"汉化|漢化|粵化|DL版|修正|中国|翻訳|翻译|翻譯|中文|後編|前編|カラー化|個人|" +
@@ -29,3 +30,40 @@ domain_regex = re.compile("https?://(.*?)/")
 def correct_domain(spider_domain, url) -> str:
     _domain = domain_regex.search(url).group(1)
     return url.replace(_domain, spider_domain)
+
+
+def extract_domains(text: str):
+    domains = set()
+    for tok in text.split():
+        tok = tok.strip(' \t\n\r()[]<>"\'.,;:')     # 去掉常见包围符
+        if not tok or '.' not in tok:
+            continue
+        parsed = urlparse(tok if tok.startswith(('http://','https://','//')) else '//' + tok)
+        host = parsed.netloc or parsed.path
+        host = host.strip('[]').strip().lower()
+        if not host:
+            continue
+        if not re.search(r'\.[A-Za-z]{2,}$', host):
+            continue
+        domains.add(host)
+    return domains
+
+
+if __name__ == '__main__':
+    a = """內地網域請使用Chrome瀏覽器開啟
+https://jm18c-tin.org
+分流1
+https://jm18c-sha.org
+分流2
+https://jm18c-tin.club
+"""
+    b = """紳士漫畫最新地址
+www.wnacg03.cc
+紳士漫畫.最新地址
+www.wnacg02.cc
+www.wnacg01.cc
+www.wn03.ru
+"""
+    aa = extract_domains(a)
+    bb = extract_domains(b)
+    print(aa)
