@@ -71,12 +71,27 @@ cgs-cli --help
 
 ## 4. 更新
 
+::: warning 版本在 `v2.4.0` 之前的一律到 [最新稳定版releases](https://github.com/jasoneri/ComicGUISpider/releases/latest) 上获取
+:::
+
 + CGS 内置了更新模块，能在配置窗口中点击 `检查更新` 按钮进行更新  
 ::: info 当 `本地版本` < `最新稳定版` < `最新开发版` 时  
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 也可以选择到 releases 手动下载最新版
++ 或直接使用 `uv tool upgrade ComicGUISpider`
+
+::: warning 绿色包注意事项
+无论win/mac，绿色包内程序不再含 CGS 代码，所以单纯从新 release 上下载新版绿色包覆盖是没用的  
+
+---
+
+mac绿色包：可用以上两种方式更新；  
+
+---
+
+win绿色包：内置更新 / 或删掉解压目录的 `comicguispider` 和 `bin` 两个文件夹后重新运行 `CGS.exe`
+:::
 
 ## 5. 搭配阅读器
 

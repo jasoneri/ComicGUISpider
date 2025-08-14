@@ -5,9 +5,12 @@ osascript -e 'tell application "Terminal" to activate' -e 'tell application "Sys
 # 检测是否为 Apple Silicon
 if [ "$(uname -m)" = "arm64" ]; then
     BREW_PATH="/opt/homebrew/bin/brew"
+    BREW_BIN="/opt/homebrew/bin"
 else
     BREW_PATH="/usr/local/bin/brew"
+    BREW_BIN="/usr/local/bin"
 fi
+export PATH="$BREW_BIN:$PATH"
 
 # 如果没有安装 Homebrew，则安装它
 if [ ! -x "$BREW_PATH" ]; then
@@ -19,13 +22,14 @@ fi
 if ! command -v uv &> /dev/null; then
     echo "[CGS]installing uv..."
     "$BREW_PATH" install uv
+    hash -r
 fi
+uv tool update-shell
+export PATH="$(uv tool dir --bin):$PATH"
 
 DEFAULT_SOURCE="1"
 SOURCE_OPTION=${1:-$DEFAULT_SOURCE}
-
 INDEX_URL=""
-
 case $SOURCE_OPTION in
     1 | "")
         INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple/"
@@ -41,12 +45,13 @@ case $SOURCE_OPTION in
         INDEX_URL="https://pypi.org/simple"
         ;;
 esac
-
 echo "$INDEX_URL"
-uv tool install ComicGUISpider --force --index-url "$INDEX_URL"
-uv tool update-shell
 
-echo "此次程序停止后, 请新开终端手动重启cgs/重开 CGS.app ..."
-echo "Later need to open new terminal to run cgs/reopen CGS.app ..."
-sleep 3
-exit 0
+if ! command -v cgs &> /dev/null; then
+    echo "[CGS]installing cgs..."
+    uv tool install ComicGUISpider --force --index-url "$INDEX_URL"
+else
+    echo "→ cgs installed, now runing"
+fi
+
+cgs
