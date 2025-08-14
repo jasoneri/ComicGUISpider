@@ -1,8 +1,6 @@
-import re
 import asyncio
 
 from PyQt5.QtCore import Qt, QTimer
-from urllib.parse import urlparse
 from PyQt5.QtWidgets import QApplication, QHBoxLayout, QWidget
 from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, 
@@ -12,6 +10,7 @@ from qfluentwidgets import (
 
 from assets import res as ori_res
 from utils import temp_p
+from utils.website import extract_domains
 
 tools_res = ori_res.GUI.Tools
 
@@ -49,12 +48,6 @@ class DomainToolView(QWidget):
     def handle(self):
         clipboard = QApplication.clipboard()
         text = clipboard.text()
-        def extract_domains(text):
-            return set(
-                netloc for line in text.split('\n') 
-                if (netloc := urlparse('//' + line.strip()).netloc)  # 智能补全协议
-                and re.match(r'^[\w.-]+\.[a-zA-Z]{2,}$', netloc)    # 严格域名验证
-            )
         domains = extract_domains(text)
         loop = asyncio.get_event_loop()
         hosts = loop.run_until_complete(asyncio.gather(*[self.spiderUtils.test_aviable_domain(domain) for domain in domains]))
