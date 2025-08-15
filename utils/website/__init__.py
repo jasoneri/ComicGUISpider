@@ -355,8 +355,8 @@ class KaobeiUtils(Utils):
             html_text = loop.run_until_complete(fetch())
             html_doc = html.fromstring(html_text)
             dio = list(map(lambda x: x.strip().replace(" ", ""), html_doc.xpath('//script/text()')))
-            real_dio = next(filter(lambda x: x.startswith("var") and "\n" not in x, dio))
-            aes_key = re.findall(r"""=['"](.*?)['"]""", real_dio)[0]
+            real_dio = next(filter(lambda x: x.startswith("var"), dio))
+            aes_key = re.findall(r"""=['"](.*?)['"]""", real_dio.split("\n")[0])[0]
             return aes_key
         except Exception as e:
             print(e)
