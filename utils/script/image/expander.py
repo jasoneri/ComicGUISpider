@@ -36,7 +36,8 @@ class Artists:
         if self.has_normal:
             posts = list(filter(lambda p: not bool(self._normal_pattern.search(p['title'])), posts))
         for post in posts:
-            post['title'] = self._sanitize_re.sub('-', post['title'])
+            if post.get("title"):
+                post['title'] = self._sanitize_re.sub('-', post['title'])
         return posts
 
     def __getattr__(self, name: str):

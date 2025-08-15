@@ -83,7 +83,7 @@
 
 [🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif) | [🔗动图中的curl转换网站](https://tool.lu/curl/)  
 任意网站同理，登录状态下开 F12 控制台然后点首页，筛选出 html/文档 类型请求复制其 curl (POSIX/bash)  
-`v2.2.6-beta` 之后版本支持直接将 curl 文本粘贴到编辑框内，程序已内置转换处理  
+支持直接将 curl 文本粘贴到编辑框内，程序已内置转换处理  
 
 :::warning 使用 exhentai 时必需设值
 设值后，大量下载导致被服务器对账号实施处理的后果自行负责  

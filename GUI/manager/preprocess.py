@@ -299,7 +299,7 @@ class PreprocessManager(QObject):
                 @cache.with_expiry(240, write_in=True)
                 def download_kemono_data():
                     emit_progress("正在更新缓存数据...")
-                    url = "https://kemono.cr/api/v1/creators.txt"
+                    url = "https://kemono.cr/api/v1/creators"
                     try:
                         with data_cli.stream("GET", url, follow_redirects=True, timeout=60) as resp:
                             resp.raise_for_status()
