@@ -33,7 +33,7 @@
 uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
-::: warning v2.4.0-beta 之后的绿色包均转为套壳操作 `uv tool`
+::: warning v2.4.0 之后的绿色包均转为套壳操作 `uv tool`
 :::
 
 ## 2. 运行
