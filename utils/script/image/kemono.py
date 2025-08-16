@@ -20,7 +20,7 @@ import tqdm
 
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
-from utils.script import conf, AioRClient, BlackList
+from utils.script import conf, AioRClient, BlackList, folder_sub
 from utils.script.image.expander import ArtistsEnum, Filter
 from utils.config.qc import kemono_cfg
 temp_p = proj_p.joinpath("__temp")
@@ -43,7 +43,7 @@ kemono_topic = """
 """
 domain = "kemono.cr"
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
     "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
     'Accept': 'application/json',
 }
@@ -138,7 +138,7 @@ class Api:
 
     async def get_discord_info(self, _id, kind="server", **kw):
         resp = await self.req(self.discord_info.format(kind=kind, _id=_id),
-                              headers=headers, **kw)
+                              headers={**headers, 'Accept': 'text/css'}, **kw)
         return resp.json()
 
     async def get_post(self, creator_id, service, post_id, **kw):
@@ -253,7 +253,11 @@ class Kemono:
                 await self.k.redis.rpush(self.k.redis_key, redis_task)
 
         async def create_task_of_discord_post(self, post, _task_meta: TaskMeta):
-            title = post.get('content').strip() + f"「{post.get('id')}」"
+            def to_title():
+                _t = folder_sub.sub("-", re.sub(r"\s", "", post.get('content').strip()))
+                _t = f"{_t[:20]}..." if len(_t) > 20 else _t
+                return _t + f"「{post.get('id')}」"
+            title = to_title()
             published = time_format(post.get('published')).strftime("%Y-%m-%d")
             meta = asdict(_task_meta)
             tasks = post.get("attachments", [])
@@ -301,8 +305,9 @@ class Kemono:
             channels_info = await self.k.api.get_discord_info(creator_id, "server")
             for channel_info in channels_info.get("channels", []):
                 channel_id=channel_info["id"]
+                channel_name=folder_sub.sub("-", channel_info.get("name"))
                 task_meta = TaskDiscordMeta(user_name=name, user_id=creator_id, service=service, 
-                                channel_id=channel_id, channel_name=channel_info.get("name"))
+                                channel_id=channel_id, channel_name=channel_name)
                 posts = await self.k.api.get_discord_info(channel_id, "channel")
                 valid_posts = await self._filter(posts, info)
                 for post in valid_posts:
