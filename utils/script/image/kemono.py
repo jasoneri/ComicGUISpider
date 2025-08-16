@@ -20,7 +20,7 @@ import tqdm
 
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
-from utils.script import conf, AioRClient, BlackList
+from utils.script import conf, AioRClient, BlackList, folder_sub
 from utils.script.image.expander import ArtistsEnum, Filter
 from utils.config.qc import kemono_cfg
 temp_p = proj_p.joinpath("__temp")
@@ -43,7 +43,7 @@ kemono_topic = """
 """
 domain = "kemono.cr"
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
     "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
     'Accept': 'application/json',
 }
@@ -58,6 +58,15 @@ class TaskMeta:
     user_name: str
     user_id: str
     service: str
+
+
+@dataclass
+class TaskDiscordMeta:
+    user_name: str
+    user_id: str
+    service: str
+    channel_id: str
+    channel_name: str
 
 
 t_format = '%Y-%m-%dT%H:%M:%S'
@@ -93,10 +102,12 @@ class ListArtistsInfo:
 class Api:
     base = f"https://{domain}/api/v1"
     creator_posts = base + "/{service}/user/{creator_id}"
+    discord_info = base + "/discord/{kind}/{_id}"
     post = base + "/{service}/user/{creator_id}/post/{post_id}"
     favorites = base + "/account/favorites"
     file_prefix = "https://n3.kemono.cr"
-    creators_txt = base + "/creators.txt"
+    file_redirect_prefix = "https://kemono.cr"
+    creators_txt = base + "/creators"
 
     def __init__(self, conf):
         if conf.proxies:
@@ -123,6 +134,11 @@ class Api:
     async def get_creator_posts(self, creator_id, service, **kw):
         resp = await self.req(self.creator_posts.format(creator_id=creator_id, service=service),
                               headers=headers, **kw)
+        return resp.json()
+
+    async def get_discord_info(self, _id, kind="server", **kw):
+        resp = await self.req(self.discord_info.format(kind=kind, _id=_id),
+                              headers={**headers, 'Accept': 'text/css'}, **kw)
         return resp.json()
 
     async def get_post(self, creator_id, service, post_id, **kw):
@@ -236,6 +252,35 @@ class Kemono:
                         json.dump([_['name'] for _ in tasks], f, ensure_ascii=False)
                 await self.k.redis.rpush(self.k.redis_key, redis_task)
 
+        async def create_task_of_discord_post(self, post, _task_meta: TaskMeta):
+            def to_title():
+                _t = folder_sub.sub("-", re.sub(r"\s", "", post.get('content').strip()))
+                _t = f"{_t[:20]}..." if len(_t) > 20 else _t
+                return _t + f"「{post.get('id')}」"
+            title = to_title()
+            published = time_format(post.get('published')).strftime("%Y-%m-%d")
+            meta = asdict(_task_meta)
+            tasks = post.get("attachments", [])
+            post_tasks = []
+            for task in tqdm.tqdm(tasks, ncols=100, desc=f"[{published}]{title}"):
+                if not self.k.f.file(task.get("name")):
+                    fname = task.get("name") if task.get("name") != "image.png" else \
+                        task.get("path").rsplit("/", 1)[-1]
+                    _ = {"url": f'''{self.k.api.file_redirect_prefix}/data{task.get("path")}?f={fname}''',
+                        "file_name": fname} 
+                    post_tasks.append(_)
+            redis_task = {
+                "tasks": post_tasks, "meta": {**meta, "published": published, "title": title}
+            }
+            if tasks:
+                this_artist_record = self.k.sorted_record.joinpath(f'{_task_meta.user_name}_{_task_meta.service}')
+                this_artist_record.mkdir(parents=True, exist_ok=True)
+                this_post_record = this_artist_record.joinpath(f'『{_task_meta.channel_name}』[{published}]{title}.json')
+                if not this_post_record.exists():
+                    with open(this_post_record, 'w', encoding='utf-8') as f:
+                        json.dump([_['name'] for _ in tasks], f, ensure_ascii=False)
+                await self.k.redis.rpush(self.k.redis_key, redis_task)
+
         async def _filter(self, posts, _info):
             valid_posts = list(filter(lambda _: 
                 self.end_date >= time_format(_.get('published')) >= self.start_date, 
@@ -253,10 +298,27 @@ class Kemono:
             else:
                 return []
 
+        async def posts_of_creator_discord(self, info):
+            creator_id = info.get('id')
+            name = info.get('name')
+            service = info.get('service')
+            channels_info = await self.k.api.get_discord_info(creator_id, "server")
+            for channel_info in channels_info.get("channels", []):
+                channel_id=channel_info["id"]
+                channel_name=folder_sub.sub("-", channel_info.get("name"))
+                task_meta = TaskDiscordMeta(user_name=name, user_id=creator_id, service=service, 
+                                channel_id=channel_id, channel_name=channel_name)
+                posts = await self.k.api.get_discord_info(channel_id, "channel")
+                valid_posts = await self._filter(posts, info)
+                for post in valid_posts:
+                    await self.create_task_of_discord_post(post, task_meta)
+
         async def posts_of_creator(self, info):
             creator_id = info.get('id')
             name = info.get('name')
             service = info.get('service')
+            if service == "discord":
+                return await self.posts_of_creator_discord(info)
             task_meta = TaskMeta(user_name=name, user_id=creator_id, service=service)
             o = 0
             param = None
@@ -378,6 +440,8 @@ class Kemono:
                 meta = task['meta']
                 user_service = f"{meta['user_name']}_{meta['service']}"
                 published_title = f"[{meta['published']}]{meta['title']}".strip()
+                if meta['service'] == "discord":
+                    published_title = f"『{meta['channel_name']}』{published_title}".strip()
                 path = self.sv_path.joinpath(user_service, published_title)
                 if self.run_filter(user_service, published_title, task):
                     logger.debug(rf"[filtered] {user_service}/{published_title}")
@@ -425,6 +489,8 @@ class Kemono:
             meta = tasks['meta']
             user_service = f"{meta['user_name']}_{meta['service']}"
             published_title = f"[{meta['published']}]{meta['title']}".strip()
+            if meta['service'] == "discord":
+                published_title = f"『{meta['channel_name']}』{published_title}".strip()
             path = self.sv_path.joinpath(user_service, published_title)
             path.mkdir(parents=True, exist_ok=True)
             tasks_future.append(asyncio.ensure_future(run_rpc_task(path, tasks['tasks'], _id=published_title)))

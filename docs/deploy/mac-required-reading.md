@@ -2,7 +2,7 @@
 
 ## 📑 说明
 
-::: tip v2.4.0-beta 之后的绿色包均转为套壳的 `uv tool`
+::: tip v2.4.0 之后的绿色包均转为套壳的 `uv tool`
 
 ---
 
@@ -24,7 +24,7 @@
 | 2. 常规运行   | 以后打开会检测`uv tool dir --bin`里有没`cgs`可执行，有则直接打开 |
 
 ::: danger 换源相关
-初始化中带 pypi 字眼相关的失败的话可尝试进行换源，执行下方的命令  
+初始化中带 pypi 字眼相关等网络失败的话可尝试进行换源，执行下方的命令  
 命令中 `...-s 1` 最后的数字序号对应 pypi 国内源，序号参考 [序号映射](/config/#pypi%E6%BA%90-pypi-source)  
 :::
 
@@ -49,7 +49,7 @@ echo "$(uv tool dir)/comicguispider/Lib/site-packages"
 
 ## 🔰 其他
 
-### CGS.app 无法运行就直接用 uv 编译的
+### CGS.app 无法运行就开终端直接用 uv 编译的
 
 ```bash
 cgs
