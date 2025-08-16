@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import json
+import re
 import typing as t
 import pathlib as p
 from functools import partial
@@ -11,6 +12,8 @@ from utils.config import ScriptConf
 conf = ScriptConf(iname="img")
 redis_conf: dict = conf.redis
 
+
+folder_sub = re.compile(r'([|:<>?*"\\/])')
 
 class AioRClient(aioredis.Redis):
     """

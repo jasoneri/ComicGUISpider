@@ -332,8 +332,8 @@ class KemonoTableView(FramelessWindow):
         Flyout.make(commandBar, target=target_pos, parent=self, aniType=FlyoutAnimationType.FADE_IN)
 
     def send_author_to_input(self, author):
-        self.interface.textBrowser.append(
-            f"已选ID({author.id}): 作者「{author.name}」({author.service})"
+        self.interface.say(font_color(
+            f"已选ID({author.id}): 作者「{author.name}」({author.service})", cls='theme-tip')
         )
         self.interface.selected.append(author.id)
         self.interface.kwEdit.setText(f"creatorid={self.interface.selected}".replace("'", '"'))
@@ -427,7 +427,9 @@ class KemonoInterface(QFrame):
     def reset_browser(self):
         self.textBrowser.clear()
         self.say(kemono_topic)
-        self.say("当前仅支持作者作品集层面下载（不支持下载单个post的小操作）")
+        self.say(font_color(
+            "当前仅支持作者作品集层面下载（不支持下载单个post的小操作）<br> discord 注意现阶段默认下载该作者所有频道，建议略过上百个频道的作者等后续支持单频道id下载",      
+            cls='theme-tip'))
         self.say("<hr><p></p>")
 
     def _get_backend_kw(self):

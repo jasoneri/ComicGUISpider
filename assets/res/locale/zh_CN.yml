@@ -72,7 +72,7 @@ GUI:
     status_waiting: "请等待一会~~"
     status_web_erratic: "[Warn]网络不稳定未能获取全部状态.."
     status_cf_error: "国内访问cloudflare的dev域名异常，可移步官网查看"
-    status_no_update: "本地与线上内容一致"
+    status_no_update: "本地与线上内容一致。如果使用异常，你可以结合目标网站的公告等反馈有效信息发群内"
     reboot_tip: "CGS将在%s秒后重启以确保后台进程应用有效更改"
   Uic:
     chooseBoxDefault: "选择网站"

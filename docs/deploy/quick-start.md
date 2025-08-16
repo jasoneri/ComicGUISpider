@@ -11,8 +11,10 @@
 须阅读 [macOS 部署](./mac-required-reading.md) 文档
 :::
 
-::: warning ⚠️ 当自动部署流程出现403等pypi源网络问题时，查看 [pypi换源指引](/faq/#pypi%E6%8D%A2%E6%BA%90%E6%8C%87%E5%BC%95)  
-
+::: danger ⚠️ 自动部署流程异常相关：
+①当出现403等网络问题时，②(仅限win)或自动部署之后的`解压目录/bin/cgs.exe`仍然不存在时...  
+::: tip _没有部署成功 !_
+查看 [pypi换源指引](/faq/#pypi%E6%8D%A2%E6%BA%90%E6%8C%87%E5%BC%95) 换源部署  
 :::
 
 + 或使用`uv tool`  
