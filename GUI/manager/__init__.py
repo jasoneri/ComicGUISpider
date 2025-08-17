@@ -151,6 +151,6 @@ class Updater:
         self.conf_dia.puThread.start()
 
     def after_update(self):
-        cmd = [uv_exc, "tool","run","--from","comicguispider","cgs"]
+        cmd = ["cgs"]
         subprocess.Popen(cmd, cwd=exc_p, env=env)
         QTimer.singleShot(1000, self.gui.close)

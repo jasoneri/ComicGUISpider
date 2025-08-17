@@ -45,7 +45,7 @@ domain = "kemono.cr"
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
     "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-    'Accept': 'application/json',
+    'Accept': 'text/css',
 }
 
 
@@ -101,7 +101,7 @@ class ListArtistsInfo:
 
 class Api:
     base = f"https://{domain}/api/v1"
-    creator_posts = base + "/{service}/user/{creator_id}"
+    creator_posts = base + "/{service}/user/{creator_id}/posts"
     discord_info = base + "/discord/{kind}/{_id}"
     post = base + "/{service}/user/{creator_id}/post/{post_id}"
     favorites = base + "/account/favorites"
@@ -138,7 +138,7 @@ class Api:
 
     async def get_discord_info(self, _id, kind="server", **kw):
         resp = await self.req(self.discord_info.format(kind=kind, _id=_id),
-                              headers={**headers, 'Accept': 'text/css'}, **kw)
+                              headers=headers, **kw)
         return resp.json()
 
     async def get_post(self, creator_id, service, post_id, **kw):
@@ -178,7 +178,7 @@ class Kemono:
     Api-service:
       patreon   # Patreon
       fanbox    # Pixiv Fanbox
-      # 音声似乎有点麻烦  Discord
+      Discord
       fantia    # Fantia
       # 爱发电没人上传  Afdian
       # 欧美的不要  Boosty
