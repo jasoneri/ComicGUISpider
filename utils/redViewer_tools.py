@@ -5,8 +5,6 @@ import re
 import shutil
 from dataclasses import dataclass
 
-from tqdm import tqdm
-
 from assets import res
 from utils import conf
 
@@ -19,7 +17,7 @@ def combine_then_mv(root_dir, target_dir, order_book=None) -> list:
     target_p = pathlib.Path(target_dir)
     done = []
     for order_dir in filter(lambda x: x.is_dir() and x.name not in expect_dir, p.iterdir()):
-        for ordered_section in tqdm(order_dir.iterdir()):
+        for ordered_section in order_dir.iterdir():
             ___ = target_p.joinpath(f"{order_dir.name}_{ordered_section.name}")
             if ___.exists():
                 shutil.rmtree(___)
@@ -32,7 +30,7 @@ def combine_then_mv(root_dir, target_dir, order_book=None) -> list:
 def restore(ori):
     p = pathlib.Path(ori)
     book_p = None
-    for i in tqdm(p.iterdir()):
+    for i in p.iterdir():
         book, section = i.name.split('_')
         if not p.parent.joinpath(book).exists():
             book_p = p.parent.joinpath(book)
