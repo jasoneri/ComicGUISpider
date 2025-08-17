@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from assets import res
 
-VER = "v2.4.1-beta"
+VER = "v2.4.1"
 
 SPIDERS = {
     1: 'manga_copy',    # 🇨🇳 
