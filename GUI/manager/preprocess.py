@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE
+from variables import PYPI_SOURCE, VER
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -243,7 +243,7 @@ class PreprocessManager(QObject):
 
                 if missing_packages:
                     # 使用pyproject.toml安装脚本依赖
-                    cmd = [uv_exc, "tool", "install", "--force", "ComicGUISpider[script]"]
+                    cmd = [uv_exc, "tool", "install", "--force", f"ComicGUISpider[script]=={VER}"]
                     cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
                     process = subprocess.Popen(
                         cmd, cwd=exc_p, env=env,
@@ -294,14 +294,14 @@ class PreprocessManager(QObject):
                     if progress_callback:
                         progress_callback(msg)
 
-                from GUI.script.kemono import KemonoAuthor
+                from utils.script.image.kemono import  KemonoAuthor, headers, Api
                 cache = Cache("kemono_data.pkl")
                 @cache.with_expiry(240, write_in=True)
                 def download_kemono_data():
                     emit_progress("正在更新缓存数据...")
-                    url = "https://kemono.cr/api/v1/creators"
+                    url = Api.creators_txt
                     try:
-                        with data_cli.stream("GET", url, follow_redirects=True, timeout=60) as resp:
+                        with data_cli.stream("GET", url, headers=headers, follow_redirects=True, timeout=60) as resp:
                             resp.raise_for_status()
                             content = b""
                             for chunk in resp.iter_bytes():
