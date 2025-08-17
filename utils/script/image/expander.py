@@ -34,7 +34,8 @@ class Artists:
 
     def base_process(self, posts):
         if self.has_normal:
-            posts = list(filter(lambda p: not bool(self._normal_pattern.search(p['title'])), posts))
+            posts = list(filter(lambda p: not bool(self._normal_pattern.search(
+                p.get('title', p.get('content', '')))), posts))
         for post in posts:
             if post.get("title"):
                 post['title'] = self._sanitize_re.sub('-', post['title'])
