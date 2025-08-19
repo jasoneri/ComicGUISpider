@@ -1,4 +1,3 @@
-import time
 from qfluentwidgets import QConfig, ConfigItem, qconfig
 from utils.config import conf_dir
 
