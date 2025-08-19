@@ -48,31 +48,35 @@ utils
 ### 🚀 快速开始
 
 1. 启动 `redis` 服务，打开 `Motrix`
-> [!TIP] 2. 额外过滤示例，在 GUI 里设置
-> ::: details 点击展开  
-> ```yaml
-> Artists:
->   normal: "PSD|支援者"
->   DaikiKase: "支援者様】"
-> file: "(mp4|zip)$"
-> ```
-> :::
-> 注: 使用的是正则过滤 post 标题；Artists-normal 是兜底的通用过滤规则
 
-3. GUI 方式运行 (`v2.3.0`以及之后版本)
+2. GUI 方式运行 (网站选择kemono，预检测通过即进入)
 
 ![run_png](../assets/img/feat/scriptTool.png)
 
-::: tip 一些使用心得说明:
+::: warning 一些使用心得说明:
 
-- 作者表格按钮左侧的 `橡皮擦按钮` 作用是清除输入框
+- 作者表格按钮左侧的 `橡皮擦按钮` 作用是清除输入框和重置初始化文本框
 - 表格点击首行列名能进行排序
 - 表格内右键是命令菜单，分别是对该行作者 Ⅰ发送至输入框 Ⅱ浏览器查看其作品 Ⅲ收藏至本地
-- `加瀬大輝`这种非纯英的作者名，因为过滤方案问题，需要把额外过滤示例粘贴进过滤规则中，目前仅他一人
 
 :::
 
-3.2 命令行工具参考
+::: tip 📏**过滤规则示例** (在 GUI 里设置)
+```yaml
+TitleRe:
+  normal: "PSD|支援者"
+  加瀬大輝: "様】"
+file: "(mp4|zip)$"
+RuleFEnum:
+  mdasdaro: "3316400"
+```
+1. TitleRe：使用的是正则过滤 post 标题；其中特殊的 normal 是兜底的通用过滤规则
+2. file：正则对 post 内的附件文件名过滤
+3. RuleFEnum：复杂规则系过滤一般人用不上，需要自己编代码，可以参考 [keihh函数](https://github.com/jasoneri/ComicGUISpider/blob/GUI/utils/script/image/expander.py)  
+RuleFEnum则是因函数命名而无法处理非纯英作者名，故而使用id映射函数名这种动态方式
+:::
+
+3. 命令行工具参考
 
 ::: tip 脚本相对位置 `utils/script/image/kemono.py`  
 :::
@@ -89,13 +93,13 @@ python kemono.py -p run
 
 ### 📒 说明
 
-基于账号收藏 或 作者id，受配置的 filter 所设限制一定量的任务  
-kemono 性质，资源重复多，文件大，基本设置条件过滤才正常  
+在 GUI 形式下，任务生成全基于作者id的 posts，受配置的 过滤规则 所设限制任务的量  
+kemono 资源重复多，文件大，最好或多或少意识到过滤的重要性  
 
-::: tip 过滤扩展:  
-`expander.py` 内置部分作者命名习惯的过滤，例如`keihh_patreon`
+::: tip 复杂规则系扩展:  
+处于 `expander.py` ，例如`keihh`
 ，其作品通常有无印/v2/v3，而v3会包括无印/v2，这情况就要过滤掉无印/v2  
-鉴于作品集命名杂七杂八的，除通用过滤外可对每一位作者单独增加过滤规则
+复杂规则系过滤需要 python 编码能力
 :::
 
 ---
