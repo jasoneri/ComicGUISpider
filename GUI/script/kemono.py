@@ -45,7 +45,7 @@ class FilterView(FlyoutViewBase):
         first_row.addWidget(self.textEdit)
         
         second_row = QtWidgets.QHBoxLayout()
-        self.linkBtn = HyperlinkButton(FIF.LINK, "https://jasoneri.github.io/ComicGUISpider/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看示例", self)
+        self.linkBtn = HyperlinkButton(FIF.LINK, "https://jasoneri.github.io/ComicGUISpider/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
         spacerItem = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.svBtn = PrimaryToolButton(FIF.SAVE, self)
         self.svBtn.clicked.connect(self.save)
@@ -332,11 +332,15 @@ class KemonoTableView(FramelessWindow):
         Flyout.make(commandBar, target=target_pos, parent=self, aniType=FlyoutAnimationType.FADE_IN)
 
     def send_author_to_input(self, author):
-        self.interface.say(font_color(
-            f"已选ID({author.id}): 作者「{author.name}」({author.service})", cls='theme-tip')
-        )
+        text = f"已选 作者(平台)〈ID〉: {author.name}({author.service})〈{author.id}〉"
+        self.interface.say(font_color(text, cls='theme-tip'))
         self.interface.selected.append(author.id)
         self.interface.kwEdit.setText(f"creatorid={self.interface.selected}".replace("'", '"'))
+        InfoBar.success(
+            title="", content=text,
+            orient=Qt.Horizontal, position=InfoBarPosition.TOP,
+            duration=4000, parent=self
+        )
 
     def open_author_link(self, author):
         """打开作者链接"""
@@ -388,7 +392,7 @@ class KemonoInterface(QFrame):
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.startDateEdit.setDate(QDate(2025, 1, 1))
         self.endDateEdit.setDate(QDate(2045, 1, 1))
-        self.extraFilterBtn = PushButton(FIF.FILTER, "额外过滤", self)
+        self.extraFilterBtn = PushButton(FIF.FILTER, "过滤规则", self)
         self.extraFilterBtn.clicked.connect(self.show_extra_filter)
         second_row.addWidget(startDateLabel)
         second_row.addWidget(self.startDateEdit)

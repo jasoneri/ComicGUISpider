@@ -21,7 +21,7 @@ import tqdm
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList, folder_sub
-from utils.script.image.expander import ArtistsEnum, Filter
+from utils.script.image.expander import FilterMgr, format_naming
 from utils.config.qc import kemono_cfg
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
@@ -204,7 +204,7 @@ class Kemono:
             filter_dict = yaml.safe_load(qconfig_text)
         else:
             filter_dict = self.conf.get('filter', {})
-        self.f = Filter(filter_dict)
+        self.fm = FilterMgr(filter_dict)
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
         self.sv_path = p.Path(self.conf.get('sv_path'))
@@ -238,7 +238,7 @@ class Kemono:
                 {"url": f'''{server_map.get(task["name"], self.k.api.file_prefix)}/data{task.get("path")}?f={task.get("name")}''',
                     "file_name": task.get("name")} 
                 for task in tqdm.tqdm(tasks, ncols=100, desc=f"[{published}]{title}")
-                if not self.k.f.file(task.get("name"))
+                if not self.k.fm.file(task.get("name"))
             ]
             redis_task = {
                 "tasks": post_tasks, "meta": {**meta, "published": published, "title": title}
@@ -263,7 +263,7 @@ class Kemono:
             tasks = post.get("attachments", [])
             post_tasks = []
             for task in tqdm.tqdm(tasks, ncols=100, desc=f"[{published}]{title}"):
-                if not self.k.f.file(task.get("name")):
+                if not self.k.fm.file(task.get("name")):
                     fname = task.get("name") if task.get("name") != "image.png" else \
                         task.get("path").rsplit("/", 1)[-1]
                     _ = {"url": f'''{self.k.api.file_redirect_prefix}/data{task.get("path")}?f={fname}''',
@@ -287,13 +287,15 @@ class Kemono:
                 posts))
             """get filter from kemono_expander.Artists etc."""
             if valid_posts:
-                if hasattr(self.k.f.Artists, _info["name"]):
-                    _expander = getattr(self.k.f.Artists, _info["name"])
-                elif _info["id"] in ArtistsEnum:
-                    _expander = getattr(self.k.f.Artists, ArtistsEnum(_info["id"]).name)
+                if _info["name"] in self.k.fm.re_f.artists_patterns:  # 【普通】标题自定义正则过滤
+                    _expander = self.k.fm.re_f.do_artist_patterns(_info["name"])
+                elif hasattr(self.k.fm.rule_f, _info["name"]):    # 【复杂】规则系，需自写代码
+                    _expander = getattr(self.k.fm.rule_f, _info["name"])
+                elif _info["id"] in self.k.fm.rule_f.ae and hasattr(self.k.fm.rule_f, self.k.fm.rule_f.ae(_info["id"]).name):
+                    _expander = getattr(self.k.fm.rule_f, self.k.fm.rule_f.ae(_info["id"]).name)
                 else:
-                    _expander = self.k.f.Artists.base_process
-                valid_posts = _expander(valid_posts)
+                    _expander = self.k.fm.re_f.base_process
+                valid_posts = format_naming(_expander(valid_posts))
                 return valid_posts
             else:
                 return []

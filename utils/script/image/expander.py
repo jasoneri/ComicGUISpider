@@ -6,7 +6,17 @@ from typing import Dict, Optional
 import pandas as pd
 
 
-class Filter:
+sanitize_re = re.compile(r'[|:<>?*"\\/]')
+
+
+def format_naming(posts):
+    for post in posts:
+        if post.get("title"):
+            post['title'] = sanitize_re.sub('-', post['title'])
+    return posts
+
+
+class FilterMgr:
     def __init__(self, conf_filter: Optional[Dict[str, str]] = None) -> None:
         conf_filter = conf_filter or {}
         for regex_str in ("file",):
@@ -16,13 +26,14 @@ class Filter:
                 setattr(self, regex_str, lambda arg: bool(_.search(arg)))
             else:
                 setattr(self, regex_str, lambda _: False)
-        self.Artists = Artists(conf_filter.get("Artists", {}))
+        self.re_f = ReFilter(conf_filter.get("TitleRe", {}))
+        self.rule_f = RuleFilter(conf_filter.get("RuleFEnum"))
 
 
-class Artists:
+class ReFilter:
     def __init__(self, title_filters: Optional[Dict[str, str]] = None):
         self._sanitize_re = re.compile(r'[|:<>?*"\\/]')
-        self._filters = {}
+        self.artists_patterns = {}
         self.has_normal = False
         
         if title_filters:
@@ -30,22 +41,27 @@ class Artists:
                 self.has_normal = True
                 self._normal_pattern = re.compile(title_filters['normal'])
             for name, pattern in title_filters.items():
-                self._filters[name] = re.compile(pattern)
+                self.artists_patterns[name] = re.compile(pattern)
 
     def base_process(self, posts):
         if self.has_normal:
             posts = list(filter(lambda p: not bool(self._normal_pattern.search(
                 p.get('title', p.get('content', '')))), posts))
-        for post in posts:
-            if post.get("title"):
-                post['title'] = self._sanitize_re.sub('-', post['title'])
         return posts
 
-    def __getattr__(self, name: str):
-        if name in self._filters:
-            pattern = self._filters[name]
-            return lambda posts: [p for p in self.base_process(posts) if not bool(pattern.search(p['title']))]
-        raise AttributeError(f"unget attr: {name}")
+    def do_artist_pattern(self, name: str):
+        pattern = self.artists_patterns[name]
+        return lambda posts: [p for p in self.base_process(posts) if not bool(pattern.search(p['title']))]
+
+
+class RuleFEnum(Enum):
+    DaikiKase="273185"
+    # mdasdaro="3316400"
+
+
+class RuleFilter:
+    def __init__(self, ae: Optional[Dict] = None):
+        self.ae = Enum("RuleFEnumFromDict", ae) if ae else RuleFEnum
 
     @staticmethod
     def keihh(posts):
@@ -63,7 +79,3 @@ class Artists:
         latest_versions = df.loc[df.groupby('BaseName')['Version'].idxmax()]
         dic_posts = latest_versions.drop(['BaseName','Version'], axis=1).to_dict('records')
         return dic_posts
-
-
-class ArtistsEnum(Enum):
-    DaikiKase="273185"
