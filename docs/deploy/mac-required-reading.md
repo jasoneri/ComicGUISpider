@@ -37,12 +37,11 @@ _**根据终端提示操作**_
 :::
 
 
-::: warning _**源码根目录**_ (执行以下命令获取)
-```bash
-echo "$(uv tool dir)/comicguispider/Lib/site-packages"
-```
+::: warning _**源码根目录**_  
+`uv tool dir` 命令输出拼接 `/comicguispider/Lib/site-packages`，  
+`/com.../site-packages`路径之中有个 python3.x.x 的目录  
 
-所有文档中由`site-packages`开始的目录的  
+::: tip 所有文档中由`site-packages`开始的目录的  
 包括此mac部署说明，主说明README，release页面，issue的等等等等，  
 `site-packages`目录就是命令得出的源码根目录
 :::
