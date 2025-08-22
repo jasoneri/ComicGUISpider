@@ -13,18 +13,17 @@
 
 ### pypi换源指引
 
-先选出一个目前你的网络环境能打开的（[清华源](https://pypi.tuna.tsinghua.edu.cn/simple)
- / [阿里源](https://mirrors.aliyun.com/pypi/simple)
- / [华为源](https://repo.huaweicloud.com/repository/pypi/simple)
+先选出当前网络环境能打开的（[清华源](https://pypi.tuna.tsinghua.edu.cn/simple/)
+ / [阿里源](https://mirrors.aliyun.com/pypi/simple/)
+ / [华为源](https://repo.huaweicloud.com/repository/pypi/simple/)，网址后缀加上 comicguispider 检测
 ）
 
 ::: warning 不限以下两种，所有文档的所有涉及pypi源命令因网络问题出错的都是更换源网址这样去处理
 :::
 
-#### Ⅰ. 初次部署换源
+#### Ⅰ. 绿色包部署换源
 
-::: tip 默认安装时使用pypi清华源  
-以下是切换至阿里源命令示例，在解压目录开终端
+::: tip 默认是清华源，以下是切换至阿里源命令示例，在解压目录开终端
 
 ```cmd
 .\CGS.exe -i https://mirrors.aliyun.com/pypi/simple
@@ -33,7 +32,7 @@
 
 #### Ⅱ. CGS更新/脚本集(kemono)额外依赖换源
 
-默认使用pypi清华源，换源通过 [配置窗口点选更换](/config/#pypi%E6%BA%90-pypi-source)  
+默认使用清华源，换源通过 [配置窗口点选更换](/config/#pypi%E6%BA%90-pypi-source)  
 
 ## 2. 爬虫
 
@@ -64,11 +63,6 @@
 - 删干净原目录/换一个解压目录 并重新解压📦绿色包，然后重新初始化部署/更新  
 - 干脆直接使用 [uv tool方式部署安装](/deploy/quick-start#1-下载--部署)
 :::
-
-### 【win】弹出消息框报错而且一堆英文不是中文(非开发者预设报错)的时候
-
-例如`Qxxx:xxxx`, `OpenGL`等，此前已优化过，如还有弹出框警告，  
-尝试在解压目录使终端执行`./CGS.exe > CGS-err.log 2>&1`，然后把`CGS-err.log`发群里反馈
 
 ---
 

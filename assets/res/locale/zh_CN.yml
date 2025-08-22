@@ -28,6 +28,7 @@ GUI:
   input_format_err: "输入格式错误，请鼠标移到输入框查看规则提示"
   reboot_tip: "♻️ 内置重启中: 正在清除残留后台进程.."
   reboot_tip2: "⛺️ 内置重启中: 正在重建ui与后台通讯管道.."
+  ui_lang_need_reboot: "⚠️ui语言设置需保存配置并关闭程序后重启才生效"
   SearchInputStatusTip:
     manga_copy: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"'
     jm: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：时间维度可选 日/周/月/总，例如"收藏总"（3）翻页规则："&page=\d+"'
@@ -109,6 +110,8 @@ GUI:
     confDia_promote_content: "永久流量等"
     confDia_promote_url: "https://hxlm.cc/#/register?code=UfFbIfOq"
     confDia_support_content: "👇请吃个甜筒吧..."
+    confDia_tip_deduplicate_on: "去重模式已开启，保存并内置重启后生效"
+    confDia_tip_adduuid_on: "增加标识已开启，保存并内置重启后生效"
 
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`cookies-eh`"
@@ -151,23 +154,12 @@ SPIDER:
 
 Updater:
   ver_check: "检查版本中"
-  ver_file_not_exist: "没有version文件，准备初始化"
-  check_refresh_code: "检查需要更新的代码"
   code_downloading: "下载代码文件中"
   finish: "更新完毕"
-  not_pkg_markdown: "当前环境无法使用此功能，需要重新下载绿色安装包"
   git_update_desc: "检测为git环境，需自行git pull并自行更新依赖"
-  token_invalid_notification: "[ 本地文件的token全部失效/读取失误，当前将使用无状态去请求github api（受限60请求/小时）]\n下次使用更新会重新下载token文件，还是全部失效/读取失误的话可截图告知开发者"
-  latest_code_overwriting: "使用最新版本代码覆盖中"
-  too_much_waiting_update: "检测到堆积过多待更新版本，将忽略更新消息直接拉至最新版本代码"
-  refreshing_code: "更新代码中"
-  refresh_fail_retry: "更新失败, 准备重试"
-  refresh_fail_retry_over_limit: "是网络问题，重试更新即可。 若其他情况导致更新一直失败请截图发issue或找群反映"
-  code_is_latest: "代码已是最新.. 若有其他问题向群里反映"
-  env_is_latest: "环境已是最新"
   ver_local_latest: "本地版本已是最新.."
   ver_check_fail: "检查版本失败，可重试或前往releases页面查看"
   update_ensure: "确认更新"
   doing: "过程会涉及代码与依赖的更新，请稍等片刻.."
   updated_success: "更新成功，CGS将在5s后重启"
-  updated_fail: "❌ 更新失败，已使用回溯方案保证程序正常使用\n可等会重试或点击链接前往下载（CGS将在10s后重启）\n报错日志为[%s]" 
+  updated_fail: "❌ 更新失败\n可等会重试或点击链接前往下载（CGS将在10s后重启）\n报错日志为[%s]" 

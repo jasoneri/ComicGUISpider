@@ -73,6 +73,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.p_qm.start()
 
     def setupUi(self, MainWindow):
+        if self.first_init:
+            res.set_language(conf.lang)
         super(SpiderGUI, self).setupUi(MainWindow)
         if self.first_init:
             self.splashScreen = CustomSplashScreen(self)

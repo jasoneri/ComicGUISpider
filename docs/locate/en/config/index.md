@@ -14,25 +14,51 @@
 Download directory  
 The `web` folder in the directory structure is because the default association with the [`redViewer`](https://github.com/jasoneri/redViewer) project is set like this
 
+---
+
 ### LogLevel / `log_level`
 
 After the background runs, there will be a log directory, which is the same level as the GUI, and the GUI will give operation guidance when an error occurs
 
+### ConcurrNum / `concurr_num`
+
+effect download speed  
+
 ### Dedup / `isDeduplicate`
 
+「filter icon button」  
 When checked, there will be a style hint in the preview window for downloaded  
 At the same time, the download will automatically filter out the existing records  
 > [!Info] Currently only applicable in 🔞
 
 ### AddUuid / `addUuid`
 
+「flag icon button」  
 Add an identifier at the end of the directory when storing, which is used to handle different works with the same name
+
+### DarkMode / `darkTheme`
+
+「moon icon button」  
+switch mode base on boolean
+
+---
 
 ### Proxy / `proxies`
 
 Proxy
 
 > [!Info] It is recommended to configure the proxy here, rather than the global proxy mode, otherwise a lot of proxy traffic will be consumed when accessing the source
+
+### PypiSource / `pypi_source`
+
+If not pypi, choose pypi plz  
+
+### UiLanguage / `lang`
+
+Ddefault by system language  
+switch language will take effect after save and reboot
+
+---
 
 ### Mapping / `custom_map`
 
@@ -52,6 +78,9 @@ There will be a `number corresponding to the website` prompt when the mouse hove
 It is necessary to use `exhentai`  
 [🎬 Method of acquisition](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif)  
 [🔗 Tool Website](https://tool.lu/en_US/curl/)
+Now support paste curl string to Edit, CGS will inner handle it.
+
+---
 
 ### ClipDb / `clip_db`
 
@@ -83,3 +112,8 @@ image file name suffix
 
 default:  
 bind rV(redViewer) script，use to start etc.  
+
+### `bg_path`
+
+default:  
+CGS will scan png under by bg_path，choose one to set background.  

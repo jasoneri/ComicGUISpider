@@ -40,4 +40,7 @@ If you have needs of custom requirements, reference [🔨Configuration](../confi
 You need to update to `latest stable version` before you can update to `latest dev version`
 :::
 
-+ You can also choose to download the latest version manually to the releases, but you need to pay attention to the configuration files and duplicate records not being overwritten and lost
++ or `uv tool upgrade ComicGUISpider`
+
++ or win-portable-exe `.\CGS.exe -v 2.4.1`  
+need `_pystand_static.int` first-line version of `v1`
