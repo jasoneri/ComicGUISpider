@@ -19,9 +19,10 @@
 
 + 或使用`uv tool`  
 
-::: info 仅使用时不建议用克隆源码方式，否则需要自行管理环境，同样需要用到 uv，那还是不如直接用 uv tool
+::: info 仅使用时不建议用克隆源码方式，否则需要自行管理环境，  
+同样需要用到 uv，那还是不如直接用 uv tool
 :::
-::: tip 流程：  
+::: details `uv tool` 流程（点击展开）：  
 1. 安装 [astral-sh/uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的远程安装脚本  
 2. （可选）设置 uv tool 的环境变量，否则 win 会默认装在C盘上  
     win: 新建用户级的环境变量，设置后需开新终端窗口生效  
@@ -73,32 +74,19 @@ cgs-cli --help
 
 ## 4. 更新
 
-::: warning 版本在 `v2.4.0` 之前的一律到 [最新稳定版releases](https://github.com/jasoneri/ComicGUISpider/releases/latest) 上获取
-:::
-
 + CGS 内置了更新模块，能在配置窗口中点击 `检查更新` 按钮进行更新  
 ::: info 当 `本地版本` < `最新稳定版` < `最新开发版` 时  
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 或直接使用 `uv tool upgrade ComicGUISpider`
++ 或 uv tool 管理的 `uv tool upgrade ComicGUISpider`
 
-::: warning 绿色包注意事项
-无论win/mac，绿色包内程序不再含 CGS 代码，所以单纯从新 release 上下载新版绿色包覆盖是没用的  
++ 或 win-绿色包 安装指定版本，例如 `2.4.1`  
+需 `解压目录/_pystand_static.int` 首行含 version 且大于等于 `v1`，否则从最新版绿色包获取
 
----
-
-mac绿色包：可用以上两种方式更新；  
-
----
-
-::: info win绿色包可选更新方式：
-
-+ 内置更新  
-+ 或删掉原解压目录的 `comicguispider` 和 `bin` 两个文件夹后重新运行 `CGS.exe`
-+ 或换个解压目录安装
-
-:::
+```cmd
+.\CGS.exe -v 2.4.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
 
 ## 5. 搭配阅读器
 

@@ -45,10 +45,10 @@ class Api:
         return f"https://cgs-status-badges.pages.dev/status_{web}.json"
 
 
-async def fetch(url, _transport_kw={}):
+async def fetch(url, _tkw=None, hea=None):
     try:
-        async with httpx.AsyncClient(timeout=7, headers=headers,
-                transport=httpx.AsyncHTTPTransport(**transport_kw, **_transport_kw)) as cli:
+        async with httpx.AsyncClient(timeout=7, headers=hea or headers,
+                transport=httpx.AsyncHTTPTransport(**transport_kw, **(_tkw or {}))) as cli:
             _resp = await cli.get(url)
             _resp_body = _resp.content
     except Exception as e:
@@ -90,6 +90,8 @@ class StatusToolService:
             return content.replace(b'\r\n', b'\n')
         resp_bytes = await fetch(url)
         local_bytes = local_f.read_bytes()
+        if b"import" not in resp_bytes:
+            raise ValueError(f"{local_f.name} content err: {resp_bytes.decode('utf-8')}")
         if to_md5(normalize_line_endings(local_bytes)) != to_md5(resp_bytes):
             with open(local_f, 'w', encoding='utf-8', newline='\n') as f:
                 f.write(resp_bytes.decode('utf-8'))
@@ -221,6 +223,7 @@ class StatusToolView(QWidget):
                 duration=sec*1000, parent=self.gui.textBrowser
             )
             self.gui.toolWin.close()
+            self.gui.retrybtn.setEnabled(True)
             QTimer.singleShot(6000, self.gui.retrybtn.click)
         else:
             InfoBar.info(
