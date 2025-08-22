@@ -17,6 +17,16 @@ from assets.res.transfer import main as translation_compile
     2. add `br` at the end of a paragraph with multiple lines, forbid the use of `br` at the beginning of a paragraph
 """
 
+_path = pathlib.Path(__file__).parent
+lang = None
+_ = None
+i18n = None
+Vars = None
+GUI = None
+SPIDER = None
+EHentai = None
+Updater = None
+
 
 def getUserLanguage():
     sys_lang = QLocale.system().name()
@@ -25,31 +35,17 @@ def getUserLanguage():
     return 'en_US'
 
 
-_path = pathlib.Path(__file__).parent
 lang = getUserLanguage()
 
 
-def is_compiled():
-    if not (_path.joinpath(f'locale/{lang}/LC_MESSAGES/res.mo').exists() and \
-        _path.joinpath(f'locale/{lang}.hash').exists()):
-            return False
-    with open(_path.joinpath(f'locale/{lang}.hash'), 'r', encoding='utf-8') as f:
-        return hashlib.sha256(_path.joinpath(f'locale/{lang}.yml').read_bytes()).hexdigest() == f.read()
-
-
-_ = is_compiled()
-if not _:
-    translation_compile(_path, lang)
-
-gettext.bindtextdomain('res', str(_path / 'locale'))
-gettext.textdomain('res')
-
-try:
-    _translation = gettext.translation('res', str(_path / 'locale'), languages=[lang], fallback=False)
-    _ = _translation.gettext
-except FileNotFoundError as e:
-    print(str(e))
-    _ = gettext.gettext
+def is_compiled(current_lang):
+    mo_path = _path.joinpath(f'locale/{current_lang}/LC_MESSAGES/res.mo')
+    hash_path = _path.joinpath(f'locale/{current_lang}.hash')
+    yml_path = _path.joinpath(f'locale/{current_lang}.yml')
+    if not (mo_path.exists() and hash_path.exists()):
+        return False
+    with open(hash_path, 'r', encoding='utf-8') as f:
+        return hashlib.sha256(yml_path.read_bytes()).hexdigest() == f.read()
 
 
 class TranslationNamespace(types.SimpleNamespace):
@@ -81,11 +77,34 @@ def create_translation_namespaces():
     return types.SimpleNamespace(**modules)
 
 
-# 创建动态翻译对象
-i18n = create_translation_namespaces()
+def set_language(new_lang: str):
+    """
+    设置并加载新的语言翻译。
+    这个函数会重新编译（如果需要），加载翻译文件，并更新所有模块级变量。
+    """
+    global lang, _, i18n, Vars, GUI, SPIDER, EHentai, Updater
 
-Vars = i18n.Vars
-GUI = i18n.GUI
-SPIDER = i18n.SPIDER
-EHentai = i18n.EHentai
-Updater = i18n.Updater
+    lang = new_lang
+    if not is_compiled(lang):
+        translation_compile(_path, lang)
+
+    gettext.bindtextdomain('res', str(_path / 'locale'))
+    gettext.textdomain('res')
+    try:
+        _translation = gettext.translation('res', str(_path / 'locale'), languages=[lang], fallback=False)
+        _ = _translation.gettext
+    except FileNotFoundError as e:
+        print(str(e))
+        _ = gettext.gettext
+
+    i18n = create_translation_namespaces()
+
+    Vars = i18n.Vars
+    GUI = i18n.GUI
+    SPIDER = i18n.SPIDER
+    EHentai = i18n.EHentai
+    Updater = i18n.Updater
+
+
+initial_lang = getUserLanguage()
+set_language(initial_lang)

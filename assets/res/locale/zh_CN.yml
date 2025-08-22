@@ -28,6 +28,7 @@ GUI:
   input_format_err: "输入格式错误，请鼠标移到输入框查看规则提示"
   reboot_tip: "♻️ 内置重启中: 正在清除残留后台进程.."
   reboot_tip2: "⛺️ 内置重启中: 正在重建ui与后台通讯管道.."
+  ui_lang_need_reboot: "⚠️ui语言设置需保存配置并关闭程序后重启才生效"
   SearchInputStatusTip:
     manga_copy: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"'
     jm: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：时间维度可选 日/周/月/总，例如"收藏总"（3）翻页规则："&page=\d+"'
@@ -109,6 +110,8 @@ GUI:
     confDia_promote_content: "永久流量等"
     confDia_promote_url: "https://hxlm.cc/#/register?code=UfFbIfOq"
     confDia_support_content: "👇请吃个甜筒吧..."
+    confDia_tip_deduplicate_on: "去重模式已开启，保存并内置重启后生效"
+    confDia_tip_adduuid_on: "增加标识已开启，保存并内置重启后生效"
 
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`cookies-eh`"

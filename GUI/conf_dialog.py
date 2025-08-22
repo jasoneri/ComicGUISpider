@@ -4,20 +4,21 @@ import ast
 import json
 import pathlib
 import codecs
+from functools import partial
 
 import yaml
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
 from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QUrl, Qt
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
-    PushSettingCard, InfoBarPosition, TransparentToggleToolButton,
+    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar
 )
 import uncurl
 
 from assets import res
-from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT
+from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG
 from utils import conf, convert_punctuation as cp, exc_p
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
@@ -51,6 +52,7 @@ class SvPathCard(PushSettingCard):
 class ConfDialog(QDialog, Ui_ConfDialog):
     def __init__(self, parent=None):
         super(ConfDialog, self).__init__(parent)
+        self._init_flag = True
         self.gui = parent
         self.setupUi(self)
 
@@ -63,14 +65,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
-        self._preset()
         self.insert_btn()
+        self._preset()
 
     def retranslateUiAgain(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
         self.label_2.setText(_translate("Dialog", res.GUI.Uic.confDia_labelLogLevel))
-        self.isDeduplicate.setText(_translate("Dialog", res.GUI.Uic.confDia_labelDedup))
-        self.addUuid.setText(_translate("Dialog", res.GUI.Uic.confDia_labelAddUuid))
         self.label_4.setText(_translate("Dialog", res.GUI.Uic.confDia_labelProxy))
         self.label_3.setText(_translate("Dialog", res.GUI.Uic.confDia_labelMap))
         self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
@@ -87,6 +87,9 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.pypiSourceBox.setItemText(2, _translate("Dialog", "阿里源"))
         self.pypiSourceBox.setItemText(3, _translate("Dialog", "华为源"))
         self.cookiesBox.setCurrentText(support[0])
+        
+        for k, ui_key in LANG.items():
+            self.langBox.addItem(ui_key, userData=k)
 
     def _preset(self):
         self.sv_path_card = SvPathCard(self)
@@ -98,41 +101,62 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
 
-        # 连接信号
-        self.cookiesBox.currentTextChanged.connect(self._on_cookie_type_changed)
-    
     def insert_btn(self):
-        def _create_desc():
-            QDesktopServices.openUrl(QUrl('https://jasoneri.github.io/ComicGUISpider/'))
         self.descBtn = PrimaryPushButton(FIF.LIBRARY, res.GUI.Uic.confDia_descBtn)
         self.descBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.descBtn.setMaximumSize(QtCore.QSize(110, 16777215))
-        self.descBtn.clicked.connect(_create_desc)
-        def _regular_update():
-            self.puThread = ProjUpdateThread(self)
-            Updater(self.gui).run()
         self.updateBtn = PushButton(FIF.UPDATE, res.GUI.Uic.confDia_updateBtn)
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
-        self.updateBtn.clicked.connect(_regular_update)
         self.supportBtn = TransparentPushButton(FIF.CAFE, res.GUI.Uic.confDia_supportBtn)
-        self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
-            view=SupportView(Proj.url, self), target=self.supportBtn, parent=self
-        ))
         
         self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
 
+        self.isDeduplicate = TransparentToggleToolButton(FIF.FILTER)
+        self.addUuid = TransparentToggleToolButton(FIF.FLAG)
         self.darkTheme = TransparentToggleToolButton(FIF.QUIET_HOURS)
-        def switch_mode():
+        self.horizontalLayout_log_level.addWidget(self.isDeduplicate)
+        self.horizontalLayout_log_level.addWidget(self.addUuid)
+        self.horizontalLayout_log_level.addWidget(self.darkTheme)
+
+    def bind_logic(self):
+        def _open_docs():
+            QDesktopServices.openUrl(QUrl('https://jasoneri.github.io/ComicGUISpider/'))
+        self.descBtn.clicked.connect(_open_docs)
+        def _switch_mode():
             if self.darkTheme.isChecked():
                 conf.darkTheme = True
             else:
                 conf.darkTheme = False
             theme_mgr.set_dark(conf.darkTheme)
-        self.darkTheme.clicked.connect(switch_mode)
-        self.horizontalLayout_proxies.addWidget(self.darkTheme)
+        self.darkTheme.clicked.connect(_switch_mode)
+        def _regular_update():
+            self.puThread = ProjUpdateThread(self)
+            Updater(self.gui).run()
+        self.updateBtn.clicked.connect(_regular_update)
+        self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
+            view=SupportView(Proj.url, self), target=self.supportBtn, parent=self
+        ))
+        def _tip_lang_change(idx):
+            if self.langBox.itemData(idx) != conf.lang:
+                InfoBar.success(
+                    title="", content=res.GUI.ui_lang_need_reboot,
+                    orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+                    duration=5000, parent=self
+                )
+        self.langBox.activated.connect(_tip_lang_change)
+        self.cookiesBox.currentTextChanged.connect(self._on_cookie_type_changed)
+        def _tip_on(is_checked: bool, tip_content=None):
+            if is_checked:
+                InfoBar.success(
+                    title="", content=tip_content,
+                    orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+                    duration=4000, parent=self
+                )
+        self.isDeduplicate.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_deduplicate_on))
+        self.addUuid.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_adduuid_on))
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
@@ -140,8 +164,6 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         # 处理cookies配置
         self._load_cookie_config()
-        self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
-        self.pypiSourceBox.setCurrentIndex(getattr(conf, "pypi_source"))
         # 2. CheckBox类配置
         for _ in ('addUuid', 'isDeduplicate', "darkTheme"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
@@ -151,6 +173,14 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         super(ConfDialog, self).show()
         # 4. SettingCard卡片类配置
         self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
+        # 5. ComboBox类
+        self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
+        self.pypiSourceBox.setCurrentIndex(getattr(conf, "pypi_source"))
+        self.langBox.setCurrentIndex(self.langBox.findData(getattr(conf, "lang")))
+        # 仅当 初次confdia ui创建 & conf值设入ui后，才绑定槽函数
+        if self._init_flag:
+            self.bind_logic()
+            self._init_flag = False
 
     def _on_cookie_type_changed(self, cookie_type):
         conf.cookies.switch(cookie_type)
@@ -186,17 +216,18 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
         config = {
             "sv_path": sv_path,
+            "log_level": getattr(self, "logLevelComboBox").currentText(),
+            "lang": getattr(self, "langBox").currentData(),
+            "concurr_num": getattr(self, "concurr_numEdit").value(),
+            "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
+            "addUuid": getattr(self, "addUuid").isChecked(),
+            "darkTheme": getattr(self, "darkTheme").isChecked(),
+            "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
+            "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
             "custom_map": yaml.safe_load(cp(getattr(self, "custom_mapEdit").toPlainText())),
             "completer": yaml.safe_load(cp(getattr(self, "completerEdit").toPlainText())),
-            "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
-            "log_level": getattr(self, "logLevelComboBox").currentText(),
-            "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
-            "addUuid": getattr(self, "addUuid").isChecked(),
-            "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
-            "darkTheme": getattr(self, "darkTheme").isChecked(),
             "clip_db": getattr(self, "clip_dbEdit").text(),
             "clip_read_num": getattr(self, "clip_read_numEdit").value(),
-            "concurr_num": getattr(self, "concurr_numEdit").value()
         }
         conf.update(**config)
 

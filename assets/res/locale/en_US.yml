@@ -28,6 +28,7 @@ GUI:
   input_format_err: "Input format error - hover over field for rules"
   reboot_tip: "♻️ rebooting: cleaning background processes..."
   reboot_tip2: "⛺️ rebooting: reconstructing UI and instances.."
+  ui_lang_need_reboot: "⚠️ui-language settings will take effect when save config and reboot"
   SearchInputStatusTip:
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
@@ -109,6 +110,8 @@ GUI:
     confDia_promote_content: "need VPN?"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_support_content: "Donations will use to buy domain etc.."
+    confDia_tip_deduplicate_on: "Dedup mode on, take effect after save and reboot"
+    confDia_tip_adduuid_on: "AddUuid on, take effect after save and reboot"
 
 EHentai:
   COOKIES_NOT_SET: "`eh-cookies` must be set for exhentai access"
