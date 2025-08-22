@@ -45,9 +45,10 @@ body:
       description: 在哪些系统中出现此问题/In which systems does this problem occur
       multiple: true
       options:
-        - Windows10~+
-        - Windows7~-
+        - Windows10
+        - Windows11
         - macOS
+        - 其他/else
     validations:
       required: true
   - type: textarea

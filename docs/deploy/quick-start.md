@@ -81,8 +81,12 @@ cgs-cli --help
 
 + 或 uv tool 管理的 `uv tool upgrade ComicGUISpider`
 
-+ 或 win-绿色包 `.\CGS.exe -v 2.4.1 -i https://pypi.tuna.tsinghua.edu.cn/simple`  
-需要 `解压目录/_pystand_static.int` 首行 version 为 `v1`，否则从最新版绿色包获取
++ 或 win-绿色包 安装指定版本，例如 `2.4.1`  
+需 `解压目录/_pystand_static.int` 首行含 version 且大于等于 `v1`，否则从最新版绿色包获取
+
+```cmd
+.\CGS.exe -v 2.4.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
 
 ## 5. 搭配阅读器
 
