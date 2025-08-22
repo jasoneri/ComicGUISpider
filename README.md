@@ -32,7 +32,7 @@
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
 | [拷贝漫画](https://www.2025copy.com/)    | :cn: | | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
-| [Māngabz](https://mangabz.com)        | :cn: | 代理 | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
+| [Māngabz](https://mangabz.com)        | :cn: | | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
 | [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
@@ -57,25 +57,15 @@
 
 #### 🎁 Features
 
-✅ 已打包上传至 pypi ，可使用 uv tool 管理/运行 CGS [查看细则](https://jasoneri.github.io/ComicGUISpider/deploy/quick-start)  
-✅ 支持日夜模式切换，已做字体颜色优化  
-✅ 新增支持 kemono的 discord 资源下载  
+✅ 支持 kemono 的 discord 资源下载  
+✅ 配置窗口新增 ui语言切换，同时更新了 ui，去重、增加标识改为图标触发按钮，详情查阅 [🔨主配置文档](https://jasoneri.github.io/ComicGUISpider/config)
 
 #### 🐞 Fix
 
-✅ 修复 domainTool 的 jm 域名检测  
-✅ 修复 kemomo 的 域名/api 变更相关
+✅ 优化 kemono 过滤相关, 增加发送提示  
+✅ 修复系统语言非简中时导致卡死在启动界面的情况  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
-
-<details>
-<summary> <code>v2.4.2-beta</code> 开发版特性👈看就点</summary>
-
-#### 🐞 Fix
-
-✅ 优化 kemono 过滤相关, 增加发送提示
-
-</details>
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
 
