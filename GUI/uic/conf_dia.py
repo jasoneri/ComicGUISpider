@@ -15,13 +15,13 @@ from qfluentwidgets import CheckBox, ComboBox, CompactSpinBox, LineEdit, Primary
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(500, 470)
+        Dialog.resize(525, 470)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(Dialog.sizePolicy().hasHeightForWidth())
         Dialog.setSizePolicy(sizePolicy)
-        Dialog.setMinimumSize(QtCore.QSize(500, 470))
+        Dialog.setMinimumSize(QtCore.QSize(525, 470))
         Dialog.setMaximumSize(QtCore.QSize(650, 530))
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap(":/CGS-logo.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -83,22 +83,6 @@ class Ui_Dialog(object):
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line.setObjectName("line")
         self.horizontalLayout_log_level.addWidget(self.line)
-        self.isDeduplicate = CheckBox(Dialog)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.isDeduplicate.sizePolicy().hasHeightForWidth())
-        self.isDeduplicate.setSizePolicy(sizePolicy)
-        self.isDeduplicate.setObjectName("isDeduplicate")
-        self.horizontalLayout_log_level.addWidget(self.isDeduplicate)
-        self.addUuid = CheckBox(Dialog)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.addUuid.sizePolicy().hasHeightForWidth())
-        self.addUuid.setSizePolicy(sizePolicy)
-        self.addUuid.setObjectName("addUuid")
-        self.horizontalLayout_log_level.addWidget(self.addUuid)
         self.dialogVLayout.addLayout(self.horizontalLayout_log_level)
         self.horizontalLayout_proxies = QtWidgets.QHBoxLayout()
         self.horizontalLayout_proxies.setObjectName("horizontalLayout_proxies")
@@ -128,6 +112,9 @@ class Ui_Dialog(object):
         self.pypiSourceBox.addItem("")
         self.pypiSourceBox.addItem("")
         self.horizontalLayout_proxies.addWidget(self.pypiSourceBox)
+        self.langBox = ComboBox(Dialog)
+        self.langBox.setObjectName("langBox")
+        self.horizontalLayout_proxies.addWidget(self.langBox)
         self.dialogVLayout.addLayout(self.horizontalLayout_proxies)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
@@ -158,7 +145,6 @@ class Ui_Dialog(object):
         self.custom_mapEdit.setSizePolicy(sizePolicy)
         self.custom_mapEdit.setStyleSheet("QTextEdit {\n"
 "background-image: url(:/configDialog/ba_gamer.png);\n"
-"color: black;\n"
 "}")
         self.custom_mapEdit.setObjectName("custom_mapEdit")
         self.horizontalLayout.addWidget(self.custom_mapEdit)
@@ -186,7 +172,6 @@ class Ui_Dialog(object):
         self.completerEdit.setToolTipDuration(-1)
         self.completerEdit.setStyleSheet("QTextEdit {\n"
 "background-image: url(:/configDialog/ba_swimsuit.png);\n"
-"color: black;\n"
 "}")
         self.completerEdit.setObjectName("completerEdit")
         self.horizontalLayout_label_completer.addWidget(self.completerEdit)
@@ -214,7 +199,6 @@ class Ui_Dialog(object):
         self.cookiesEdit.setToolTipDuration(-1)
         self.cookiesEdit.setStyleSheet("QTextEdit {\n"
 "background-image: url(:/configDialog/fgo_bg.png);\n"
-"color: black;\n"
 "}")
         self.cookiesEdit.setObjectName("cookiesEdit")
         self.horizontalLayout_label_ehCookies.addWidget(self.cookiesEdit)
@@ -269,6 +253,7 @@ class Ui_Dialog(object):
         self.gridLayout_2.addLayout(self.dialogVLayout, 0, 0, 1, 1)
 
         self.retranslateUi(Dialog)
+        self.langBox.setCurrentIndex(-1)
         self.cancelBtn.clicked.connect(Dialog.reject) # type: ignore
         self.acceptBtn.clicked.connect(Dialog.accept) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(Dialog)
@@ -283,7 +268,7 @@ class Ui_Dialog(object):
         self.logLevelComboBox.setItemText(3, _translate("Dialog", "ERROR"))
         self.label_4.setToolTip(_translate("Dialog", "proxies"))
         self.proxiesEdit.setToolTip(_translate("Dialog", "proxies"))
-        self.proxiesEdit.setPlaceholderText(_translate("Dialog", "example-of-v2rayN 127.0.0.1:10809"))
+        self.proxiesEdit.setPlaceholderText(_translate("Dialog", "e.g.(v2rayN) 127.0.0.1:10809"))
         self.label_3.setToolTip(_translate("Dialog", "custom_map"))
         self.label_completer.setToolTip(_translate("Dialog", "completer/preset"))
         self.completerEdit.setToolTip(_translate("Dialog", "completer/preset"))

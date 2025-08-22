@@ -144,6 +144,7 @@ class Conf(BaseConf):
     sv_path: t.Union[p.Path, str] = curr_os.default_sv_path
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
+    lang: str = ''
     pypi_source: int = 0
     addUuid: bool = False
     isDeduplicate: bool = False
@@ -169,14 +170,15 @@ class Conf(BaseConf):
         with open(self.file, 'r', encoding='utf-8') as fp:
             cfg = fp.read()
         yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
+        yml_config['lang'] = yml_config.get('lang', res.lang)
         for k, v in yml_config.items():
             if k == "sv_path" and v == r"D:\Comic":
                 v = curr_os.default_sv_path
             # 跳过cookie相关字段，由ConfCookie处理
-            if k == "pypi_source" and res.lang == "zh_CN":
-                setattr(self, k, v or 1)
-            elif k != "cookies":
+            if k != "cookies":
                 setattr(self, k, v or getattr(self, k, None))
+        if self.pypi_source == 0 and self.lang == "zh_CN":
+            setattr(self, "pypi_source", yml_config.get("pypi_source", 1))
         for _ in ("sv_path", "clip_db", "rv_script", "bg_path"):
             setattr(self, _, p.Path(getattr(self, _)))
         self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)

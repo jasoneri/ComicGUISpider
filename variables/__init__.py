@@ -4,6 +4,11 @@ from assets import res
 
 VER = "v2.4.1"
 
+LANG = {
+    "en_US": "English",
+    "zh_CN": "简体中文"
+}
+
 SPIDERS = {
     1: 'manga_copy',    # 🇨🇳 
     2: 'jm',            # 🇨🇳 🔞
@@ -32,7 +37,6 @@ DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of co
     5: ['更新', '人气'],
     6: ['index-all', 'popular/week-all', 'popular/month-all']
 }
-
 STATUS_TIP = {
     0: None,
     1: f"manga_copy: {res.GUI.SearchInputStatusTip.manga_copy}",
