@@ -19,14 +19,6 @@ echo "$(uv tool dir)/comicguispider/Lib/site-packages"
 
 ## 🔰 Others
 
-### Trying for pop-up error messages
-
-```bash
-cgs
-# or
-uv tool run --from comicguispider cgs
-```
-
 ### Bug report / submit issue
 
 When running software on macOS and encountering errors that need to be reported as issues, in addition to selecting `macOS` in the system, 

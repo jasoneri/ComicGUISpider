@@ -8,7 +8,7 @@
 need readed [macOS Deploy](./mac-required-reading.md) document
 :::
 
-+ Or use [astral-sh/uv](https://github.com/astral-sh/uv) ( easily install by `brew install uv` )  
++ Or use [astral-sh/uv](https://github.com/astral-sh/uv) ( easily install by `brew install uv`, or [remote installation script](https://docs.astral.sh/uv/#installation) )  
 
 ```bash
 uv tool install comicguispider
@@ -40,7 +40,14 @@ If you have needs of custom requirements, reference [🔨Configuration](../confi
 You need to update to `latest stable version` before you can update to `latest dev version`
 :::
 
-+ or `uv tool upgrade ComicGUISpider`
++ or `uv tool` install specified version such as `2.4.1`
+```zsh
+uv tool install ComicGUISpider==2.4.1 --force
+```
 
-+ or win-portable-exe `.\CGS.exe -v 2.4.1`  
++ or win-portable-exe install specified version such as `2.4.1`  
 need `_pystand_static.int` first-line version of `v1`
+
+```cmd
+.\CGS.exe -v 2.4.1
+```
