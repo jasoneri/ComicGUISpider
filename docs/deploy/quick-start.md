@@ -19,11 +19,11 @@
 
 + 或使用`uv tool`  
 
-::: info 仅使用时不建议用克隆源码方式，否则需要自行管理环境，  
-同样需要用到 uv，那还是不如直接用 uv tool
+::: info 仅使用时不建议用克隆源码方式，否则需要自行管理环境 `uv sync`，  
+同样需要用到 uv，那还是不如直接用 `uv tool`
 :::
 ::: details `uv tool` 流程（点击展开）：  
-1. 安装 [astral-sh/uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的远程安装脚本  
+1. 安装 [uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的 [远程安装脚本](https://docs.astral.sh/uv/#installation)  
 2. （可选）设置 uv tool 的环境变量，否则 win 会默认装在C盘上  
     win: 新建用户级的环境变量，设置后需开新终端窗口生效  
     &emsp;`UV_TOOL_DIR`(uv tool安装项目的位置),  
@@ -70,7 +70,7 @@ cgs-cli --help
 
 ## 3. 配置
 
-有自定义需求的，参考 [🔨主配置文档](../config/index.md) 进行设置
+有自定义需求的，参考 [🔨主配置文档](/config/index.md) 进行设置
 
 ## 4. 更新
 

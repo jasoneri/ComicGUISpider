@@ -67,9 +67,12 @@
 ---
 
 ::: warning 如果存在上述没有覆盖的问题
-请带上 `log` 到 [issue](
+提问前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
+)，至起码阅读过 [不该问的问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98
+) 和 [好问题与蠢问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)  
+基于以上，请带上 `log` 到 [issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
-) 反馈 或 进群(右上角qq/discord)反馈。
+) 反馈 或 进群(右上角qq/discord)反馈。  
 :::
 
 <iframe src="https://discord.com/widget?id=1373740034536112138&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>

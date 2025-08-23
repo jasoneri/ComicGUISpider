@@ -47,7 +47,9 @@
 )](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;
 关注/取消关注项目是你的自由，个人开发比较难做到一错不漏，  
 提issue/群反映 → 项目改进修复，尤其对这种实时性强且多变的项目，才算得上开源社区形态...  
-但无反馈/无效反馈/有效反馈比较难平衡，鉴于CGS目前还仅单人开发，反馈前三思，已阅文档已观issue而再起**
+但提问前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
+)，至起码阅读过 [不该问的问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98
+) 和 [好问题与蠢问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)**
 
 ---
 
@@ -92,6 +94,9 @@
     <td><div align="center"><a href="https://github.com/p0deje/Maccy" target="_blank">
       <img src="https://maccy.app/img/maccy/Logo.png" alt="logo" height="50">
       <br>Maccy</a></div></td>
+    <td><div align="center"><a href="https://github.com/astral-sh/uv" target="_blank">
+      <img src="https://docs.astral.sh/uv/assets/logo-letter.svg" alt="logo" height="50">
+      <br>uv</a></div></td>
     <td><div align="center">etc..</div></td>
   </tr>  
 </tbody></table>

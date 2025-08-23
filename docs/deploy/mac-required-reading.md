@@ -6,7 +6,7 @@
 
 ---
 
-也推荐干脆直接使用 [uv tool方式部署安装](/deploy/quick-start#1-下载--部署)
+绿色包使用gitee源，墙外的建议直接使用 [uv tool方式部署安装](/deploy/quick-start#1-下载--部署)
 :::
 
 ## ⛵️ 绿色包操作
@@ -48,12 +48,17 @@ _**根据终端提示操作**_
 
 ## 🔰 其他
 
-### CGS.app 无法运行就开终端直接用 uv 编译的
+### 经过部署后的绿色包 `CGS.app` 与终端使用 `uv tool` 是共通的  
+
+全部文档提及到的 `uv tool` 命名均可直接用，例如
 
 ```bash
+# 1. 终端运行
 cgs
 # 或
 uv tool run --from comicguispider cgs
+# 2. 更新到指定版本2.4.1
+uv tool install ComicGUISpider==2.4.1 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ### bug report / 提交报错 issue

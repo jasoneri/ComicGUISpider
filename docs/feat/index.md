@@ -45,7 +45,8 @@
 
 #### 4.1.1 显示记录
 
-配合 [rV(redViewer)](https://github.com/jasoneri/redViewer) 使用，用 rV 阅读产生看到哪最新话，然后配合下载  
+显示已阅最新话、下载最新话  
+已阅最新话需配合 [rV(redViewer)](https://github.com/jasoneri/redViewer) 使用才有记录  
 Maybe: 后续能扩展做订阅
 
 #### 4.1.2 整合章节
@@ -55,7 +56,7 @@ Maybe: 后续能扩展做订阅
 
 ### 4.2 状态工具 / statusTool
 
-除了显示状态，还有对策加密更新勤快的网站功能 ~~（少更点吧欧内该）~~  
+除了显示可用状态，还有对策加密更新勤快的网站功能 ~~（少更点吧欧内该）~~  
 
 ### 4.3 域名工具 / domainTool
 
