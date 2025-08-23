@@ -139,7 +139,7 @@ class Proj:
     def local_update(self, ver=None):
         self.ver = ver or self.update_info.get('tag_name') or self.local_ver
         try:
-            cmd = [uv_exc,"tool","upgrade",f"ComicGUISpider=={self.ver}"]
+            cmd = [uv_exc,"tool","install",f"ComicGUISpider=={self.ver}","--force"]
             cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
             self.print("[uv cmd]" + " ".join(cmd))
             process = subprocess.Popen(
