@@ -79,7 +79,11 @@ cgs-cli --help
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 或 uv tool 管理的 `uv tool upgrade ComicGUISpider`
++ 或 uv tool 管理的指定版本，例如 `2.4.1`
+
+```zsh
+uv tool install ComicGUISpider==2.4.1 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
 
 + 或 win-绿色包 安装指定版本，例如 `2.4.1`  
 需 `解压目录/_pystand_static.int` 首行含 version 且大于等于 `v1`，否则从最新版绿色包获取
