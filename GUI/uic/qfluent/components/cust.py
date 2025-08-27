@@ -115,7 +115,7 @@ class ExpandSettings(QtWidgets.QWidget):
         custMapLayout.addLayout(self.custMapLabelLayout)
         self.conf_dia.custom_mapEdit = TextEdit(self.conf_dia)
         self.conf_dia.custom_mapEdit.setStyleSheet("QTextEdit {\n"
-"background-image: url(:/configDialog/ba_gamer.png);\n"
+"background-image: url(:/configDialog/fgo_bg.png);\n"
 "}")
         self.conf_dia.custom_mapEdit.setObjectName("custom_mapEdit")
         custMapLayout.addWidget(self.conf_dia.custom_mapEdit)
@@ -135,7 +135,7 @@ class ExpandSettings(QtWidgets.QWidget):
             now = not self.isVisible()
             self.setVisible(now)
             self.conf_dia.advBtn.setChecked(now)
-            self.conf_dia.refresh_size_for_expand()
+            self.conf_dia.refresh_size_for_expand(now)
             self.conf_dia.advBtn.setText(res.GUI.Uic.confDia_hide_adv_settings if now else res.GUI.Uic.confDia_show_adv_settings)
         self.conf_dia.advBtn.clicked.connect(_toggle_adv)
 
