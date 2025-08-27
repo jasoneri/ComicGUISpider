@@ -112,6 +112,8 @@ GUI:
     confDia_support_content: "👇请吃个甜筒吧..."
     confDia_tip_deduplicate_on: "去重模式已开启，保存并内置重启后生效"
     confDia_tip_adduuid_on: "增加标识已开启，保存并内置重启后生效"
+    confDia_show_adv_settings: "点击展开高级设置"
+    confDia_hide_adv_settings: "点击隐藏高级设置"
 
 EHentai:
   COOKIES_NOT_SET: "访问 exhentai 必须设置`cookies-eh`"
