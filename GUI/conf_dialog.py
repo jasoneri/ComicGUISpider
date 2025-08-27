@@ -128,9 +128,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.expandLayout.insertWidget(0, self.advBtn)
         self.expandLayout.addWidget(self._adv_content)
 
-    def refresh_size_for_expand(self):
+    def refresh_size_for_expand(self, _):
         QApplication.processEvents()
-        self.adjustSize()
+        if _:
+            self.adjustSize()
+        else:
+            self.resize(0, 0)
         screen_geom = QApplication.primaryScreen().availableGeometry()
         max_allowed = int(screen_geom.height() * 0.9)
         if self.height() > max_allowed:

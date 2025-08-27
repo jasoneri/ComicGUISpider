@@ -71,10 +71,6 @@
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
 
-## 🎣互动
-
-- 【常驻】[配置窗口背景图主题月度投票](https://github.com/jasoneri/ComicGUISpider/discussions/99)  
-
 ## 🍮食用搭配(阅读器)
 
 完全适配 CGS ， `rV (redViewer)`  

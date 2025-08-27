@@ -158,7 +158,7 @@ class Ui_Dialog(object):
         self.cookiesEdit.setToolTip("")
         self.cookiesEdit.setToolTipDuration(-1)
         self.cookiesEdit.setStyleSheet("QTextEdit {\n"
-"background-image: url(:/configDialog/fgo_bg.png);\n"
+"background-image: url(:/configDialog/ba_gamer.png);\n"
 "}")
         self.cookiesEdit.setObjectName("cookiesEdit")
         self.horizontalLayout_label_ehCookies.addWidget(self.cookiesEdit)
