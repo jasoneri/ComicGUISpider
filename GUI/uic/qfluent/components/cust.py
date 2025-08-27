@@ -1,6 +1,6 @@
 import typing as t
 from enum import Enum
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from qfluentwidgets import (
@@ -8,7 +8,8 @@ from qfluentwidgets import (
     FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, TeachingTipTailPosition, ImageLabel
+    TeachingTip, TeachingTipTailPosition, ImageLabel, 
+    StrongBodyLabel, CheckBox, TextEdit
 )
 
 
@@ -85,6 +86,58 @@ class CustomIcon(FluentIconBase, Enum):
     
     def path(self, theme=Theme.AUTO):
         return f':/{self.value}.svg'
+
+
+class ExpandSettings(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.conf_dia = parent
+        self.setVisible(False)
+        self.bind()
+        self.setupUi()
+
+    def setupUi(self):
+        self.main_layout = VBoxLayout(self)
+        self.setLayout(self.main_layout)
+        
+        custMapLayout = QtWidgets.QHBoxLayout()
+        custMapLayout.setObjectName("custMapLayout")
+        self.custMapLabelLayout = QtWidgets.QVBoxLayout()
+        self.custMapLabelLayout.setSpacing(0)
+        custMapLabel = StrongBodyLabel(self.conf_dia)
+        custMapLabel.setMinimumSize(QtCore.QSize(40, 20))
+        custMapLabel.setMaximumSize(QtCore.QSize(40, 20))
+        custMapLabel.setAlignment(QtCore.Qt.AlignCenter)
+        custMapLabel.setObjectName("label_3")
+        custMapLabel.setText(QtCore.QCoreApplication.translate("Dialog", res.GUI.Uic.confDia_labelMap))
+        self.custMapLabelLayout.addWidget(custMapLabel)
+        self.custMapLabelLayout.addStretch()
+        custMapLayout.addLayout(self.custMapLabelLayout)
+        self.conf_dia.custom_mapEdit = TextEdit(self.conf_dia)
+        self.conf_dia.custom_mapEdit.setStyleSheet("QTextEdit {\n"
+"background-image: url(:/configDialog/ba_gamer.png);\n"
+"}")
+        self.conf_dia.custom_mapEdit.setObjectName("custom_mapEdit")
+        custMapLayout.addWidget(self.conf_dia.custom_mapEdit)
+
+        second_row = QtWidgets.QHBoxLayout()
+        first_label = StrongBodyLabel("拷贝设置", self)
+        kbTankoubonCheckBox = CheckBox("展示单行本")
+        second_row.addWidget(first_label)
+        second_row.addStretch()
+        second_row.addWidget(kbTankoubonCheckBox)
+        
+        self.main_layout.addLayout(custMapLayout)
+        self.main_layout.addLayout(second_row)
+
+    def bind(self):
+        def _toggle_adv(_=None):
+            now = not self.isVisible()
+            self.setVisible(now)
+            self.conf_dia.advBtn.setChecked(now)
+            self.conf_dia.refresh_size_for_expand()
+            self.conf_dia.advBtn.setText(res.GUI.Uic.confDia_hide_adv_settings if now else res.GUI.Uic.confDia_show_adv_settings)
+        self.conf_dia.advBtn.clicked.connect(_toggle_adv)
 
 
 class SupportView(FlyoutViewBase):
