@@ -59,7 +59,7 @@
 
 #### 🎁 Features
 
-✅ 配置窗口调整，映射放进高级设置里
+✅ 配置窗口调整，映射放进高级设置里  
 ✅ 高级设置新增 拷贝勾选展示单行本，注意会影响用`-3`等倒数选的排序
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
@@ -100,6 +100,10 @@
 
 <a href="https://hosted.weblate.org/engage/comicguispider/">
 <img src="https://hosted.weblate.org/widget/comicguispider/287x66-grey.png" alt="翻译状态" />
+</a>
+
+<a href="https://afdian.com/a/jsoneri">
+  <img src="https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/CGS-aifadian.png" alt="在爱发电支持我">
 </a>
 
 ## 🔇免责声明
