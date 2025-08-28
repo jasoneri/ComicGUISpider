@@ -8,7 +8,7 @@ from functools import partial
 
 import yaml
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter
+from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter, QApplication
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtCore import QUrl, Qt
 from qfluentwidgets import (
@@ -24,7 +24,7 @@ from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater, Proj
 from GUI.core.theme import theme_mgr, CustTheme
-from GUI.uic.qfluent.components import SupportView, CustomFlyout, CustomInfoBar
+from GUI.uic.qfluent.components import SupportView, CustomFlyout, CustomInfoBar, ExpandSettings
 
 
 class SvPathCard(PushSettingCard):
@@ -72,7 +72,6 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         _translate = QtCore.QCoreApplication.translate
         self.label_2.setText(_translate("Dialog", res.GUI.Uic.confDia_labelLogLevel))
         self.label_4.setText(_translate("Dialog", res.GUI.Uic.confDia_labelProxy))
-        self.label_3.setText(_translate("Dialog", res.GUI.Uic.confDia_labelMap))
         self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
         self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
         self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
@@ -81,7 +80,10 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         support = list(COOKIES_PLACEHOLDER.keys())
         for cookie_type in support:
             self.cookiesBox.addItem(cookie_type)
-        
+        self.pypiSourceBox.addItem("")
+        self.pypiSourceBox.addItem("")
+        self.pypiSourceBox.addItem("")
+        self.pypiSourceBox.addItem("")
         self.pypiSourceBox.setItemText(0, _translate("Dialog", "pypi"))
         self.pypiSourceBox.setItemText(1, _translate("Dialog", "清华源"))
         self.pypiSourceBox.setItemText(2, _translate("Dialog", "阿里源"))
@@ -93,7 +95,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def _preset(self):
         self.sv_path_card = SvPathCard(self)
-        self.sv_path_Layout.addWidget(self.sv_path_card)
+        self.dialogVLayout.insertWidget(0, self.sv_path_card)
         
         completer = QCompleter(['127.0.0.1:10809'])
         completer.setFilterMode(QtCore.Qt.MatchStartsWith)
@@ -120,6 +122,23 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.horizontalLayout_log_level.addWidget(self.isDeduplicate)
         self.horizontalLayout_log_level.addWidget(self.addUuid)
         self.horizontalLayout_log_level.addWidget(self.darkTheme)
+        
+        self.advBtn = TransparentPushButton(FIF.MORE, res.GUI.Uic.confDia_show_adv_settings, self)
+        self._adv_content = ExpandSettings(self)
+        self.expandLayout.insertWidget(0, self.advBtn)
+        self.expandLayout.addWidget(self._adv_content)
+
+    def refresh_size_for_expand(self, _):
+        QApplication.processEvents()
+        if _:
+            self.adjustSize()
+        else:
+            self.resize(0, 0)
+        screen_geom = QApplication.primaryScreen().availableGeometry()
+        max_allowed = int(screen_geom.height() * 0.9)
+        if self.height() > max_allowed:
+            self.setMaximumHeight(max_allowed)
+            self.resize(self.width(), max_allowed)
 
     def bind_logic(self):
         def _open_docs():
@@ -157,6 +176,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                 )
         self.isDeduplicate.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_deduplicate_on))
         self.addUuid.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_adduuid_on))
+        self.kbShowDhb.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_kbshowdhb_on))
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
@@ -165,7 +185,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 处理cookies配置
         self._load_cookie_config()
         # 2. CheckBox类配置
-        for _ in ('addUuid', 'isDeduplicate', "darkTheme"):
+        for _ in ('addUuid', 'isDeduplicate', "darkTheme", "kbShowDhb"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
@@ -222,6 +242,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "addUuid": getattr(self, "addUuid").isChecked(),
             "darkTheme": getattr(self, "darkTheme").isChecked(),
+            "kbShowDhb": getattr(self, "kbShowDhb").isChecked(),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
             "custom_map": yaml.safe_load(cp(getattr(self, "custom_mapEdit").toPlainText())),

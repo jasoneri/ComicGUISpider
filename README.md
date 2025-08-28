@@ -59,21 +59,12 @@
 
 #### 🎁 Features
 
-✅ 支持 kemono 的 discord 资源下载  
-✅ 配置窗口新增 ui语言切换，同时更新了 ui，去重、增加标识改为图标触发按钮，详情查阅 [🔨主配置文档](https://jasoneri.github.io/ComicGUISpider/config)
-
-#### 🐞 Fix
-
-✅ 优化 kemono 过滤相关, 增加发送提示  
-✅ 修复系统语言非简中时导致卡死在启动界面的情况  
+✅ 配置窗口调整，映射放进高级设置里
+✅ 高级设置新增 拷贝勾选展示单行本，注意会影响用`-3`等倒数选的排序
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
-
-## 🎣互动
-
-- 【常驻】[配置窗口背景图主题月度投票](https://github.com/jasoneri/ComicGUISpider/discussions/99)  
 
 ## 🍮食用搭配(阅读器)
 

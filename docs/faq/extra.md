@@ -25,7 +25,7 @@
 执行如下命令查看
 
 ```shell
-python -c "from pathlib import Path;from PyQt5.QtCore import QStandardPaths;print(Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath('CGS'))"
+uv run python -c "from pathlib import Path;from PyQt5.QtCore import QStandardPaths;print(Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath('CGS'))"
 ```
 
 此路径设有文件如下:  
