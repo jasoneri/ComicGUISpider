@@ -176,6 +176,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                 )
         self.isDeduplicate.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_deduplicate_on))
         self.addUuid.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_adduuid_on))
+        self.kbShowDhb.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_kbshowdhb_on))
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
@@ -184,7 +185,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 处理cookies配置
         self._load_cookie_config()
         # 2. CheckBox类配置
-        for _ in ('addUuid', 'isDeduplicate', "darkTheme"):
+        for _ in ('addUuid', 'isDeduplicate', "darkTheme", "kbShowDhb"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
@@ -241,6 +242,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "addUuid": getattr(self, "addUuid").isChecked(),
             "darkTheme": getattr(self, "darkTheme").isChecked(),
+            "kbShowDhb": getattr(self, "kbShowDhb").isChecked(),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
             "custom_map": yaml.safe_load(cp(getattr(self, "custom_mapEdit").toPlainText())),
