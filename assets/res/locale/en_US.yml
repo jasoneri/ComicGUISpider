@@ -110,8 +110,9 @@ GUI:
     confDia_promote_content: "need VPN?"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_support_content: "Donations will use to buy domain etc.."
-    confDia_tip_deduplicate_on: "Dedup mode on, take effect after save and reboot"
-    confDia_tip_adduuid_on: "AddUuid on, take effect after save and reboot"
+    confDia_tip_deduplicate_on: "Dedup mode, take effect after save and reboot"
+    confDia_tip_adduuid_on: "AddUuid, take effect after save and reboot"
+    confDia_tip_adduuid_on: "kb show tankobon, take effect after save and reboot"
     confDia_show_adv_settings: "click show advance settings"
     confDia_hide_adv_settings: "click hide advance settings"
 

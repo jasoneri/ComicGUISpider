@@ -122,10 +122,10 @@ class ExpandSettings(QtWidgets.QWidget):
 
         second_row = QtWidgets.QHBoxLayout()
         first_label = StrongBodyLabel("拷贝设置", self)
-        kbTankoubonCheckBox = CheckBox("展示单行本")
+        self.conf_dia.kbShowDhb = CheckBox("展示单行本")
         second_row.addWidget(first_label)
         second_row.addStretch()
-        second_row.addWidget(kbTankoubonCheckBox)
+        second_row.addWidget(self.conf_dia.kbShowDhb)
         
         self.main_layout.addLayout(custMapLayout)
         self.main_layout.addLayout(second_row)
