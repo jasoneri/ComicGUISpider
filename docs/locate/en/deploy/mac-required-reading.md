@@ -27,6 +27,6 @@ you also need to specify the system version and architecture in the description
 
 ::: tip get architecture
 ```bash
-python -c "import platform; print(platform.machine())"
+uv run python -c "import platform; print(platform.machine())"
 ```
 :::

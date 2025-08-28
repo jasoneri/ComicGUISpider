@@ -7,7 +7,7 @@ import jsonpath_rw as jsonp
 
 from utils.processed_class import Url
 from utils.website import KaobeiUtils
-from .basecomicspider import BaseComicSpider, ComicspiderItem, font_color
+from .basecomicspider import BaseComicSpider, ComicspiderItem, font_color, conf
 
 pc_domain = "www.2025copy.com"
 domain = "api.2025copy.com"
@@ -139,6 +139,10 @@ class KaobeiSpider(BaseComicSpider):
         resp_data = KaobeiUtils.decrypt_chapter_data(response.json()['results'])
         comic_path_word = resp_data['build']['path_word']
         chapters_data = resp_data['groups']['default']['chapters']
+        if conf.kbShowDhb:
+            for _ in ("tankobon", "other_group"):
+                if resp_data['groups'].get(_):
+                    chapters_data.extend(resp_data['groups'][_]['chapters'])
         for x, chapter_datum in enumerate(chapters_data):
             # section_url = rf"""https://{self.domain}/api/v3/comic/{comic_path_word}/chapter2/{chapter_datum['id']}?_update=false&platform=1"""
             section_url = rf"""https://{self.pc_domain}/comic/{comic_path_word}/chapter/{chapter_datum['id']}"""

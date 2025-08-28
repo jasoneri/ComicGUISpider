@@ -158,6 +158,7 @@ class Conf(BaseConf):
     clip_read_num: str = '20'
     concurr_num: str = '16'
     clip_sql = curr_os.clip_sql
+    kbShowDhb: bool = False
 
     def __init__(self, path=None, iname=None):
         self.init_conf()

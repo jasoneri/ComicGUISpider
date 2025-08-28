@@ -68,6 +68,6 @@ macOS上运行软件出错需要提issue时，除系统选`macOS`外，还需描
 
 ::: tip 获取架构命令
 ```bash
-python -c "import platform; print(platform.machine())"
+uv run python -c "import platform; print(platform.machine())"
 ```
 :::
