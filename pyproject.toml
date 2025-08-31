@@ -32,7 +32,6 @@ dependencies = [
     "h11>=0.16.0",
     "requests>=2.32.4",
     "psutil",
-    "cloudscraper>=1.2.71",
 ]
 authors = [
     {name = "jsoneri", email = "jsoneri@outlook.com"},
