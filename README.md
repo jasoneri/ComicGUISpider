@@ -65,6 +65,7 @@
 #### 🐞 Fix
 
 ✅ ✨修复预览的样式，用静态取代不稳定外链css  
+✖️ jm 域名策略变化的关系，暂时关闭jm的读剪贴板功能，等 [cloudscraper](https://github.com/VeNoMouS/cloudscraper/issues/285) 支持异步后恢复..  
 
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
