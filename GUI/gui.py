@@ -142,13 +142,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
             self.chooseBox_changed_tips(index)
-            match index:
-                case 2 | 3:
-                    self.toolWin.addDomainTool()
-                case 6:
-                    self.toolWin.addHitomiTool()
             if index in SPECIAL_WEBSITES_IDXES:
-                self.clipBtn.setEnabled(1)
+                if index != 2:
+                    self.clipBtn.setEnabled(1)
                 self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
             # 输入框联想补全
             self.set_completer()

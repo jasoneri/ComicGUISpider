@@ -62,6 +62,11 @@
 ✅ 配置窗口调整，映射放进高级设置里  
 ✅ 高级设置新增 拷贝勾选展示单行本，注意会影响用`-3`等倒数选的排序
 
+#### 🐞 Fix
+
+✅ ✨修复预览的样式，用静态取代不稳定外链css  
+✖️ jm 域名策略变化的关系，暂时关闭jm的读剪贴板功能，等 [cloudscraper](https://github.com/VeNoMouS/cloudscraper/issues/285) 支持异步后恢复..  
+
 > 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)

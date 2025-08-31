@@ -88,6 +88,7 @@ class PreprocessManager(QObject):
             success_callback=on_success, show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="更新域名缓存", task_id="domain_preprocess"
         )
+        self.gui.toolWin.addDomainTool()
 
     def _preprocess_ehentai(self):
         def ehentai_task():
@@ -177,6 +178,8 @@ class PreprocessManager(QObject):
                 error_callback=lambda _: self.gui.say("<br>❌ hitomi-db failed"),
                 tooltip_title="hitomi-db predownloading", task_id="hitomi_db"
             )
+        else:
+            self.gui.toolWin.addHitomiTool()
 
     def _preprocess_kemono(self):
         kemono_flag = {}

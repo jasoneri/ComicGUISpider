@@ -50,7 +50,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
         'Cache-Control': 'no-cache',
     }
     book_hea = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Accept-Encoding": "gzip, deflate, br",
@@ -120,7 +120,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
     def get_cli(cls, conf, is_async=False, **kwargs):
         client_class = httpx.AsyncClient if is_async else httpx.Client
         headers = {**cls.book_hea, 'Referer': f"https://{cls.get_domain()}"}
-        return client_class(headers=headers, **kwargs)
+        cli = client_class(headers=headers, **kwargs)
+        return cli
 
     @classmethod
     async def by_publish(cls):
@@ -169,10 +170,12 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
             res.SPIDER.DOMAINS_INVALID % (cls.publish_url, domains, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
         )
 
-    book_url_regex = r"^https://.*?comic.*?/album/\d+"
+    book_url_regex = r"^https://.*?18.*?/album/\d+"
 
     @staticmethod
     def parse_book(resp_text):
+        if "Just a moment..." in resp_text[:100]:
+            raise ValueError("触发5秒盾")
         html = Selector(text=resp_text)
         cover_el = html.xpath('//div[@id="album_photo_cover"]')[-1]
         title = html.xpath('//h1/text()').get()
