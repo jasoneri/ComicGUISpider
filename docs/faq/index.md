@@ -15,7 +15,7 @@
 
 先选出当前网络环境能打开的（[清华源](https://pypi.tuna.tsinghua.edu.cn/simple/)
  / [阿里源](https://mirrors.aliyun.com/pypi/simple/)
- / [华为源](https://repo.huaweicloud.com/repository/pypi/simple/)，网址后缀加上 comicguispider 检测
+ / [华为源](https://repo.huaweicloud.com/repository/pypi/simple/)，后缀加上 comicguispider 检测
 ）
 
 ::: warning 不限以下两种，所有文档的所有涉及pypi源命令因网络问题出错的都是更换源网址这样去处理
@@ -40,10 +40,6 @@
 
 仅能在 [📋读剪贴板](/feat/clip.md) 流程中使用，点进去看相关教程
 
-### 拷贝漫画部分无法出列表
-
-拷贝有些漫画卷和话是分开的，api结构转换的当前是有结果的，但没解析，如需前往群里反馈
-
 ### 拷贝/Māngabz多选书情况
 
 多选书时，在章节序号输入时可直接点击`开始爬取`跳过当前书的章节选择，只要出进度条即可
@@ -60,7 +56,7 @@
 
 ::: tip 两种方式可选  
 
-- 删干净原目录/换一个解压目录 并重新解压📦绿色包，然后重新初始化部署/更新  
+- 换一个解压目录 并重新解压📦绿色包，然后重新初始化部署/更新  
 - 干脆直接使用 [uv tool方式部署安装](/deploy/quick-start#1-下载--部署)
 :::
 

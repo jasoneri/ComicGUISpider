@@ -3,9 +3,7 @@
 
 saucenao / kemono / nekohouse  
 
-[Motrix](https://github.com/agalwood/Motrix) yyds!!  
-
-`v2.3.0` 之后支持 GUI 使用 kemono  
+[Motrix](https://github.com/agalwood/Motrix) 虽不更新仍然好用  
 
 ## ⚠️ 通用前置须知
 
@@ -13,11 +11,14 @@ saucenao / kemono / nekohouse
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
 :::
-::: tip 分界线，以下是针对用源码操作的说明
-
-使用 `uv` 安装脚本集依赖（GUI下的程序内切到 kemono 时已自动化处理了）
+::: tip 源码使用 `uv` 安装脚本集依赖（GUI下的程序内切到 kemono 时已自动化处理了）
 ```bash
 uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
+⚠️ win绿色包自动安装依赖失败时则用以下命令  
+（基于`_pystand_static.int` 的 `version` 大于等于 `v2`）
+```cmd
+.\CGS.exe -v 2.4.4 --script -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 
