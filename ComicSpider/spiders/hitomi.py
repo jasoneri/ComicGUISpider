@@ -6,7 +6,7 @@ import scrapy
 from utils import PresetHtmlEl, conf
 from utils.website import HitomiUtils, get_loop
 from utils.processed_class import PreviewHtml
-from utils.website import Uuid
+from utils.website import HitomiBookInfo
 from ComicSpider.items import ComicspiderItem
 
 from .basecomicspider import BaseComicSpider, font_color
@@ -147,7 +147,7 @@ class HitomiSpider(BaseComicSpider):
         frame_book_results = self.frame_book(rets, meta)
         selected = meta.get("selected", [])
         if selected:
-            elected_titles = list(map(lambda x: x[1], selected))
+            elected_titles = list(map(lambda x: x.name, selected))
             self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
                                 f"{'<br>'.join(elected_titles)}", cls='theme-success'))
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
@@ -155,22 +155,22 @@ class HitomiSpider(BaseComicSpider):
         if self.input_state.pageTurn:
             yield from self.page_turn(results, meta)
         else:
-            for result in [*results, *meta.get("selected", [])]:
-                meta = dict(zip(self.frame_book_format, result))
+            for book in [*results, *meta.get("selected", [])]:
+                meta = {'book': book}
                 yield from self.parse_section(meta)
 
     def parse_section(self, meta):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
 
-        title = PresetHtmlEl.sub(meta['title'])
-        this_uuid, this_md5 = Uuid(self.name).id_and_md5(meta.get('preview_url'))
+        book = meta.get('book')
+        this_uuid, this_md5 = book.id_and_md5()
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
-            self.say(f'{"=" * 15} 《{title}》')
-            self.set_task((this_md5, title, len(meta['pics']), meta.get('preview_url'), None))
-            for pic_info in meta['pics']:
+            self.say(f'{"=" * 15} 《{book.name}》')
+            self.set_task((this_md5, book.name, book.pages, book.preview_url, None))
+            for pic_info in book.pics:
                 item = ComicspiderItem()
-                item['title'] = title
+                item['title'] = book.name
                 item['page'] = str(pic_info['name'])
                 item['section'] = 'meaningless'
                 img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
@@ -189,8 +189,8 @@ class HitomiSpider(BaseComicSpider):
     # ==============================================
     def frame_book(self, rets, meta):
         frame_results = {}
-        example_b = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
-        self.say(example_b.format('index', 'lang', 'pages', 'name') + '<br>')
+        say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
+        self.say(say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
         preview = PreviewHtml(meta.get("Url"))
         
         for x, target in enumerate(rets):
@@ -199,15 +199,19 @@ class HitomiSpider(BaseComicSpider):
             pics = datum['files']
             first_pic = pics[0]
             btype = datum['type']
-            lang = datum['language_localname']
             _title = datum['title']
-            title = _title.split(' | ')[-1] if ' | ' in _title else _title
-            preview_url = f"{self.domain}{btype}/{gallery_id}.html"
-            img_preview = self.ut.get_img_url(first_pic['hash'], 0, preview=True)
-            
-            self.say(example_b.format(str(x + 1), lang, len(pics), title, chr(12288)))
-            frame_results[x + 1] = [lang, title, preview_url, pics]
-            preview.add(x + 1, img_preview, title, preview_url, pages=len(pics), lang=lang, btype=btype)
+            book = HitomiBookInfo(
+                id=gallery_id, idx=x+1,
+                name=_title.split(' | ')[-1] if ' | ' in _title else _title,
+                preview_url=f"{self.domain}{btype}/{gallery_id}.html",
+                pages=len(pics), pics=pics,
+                btype=btype,
+                img_preview=self.ut.get_img_url(first_pic['hash'], 0, preview=True),
+                lang=datum['language_localname'],
+            )
+            self.say(say_fm.format(*book.say))
+            frame_results[book.idx] = book
+            preview.add(*book.preview_add, pages=book.pages, lang=book.lang, btype=book.btype)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=meta.get("Url"))
 

@@ -15,13 +15,13 @@ from qfluentwidgets import CheckBox, ComboBox, CompactSpinBox, LineEdit, Primary
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(525, 470)
+        Dialog.resize(525, 440)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(Dialog.sizePolicy().hasHeightForWidth())
         Dialog.setSizePolicy(sizePolicy)
-        Dialog.setMinimumSize(QtCore.QSize(525, 470))
+        Dialog.setMinimumSize(QtCore.QSize(525, 440))
         Dialog.setMaximumSize(QtCore.QSize(650, 650))
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap(":/CGS-logo.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)

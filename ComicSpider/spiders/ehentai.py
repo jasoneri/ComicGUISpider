@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from scrapy import Request
 
-from .basecomicspider import BaseComicSpider3
-from utils import PresetHtmlEl, conf, re
+from utils import conf, re
 from utils.processed_class import PreviewHtml, Url
-from utils.website import EHentaiKits as EK
+from utils.website import EHentaiKits as EK, EhBookInfo
 from assets import res
+from .basecomicspider import BaseComicSpider3
 from ..items import ComicspiderItem
 
 domain = "exhentai.org"
@@ -33,24 +33,29 @@ class EHentaiSpider(BaseComicSpider3):
 
     def frame_book(self, response):
         frame_results = {}
-        example_b = r' [ {} ], p_{}, ⌈ {} ⌋ '
-        self.say(example_b.format('index', 'pages', 'name') + '<br>')
+        say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
+        self.say(say_fm.format('index', 'pages', 'name') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         for x, target in enumerate(targets):
             item_elem = target.xpath('./td/div[@class="glthumb"]')
-            title = item_elem.xpath('.//img/@title').get()
             pages = (next(filter(
                 lambda _: 'pages' in _, item_elem.xpath('.//div/text()').getall()))
                      .replace(" pages", ""))
-            url = preview_url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
-            img_preview = (item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
-            byte = target.xpath('./td[contains(@class, "glcat")]/div/text()').get()
-            # book_idx = re.search(r"g/(\d+)/", url).group(1)
-            self.say(example_b.format(str(x + 1), pages, title, chr(12288)))
-            self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [url, title, pages, preview_url]  # , book_idx]
-            preview.add(x + 1, img_preview, title, preview_url, pages=pages, btype=byte)
+            _url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
+            book = EhBookInfo(
+                idx=x+1,
+                name=item_elem.xpath('.//img/@title').get(),
+                preview_url=_url,
+                url=_url,
+                pages=pages,
+                btype=target.xpath('./td[contains(@class, "glcat")]/div/text()').get(),
+                img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
+            ).get_id(_url)
+            self.say(say_fm.format(*book.say))
+            self.say('') if (book.idx) % self.num_of_row == 0 else None
+            frame_results[book.idx] = book
+            preview.add(*book.preview_add, pages=book.pages, btype=book.btype)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
 
@@ -70,12 +75,12 @@ class EHentaiSpider(BaseComicSpider3):
         if not response.meta.get('sec_page'):
             title_gj = response.xpath('//h1[@id="gj"]/text()')
             if title_gj:
-                response.meta['title'] = title_gj.get()
+                response.meta['book'].name = title_gj.get()
             else:
                 titles = response.xpath("//h1/text()").getall()
-                if response.meta.get('title') in titles and len(titles) > 1:
-                    titles.remove(response.meta.get('title'))
-                    response.meta['title'] = titles[0]
+                if response.meta['book'].name in titles and len(titles) > 1:
+                    titles.remove(response.meta['book'].name)
+                    response.meta['book'].name = titles[0]
         yield from super(EHentaiSpider, self).parse_section(response)
 
     def frame_section(self, response):
@@ -99,12 +104,12 @@ class EHentaiSpider(BaseComicSpider3):
     def parse_fin_page(self, response):
         url = response.xpath('//img[@id="img"]/@src').get() or ""
         page = response.meta.get('page')
-        group_infos = ComicspiderItem.get_group_infos(response.meta)
+        book = response.meta.get('book')
         if url.endswith('509.gif'):
-            self.log(f'[509] https://ehgt.org/g/509.gif: [page-{page}] of [{group_infos["title"]}]', level=30)
+            self.log(f'[509] https://ehgt.org/g/509.gif: [page-{page}] of [{book.name}]', level=30)
         else:
             item = ComicspiderItem()
-            item.update(**group_infos)
+            item.update(**book.get_group_infos())
             item['page'] = str(page)
             item['image_urls'] = [url]
             self.total += 1

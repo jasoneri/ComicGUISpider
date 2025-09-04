@@ -18,9 +18,12 @@ from utils import (
 )
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, 
-    Url, TasksObj, Selected
+    Url, TasksObj
 )
-from utils.website import Uuid, correct_domain, spider_utils_map
+from utils.website import (
+    correct_domain, spider_utils_map, 
+    InfoMinix, BookInfo
+)
 from utils.sql import SqlUtils
 
 
@@ -66,8 +69,8 @@ class SayToGui:
     def frame_section_print(self, frame_results, print_example, print_limit=5, extra=None):
         extra = extra or self.res.frame_section_print_extra
         print_npc = []
-        for x, result in frame_results.items():
-            print_npc.append(print_example.format(str(x), result[0]).strip())
+        for x, ep in frame_results.items():
+            print_npc.append(print_example.format(str(x), ep.name).strip())
             if x % print_limit == 0:
                 self(str(print_npc).replace("'", "").replace("[", "").replace("]", ""))
                 print_npc = []
@@ -119,17 +122,17 @@ class BaseComicSpider(scrapy.Spider):
         self.process_state.process = 'start_requests'
         self.preready()
         indexes = self.input_state.indexes
-        if isinstance(indexes, list) and all(isinstance(s, Selected) for s in indexes):
-            # clip分支，仅传t.List[Selected]
+        if isinstance(indexes, list) and all(isinstance(s, InfoMinix) for s in indexes):
             self.process_state.process = 'parse'
             self.Q('ProcessQueue').send(self.process_state)
             self.refresh_state('input_state', 'InputFieldQueue')
-            for i in indexes:
-                url = i.bid if i.bid.startswith("http") else self.book_id_url % i.bid
+            # TODO[5](2025-09-03): clip 是 ep 的情况下暂时没法测试
+            for book in indexes:
+                url = book.url if book.url and book.url.startswith("http") else self.book_id_url % book.id
                 yield scrapy.Request(
                     url=self.transfer_url(url), callback=self.parse_section,
                     headers={**self.ua, 'Referer': self.domain},
-                    meta={'book_id': i.bid, 'title': i.title, 'episode_name': i.episode_name},
+                    meta={'book': book} if isinstance(book, BookInfo) else {'episode': book},
                     dont_filter=True)
         else:
             search_start = self.search
@@ -162,7 +165,7 @@ class BaseComicSpider(scrapy.Spider):
         frame_book_results = self.frame_book(response)
         selected = response.meta.get("selected", [])
         if selected:
-            elected_titles = list(map(lambda x: x[1], selected))
+            elected_titles = list(map(lambda x: x.name, selected))
             self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
                                 f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
@@ -171,10 +174,8 @@ class BaseComicSpider(scrapy.Spider):
         if self.input_state.pageTurn:
             yield from self.page_turn(response, results)
         else:
-            for result in [*results, *response.meta.get("selected", [])]:
-                title_url = result[0]
-                meta = dict(zip(self.frame_book_format, result[1:]))
-                yield scrapy.Request(url=title_url, callback=self.parse_section, meta=meta, dont_filter=True)
+            for book in [*results, *response.meta.get("selected", [])]:
+                yield scrapy.Request(url=book.url, callback=self.parse_section, meta={"book": book}, dont_filter=True)
 
     def page_turn(self, response, elected_results):
         if not self.input_state.pageTurn:
@@ -196,7 +197,7 @@ class BaseComicSpider(scrapy.Spider):
     def frame_book(self, response) -> dict:
         """parse book list page
         最终返回值按此数据格式返回
-        :return dict: {1: [title1, title1_url], 2: [title2, title2_url]……} 
+        :return dict: {1: book1, 2: book2……} 
         """
         pass
 
@@ -211,34 +212,29 @@ class BaseComicSpider(scrapy.Spider):
             yield scrapy.Request(url=need_sec_next_page, callback=self.parse_section, meta=response.meta)
             return
 
-        title = response.meta.get('title')
-        self.say(f'{"=" * 15} 《{title}》')
-        frame_sec_result = self.frame_section(response)
+        book = response.meta.get('book')
+        self.say(f'{"=" * 15} 《{book.name}》')
+        frame_eps_result = self.frame_section(response)
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         choose = self.input_state.indexes
-        results = self.select(choose, frame_sec_result, step=self.res.parse_sec_step)
+        eps = self.select(choose, frame_eps_result, step=self.res.parse_sec_step)
 
-        if not results:
+        if not eps:
             self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', cls='theme-err'))
             self.logger.info(f'no result return, choose_input is wrong: {choose}')
             return
 
-        self.say(f'{"-" * 10}《{title}》 {self.res.parse_sec_selected}: {choose}')
-        for result in results:
-            self.say(f"{result[0]:>>55}")
+        self.say(f'{"-" * 10}《{book.name}》 {self.res.parse_sec_selected}: {choose}')
+        for ep in eps:
+            self.say(f"{ep.name:>>55}")
 
-        for section, section_url in results:
-            url_list = self.mk_page_tasks(url=section_url)
-            now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % title
-            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{section}", cls='theme-tip', size=5))
-            this_uuid, this_md5 = Uuid(self.name).id_and_md5(f"{title}-{section}")
-            meta = {
-                'title': title, 'section': section, 'uuid_md5': this_md5, 'uuid': this_uuid,
-                'title_url': response.meta.get('preview_url') or response.url,
-            }
+        for ep in eps:
+            url_list = self.mk_page_tasks(url=ep.url)
+            now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % book.name
+            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=5))
             for url in url_list:
-                yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
+                yield scrapy.Request(url=url, callback=self.parse_fin_page, meta={'ep': ep})
 
     def need_sec_next_page(self, resp):
         pass
@@ -263,9 +259,10 @@ class BaseComicSpider(scrapy.Spider):
     def select(self, elect, frame_results: dict, **kw) -> list:
         """简单判断elect，返回选择的frame
         :param elect: [1,2,3,4,……], [0], -3, "1+5-7", "[combine]['3'] and "
-        :param frame_results: {1: [title1, title1_url], 2: [title2, title2_url]……}
-        :return: [[title1, title1_url], [title2, title2_url]……]
+        :param frame_results: {1: book1, 2: book2……}
+        :return: [book1, book2……]
         """
+        # TODO[1] 扩展筛选
         _selected = fin_transfer(elect, frame_results.keys())
         self.say(kw['extra_info']) if 'extra_info' in kw else None
         try:
@@ -379,21 +376,24 @@ class BaseComicSpider2(BaseComicSpider):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
 
-        title = PresetHtmlEl.sub(response.meta.get('title'))
-        this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
+        meta = response.meta
+        # clip 流程时，meta 传送的可能是 episode
+        ep = meta.get('episode')
+        book = meta.get('book') or ep.from_book 
+        book.name = PresetHtmlEl.sub(book.name)
+        this_uuid, this_md5 = book.id_and_md5() if not ep else ep.id_and_md5()
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
-            # 处理episode显示
-            episode_name = response.meta.get('episode_name')
-            display_title = f"{title} - {episode_name}" if episode_name else title
+            display_title = f"{book.name} - {ep.name}" if ep else book.name
             self.say(f'''{"=" * 15} 《{display_title}》''')
 
             results = self.frame_section(response)  # {1: url1……}
-            self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url, episode_name))
+            ep_name = ep.name if ep else 'meaningless'
+            self.set_task((this_md5, book.name, len(results), book.preview_url or response.url, ep_name))
             for page, url in results.items():
                 item = ComicspiderItem()
-                item['title'] = title
+                item['title'] = book.name
                 item['page'] = str(page)
-                item['section'] = episode_name if episode_name else 'meaningless'
+                item['section'] = ep_name
                 item['image_urls'] = [url]
                 item['uuid'] = this_uuid
                 item['uuid_md5'] = this_md5
@@ -404,31 +404,34 @@ class BaseComicSpider2(BaseComicSpider):
 
 
 class BaseComicSpider3(BaseComicSpider):
-    """Antique grade! No section, but three or more jump
+    """Antique grade! No episode, but three or more jump
     e.g. ehentai
     """
 
     def parse_section(self, response):
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
-        title = response.meta.get('title')
-        sec_page = response.meta.get('sec_page', 1)
-        self.say(f'<br>{"=" * 15} 《{title}》 page-of-{sec_page}')
-        results, next_page_flag = self.frame_section(response)
-        if next_page_flag:
-            meta = deepcopy(response.meta)
-            meta.update(frame_results=results, sec_page=sec_page + 1)
-            yield scrapy.Request(url=next_page_flag, callback=self.parse_section, meta=meta)
+        book = response.meta.get('book')
+        
+        if "check_dupe_pass" in response.meta:
+            check_dupe_pass = 1
         else:
-            title = PresetHtmlEl.sub(response.meta.get('title'))
-            this_uuid, this_md5 = Uuid(self.name).id_and_md5(response.url)
-            if not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5):
-                self.set_task((this_md5, title, len(results), response.meta.get('preview_url') or response.url, None))
+            _, this_md5 = book.id_and_md5()
+            check_dupe_pass = not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5)
+        
+        if check_dupe_pass:
+            sec_page = response.meta.get('sec_page', 1)
+            self.say(f'<br>{"=" * 15} 《{book.name}》 page-of-{sec_page}')
+            results, next_page_flag = self.frame_section(response)
+            if next_page_flag:
+                meta = deepcopy(response.meta)
+                meta.update(frame_results=results, sec_page=sec_page + 1, check_dupe_pass=1)
+                yield scrapy.Request(url=next_page_flag, callback=self.parse_section, meta=meta)
+            else:
+                book.name = PresetHtmlEl.sub(book.name)
+                self.set_task((book.u_md5, book.name, len(results), book.preview_url or response.url, None))
                 for page, url in results.items():
-                    meta = {
-                        'title': title, 'page': page,
-                        'uuid_md5': this_md5, 'uuid': this_uuid
-                    }
+                    meta = {'book': book, 'page': page}
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
 
