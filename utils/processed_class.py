@@ -12,33 +12,8 @@ from scrapy.utils.project import get_project_settings
 
 from utils import State, QueuesManager, Queues, re
 from utils.preview import PreviewHtml, PreviewByClipHtml
+from utils.website.info import InfoMinix
 from variables import SPIDERS
-
-
-@dataclass
-class Selected(State):
-    """仅替代[clip]JSON格式的结构化数据传输类，作为附带必要少量信息的input_state.indexes
-    一个章节一个Selected！[Selected1-1,Selected1-2,Selected1-3]
-    以往的无章节会归为[Selected2]
-    """
-    title: str
-    bid: str
-    episode_name: t.Optional[str] = None
-
-    def __post_init__(self):
-        """确保数据格式正确并缓存"""
-        if not self.title or not self.bid:
-            raise ValueError("title and bid are required")
-        self.sv_cache()
-
-    @property
-    def section(self) -> str:
-        return self.episode_name if self.episode_name else 'meaningless'
-
-    def __str__(self):
-        if self.episode_name:
-            return f"Selected({self.title} - {self.episode_name})"
-        return f"Selected({self.title})"
 
 
 @dataclass
@@ -48,7 +23,7 @@ class InputFieldState(State):
     """
     keyword: str
     bookSelected: int
-    indexes: t.Union[str, list, t.List[Selected]]
+    indexes: t.Union[str, list, t.List[InfoMinix]]
     pageTurn: t.Union[str, int]
 
 
@@ -242,7 +217,7 @@ def execute_js(js_code, func, arg):
     return out
 
 
-class ClipManager:
+class ClipSqlHandler:
     def __init__(self, db, sql, regex_string):
         """
         :param db, sql: by OS System
@@ -266,7 +241,7 @@ class ClipManager:
     def match(self, rets):
         return list(set(filter(lambda x: bool(self.regex.search(x)), rets)))
 
-    def main(self):
+    def create_tf(self):
         match_items = self.match(self.get_clip_items())
         tf = PreviewByClipHtml.created_temp_html(self.regex.pattern, len(match_items))
         return tf, match_items

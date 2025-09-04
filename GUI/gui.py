@@ -28,9 +28,9 @@ from utils import (
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, refresh_state, crawl_what,
-    PreviewHtml, Selected
+    PreviewHtml
 )
-from utils.website import spider_utils_map
+from utils.website import spider_utils_map, InfoMinix
 
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
@@ -453,8 +453,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         """format input"""
         _input_idx = input_state.indexes
         if (not _input_idx or
-            isinstance(_input_idx, Selected) or  # 支持单个Selected对象
-            isinstance(_input_idx, list) and all(isinstance(s, Selected) for s in _input_idx) or  # 支持Selected列表
+            isinstance(_input_idx, InfoMinix) or  # 支持单个Selected对象
+            isinstance(_input_idx, list) and all(isinstance(s, InfoMinix) for s in _input_idx) or  # 支持Selected列表
             isinstance(_input_idx, str) and (
                 _input_idx.startswith("[combine]") or _input_idx == "0" or
                 bool(re.match(r'^-\d+$', _input_idx)) or bool(re.match(r'^\d+[0-9\+\-]*$', _input_idx))

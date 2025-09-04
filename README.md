@@ -27,7 +27,7 @@
 
 ## 📑介绍
 
-📣 C106了, 用 CGS 框框地下下下吧 🍻 （顺便给⭐️）
+C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
@@ -45,9 +45,8 @@
 
 **[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
 )](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;
-关注/取消关注项目是你的自由，个人开发比较难做到一错不漏，  
-提issue/群反映 → 项目改进修复，尤其对这种实时性强且多变的项目，才算得上开源社区形态...  
-但提问前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
+个人开发精力有限，  
+提问反馈前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
 )，至起码阅读过 [不该问的问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98
 ) 和 [好问题与蠢问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)**
 
@@ -59,8 +58,7 @@
 
 #### 🎁 Features
 
-✅ 配置窗口调整，映射放进高级设置里  
-✅ 高级设置新增 拷贝勾选展示单行本，注意会影响用`-3`等倒数选的排序
+✅ 高级设置-拷贝勾选展示单行本，注意会影响用`-3`等倒数选的排序
 
 #### 🐞 Fix
 
