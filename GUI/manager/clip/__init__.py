@@ -8,7 +8,7 @@ from qfluentwidgets import (
 from assets import res
 from variables import SPIDERS
 from utils import conf
-from utils.processed_class import PreviewHtml, ClipManager, Selected
+from utils.processed_class import PreviewHtml, ClipSqlHandler
 from GUI.thread import ClipTasksThread
 from GUI.uic.qfluent import (
     CustomInfoBar
@@ -44,9 +44,9 @@ class ClipGUIManager:
                 url="https://jasoneri.github.io/ComicGUISpider/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:
-            clip = ClipManager(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
+            clip = ClipSqlHandler(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
                                getattr(self.gui.spiderUtils, "book_url_regex"))
-            tf, match_items = clip.main()
+            tf, match_items = clip.create_tf()
             if not match_items:
                 self.gui.say(res.GUI.Clip.match_none % self.gui.spiderUtils.book_url_regex,
                              ignore_http=True)
@@ -76,30 +76,24 @@ class ClipGUIManager:
                 self.gui.BrowserWindow.view.loadFinished.disconnect(start_clip_thread_once)
         self.gui.BrowserWindow.view.loadFinished.connect(start_clip_thread_once)
 
-    def single_clip_tasks_data(self, info):
-        """处理单个剪贴板任务数据并构建infos为Selected对象"""
-        # info格式: (idx, url, img_src, title, author, pages, tags, episodes)
-        idx, url, img_src, title, author, pages, tags, episodes = info
-
-        if episodes:
-            # 有episodes时，每个episode用f"{idx}-{ep_idx}"作为键存储单个Selected
-            for ep in episodes:
-                episode_name = ep.get('ep', f'Episode-{ep.get("bid", "")}')
-                selected = Selected(title=title, bid=ep['bid'], episode_name=episode_name)
-                # 使用f"{任务idx}-{章节idx}"作为键
-                unique_key = f"{idx}-{ep['idx']}"
-                self.infos[unique_key] = selected
+    def single_clip_tasks_data(self, book):
+        # clip_info格式: (idx, url, img_src, title, author, pages, tags, episodes)
+        if book.episodes:
+            # 有episodes时，每个episode用f"{idx}-{ep_idx}"作为键存储
+            for ep in book.episodes:
+                ep.name = ep.name or f'Episode-{ep.id}'
+                unique_key = f"{book.idx}-{ep.idx}"
+                self.infos[unique_key] = ep
         else:
             # 无episodes时，使用任务idx作为键存储单个Selected
-            selected = Selected(title=title, bid=url, episode_name=None)
-            self.infos[str(idx)] = selected
+            self.infos[str(book.idx)] = book
 
         def js_param(val):
             if isinstance(val, str):
                 return '"' + val.replace('"', '\\"') + '"'
             else:
                 return str(val)
-        params = ','.join(map(js_param, info))
+        params = ','.join(map(js_param, book.clip_info()))
         js_code = f'addEL({params})'
         self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
 

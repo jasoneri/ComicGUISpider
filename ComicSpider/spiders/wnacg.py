@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import re
 
-from .basecomicspider import BaseComicSpider2, font_color
-from utils.website import WnacgUtils, correct_domain
+from utils.website import WnacgUtils, correct_domain, WnacgBookInfo
 from utils.processed_class import PreviewHtml
+from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "wnacg.com"
 
@@ -32,26 +32,29 @@ class WnacgSpider(BaseComicSpider2):
 
     def frame_book(self, response):
         frame_results = {}
-        example_b = r' [ {} ]、【 {} 】'
-        self.say(example_b.format('序号', '漫画名') + '<br>')
+        say_fm = r' [ {} ]、【 {} 】'
+        self.say(say_fm.format('序号', '漫画名') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
         tar_xpath = './div[contains(@class, "pic")]'
         for x, target in enumerate(targets):
             item_elem = target.xpath(f"{tar_xpath}/a")
-            title = item_elem.xpath('./@title').get()
             pre_url = item_elem.xpath('./@href').get()
-            preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
-            url = self.transfer_url(preview_url)
-            img_preview = 'http:' + item_elem.xpath('./img/@src').get()
-            self.say(example_b.format(str(x + 1), title, chr(12288)))
-            self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [url, title, preview_url]
             _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
-            pages = re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0
             _cate = (target.xpath(f"{tar_xpath}/@class").get() or "").split(" ")[-1]
-            btype = WnacgUtils.cate_mappings.get(_cate, "")
-            preview.add(x + 1, img_preview, title, preview_url, pages=pages, btype=btype)
+            book = WnacgBookInfo(
+                idx=x+1,
+                name=item_elem.xpath('./@title').get(),
+                preview_url=f'https://{self.domain}{pre_url}',
+                url=f'https://{self.domain}{self.transfer_url(pre_url)}',
+                pages=re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0,
+                btype=WnacgUtils.cate_mappings.get(_cate, ""),
+                img_preview='http:' + item_elem.xpath('./img/@src').get(),
+            ).get_id(pre_url)
+            self.say(say_fm.format(*book.say))
+            self.say('') if (book.idx) % self.num_of_row == 0 else None
+            frame_results[book.idx] = book
+            preview.add(*book.preview_add, pages=book.pages, btype=book.btype)
         self.say(preview.created_temp_html)
         return self.say.frame_book_print(frame_results, url=response.url)
 

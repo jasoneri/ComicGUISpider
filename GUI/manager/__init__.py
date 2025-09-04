@@ -7,7 +7,7 @@ from qfluentwidgets import (
 )
 
 from utils.processed_class import (
-    PreviewHtml, TaskObj, TasksObj, ClipManager
+    PreviewHtml, TaskObj, TasksObj, ClipSqlHandler
 )
 from utils.sql import SqlUtils
 from utils import conf, ori_path, env, uv_exc, exc_p

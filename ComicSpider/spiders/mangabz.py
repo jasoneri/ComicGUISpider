@@ -5,6 +5,7 @@ import jsonpath_rw as jsonp
 from collections import OrderedDict
 
 from utils.processed_class import execute_js
+from utils.website import MangabzBookInfo, Episode
 from .basecomicspider import FormReqBaseComicSpider, ComicspiderItem, BodyFormat
 
 domain = "www.mangabz.com"
@@ -90,8 +91,8 @@ class MangabzSpider(FormReqBaseComicSpider):
 
     def frame_book(self, response):
         frame_results = {}
-        example_b = self.body.example_b
-        self.say(example_b.format('序号', *self.body.print_head[1:]) + '<br>')
+        say_fm = self.body.example_b
+        self.say(say_fm.format('序号', *self.body.print_head[1:]) + '<br>')
         targets = response.json() if isinstance(self.body, SearchBody) \
             else response.json().get('UpdateComicItems')
         rendering_map = self.body.rendering_map().items()
@@ -100,24 +101,38 @@ class MangabzSpider(FormReqBaseComicSpider):
             for attr_name, _path in rendering_map:
                 rendered[attr_name] = ",".join(map(lambda __: str(__.value), _path.find(target))).strip()
             url = f"https://{self.domain}/{rendered.pop('book_path').strip('/')}/"
-            self.say(example_b.format(str(x + 1), *rendered.values(), chr(12288)))
+            book = MangabzBookInfo(
+                idx=x+1,
+                name=rendered.get('漫画名'),
+                artist=rendered.get('作者'),
+                latest_sec=rendered.get('最新话'),
+                url=url, preview_url=url,
+            )
+            self.say(say_fm.format(str(book.idx), *rendered.values(), chr(12288)))
             self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [url, rendered['漫画名'], response.url]
+            frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
+        book = response.meta.get("book")
         frame_results = {}
-        example_s = ' -{}、【{}】'
-        self.say(example_s.format('序号', '章节') + '<br>')
+        say_ep_fm = ' -{}、【{}】'
+        self.say(say_ep_fm.format('序号', '章节') + '<br>')
         targets = response.xpath('//div[@class="detail-list-item"]/a')
         for x, target in enumerate(reversed(targets)):
-            section_url = rf"https://{domain}{target.xpath('./@href').get()}"
-            section = "".join(target.xpath('./text()').get()).strip()
-            frame_results[x + 1] = [section, section_url]
-        return self.say.frame_section_print(frame_results, print_example=example_s)
+            ep = Episode(
+                from_book=book,
+                idx=x+1,
+                url=rf"https://{domain}{target.xpath('./@href').get()}",
+                name="".join(target.xpath('./text()').get()).strip(),
+            )
+            frame_results[ep.idx] = ep
+        return self.say.frame_section_print(frame_results, print_example=say_ep_fm)
 
     def parse_fin_page(self, response):
-        meta = response.meta
+        ep = response.meta['ep']
+        book = ep.from_book
+        uid, u_md5 = ep.id_and_md5()
         js = response.xpath('//script[@type="text/javascript"]/text()').getall()
         target_js = next(filter(lambda t: t.strip().startswith('eval'), js), None)
         real_js = execute_js(
@@ -126,8 +141,8 @@ class MangabzSpider(FormReqBaseComicSpider):
             "run", target_js)
         img_list_ = re.search(r'\[(.*?)]', real_js).group(1)
         img_list = [re.sub(r"""['"]""", '', _) for _ in re.split(', ?', img_list_)]
-        group_infos = ComicspiderItem.get_group_infos(response.meta)
-        self.set_task((meta['uuid_md5'], f"{meta['title']}-{meta['section']}", len(img_list), meta['title_url']))
+        group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
+        self.set_task((u_md5, uid, len(img_list), book.preview_url))
         for img_url in img_list:
             item = ComicspiderItem()
             item.update(**group_infos)
