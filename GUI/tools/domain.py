@@ -74,12 +74,13 @@ class DomainToolView(QWidget):
             with open(t_f, 'w', encoding='utf-8') as f:
                 f.write(_domain)
             prefix_tip = tools_res.doamin_success_tip % (_domain, t_f)
+            sc = 6
             InfoBar.success(
-                title='', content=f"{prefix_tip}{tools_res.reboot_tip % '10'}",
+                title='', content=f"{prefix_tip}{tools_res.reboot_tip % str(sc)}",
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-                duration=10000, parent=self
+                duration=sc*1000, parent=self
             )
-            QTimer.singleShot(10000, self.close_later)
+            QTimer.singleShot(sc*1000, self.close_later)
         else:
             InfoBar.error(
                 title='', content=tools_res.doamin_error_tip,

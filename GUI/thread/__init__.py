@@ -3,6 +3,7 @@ import asyncio
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
 from utils import conf, get_loop, QueuesManager, code_env
+from utils.website.info import InfoMinix
 from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
@@ -10,7 +11,7 @@ from GUI.core.font import font_color
 
 
 class ClipTasksThread(QThread):
-    info_signal = pyqtSignal(tuple)
+    info_signal = pyqtSignal(InfoMinix)
     total_signal = pyqtSignal(dict)
 
     def __init__(self, gui, tasks):
@@ -28,18 +29,20 @@ class ClipTasksThread(QThread):
         async with self.gui.spiderUtils.get_cli(conf, is_async=True) as cli:
             total = {}
             async def fetch_single(idx, url):
+                _idx = idx + 1
                 try:
                     resp = await cli.get(url, follow_redirects=True, timeout=6)
-                    info = self.gui.spiderUtils.parse_book(resp.text)
+                    book = self.gui.spiderUtils.parse_book(resp.text)
                     self.msleep(50)
-                    # 确保传递所有信息，包括episodes（如果存在）
-                    self.info_signal.emit((idx + 1, url, *info[1:]))
-                    return idx + 1, info
+                    book.idx = _idx
+                    book.url = url
+                    self.info_signal.emit(book)
+                    return _idx, book
                 except Exception as e:
                     err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
                     self.gui.log.exception(e)
                     self.gui.say(font_color(err_msg + '<br>', cls='theme-err'), ignore_http=True)
-                    return idx + 1, None
+                    return _idx, None
             # 并发执行所有任务
             tasks = [fetch_single(idx, url) for idx, url in enumerate(self.tasks)]
             results = await asyncio.gather(*tasks, return_exceptions=True)

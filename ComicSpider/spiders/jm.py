@@ -4,7 +4,7 @@ import typing as t
 from urllib.parse import urlencode, urlparse
 
 from utils import convert_punctuation, conf
-from utils.website import JmUtils, correct_domain
+from utils.website import JmUtils, correct_domain, JmBookInfo
 from utils.processed_class import PreviewHtml, Url
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
@@ -71,6 +71,11 @@ class JmSpider(BaseComicSpider2):
             if not response.meta.get("title"):
                 title = response.xpath('//title/text()').extract_first()
                 response.meta['title'] = title.rsplit("|", 1)[0]
+            if not response.meta.get("book"):
+                response.meta['book'] = JmBookInfo(
+                    name=response.meta['title'],
+                    url=response.url,
+                ).get_id(response.url)
             yield from super(JmSpider, self).parse_section(response)
 
     @property
@@ -94,26 +99,30 @@ class JmSpider(BaseComicSpider2):
 
     def frame_book(self, response):
         frame_results = {}
-        example_b = r' [ {} ]、【 {} 】'
-        self.say(example_b.format('序号', '漫画名') + '<br>')
+        say_fm = r' [ {} ]、【 {} 】'
+        self.say(say_fm.format('序号', '漫画名') + '<br>')
         preview = PreviewHtml(response.url)
         targets = response.xpath('//div[contains(@class,"thumb-overlay")]')
         for x, target in enumerate(targets):
-            title = target.xpath('.//img/@title').get().strip().replace("\n", "")
             pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
-            preview_url = f'https://{self.domain}{pre_url}'  # 人类行为读取的页面
-            url = self.transfer_url(preview_url)
             img_preview = target.xpath('./a/img/@src | ./img/@src').get()
             if (img_preview or "").endswith("blank.jpg"):
                 img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()
-            self.say(example_b.format(str(x + 1), title, chr(12288)))
-            self.say('') if (x + 1) % self.num_of_row == 0 else None
-            frame_results[x + 1] = [url, title, preview_url]
             _likes = target.xpath('.//span[contains(@id,"albim_likes")]/text()').get()
-            likes = _likes.strip() if _likes else 0
             _btypes = target.xpath('.//div[@class="category-icon"]/div/text()').getall()
-            btype = " ".join(_btypes).strip()
-            preview.add(x+1, img_preview, title, preview_url, likes=likes, btype=btype)
+            book = JmBookInfo(
+                idx=x+1,
+                name=target.xpath('.//img/@title').get().strip().replace("\n", ""),
+                preview_url=f'https://{self.domain}{pre_url}',
+                url=f'https://{self.domain}{self.transfer_url(pre_url)}',
+                btype=" ".join(_btypes).strip(),
+                img_preview=img_preview,
+                likes=_likes.strip() if _likes else 0
+            ).get_id(pre_url)
+            self.say(say_fm.format(*book.say))
+            self.say('') if (book.idx) % self.num_of_row == 0 else None
+            frame_results[book.idx] = book
+            preview.add(*book.preview_add, likes=book.likes, btype=book.btype)
         self.say(preview.created_temp_html)
         self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))
         return self.say.frame_book_print(frame_results, url=response.url)

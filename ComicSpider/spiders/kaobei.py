@@ -6,8 +6,8 @@ from urllib.parse import urlencode
 import jsonpath_rw as jsonp
 
 from utils.processed_class import Url
-from utils.website import KaobeiUtils
-from .basecomicspider import BaseComicSpider, ComicspiderItem, font_color, conf
+from utils.website import KaobeiUtils, KbBookInfo, Episode
+from .basecomicspider import BaseComicSpider, ComicspiderItem, conf
 
 pc_domain = "www.2025copy.com"
 domain = "api.2025copy.com"
@@ -110,8 +110,8 @@ class KaobeiSpider(BaseComicSpider):
 
     def frame_book(self, response):
         frame_results = {}
-        example_b = self.preset_book_frame.example_b
-        self.say(example_b.format('序号', *self.preset_book_frame.print_head[1:]) + '<br>')
+        say_fm = self.preset_book_frame.example_b
+        self.say(say_fm.format('序号', *self.preset_book_frame.print_head[1:]) + '<br>')
         targets = response.json().get('results', {}).get('list', [])
         for index, target in enumerate(targets):
             rendered = {
@@ -119,23 +119,26 @@ class KaobeiSpider(BaseComicSpider):
                 for attr_name, _path in self.preset_book_frame.rendering_map().items()
             }
             # url = rf"""https://{self.domain}/api/v3/comic/{rendered.pop('book_path')}/group/default/chapters?limit=300&offset=0&_update=false"""
-            url = rf"""https://{pc_domain}/comicdetail/{rendered.pop('book_path')}/chapters"""
-            self.say(example_b.format(str(index + 1), *rendered.values(), chr(12288)))
-            frame_results[index + 1] = [url, rendered['漫画名'], response.url]
+            book_path = rendered.pop('book_path')
+            book = KbBookInfo(
+                idx=index+1,
+                name=rendered.get('漫画名'),
+                artist=rendered.get('作者'),
+                url=f"https://{pc_domain}/comicdetail/{book_path}/chapters",
+                preview_url=f"https://{pc_domain}/comic/{book_path}",
+            )
+            self.say(say_fm.format(str(book.idx), *rendered.values(), chr(12288)))
+            frame_results[book.idx] = book
         return self.say.frame_book_print(
             frame_results, url=response.url,
             extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>" +
                   "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算")
 
-    def need_sec_next_page(self, response):
-        """discard, 当前接口返回完全数据，并不需要额外用offset整合章节请求
-        e.g. 海贼王haizeiwang 火影忍者huoyingrenzhe 葬送的芙莉蓮zangsongdefulilian"""
-        ...
-
     def frame_section(self, response):
+        book = response.meta.get("book")
         frame_results = {}
-        example_s = ' -{}、【{}】'
-        self.say(example_s.format('序号', '章节') + '<br>')
+        say_ep_fm = ' -{}、【{}】'
+        self.say(say_ep_fm.format('序号', '章节') + '<br>')
         resp_data = KaobeiUtils.decrypt_chapter_data(response.json()['results'])
         comic_path_word = resp_data['build']['path_word']
         chapters_data = resp_data['groups']['default']['chapters']
@@ -145,44 +148,30 @@ class KaobeiSpider(BaseComicSpider):
                     chapters_data.extend(resp_data['groups'][_]['chapters'])
         for x, chapter_datum in enumerate(chapters_data):
             # section_url = rf"""https://{self.domain}/api/v3/comic/{comic_path_word}/chapter2/{chapter_datum['id']}?_update=false&platform=1"""
-            section_url = rf"""https://{self.pc_domain}/comic/{comic_path_word}/chapter/{chapter_datum['id']}"""
-            section = chapter_datum['name']
-            frame_results[x + 1] = [section, section_url]
-        return self.say.frame_section_print(frame_results, print_example=example_s)
+            ep = Episode(
+                from_book=book,
+                id=chapter_datum['id'],
+                idx=x+1,
+                url=rf"""https://{self.pc_domain}/comic/{comic_path_word}/chapter/{chapter_datum['id']}""",
+                name=chapter_datum['name'],
+            )
+            frame_results[ep.idx] = ep
+        return self.say.frame_section_print(frame_results, print_example=say_ep_fm)
 
     def mk_page_tasks(self, **kw):
         return [kw['url']]
 
-    def mapi_parse_fin_page(self, response):
-        self.logger.warning("mapi_parse_fin_page is deprecated")
-        result = response.json().get('results', {})
-        meta = response.meta
-        if result.get("show_app"):
-            self.say(font_color(f'[{meta.get("title")}-{meta.get('section')}] 被风控了我擦呢',
-                                cls='theme-err'))
-        chapter = result.get('chapter', {})
-        targets = dict(zip(chapter.get('words', []), chapter.get('contents', [])))
-        group_infos = ComicspiderItem.get_group_infos(meta)
-        self.set_task((meta['uuid_md5'], f"{meta['title']}-{meta['section']}", len(targets), meta['title_url']))
-        for page, url_item in targets.items():
-            item = ComicspiderItem()
-            item.update(**group_infos)
-            item['page'] = page + 1
-            item['image_urls'] = [url_item['url']]
-            self.total += 1
-            yield item
-        self.process_state.process = 'fin'
-        self.Q('ProcessQueue').send(self.process_state)
-
     def parse_fin_page(self, response):
-        meta = response.meta
-        group_infos = ComicspiderItem.get_group_infos(meta)
+        ep = response.meta['ep']
+        book = ep.from_book
+        uid, u_md5 = ep.id_and_md5()
+        group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
         contentKey_script = response.xpath('//script[contains(text(), "var contentKey =")]/text()').get()
         if not contentKey_script:
             raise ValueError("拷贝更改了contentKey xpath")
         contentKey = re.search(r"""var contentKey = ["']([^']*)["']""", contentKey_script).group(1)
         imageData = KaobeiUtils.decrypt_chapter_data(contentKey)
-        self.set_task((meta['uuid_md5'], f"{meta['title']}-{meta['section']}", len(imageData), meta['title_url']))
+        self.set_task((u_md5, uid, len(imageData), book.preview_url))
         for page, url_item in enumerate(imageData):
             item = ComicspiderItem()
             item.update(**group_infos)
