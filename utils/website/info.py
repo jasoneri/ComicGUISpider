@@ -127,3 +127,13 @@ class EhBookInfo(Ero):
     
     def get_group_infos(self) -> dict:
         return {'title': self.name,'section': 'meaningless','uuid': self.uid,'uuid_md5': self.u_md5}
+
+
+class HitomiBookInfo(Ero):
+    source = "hitomi"
+    lang: str = None
+    pics: list = []
+    
+    @property
+    def say(self):
+        return str(self.idx), self.lang, self.pages, self.name, chr(12288)

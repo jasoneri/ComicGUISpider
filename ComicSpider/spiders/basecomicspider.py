@@ -404,7 +404,7 @@ class BaseComicSpider2(BaseComicSpider):
 
 
 class BaseComicSpider3(BaseComicSpider):
-    """Antique grade! No section, but three or more jump
+    """Antique grade! No episode, but three or more jump
     e.g. ehentai
     """
 
