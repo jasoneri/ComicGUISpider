@@ -141,7 +141,7 @@ SPIDER:
   parse_step: "漫画"
   parse_sec_step: "章节"
   parse_sec_not_match: "没匹配到结果"
-  parse_sec_selected: "所选序号"
+  parse_sec_selected: "所选章节"
   parse_sec_now_start_crawl_desc: "现在开始爬取《%s》章节"
   page_less_than_one: "当前页数少于1，避免出错设置回第一页"
   finished_success: "~~~后台完成[%s]个图片任务了 ヾ(￣▽￣ )Bye~Bye~"

@@ -33,9 +33,8 @@ class EHentaiSpider(BaseComicSpider3):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
-        self.say(say_fm.format('index', 'pages', 'name') + '<br>')
-        preview = PreviewHtml(response.url)
+        self.say(EhBookInfo.say_fm.format('index', 'pages', 'name') + '<br>')
+        # preview = PreviewHtml(response.url)
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         for x, target in enumerate(targets):
             item_elem = target.xpath('./td/div[@class="glthumb"]')
@@ -52,11 +51,11 @@ class EHentaiSpider(BaseComicSpider3):
                 btype=target.xpath('./td[contains(@class, "glcat")]/div/text()').get(),
                 img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
             ).get_id(_url)
-            self.say(say_fm.format(*book.say))
+            self.say(book)
             self.say('') if (book.idx) % self.num_of_row == 0 else None
             frame_results[book.idx] = book
-            preview.add(*book.preview_add, pages=book.pages, btype=book.btype)
-        self.say(preview.created_temp_html)
+            # preview.add(*book.preview_args, pages=book.pages, btype=book.btype)
+        self.say(f"[PreviewBookInfoEnd]{response.url}")
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
 
     def page_turn(self, response, elected_results):

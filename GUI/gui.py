@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import typing as t
 import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
@@ -23,7 +24,7 @@ from GUI.manager.preprocess import PreprocessManager
 from variables import *
 from assets import res
 from utils import (
-    Queues, QueuesManager, conf, p, curr_os
+    Queues, QueuesManager, conf, p, curr_os, fin_transfer
 )
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
@@ -31,6 +32,20 @@ from utils.processed_class import (
     PreviewHtml
 )
 from utils.website import spider_utils_map, InfoMinix
+
+
+def select(elect, books: t.List[InfoMinix], **kw) -> list:
+    """简单判断elect，返回选择的frame
+    :param elect: [1,2,3,4,……], [0], -3, "1+5-7", "[combine]['3'] and "
+    :param frame_results: {1: book1, 2: book2……}
+    :return: [book1, book2……]
+    """
+    # TODO[1] 扩展筛选
+    _selected = fin_transfer(elect, sorted([b.idx for b in books], key=lambda x: x.idx))
+    # REMARK scanChecked由于需要支持episode改为str，取消了js回调后output的int处理，保留str形式传输; 
+    #        因而统一使用str(idx)
+    results = list(filter(lambda b: str(b.idx) in _selected, books))
+    return results
 
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
@@ -47,6 +62,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
     webs_status = []
+    book_infos = []
+    keep_book_infos = []
+    eps = []
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -105,6 +123,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.finish_setup()
 
     def finish_setup(self):
+        self.book_infos = []
+        self.keep_book_infos = []
+        self.eps = []
         self.conf_dia = ConfDialog(self)
         self.textBrowser.setOpenExternalLinks(True)
         self.textBrowser.append(TextUtils.description())
@@ -265,12 +286,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.clean_temp_file()
             if self.BrowserWindow and self.BrowserWindow.output:
                 idxes = f"[combine]{str(self.BrowserWindow.output)} and {self.chooseinput.text().strip()}"
-                self.input_state.indexes = idxes
                 self.BrowserWindow.output = []
             elif self.chooseinput.text().strip():
-                self.input_state.indexes = self.chooseinput.text().strip()
+                idxes = self.chooseinput.text().strip()
             else:
-                self.input_state.indexes = ""
+                idxes = ""
+            __ = select(idxes, self.book_infos)
+            self.keep_book_infos.extend(__)
+            self.book_infos = []
             if _p.startswith("next"):
                 self.pageEdit.setValue(int(self.pageEdit.value()) + 1)
             elif _p.startswith("previous"):
@@ -302,8 +325,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
         # webEngine / page
-        if conf.isDeduplicate and not self.clip_mgr.is_triggered:
-            self.tip_duplication()
 
     def show_preview(self):
         """prevent PreviewWindow is None when init"""
@@ -421,22 +442,25 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         idxes = self.chooseinput.text().strip()
         if self.BrowserWindow and self.BrowserWindow.output:
             idxes = f"[combine]{str(self.BrowserWindow.output)} and {idxes}"
-        self.input_state.indexes = idxes
+        __ = select(idxes, self.book_infos)
+        self.keep_book_infos.extend(__)
+        self.input_state.indexes = self.keep_book_infos
         self.input_state.pageTurn = ""
         if self.nextclickCnt == 1:
             self.book_choose = self.input_state.indexes if self.input_state.indexes != "0" else \
                 [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
             self.book_num = len(self.book_choose)
-            if self.book_num > 1:
-                self.log.info('book_num > 1')
         self.chooseinput.clear()
         # choose逻辑 交由crawl, next,retry3个btn的schedule控制
         self.q_InputFieldQueue_send(self.input_state)
         self.log.debug(f'send choose: {self.input_state.indexes} success')
 
     def crawl(self):
-        self.input_state.indexes = self.chooseinput.text().strip()
-        self.log.debug(f'===--→ click down crawl_btn')
+        idxes = self.chooseinput.text().strip()
+        book = self.eps[0].from_book
+        __ = select(idxes, self.eps)
+        book.episodes = __
+        self.input_state.indexes = book
 
         QThread.msleep(10)
         self.q_InputFieldQueue_send(self.input_state)

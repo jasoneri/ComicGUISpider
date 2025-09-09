@@ -14,8 +14,9 @@ domain = "api.2025copy.com"
 
 
 class FrameBook:
-    example_b = ' {}、\t《{}》\t【{}】\t[{}]'
-    print_head = ['book_path', '漫画名', '作者', '热度']
+    say_fm = ' {}、\t《{}》\t【{}】\t[{}]'
+    print_head = ['book_path', 'name', 'artist', 'popular']
+    render_keys = ['name', 'artist', 'popular']
     target_json_path = ['path_word', 'name', 'author.[*].name', 'popular']
     expand_map = None
 
@@ -28,8 +29,9 @@ class FrameBook:
 
     def byRefresh(self):
         self.url = f'https://{self.domain}/api/v3/update/newest?limit=30&offset=0&_update=false'
-        self.example_b = FrameBook.example_b + '\t[{}]\t[{}]'
-        self.print_head = FrameBook.print_head + ['更新时间', '最新章节']
+        self.say_fm = FrameBook.say_fm + '\t[{}]\t[{}]'
+        self.print_head = FrameBook.print_head + ['datetime_updated', 'last_chapter_name']
+        self.render_keys = FrameBook.render_keys + ['datetime_updated', 'last_chapter_name']
         self.target_json_path = ['comic.path_word', 'comic.name', 'comic.author.[*].name',
                                  'comic.popular', 'comic.datetime_updated', 'comic.last_chapter_name']
 
@@ -110,7 +112,7 @@ class KaobeiSpider(BaseComicSpider):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = self.preset_book_frame.example_b
+        say_fm = self.preset_book_frame.say_fm
         self.say(say_fm.format('序号', *self.preset_book_frame.print_head[1:]) + '<br>')
         targets = response.json().get('results', {}).get('list', [])
         for index, target in enumerate(targets):
@@ -121,13 +123,15 @@ class KaobeiSpider(BaseComicSpider):
             # url = rf"""https://{self.domain}/api/v3/comic/{rendered.pop('book_path')}/group/default/chapters?limit=300&offset=0&_update=false"""
             book_path = rendered.pop('book_path')
             book = KbBookInfo(
-                idx=index+1,
-                name=rendered.get('漫画名'),
-                artist=rendered.get('作者'),
+                idx=index+1, 
+                say_fm = self.preset_book_frame.say_fm,
+                render_keys = self.preset_book_frame.render_keys,
                 url=f"https://{pc_domain}/comicdetail/{book_path}/chapters",
                 preview_url=f"https://{pc_domain}/comic/{book_path}",
             )
-            self.say(say_fm.format(str(book.idx), *rendered.values(), chr(12288)))
+            for k in self.preset_book_frame.render_keys:
+                setattr(book, k, rendered.get(k))
+            self.say(book)
             frame_results[book.idx] = book
         return self.say.frame_book_print(
             frame_results, url=response.url,
@@ -156,7 +160,7 @@ class KaobeiSpider(BaseComicSpider):
                 name=chapter_datum['name'],
             )
             frame_results[ep.idx] = ep
-        return self.say.frame_section_print(frame_results, print_example=say_ep_fm)
+        self.say.frame_section_print(frame_results, print_example=say_ep_fm)
 
     def mk_page_tasks(self, **kw):
         return [kw['url']]
