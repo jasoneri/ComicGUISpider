@@ -52,7 +52,7 @@ def transfer_input(_input: str) -> list:
 minus_regex = re.compile(r'^-\d+$')
 
 
-def fin_transfer(_elect, _results_keys) -> t.List[str]:
+def fin_transfer(_elect, _results_keys) -> list:
     def _transfer():
         if _elect == '0':
             return _results_keys
@@ -62,11 +62,24 @@ def fin_transfer(_elect, _results_keys) -> t.List[str]:
             return sorted(_results_keys)[int(_elect):]
         elif _elect.startswith('[combine]'):
             brower_input, _input = _elect[9:].split(' and ')
-            return list(set(ast.literal_eval(brower_input)) | (
+            cb_tra = list(set(ast.literal_eval(brower_input)) | (
                 set(transfer_input(_input)) if not bool(minus_regex.search(_input)) else 
-                set(sorted(_results_keys)[int(_input):])))
+                set(fin_transfer(_input, _results_keys))))
+            return [int(x) for x in cb_tra]
         return transfer_input(_elect)
-    return list(map(str, _transfer()))
+    return _transfer()
+
+
+def select(elect, infos: dict, **kw) -> list:
+    """简单判断elect，返回选择的frame
+    注: 剪贴板模式用SpiderGUI.clip_mgr.create_selected_list，无需在这兼容处理str
+    :param elect: [1,2,3,4,……], [0], -3, "1+5-7", "[combine]['3'] and "
+    :param infos: {1: InfoMinix1, 2: InfoMinix2……}
+    :return: [book1, book2……]
+    """
+    _selected = fin_transfer(elect, sorted(infos.keys()))
+    results = [infos[i] for i in _selected]
+    return results
 
 
 cn_character = r'，。！？；：（）《》【】“”\‘\’、'
@@ -80,6 +93,7 @@ def convert_punctuation(text):
 
 def clean_escape_chars(text):
     return text.replace('\\\\', '\\').replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
+
 
 class State:
     """gui与后端需要共用的一个状态变量时，使用此类；

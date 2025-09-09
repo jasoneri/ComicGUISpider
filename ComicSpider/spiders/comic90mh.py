@@ -36,7 +36,7 @@ class Comic90mhSpider(BaseComicSpider):
             section_url = target.xpath('./a/@href').get()
             section = target.xpath('.//span/text()').get()
             frame_results[x + 1] = [section, section_url]
-        return self.say.frame_section_print(frame_results, print_example=example_s)
+        return self.say.frame_section_print(frame_results, fm=example_s)
 
     def mk_page_tasks(self, **kw):
         return [kw['url'].replace(domain, 'www.90mh.org')]

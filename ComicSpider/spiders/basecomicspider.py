@@ -12,10 +12,7 @@ from variables import *
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from GUI.core.font import font_color
-from utils import (
-    Queues, QueuesManager, PresetHtmlEl, temp_p, conf,
-    fin_transfer
-)
+from utils import Queues, QueuesManager, PresetHtmlEl, temp_p, conf
 from utils.processed_class import (
     TextBrowserState, ProcessState, QueueHandler, refresh_state, 
     Url, TasksObj
@@ -56,34 +53,37 @@ class SayToGui:
             self.state.text = _text
             Queues.send(self.queue, self.state, wait=True)
 
-    def frame_book_print(self, rets, url=None, extra=None):
-        # fk = sorted(rets.keys())
-        # for idx in fk:
-        #     self(rets[idx])
+    def frame_book_print(self, rets, fm=None, url=None, extra=None, make_preview=False):
+        fm = fm or self.spider.say_fm
+        fk = sorted(rets.keys())
+        for idx in fk:
+            self(fm.format(*rets[idx].say))
         extra = extra or self.res.frame_book_print_extra
         self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         if len(rets):
-            # for idx in fk:
-            #     self(rets[idx])
+            self(rets)  
+            # 向gui传送rets并赋值需要比exp_txt(crawl_only的flag) 和 PreviewBookInfoEnd 早才行
+            if make_preview:
+                self(f"[PreviewBookInfoEnd]{url}")
             self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}
                 {font_color(extra, cls='theme-tip')}</p><br>""")
+            self("[ShowKeepBooks]")  # 由于 keep_books 现放在 gui 上，所以最后用 flag 形式触发
         else:
             self(f"""{'✈' * 15}
                 {font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=5)}""")
         return rets
 
-    def frame_section_print(self, rets, print_example, print_limit=5, extra=None):
+    def frame_section_print(self, rets, fm, print_limit=5, extra=None):
         extra = extra or self.res.frame_section_print_extra
         print_npc = []
         for x, ep in rets.items():
-            print_npc.append(print_example.format(str(x), ep.name).strip())
-            if x % print_limit == 0:
+            print_npc.append(fm.format(x, ep.name).strip())
+            if int(x) % print_limit == 0:
                 self(str(print_npc).replace("'", "").replace("[", "").replace("]", ""))
                 print_npc = []
         self(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(
             print_npc) else None
-        for ep in rets.values():
-            self(ep)
+        self(rets)
         self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-highlight')}</p><br>""")
         return rets
 
@@ -118,6 +118,7 @@ class BaseComicSpider(scrapy.Spider):
     kind = {}
     # e.g. kind={'作者':'xx_url_xx/artist/', ...}  当输入为'作者张三'时，self.search='xx_url_xx/artist/张三'
     mappings = {}  # mappings自定义关键字对应"固定"uri
+    say_fm = r' [ {} ]、【 {} 】'
     frame_book_format = ['title', 'preview_url']
     turn_page_search: str = None
     turn_page_info: tuple = None
@@ -171,16 +172,9 @@ class BaseComicSpider(scrapy.Spider):
         self.process_state.process = 'parse'
         self.Q('ProcessQueue').send(self.process_state)
         frame_book_results = self.frame_book(response)
-        # selected = response.meta.get("selected", [])
-        # if selected:
-        #     elected_titles = list(map(lambda x: x.name, selected))
-        #     self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
-        #                         f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        # results = self.select(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
         if self.input_state.pageTurn:
-            # yield from self.page_turn(response, results)
             yield from self.page_turn(response)
         else:
             for book in self.input_state.indexes:
@@ -198,9 +192,6 @@ class BaseComicSpider(scrapy.Spider):
             yield from self.page_turn_(url)
 
     def page_turn_(self, url, **kw):
-        # all_elected_res = [*elected_results, *resp.meta.get("selected", [])]
-        # yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url, "selected": all_elected_res},
-        #                      dont_filter=True, **kw)
         yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url},
                              dont_filter=True, **kw)
 
@@ -453,26 +444,25 @@ class FormReqBaseComicSpider(BaseComicSpider):
             yield scrapy.FormRequest(self.search_start, formdata=self.body.dic,
                                      dont_filter=True, meta={"Body": self.body})
 
-    def page_turn(self, response, elected_results):
+    def page_turn(self, response):
         _ = int(response.meta['Body'].dic[self.body.page_index_field])
         if not self.input_state.pageTurn:
             yield scrapy.FormRequest(url=self.search, callback=self.parse, formdata=response.meta['Body'].dic,
                                      meta=response.meta, dont_filter=True)
         elif 'next' in self.input_state.pageTurn:
             response.meta['Body'].dic[self.body.page_index_field] = f"{_ + 1}"
-            yield from self.page_turn_(response, elected_results)
+            yield from self.page_turn_(response)
         elif 'previous' in self.input_state.pageTurn:
             if _ - 1 <= 0:
                 response.meta['Body'].dic[self.body.page_index_field] = 1
                 self.say(self.res.page_less_than_one)
             else:
                 response.meta['Body'].dic[self.body.page_index_field] = f"{_ - 1}"
-            yield from self.page_turn_(response, elected_results)
+            yield from self.page_turn_(response)
         elif self.input_state.pageTurn:
             response.meta['Body'].dic[self.body.page_index_field] = str(self.input_state.pageTurn)
-            yield from self.page_turn_(response, elected_results)
+            yield from self.page_turn_(response)
 
-    def page_turn_(self, resp, elected_results, **kw):
-        all_elected_res = [*elected_results, *resp.meta.get("selected", [])]
+    def page_turn_(self, resp, **kw):
         yield scrapy.FormRequest(url=resp.request.url, callback=self.parse, formdata=resp.meta['Body'].dic,
-                                 meta={"Body": resp.meta['Body'], "selected": all_elected_res}, dont_filter=True, **kw)
+                                 meta={"Body": resp.meta['Body']}, dont_filter=True, **kw)

@@ -23,29 +23,14 @@ from GUI.manager import TaskProgressManager, ClipGUIManager
 from GUI.manager.preprocess import PreprocessManager
 from variables import *
 from assets import res
-from utils import (
-    Queues, QueuesManager, conf, p, curr_os, fin_transfer
-)
+from utils import Queues, QueuesManager, conf, p, curr_os, select
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, refresh_state, crawl_what,
     PreviewHtml
 )
 from utils.website import spider_utils_map, InfoMinix
-
-
-def select(elect, books: t.List[InfoMinix], **kw) -> list:
-    """简单判断elect，返回选择的frame
-    :param elect: [1,2,3,4,……], [0], -3, "1+5-7", "[combine]['3'] and "
-    :param frame_results: {1: book1, 2: book2……}
-    :return: [book1, book2……]
-    """
-    # TODO[1] 扩展筛选
-    _selected = fin_transfer(elect, sorted([b.idx for b in books], key=lambda x: x.idx))
-    # REMARK scanChecked由于需要支持episode改为str，取消了js回调后output的int处理，保留str形式传输; 
-    #        因而统一使用str(idx)
-    results = list(filter(lambda b: str(b.idx) in _selected, books))
-    return results
+from utils.sql import SqlUtils
 
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
@@ -62,8 +47,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
     webs_status = []
-    book_infos = []
-    keep_book_infos = []
+    books = {}
+    keep_books = []
     eps = []
 
     p_crawler: Process = None
@@ -123,8 +108,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.finish_setup()
 
     def finish_setup(self):
-        self.book_infos = []
-        self.keep_book_infos = []
+        self.books = {}
+        self.keep_books = []
         self.eps = []
         self.conf_dia = ConfDialog(self)
         self.textBrowser.setOpenExternalLinks(True)
@@ -254,9 +239,20 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.page_turn_frame()
 
-    def mark_tip(self):
+    def mark_tip(self, ori_books):
+        """将self.books的各book加上
+        1.已下载标记,from sql;
+        2.（未做）非被指定标记"""
+        def mark_tip(_books):
+            sql_utils = SqlUtils()
+            downloaded_md5 = sql_utils.batch_check_dupe([book.u_md5 for book in _books])
+            for book in filter(lambda b: b.u_md5 in downloaded_md5, _books):
+                book.mark_tip = "downloaded"
+        books = sorted(ori_books.values(), key=lambda x: x.idx)
         if conf.isDeduplicate and not self.clip_mgr.is_triggered:
-            self.preview.mark_tip()
+            mark_tip(books)
+        # TODO[2](2025-09-05): 高级筛选，改写 book.mark_tip
+        return books
 
     def page_turn_frame(self):
         def refresh_view(_prev_tf):
@@ -265,8 +261,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 while i < 1000:  # i * 3ms = 极限等待3s
                     if self.tf != _prev_tf:
                         self.BrowserWindow.second_init()
-                        # if conf.isDeduplicate:
-                        #     self.mark_tip()
                         self.previewSecondInit = False
                         break
                     i += 1
@@ -287,9 +281,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 idxes = self.chooseinput.text().strip()
             else:
                 idxes = ""
-            __ = select(idxes, self.book_infos)
-            self.keep_book_infos.extend(__)
-            self.book_infos = []
+            __ = select(idxes, self.books)
+            self.keep_books.extend(__)
+            self.books = {}
             if _p.startswith("next"):
                 self.pageEdit.setValue(int(self.pageEdit.value()) + 1)
             elif _p.startswith("previous"):
@@ -308,21 +302,23 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.pageJumpBtn.setEnabled(True)
 
         self.pageEdit.valueChanged.connect(page_edit)
+    
+    def show_keep_books(self):
+        if self.keep_books:
+            elected_titles = tuple(x.name for x in self.keep_books)
+            self.say(font_color(f"<br>{res.SPIDER.choice_list_before_turn_page}<br>"
+                    f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
     def preprocess_preview(self, url_str):
         url = url_str.replace("[PreviewBookInfoEnd]", "")
-        self.book_infos = sorted(self.book_infos, key=lambda x: x.idx)
+        
         if self.chooseBox.currentIndex() not in SPECIAL_WEBSITES_IDXES:
             return
         self.previewBtn.setEnabled(True)
-        self.preview = PreviewHtml(url, self.book_infos)
-        self.mark_tip()
+        books = self.mark_tip(self.books)
+        self.preview = PreviewHtml(url, books)
         self.preview.duel_contents()
         self.tf = self.preview.created_temp_html
-        if self.keep_book_infos:
-            elected_titles = list(map(lambda x: x.name, self.keep_book_infos))
-            self.say(font_color(f"<br>{res.SPIDER.choice_list_before_turn_page}<br>"
-                    f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
     def set_preview(self):
         self.BrowserWindow = BrowserWindowCls(self)
@@ -335,7 +331,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
-        # webEngine / page
 
     def show_preview(self):
         """prevent PreviewWindow is None when init"""
@@ -453,9 +448,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         idxes = self.chooseinput.text().strip()
         if self.BrowserWindow and self.BrowserWindow.output:
             idxes = f"[combine]{str(self.BrowserWindow.output)} and {idxes}"
-        __ = select(idxes, self.book_infos)
-        self.keep_book_infos.extend(__)
-        self.input_state.indexes = self.keep_book_infos
+        __ = select(idxes, self.books)
+        self.keep_books.extend(__)
+        self.input_state.indexes = self.keep_books
         self.input_state.pageTurn = ""
         if self.nextclickCnt == 1:
             self.book_choose = self.input_state.indexes if self.input_state.indexes != "0" else \
@@ -468,8 +463,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def crawl(self):
         idxes = self.chooseinput.text().strip()
-        book = self.eps[0].from_book
         __ = select(idxes, self.eps)
+        if not __:
+            self.say(font_color(r'selected idxes error!!!', cls='theme-err', size=5))
+            return
+        book = __[0].from_book
         book.episodes = __
         self.input_state.indexes = book
 
@@ -481,6 +479,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.crawl_btn.setDisabled(True)
         else:
             self.chooseinput.clear()
+        self.eps = []  # 在复数本选择下，清空 eps 确保 eps 不会同序号不同book
         self.log.debug(f'book_num remain: {self.book_num}')
         self.log.info(f"===--→ crawl finish (now step: {self.process_state.process})\n")
 
