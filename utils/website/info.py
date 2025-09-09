@@ -44,16 +44,21 @@ class BookInfo(InfoMinix):
 class Manga(BookInfo):
     episodes: list = []
     latest_sec: str = None
+    say_fm: str = ""
+    render_keys: list = []
     
     @property
     def frame_result(self):
         return self.url, self.name, self.preview_url
 
+    @property
+    def say(self):
+        render_vals = [getattr(self, k, '') for k in self.render_keys]
+        return (str(self.idx), *render_vals, chr(12288))
 
 class Ero(BookInfo):
+    say_fm = r' [ {} ]、【 {} 】'
     img_preview: str = None  
-    uid = ""
-    u_md5 = ""
 
     @property
     def say(self):
@@ -64,13 +69,18 @@ class Ero(BookInfo):
         return self.url, self.name, self.preview_url
 
     @property
-    def preview_add(self):
+    def preview_args(self):
         return self.idx, self.img_preview, self.name, self.preview_url
 
+    @property
+    def uid(self):
+        return f"{self.source}-{self.id}"
+
+    @property
+    def u_md5(self):
+        return md5(self.uid)
+
     def id_and_md5(self):
-        # id_and_md5后端保存
-        self.uid = f"{self.source}-{self.id}"
-        self.u_md5 = md5(self.uid)
         return self.uid, self.u_md5
 
     def clip_info(self):
@@ -120,6 +130,7 @@ class WnacgBookInfo(Ero):
 
 class EhBookInfo(Ero):
     source = "ehentai"
+    say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
 
     @property
     def say(self):
@@ -133,6 +144,7 @@ class HitomiBookInfo(Ero):
     source = "hitomi"
     lang: str = None
     pics: list = []
+    say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
     
     @property
     def say(self):

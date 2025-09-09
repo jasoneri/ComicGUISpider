@@ -29,7 +29,7 @@ class InputFieldState(State):
 
 @dataclass
 class TextBrowserState(State):
-    text: str
+    text: t.Union[str, InfoMinix]
 
 
 @dataclass

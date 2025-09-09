@@ -52,19 +52,21 @@ def transfer_input(_input: str) -> list:
 minus_regex = re.compile(r'^-\d+$')
 
 
-def fin_transfer(_elect, _results_keys):
-    if _elect == '0':
-        return _results_keys
-    elif isinstance(_elect, list):
-        return _elect
-    elif bool(minus_regex.search(_elect)):
-        return sorted(_results_keys)[int(_elect):]
-    elif _elect.startswith('[combine]'):
-        brower_input, _input = _elect[9:].split(' and ')
-        return list(set(ast.literal_eval(brower_input)) | (
-            set(transfer_input(_input)) if not bool(minus_regex.search(_input)) else 
-            set(sorted(_results_keys)[int(_input):])))
-    return transfer_input(_elect)
+def fin_transfer(_elect, _results_keys) -> t.List[str]:
+    def _transfer():
+        if _elect == '0':
+            return _results_keys
+        elif isinstance(_elect, list):
+            return _elect
+        elif bool(minus_regex.search(_elect)):
+            return sorted(_results_keys)[int(_elect):]
+        elif _elect.startswith('[combine]'):
+            brower_input, _input = _elect[9:].split(' and ')
+            return list(set(ast.literal_eval(brower_input)) | (
+                set(transfer_input(_input)) if not bool(minus_regex.search(_input)) else 
+                set(sorted(_results_keys)[int(_input):])))
+        return transfer_input(_elect)
+    return list(map(str, _transfer()))
 
 
 cn_character = r'，。！？；：（）《》【】“”\‘\’、'

@@ -105,21 +105,20 @@ class HitomiSpider(BaseComicSpider):
             })
         yield from self.defer_parse(meta['results'])
 
-    def page_turn(self, elected_results, meta):
+    def page_turn(self, meta):
         if not self.input_state.pageTurn:
             resp = self._get_nozomi_sync(meta.get("nozomi"), meta.get("page"))
             yield from self.parse(response=resp, meta=meta)
             # yield scrapy.Request(url=meta.get("nozomi"), callback=self.parse, meta=meta, dont_filter=True)
         elif 'next' in self.input_state.pageTurn:
-            yield from self.page_turn_(elected_results, meta['page']+1, meta)
+            yield from self.page_turn_(meta['page']+1, meta)
         elif 'previous' in self.input_state.pageTurn:
-            yield from self.page_turn_(elected_results, meta['page']-1, meta)
+            yield from self.page_turn_(meta['page']-1, meta)
         elif self.input_state.pageTurn:
-            yield from self.page_turn_(elected_results, int(self.input_state.pageTurn), meta)
+            yield from self.page_turn_(int(self.input_state.pageTurn), meta)
 
-    def page_turn_(self, elected_results, page, meta, **kw):
-        all_elected_res = [*elected_results, *meta.get("selected", [])]
-        meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), "selected": all_elected_res, "page": page}
+    def page_turn_(self, page, meta, **kw):
+        meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), "page": page}
         resp = self._get_nozomi_sync(meta.get("nozomi"), page)
         yield from self.parse(response=resp, meta=meta)
 
@@ -145,17 +144,11 @@ class HitomiSpider(BaseComicSpider):
             {json.dumps(ret.pop('meta')) for ret in rets}.pop()
         )
         frame_book_results = self.frame_book(rets, meta)
-        selected = meta.get("selected", [])
-        if selected:
-            elected_titles = list(map(lambda x: x.name, selected))
-            self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
-                                f"{'<br>'.join(elected_titles)}", cls='theme-success'))
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        results = self.select(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
         if self.input_state.pageTurn:
-            yield from self.page_turn(results, meta)
+            yield from self.page_turn(meta)
         else:
-            for book in [*results, *meta.get("selected", [])]:
+            for book in self.input_state.indexes:
                 meta = {'book': book}
                 yield from self.parse_section(meta)
 
@@ -189,10 +182,7 @@ class HitomiSpider(BaseComicSpider):
     # ==============================================
     def frame_book(self, rets, meta):
         frame_results = {}
-        say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
-        self.say(say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
-        preview = PreviewHtml(meta.get("Url"))
-        
+        self.say(HitomiBookInfo.say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
         for x, target in enumerate(rets):
             datum = self.ut.parse_galleries(target['text'])
             gallery_id = datum['id']
@@ -209,10 +199,9 @@ class HitomiSpider(BaseComicSpider):
                 img_preview=self.ut.get_img_url(first_pic['hash'], 0, preview=True),
                 lang=datum['language_localname'],
             )
-            self.say(say_fm.format(*book.say))
+            self.say(book)
             frame_results[book.idx] = book
-            preview.add(*book.preview_add, pages=book.pages, lang=book.lang, btype=book.btype)
-        self.say(preview.created_temp_html)
+        self.say("[PreviewBookInfoEnd]")
         return self.say.frame_book_print(frame_results, url=meta.get("Url"))
 
     def process_item(self, response):

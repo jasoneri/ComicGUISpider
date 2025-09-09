@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
-from typing import Union
+import typing as t
 from abc import abstractmethod
 from copy import deepcopy
 from time import sleep
@@ -56,28 +56,36 @@ class SayToGui:
             self.state.text = _text
             Queues.send(self.queue, self.state, wait=True)
 
-    def frame_book_print(self, frame_results, url=None, extra=None):
+    def frame_book_print(self, rets, url=None, extra=None):
+        # fk = sorted(rets.keys())
+        # for idx in fk:
+        #     self(rets[idx])
         extra = extra or self.res.frame_book_print_extra
         self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
-        self(
-            f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-tip')}</p><br>"""
-            if len(frame_results) else
-            f"{'✈' * 15}{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=5)}"
-        )
-        return frame_results
+        if len(rets):
+            # for idx in fk:
+            #     self(rets[idx])
+            self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}
+                {font_color(extra, cls='theme-tip')}</p><br>""")
+        else:
+            self(f"""{'✈' * 15}
+                {font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=5)}""")
+        return rets
 
-    def frame_section_print(self, frame_results, print_example, print_limit=5, extra=None):
+    def frame_section_print(self, rets, print_example, print_limit=5, extra=None):
         extra = extra or self.res.frame_section_print_extra
         print_npc = []
-        for x, ep in frame_results.items():
+        for x, ep in rets.items():
             print_npc.append(print_example.format(str(x), ep.name).strip())
             if x % print_limit == 0:
                 self(str(print_npc).replace("'", "").replace("[", "").replace("]", ""))
                 print_npc = []
         self(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(
             print_npc) else None
+        for ep in rets.values():
+            self(ep)
         self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-highlight')}</p><br>""")
-        return frame_results
+        return rets
 
 
 class BaseComicSpider(scrapy.Spider):
@@ -143,7 +151,7 @@ class BaseComicSpider(scrapy.Spider):
             yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
 
     @property
-    def search(self) -> Union[Url, tuple]:
+    def search(self) -> t.Union[Url, tuple]:
         self.process_state.process = 'search'
         self.Q('ProcessQueue').send(self.process_state)
         keyword = self.input_state.keyword
@@ -163,34 +171,37 @@ class BaseComicSpider(scrapy.Spider):
         self.process_state.process = 'parse'
         self.Q('ProcessQueue').send(self.process_state)
         frame_book_results = self.frame_book(response)
-        selected = response.meta.get("selected", [])
-        if selected:
-            elected_titles = list(map(lambda x: x.name, selected))
-            self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
-                                f"{'<br>'.join(elected_titles)}", cls='theme-success'))
+        # selected = response.meta.get("selected", [])
+        # if selected:
+        #     elected_titles = list(map(lambda x: x.name, selected))
+        #     self.say(font_color(f"<br>{self.res.choice_list_before_turn_page}<br>"
+        #                         f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        results = self.select(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
+        # results = self.select(self.input_state.indexes, frame_book_results, step=self.res.parse_step)
         if self.input_state.pageTurn:
-            yield from self.page_turn(response, results)
+            # yield from self.page_turn(response, results)
+            yield from self.page_turn(response)
         else:
-            for book in [*results, *response.meta.get("selected", [])]:
+            for book in self.input_state.indexes:
                 yield scrapy.Request(url=book.url, callback=self.parse_section, meta={"book": book}, dont_filter=True)
 
-    def page_turn(self, response, elected_results):
+    def page_turn(self, response):
         if not self.input_state.pageTurn:
             yield scrapy.Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
         elif 'next' in self.input_state.pageTurn:
-            yield from self.page_turn_(response, elected_results, response.meta['Url'].next)
+            yield from self.page_turn_(response.meta['Url'].next)
         elif 'previous' in self.input_state.pageTurn:
-            yield from self.page_turn_(response, elected_results, response.meta['Url'].prev)
+            yield from self.page_turn_(response.meta['Url'].prev)
         elif self.input_state.pageTurn:
             url = response.meta['Url'].jump(int(self.input_state.pageTurn))
-            yield from self.page_turn_(response, elected_results, url)
+            yield from self.page_turn_(url)
 
-    def page_turn_(self, resp, elected_results, url, **kw):
-        all_elected_res = [*elected_results, *resp.meta.get("selected", [])]
-        yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url, "selected": all_elected_res},
+    def page_turn_(self, url, **kw):
+        # all_elected_res = [*elected_results, *resp.meta.get("selected", [])]
+        # yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url, "selected": all_elected_res},
+        #                      dont_filter=True, **kw)
+        yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url},
                              dont_filter=True, **kw)
 
     @abstractmethod
@@ -217,19 +228,14 @@ class BaseComicSpider(scrapy.Spider):
         frame_eps_result = self.frame_section(response)
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        choose = self.input_state.indexes
-        eps = self.select(choose, frame_eps_result, step=self.res.parse_sec_step)
-
-        if not eps:
+        book = self.input_state.indexes
+        if not book.episodes:
             self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', cls='theme-err'))
-            self.logger.info(f'no result return, choose_input is wrong: {choose}')
+            self.logger.info(f'no result return, choose_input is wrong')
             return
-
+        choose = ','.join(map(str, book.episodes))
         self.say(f'{"-" * 10}《{book.name}》 {self.res.parse_sec_selected}: {choose}')
-        for ep in eps:
-            self.say(f"{ep.name:>>55}")
-
-        for ep in eps:
+        for ep in book.episodes:
             url_list = self.mk_page_tasks(url=ep.url)
             now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % book.name
             self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=5))
@@ -255,24 +261,6 @@ class BaseComicSpider(scrapy.Spider):
         """做这个中间件预想是：1、每一话预请求第一页，从resp中直接清洗获取items信息;
         2、设立规则处理response.follow也许可行"""
         return [kw['url']]
-
-    def select(self, elect, frame_results: dict, **kw) -> list:
-        """简单判断elect，返回选择的frame
-        :param elect: [1,2,3,4,……], [0], -3, "1+5-7", "[combine]['3'] and "
-        :param frame_results: {1: book1, 2: book2……}
-        :return: [book1, book2……]
-        """
-        # TODO[1] 扩展筛选
-        _selected = fin_transfer(elect, frame_results.keys())
-        self.say(kw['extra_info']) if 'extra_info' in kw else None
-        try:
-            # REMARK scanChecked由于需要支持episode改为str，取消了js回调后output的int处理，保留str形式传输; 
-            #        而frame_results.keys使用的仍然是enumerate的int，所以在此统一int
-            results = [frame_results[int(i)] for i in _selected]
-        except Exception as e:
-            self.logger.error(f'error elect: {e.args}, traceback:{str(type(e))}:: {str(e)}')
-        else:
-            return results
 
     def set_task(self, task_info):
         """taskid, title, task_length, title_url, episode_name"""

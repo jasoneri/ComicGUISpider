@@ -3,7 +3,7 @@ import asyncio
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
 from utils import conf, get_loop, QueuesManager, code_env
-from utils.website.info import InfoMinix
+from utils.website.info import InfoMinix, BookInfo, Episode
 from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
@@ -127,10 +127,16 @@ class WorkThread(QThread):
             self.msleep(5)
             try:
                 if not TextBrowser.empty():
-                    _ = str(TextBrowser.get().text)
-                    if "__temp" in _ and _.endswith("html"):
-                        self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己进程/线程初始化
-                        self.gui.previewBtn.setEnabled(True)
+                    _ = TextBrowser.get().text
+                    if isinstance(_, BookInfo):
+                    # if isinstance(_, dict) and all(list(isinstance(type(v), BookInfo) for v in _.values())):
+                        # self.gui.book_infos = _
+                        self.gui.eps.append(_)
+                        self.print_signal.emit(_.say_fm.format(*_.say))
+                    elif isinstance(_, Episode):
+                        self.gui.eps.append(_)
+                    elif "PreviewBookInfoEnd" in _:
+                        self.gui.preprocess_preview(_)
                     elif '[httpok]' in _:
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     else:

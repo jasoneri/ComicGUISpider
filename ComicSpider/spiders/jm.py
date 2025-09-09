@@ -99,9 +99,8 @@ class JmSpider(BaseComicSpider2):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = r' [ {} ]、【 {} 】'
-        self.say(say_fm.format('序号', '漫画名') + '<br>')
-        preview = PreviewHtml(response.url)
+        self.say(JmBookInfo.say_fm.format('序号', '漫画名') + '<br>')
+        # preview = PreviewHtml(response.url)
         targets = response.xpath('//div[contains(@class,"thumb-overlay")]')
         for x, target in enumerate(targets):
             pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
@@ -119,11 +118,11 @@ class JmSpider(BaseComicSpider2):
                 img_preview=img_preview,
                 likes=_likes.strip() if _likes else 0
             ).get_id(pre_url)
-            self.say(say_fm.format(*book.say))
+            self.say(book)
             self.say('') if (book.idx) % self.num_of_row == 0 else None
             frame_results[book.idx] = book
-            preview.add(*book.preview_add, likes=book.likes, btype=book.btype)
-        self.say(preview.created_temp_html)
+            # preview.add(*book.preview_args, likes=book.likes, btype=book.btype)
+        self.say(f"[PreviewBookInfoEnd]{response.url}")
         self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))
         return self.say.frame_book_print(frame_results, url=response.url)
 
