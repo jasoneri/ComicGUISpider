@@ -133,11 +133,10 @@ def say_to_textBrowser(_gui, textBrowserQueue, TasksQueue, flagQueue, daily_test
             if _state is None:
                 break
             _ = _state.text
-            if isinstance(_, BookInfo):
-                _gui.book_infos.append(_)
-                logger.debug(_.say_fm.format(*_.say))
-            elif isinstance(_, Episode):
-                _gui.eps.append(_)
+            if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
+                _gui.books = _
+            elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
+                _gui.eps = _
             elif not daily_test_flag:
                 logger.debug(_)
             if isinstance(_, str) and any(filter(lambda flag: flag in _, flag_patterns)):
@@ -160,7 +159,7 @@ class Gui:
         )
         manager.connect()
         self.Q = QueueHandler(manager)
-        self.book_infos = []
+        self.books = {}
         self.keep_book_infos = []
         self.eps = []
 
@@ -214,7 +213,7 @@ def test_normal_process(_gui, keyword, input_2, input_3):
     _gui.Q('InputFieldQueue').send(state_1)
     refresh_state(_gui, 'process_state', 'ProcessQueue', monitor_change=True)
     wait_for_flag(flag_queue, wait_flag_ts)
-    __ = select(input_2, _gui.book_infos)
+    __ = select(input_2, _gui.books)
     state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=__, pageTurn='')
     _gui.Q('InputFieldQueue').send(state_2)
     refresh_state(_gui, 'process_state', 'ProcessQueue', monitor_change=input_3 or False)
@@ -222,7 +221,7 @@ def test_normal_process(_gui, keyword, input_2, input_3):
     if input_3:
         wait_for_flag(flag_queue, wait_flag_ts)
         __ = select(input_3, _gui.eps)
-        book = _gui.eps[0].from_book
+        book = __[0].from_book
         book.episodes = __
         state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=book, pageTurn='')
         _gui.Q('InputFieldQueue').send(state_3)

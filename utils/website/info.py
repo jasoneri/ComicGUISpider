@@ -44,7 +44,6 @@ class BookInfo(InfoMinix):
 class Manga(BookInfo):
     episodes: list = []
     latest_sec: str = None
-    say_fm: str = ""
     render_keys: list = []
     
     @property
@@ -57,7 +56,6 @@ class Manga(BookInfo):
         return (str(self.idx), *render_vals, chr(12288))
 
 class Ero(BookInfo):
-    say_fm = r' [ {} ]、【 {} 】'
     img_preview: str = None  
 
     @property
@@ -130,7 +128,6 @@ class WnacgBookInfo(Ero):
 
 class EhBookInfo(Ero):
     source = "ehentai"
-    say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
 
     @property
     def say(self):

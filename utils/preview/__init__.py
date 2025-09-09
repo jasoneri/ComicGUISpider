@@ -1,10 +1,5 @@
-import re
-import json
 import tempfile
-from lxml import etree
 from utils import ori_path, temp_p
-from utils.sql import SqlUtils
-from utils.website import Uuid, spider_utils_map
 from utils.preview.el import El
 
 
@@ -44,13 +39,6 @@ class PreviewHtml:
         f = str(tf.name)
         tf.close()
         return f
-
-    def mark_tip(self, adv_filter=None):
-        sql_utils = SqlUtils()
-        downloaded_md5 = sql_utils.batch_check_dupe([book.u_md5 for book in self.binfos])
-        for book in filter(lambda b: b.u_md5 in downloaded_md5, self.binfos):
-            book.mark_tip = "downloaded"
-        # TODO[2](2025-09-05): 高级筛选，改写 book.mark_tip
 
 
 class PreviewByClipHtml:

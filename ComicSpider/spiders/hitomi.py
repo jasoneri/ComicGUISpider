@@ -24,6 +24,7 @@ class HitomiSpider(BaseComicSpider):
     domain = domain
     ua = HitomiUtils.headers
     backend_domain = "ltn.gold-usergeneratedcontent.net"
+    say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
     frame_book_format = ["lang", "title", "preview_url", "pics"]
     ut = None
     deferred_list = []
@@ -182,7 +183,7 @@ class HitomiSpider(BaseComicSpider):
     # ==============================================
     def frame_book(self, rets, meta):
         frame_results = {}
-        self.say(HitomiBookInfo.say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
+        self.say(self.say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
         for x, target in enumerate(rets):
             datum = self.ut.parse_galleries(target['text'])
             gallery_id = datum['id']
@@ -194,15 +195,12 @@ class HitomiSpider(BaseComicSpider):
                 id=gallery_id, idx=x+1,
                 name=_title.split(' | ')[-1] if ' | ' in _title else _title,
                 preview_url=f"{self.domain}{btype}/{gallery_id}.html",
-                pages=len(pics), pics=pics,
-                btype=btype,
+                pages=len(pics), pics=pics, btype=btype,
                 img_preview=self.ut.get_img_url(first_pic['hash'], 0, preview=True),
                 lang=datum['language_localname'],
             )
-            self.say(book)
             frame_results[book.idx] = book
-        self.say("[PreviewBookInfoEnd]")
-        return self.say.frame_book_print(frame_results, url=meta.get("Url"))
+        return self.say.frame_book_print(frame_results, url=meta.get("Url"), make_preview=True)
 
     def process_item(self, response):
         item = response.meta['item']

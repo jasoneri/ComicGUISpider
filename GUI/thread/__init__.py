@@ -1,5 +1,6 @@
 import traceback
 import asyncio
+from copy import deepcopy
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
 from utils import conf, get_loop, QueuesManager, code_env
@@ -128,15 +129,14 @@ class WorkThread(QThread):
             try:
                 if not TextBrowser.empty():
                     _ = TextBrowser.get().text
-                    if isinstance(_, BookInfo):
-                    # if isinstance(_, dict) and all(list(isinstance(type(v), BookInfo) for v in _.values())):
-                        # self.gui.book_infos = _
-                        self.gui.eps.append(_)
-                        self.print_signal.emit(_.say_fm.format(*_.say))
-                    elif isinstance(_, Episode):
-                        self.gui.eps.append(_)
+                    if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
+                        self.gui.books = deepcopy(_)
+                    elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
+                        self.gui.eps = deepcopy(_)
                     elif "PreviewBookInfoEnd" in _:
                         self.gui.preprocess_preview(_)
+                    elif "[ShowKeepBooks]" == _:
+                        self.gui.show_keep_books()
                     elif '[httpok]' in _:
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     else:

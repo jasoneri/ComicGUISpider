@@ -25,8 +25,8 @@ class Body(BodyFormat):
         "status": "0",
         "sort": "2"
     }
-    example_b = ' {}、\t《{}》\t【{}】\t[{}]'
-    print_head = ['book_path', '漫画名', '作者', '最新话']
+    say_fm = ' {}、\t《{}》\t【{}】\t[{}]'
+    print_head = ['book_path', 'name', 'artist', 'last_chapter_name']
     target_json_path = ['UrlKey', 'Title', 'Author.[*]', 'ShowLastPartName']
 
     def rendering_map(self):
@@ -91,8 +91,9 @@ class MangabzSpider(FormReqBaseComicSpider):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = self.body.example_b
-        self.say(say_fm.format('序号', *self.body.print_head[1:]) + '<br>')
+        say_fm = self.body.say_fm
+        render_keys = self.body.print_head[1:]
+        self.say(say_fm.format('序号', *render_keys) + '<br>')
         targets = response.json() if isinstance(self.body, SearchBody) \
             else response.json().get('UpdateComicItems')
         rendering_map = self.body.rendering_map().items()
@@ -102,16 +103,12 @@ class MangabzSpider(FormReqBaseComicSpider):
                 rendered[attr_name] = ",".join(map(lambda __: str(__.value), _path.find(target))).strip()
             url = f"https://{self.domain}/{rendered.pop('book_path').strip('/')}/"
             book = MangabzBookInfo(
-                idx=x+1,
-                name=rendered.get('漫画名'),
-                artist=rendered.get('作者'),
-                latest_sec=rendered.get('最新话'),
-                url=url, preview_url=url,
+                idx=x+1, render_keys=render_keys, url=url, preview_url=url,
             )
-            self.say(say_fm.format(str(book.idx), *rendered.values(), chr(12288)))
-            self.say('') if (x + 1) % self.num_of_row == 0 else None
+            for k in render_keys:
+                setattr(book, k, rendered.get(k))
             frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, url=response.url)
+        return self.say.frame_book_print(frame_results, fm=say_fm, url=response.url)
 
     def frame_section(self, response):
         book = response.meta.get("book")
@@ -127,7 +124,7 @@ class MangabzSpider(FormReqBaseComicSpider):
                 name="".join(target.xpath('./text()').get()).strip(),
             )
             frame_results[ep.idx] = ep
-        return self.say.frame_section_print(frame_results, print_example=say_ep_fm)
+        return self.say.frame_section_print(frame_results, fm=say_ep_fm)
 
     def parse_fin_page(self, response):
         ep = response.meta['ep']
