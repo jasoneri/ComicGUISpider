@@ -254,13 +254,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.page_turn_frame()
 
-    def tip_duplication(self):
-        def trigger_mark_downloads():
-            page = self.BrowserWindow.view.page() if self.BrowserWindow else None
-            if page and page.contentsSize().width() > 0:
-                PreviewHtml.tip_duplication(SPIDERS[self.chooseBox.currentIndex()], self.tf, page)
-                page.contentsSizeChanged.disconnect(trigger_mark_downloads)
-        self.BrowserWindow.view.page().contentsSizeChanged.connect(trigger_mark_downloads)
+    def mark_tip(self):
+        if conf.isDeduplicate and not self.clip_mgr.is_triggered:
+            self.preview.mark_tip()
 
     def page_turn_frame(self):
         def refresh_view(_prev_tf):
@@ -269,8 +265,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 while i < 1000:  # i * 3ms = 极限等待3s
                     if self.tf != _prev_tf:
                         self.BrowserWindow.second_init()
-                        if conf.isDeduplicate:
-                            self.tip_duplication()
+                        # if conf.isDeduplicate:
+                        #     self.mark_tip()
                         self.previewSecondInit = False
                         break
                     i += 1
@@ -312,6 +308,21 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.pageJumpBtn.setEnabled(True)
 
         self.pageEdit.valueChanged.connect(page_edit)
+
+    def preprocess_preview(self, url_str):
+        url = url_str.replace("[PreviewBookInfoEnd]", "")
+        self.book_infos = sorted(self.book_infos, key=lambda x: x.idx)
+        if self.chooseBox.currentIndex() not in SPECIAL_WEBSITES_IDXES:
+            return
+        self.previewBtn.setEnabled(True)
+        self.preview = PreviewHtml(url, self.book_infos)
+        self.mark_tip()
+        self.preview.duel_contents()
+        self.tf = self.preview.created_temp_html
+        if self.keep_book_infos:
+            elected_titles = list(map(lambda x: x.name, self.keep_book_infos))
+            self.say(font_color(f"<br>{res.SPIDER.choice_list_before_turn_page}<br>"
+                    f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
     def set_preview(self):
         self.BrowserWindow = BrowserWindowCls(self)

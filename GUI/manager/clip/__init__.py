@@ -113,7 +113,8 @@ class ClipGUIManager:
                     from PyQt5.QtCore import QTimer
                     def delayed_mark():
                         page = self.page if self.page else None
-                        PreviewHtml.tip_duplication(SPIDERS[self.gui.chooseBox.currentIndex()], self.gui.tf, page)
+                        # TODO[1](2025-09-05): clip的preview与平常的不同，统一处理
+                        PreviewHtml.mark_tip(SPIDERS[self.gui.chooseBox.currentIndex()], self.gui.tf, page)
                     QTimer.singleShot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
                 if self.gui.BrowserWindow.topHintBox.isChecked():
