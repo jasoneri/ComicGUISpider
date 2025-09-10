@@ -14,7 +14,7 @@ domain = "api.2025copy.com"
 
 
 class FrameBook:
-    say_fm = ' {}、\t《{}》\t【{}】\t[{}]'
+    say_fm = ' {}、《{}》\t【{}】\t[{}]'
     print_head = ['book_path', 'name', 'artist', 'popular']
     target_json_path = ['path_word', 'name', 'author.[*].name', 'popular']
     expand_map = None

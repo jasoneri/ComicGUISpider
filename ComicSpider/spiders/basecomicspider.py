@@ -75,14 +75,10 @@ class SayToGui:
 
     def frame_section_print(self, rets, fm, print_limit=5, extra=None):
         extra = extra or self.res.frame_section_print_extra
-        print_npc = []
-        for x, ep in rets.items():
-            print_npc.append(fm.format(x, ep.name).strip())
-            if int(x) % print_limit == 0:
-                self(str(print_npc).replace("'", "").replace("[", "").replace("]", ""))
-                print_npc = []
-        self(str(print_npc).replace("'", "").replace("[", "").replace("]", "")) if len(
-            print_npc) else None
+        formatted_items = [fm.format(x, ep.name).strip() for x, ep in rets.items()]
+        for i in range(0, len(formatted_items), print_limit):
+            batch = formatted_items[i:i + print_limit]
+            self(", ".join(batch))
         self(rets)
         self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-highlight')}</p><br>""")
         return rets
