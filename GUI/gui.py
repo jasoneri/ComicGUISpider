@@ -1,7 +1,7 @@
 import os
 import re
 import sys
-import typing as t
+import random
 import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
@@ -69,12 +69,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.first_init = True
         self.setupUi(self)
 
-    def init_queue(self):
-        self.guiQueuesManger = GuiQueuesManger()
-        self.queue_port = self.guiQueuesManger.find_free_port()
-        self.p_qm = Process(target=self.guiQueuesManger.create_server_manager)
-        self.p_qm.start()
-
     def setupUi(self, MainWindow):
         if self.first_init:
             res.set_language(conf.lang)
@@ -91,7 +85,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             if getattr(self, 'bg_mgr', None):
                 self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
             setupTheme(self)
-            self.setupUi_()
+            if getattr(self.bg_mgr, "bg_fs"):
+                self.textBrowser.set_fixed_image(random.choice(self.bg_mgr.bg_fs)[0])
+            self.on_queue_init_completed(self.manager, self.Q, self.queue_port)
 
     def setupUi_(self):
         """启动队列初始化线程"""
@@ -362,13 +358,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         def retry_all():
             try:
-                self.close_process()  # 考虑重开应该是可以减少重新实例化的数量
+                self.close_process(stop_mgr=False)
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
             self.log = conf.cLog(name="GUI")
             self.BrowserWindow = None
-            self.guiQueuesManger = None
-            self.Q = None
             QTimer.singleShot(10, lambda : self.setupUi(self))
 
         self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
@@ -498,8 +492,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             raise ValueError(self.res.input_format_err)
 
     def crawl_end(self, imgs_path):
-        del self.manager
-        del self.guiQueuesManger
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk { background-color: #00ff00;}')
         self.chooseinput.setDisabled(True)
@@ -535,15 +527,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def processbar_load(self, i):
         self.progressBar.setValue(i)
-        if self.first_tmp_sv_flag:
+        if self.first_tmp_sv_flag and self.BrowserWindow:
             self.first_tmp_sv_flag = False
             self.BrowserWindow.tmp_sv_local()
 
-    def close_process(self):
+    def close_process(self, stop_mgr=True):
         self.clean_preview()
         if self.bThread is not None:  # 线程停止
             self.bThread.stop()
-        for _ in ['p_qm', 'p_crawler']:
+        targets = ('p_qm', 'p_crawler',) if stop_mgr else ('p_crawler',)
+        for _ in targets:
             _p = getattr(self, _)
             if _p is not None:  # 进程停止
                 _p.kill()

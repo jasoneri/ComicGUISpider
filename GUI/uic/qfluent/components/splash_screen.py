@@ -13,6 +13,7 @@ cus_p = ori_path.joinpath(r"custom")
 
 class BgMgr:
     def __init__(self):
+        self.bg_fs = []
         self.start_bg_f, self.start_ext = self._find_start_bg()
         self.bg_f, self.ext = self._find_bg()
         self.movie = None
@@ -21,11 +22,10 @@ class BgMgr:
         target_dir = conf.bg_path
         if not target_dir or str(target_dir) == "." or not target_dir.is_dir():
             return None, None
-        matched_files = []
         for file in target_dir.rglob('*.png'):
-            matched_files.append((file.as_posix(), file.suffix))
-        if matched_files:
-            return random.choice(matched_files)
+            self.bg_fs.append((file.as_posix(), file.suffix))
+        if self.bg_fs:
+            return random.choice(self.bg_fs)
         return None, None
 
     def _find_start_bg(self, kind: str = "start"):

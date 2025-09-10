@@ -94,6 +94,7 @@ class QueueInitThread(QThread):
         guiQueuesManger = GuiQueuesManger()
         queue_port = guiQueuesManger.find_free_port()
         p_qm = Process(target=guiQueuesManger.create_server_manager)
+        p_qm.daemon = False
         p_qm.start()
         manager = QueuesManager.create_manager(
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
