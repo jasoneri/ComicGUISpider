@@ -1,0 +1,80 @@
+name: Upload CGS_win_full
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      ver:
+        description: '版本号 (例如 2.5.0)'
+        required: true
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    env:
+      PRESET_P: C:\build\CGS_preset
+      TMP_DIR: C:\tmp
+      BUILD_DIR: C:\build
+      VER: ${{ github.event.inputs.ver }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Add PATH
+        run: |
+          $7zPath = "C:\Program Files\7-Zip"
+          Add-Content $env:GITHUB_PATH "$7zPath"
+      - name: Download and Extract Preset
+        run: |
+          New-Item -ItemType Directory -Path $Env:TMP_DIR -Force | Out-Null
+          New-Item -ItemType Directory -Path $Env:BUILD_DIR -Force | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile C:\tmp\CGS_preset.7z
+          & 7z x C:\tmp\CGS_preset.7z -o"$Env:PRESET_P" -spe -y
+          Remove-Item -Path "C:\tmp\CGS_preset.7z" -Force -ErrorAction Stop
+      
+      - name: Run CGS.exe (write stdout/stderr to CGS_run.log)
+        shell: pwsh
+        run: |
+          Push-Location $Env:PRESET_P
+          try {
+            Write-Host "Running CGS.exe in $(Get-Location)..."
+            & ".\CGS.exe" -v $Env:VER -i "https://pypi.org/simple" *>&1 | Tee-Object -FilePath (Join-Path $Env:TMP_DIR 'CGS_run.log')
+            $exit = $LASTEXITCODE
+            Write-Host "CGS.exe exit code: $exit"
+            exit $exit
+          } finally {
+            Pop-Location
+          }
+
+      - name: Package PRESET into CGS_win_full.7z
+        shell: pwsh
+        run: |
+          $archive = Join-Path $Env:BUILD_DIR 'CGS_win_full.7z'
+          & 7z a -t7z $archive "$Env:PRESET_P\*" -mx9
+          if (Test-Path $archive) {
+            Write-Host "Created archive: $archive"
+          } else {
+            Write-Error "Failed to create archive: $archive"
+            exit 1
+          }
+
+      - name: Upload CGS run log as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CGS_run_log
+          path: C:\tmp\CGS_run.log
+      
+      - name: Upload CGS_win_full.7z to Release (tag = ver)
+        if: always()
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $archive = Join-Path $Env:BUILD_DIR 'CGS_win_full.7z'
+          if (-Not (Test-Path $archive)) {
+            Write-Host "Archive not found: $archive"
+            exit 1
+          }
+          Write-Host "Uploading $archive to release tag: $Env:VER"
+          gh release upload $Env:VER $archive --clobber

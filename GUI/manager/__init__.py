@@ -1,4 +1,5 @@
-import sys
+import os
+import shlex
 import subprocess
 
 from PyQt5.QtCore import QTimer
@@ -6,8 +7,9 @@ from qfluentwidgets import (
     InfoBarPosition, StateToolTip
 )
 
+from variables import PYPI_SOURCE
 from utils.processed_class import (
-    PreviewHtml, TaskObj, TasksObj, ClipSqlHandler
+    PreviewHtml, TaskObj, TasksObj
 )
 from utils.sql import SqlUtils
 from utils import conf, ori_path, env, uv_exc, exc_p
@@ -92,27 +94,20 @@ class Updater:
                 self.conf_dia.puThread.quit()
                 self.conf_dia.puThread.wait()
 
-        def updated(recv):
+        def to_update(recv):
             try:
                 self.gui.updaterStateTooltip.setContent("Finish..")
                 self.gui.updaterStateTooltip.setState(True)
                 self.gui.updaterStateTooltip = None
             except Exception:
                 pass
-            if isinstance(recv, str):
-                self.gui.textBrowser.append(recv)
-                msg = self.res.updated_fail % str(ori_path.joinpath("logs/GUI.log"))
-                _type = "ERROR"
-                reload_time = 10000
-            else:
-                msg = self.res.updated_success
-                _type = "SUCCESS"
-                reload_time = 5000
-            CustomInfoBar.show("", msg, 
+            ver = recv.update_info.get("tag_name")
+            log = str(conf.log_path.joinpath("update.log"))
+            CustomInfoBar.show("", self.res.to_update % log, 
                 self.gui.textBrowser, self.proj.update_info.get("html_url"), 
-                f"""<{self.proj.update_info.get("tag_name")}>""", _type=_type)
+                f"""<{ver}>""", _type="SUCCESS")
             _close_thread()
-            QTimer.singleShot(reload_time, self.after_update)
+            QTimer.singleShot(6000, lambda: self.to_update(ver, log))
 
         def checked(recv):
             try:
@@ -147,10 +142,20 @@ class Updater:
         self.stateTooltip.show()
         self.conf_dia.puThread.checked_signal.connect(checked)
         self.conf_dia.puThread.update_signal.connect(self.conf_dia.puThread.request_update)
-        self.conf_dia.puThread.updated_signal.connect(updated)
+        self.conf_dia.puThread.toupdate_signal.connect(to_update)
         self.conf_dia.puThread.start()
 
-    def after_update(self):
+    def rerun(self):
         cmd = ["cgs"]
         subprocess.Popen(cmd, cwd=exc_p, env=env)
         QTimer.singleShot(1000, self.gui.close)
+
+    def to_update(self, ver, log):
+        cmd = f"{uv_exc} tool install ComicGUISpider=={ver} --force --index-url {PYPI_SOURCE[conf.pypi_source]}"
+        if os.name == "nt":
+            subprocess.Popen(["cmd", "/c", "start", "", "powershell", "-NoProfile", "-Command",
+                            f"{cmd} 2>&1 | Tee-Object -FilePath {shlex.quote(log)} ; Read-Host 'Press Enter to close'"])
+        else:
+            full = f"""{cmd} 2>&1 | tee -a {shlex.quote(log)} ; echo 'done'; read -n1 -s -r -p 'Press any key to close...'"""
+            subprocess.Popen(["setsid", "sh", "-c", full], start_new_session=True)
+        self.gui.close()

@@ -65,7 +65,18 @@ C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 ✅ ✨修复预览的样式，用静态取代不稳定外链css  
 ✖️ jm 域名策略变化的关系，暂时关闭jm的读剪贴板功能，等 [cloudscraper](https://github.com/VeNoMouS/cloudscraper/issues/285) 支持异步后恢复..  
 
-> 配置窗口左下设有`检查更新`按钮，请根据提示进行更新操作  
+<details>
+<summary> <code>🧪v2.5.0-beta</code> 开发版特性👈看就点</summary>
+
+#### 🐞 Fix
+
+✅ 优化线程进程相关实例再利用，显著提升内置重启  
+✅ 修复内置更新稳定性，变更为关闭主进程然后新终端窗口执行升级命令  
+🚧 重构数据格式以支持后续筛选过滤功能  
+
+</details>
+
+> 可参考 [更新方法](http://localhost:5173/ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
 

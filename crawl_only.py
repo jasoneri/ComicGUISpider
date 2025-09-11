@@ -3,8 +3,10 @@
 import os
 import time
 import re
+import sys
 import argparse
 from multiprocessing import Process, set_start_method, Queue
+from threading import Thread
 
 from loguru import logger
 
@@ -13,7 +15,9 @@ from utils import transfer_input
 from utils.processed_class import (
     GuiQueuesManger, crawl_what, QueuesManager, QueueHandler, InputFieldState, refresh_state, ProcessState
 )
+from utils.website.info import Episode, BookInfo
 from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
+from GUI.gui import select
 
 is_debugging = os.getenv('CGS_DEBUG') == '1'
 
@@ -25,7 +29,6 @@ spider_choice = None
 def main():
     """CLI入口函数"""
     global gui, spider_choice  # 声明全局变量
-
     set_start_method('spawn', force=True)
     parser = argparse.ArgumentParser(
         description=f"""
@@ -55,6 +58,8 @@ CGS命令行脚本，目前支持简单下载/调试功能
     parser.add_argument('-dt', '--daily_test', action='store_true', help='Run daily_test')
     parser.add_argument('-sp', '--start_port', type=int, nargs='?', default=50000, help='bind start port')
     args = parser.parse_args()
+    logger.remove()
+    logger.add(sys.stderr, level=args.log_level.upper())
 
     if not args.keyword or not args.indexes:
         parser.error("the following arguments are required: -k/--keyword and -i/--indexes")
@@ -89,13 +94,13 @@ CGS命令行脚本，目前支持简单下载/调试功能
     p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port), kwargs=p_crawler_kwargs)
     p_crawler.start()
 
-    p_bThread = Process(target=say_to_textBrowser, args=(gui.Q('TextBrowserQueue'), gui.Q('TasksQueue'), gui.Q('FlagQueue'), args.daily_test))
+    p_bThread = Thread(target=say_to_textBrowser, args=(gui, gui.Q('TextBrowserQueue'), gui.Q('TasksQueue'), gui.Q('FlagQueue'), args.daily_test))
     p_bThread.start()
 
     if args.turn_page:
         test_turn_page()
     else:
-        test_normal_process(args.keyword, args.indexes, args.indexes2)
+        test_normal_process(gui, args.keyword, args.indexes, args.indexes2)
 
     try:
         p_bThread.join(timeout=args.time_wait or 300)
@@ -103,16 +108,18 @@ CGS命令行脚本，目前支持简单下载/调试功能
         for p in [p_crawler, p_qm]:
             if p.is_alive():
                 p.terminate()
-        for p in [p_crawler, p_qm, p_bThread]:
+        for p in [p_crawler, p_qm]:
             p.join(timeout=3)
+        if p_bThread.is_alive():
+            p_bThread.join(timeout=3)
     finally:
-        for p in [p_crawler, p_qm, p_bThread]:
+        for p in [p_crawler, p_qm]:
             if p.is_alive():
                 p.kill()
             p.close()
 
 
-def say_to_textBrowser(textBrowserQueue, TasksQueue, flagQueue, daily_test_flag=False):
+def say_to_textBrowser(_gui, textBrowserQueue, TasksQueue, flagQueue, daily_test_flag=False):
     text_browser_q = textBrowserQueue.queue
     task_q = TasksQueue.queue
     flag_q = flagQueue.queue
@@ -126,11 +133,15 @@ def say_to_textBrowser(textBrowserQueue, TasksQueue, flagQueue, daily_test_flag=
             if _state is None:
                 break
             _ = _state.text
-            if not daily_test_flag:
+            if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
+                _gui.books = _
+            elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
+                _gui.eps = _
+            elif not daily_test_flag:
                 logger.debug(_)
-            if any(filter(lambda flag: flag in _, flag_patterns)):
+            if isinstance(_, str) and any(filter(lambda flag: flag in _, flag_patterns)):
                 flag_q.put('go')
-            if bool(break_flag.search(_)):
+            if isinstance(_, str) and bool(break_flag.search(_)):
                 break
         if not task_q.empty():
             _task_state = task_q.get()
@@ -148,6 +159,9 @@ class Gui:
         )
         manager.connect()
         self.Q = QueueHandler(manager)
+        self.books = {}
+        self.keep_book_infos = []
+        self.eps = []
 
 
 def wait_for_flag(flagQueue, timeout=30):
@@ -187,27 +201,30 @@ def test_turn_page():
     gui.Q('InputFieldQueue').send(state_5)
 
 
-def test_normal_process(keyword, input_2, input_3):
+def test_normal_process(_gui, keyword, input_2, input_3):
     """
     input_2: 选书
     input_3: 选章节
     """
     wait_flag_ts = 600 if is_debugging else 30
     # TODO[8](2024-08-19): debug 拷贝漫画轻小说book请求
+    flag_queue = _gui.Q('FlagQueue')
     state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='', pageTurn='')
-    state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=input_2, pageTurn='')
-    if input_3:
-        state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=input_3, pageTurn='')
-    flag_queue = gui.Q('FlagQueue')
-    gui.Q('InputFieldQueue').send(state_1)
-    refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
+    _gui.Q('InputFieldQueue').send(state_1)
+    refresh_state(_gui, 'process_state', 'ProcessQueue', monitor_change=True)
     wait_for_flag(flag_queue, wait_flag_ts)
-    gui.Q('InputFieldQueue').send(state_2)
-    refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=input_3 or False)
+    __ = select(input_2, _gui.books)
+    state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=__, pageTurn='')
+    _gui.Q('InputFieldQueue').send(state_2)
+    refresh_state(_gui, 'process_state', 'ProcessQueue', monitor_change=input_3 or False)
     #  上面这行 refresh_state，当测试三步跳转时要加 monitor_change=True
     if input_3:
         wait_for_flag(flag_queue, wait_flag_ts)
-        gui.Q('InputFieldQueue').send(state_3)
+        __ = select(input_3, _gui.eps)
+        book = __[0].from_book
+        book.episodes = __
+        state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=book, pageTurn='')
+        _gui.Q('InputFieldQueue').send(state_3)
 
 
 if __name__ == '__main__':

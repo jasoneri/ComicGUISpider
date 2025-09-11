@@ -32,9 +32,7 @@ class WnacgSpider(BaseComicSpider2):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = r' [ {} ]、【 {} 】'
-        self.say(say_fm.format('序号', '漫画名') + '<br>')
-        preview = PreviewHtml(response.url)
+        self.say(self.say_fm.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
         tar_xpath = './div[contains(@class, "pic")]'
         for x, target in enumerate(targets):
@@ -51,12 +49,8 @@ class WnacgSpider(BaseComicSpider2):
                 btype=WnacgUtils.cate_mappings.get(_cate, ""),
                 img_preview='http:' + item_elem.xpath('./img/@src').get(),
             ).get_id(pre_url)
-            self.say(say_fm.format(*book.say))
-            self.say('') if (book.idx) % self.num_of_row == 0 else None
             frame_results[book.idx] = book
-            preview.add(*book.preview_add, pages=book.pages, btype=book.btype)
-        self.say(preview.created_temp_html)
-        return self.say.frame_book_print(frame_results, url=response.url)
+        return self.say.frame_book_print(frame_results, url=response.url, make_preview=True)
 
     def frame_section(self, response):
         doc_wlns = re.split(r';[\n\s]+?document\.writeln', response.text)

@@ -1,9 +1,10 @@
 import traceback
 import asyncio
+from copy import deepcopy
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
 from utils import conf, get_loop, QueuesManager, code_env
-from utils.website.info import InfoMinix
+from utils.website.info import InfoMinix, BookInfo, Episode
 from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
@@ -93,6 +94,7 @@ class QueueInitThread(QThread):
         guiQueuesManger = GuiQueuesManger()
         queue_port = guiQueuesManger.find_free_port()
         p_qm = Process(target=guiQueuesManger.create_server_manager)
+        p_qm.daemon = False
         p_qm.start()
         manager = QueuesManager.create_manager(
             'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
@@ -127,10 +129,15 @@ class WorkThread(QThread):
             self.msleep(5)
             try:
                 if not TextBrowser.empty():
-                    _ = str(TextBrowser.get().text)
-                    if "__temp" in _ and _.endswith("html"):
-                        self.gui.tf = _  # REMARK(2024-08-18): QWebEngineView 只允许在 SpiderGUI 自己进程/线程初始化
-                        self.gui.previewBtn.setEnabled(True)
+                    _ = TextBrowser.get().text
+                    if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
+                        self.gui.books = deepcopy(_)
+                    elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
+                        self.gui.eps = deepcopy(_)
+                    elif "PreviewBookInfoEnd" in _:
+                        self.gui.preprocess_preview(_)
+                    elif "[ShowKeepBooks]" == _:
+                        self.gui.show_keep_books()
                     elif '[httpok]' in _:
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     else:
@@ -161,7 +168,7 @@ class WorkThread(QThread):
 class ProjUpdateThread(QThread):
     checked_signal = pyqtSignal(object)
     update_signal = pyqtSignal()
-    updated_signal = pyqtSignal(object)
+    toupdate_signal = pyqtSignal(object)
     debug_signal = pyqtSignal(str)
 
     def __init__(self, conf_dia):
@@ -189,11 +196,4 @@ class ProjUpdateThread(QThread):
         self.is_update_requested = True
 
     def run_update(self):
-        try:
-            # ⚠️ danger！⚠️ -------------->
-            self.proj.local_update()
-            # <-------------- ⚠️ danger！⚠️
-            self.updated_signal.emit(self.proj)
-        except Exception as e:
-            self.log.exception(f"ProjUpdateError: {e}")
-            self.updated_signal.emit(traceback.format_exc())
+        self.toupdate_signal.emit(self.proj)

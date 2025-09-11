@@ -112,8 +112,13 @@ class ClipGUIManager:
                     # 延迟一点确保页面刷新完成
                     from PyQt5.QtCore import QTimer
                     def delayed_mark():
-                        page = self.page if self.page else None
-                        PreviewHtml.tip_duplication(SPIDERS[self.gui.chooseBox.currentIndex()], self.gui.tf, page)
+                        # page = self.page if self.page else None
+                        # PreviewHtml.mark_tip(SPIDERS[self.gui.chooseBox.currentIndex()], self.gui.tf, page)
+                        # TODO[1](2025-09-05): clip的preview与平常的不同，统一处理
+                        books = self.gui.mark_tip(self.infos)
+                        for dled in filter(lambda b: getattr(b, "mark_tip") == "downloaded", books):
+                            js_code = f'markDownloaded("{dled.idx}");'  # TODO[0](2025-09-09): clip 的 js 写markDownloaded函数
+                            self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
                     QTimer.singleShot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
                 if self.gui.BrowserWindow.topHintBox.isChecked():

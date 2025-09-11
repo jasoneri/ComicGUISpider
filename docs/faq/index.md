@@ -18,7 +18,8 @@
  / [华为源](https://repo.huaweicloud.com/repository/pypi/simple/)，后缀加上 comicguispider 检测
 ）
 
-::: warning 不限以下两种，所有文档的所有涉及pypi源命令因网络问题出错的都是更换源网址这样去处理
+::: warning 不限于以上三个常用国内源，可以网上搜索`pypi国内源`用你能连上的即可
+除以下两种形式外，所有文档的所有涉及pypi源命令因网络问题出错的都是更换源网址这样去处理  
 :::
 
 #### Ⅰ. 绿色包部署换源
@@ -63,10 +64,7 @@
 ---
 
 ::: warning 如果存在上述没有覆盖的问题
-提问前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
-)，至起码阅读过 [不该问的问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98
-) 和 [好问题与蠢问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)  
-基于以上，请带上 `log` 到 [issue](
+请带上 `log` 到 [issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
 ) 反馈 或 进群(右上角qq/discord)反馈。  
 :::
