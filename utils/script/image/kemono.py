@@ -254,7 +254,7 @@ class Kemono:
 
         async def create_task_of_discord_post(self, post, _task_meta: TaskMeta):
             def to_title():
-                _t = folder_sub.sub("-", re.sub(r"\s", "", post.get('content').strip()))
+                _t = folder_sub.sub("-", re.sub(r"\s\.", "", post.get('content').strip()))
                 _t = f"{_t[:20]}..." if len(_t) > 20 else _t
                 return _t + f"「{post.get('id')}」"
             title = to_title()

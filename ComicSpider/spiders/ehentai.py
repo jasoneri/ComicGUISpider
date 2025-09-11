@@ -23,6 +23,7 @@ class EHentaiSpider(BaseComicSpider3):
         res.EHentai.MAPPINGS_INDEX: f'https://{domain}',
         res.EHentai.MAPPINGS_POPULAR: f'https://{domain}/popular'
     }
+    say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
     frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)
     book_id_url = f'https://{domain}/g/%s'
@@ -33,9 +34,7 @@ class EHentaiSpider(BaseComicSpider3):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
-        self.say(say_fm.format('index', 'pages', 'name') + '<br>')
-        preview = PreviewHtml(response.url)
+        self.say(self.say_fm.format('index', 'pages', 'name') + '<br>')
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         for x, target in enumerate(targets):
             item_elem = target.xpath('./td/div[@class="glthumb"]')
@@ -52,22 +51,19 @@ class EHentaiSpider(BaseComicSpider3):
                 btype=target.xpath('./td[contains(@class, "glcat")]/div/text()').get(),
                 img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
             ).get_id(_url)
-            self.say(say_fm.format(*book.say))
-            self.say('') if (book.idx) % self.num_of_row == 0 else None
             frame_results[book.idx] = book
-            preview.add(*book.preview_add, pages=book.pages, btype=book.btype)
-        self.say(preview.created_temp_html)
-        return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}")
+        return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}", url=response.url,
+                                         make_preview=True)
 
-    def page_turn(self, response, elected_results):
+    def page_turn(self, response):
         if 'next' in self.input_state.pageTurn:
             find_prevurl = re.search(r"""var nexturl="(.*?)";""", response.text)
             url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield from self.page_turn_(response, elected_results, url)
+            yield from self.page_turn_(url)
         elif 'previous' in self.input_state.pageTurn:
             find_prevurl = re.search(r"""var prevurl="(.*?)";""", response.text)
             url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield from self.page_turn_(response, elected_results, url)
+            yield from self.page_turn_(url)
         else:
             yield Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
 

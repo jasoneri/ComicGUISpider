@@ -3,7 +3,6 @@
 """code update"""
 import pathlib
 import platform
-import subprocess
 
 import httpx
 from tqdm import tqdm
@@ -11,8 +10,8 @@ from colorama import init, Fore
 from packaging.version import parse
 
 from assets import res as ori_res
-from variables import PYPI_SOURCE, VER
-from utils import conf, exc_p, uv_exc, env
+from variables import VER
+from utils import conf
 
 
 curr_os = platform.system()
@@ -135,36 +134,3 @@ class Proj:
             self.update_flag = 'dev'
             self.update_info = latest_dev_info
         updater_logger.info(f"local_ver: {self.local_ver}")
-
-    def local_update(self, ver=None):
-        self.ver = ver or self.update_info.get('tag_name') or self.local_ver
-        try:
-            cmd = [uv_exc,"tool","install",f"ComicGUISpider=={self.ver}","--force"]
-            cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
-            self.print("[uv cmd]" + " ".join(cmd))
-            process = subprocess.Popen(
-                cmd, cwd=exc_p, env=env,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1, universal_newlines=True
-            )
-            full_output = []
-            while True:
-                line = process.stdout.readline()
-                if not line:
-                    if process.poll() is not None:
-                        break  # 进程结束且无输出时退出
-                    continue
-                line = line.strip()
-                full_output.append(line)
-                self.print(line)
-            remaining = process.stdout.read()
-            if remaining:
-                for line in remaining.splitlines():
-                    cleaned_line = line.strip()
-                    full_output.append(cleaned_line)
-                    self.print(cleaned_line)
-            exit_code = process.wait()
-            if exit_code == 0:
-                self.print("[!uv upgrade done!]")
-        except Exception as e:
-            raise e
