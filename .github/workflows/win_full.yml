@@ -1,4 +1,6 @@
 name: Upload CGS_win_full
+permissions:
+  contents: write
 
 on:
   workflow_dispatch:
