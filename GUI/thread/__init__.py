@@ -168,7 +168,7 @@ class WorkThread(QThread):
 class ProjUpdateThread(QThread):
     checked_signal = pyqtSignal(object)
     update_signal = pyqtSignal()
-    updated_signal = pyqtSignal(object)
+    toupdate_signal = pyqtSignal(object)
     debug_signal = pyqtSignal(str)
 
     def __init__(self, conf_dia):
@@ -196,11 +196,4 @@ class ProjUpdateThread(QThread):
         self.is_update_requested = True
 
     def run_update(self):
-        try:
-            # ⚠️ danger！⚠️ -------------->
-            self.proj.local_update()
-            # <-------------- ⚠️ danger！⚠️
-            self.updated_signal.emit(self.proj)
-        except Exception as e:
-            self.log.exception(f"ProjUpdateError: {e}")
-            self.updated_signal.emit(traceback.format_exc())
+        self.toupdate_signal.emit(self.proj)

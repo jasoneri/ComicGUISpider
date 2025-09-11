@@ -163,6 +163,5 @@ Updater:
   ver_local_latest: "Local version current"
   ver_check_fail: "Version check failed - retry or check releases"
   update_ensure: "Confirm Update"
-  updated_success: "Update successful - CGS restarts in 5s"
   doing: "Involves code and dependency updates, Wait a moment.."
-  updated_fail: "❌ Update failed\nRetry later or download manually (CGS restarts in 10s)\nError log: [%s]"
+  to_update: "🚧 Close main process and open new terminal for update, restart then look at version to determine whether update is success or not\nIf necessary, you can take screenshot of log path: [%s]"

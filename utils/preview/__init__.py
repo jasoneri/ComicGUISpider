@@ -13,7 +13,7 @@ class PreviewHtml:
         self.url = url
 
     def add(self, book, flag=None):
-        """badges_kw support: pages, likes, lang, btype"""
+        """book's extra property(badges_key) support: pages, likes, lang, btype"""
         badges_kw = {}
         supported_badges = ['pages', 'likes', 'lang', 'btype']
         for key in supported_badges:
