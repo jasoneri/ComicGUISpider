@@ -31,9 +31,6 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile C:\tmp\CGS_preset.7z
           & 7z x C:\tmp\CGS_preset.7z -o"$Env:PRESET_P" -spe -y
           Remove-Item -Path "C:\tmp\CGS_preset.7z" -Force -ErrorAction Stop
-      - name: Debug with tmate
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60  # 会话最长保持时间
       - name: Run CGS.exe deploy CGS
         shell: pwsh
         run: |
@@ -75,7 +72,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CGS_pystand_log
-          path: C:\tmp\CGS_pystand.log
+          path: |
+            C:\tmp\CGS_pystand.log
+            C:\tmp\CGS_stderr.log
       - name: Upload CGS_win_full.7z to Release (tag = v${{ github.event.inputs.ver }})
         if: always()
         shell: pwsh
