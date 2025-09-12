@@ -76,7 +76,7 @@ C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 
 </details>
 
-> 可参考 [更新方法](http://localhost:5173/ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
+> 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
 
