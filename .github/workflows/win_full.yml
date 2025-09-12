@@ -31,14 +31,15 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z" -OutFile C:\tmp\CGS_preset.7z
           & 7z x C:\tmp\CGS_preset.7z -o"$Env:PRESET_P" -spe -y
           Remove-Item -Path "C:\tmp\CGS_preset.7z" -Force -ErrorAction Stop
-      
       - name: Run CGS.exe (write stdout/stderr to CGS_run.log)
         shell: pwsh
         run: |
+          $stdoutLog = Join-Path $Env:TMP_DIR 'CGS_stdout.log'
+          $stderrLog = Join-Path $Env:TMP_DIR 'CGS_stderr.log'
           Push-Location $Env:PRESET_P
           try {
-            Write-Host "Running CGS.exe in $(Get-Location)..."
-            & ".\CGS.exe" -v $Env:VER -i "https://pypi.org/simple" *>&1 | Tee-Object -FilePath (Join-Path $Env:TMP_DIR 'CGS_run.log')
+            $pythonArgs = " -v $Env:VER -i https://pypi.org/simple"
+            $process = Start-Process -FilePath "./CGS.exe" -ArgumentList $pythonArgs -NoNewWindow -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
             $exit = $LASTEXITCODE
             Write-Host "CGS.exe exit code: $exit"
             exit $exit
@@ -49,7 +50,7 @@ jobs:
       - name: Package PRESET into CGS_win_full.7z
         shell: pwsh
         run: |
-          $archive = Join-Path $Env:BUILD_DIR 'CGS_win_full.7z'
+          $archive = Join-Path $Env:TMP_DIR 'CGS_win_full.7z'
           & 7z a -t7z $archive "$Env:PRESET_P\*" -mx9
           if (Test-Path $archive) {
             Write-Host "Created archive: $archive"
@@ -62,19 +63,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: CGS_run_log
-          path: C:\tmp\CGS_run.log
+          name: CGS_stderr.log
+          path: C:\tmp\CGS_stderr.log
       
-      - name: Upload CGS_win_full.7z to Release (tag = ver)
+      - name: Upload CGS_win_full.7z to Release (tag = v${{ github.event.inputs.ver }})
         if: always()
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $archive = Join-Path $Env:BUILD_DIR 'CGS_win_full.7z'
-          if (-Not (Test-Path $archive)) {
-            Write-Host "Archive not found: $archive"
-            exit 1
-          }
-          Write-Host "Uploading $archive to release tag: $Env:VER"
-          gh release upload $Env:VER $archive --clobber
+          $archive = Join-Path $Env:TMP_DIR 'CGS_win_full.7z'
+          $tag = "v$Env:VER"
+          Write-Host "Uploading $archive to release tag: $tag"
+          gh release upload $tag $archive --clobber
