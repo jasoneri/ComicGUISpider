@@ -5,6 +5,7 @@ import time
 import re
 import sys
 import argparse
+from copy import deepcopy
 from multiprocessing import Process, set_start_method, Queue
 from threading import Thread
 
@@ -134,9 +135,9 @@ def say_to_textBrowser(_gui, textBrowserQueue, TasksQueue, flagQueue, daily_test
                 break
             _ = _state.text
             if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
-                _gui.books = _
+                _gui.books = deepcopy(_)
             elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
-                _gui.eps = _
+                _gui.eps = deepcopy(_)
             elif not daily_test_flag:
                 logger.debug(_)
             if isinstance(_, str) and any(filter(lambda flag: flag in _, flag_patterns)):
