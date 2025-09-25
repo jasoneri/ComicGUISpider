@@ -54,7 +54,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Accept-Encoding": "gzip, deflate, br",
     }
-    uuid_regex = re.compile(r"/(\d{5,})")
+    uuid_regex = re.compile(r"[^/]+/(\d+)")
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")

@@ -113,12 +113,7 @@ class ExpandSettings(QtWidgets.QWidget):
         self.custMapLabelLayout.addWidget(custMapLabel)
         self.custMapLabelLayout.addStretch()
         custMapLayout.addLayout(self.custMapLabelLayout)
-        self.conf_dia.custom_mapEdit = TextEdit(self.conf_dia)
-        self.conf_dia.custom_mapEdit.setStyleSheet("QTextEdit {\n"
-"background-image: url(:/configDialog/fgo_bg.png);\n"
-"}")
-        self.conf_dia.custom_mapEdit.setObjectName("custom_mapEdit")
-        custMapLayout.addWidget(self.conf_dia.custom_mapEdit)
+        setattr(self.conf_dia, "horizontalLayout_label_custom_map", custMapLayout)
 
         second_row = QtWidgets.QHBoxLayout()
         first_label = StrongBodyLabel("拷贝设置", self)

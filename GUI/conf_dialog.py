@@ -23,8 +23,10 @@ from utils import conf, convert_punctuation as cp, exc_p
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater, Proj
-from GUI.core.theme import theme_mgr, CustTheme
-from GUI.uic.qfluent.components import SupportView, CustomFlyout, CustomInfoBar, ExpandSettings
+from GUI.core.theme import theme_mgr
+from GUI.uic.qfluent.components import (
+    SupportView, CustomFlyout, CustomInfoBar, ExpandSettings, TextEditWithBg
+)
 
 
 class SvPathCard(PushSettingCard):
@@ -62,11 +64,9 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.acceptBtn.clicked.connect(self.save_conf)
         self.acceptBtn.setIcon(FIF.SAVE)
         self.cancelBtn.setIcon(FIF.CLOSE)
-        tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
-        self.completerEdit.setToolTip(tip)
-        self.label_completer.setToolTip(tip)
         self.insert_btn()
         self._preset()
+        self._repaint_textEdit()
 
     def retranslateUiAgain(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
@@ -92,6 +92,22 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         
         for k, ui_key in LANG.items():
             self.langBox.addItem(ui_key, userData=k)
+
+    def _repaint_textEdit(self):
+        for imge in ("cookies", "completer", "custom_map"):
+            imgew = f"{imge}Edit"
+            _ = getattr(self, imgew, None)
+            if _:
+                _.setParent(None)
+                _.deleteLater()
+            textEditWidget = TextEditWithBg(self)
+            textEditWidget.setObjectName(imgew)
+            textEditWidget.set_fixed_image(f":/configDialog/{imge}.png")
+            setattr(self, imgew, textEditWidget)
+            getattr(self, f"horizontalLayout_label_{imge}").insertWidget(1, textEditWidget)
+        tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
+        self.completerEdit.setToolTip(tip)
+        self.label_completer.setToolTip(tip)
 
     def _preset(self):
         self.sv_path_card = SvPathCard(self)
