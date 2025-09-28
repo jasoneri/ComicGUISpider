@@ -58,24 +58,15 @@ C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 
 #### 🎁 Features
 
-✅ 高级设置-拷贝勾选展示单行本，注意会影响用`-3`等倒数选的排序
-
-#### 🐞 Fix
-
-✅ ✨修复预览的样式，用静态取代不稳定外链css  
-✖️ jm 域名策略变化的关系，暂时关闭jm的读剪贴板功能，等 [cloudscraper](https://github.com/VeNoMouS/cloudscraper/issues/285) 支持异步后恢复..  
-
-<details>
-<summary> <code>🧪v2.5.0-beta.3</code> 开发版特性👈看就点</summary>
-
-#### 🐞 Fix
-
 ✅ 优化线程进程相关实例再利用，显著提升内置重启  
-✅ 修复内置更新稳定性，变更为关闭主进程然后新终端窗口执行升级命令  
-✅ 修复列表含5位数车号以下时报错  
 🚧 重构数据格式以支持后续筛选过滤功能  
 
-</details>
+#### 🐞 Fix
+
+✖️ jm 域名策略变化的关系，暂时关闭jm的读剪贴板/章节功能，等 [cloudscraper](https://github.com/VeNoMouS/cloudscraper/issues/285) 支持异步或找到解决方案后恢复..  
+✅ 修复内置更新稳定性  
+✅ 修复 jm 列表含5位数车号以下时报错  
+
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
