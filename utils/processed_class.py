@@ -89,6 +89,9 @@ class QueueHandler:
                 time.sleep(0.2)
             return flag
 
+        def clear(self):
+            return Queues.clear(self.queue)
+
     def __call__(self, queue_name, *args, **kwargs):
         _inner_attr = f'_instance_{queue_name}'
         if not hasattr(self, _inner_attr):
