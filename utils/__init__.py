@@ -165,13 +165,12 @@ class Queues:
         return state
 
     @staticmethod
-    def clear(queues: iter):
-        for queue in queues:
-            try:
-                while True:
-                    queue.get_nowait()
-            except:
-                pass
+    def clear(queue):
+        try:
+            while True:
+                queue.get_nowait()
+        except Exception:
+            pass
 
 
 def md5(_str):
