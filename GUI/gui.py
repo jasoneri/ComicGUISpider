@@ -363,6 +363,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.log.error(str(traceback.format_exc()))
             self.log = conf.cLog(name="GUI")
             self.BrowserWindow = None
+            self.Q('InputFieldQueue').clear()
             QTimer.singleShot(10, lambda : self.setupUi(self))
 
         self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
