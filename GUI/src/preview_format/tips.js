@@ -32,20 +32,20 @@
   };
 
   // Python端调用的重试函数
-  window.tryMarkDownloadStatus = function(downloadedUrls, downloadedEpisodeBids = []) {
+  window.tryMarkDownload = function(downloadedIdxes, downloadedEpisodeBids = []) {
     let attempts = 0;
     const maxAttempts = 10;
 
     function tryMark() {
       attempts++;
-      if (window.markDownloadStatus) {
-        window.markDownloadStatus(downloadedUrls, downloadedEpisodeBids);
+      if (window.markDownload) {
+        window.markDownload(downloadedIdxes, downloadedEpisodeBids);
         return true;
       } else {
         if (attempts < maxAttempts) {
           setTimeout(tryMark, 100);
         } else {
-          console.error(`Failed to find markDownloadStatus after ${maxAttempts} attempts`);
+          console.error(`Failed to find markDownload after ${maxAttempts} attempts`);
         }
         return false;
       }
@@ -56,17 +56,14 @@
   };
 
   // 标记下载状态的主函数
-  window.markDownloadStatus = function(downloadedUrls, downloadedEpisodeBids = []) {
-    // 处理普通任务的下载状态
-    downloadedUrls.forEach(url => {
-      const urlElement = document.querySelector(`a[href="${url}"]`);
-      if (urlElement) {
-        urlElement.classList.add('downloaded');
-        const container = urlElement.closest('.singal-task');
+  window.markDownload = function(downloadedIdxes, downloadedEpisodeBids = []) {
+    downloadedIdxes.forEach(idx => {
+      const Ele = document.querySelector(`label[for="${idx}"]`);
+      if (Ele) {
+        const container = Ele.closest('.singal-task');
         if (container) {
-          const formCheck = container.querySelector('.form-check');
-          formCheck ? formCheck.classList.add('container-downloaded') : container.classList.add('container-downloaded');
-          const img = container.querySelector('img');
+          container.classList.add('container-downloaded');
+          const img = Ele.querySelector('img');
           if (img) img.classList.add('img-downloaded');
         }
       } 
@@ -83,7 +80,7 @@
     // 执行所有注册的回调函数
     window.downloadStatusCallbacks.forEach(callback => {
       try {
-        callback(downloadedUrls, downloadedEpisodeBids);
+        callback(downloadedIdxes, downloadedEpisodeBids);
       } catch (e) {
       }
     });
