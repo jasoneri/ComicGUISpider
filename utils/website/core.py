@@ -47,6 +47,8 @@ class Cache:
 
                 result = func(*args, **kwargs)
                 if result is not None and write_in:
+                    if cache_path.exists():
+                        os.remove(cache_path)  # remark: 解决相同内容写入却不更新最后访问时间导致的缓存失效恶性循环
                     if cache_path.suffix == '.pkl':
                         with open(cache_path, 'wb') as f:
                             pickle.dump(result, f)
