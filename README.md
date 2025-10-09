@@ -67,6 +67,14 @@ C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 ✅ 修复内置更新稳定性  
 ✅ 修复 jm 列表含5位数车号以下时报错  
 
+<details>
+<summary> <code>🧪v2.5.1-beta</code> 开发版特性👈看就点</summary>
+
+#### 🐞 Fix
+
++ 修复读剪贴板时提示异常导致的错误
+
+</details>
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
