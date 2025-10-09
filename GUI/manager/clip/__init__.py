@@ -1,6 +1,6 @@
 import re
 import pathlib
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from qfluentwidgets import (
     InfoBar, InfoBarIcon, InfoBarPosition
 )
@@ -110,15 +110,14 @@ class ClipGUIManager:
                     f.write(html)
                 if conf.isDeduplicate:
                     # 延迟一点确保页面刷新完成
-                    from PyQt5.QtCore import QTimer
                     def delayed_mark():
                         # page = self.page if self.page else None
                         # PreviewHtml.mark_tip(SPIDERS[self.gui.chooseBox.currentIndex()], self.gui.tf, page)
-                        # TODO[1](2025-09-05): clip的preview与平常的不同，统一处理
                         books = self.gui.mark_tip(self.infos)
-                        for dled in filter(lambda b: getattr(b, "mark_tip") == "downloaded", books):
-                            js_code = f'markDownloaded("{dled.idx}");'  # TODO[0](2025-09-09): clip 的 js 写markDownloaded函数
-                            self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
+                        dled_idxes = [str(dled.idx) for dled in filter(lambda b: getattr(b, "mark_tip") == "downloaded", books)]
+                        js_code = f'''tryMarkDownload({dled_idxes});'''  
+                        # TODO[2](2025-09-09): 当修复 eps 下载时需要修复此处 clip 的 eps 扩展
+                        self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
                     QTimer.singleShot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
                 if self.gui.BrowserWindow.topHintBox.isChecked():

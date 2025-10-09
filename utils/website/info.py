@@ -27,6 +27,7 @@ class BookInfo(InfoMinix):
     pages: int = None
     btype: str = None        # booktype
     tags: list = []
+    mark_tip = None
     
     @property
     def children_length(self):

@@ -245,7 +245,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             for book in filter(lambda b: b.u_md5 in downloaded_md5, _books):
                 book.mark_tip = "downloaded"
         books = sorted(ori_books.values(), key=lambda x: x.idx)
-        if conf.isDeduplicate and not self.clip_mgr.is_triggered:
+        if conf.isDeduplicate:
             mark_tip(books)
         # TODO[2](2025-09-05): 高级筛选，改写 book.mark_tip
         return books
