@@ -161,7 +161,7 @@ class HitomiSpider(BaseComicSpider):
         this_uuid, this_md5 = book.id_and_md5()
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
             self.say(f'{"=" * 15} 《{book.name}》')
-            self.set_task((this_md5, book.name, book.pages, book.preview_url, None))
+            self.set_task(book)
             for pic_info in book.pics:
                 item = ComicspiderItem()
                 item['title'] = book.name

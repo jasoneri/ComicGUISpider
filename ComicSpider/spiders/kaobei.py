@@ -171,7 +171,8 @@ class KaobeiSpider(BaseComicSpider):
             raise ValueError("拷贝更改了contentKey xpath")
         contentKey = re.search(r"""var contentKey = ["']([^']*)["']""", contentKey_script).group(1)
         imageData = KaobeiUtils.decrypt_chapter_data(contentKey)
-        self.set_task((u_md5, uid, len(imageData), book.preview_url))
+        ep.pages = len(imageData)
+        self.set_task(ep)
         for page, url_item in enumerate(imageData):
             item = ComicspiderItem()
             item.update(**group_infos)

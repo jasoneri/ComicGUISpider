@@ -12,6 +12,7 @@ from dataclasses import asdict
 import multiprocessing.managers as m
 
 from utils.config import *
+from utils.core import *
 
 temp_p = ori_path.joinpath("__temp")
 temp_p.mkdir(exist_ok=True)
@@ -95,27 +96,6 @@ def clean_escape_chars(text):
     return text.replace('\\\\', '\\').replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
 
 
-class State:
-    """gui与后端需要共用的一个状态变量时，使用此类；
-    由于处于不同进程，需要创建一个对应的Queues做通讯"""
-    buffer: dict = None
-
-    def sv_cache(self):
-        """take snapshot when sth occur
-        run before sent
-        """
-        try:
-            self.buffer = asdict(self)
-        except AttributeError:
-            ...
-
-    def __eq__(self, other):
-        return asdict(self) == other.buffer
-
-    def __setattr__(self, key, value):
-        super().__setattr__(key, value)
-        if key != 'buffer':
-            self.sv_cache()
 
 
 class QueuesManager(m.BaseManager):
@@ -137,40 +117,6 @@ class QueuesManager(m.BaseManager):
             else:
                 return
         raise ConnectionRefusedError("Failed to connect to manager")
-
-
-class Queues:
-    @staticmethod
-    def send(queue, state: State, wait=False):
-        try:
-            if wait:
-                while not queue.empty():
-                    time.sleep(0.01)
-            else:
-                if not queue.empty():
-                    queue.get()
-        except Exception as e:
-            raise e
-        queue.put(state)
-
-    @staticmethod
-    def recv(queue) -> t.Optional[State]:
-        try:
-            if queue.empty():
-                return None
-            state = queue.get()
-            queue.put_nowait(state)
-        except Exception as e:
-            raise e
-        return state
-
-    @staticmethod
-    def clear(queue):
-        try:
-            while True:
-                queue.get_nowait()
-        except Exception:
-            pass
 
 
 def md5(_str):

@@ -50,6 +50,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     books = {}
     keep_books = []
     eps = []
+    web_is_r18 = False
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -133,6 +134,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.retrybtn.setEnabled(True)
                 self.preprocess_mgr.handle_choosebox_changed(index)
                 return
+            if index in SPECIAL_WEBSITES_IDXES:
+                self.web_is_r18 = True
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
             FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
@@ -144,7 +147,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
             self.chooseBox_changed_tips(index)
-            if index in SPECIAL_WEBSITES_IDXES:
+            if self.web_is_r18:
                 if index != 2:
                     self.clipBtn.setEnabled(1)
                 self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
@@ -308,7 +311,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def preprocess_preview(self, url_str):
         url = url_str.replace("[PreviewBookInfoEnd]", "")
         
-        if self.chooseBox.currentIndex() not in SPECIAL_WEBSITES_IDXES:
+        if not self.web_is_r18:
             return
         self.previewBtn.setEnabled(True)
         books = self.mark_tip(self.books)
@@ -454,7 +457,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseinput.clear()
         # choose逻辑 交由crawl, next,retry3个btn的schedule控制
         self.q_InputFieldQueue_send(self.input_state)
+        if self.web_is_r18:
+            self.set_tasks(self.input_state.indexes)
         self.log.debug(f'send choose: {self.input_state.indexes} success')
+
+    def set_tasks(self, idxes):
+        self.task_mgr.init()
 
     def crawl(self):
         idxes = self.chooseinput.text().strip()
@@ -468,6 +476,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         QThread.msleep(10)
         self.q_InputFieldQueue_send(self.input_state)
+        self.set_tasks(self.input_state.indexes)
         self.log.debug(f'send choose success')
 
         if self.book_num == 0:
@@ -517,7 +526,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             string = string[len('[httpok]'):]
             ignore_http = True
         if not ignore_http and 'http' in string:
-            if self.chooseBox.currentIndex() in SPECIAL_WEBSITES_IDXES:
+            if self.web_is_r18:
                 fin_s = self.res.textbrowser_load_if_http % string
         else:
             fin_s = string
