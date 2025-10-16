@@ -139,7 +139,8 @@ class MangabzSpider(FormReqBaseComicSpider):
         img_list_ = re.search(r'\[(.*?)]', real_js).group(1)
         img_list = [re.sub(r"""['"]""", '', _) for _ in re.split(', ?', img_list_)]
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
-        self.set_task((u_md5, uid, len(img_list), book.preview_url))
+        ep.pages = len(img_list)
+        self.set_task(ep)
         for img_url in img_list:
             item = ComicspiderItem()
             item.update(**group_infos)
