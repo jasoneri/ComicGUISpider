@@ -1,6 +1,7 @@
+from tkinter import NO
 import typing as t
 from dataclasses import dataclass, asdict
-from utils import md5
+from utils import md5, TasksObj
 from .registry import Uuid
 
 
@@ -28,15 +29,19 @@ class BookInfo(InfoMinix):
     btype: str = None        # booktype
     tags: list = []
     mark_tip = None
-    
+
     @property
     def children_length(self):
-        return len(self.episodes or []) or len(self.pages or [])
+        return len(self.episodes or []) or self.pages
 
     @property
     def uuid(self):
         return Uuid(self.source)
-    
+
+    @property
+    def display_title(self):
+        return self.name
+
     def get_id(self, info):
         self.id = self.uuid.get(info, only_id=True)
         return self
@@ -55,6 +60,7 @@ class Manga(BookInfo):
     def say(self):
         render_vals = [getattr(self, k, '') for k in self.render_keys]
         return (str(self.idx), *render_vals, chr(12288))
+
 
 class Ero(BookInfo):
     img_preview: str = None  
@@ -89,6 +95,12 @@ class Ero(BookInfo):
         return self.idx, self.url, self.img_preview, self.name, \
                 self.artist, self.pages, self.tags[:20] if self.tags else [], episodes
 
+    def to_tasks_obj(self):
+        assert self.pages is not None
+        return TasksObj(
+            self.u_md5, self.name, int(self.pages), self.preview_url, 'meaningless'
+        )
+
 
 class Episode(InfoMinix):
     from_book: t.Union[Ero, Manga] = None
@@ -96,17 +108,27 @@ class Episode(InfoMinix):
     idx: int = None
     url: str = None
     name: str = "meaningless"
-    pages: list = None
+    pages: t.Union[str, int] = None
     
     def id_and_md5(self):
         _uuid = f"{self.from_book.source}-{self.id}" if self.id else \
             f"{self.from_book.source}-{self.from_book.name}-{self.name}"
         uuid_md5 = md5(_uuid)
         return _uuid, uuid_md5
-    
+
+    @property
+    def display_title(self):
+        return f"{self.from_book.name} - {self.name}"
+
     def __str__(self):
         return str(self.name)
 
+    def to_tasks_obj(self):
+        _, u_md5 = self.id_and_md5()
+        assert self.pages is not None
+        return TasksObj(
+            u_md5, self.from_book.name, int(self.pages), self.from_book.preview_url, self.name
+        )
 # ---
 
 class KbBookInfo(Manga):

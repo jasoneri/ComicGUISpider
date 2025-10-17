@@ -37,29 +37,6 @@ class ProcessState(State):
     process: str
 
 
-class TasksObj:
-    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None, episode_name: str = None):
-        self.taskid = taskid
-        self.title = title
-        self.tasks_count = tasks_count
-        self.title_url = title_url
-        self.episode_name = episode_name
-        self.downloaded = []
-
-    @property
-    def display_title(self) -> str:
-        return f"{self.title} - {self.episode_name}" if self.episode_name else self.title
-
-
-class TaskObj:
-    success: bool = True
-
-    def __init__(self, taskid: str, page: str, url: str = None):
-        self.taskid = taskid
-        self.page = page
-        self.url = url
-
-
 def refresh_state(self, state_name, queue_name, monitor_change=False):
     _ = getattr(self, state_name)
     state = self.Q(queue_name).recv()

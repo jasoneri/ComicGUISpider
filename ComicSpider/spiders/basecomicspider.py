@@ -14,12 +14,11 @@ from ComicSpider.items import ComicspiderItem
 from GUI.core.font import font_color
 from utils import Queues, QueuesManager, PresetHtmlEl, temp_p, conf
 from utils.processed_class import (
-    TextBrowserState, ProcessState, QueueHandler, refresh_state, 
-    Url, TasksObj
+     TextBrowserState, ProcessState, QueueHandler, refresh_state, Url
 )
 from utils.website import (
     correct_domain, spider_utils_map, 
-    InfoMinix, BookInfo
+    InfoMinix, BookInfo, Episode
 )
 from utils.sql import SqlUtils
 
@@ -131,13 +130,12 @@ class BaseComicSpider(scrapy.Spider):
             self.process_state.process = 'parse'
             self.Q('ProcessQueue').send(self.process_state)
             self.refresh_state('input_state', 'InputFieldQueue')
-            # TODO[5](2025-09-03): clip 是 ep 的情况下暂时没法测试
-            for book in indexes:
-                url = book.url if book.url and book.url.startswith("http") else self.book_id_url % book.id
+            for info in indexes:
+                url = info.url if info.url and info.url.startswith("http") else self.book_id_url % info.id
                 yield scrapy.Request(
                     url=self.transfer_url(url), callback=self.parse_section,
                     headers={**self.ua, 'Referer': self.domain},
-                    meta={'book': book} if isinstance(book, BookInfo) else {'episode': book},
+                    meta={'book': info} if isinstance(info, BookInfo) else {'episode': info},
                     dont_filter=True)
         else:
             search_start = self.search
@@ -249,10 +247,10 @@ class BaseComicSpider(scrapy.Spider):
         2、设立规则处理response.follow也许可行"""
         return [kw['url']]
 
-    def set_task(self, task_info):
-        """taskid, title, task_length, title_url, episode_name"""
-        self.tasks[task_info[0]] = TasksObj(*task_info)
-        self.Q('TasksQueue').send(task_info)
+    def set_task(self, task_info: t.Union[BookInfo, Episode]):
+        tasks_obj = task_info.to_tasks_obj()
+        self.tasks[tasks_obj.taskid] = tasks_obj
+        self.Q('TasksQueue').send(tasks_obj)
 
     def makesure_tasks_status(self):
         if conf.isDeduplicate:
@@ -318,7 +316,7 @@ class BaseComicSpider(scrapy.Spider):
 
     def _handle_finished_status(self, stats):
         if 'init' in self.process_state.process:
-            self.say(font_color('unknown init error, please contact maintainer with operation-process', cls='theme-err', size=6))
+            self.say(font_color('unknown init end,<br>if error occur, please contact maintainer with operation-process', cls='theme-err', size=6))
             return
         downloaded_count = stats.get_value('image/downloaded', 0)
         exception_count = stats.get_value('process_exception/count', 0)
@@ -354,16 +352,23 @@ class BaseComicSpider2(BaseComicSpider):
         meta = response.meta
         # clip 流程时，meta 传送的可能是 episode
         ep = meta.get('episode')
-        book = meta.get('book') or ep.from_book 
+        if ep:
+            book = ep.from_book
+            this_uuid, this_md5 = ep.id_and_md5()
+            ep_name = ep.name
+            this_info = ep
+        else:
+            book = meta.get('book')
+            this_uuid, this_md5 = book.id_and_md5()
+            ep_name = 'meaningless'
+            this_info = book
         book.name = PresetHtmlEl.sub(book.name)
-        this_uuid, this_md5 = book.id_and_md5() if not ep else ep.id_and_md5()
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
-            display_title = f"{book.name} - {ep.name}" if ep else book.name
-            self.say(f'''{"=" * 15} 《{display_title}》''')
-
+            self.say(f'''{"=" * 15} 《{this_info.display_title}》''')
             results = self.frame_section(response)  # {1: url1……}
-            ep_name = ep.name if ep else 'meaningless'
-            self.set_task((this_md5, book.name, len(results), book.preview_url or response.url, ep_name))
+            this_info.pages = len(results)
+            # self.set_task((this_md5, book.name, len(results), book.preview_url or response.url, ep_name))
+            self.set_task(this_info)
             for page, url in results.items():
                 item = ComicspiderItem()
                 item['title'] = book.name
@@ -404,7 +409,9 @@ class BaseComicSpider3(BaseComicSpider):
                 yield scrapy.Request(url=next_page_flag, callback=self.parse_section, meta=meta)
             else:
                 book.name = PresetHtmlEl.sub(book.name)
-                self.set_task((book.u_md5, book.name, len(results), book.preview_url or response.url, None))
+                book.pages = len(results)
+                self.set_task(book)
+                # self.set_task((book.u_md5, book.name, len(results), book.preview_url or response.url, None))
                 for page, url in results.items():
                     meta = {'book': book, 'page': page}
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
