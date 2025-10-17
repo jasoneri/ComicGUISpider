@@ -32,14 +32,14 @@
   };
 
   // Python端调用的重试函数
-  window.tryMarkDownload = function(downloadedIdxes, downloadedEpisodeBids = []) {
+  window.tryMarkDownload = function(downloadedIdxes, downloadedEpisodeIdxes = []) {
     let attempts = 0;
     const maxAttempts = 10;
 
     function tryMark() {
       attempts++;
       if (window.markDownload) {
-        window.markDownload(downloadedIdxes, downloadedEpisodeBids);
+        window.markDownload(downloadedIdxes, downloadedEpisodeIdxes);
         return true;
       } else {
         if (attempts < maxAttempts) {
@@ -56,7 +56,7 @@
   };
 
   // 标记下载状态的主函数
-  window.markDownload = function(downloadedIdxes, downloadedEpisodeBids = []) {
+  window.markDownload = function(downloadedIdxes, downloadedEpisodeIdxes = []) {
     downloadedIdxes.forEach(idx => {
       const Ele = document.querySelector(`label[for="${idx}"]`);
       if (Ele) {
@@ -70,8 +70,8 @@
     });
 
     // 处理episodes的下载状态（基于bid值）
-    downloadedEpisodeBids.forEach(bid => {
-      const episodeElement = document.querySelector(`input[class="btn-check"][value="${bid}"]`);
+    downloadedEpisodeIdxes.forEach(idx => {
+      const episodeElement = document.querySelector(`input[class="btn-check"][id="${idx}"]`);
       const label = document.querySelector(`label[for="${episodeElement.id}"]`);
       label.classList.add('episode-container-downloaded');
       episodeElement.classList.add('episode-container-downloaded');
@@ -80,7 +80,7 @@
     // 执行所有注册的回调函数
     window.downloadStatusCallbacks.forEach(callback => {
       try {
-        callback(downloadedIdxes, downloadedEpisodeBids);
+        callback(downloadedIdxes, downloadedEpisodeIdxes);
       } catch (e) {
       }
     });

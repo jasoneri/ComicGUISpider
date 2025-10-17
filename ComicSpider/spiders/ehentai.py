@@ -47,7 +47,7 @@ class EHentaiSpider(BaseComicSpider3):
                 name=item_elem.xpath('.//img/@title').get(),
                 preview_url=_url,
                 url=_url,
-                pages=pages,
+                pages=int(pages),
                 btype=target.xpath('./td[contains(@class, "glcat")]/div/text()').get(),
                 img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
             ).get_id(_url)

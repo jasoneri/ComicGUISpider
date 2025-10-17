@@ -1,20 +1,20 @@
 import os
 import shlex
 import subprocess
+import typing as t
 
 from PyQt5.QtCore import QTimer
 from qfluentwidgets import (
     InfoBarPosition, StateToolTip
 )
 
-from variables import PYPI_SOURCE
-from utils.processed_class import (
-    PreviewHtml, TaskObj, TasksObj
-)
-from utils.sql import SqlUtils
-from utils import conf, ori_path, env, uv_exc, exc_p
 from assets import res
+from variables import PYPI_SOURCE
 from deploy.update import Proj
+from utils import conf, ori_path, env, uv_exc, exc_p, TaskObj, TasksObj
+from utils.processed_class import PreviewHtml
+from utils.sql import SqlUtils
+from utils.website import BookInfo, Episode
 from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox
 )
@@ -29,30 +29,24 @@ class TaskProgressManager:
         self.init_flag = True
         self.sql_handler = SqlUtils()
 
-    def init(self, add_task):
+    def init(self):
+        # 就是为了设定任务细化面板 包的饺子
         self.init_flag = False
-        if not self.gui.BrowserWindow and self.gui.previewInit:
+        if not self.gui.BrowserWindow and self.gui.previewInit:  # 这是拷贝等无预览有章节时设的preview处理
             self.gui.tf = self.gui.tf or PreviewHtml().created_temp_html
             self.gui.previewInit = False
             self.gui.set_preview()
-        self.gui.BrowserWindow.init_task_panel(add_task)
+        self.gui.BrowserWindow.init_task_panel()
 
-    def handle(self, task):
-        if isinstance(task, tuple):
+    def handle(self, task: t.Union[TasksObj, TaskObj]):
+        if isinstance(task, TasksObj):
             self.add_task(task)
         else:
-            self.update_progress(task)
-            
-    def add_task(self, task_info: tuple):
-        if self.init_flag:
-            self.init(lambda: self._real_add_task(task_info))
-        else:
-            self._real_add_task(task_info)
+            self.update_progress(task)  
 
-    def _real_add_task(self, task_info: tuple):
-        obj = TasksObj(*task_info)
-        self._tasks[task_info[0]] = obj
-        self.gui.BrowserWindow.add_task(obj)
+    def add_task(self, tasks_obj):
+        self._tasks[tasks_obj.taskid] = tasks_obj
+        self.gui.BrowserWindow.add_task(tasks_obj)
 
     def update_progress(self, task_obj: TaskObj):
         taskid = task_obj.taskid

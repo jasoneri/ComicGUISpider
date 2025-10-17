@@ -15,6 +15,7 @@ from variables import SPECIAL_WEBSITES
 from utils import conf
 
 warnings.filterwarnings("ignore", message=".*deprecated start_requests.*", category=ScrapyDeprecationWarning)
+warnings.filterwarnings("ignore", message=".*REQUEST_FINGERPRINTER_IMPLEMENTATION.*", category=ScrapyDeprecationWarning)
 
 BOT_NAME = 'ComicSpider'
 
