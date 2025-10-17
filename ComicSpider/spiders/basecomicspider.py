@@ -130,13 +130,12 @@ class BaseComicSpider(scrapy.Spider):
             self.process_state.process = 'parse'
             self.Q('ProcessQueue').send(self.process_state)
             self.refresh_state('input_state', 'InputFieldQueue')
-            # TODO[5](2025-09-03): clip 是 ep 的情况下暂时没法测试
-            for book in indexes:
-                url = book.url if book.url and book.url.startswith("http") else self.book_id_url % book.id
+            for info in indexes:
+                url = info.url if info.url and info.url.startswith("http") else self.book_id_url % info.id
                 yield scrapy.Request(
                     url=self.transfer_url(url), callback=self.parse_section,
                     headers={**self.ua, 'Referer': self.domain},
-                    meta={'book': book} if isinstance(book, BookInfo) else {'episode': book},
+                    meta={'book': info} if isinstance(info, BookInfo) else {'episode': info},
                     dont_filter=True)
         else:
             search_start = self.search
@@ -317,7 +316,7 @@ class BaseComicSpider(scrapy.Spider):
 
     def _handle_finished_status(self, stats):
         if 'init' in self.process_state.process:
-            self.say(font_color('unknown init error, please contact maintainer with operation-process', cls='theme-err', size=6))
+            self.say(font_color('unknown init end,<br>if error occur, please contact maintainer with operation-process', cls='theme-err', size=6))
             return
         downloaded_count = stats.get_value('image/downloaded', 0)
         exception_count = stats.get_value('process_exception/count', 0)
@@ -354,7 +353,7 @@ class BaseComicSpider2(BaseComicSpider):
         # clip 流程时，meta 传送的可能是 episode
         ep = meta.get('episode')
         if ep:
-            book = meta.get('book') or ep.from_book
+            book = ep.from_book
             this_uuid, this_md5 = ep.id_and_md5()
             ep_name = ep.name
             this_info = ep

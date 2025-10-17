@@ -134,7 +134,6 @@ class WorkThread(QThread):
                         self.gui.books = deepcopy(_)
                     elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
                         self.gui.eps = deepcopy(_)
-                    # TODO[1](2025-10-15): 处理既有 BookInfo 又有 Episode 的情况
                     elif "PreviewBookInfoEnd" in _:
                         self.gui.preprocess_preview(_)
                     elif "[ShowKeepBooks]" == _:

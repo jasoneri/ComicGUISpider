@@ -190,7 +190,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
             pages=re.search(r'\d+', pages_text).group(0), episodes=[]
         )
         for epa_el in epa_els:
-            # TODO[5](2025-09-04): jm 的 eps 待测试
+            if not book.episodes:
+                book.episodes = []
             _ep_title = epa_el.xpath('.//h3/text()[normalize-space()]').get().strip()
             episode = Episode(
                 from_book=book,
