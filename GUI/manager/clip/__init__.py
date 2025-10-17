@@ -6,6 +6,7 @@ from qfluentwidgets import (
 )
 
 from assets import res
+from utils.website.info import BookInfo, Episode
 from variables import SPIDERS
 from utils import conf
 from utils.processed_class import PreviewHtml, ClipSqlHandler
@@ -113,10 +114,16 @@ class ClipGUIManager:
                     def delayed_mark():
                         # page = self.page if self.page else None
                         # PreviewHtml.mark_tip(SPIDERS[self.gui.chooseBox.currentIndex()], self.gui.tf, page)
-                        books = self.gui.mark_tip(self.infos)
-                        dled_idxes = [str(dled.idx) for dled in filter(lambda b: getattr(b, "mark_tip") == "downloaded", books)]
-                        js_code = f'''tryMarkDownload({dled_idxes});'''  
-                        # TODO[2](2025-09-09): 当修复 eps 下载时需要修复此处 clip 的 eps 扩展
+                        books_and_eps = self.gui.mark_tip(self.infos)
+                        dled_bidxes = []
+                        dled_eidxes = []
+                        for key, obj in self.infos.items():
+                            if getattr(obj, 'mark_tip', None) == 'downloaded':
+                                if isinstance(obj, BookInfo):
+                                    dled_bidxes.append(key)  
+                                elif isinstance(obj, Episode):
+                                    dled_eidxes.append(key)  
+                        js_code = f'''tryMarkDownload({dled_bidxes},{dled_eidxes});'''
                         self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
                     QTimer.singleShot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
