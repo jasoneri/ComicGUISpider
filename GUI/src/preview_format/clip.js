@@ -42,73 +42,81 @@
     }
     window.selectedObjectsMap.set(idx, selectedObjects);
 
-    // 3. 生成HTML片段
-    const htmlString1 = `
-      <div class="list-group-item"><div class="row g-1">
-        <div class="col-11 singal-task">
-            <div class="thumbnail-container"><label class="form-check-label" for="${idx}" style="height: 100%">
-                <img src="${img_src}" title="${title}" alt="${title}" class="img-thumbnail">
-            </label></div>
-            <ul style="list-style:none">
-                <li class="text-truncate"><a href="${url}"><span class="title">${title}</span></a></li>
-                <li><span class="author">${author}</span></li>
-                <li><span class="pages">${pages}pages</span></li>`;
-
-    let tags_html = `<li>`;
-    for (let i = 0; i < tags.length; i++) {
-      tags_html += `<span class="tag">${tags[i]}</span> `;
-    }
-    tags_html += `</li></ul>
-            </div>`;
-
-    let episodes_html = '';
-    let endingTags = '';
-
-    if (episodes && episodes.length > 0) {
-      // 有episodes：生成episodes选择界面，与col-11同级
-      episodes_html = `
-        <div class="col-12">
-          <div class="episodes-section">
-            <div class="episodes-list row" id="episodes-${idx}">
-              <div class="col-auto">
-                <button type="button" class="btn btn-outline-primary btn-sm" style="height: 85%;" onclick="toggleAllEpisodes(${idx})">全选切换</button>
-              </div>`;
-
-      for (let i = 0; i < selectedObjects.length; i++) {
-        const selected = selectedObjects[i];
-        episodes_html += `
-              <div class="col-auto">
-                <input class="btn-check" type="checkbox" name="${selected.checkboxName}" value="${selected.checkboxValue}"
-                    id="${selected.uniqueId}" checked autocomplete="off">
-                <label class="btn btn-outline-primary" for="${selected.uniqueId}" style="height: 85%;">${selected.episodeName}</label>
-              </div>`;
-      }
-      episodes_html += `
-            </div>
-          </div>
-        </div>`;
-
-      // 有episodes时不需要主input
-      endingTags = `
-        <div class="col-1"></div>
-    </div></div>`;
-    } else {
-      // 没episodes：生成主选择框
-      const selected = selectedObjects[0];
-      endingTags = `
-        <div class="col-1"><div class="checkbox checkbox-div"><label style="width: 50%;height: 95%;float: right;">
-            <input class="form-check-input" type="checkbox"
-                   name="${selected.checkboxName}"
-                   value="${selected.checkboxValue}"
-                   id="${selected.uniqueId}" checked>
-        </label></div></div>
-    </div></div>`;
-    }
-
-    const parentElement = document.querySelector(".list-group");
+    // 3. 生成HTML片段，支持两种页面结构：带分话的 `book_with_eps` 和 普通 `book`
+    const parentElement = document.querySelector('.container-fluid');
     const progressBar = document.getElementById('progress-bar');
 
-    parentElement.insertAdjacentHTML('beforeend', htmlString1 + tags_html + episodes_html + endingTags);
+    if (episodes && episodes.length > 0) {
+      // 生成 book_with_eps 结构（带 episodes grid）
+      let html = `
+      <div class="book_with_eps">
+        <div class="col-11 singal-task">
+          <div class="thumbnail-container"><label class="form-check-label" for="${idx}" style="height: 100%">
+            <img src="${img_src}" title="${title}" alt="${title}" class="img-thumbnail">
+          </label></div>
+          <ul style="margin: 15px;">
+            <li class="text-truncate"><a href="${url}"><span class="title">${title}</span></a></li>
+            <li><span class="author">${author}</span></li>
+            <li><span class="pages">${pages}pages</span></li>
+            <li>`;
+
+      if (Array.isArray(tags)) {
+        for (let i = 0; i < tags.length; i++) {
+          html += `<span class="tag">${tags[i]}</span> `;
+        }
+      }
+
+      html += `</li></ul>
+        </div>
+        <div class="episodes-container">
+          <div class="episodes-grid">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleAllEpisodes(${idx})">全选切换</button>`;
+
+      // 生成每个 episode 的 input+label
+      for (let i = 0; i < selectedObjects.length; i++) {
+        const s = selectedObjects[i];
+        // 保持 id 格式为 `${idx}-${episodeIdx}`，value 为 episodeBid，label 文本为 episodeName
+        html += `
+            <input class="btn-check" type="checkbox" name="${s.checkboxName}" value="${s.checkboxValue}" id="${s.uniqueId}" checked autocomplete="off">
+            <label class="btn btn-outline-primary" for="${s.uniqueId}" style="height: 85%;">${s.episodeName}</label>`;
+      }
+
+      html += `
+          </div>
+        </div>
+      </div>`;
+
+      parentElement.insertAdjacentHTML('beforeend', html);
+    } else {
+      // 生成 book 结构（单个作品，无分话）
+      const selected = selectedObjects[0];
+      let html = `
+      <div class="book">
+        <div class="col-11 singal-task">
+          <div class="thumbnail-container"><label class="form-check-label" for="${idx}" style="height: 100%">
+            <img src="${img_src}" title="${title}" alt="${title}" class="img-thumbnail">
+          </label></div>
+          <ul style="list-style:none">
+            <li class="text-truncate"><a href="${url}"><span class="title">${title}</span></a></li>
+            <li><span class="author">${author}</span></li>
+            <li><span class="pages">${pages}pages</span></li>
+            <li>`;
+
+      if (Array.isArray(tags)) {
+        for (let i = 0; i < tags.length; i++) {
+          html += `<span class="tag">${tags[i]}</span> `;
+        }
+      }
+
+      html += `</li></ul>
+        </div>
+        <label class="right-checkbox">
+          <input class="form-check-input" type="checkbox" name="${selected.checkboxName}" value="${selected.checkboxValue}" id="${selected.uniqueId}" checked>
+        </label>
+      </div>`;
+
+      parentElement.insertAdjacentHTML('beforeend', html);
+    }
 
     taskCount++;
     const currentMaxTasks = getMaxTasks();
