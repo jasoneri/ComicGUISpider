@@ -367,7 +367,6 @@ class BaseComicSpider2(BaseComicSpider):
             self.say(f'''{"=" * 15} 《{this_info.display_title}》''')
             results = self.frame_section(response)  # {1: url1……}
             this_info.pages = len(results)
-            # self.set_task((this_md5, book.name, len(results), book.preview_url or response.url, ep_name))
             self.set_task(this_info)
             for page, url in results.items():
                 item = ComicspiderItem()
@@ -411,7 +410,6 @@ class BaseComicSpider3(BaseComicSpider):
                 book.name = PresetHtmlEl.sub(book.name)
                 book.pages = len(results)
                 self.set_task(book)
-                # self.set_task((book.u_md5, book.name, len(results), book.preview_url or response.url, None))
                 for page, url in results.items():
                     meta = {'book': book, 'page': page}
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
