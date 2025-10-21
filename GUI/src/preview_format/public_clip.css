@@ -1,0 +1,24 @@
+.book_with_eps{margin:1rem 0}
+.book{display:flex;align-items:stretch;justify-content:flex-start;gap:.5rem;margin:1rem 0}
+.book .col-11.singal-task{flex:1 1 auto}
+.book > label.right-checkbox{width:5vw;height:149px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+.book > label.right-checkbox > input{width:100%;height:100%}
+
+.thumbnail-container{height:150px;margin:5px;border:1px solid #ccc;padding:0px;box-sizing:border-box;float:left}
+.img-thumbnail{width:auto;height:100%;display:block;margin:0 auto}
+@media (max-width:600px){.thumbnail-container{width:80%}}
+
+.title{font-weight:bold;font-size:large}
+.author{color:#2df500}
+.pages{font-size:small}
+.tag{background-color:#989a9d;color:white;padding:3px 8px;border-radius:5px;font-size:12px}
+
+html,body{margin:0;padding:0;box-sizing:border-box;overflow-x:hidden}
+*,*::before,*::after{box-sizing:inherit}
+.modal-dialog{max-width:70vw;align-items:center}
+
+.episodes-container{width:100vw;max-width:100vw;max-height:200px;padding:1rem 1rem;border-radius:6px;overflow-y:auto;overflow-x:hidden}
+.episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,max-content));gap:0.5rem;align-items:center}
+.episodes-grid .btn{display:inline-flex;align-items:center;justify-content:center;padding:.35rem .9rem;border-radius:.5rem}
+.episodes-container{box-sizing:border-box}
+@media (max-width:420px){.episodes-grid{grid-template-columns:repeat(auto-fill,minmax(80px,max-content))}}
