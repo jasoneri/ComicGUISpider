@@ -1,6 +1,10 @@
 import tempfile
-from utils import ori_path, temp_p
+from utils import ori_path, temp_p, conf
 from utils.preview.el import El
+
+
+def bs_theme():
+    return "dark" if conf.darkTheme else "light"
 
 
 class PreviewHtml:
@@ -33,7 +37,7 @@ class PreviewHtml:
         _content = "\n".join(self.contents)
         if self.url:
             _content += f'\n<div class="col-md-3"><p>for check current page</p><p>检查当前页数</p><p>{self.url}</p></div>'
-        html = format_text.replace("{body}", _content)
+        html = format_text.replace("{bs_theme}", bs_theme()).replace("{body}", _content)
         tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)
@@ -48,7 +52,9 @@ class PreviewByClipHtml:
     def created_temp_html(cls, url_regex, match_num):
         with open(cls.format_path.joinpath("index_by_clip.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
-        html = format_text.replace("{_url_regex}", url_regex).replace("{_match_num}", str(match_num))
+        html = format_text.replace("{bs_theme}", bs_theme()) \
+                .replace("{_url_regex}", url_regex) \
+                .replace("{_match_num}", str(match_num))
         tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)

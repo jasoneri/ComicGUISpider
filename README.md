@@ -58,23 +58,13 @@ C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 
 #### 🎁 Features
 
-✅ 优化线程进程相关实例再利用，显著提升内置重启  
-🚧 重构数据格式以支持后续筛选过滤功能  
-
-#### 🐞 Fix
-
-✖️ jm 域名策略变化的关系，暂时关闭jm的读剪贴板/章节功能，等 [cloudscraper](https://github.com/VeNoMouS/cloudscraper/issues/285) 支持异步或找到解决方案后恢复..  
-✅ 修复内置更新稳定性  
-✅ 修复 jm 列表含5位数车号以下时报错  
-
-<details>
-<summary> <code>🧪v2.5.1-beta.2</code> 开发版特性👈看就点</summary>
+✅✨ bootstrap 升至5.3, 预览窗口跟随 CGS 主题色（夜间模式）
 
 #### 🐞 Fix
 
 ✅✨ 修复剪贴板异常，并恢复 jm 的读剪贴板/章节功能  
-✅ 修复读剪贴板时提示异常导致的错误  
 ✅ 解决域名缓存不变时恶性循环获取  
+
 
 </details>
 
