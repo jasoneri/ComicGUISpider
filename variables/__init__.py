@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from assets import res
 
-VER = "v2.5.1-beta.3"
+VER = "v2.5.1"
 
 LANG = {
     "en_US": "English",

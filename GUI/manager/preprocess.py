@@ -144,7 +144,7 @@ class PreprocessManager(QObject):
         def hitomi_check():
             self.gui.spiderUtils = self.gui.spiderUtils(conf)
             if not self.gui.spiderUtils.test_index():
-                raise RuntimeError(f"access_fail:{self.gui.spiderUtils.name}:{self.gui.spiderUtils.index}")
+                raise RuntimeError(f"test-nozomi fail:{self.gui.spiderUtils.name}: {self.gui.spiderUtils.test_nozomi}")
             return True
 
         def on_error(_):
@@ -321,7 +321,7 @@ class PreprocessManager(QObject):
                             author_dict[author_id] = author
                         return author_dict
                     except Exception as e:
-                        raise RuntimeError(f"数据下载失败: {str(e)}")
+                        raise RuntimeError(f"数据下载失败: ...{str(e)[:-300]}")
                 data = download_kemono_data()
                 return True
 
