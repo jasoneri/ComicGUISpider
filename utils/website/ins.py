@@ -340,7 +340,7 @@ class KaobeiUtils(Utils):
 
     @classmethod
     @cachef.with_error_cleanup()
-    def decrypt_chapter_data(cls, ret: str):
+    def decrypt_chapter_data(cls, ret: str, **meta_info):
         def _(cipher_hex: str, key: str, iv: str) -> dict:
             cipher_bytes = bytes.fromhex(cipher_hex)
             key_bytes = key.encode('utf-8')
@@ -355,6 +355,8 @@ class KaobeiUtils(Utils):
             unpadder = padding.PKCS7(128).unpadder()
             decrypted = unpadder.update(decrypted_padded) + unpadder.finalize()
             return json.loads(decrypted.decode('utf-8'))
+        if len(ret) < 1000:
+            raise ValueError(f"加密信息过短疑似风控变化\n{cls.cachef.val=}\n{ret=}\n{meta_info=}")
         return _(ret[16:], cls.cachef.val, ret[:16])
 
     @classmethod
@@ -363,7 +365,7 @@ class KaobeiUtils(Utils):
         """获取AES密钥，使用缓存装饰器优化"""
         async def fetch():
             async with httpx.AsyncClient(headers=cls.headers) as cli:
-                resp = await cli.get(f"https://{cls.pc_domain}/comic/xsjzmwls")
+                resp = await cli.get(f"https://{cls.pc_domain}/comic/yiquanchaoren")
                 return resp.text
         try:
             loop = get_loop()
