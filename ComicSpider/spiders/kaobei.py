@@ -49,12 +49,17 @@ class FrameBook:
 class KaobeiSpider(BaseComicSpider):
     name = 'manga_copy'
     ua = headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0',
         'Accept': '*/*',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,ja;q=0.5',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'dnts': '2',
         'Connection': 'keep-alive',
-        'dnts': '1',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'Pragma': 'no-cache',
+        'Cache-Control': 'no-cache',
     }
     ua_mapi = {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
@@ -139,7 +144,7 @@ class KaobeiSpider(BaseComicSpider):
         frame_results = {}
         say_ep_fm = ' -{}、【{}】'
         self.say(say_ep_fm.format('序号', '章节') + '<br>')
-        resp_data = KaobeiUtils.decrypt_chapter_data(response.json()['results'])
+        resp_data = KaobeiUtils.decrypt_chapter_data(response.json()['results'], url=response.url)
         comic_path_word = resp_data['build']['path_word']
         chapters_data = resp_data['groups']['default']['chapters']
         if conf.kbShowDhb:
@@ -170,7 +175,7 @@ class KaobeiSpider(BaseComicSpider):
         if not contentKey_script:
             raise ValueError("拷贝更改了contentKey xpath")
         contentKey = re.search(r"""var contentKey = ["']([^']*)["']""", contentKey_script).group(1)
-        imageData = KaobeiUtils.decrypt_chapter_data(contentKey)
+        imageData = KaobeiUtils.decrypt_chapter_data(contentKey, url=response.url, group_infos=group_infos)
         ep.pages = len(imageData)
         self.set_task(ep)
         for page, url_item in enumerate(imageData):

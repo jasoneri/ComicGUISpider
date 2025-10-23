@@ -82,9 +82,9 @@ class TaskConfig:
 class AsyncTaskManager(QObject):
     """异步任务管理器 - 流程化耗时操作处理"""
 
-    def __init__(self, parent_widget=None):
+    def __init__(self, gui=None):
         super().__init__()
-        self.parent_widget = parent_widget
+        self.gui = gui
         self.current_tasks: Dict[str, AsyncTaskThread] = {}
         self.current_tooltips: Dict[str, StateToolTip] = {}
         self._tooltip_offset_counter = 0  # 用于计算tooltip位置偏移
@@ -250,7 +250,7 @@ class AsyncTaskManager(QObject):
                      position: Optional[tuple] = None, parent: Optional[QObject] = None):
         """显示状态提示"""
         # 确定父组件
-        tooltip_parent = parent or self.parent_widget
+        tooltip_parent = parent or self.gui
         if not tooltip_parent:
             return
         tooltip = StateToolTip(title, content, tooltip_parent)
@@ -291,13 +291,13 @@ class AsyncTaskManager(QObject):
 
     def _rearrange_tooltips(self):
         """重新排列剩余tooltip的位置，避免空隙"""
-        if not self.current_tooltips or not self.parent_widget:
+        if not self.current_tooltips or not self.gui:
             self._tooltip_offset_counter = 0
             return
 
         # 按创建顺序重新排列tooltip位置
         for i, tooltip in enumerate(self.current_tooltips.values()):
-            x = self.parent_widget.width() - tooltip.width() - 30
+            x = self.gui.width() - tooltip.width() - 30
             y = 20 + (i * 80)  # 每个tooltip垂直间隔80像素
             tooltip.move(x, y)
 
@@ -314,30 +314,31 @@ class AsyncTaskManager(QObject):
         ...
     
     def _show_error(self, message: str):
-        if self.parent_widget:
+        if self.gui:
             InfoBar.error(
                 title='错误', content=message,
                 orient=Qt.Horizontal, isClosable=True,
                 position=InfoBarPosition.TOP,
-                duration=-1, parent=self.parent_widget
+                duration=-1, parent=self.gui
             )
+            self.gui.log.error(message)
     
     def _show_warning(self, message: str):
-        if self.parent_widget:
+        if self.gui:
             InfoBar.warning(
                 title='警告', content=message,
                 orient=Qt.Horizontal, isClosable=True,
                 position=InfoBarPosition.TOP,
-                duration=6000, parent=self.parent_widget
+                duration=6000, parent=self.gui
             )
     
     def _show_info(self, message: str):
-        if self.parent_widget:
+        if self.gui:
             InfoBar.info(
                 title='', content=message,
                 orient=Qt.Horizontal, isClosable=True,
                 position=InfoBarPosition.TOP,
-                duration=2000, parent=self.parent_widget
+                duration=2000, parent=self.gui
             )
     
     def cleanup(self):

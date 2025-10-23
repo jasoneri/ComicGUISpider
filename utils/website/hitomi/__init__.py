@@ -15,10 +15,11 @@ class HitomiUtils(EroUtils, Req):
     index = "https://hitomi.la/"
     domain = r"ltn.gold-usergeneratedcontent.net"
     domain2 = r"gold-usergeneratedcontent.net"
+    test_nozomi = f'https://{domain}/popular/week-all.nozomi'
     headers = {
         "accept": "*/*",
         "accept-language": res.Vars.ua_accept_language,
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0",
         "referer": index
     }
     book_hea = headers
@@ -87,7 +88,7 @@ class HitomiUtils(EroUtils, Req):
 
     def test_index(self):
         try:
-            resp = self.cli.head(f'https://{self.domain}/popular/week-all.nozomi', 
+            resp = self.cli.head(self.test_nozomi, 
                                  headers={**HitomiUtils.headers, "Range": self.get_range(1)},
                                  follow_redirects=True, timeout=3.5)
             resp.raise_for_status()

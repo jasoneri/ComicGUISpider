@@ -27,7 +27,9 @@
 
 ## 📑介绍
 
-C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
+⚠️重要通知，点star⭐️限时免费‼️👉 [![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
+)](https://github.com/jasoneri/ComicGUISpider/stargazers)  
+☝️😆👎💩
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
@@ -43,10 +45,7 @@ C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 
 ---
 
-**[![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
-)](https://github.com/jasoneri/ComicGUISpider/stargazers)&nbsp;&nbsp;
-个人开发精力有限，  
-提问反馈前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
+**🔉个人开发精力有限，提问反馈前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
 )，至起码阅读过 [不该问的问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98
 ) 和 [好问题与蠢问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)**
 
@@ -58,29 +57,15 @@ C106了, 用 CGS 框框地下下下吧 🍻，顺便求⭐️
 
 #### 🎁 Features
 
-✅ 优化线程进程相关实例再利用，显著提升内置重启  
-🚧 重构数据格式以支持后续筛选过滤功能  
-
-#### 🐞 Fix
-
-✖️ jm 域名策略变化的关系，暂时关闭jm的读剪贴板/章节功能，等 [cloudscraper](https://github.com/VeNoMouS/cloudscraper/issues/285) 支持异步或找到解决方案后恢复..  
-✅ 修复内置更新稳定性  
-✅ 修复 jm 列表含5位数车号以下时报错  
-
-<details>
-<summary> <code>🧪v2.5.1-beta.3</code> 开发版特性👈看就点</summary>
-
-#### 🎁 Features
-
 ✅✨ bootstrap 升至5.3, 预览窗口跟随 CGS 主题色（夜间模式）
 
 #### 🐞 Fix
 
 ✅ 恢复 jm 的读剪贴板/章节功能  
 ✅ 修复优化 读剪贴板-章节 过多时的选择显示等问题  
+✅ 修复拷贝(可能)，hitomi 等网络杂项  
+✅ 各种预处理时报错时也记录进 GUI.log 里了  
 ✅ 解决域名缓存不变时恶性循环获取  
-
-</details>
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
