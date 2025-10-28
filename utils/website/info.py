@@ -1,4 +1,3 @@
-from tkinter import NO
 import typing as t
 from dataclasses import dataclass, asdict
 from utils import md5, TasksObj
