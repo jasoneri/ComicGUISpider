@@ -145,7 +145,8 @@ class Updater:
         QTimer.singleShot(1000, self.gui.close)
 
     def to_update(self, ver, log):
-        cmd = f"{uv_exc} tool install ComicGUISpider=={ver} --force --index-url {PYPI_SOURCE[conf.pypi_source]}"
+        python_version_arg = "'<3.14'"
+        cmd = f"{uv_exc} tool install ComicGUISpider=={ver} --force --index-url {PYPI_SOURCE[conf.pypi_source]} --python {python_version_arg}"
         if os.name == "nt":
             subprocess.Popen(["cmd", "/c", "start", "", "powershell", "-NoProfile", "-Command",
                             f"{cmd} 2>&1 | Tee-Object -FilePath {shlex.quote(log)} ; Read-Host 'Press Enter to close'"])
