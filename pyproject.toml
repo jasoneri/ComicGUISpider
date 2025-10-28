@@ -1,9 +1,9 @@
 [project]
 name = "ComicGUISpider"
-version = "2.5.1"
+version = "2.5.2-beta"
 description = "GUI Comic Downloader"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "httpx[http2]",
     "jsonpath_rw",

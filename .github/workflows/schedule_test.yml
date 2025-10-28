@@ -30,7 +30,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
       - name: Install ComicGUISpider CLI
         run: |
-          uv tool install comicguispider
+          uv tool install --prerelease allow comicguispider --force
           uv tool update-shell
       - name: Install coreutils (for gtimeout)
         run: brew install coreutils
