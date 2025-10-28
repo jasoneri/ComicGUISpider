@@ -246,7 +246,7 @@ class PreprocessManager(QObject):
 
                 if missing_packages:
                     # 使用pyproject.toml安装脚本依赖
-                    cmd = [uv_exc, "tool", "install", "--force", f"ComicGUISpider[script]=={VER}"]
+                    cmd = [uv_exc, "tool", "install", "--force", f"ComicGUISpider[script]=={VER}", "--python", "<3.14"]
                     cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
                     process = subprocess.Popen(
                         cmd, cwd=exc_p, env=env,
