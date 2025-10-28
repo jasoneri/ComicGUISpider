@@ -38,6 +38,9 @@ jobs:
           uv tool update-shell
       - name: Install coreutils (for gtimeout)
         run: brew install coreutils
+      - name: Debug with tmate
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60  # 会话最长保持时间
       - name: Run tests and Generate report
         env:
           CRAWLER_NAME: ${{ matrix.crawler_name }}
