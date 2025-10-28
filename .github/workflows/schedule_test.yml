@@ -26,14 +26,15 @@ jobs:
             params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
 
     steps:
-      - name: Install avif build dependencies
-        run: |
-          brew install cmake pkg-config nasm libaom libdav1d libavif || true
+      - name: Use Python 3.13
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
       - name: Install ComicGUISpider CLI
         run: |
-          uv tool install comicguispider
+          uv tool install --prerelease allow comicguispider --python 3.13
           uv tool update-shell
       - name: Install coreutils (for gtimeout)
         run: brew install coreutils
