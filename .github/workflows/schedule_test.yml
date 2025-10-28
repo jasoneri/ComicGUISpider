@@ -18,12 +18,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - crawler_name: "kaobei"
-            params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50021"
+          # - crawler_name: "kaobei"
+            # params: "-w 1 -k 海贼王 -i 1 -i2 -1 -sp 50021"
           - crawler_name: "wnacg"
             params: "-w 3 -k ミモネル -i 2 -sp 50051"
-          - crawler_name: "mangabz"
-            params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
+          # - crawler_name: "mangabz"
+          #   params: "-w 5 -k 海贼王 -i 1 -i2 -1 -sp 50081"
 
     steps:
       - name: Use Python 3.13
