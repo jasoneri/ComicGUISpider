@@ -11,20 +11,19 @@
 须阅读 [macOS 部署](./mac-required-reading.md) 文档
 :::
 
-::: danger ⚠️ 自动部署流程异常处理方法 (基本仅`win`)
+::: danger ⚠️ 自动部署流程异常处理方法 (仅`win`绿色包)
 ::: details 点击展开
 
-+ 参考解压包内的图例或使用脚本，图例视群友反馈对策效果后续可能增加
-+ 自动部署之后的`解压目录/bin/cgs.exe`仍然不存在时尝试换源，查看 [换源指引](/faq/#pypi%E6%8D%A2%E6%BA%90%E6%8C%87%E5%BC%95)
++ 参考解压包内的 `异常处理提示.txt`
 + 开终端参考`./CGS.exe --help`，使用参数重新部署，例子：下方[更新第三种方法](#_4-更新)
 
 :::
 
-::: warning release 上的 `CGS_win_full.7z`为免部署懒人包，出问题解决是以`CGS.7z`包即上述异常处理去解决的  
-不要以`full`包无法运行去提问题，否则会获得套餐 < ❗️💢👊💥💫🚑💀 >
-:::
-
 + 或使用`uv tool`  
+
+::: warning ‼️⚠️ `v2.5.2~`后，发现依赖 [pillow-avif](https://github.com/fdintino/pillow-avif-plugin) 跟 `python3.14` 暂不兼容，  
+需要注意自行准备环境如 `python3.13`  
+:::
 
 ::: info 仅使用时不建议用克隆源码方式，否则需要自行管理环境 `uv sync`，  
 同样需要用到 uv，那还是不如直接用 `uv tool`
@@ -40,7 +39,7 @@
     最后执行 `uv tool update-shell` 更新进 PATH，之后新终端窗口可直接运行 cgs / cgs-cli
 3. uv tool 安装 CGS  
 ``` bash
-uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple --python "<3.14"
 ```
 :::
 ::: warning v2.4.0 之后的绿色包均转为套壳操作 `uv tool`
@@ -86,17 +85,16 @@ cgs-cli --help
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 或 uv tool 管理的指定版本，例如 `2.4.4`
++ 或 uv tool 管理的指定版本，例如 `2.5.0`
 
 ```zsh
-uv tool install ComicGUISpider==2.4.4 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+uv tool install ComicGUISpider==2.5.0 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple --python "<3.14"
 ```
 
-+ 或 win-绿色包 安装指定版本，例如 `2.4.4`  
-需 `解压目录/_pystand_static.int` 首行含 version 且大于等于 `v1`，否则从最新版绿色包获取
++ 或 win-绿色包 安装指定版本，例如 `2.5.0`  
 
 ```cmd
-.\CGS.exe -v 2.4.4 -i https://pypi.tuna.tsinghua.edu.cn/simple
+.\CGS.exe -v 2.5.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ## 5. 搭配阅读器
