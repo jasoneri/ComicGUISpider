@@ -41,8 +41,11 @@ class TaskProgressManager:
     def handle(self, task: t.Union[TasksObj, TaskObj]):
         if isinstance(task, TasksObj):
             self.add_task(task)
-        else:
-            self.update_progress(task)  
+        elif isinstance(task, TaskObj):
+            if task.taskid not in self._tasks:
+                print(f"{task.taskid}: {task.page}")  # TODO[5](2025-10-29): 未解，但不怎么影响
+            else:
+                self.update_progress(task)  
 
     def add_task(self, tasks_obj):
         self._tasks[tasks_obj.taskid] = tasks_obj
@@ -51,15 +54,14 @@ class TaskProgressManager:
     def update_progress(self, task_obj: TaskObj):
         taskid = task_obj.taskid
         progress_completed = False
-        if taskid in self._tasks:
-            _tasks = self._tasks[taskid]
-            _tasks.downloaded.append(task_obj)
-            curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
-            if conf.isDeduplicate and curr_progress >= 100:
-                progress_completed = True
-            self.gui.BrowserWindow.update_progress(taskid, curr_progress,
-                                                   lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
-            )
+        _tasks = self._tasks[taskid]
+        _tasks.downloaded.append(task_obj)
+        curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
+        if conf.isDeduplicate and curr_progress >= 100:
+            progress_completed = True
+        self.gui.BrowserWindow.update_progress(taskid, curr_progress,
+            lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
+        )
 
     @property
     def unfinished_tasks(self):

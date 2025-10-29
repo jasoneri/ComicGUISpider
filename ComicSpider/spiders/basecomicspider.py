@@ -250,7 +250,7 @@ class BaseComicSpider(scrapy.Spider):
     def set_task(self, task_info: t.Union[BookInfo, Episode]):
         tasks_obj = task_info.to_tasks_obj()
         self.tasks[tasks_obj.taskid] = tasks_obj
-        self.Q('TasksQueue').send(tasks_obj)
+        self.Q('TasksQueue').send(tasks_obj, wait=True)
 
     def makesure_tasks_status(self):
         if conf.isDeduplicate:
