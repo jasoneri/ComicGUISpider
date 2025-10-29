@@ -34,7 +34,7 @@ class AsyncTaskThread(QThread):
                 self.success_signal.emit(result)
         except Exception as e:
             if not self.is_cancelled:
-                error_msg = f"任务执行失败: {str(e)}\n{traceback.format_exc()}"
+                error_msg = f"任务执行 > {str(e)}\n{traceback.format_exc()}"
                 self.error_signal.emit(error_msg)
     
     def emit_progress(self, message: str):
@@ -226,13 +226,14 @@ class AsyncTaskManager(QObject):
         self._hide_tooltip(task_id)
         # 显示错误信息
         if config.show_error_info:
-            self._show_error(f"任务失败: {error}")
+            self._show_error(error)
         # 执行错误回调
         if config.error_callback:
             try:
                 config.error_callback(error)
+                self.gui.log.error(error)
             except Exception as e:
-                self._show_error(f"错误回调执行失败: {str(e)}")
+                self._show_error(f"回调执行失败: {str(e)}")
         # 清理任务
         self._cleanup_task(task_id)
     
@@ -315,6 +316,8 @@ class AsyncTaskManager(QObject):
     
     def _show_error(self, message: str):
         if self.gui:
+            if len(message) > 300:
+                message = message[:70] + "...\n...\n..." + message[-200:]
             InfoBar.error(
                 title='错误', content=message,
                 orient=Qt.Horizontal, isClosable=True,
