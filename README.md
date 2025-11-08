@@ -27,9 +27,8 @@
 
 ## 📑介绍
 
-⚠️重要通知，点star⭐️限时免费‼️👉 [![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
+👉 没事可以点一下 star [![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
 )](https://github.com/jasoneri/ComicGUISpider/stargazers)  
-☝️😆👎💩
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
