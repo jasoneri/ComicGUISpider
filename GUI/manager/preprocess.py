@@ -321,7 +321,7 @@ class PreprocessManager(QObject):
                             author_dict[author_id] = author
                         return author_dict
                     except Exception as e:
-                        raise RuntimeError(f"数据下载失败: ...{str(e)[:-300]}")
+                        raise type(e)(f"数据下载失败: {str(e)}")
                 data = download_kemono_data()
                 return True
 

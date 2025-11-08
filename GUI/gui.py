@@ -445,7 +445,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.input_state.indexes = selected_list
             self.input_state.pageTurn = ""
             self.q_InputFieldQueue_send(self.input_state)
-            self.set_tasks(self.input_state.indexes)
             refresh_state(self, 'process_state', 'ProcessQueue')
             self.clipBtn.setDisabled(True)
             return
@@ -463,12 +462,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseinput.clear()
         # choose逻辑 交由crawl, next,retry3个btn的schedule控制
         self.q_InputFieldQueue_send(self.input_state)
-        if self.web_is_r18:
-            self.set_tasks(self.input_state.indexes)
         self.log.debug(f'send choose: {self.input_state.indexes} success')
-
-    def set_tasks(self, idxes):
-        self.task_mgr.init()
 
     def crawl(self):
         idxes = self.chooseinput.text().strip()
@@ -482,7 +476,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         QThread.msleep(10)
         self.q_InputFieldQueue_send(self.input_state)
-        self.set_tasks(self.input_state.indexes)
         self.log.debug(f'send choose success')
 
         if self.book_num == 0:
