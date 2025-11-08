@@ -214,7 +214,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
     # ---子任务模块
     def init_task_panel(self):
-        self.js_execute("initTaskPanel();", lambda _: None)
+        self.js_execute("initTaskPanel();", lambda _: self.gui.tf.set_task_panel())
 
     def add_task(self, tasks_obj):
         _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.display_title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""

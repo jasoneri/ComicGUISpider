@@ -29,6 +29,7 @@
 ### 并发数 / `concurr_num`
 
 影响后台下载速度  
+感觉被风控封ip之类时尽量降低  
 
 ### 去重 / `isDeduplicate`
 

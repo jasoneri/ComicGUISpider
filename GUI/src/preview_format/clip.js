@@ -140,7 +140,7 @@
   };
 
   window.checkDoneTasks = function() {
-    const El = document.querySelectorAll(".list-group-item");
+    const El = document.querySelectorAll(".book, .book_with_eps");
     return El.length;
   };
 

@@ -9,7 +9,8 @@ import httpx
 import asyncio
 import aiofiles
 
-from utils import temp_p, get_loop
+from assets import res
+from utils import temp_p, get_loop, ori_path
 
 class Cache:
     def __init__(self, cache_f):
@@ -175,6 +176,7 @@ class DomainUtils(Utils):
 
     @classmethod
     async def by_publish(cls):
+        e = None
         if not cls.publish_url:
             return None
         async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, 
@@ -184,11 +186,12 @@ class DomainUtils(Utils):
                 resp.raise_for_status()
                 if str(resp.status_code).startswith('2'):
                     return await cls.parse_publish(resp.text)
-            except httpx.HTTPError as e:
-                ...
+            except httpx.HTTPError as _e:
+                e = _e
             cls.status_publish = False
-            print(f"发布页获取[{cls.publish_url}]失效了")  # logger.warning()
-            return None
+            raise e or ConnectionError(
+                res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
+            )
 
     @classmethod
     def get_domain(cls):
