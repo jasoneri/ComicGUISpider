@@ -55,18 +55,11 @@
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
-#### 🎁 Features
-
-✅✨ bootstrap 升至5.3, 预览窗口跟随 CGS 主题色（夜间模式）
-
 #### 🐞 Fix
 
-✨ `avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
-✅ 恢复 jm 的读剪贴板/章节功能  
-✅ 修复优化 读剪贴板-章节 过多时的选择显示等问题  
-✅ 修复拷贝(可能)，hitomi 等网络杂项  
-✅ 各种预处理时报错时也记录进 GUI.log 里了  
-🚧 修复域名缓存不变时恶性循环获取  
+✅ 修复子进度条相关异常，顺带优化了点提示  
+&emsp;&emsp;✅ 修复 jm 用车号时正常运行却不应出现的报错  
+☑️【长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
