@@ -7,6 +7,16 @@ def bs_theme():
     return "dark" if conf.darkTheme else "light"
 
 
+class TF(str):
+    def __new__(cls, string):
+        instance = super().__new__(cls, string)
+        instance.task_panel_flag = False
+        return instance
+
+    def set_task_panel(self):
+        self.task_panel_flag = True
+
+
 class PreviewHtml:
     format_path = ori_path.joinpath("GUI/src/preview_format")
 
@@ -42,7 +52,7 @@ class PreviewHtml:
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)
         tf.close()
-        return f
+        return TF(f)
 
 
 class PreviewByClipHtml:
@@ -59,4 +69,4 @@ class PreviewByClipHtml:
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)
         tf.close()
-        return f
+        return TF(f)

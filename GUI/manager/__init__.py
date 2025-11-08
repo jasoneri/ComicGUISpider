@@ -36,9 +36,12 @@ class TaskProgressManager:
             self.gui.tf = self.gui.tf or PreviewHtml().created_temp_html
             self.gui.previewInit = False
             self.gui.set_preview()
-        self.gui.BrowserWindow.init_task_panel()
 
     def handle(self, task: t.Union[TasksObj, TaskObj]):
+        if not getattr(self.gui, "BrowserWindow"):
+            self.init()
+        if not getattr(self.gui.tf, "task_panel_flag"):
+            self.gui.BrowserWindow.init_task_panel()
         if isinstance(task, TasksObj):
             self.add_task(task)
         elif isinstance(task, TaskObj):
