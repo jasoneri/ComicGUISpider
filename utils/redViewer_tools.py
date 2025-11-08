@@ -16,7 +16,7 @@ def combine_then_mv(root_dir, target_dir, order_book=None) -> list:
     p = pathlib.Path(root_dir)
     target_p = pathlib.Path(target_dir)
     done = []
-    for order_dir in filter(lambda x: x.is_dir() and x.name not in expect_dir, p.iterdir()):
+    for order_dir in filter(lambda x: x.is_dir() and x.name.lstrip("_") not in expect_dir, p.iterdir()):
         for ordered_section in order_dir.iterdir():
             ___ = target_p.joinpath(f"{order_dir.name}_{ordered_section.name}")
             if ___.exists():

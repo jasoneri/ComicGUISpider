@@ -209,7 +209,7 @@ class BaseComicSpider(scrapy.Spider):
             return
 
         book = response.meta.get('book')
-        self.say(f'{"=" * 15} 《{book.name}》')
+        self.say(f'📜 《{book.name}》')
         frame_eps_result = self.frame_section(response)
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
@@ -219,11 +219,11 @@ class BaseComicSpider(scrapy.Spider):
             self.logger.info(f'no result return, choose_input is wrong')
             return
         choose = ','.join(map(str, book.episodes))
-        self.say(f'{"-" * 10}《{book.name}》 {self.res.parse_sec_selected}: {choose}')
+        self.say(f'📜《{book.name}》 {self.res.parse_sec_selected}: {choose}')
         for ep in book.episodes:
             url_list = self.mk_page_tasks(url=ep.url)
             now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % book.name
-            self.say(font_color(f"{'=' * 15}\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=5))
+            self.say(font_color(f"📢\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=5))
             for url in url_list:
                 yield scrapy.Request(url=url, callback=self.parse_fin_page, meta={'ep': ep})
 
@@ -364,7 +364,7 @@ class BaseComicSpider2(BaseComicSpider):
             this_info = book
         book.name = PresetHtmlEl.sub(book.name)
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
-            self.say(f'''{"=" * 15} 《{this_info.display_title}》''')
+            self.say(f'''📜 《{this_info.display_title}》''')
             results = self.frame_section(response)  # {1: url1……}
             this_info.pages = len(results)
             self.set_task(this_info)
@@ -400,7 +400,7 @@ class BaseComicSpider3(BaseComicSpider):
         
         if check_dupe_pass:
             sec_page = response.meta.get('sec_page', 1)
-            self.say(f'<br>{"=" * 15} 《{book.name}》 page-of-{sec_page}')
+            self.say(f'<br>📜 《{book.name}》 page-of-{sec_page}')
             results, next_page_flag = self.frame_section(response)
             if next_page_flag:
                 meta = deepcopy(response.meta)

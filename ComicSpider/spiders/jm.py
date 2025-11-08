@@ -127,5 +127,5 @@ class JmSpider(BaseComicSpider2):
         for x, target in enumerate(targets):
             img_url = target.xpath('./@data-original').get()
             frame_results[x + 1] = img_url
-        self.say("=" * 15 + font_color(' 本子网没章节的 这本已经扔进任务了', cls='theme-tip'))
+        self.say("📢" + font_color(' 这本已经扔进任务了', cls='theme-tip'))
         return frame_results
