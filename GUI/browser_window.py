@@ -213,8 +213,8 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.js_execute("get_curr_hml();", refresh_tf)
 
     # ---子任务模块
-    def init_task_panel(self):
-        self.js_execute("initTaskPanel();", lambda _: self.gui.tf.set_task_panel())
+    def init_tasks_progress_panel(self):
+        self.js_execute("initTaskPanel();", lambda _: self.gui.tf.set_tasks_progress_panel())
 
     def add_task(self, tasks_obj):
         _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.display_title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
