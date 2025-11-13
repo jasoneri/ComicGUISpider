@@ -4,8 +4,8 @@
   </a>
   <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
-  <img src="https://img.shields.io/badge/Platform-Win%20|%20macOS-blue?color=#4ec820" alt="tag">
-  <img src="https://img.shields.io/badge/-3.12%2B-brightgreen.svg?logo=python" alt="tag">
+  <img src="https://img.shields.io/badge/Platform-All-blue?color=#4ec820" alt="tag">
+  <img src="https://img.shields.io/badge/-%3E3.8%20%3C3.14-brightgreen.svg?logo=python" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
@@ -44,9 +44,10 @@
 
 ---
 
-**🔉个人开发精力有限，提问反馈前请参考 [🔗提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md
-)，至起码阅读过 [不该问的问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98
-) 和 [好问题与蠢问题](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)**
+**🔉提 bug 前提是 查过[文档](
+https://jasoneri.github.io/ComicGUISpider/faq) 和搜过 [issue](
+https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed) 等都没处理方法的，否则会被 [这样回复](
+https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)**
 
 ---
 

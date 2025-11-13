@@ -10,11 +10,11 @@ def bs_theme():
 class TF(str):
     def __new__(cls, string):
         instance = super().__new__(cls, string)
-        instance.task_panel_flag = False
+        instance.tasks_progress_panel_flag = False
         return instance
 
-    def set_task_panel(self):
-        self.task_panel_flag = True
+    def set_tasks_progress_panel(self):
+        self.tasks_progress_panel_flag = True
 
 
 class PreviewHtml:
