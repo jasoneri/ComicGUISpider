@@ -61,6 +61,15 @@ https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README
 &emsp;&emsp;✅ 修复 jm 用车号时正常运行却不应出现的报错  
 ☑️【长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
+<details>
+<summary> <code>🧪v2.6.0-beta</code> 开发版特性👈看就点</summary>
+
+#### 🎁 Features
+
+🚧 聚合搜索
+
+</details>
+
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
