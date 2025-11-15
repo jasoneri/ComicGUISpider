@@ -116,7 +116,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
             return obj
 
     @classmethod
-    def get_cli(cls, conf, is_async=False, **kwargs):
+    def get_cli(cls, _conf, is_async=False, **kwargs):
         client_class = httpx.AsyncClient if is_async else httpx.Client
         headers = {**cls.book_hea, 'Referer': f"https://{cls.get_domain()}"}
         cli = client_class(headers=headers, **kwargs)
@@ -148,8 +148,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
 
     @classmethod
     async def parse_publish_(cls, html_text):
-        html = etree.HTML(html_text)
-        ps = html.xpath('//div[@class="wrap"]//p')
+        _html = etree.HTML(html_text)
+        ps = _html.xpath('//div[@class="wrap"]//p')
         domains = []
         order_p = list(filter(lambda p: '內地' in ''.join(p.xpath('.//text()')), ps))  # 小心这个"內"字是繁体
         if order_p:
@@ -227,9 +227,9 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
     @classmethod
     async def parse_publish_(cls, html_text):
         html = etree.HTML(html_text)
-        hrefs = html.xpath('//div[@class="main"]//li/a/@href')
+        hrefs = html.xpath('//div[@class="main"]//li[not(contains(.,"發佈頁") or contains(.,"发布页"))]/a/@href')
         publish_domain_old_str = "|".join(cls.publish_domain_old)
-        match_regex = re.compile(f"google|{cls.publish_domain}|email|{publish_domain_old_str}")
+        match_regex = re.compile(f"google|{cls.publish_domain}|email|link|{publish_domain_old_str}")
         order_href = list(map(lambda url: re.sub("https?://", "", url).strip("/"), filter(
             lambda href: not bool(match_regex.search(href)), hrefs
         )))
