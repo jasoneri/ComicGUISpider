@@ -68,6 +68,10 @@ https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README
 
 🚧 聚合搜索
 
+#### 🐞 Fix
+
+✅ 修复 wnacg 发布页域名解析  
+
 </details>
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
