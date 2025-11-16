@@ -71,6 +71,7 @@ https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README
 #### 🐞 Fix
 
 ✅ 修复 wnacg 发布页域名解析  
+✅ 排除 jm 的猜你喜欢的12本，空搜索时即空  
 
 </details>
 

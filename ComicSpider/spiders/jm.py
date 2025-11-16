@@ -100,7 +100,7 @@ class JmSpider(BaseComicSpider2):
     def frame_book(self, response):
         frame_results = {}
         self.say(self.say_fm.format('序号', '漫画名') + '<br>')
-        targets = response.xpath('//div[contains(@class,"thumb-overlay")]')
+        targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
         for x, target in enumerate(targets):
             pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
             img_preview = target.xpath('./a/img/@src | ./img/@src').get()
