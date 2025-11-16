@@ -20,6 +20,7 @@ from GUI.uic.qfluent.components import (
 )
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.manager.clip import ClipGUIManager
+from GUI.manager.ags import AggrSearchManager
 
 
 class TaskProgressManager:

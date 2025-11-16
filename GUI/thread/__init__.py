@@ -10,6 +10,8 @@ from assets import res
 from deploy.update import Proj
 from GUI.core.font import font_color
 
+from .ags import AggrSearchThread
+
 
 class ClipTasksThread(QThread):
     info_signal = pyqtSignal(InfoMinix)

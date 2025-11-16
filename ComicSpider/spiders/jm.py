@@ -5,7 +5,7 @@ from urllib.parse import urlencode, urlparse
 
 from utils import convert_punctuation, conf
 from utils.website import JmUtils, correct_domain, JmBookInfo
-from utils.processed_class import PreviewHtml, Url
+from utils.processed_class import Url
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
 domain = "18comic-zzz.xyz"
@@ -102,21 +102,10 @@ class JmSpider(BaseComicSpider2):
         self.say(self.say_fm.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
         for x, target in enumerate(targets):
-            pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
-            img_preview = target.xpath('./a/img/@src | ./img/@src').get()
-            if (img_preview or "").endswith("blank.jpg"):
-                img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()
-            _likes = target.xpath('.//span[contains(@id,"albim_likes")]/text()').get()
-            _btypes = target.xpath('.//div[@class="category-icon"]/div/text()').getall()
-            book = JmBookInfo(
-                idx=x+1,
-                name=target.xpath('.//img/@title').get().strip().replace("\n", ""),
-                preview_url=f'https://{self.domain}{pre_url}',
-                url=f'https://{self.domain}{self.transfer_url(pre_url)}',
-                btype=" ".join(_btypes).strip(),
-                img_preview=img_preview,
-                likes=_likes.strip() if _likes else 0
-            ).get_id(pre_url)
+            book = JmUtils.parse_search_item(target)
+            book.idx = x + 1
+            book.preview_url = f'https://{self.domain}{book.preview_url}'
+            book.url = f'https://{self.domain}{book.url}'
             frame_results[book.idx] = book
         self.say.frame_book_print(frame_results, url=response.url, make_preview=True)
         self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))

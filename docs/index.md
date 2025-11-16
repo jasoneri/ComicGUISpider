@@ -60,6 +60,7 @@ hero:
   <tr>
     <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif"></td>
     <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif"></td>
+    <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif"></td>
   </tr>  
 </tbody></table>
 
@@ -70,6 +71,7 @@ hero:
 - 通过加减号，`0 全选`，`-3 选倒数三个` 等输入规则，能方便指定选择
 - 基于翻页保留，翻页就像已塞进了购物车一样
 - 虽然任务是顺序流，但内置重启很方便，加上多开更方便
+- 聚合搜索，多个搜索一次操作
 - 读剪贴板方式流，字如其名
 - 去重，加标识符等
 
@@ -84,7 +86,8 @@ hero:
 
 ### Credits
 
-Thanks to 
+Thanks to
+
 - [PyStand](https://github.com/skywind3000/PyStand) / [Platypus](https://github.com/sveinbjornt/Platypus) for providing win/macOS packaging.
 - [Ditto](https://github.com/sabrogden/Ditto) / [Maccy](https://github.com/p0deje/Maccy) for providing great win/macOS Clipboard Soft.
 - [PyQt-Fluent-Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets/) for providing elegant qfluent ui.

@@ -171,8 +171,42 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
 
     book_url_regex = r"^https://.*?18.*?/album/\d+"
 
+    def build_search_url(self, key):
+        self.domain = self.domain or self.get_domain()
+        return f'https://{self.domain}/search/photos?main_tag=0&search_query={key}'
+
     @staticmethod
-    def parse_book(resp_text):
+    def parse_search_item(target):
+        pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
+        img_preview = target.xpath('./a/img/@src | ./img/@src').get()
+        if (img_preview or "").endswith("blank.jpg"):
+            img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()
+        _likes = target.xpath('.//span[contains(@id,"albim_likes")]/text()').get()
+        _btypes = target.xpath('.//div[@class="category-icon"]/div/text()').getall()
+        book = JmBookInfo(
+            name=target.xpath('.//img/@title').get().strip().replace("\n", ""),
+            preview_url=pre_url,
+            url=pre_url.replace('album', 'photo'),
+            btype=" ".join(_btypes).strip(),
+            img_preview=img_preview,
+            likes=_likes.strip() if _likes else 0
+        ).get_id(pre_url)
+        return book
+
+    def parse_search(self, resp_text):
+        self.domain = self.domain or self.get_domain()
+        _html = Selector(text=resp_text)
+        books = []
+        targets = _html.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
+        for target in targets:
+            book = self.parse_search_item(target)
+            book.preview_url = f'https://{self.domain}{book.preview_url}'
+            book.url = f'https://{self.domain}{book.url}'
+            books.append(book)
+        return books
+
+    @classmethod
+    def parse_book(cls, resp_text):
         if "Just a moment..." in resp_text[:100]:
             raise ValueError("触发5秒盾")
         _html = Selector(text=resp_text)
@@ -205,7 +239,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
 
 class WnacgUtils(EroUtils, DomainUtils, Req):
     name = "wnacg"
-    publish_domain = "wnlink.ru"
+    publish_domain = "wn01.link"
     publish_domain_old = ["wnacg.date"]
     publish_url = f"https://{publish_domain}"
     status_publish = True
@@ -226,8 +260,8 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
 
     @classmethod
     async def parse_publish_(cls, html_text):
-        html = etree.HTML(html_text)
-        hrefs = html.xpath('//div[@class="main"]//li[not(contains(.,"發佈頁") or contains(.,"发布页"))]/a/@href')
+        _html = etree.HTML(html_text)
+        hrefs = _html.xpath('//div[@class="main"]//li[not(contains(.,"發佈頁") or contains(.,"发布页"))]/a/@href')
         publish_domain_old_str = "|".join(cls.publish_domain_old)
         match_regex = re.compile(f"google|{cls.publish_domain}|email|link|{publish_domain_old_str}")
         order_href = list(map(lambda url: re.sub("https?://", "", url).strip("/"), filter(
@@ -244,6 +278,40 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
 
     book_id_url = "https://www.wnacg02.cc/photos-index-aid-%s.html"
     book_url_regex = r"^https://(www\.)?wn.*?/photos-index-aid-\d+\.html$"
+
+    def build_search_url(self, key):
+        self.domain = self.domain or self.get_domain()
+        return f'https://{self.domain}/search/?f=_all&s=create_time_DESC&syn=yes&q={key}'
+
+    @staticmethod
+    def parse_search_item(target):
+        tar_xpath = './div[contains(@class, "pic")]'
+        item_elem = target.xpath(f"{tar_xpath}/a")
+        pre_url = item_elem.xpath('./@href').get()
+        _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
+        _cate = (target.xpath(f"{tar_xpath}/@class").get() or "").split(" ")[-1]
+        book = WnacgBookInfo(
+            name=item_elem.xpath('./@title').get(),
+            preview_url=pre_url,
+            url=pre_url.replace('index', 'gallery'),
+            pages=re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0,
+            btype=WnacgUtils.cate_mappings.get(_cate, ""),
+            img_preview='http:' + item_elem.xpath('./img/@src').get(),
+        ).get_id(pre_url)
+        return book
+
+    def parse_search(self, resp_text):
+        """parse search-page"""
+        self.domain = self.domain or self.get_domain()
+        _html = Selector(text=resp_text)
+        books = []
+        targets = _html.xpath('//li[contains(@class, "gallary_item")]')
+        for target in targets:
+            book = WnacgUtils.parse_search_item(target)
+            book.preview_url = f'https://{self.domain}{book.preview_url}'
+            book.url = f'https://{self.domain}{book.url}'
+            books.append(book)
+        return books
 
     @staticmethod
     def parse_book(resp_text):
@@ -279,8 +347,9 @@ class EHentaiKits(EroUtils, Req, Cookies):
     uuid_regex = re.compile(r"/g/(\d+)/")
     cookies_field = COOKIES_SUPPORT[name]
 
-    def __init__(self, conf):
-        self.cli = self.get_cli(conf)
+    def __init__(self, _conf):
+        super().__init__(_conf)
+        self.cli = self.get_cli(_conf)
 
     def get_limit(self):  # discard
         """查限额"""
@@ -297,9 +366,9 @@ class EHentaiKits(EroUtils, Req, Cookies):
         return True
 
     @classmethod
-    def get_cli(cls, conf, is_async=False, **kwargs):
-        cli = super().get_cli(conf, is_async=is_async, **kwargs)
-        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(conf.cookies.get(cls.name))}
+    def get_cli(cls, _conf, is_async=False, **kwargs):
+        cli = super().get_cli(_conf, is_async=is_async, **kwargs)
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(_conf.cookies.get(cls.name))}
         return cli
 
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"
@@ -398,8 +467,9 @@ class MangabzUtils(Utils, Req):
         "TE": "trailers"
     }
 
-    def __init__(self, conf):
-        self.cli = self.get_cli(conf)
+    def __init__(self, _conf):
+        super().__init__(_conf)
+        self.cli = self.get_cli(_conf)
 
     def test_index(self):
         try:

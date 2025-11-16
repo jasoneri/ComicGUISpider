@@ -70,3 +70,18 @@ class PreviewByClipHtml:
         f = str(tf.name)
         tf.close()
         return TF(f)
+
+
+class PreviewByAgsHtml:
+    format_path = ori_path.joinpath("GUI/src/preview_format")
+
+    @classmethod
+    def created_temp_html(cls):
+        with open(cls.format_path.joinpath("index_ags.html"), 'r', encoding='utf-8') as f:
+            format_text = f.read()
+        html = format_text.replace("{bs_theme}", bs_theme())
+        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
+        tf.write(bytes(html, 'utf-8'))
+        f = str(tf.name)
+        tf.close()
+        return TF(f)
