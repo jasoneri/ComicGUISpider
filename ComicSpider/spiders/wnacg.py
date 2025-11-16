@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 
-from utils.website import WnacgUtils, correct_domain, WnacgBookInfo
-from utils.processed_class import PreviewHtml
+from utils.website import WnacgUtils, correct_domain
 from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "wnacg.com"
@@ -34,21 +33,11 @@ class WnacgSpider(BaseComicSpider2):
         frame_results = {}
         self.say(self.say_fm.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
-        tar_xpath = './div[contains(@class, "pic")]'
         for x, target in enumerate(targets):
-            item_elem = target.xpath(f"{tar_xpath}/a")
-            pre_url = item_elem.xpath('./@href').get()
-            _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
-            _cate = (target.xpath(f"{tar_xpath}/@class").get() or "").split(" ")[-1]
-            book = WnacgBookInfo(
-                idx=x+1,
-                name=item_elem.xpath('./@title').get(),
-                preview_url=f'https://{self.domain}{pre_url}',
-                url=f'https://{self.domain}{self.transfer_url(pre_url)}',
-                pages=re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0,
-                btype=WnacgUtils.cate_mappings.get(_cate, ""),
-                img_preview='http:' + item_elem.xpath('./img/@src').get(),
-            ).get_id(pre_url)
+            book = WnacgUtils.parse_search_item(target)
+            book.idx = x + 1
+            book.preview_url = f'https://{self.domain}{book.preview_url}'
+            book.url = f'https://{self.domain}{book.url}'
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, url=response.url, make_preview=True)
 

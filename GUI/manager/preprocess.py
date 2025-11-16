@@ -89,6 +89,7 @@ class PreprocessManager(QObject):
             tooltip_title="更新域名缓存", task_id="domain_preprocess"
         )
         self.gui.toolWin.addDomainTool()
+        self.gui.toolWin.addAggrSearchView()
 
     def _preprocess_ehentai(self):
         def ehentai_task():
@@ -123,8 +124,8 @@ class PreprocessManager(QObject):
 
     def _preprocess_mangabz(self):
         def mangabz_task():
-            self.gui.spiderUtils = self.gui.spiderUtils(conf)
-            if not self.gui.spiderUtils.test_index():
+            self.gui.sut = self.gui.spiderUtils(conf)
+            if not self.gui.sut.test_index():
                 raise RuntimeError(f"access_fail:{self.gui.spiderUtils.name}:{self.gui.spiderUtils.index}")
             return True
 
@@ -142,8 +143,8 @@ class PreprocessManager(QObject):
 
     def _preprocess_hitomi(self):
         def hitomi_check():
-            self.gui.spiderUtils = self.gui.spiderUtils(conf)
-            if not self.gui.spiderUtils.test_index():
+            self.gui.sut = self.gui.spiderUtils(conf)
+            if not self.gui.sut.test_index():
                 raise RuntimeError(f"test-nozomi fail:{self.gui.spiderUtils.name}: {self.gui.spiderUtils.test_nozomi}")
             return True
 

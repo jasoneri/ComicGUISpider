@@ -21,9 +21,9 @@
 
 ▼ 操作演示 ▼
 
-|       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
-|:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
-| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
+|       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |       聚合搜索（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)）       |
+|:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
+| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) | ![聚合搜索动图预留位](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif) |
 
 ## 📑介绍
 
@@ -66,7 +66,9 @@ https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README
 
 #### 🎁 Features
 
-🚧 聚合搜索
+✅ 新增`聚合搜索`功能，具体看 [适用性](
+https://jasoneri.github.io/ComicGUISpider/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
+https://jasoneri.github.io/ComicGUISpider/feat/ags)
 
 #### 🐞 Fix
 

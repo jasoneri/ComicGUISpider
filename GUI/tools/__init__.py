@@ -9,6 +9,7 @@ from GUI.tools.hitomi_tool import HitomiTools, hitomi_db_path
 from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
 from GUI.tools.status import StatusToolView
+from GUI.tools.ags import AggrSearchView
 from GUI.tools.chore import *
 
 
@@ -22,17 +23,18 @@ class ToolWindow(FramelessWindow):
         screen = QGuiApplication.primaryScreen()
         screen_geo = screen.geometry()
         if parent:
-            window_width = int(parent.width() * 0.8)
+            self.window_width = int(parent.width() * 0.8)
         else:
-            window_width = int(screen_geo.width() * 0.4)
+            self.window_width = int(screen_geo.width() * 0.4)
         window_height = int(screen_geo.height() * 0.22)
-        self.setMinimumSize(window_width, window_height)
-        self.resize(window_width, 120)
+        self.setMinimumSize(self.window_width, window_height)
+        self.default_height = 120
+        self.resize(self.window_width, self.default_height)
         self.move(
-            int((screen_geo.width() - window_width) / 2),
+            int((screen_geo.width() - self.window_width) / 2),
             int((screen_geo.height() - window_height) / 2)
         )
-        
+
         self.init_ui()
     
     def init_ui(self):
@@ -66,6 +68,10 @@ class ToolWindow(FramelessWindow):
         self.dmInterface = DomainToolView(self.gui)
         self.addSubInterface(self.dmInterface, 'dmInterface', 'domainTool')
 
+    def addAggrSearchView(self):
+        self.asInterface = AggrSearchView(self.gui)
+        self.addSubInterface(self.asInterface, 'asInterface', 'aggrSearch')
+
     def addHitomiTool(self):
         if hitomi_db_path.exists():
             self.htInterface = HitomiTools(self.gui)
@@ -90,6 +96,11 @@ class ToolWindow(FramelessWindow):
             self.pivot.removeWidget("htInterface")
             self.htInterface = HitomiTools(self.gui)
             self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
+        if widget.objectName() == "asInterface":
+            new_height = int(self.gui.height() * 0.5)
+            self.resize(self.width(), new_height)
+        else:
+            self.resize(self.width(), self.default_height)
         self.pivot.setCurrentItem(widget.objectName())
 
 

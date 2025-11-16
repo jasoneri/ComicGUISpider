@@ -110,22 +110,32 @@ class Req:
     book_hea = {}
     book_url_regex = ""
 
+    def __init__(self, _conf):
+        ...
+
     @classmethod
-    def get_cli(cls, conf, is_async=False, **kwargs):
+    def get_cli(cls, _conf, is_async=False, **kwargs):
         client_class = httpx.AsyncClient if is_async else httpx.Client
         transport_class = httpx.AsyncHTTPTransport if is_async else httpx.HTTPTransport
-        if conf.proxies:
+        if _conf.proxies:
             base_kwargs = {
                 'headers': cls.book_hea,
-                'transport': transport_class(proxy=f"http://{conf.proxies[0]}", retries=3)
+                'transport': transport_class(proxy=f"http://{_conf.proxies[0]}", retries=3)
             }
         else:
             base_kwargs = {'headers': cls.book_hea, 'trust_env': True}
         base_kwargs.update(kwargs)
         return client_class(**base_kwargs)
 
+    def parse_search(self, resp_text):
+        """parse search_page
+        由于 domain 关系，需要带状态
+        """
+        ...
+
     @classmethod
-    def parse_book(cls):
+    def parse_book(cls, resp_text):
+        """parse book-page"""
         ...
 
 
@@ -155,6 +165,7 @@ class EroUtils(Utils):
 
 
 class DomainUtils(Utils):
+    domain = None
     forever_url = ""
     publish_url = ""
     status_forever = True
@@ -238,7 +249,7 @@ class DomainUtils(Utils):
         return domain
 
     @classmethod
-    def parse_publish_(cls, html):
+    async def parse_publish_(cls, html_text):
         ...
 
 

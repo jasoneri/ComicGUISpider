@@ -51,6 +51,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     keep_books = []
     eps = []
     web_is_r18 = False
+    spiderUtils = None
+    sut = None
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -134,8 +136,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.retrybtn.setEnabled(True)
                 self.preprocess_mgr.handle_choosebox_changed(index)
                 return
+            self.spiderUtils = spider_utils_map[index]
             if index in SPECIAL_WEBSITES_IDXES:
                 self.web_is_r18 = True
+                self.sut = self.spiderUtils(conf)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
             FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
@@ -170,7 +174,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.chooseinput.setObjectName('chooseinput')
 
     def chooseBox_changed_tips(self, index):
-        self.spiderUtils = spider_utils_map[index]
         match index:
             case 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
@@ -433,7 +436,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageFrame.setEnabled(False)
         if self.BrowserWindow:
             self.BrowserWindow.ensureBtn.setDisabled(True)
-        if self.clip_mgr.is_triggered:  # 剪贴板支线走向
+
+        mgr = None
+        if self.clip_mgr.is_triggered:
+            mgr = self.clip_mgr
+        elif hasattr(self, "ags_mgr") and self.ags_mgr.is_triggered:
+            mgr = self.ags_mgr
+
+        if mgr:
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
             self.bThread.item_count_signal.connect(self.processbar_load)
@@ -441,7 +451,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.bThread.finish_signal.connect(self.crawl_end)
             self.bThread.start()
 
-            selected_list = self.clip_mgr.create_selected_list(self.BrowserWindow.output)
+            selected_list = mgr.create_selected_list(self.BrowserWindow.output)
             self.input_state.indexes = selected_list
             self.input_state.pageTurn = ""
             self.q_InputFieldQueue_send(self.input_state)

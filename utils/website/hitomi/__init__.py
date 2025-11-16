@@ -6,7 +6,6 @@ import struct
 import httpx
 
 from assets import res
-from utils import conf
 from utils.website.core import EroUtils, Req
 
 
@@ -27,8 +26,9 @@ class HitomiUtils(EroUtils, Req):
     uuid_regex = re.compile(r"(\d+)\.(html|js)$")
     img_domain = r"w1.gold-usergeneratedcontent.net"  # unsure its source or it's stable
 
-    def __init__(self, conf):
-        self.cli = self.get_cli(conf)
+    def __init__(self, _conf):
+        super().__init__(_conf)
+        self.cli = self.get_cli(_conf)
         self.gg = gg(cli=self.cli)
         self.dec = self.Decrypt(self.gg)
 

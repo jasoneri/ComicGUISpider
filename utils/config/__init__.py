@@ -155,6 +155,7 @@ class Conf(BaseConf):
     clip_db: t.Union[p.Path, str] = curr_os.default_clip_db
     rv_script: t.Union[p.Path, str] = ''
     bg_path: t.Union[p.Path, str] = ''
+    ags_file: t.Union[p.Path, str] = ''
     clip_read_num: str = '20'
     concurr_num: str = '16'
     clip_sql = curr_os.clip_sql
@@ -180,7 +181,7 @@ class Conf(BaseConf):
                 setattr(self, k, v or getattr(self, k, None))
         if self.pypi_source == 0 and self.lang == "zh_CN":
             setattr(self, "pypi_source", yml_config.get("pypi_source", 1))
-        for _ in ("sv_path", "clip_db", "rv_script", "bg_path"):
+        for _ in ("sv_path", "clip_db", "rv_script", "bg_path", "ags_file"):
             setattr(self, _, p.Path(getattr(self, _)))
         self.completer = getattr(self, 'completer', DEFAULT_COMPLETER)
         self.cookies = ConfCookie()
@@ -189,9 +190,9 @@ class Conf(BaseConf):
         def path_like_handle(_p):
             return str(_p) if isinstance(_p, p.Path) else _p
         for k, v in kwargs.items():
-            setattr(self, k, p.Path(v) if k in ("sv_path","rv_script","bg_path") else v)
+            setattr(self, k, p.Path(v) if k in ("sv_path","rv_script","bg_path", "ags_file") else v)
         props = asdict(self)
-        for _ in ("sv_path", "clip_db", "rv_script", "bg_path"):
+        for _ in ("sv_path", "clip_db", "rv_script", "bg_path", "ags_file"):
             props[_] = path_like_handle(props[_])
         self.chain_rv()
         yaml_update(self.file, props)
