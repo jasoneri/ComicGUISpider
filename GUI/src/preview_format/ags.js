@@ -103,13 +103,6 @@
   };
 
   window.finishTasks = function() {
-    const modalEl = document.getElementById('myModal');
-    if (modalEl) {
-      const modal = bootstrap.Modal.getInstance(modalEl);
-      if (modal) {
-        modal.hide();
-      }
-    }
     return document.documentElement.outerHTML;
   };
 
