@@ -16,7 +16,6 @@ from qfluentwidgets import (
 from assets import res
 from utils import conf
 from utils.ags import Extractor, parse, SearchKey
-from GUI.manager import AggrSearchManager
 
 
 methods = Extractor.get_available_methods()
@@ -330,7 +329,6 @@ class AggrSearchView(QWidget):
     def run(self):
         selected_items = self.get_select()
         print(selected_items)
-        self.gui.ags_mgr = AggrSearchManager(self.gui)
         self.gui.ags_mgr.extractor = self.fileLayout.extractor  # 传递 extractor 引用给 manager
         self.gui.ags_mgr.run(selected_items)
         self.gui.toolWin.close()

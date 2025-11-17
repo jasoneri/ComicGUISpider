@@ -169,7 +169,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
             res.SPIDER.DOMAINS_INVALID % (cls.publish_url, domains, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
         )
 
-    book_url_regex = r"^https://.*?18.*?/album/\d+"
+    book_url_regex = r"^https://.*?(18|jm).*?/album/\d+"
 
     def build_search_url(self, key):
         self.domain = self.domain or self.get_domain()
