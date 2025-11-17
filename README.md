@@ -21,9 +21,9 @@
 
 ▼ 操作演示 ▼
 
-|       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
-|:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
-| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
+|       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |       聚合搜索（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)）       |
+|:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
+| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) | ![聚合搜索动图预留位](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif) |
 
 ## 📑介绍
 
@@ -60,6 +60,24 @@ https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README
 ✅ 修复子进度条相关异常，顺带优化了点提示  
 &emsp;&emsp;✅ 修复 jm 用车号时正常运行却不应出现的报错  
 ☑️【长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
+
+<details>
+<summary> <code>🧪v2.6.0-beta</code> 开发版特性👈看就点</summary>
+
+#### 🎁 Features
+
+✅ 新增`聚合搜索`功能，具体看 [适用性](
+https://jasoneri.github.io/ComicGUISpider/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
+https://jasoneri.github.io/ComicGUISpider/feat/ags)
+
+#### 🐞 Fix
+
+✅ 修复 wnacg 发布页域名解析  
+✅ wnacg 已设代理下跳过域名缓存处理  
+✅ 排除 jm 的猜你喜欢的12本，空搜索时即空  
+✅ 优化 jm 剪贴板正则格式匹配  
+
+</details>
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 

@@ -14,7 +14,8 @@
 | rV-显示记录 | ✔️ | ✔️ | ❌ | ❌ | ❌ | ❌ |
 | rV-整合章节 | ✔️ | ✔️ | ❌ | ❌ | ❌ | ❌ |
 | 域名工具 | ❌ | ❌ | ✔️ | ✔️ | ❌ | ❌ |
-| 读剪贴板 | ❌ | ❌ | ➖ | ✔️ | ✔️ | 🚧 |
+| 读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
+| 聚合搜索 | ❌ | ❌ | ✔️ | ✔️ | 🚧 | 🚧 |
 
 ## 功能项
 
@@ -39,6 +40,7 @@
 点击 rV 按钮触发显示，点击对应标签切换工具，常驻 rV工具，状态工具  
  
 - 域名工具( domainTool )仅选择 jm/wnacg 触发  
+- 聚合搜索( aggrSearch )目前仅选择 jm/wnacg 触发  
 - hitomiTool 仅选择 hitomi 触发  
 
 ### 4.1 rV工具 / rvTool
@@ -71,9 +73,13 @@ Maybe: 后续能扩展做订阅
 
 仅 hitomi 用，[📹参考用法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif)
 
+### 4.5 aggrSearch
+
+[🔎跳转阅读 > 使用](/feat/ags)  
+
 ### 5 读剪贴板
 
-[📋跳转阅读 > 使用](/feat/clip.md)  
+[📋跳转阅读 > 使用](/feat/clip)  
 
 ### 6. 重启CGS
 
