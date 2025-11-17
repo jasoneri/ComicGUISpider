@@ -103,6 +103,10 @@ export default defineConfig({
                         link: "/feat/clip",
                     },
                     {
+                        text: "🔎聚合搜素",
+                        link: "/feat/ags",
+                    },
+                    {
                         text: "🚧其他脚本集",
                         link: "/feat/script",
                     }

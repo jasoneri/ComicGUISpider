@@ -5,7 +5,7 @@
 
 ::: tip 简化流程的方法 > [🎸4.3-域名工具](/feat/#_4-3-%E5%9F%9F%E5%90%8D%E5%B7%A5%E5%85%B7-domaintool)
 :::
-各网站的 `发布页`/`永久链接` 能在 `site-packages/utils/website/__init__.py` 里找到  
+各网站的 `发布页`/`永久链接` 能在 `site-packages/utils/website/ins.py` 里找到  
 （国内域名专用）域名缓存文件为 `site-packages/__temp/xxx_domain.txt`（xxx = `wnacg`或`jm`），  
 缓存有效期为 48 小时  
 程序每次启动会检测是否处于有效期内，过期或网络问题会删除缓存，下次启动重新获取  

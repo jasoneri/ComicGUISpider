@@ -211,3 +211,4 @@ deploy/launcher/mac/*.html
 _bug_log
 # ide
 .cursor
+.claude
