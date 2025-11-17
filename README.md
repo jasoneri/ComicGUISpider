@@ -62,7 +62,7 @@ https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README
 ☑️【长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
 <details>
-<summary> <code>🧪v2.6.0-beta</code> 开发版特性👈看就点</summary>
+<summary> <code>🧪v2.6.0-beta.1</code> 开发版特性👈看就点</summary>
 
 #### 🎁 Features
 
