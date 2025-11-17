@@ -32,8 +32,13 @@ class PreprocessManager(QObject):
         match index:
             case 1:
                 self._preprocess_manga_copy()
-            case 2 | 3:
+            case 2:
                 self._preprocess_jm()
+            case 3:
+                if not conf.proxies:
+                    self._preprocess_jm()
+                else:
+                    self.gui.say("🔔 已设置代理，跳过域名缓存处理")
             case 4:
                 self._preprocess_ehentai()
             case 5:

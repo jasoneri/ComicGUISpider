@@ -34,9 +34,8 @@ class ToolWindow(FramelessWindow):
             int((screen_geo.width() - self.window_width) / 2),
             int((screen_geo.height() - window_height) / 2)
         )
-
         self.init_ui()
-    
+
     def init_ui(self):
         self.pivot = Pivot(self)
         self.stackedWidget = QStackedWidget(self)

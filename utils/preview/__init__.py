@@ -17,9 +17,10 @@ class TF(str):
         self.tasks_progress_panel_flag = True
 
 
-class PreviewHtml:
-    format_path = ori_path.joinpath("GUI/src/preview_format")
+format_path = ori_path.joinpath("GUI/src/preview_format")
 
+
+class PreviewHtml:
     def __init__(self, url=None, binfos=None, custom_style=None):
         self.contents = []
         self.el = El(custom_style)
@@ -42,7 +43,7 @@ class PreviewHtml:
     @property
     def created_temp_html(self):
         temp_p.mkdir(exist_ok=True)
-        with open(self.format_path.joinpath("index.html"), 'r', encoding='utf-8') as f:
+        with open(format_path.joinpath("index.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
         _content = "\n".join(self.contents)
         if self.url:
@@ -56,11 +57,9 @@ class PreviewHtml:
 
 
 class PreviewByClipHtml:
-    format_path = ori_path.joinpath("GUI/src/preview_format")
-
     @classmethod
     def created_temp_html(cls, url_regex, match_num):
-        with open(cls.format_path.joinpath("index_by_clip.html"), 'r', encoding='utf-8') as f:
+        with open(format_path.joinpath("index_by_clip.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
         html = format_text.replace("{bs_theme}", bs_theme()) \
                 .replace("{_url_regex}", url_regex) \
@@ -73,11 +72,9 @@ class PreviewByClipHtml:
 
 
 class PreviewByAgsHtml:
-    format_path = ori_path.joinpath("GUI/src/preview_format")
-
     @classmethod
     def created_temp_html(cls):
-        with open(cls.format_path.joinpath("index_ags.html"), 'r', encoding='utf-8') as f:
+        with open(format_path.joinpath("index_ags.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
         html = format_text.replace("{bs_theme}", bs_theme())
         tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)

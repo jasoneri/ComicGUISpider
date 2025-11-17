@@ -73,6 +73,7 @@ https://jasoneri.github.io/ComicGUISpider/feat/ags)
 #### 🐞 Fix
 
 ✅ 修复 wnacg 发布页域名解析  
+✅ wnacg 已设代理下跳过域名缓存处理  
 ✅ 排除 jm 的猜你喜欢的12本，空搜索时即空  
 ✅ 优化 jm 剪贴板正则格式匹配  
 
