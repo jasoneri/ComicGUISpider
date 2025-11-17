@@ -19,7 +19,7 @@ from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils
-from GUI.manager import TaskProgressManager, ClipGUIManager
+from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager
 from GUI.manager.preprocess import PreprocessManager
 from variables import *
 from assets import res
@@ -118,6 +118,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='', pageTurn='')
         # 按钮组
         self.clip_mgr = ClipGUIManager(self)
+        self.ags_mgr = AggrSearchManager(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
