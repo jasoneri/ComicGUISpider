@@ -39,6 +39,8 @@ class PreprocessManager(QObject):
                     self._preprocess_jm()
                 else:
                     self.gui.say("🔔 已设置代理，跳过域名缓存处理")
+                    self.gui.toolWin.addDomainTool()
+                    self.gui.toolWin.addAggrSearchView()
             case 4:
                 self._preprocess_ehentai()
             case 5:
