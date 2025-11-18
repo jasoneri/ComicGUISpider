@@ -75,6 +75,18 @@ GUI:
     status_cf_error: "国内访问cloudflare的dev域名异常，可移步官网查看"
     status_no_update: "本地与线上内容一致。如果使用异常，你可以结合目标网站的公告等反馈有效信息发群内"
     reboot_tip: "CGS将在%s秒后重启以确保后台进程应用有效更改"
+  Ags:
+    empty_search: "搜索为空"
+    empty_input2select: "杂鱼~ 八嘎www 你真有看说明搞懂了吗~ (≧▽≦*)o☝"
+    guide_message: "选一种输入方式吧 ♬"
+    file_label: "文件"
+    select_file_dialog_title: "选择聚合搜索任务文件"
+    set_file_success: "已设置并记录进配置"
+    set_file_first: "先点击左侧按钮选择文本文件"
+    load_fail: "加载失败"
+    run_btn: "运行"
+    extend_btn: "待扩展.."
+    reset_input: "还原文本"
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"
