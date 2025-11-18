@@ -166,6 +166,7 @@ SPIDER:
   ERO_BOOK_FOLDER: "本子"
   PUBLISH_INVALID: "<a href=\"%s\">发布页</a>访问失效，<br>(简单)建议点击 rV 按钮 > domainTool 根据指示操作<br>(稍微复杂)或参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])"
   DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>(简单)建议点击 rV 按钮 > domainTool 根据指示操作<br>(稍微复杂)或参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])<br>或通过 domainTool 进行操作"
+  reduce_concurrency_tip: "任务量超20，已将并发降至%s；如无效果（继续卡网络），需之后手动设置更低的并发（假如仍是多任务量）"
 
 Updater:
   ver_check: "检查版本中"
