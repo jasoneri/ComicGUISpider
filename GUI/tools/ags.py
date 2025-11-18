@@ -265,7 +265,7 @@ class AggrSearchView(QWidget):
         self.inputBtnLayout.addLayout(self.fileLayout)
         extractor_module = importlib.import_module('utils.ags.extractor')
         for method in methods:
-            btn = PushButton(aes_res.from_pattern % method, self)
+            btn = PushButton(f"from {method}", self)
             _func = getattr(extractor_module, method)
             btn.clicked.connect(lambda checked, func=_func: self.set_select(make_search_tasks_func=func))
             self.inputBtnLayout.addWidget(btn)

@@ -445,6 +445,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             mgr = self.ags_mgr
 
         if mgr:
+            selected_list = mgr.create_selected_list(self.BrowserWindow.output)
+            if selected_list and len(selected_list) > 20 and int(conf.concurr_num) > 10:
+                conf.update(concurr_num=8)
+                self.say(res.SPIDER.reduce_concurrency_tip % 8)
             self.bThread = WorkThread(self)
             self.bThread.print_signal.connect(self.say)
             self.bThread.item_count_signal.connect(self.processbar_load)
@@ -452,7 +456,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.bThread.finish_signal.connect(self.crawl_end)
             self.bThread.start()
 
-            selected_list = mgr.create_selected_list(self.BrowserWindow.output)
             self.input_state.indexes = selected_list
             self.input_state.pageTurn = ""
             self.q_InputFieldQueue_send(self.input_state)

@@ -7,6 +7,7 @@ https://jasoneri.github.io/ComicGUISpider/feat/ags)
 
 ## 🐞 Fix
 
+✅ 较多任务时自动降并发  
 ✅ 修复 wnacg 发布页域名解析  
 ✅ wnacg 已设代理下跳过域名缓存处理  
 ✅ 排除 jm 的猜你喜欢的12本，空搜索时即空  
