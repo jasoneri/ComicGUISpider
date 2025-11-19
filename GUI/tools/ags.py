@@ -17,7 +17,7 @@ from assets import res as ori_res
 from utils import conf
 from utils.ags import Extractor, parse, SearchKey
 
-aes_res = ori_res.GUI.Ags
+ags_res = ori_res.GUI.Ags
 methods = Extractor.get_available_methods()
 
 
@@ -43,14 +43,14 @@ class PicMgr:
 
     def set_empty(self):
         cfg = DisplayConfig(
-            image_path=":/ags/empty.png", is_centered=True, text=aes_res.empty_input2select
+            image_path=":/ags/empty.png", is_centered=True, text=ags_res.empty_input2select
         )
         self.display_cfg = cfg
         self._show_display()
 
     def set_guide(self):
         cfg = DisplayConfig(
-            image_path=":/ags/guide.png", is_centered=False, text=aes_res.guide_message
+            image_path=":/ags/guide.png", is_centered=False, text=ags_res.guide_message
         )
         cfg.height_ratio = 0.45
         self.display_cfg = cfg
@@ -185,21 +185,21 @@ class AgsFromFileLayout(QHBoxLayout):
     def init_ui(self):
         self.fileSet = TransparentToolButton(FIF.FOLDER)
         self.fileSet.clicked.connect(self._onSelectFile)
-        self.fromFileBtn = PushButton(f"from {aes_res.file_label}", self.view)
+        self.fromFileBtn = PushButton(f"from {ags_res.file_label}", self.view)
         self.fromFileBtn.clicked.connect(self._onLoadFromFile)
         self.addWidget(self.fileSet)
         self.addWidget(self.fromFileBtn)
 
     def _onSelectFile(self):
         file, _ = QFileDialog.getOpenFileName(
-            self.view, aes_res.select_file_dialog_title, "", "Text Files (*.txt);;All Files (*)"
+            self.view, ags_res.select_file_dialog_title, "", "Text Files (*.txt);;All Files (*)"
         )
         if file:
             conf.update(ags_file=file)
             self.fromFileBtn.setEnabled(True)
             TeachingTip.create(
                 target=self.fileSet, title='', icon=InfoBarIcon.SUCCESS,
-                content=f"{aes_res.set_file_success}:\n{file}",
+                content=f"{ags_res.set_file_success}:\n{file}",
                 tailPosition=TeachingTipTailPosition.TOP_LEFT,
                 duration=5000, parent=self.fromFileBtn
             )
@@ -208,7 +208,7 @@ class AgsFromFileLayout(QHBoxLayout):
         if conf.ags_file.name == "":
             TeachingTip.create(
                 target=self.fromFileBtn, title='', isClosable=False,
-                content=aes_res.set_file_first,
+                content=ags_res.set_file_first,
                 tailPosition=TeachingTipTailPosition.LEFT,
                 duration=2000, parent=self.fromFileBtn
             )
@@ -220,7 +220,7 @@ class AgsFromFileLayout(QHBoxLayout):
             self.view.set_select(make_search_tasks_func=make_search_tasks_from_file)
         except Exception as e:
             InfoBar.error(
-                title='', content=f"{aes_res.load_fail}: {str(e)}",
+                title='', content=f"{ags_res.load_fail}: {str(e)}",
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
                 duration=-1, parent=self.view
             )
@@ -250,7 +250,7 @@ class AggrSearchView(QWidget):
         first_row.addLayout(selectLayout)
 
         second_row = QHBoxLayout()
-        self.runBtn = PrimaryPushButton(FIF.PLAY, aes_res.run_btn, self)
+        self.runBtn = PrimaryPushButton(FIF.PLAY, ags_res.run_btn, self)
         self.runBtn.clicked.connect(self.run)
         self.runBtn.setDisabled(1)
         second_row.addWidget(self.runBtn)
@@ -273,7 +273,7 @@ class AggrSearchView(QWidget):
         extendLayout = QHBoxLayout()
         agsDocBtn = PrimaryToolButton(FIF.QUESTION)
         agsDocBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://jasoneri.github.io/ComicGUISpider/feat/ags')))
-        extendBtn = PushButton(FIF.ADD, aes_res.extend_btn, self)
+        extendBtn = PushButton(FIF.ADD, ags_res.extend_btn, self)
         extendBtn.setDisabled(1)
         extendLayout.addWidget(agsDocBtn)
         extendLayout.addWidget(extendBtn)
@@ -292,7 +292,7 @@ class AggrSearchView(QWidget):
             toggleBtn = TransparentToggleToolButton(FIF.ACCEPT_MEDIUM, row_widget)
             toggleBtn.setChecked(1)
             resetBtn = TransparentToolButton(FIF.CANCEL, row_widget)
-            resetBtn.setToolTip(aes_res.reset_input)
+            resetBtn.setToolTip(ags_res.reset_input)
             resetBtn.installEventFilter(ToolTipFilter(resetBtn, showDelay=300, position=ToolTipPosition.TOP))
             edit = LineEdit(row_widget)
             edit.group_idx = search_key.group_idx
