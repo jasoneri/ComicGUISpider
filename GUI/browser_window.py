@@ -152,7 +152,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
     def page(self, after_callback):
         def callback(ret):
-            self.output = ret
+            self.output = ret or []  # 可能js还没加载好scanChecked导致返回的undefined
             after_callback()
 
         self.js_execute("scanChecked()", callback)

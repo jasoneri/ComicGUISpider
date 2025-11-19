@@ -2,7 +2,13 @@
 
 ## 使用
 
-从以下输入方式获取一组搜索词，然后将多个搜索列表一次性在预览窗口中列出，后面就是常规选择下载流程  
+从下文输入方式获取一组搜索词，然后将多个搜索列表一次性在预览窗口中列出，后面就是常规选择下载流程  
+
+<table><tbody>
+  <tr>
+    <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif"></td>
+  </tr>  
+</tbody></table>
 
 ### 输入
 
