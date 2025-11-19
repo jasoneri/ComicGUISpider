@@ -35,7 +35,7 @@ class AggrSearchThread(QThread):
                     group_books = {}
                     books_list = []
                     if not books:
-                        self.gui.say(f"🅾️empty search results: {search_keyword}")
+                        self.gui.say(f"🅾️{res.GUI.Ags.empty_search}: {search_keyword}")
                         return {}
                     for book in books:
                         self.book_idx_counter += 1

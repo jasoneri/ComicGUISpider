@@ -220,6 +220,14 @@ class BaseComicSpider(scrapy.Spider):
             return
         choose = ','.join(map(str, book.episodes))
         self.say(f'📜《{book.name}》 {self.res.parse_sec_selected}: {choose}')
+        if book.episodes and len(book.episodes) > 1 and int(conf.concurr_num) > 10:
+            concurr_num = 8
+            for slot in self.crawler.engine.downloader.slots.values():
+                slot.concurrency = concurr_num
+            if hasattr(self.crawler.engine.scraper, 'slot') and self.crawler.engine.scraper.slot:
+                self.crawler.engine.scraper.slot.max_active_size = concurr_num
+            conf.update(concurr_num=concurr_num)
+            self.say(res.SPIDER.reduce_concurrency_tip % concurr_num)
         for ep in book.episodes:
             url_list = self.mk_page_tasks(url=ep.url)
             now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % book.name
