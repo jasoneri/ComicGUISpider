@@ -60,6 +60,8 @@ hero:
   <tr>
     <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif"></td>
     <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif"></td>
+  </tr>  
+  <tr>
     <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif"></td>
   </tr>  
 </tbody></table>

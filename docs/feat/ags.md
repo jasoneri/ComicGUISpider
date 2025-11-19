@@ -3,6 +3,7 @@
 ## 使用
 
 从以下输入方式获取一组搜索词，然后将多个搜索列表一次性在预览窗口中列出，后面就是常规选择下载流程  
+![动图](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)
 
 ### 输入
 
