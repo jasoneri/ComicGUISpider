@@ -61,19 +61,29 @@ class JmSpider(BaseComicSpider2):
             yield from super(JmSpider, self).start_requests()
 
     def parse_section(self, response):
+        def _get_bid():
+            if 'book_id' in meta:
+                _bid = meta.get('book_id')
+            elif 'book' in meta:
+                _bid = meta.get('book').id
+            else:
+                _bid = self.ut.get_uuid(response.request.url, only_id=True) or ''
+            return _bid
+        meta = response.meta
+        bid = _get_bid()
         self.process_state.process = 'parse section'
         self.Q('ProcessQueue').send(self.process_state)
-        if response.url.endswith("album_missing"):
-            yield self.say(font_color(f"➖ 无效车号：{response.meta.get('book_id')}", cls='theme-err'))
-        elif response.url.endswith("login"):
-            yield self.say(font_color(f"⚠️ 需要登录/甚至JCoins：{response.meta.get('book_id')}", cls='theme-err'))
+        if response.url.endswith('album_missing'):
+            yield self.say(font_color(f'➖ 无效车号：{bid}', cls='theme-err'))
+        elif response.url.endswith('login'):
+            yield self.say(font_color(f'⚠️ 需要登录/甚至JCoins：{bid}', cls='theme-err'))
         else:
-            if not response.meta.get("title"):
+            if not meta.get('title'):
                 title = response.xpath('//title/text()').extract_first()
-                response.meta['title'] = title.rsplit("|", 1)[0]
-            if not response.meta.get("book"):
-                response.meta['book'] = JmBookInfo(
-                    name=response.meta['title'],
+                meta['title'] = title.rsplit('|', 1)[0]
+            if not meta.get('book'):
+                meta['book'] = JmBookInfo(
+                    name=meta['title'],
                     url=response.url,
                 ).get_id(response.url)
             yield from super(JmSpider, self).parse_section(response)

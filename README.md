@@ -46,10 +46,10 @@
 
 ---
 
-**🔉提 bug 前提是 查过[文档](
+**🔉提 bug 前提是 查过 [文档](
 https://jasoneri.github.io/ComicGUISpider/faq) 和搜过 [issue](
 https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed) 等都没处理方法的，否则会被 [这样回复](
-https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)**
+https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98)**
 
 ---
 

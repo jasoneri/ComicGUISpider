@@ -40,7 +40,16 @@ https://github.com/jasoneri/ComicGUISpider/blob/2.6-dev/utils/ags/extractor.py) 
 
 👉最后点击 `运行` 按钮，即进入预览窗口的常规选择下载流程
 
-## 题外话（脑洞）
+## 其他
+
+### 功能相关
+
+- 目前仅支持 `搜索接口` 的聚合
+- 不支持翻页
+
+### [🔗适用的网站](/feat/#%E9%80%82%E7%94%A8%E6%80%A7)
+
+### 题外话（脑洞）
 
 后续把聚合搜索写进 cgs-cli （命令行工具）后  
 用 Langbot 之类持续集成到文件，定时跑 cgs-cli，实现 QQ等 向小号持续发词就能全自动下载了  

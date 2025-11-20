@@ -373,6 +373,33 @@ class EHentaiKits(EroUtils, Req, Cookies):
 
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"
 
+    def build_search_url(self, key):
+        return f'https://exhentai.org/?f_search={key}'
+
+    @staticmethod
+    def parse_search_item(target):
+        item_elem = target.xpath('./td/div[@class="glthumb"]')
+        pages = (next(filter(
+            lambda _: 'pages' in _, item_elem.xpath('.//div/text()').getall()))
+                 .replace(" pages", ""))
+        _url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
+        book = EhBookInfo(
+            name=item_elem.xpath('.//img/@title').get(),
+            preview_url=_url, url=_url, pages=int(pages),
+            btype=target.xpath('./td[contains(@class, "glcat")]/div/text()').get(),
+            img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
+        ).get_id(_url)
+        return book
+
+    def parse_search(self, resp_text):
+        _html = Selector(text=resp_text)
+        books = []
+        targets = _html.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
+        for target in targets:
+            book = EHentaiKits.parse_search_item(target)
+            books.append(book)
+        return books
+
     @staticmethod
     def parse_book(resp_text):
         _html = Selector(text=resp_text)
