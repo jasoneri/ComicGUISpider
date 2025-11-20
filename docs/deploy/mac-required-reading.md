@@ -63,8 +63,7 @@ uv tool install ComicGUISpider==2.5.0 --force --index-url https://pypi.tuna.tsin
 
 ### bug report / 提交报错 issue
 
-macOS上运行软件出错需要提issue时，除系统选`macOS`外，还需描述加上系统版本与架构  
-（开发者测试开发环境为`macOS Sonoma(14) / x86_64`）
+macOS上运行软件出现问题时，需先 ai 或自我排查是 mac 的问题（兼容性等）还是 `CGS` 问题（通过 log 等手段）
 
 ::: tip 获取架构命令
 ```bash

@@ -128,6 +128,7 @@ class PreprocessManager(QObject):
             show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="exhentai 访问检测", task_id="ehentai_preprocess"
         )
+        self.gui.toolWin.addAggrSearchView()
 
     def _preprocess_mangabz(self):
         def mangabz_task():

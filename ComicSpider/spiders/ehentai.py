@@ -2,8 +2,8 @@
 from scrapy import Request
 
 from utils import conf, re
-from utils.processed_class import PreviewHtml, Url
-from utils.website import EHentaiKits as EK, EhBookInfo
+from utils.processed_class import Url
+from utils.website import EHentaiKits as EK
 from assets import res
 from .basecomicspider import BaseComicSpider3
 from ..items import ComicspiderItem
@@ -37,20 +37,8 @@ class EHentaiSpider(BaseComicSpider3):
         self.say(self.say_fm.format('index', 'pages', 'name') + '<br>')
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         for x, target in enumerate(targets):
-            item_elem = target.xpath('./td/div[@class="glthumb"]')
-            pages = (next(filter(
-                lambda _: 'pages' in _, item_elem.xpath('.//div/text()').getall()))
-                     .replace(" pages", ""))
-            _url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
-            book = EhBookInfo(
-                idx=x+1,
-                name=item_elem.xpath('.//img/@title').get(),
-                preview_url=_url,
-                url=_url,
-                pages=int(pages),
-                btype=target.xpath('./td[contains(@class, "glcat")]/div/text()').get(),
-                img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
-            ).get_id(_url)
+            book = EK.parse_search_item(target)
+            book.idx = x + 1
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}", url=response.url,
                                          make_preview=True)
