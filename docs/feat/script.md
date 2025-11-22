@@ -46,7 +46,7 @@ utils
 
 ## 1. kemono
 
-### 🚀 快速开始
+### 🚀 快速上手
 
 1. 启动 `redis` 服务，打开 `Motrix`
 

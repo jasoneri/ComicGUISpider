@@ -11,7 +11,7 @@
   </a>
 
   <p align="center">
-  <a href="https://jasoneri.github.io/ComicGUISpider/locate/en/">🌐website</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/locate/en/">🏠HomePage</a> | 
   <a href="https://jasoneri.github.io/ComicGUISpider/locate/en/deploy/quick-start">🚀Quick-Start</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦portable-pkg</a>
   </p>

@@ -1,4 +1,4 @@
-# 🚀 快速开始
+# 🚀 快速上手
 
 ::: warning ⚠️ CGS 代码/解压的路径不能含有中文/中标
 :::
@@ -24,11 +24,7 @@
 ::: warning ‼️⚠️ `v2.5.2~`后，发现依赖 [pillow-avif](https://github.com/fdintino/pillow-avif-plugin) 跟 `python3.14` 暂不兼容，  
 需要注意自行准备环境如 `python3.13`  
 :::
-
-::: info 仅使用时不建议用克隆源码方式，否则需要自行管理环境 `uv sync`，  
-同样需要用到 uv，那还是不如直接用 `uv tool`
-:::
-::: details `uv tool` 流程（点击展开）：  
+::: details `uv tool` 细节部署流程（点击展开）：  
 1. 安装 [uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的 [远程安装脚本](https://docs.astral.sh/uv/#installation)  
 2. （可选）设置 uv tool 的环境变量，否则 win 会默认装在C盘上  
     win: 新建用户级的环境变量，设置后需开新终端窗口生效  
@@ -42,7 +38,13 @@
 uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple --python "<3.14"
 ```
 :::
-::: warning v2.4.0 之后的绿色包均转为套壳操作 `uv tool`
+::: tip 可以选择 `uv` 中更轻量化的 `uvx`，命令为部署运行一体化  
+```bash
+uvx comicguispider --python "<3.14"
+```
+两者区别在于 `uvx` 为临时/一次性的虚拟环境，`uv tool` 方式为持久化
+:::
+::: info 若需要用 `git` 克隆源码方式，需要自行管理环境 `uv sync`  
 :::
 
 ## 2. 运行

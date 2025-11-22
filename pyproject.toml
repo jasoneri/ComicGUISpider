@@ -83,3 +83,4 @@ cgs-cli = "crawl_only:main"
 
 [project.gui-scripts]
 cgs = "CGS:start"
+comicguispider = "CGS:start"
