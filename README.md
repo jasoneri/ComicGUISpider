@@ -12,20 +12,28 @@
 
   <p align="center">
   <a href="docs/_github/README_en.md">English</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider">🌐官方网站</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/deploy/quick-start">🚀快速开始</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/faq">📖FAQ</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider">🏠项目主页</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/deploy/quick-start">🚀快速上手</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/faq">❓常见问题</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
   </p>
 </div>
 
-▼ 操作演示 ▼
-
-|       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
+|       预览/多选/翻页（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       [读剪贴板](https://jasoneri.github.io/ComicGUISpider/feat/clip)（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
-| **聚合搜索**（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)） | |
+| **[聚合搜索](https://jasoneri.github.io/ComicGUISpider/feat/ags)**（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)） | |
 | ![聚合搜索动图预留位](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif) | |
+
+## ✨功能特性
+
+- 动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
+- 开预览后随便点点就能下载，预览窗口充当于微型浏览器
+- 通过加减号，`0 全选`，`-3 选倒数三个` 等输入规则，方便指定选择
+- 基于翻页保留，体验如同塞进购物车
+- 预设，去重，加标识符等自定义设置
+
+**更多移步查阅 [🎸功能文档](https://jasoneri.github.io/ComicGUISpider/feat/)**
 
 ## 📑介绍
 

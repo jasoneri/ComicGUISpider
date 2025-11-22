@@ -6,7 +6,7 @@ const version = `v2.2`
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
 export default defineConfig({
-    title: "点我回主页/Index",
+    title: "主页/Index",
     description: "",
     base: `/ComicGUISpider/`,
 
@@ -73,7 +73,7 @@ export default defineConfig({
             {
                 items: [
                     {
-                        text: "🚀快速开始",
+                        text: "🚀快速上手",
                         link: "/deploy/quick-start",
                     },
                     {
