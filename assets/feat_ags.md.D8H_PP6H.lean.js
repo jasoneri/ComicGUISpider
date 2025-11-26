@@ -1,0 +1,1 @@
+import{_ as a,c as e,o as t,aj as r}from"./chunks/framework.CLcCQpUA.js";const p=JSON.parse('{"title":"🔎聚合搜索","description":"","frontmatter":{},"headers":[],"relativePath":"feat/ags.md","filePath":"feat/ags.md"}'),o={name:"feat/ags.md"},i=r("",22),l=[i];function s(h,c,d,n,b,u){return t(),e("div",null,l)}const _=a(o,[["render",s]]);export{p as __pageData,_ as default};
