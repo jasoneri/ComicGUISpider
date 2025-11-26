@@ -220,7 +220,7 @@ class BaseComicSpider(scrapy.Spider):
             return
         choose = ','.join(map(str, book.episodes))
         self.say(f'📜《{book.name}》 {self.res.parse_sec_selected}: {choose}')
-        if book.episodes and len(book.episodes) > 1 and int(conf.concurr_num) > 10:
+        if book.episodes and len(book.episodes) > 20 and int(conf.concurr_num) > 10:
             concurr_num = 8
             for slot in self.crawler.engine.downloader.slots.values():
                 slot.concurrency = concurr_num

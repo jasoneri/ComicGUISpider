@@ -12,20 +12,28 @@
 
   <p align="center">
   <a href="docs/_github/README_en.md">English</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider">🌐官方网站</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/deploy/quick-start">🚀快速开始</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/faq">📖FAQ</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider">🏠项目主页</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/deploy/quick-start">🚀快速上手</a> | 
+  <a href="https://jasoneri.github.io/ComicGUISpider/faq">❓常见问题</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
   </p>
 </div>
 
-▼ 操作演示 ▼
-
-|       预览/多选/翻页（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       读剪贴板（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
+|       预览/多选/翻页（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       [读剪贴板](https://jasoneri.github.io/ComicGUISpider/feat/clip)（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
-| **聚合搜索**（[备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)） | |
+| **[聚合搜索](https://jasoneri.github.io/ComicGUISpider/feat/ags)**（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)） | |
 | ![聚合搜索动图预留位](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif) | |
+
+## ✨功能特性
+
+- 动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
+- 开预览后随便点点就能下载，预览窗口充当于微型浏览器
+- 通过加减号，`0 全选`，`-3 选倒数三个` 等输入规则，方便指定选择
+- 基于翻页保留，体验如同塞进购物车
+- 预设，去重，加标识符等自定义设置
+
+**更多移步查阅 [🎸功能文档](https://jasoneri.github.io/ComicGUISpider/feat/)**
 
 ## 📑介绍
 
@@ -46,10 +54,9 @@
 
 ---
 
-**🔉提 bug 前提是 查过[文档](
-https://jasoneri.github.io/ComicGUISpider/faq) 和搜过 [issue](
-https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed) 等都没处理方法的，否则会被 [这样回复](
-https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E5%A5%BD%E9%97%AE%E9%A2%98%E4%B8%8E%E8%A0%A2%E9%97%AE%E9%A2%98)**
+**🔉要提问时不管群里问还是 issue，都看一遍 [提问须知](https://github.com/tangx/Stop-Ask-Questions-The-Stupid-Ways?tab=readme-ov-file)** （相关链接 [文档](
+https://jasoneri.github.io/ComicGUISpider/faq) / [issue](
+https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)）
 
 ---
 
@@ -61,11 +68,11 @@ https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README
 
 ✅ 新增`聚合搜索`功能，具体看 [适用性](
 https://jasoneri.github.io/ComicGUISpider/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
-https://jasoneri.github.io/ComicGUISpider/feat/ags)
+https://jasoneri.github.io/ComicGUISpider/feat/ags) （✨v2.6.1 增加 eh 适配）
 
 #### 🐞 Fix
 
-✅ 较多任务时自动降并发  
+✅ 较多任务时自动降并发（✨v2.6.1 修复拷贝异常降并发）  
 ✅ 修复 wnacg 发布页域名解析  
 ✅ wnacg 已设代理下跳过域名缓存处理  
 ✅ 排除 jm 的猜你喜欢的12本，空搜索时即空  
