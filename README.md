@@ -54,10 +54,9 @@
 
 ---
 
-**🔉提 bug 前提是 查过 [文档](
-https://jasoneri.github.io/ComicGUISpider/faq) 和搜过 [issue](
-https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed) 等都没处理方法的，否则会被 [这样回复](
-https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README-zh_CN.md#%E4%B8%8D%E8%AF%A5%E9%97%AE%E7%9A%84%E9%97%AE%E9%A2%98)**
+**🔉要提问时不管群里问还是 issue，都看一遍 [提问须知](https://github.com/tangx/Stop-Ask-Questions-The-Stupid-Ways?tab=readme-ov-file)** （相关链接 [文档](
+https://jasoneri.github.io/ComicGUISpider/faq) / [issue](
+https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)）
 
 ---
 
