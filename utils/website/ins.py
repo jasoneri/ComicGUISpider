@@ -307,7 +307,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         books = []
         targets = _html.xpath('//li[contains(@class, "gallary_item")]')
         for target in targets:
-            book = WnacgUtils.parse_search_item(target)
+            book = self.parse_search_item(target)
             book.preview_url = f'https://{self.domain}{book.preview_url}'
             book.url = f'https://{self.domain}{book.url}'
             books.append(book)
