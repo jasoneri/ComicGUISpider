@@ -2,17 +2,13 @@
 
 ## 📑 说明
 
-::: tip v2.4.0 之后的绿色包均转为套壳的 `uv tool`
-
----
-
-绿色包使用gitee源，墙外的建议直接使用 [uv tool方式部署安装](/deploy/quick-start#1-下载--部署)
+::: tip 绿色包使用gitee源，墙外的建议直接使用 [uv tool方式部署安装](/deploy/quick-start#1-下载--部署)
 :::
 
 ## ⛵️ 绿色包操作
 
-::: warning mac 由于认证签名收费，打包派发的 app 初次打开会有限制，正确操作如下
-
+::: warning mac 由于认证签名收费，打包派发的 app 初次打开会有限制
+::: details 点击展开 正确操作
 1. 对 app 右键打开，报错不要丢垃圾篓，直接取消
 2. 再对 app 右键打开，此时弹出窗口有打开选项，能打开了
 3. 后续就能双击打开，不用右键打开了
@@ -63,8 +59,7 @@ uv tool install ComicGUISpider==2.5.0 --force --index-url https://pypi.tuna.tsin
 
 ### bug report / 提交报错 issue
 
-macOS上运行软件出错需要提issue时，除系统选`macOS`外，还需描述加上系统版本与架构  
-（开发者测试开发环境为`macOS Sonoma(14) / x86_64`）
+macOS上运行软件出现问题时，需先 ai 或自我排查是 mac 的问题（兼容性等）还是 `CGS` 问题（通过 log 等手段）
 
 ::: tip 获取架构命令
 ```bash

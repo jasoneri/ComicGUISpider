@@ -7,6 +7,7 @@ import httpx
 
 from assets import res
 from utils.website.core import EroUtils, Req
+from utils.website.info import HitomiBookInfo
 
 
 class HitomiUtils(EroUtils, Req):
@@ -28,6 +29,7 @@ class HitomiUtils(EroUtils, Req):
 
     def __init__(self, _conf):
         super().__init__(_conf)
+        self._conf = _conf
         self.cli = self.get_cli(_conf)
         self.gg = gg(cli=self.cli)
         self.dec = self.Decrypt(self.gg)
@@ -43,11 +45,33 @@ class HitomiUtils(EroUtils, Req):
         json_str = re.search(r"var galleryinfo = (\{.*\}$)", data_str).group(1)
         data = json.loads(json_str)
         return data
-    
+
+    def parse_search_item(self, target_text):
+        datum = HitomiUtils.parse_galleries(target_text)
+        gallery_id = datum['id']
+        pics = datum['files']
+        first_pic = pics[0]
+        btype = datum['type']
+        _title = datum['title']
+
+        img_preview = self.get_img_url(first_pic['hash'], 0, preview=True)
+
+        book = HitomiBookInfo(
+            id=gallery_id,
+            name=_title.split(' | ')[-1] if ' | ' in _title else _title,
+            preview_url=f"{btype}/{gallery_id}.html",
+            pages=len(pics),
+            pics=pics,
+            btype=btype,
+            img_preview=img_preview,
+            lang=datum['language_localname'],
+        )
+        return book
+
     def get_range(self, page):
         end_byte = self.galleries_per_page * int(page)
         return f"bytes={end_byte-self.galleries_per_page}-{end_byte-1}"
-    
+
     class Decrypt:
         def __init__(self, gg):
             self.gg = gg

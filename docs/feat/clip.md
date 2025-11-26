@@ -15,9 +15,14 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 ![clipBtn](../assets/img/feat/clipBtn.png)
 
-选择 符合适用性 的网站即可开启使用，点击按钮即触发流程  
+选择 符合[适用性](/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 的网站即可开启使用，点击按钮即触发流程  
+动图为老版本，关注操作与大概位置即可  
 
-流程使用参考首页的`动图2` 或 `🎥视频使用指南3`相关部分
+<table><tbody>
+  <tr>
+    <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif"></td>
+  </tr>  
+</tbody></table>
 
 ## 关联功能
 

@@ -6,7 +6,6 @@ import scrapy
 from utils import PresetHtmlEl, conf
 from utils.website import HitomiUtils, get_loop
 from utils.processed_class import PreviewHtml
-from utils.website import HitomiBookInfo
 from ComicSpider.items import ComicspiderItem
 
 from .basecomicspider import BaseComicSpider, font_color
@@ -185,20 +184,9 @@ class HitomiSpider(BaseComicSpider):
         frame_results = {}
         self.say(self.say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
         for x, target in enumerate(rets):
-            datum = self.ut.parse_galleries(target['text'])
-            gallery_id = datum['id']
-            pics = datum['files']
-            first_pic = pics[0]
-            btype = datum['type']
-            _title = datum['title']
-            book = HitomiBookInfo(
-                id=gallery_id, idx=x+1,
-                name=_title.split(' | ')[-1] if ' | ' in _title else _title,
-                preview_url=f"{self.domain}{btype}/{gallery_id}.html",
-                pages=len(pics), pics=pics, btype=btype,
-                img_preview=self.ut.get_img_url(first_pic['hash'], 0, preview=True),
-                lang=datum['language_localname'],
-            )
+            book = self.ut.parse_search_item(target['text'])
+            book.idx = x + 1
+            book.preview_url = f"{self.domain}{book.preview_url}"
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, url=meta.get("Url"), make_preview=True)
 
