@@ -15,22 +15,17 @@ class ComicInfo:
             self.series = self._extract_series_name(book.name)
             self.number = self._extract_number_from_episode_name(episode.name)
             self.pages = episode.pages or book.pages
-            self.web = book.preview_url
-            self.artist = book.artist
-            self.tags = book.tags or []
-            self.source = book.source
-            self.public_date = getattr(book, "public_date", None)
         else:
             book = info
             self.title = book.display_title
             self.series = self._extract_series_name(book.name)
             self.number = None
             self.pages = book.pages
-            self.web = book.preview_url
-            self.artist = book.artist
-            self.tags = book.tags or []
-            self.source = book.source
-            self.public_date = getattr(book, "public_date", None)
+        self.web = book.preview_url
+        self.artist = book.artist
+        self.tags = book.tags or []
+        self.source = book.source
+        self.public_date = getattr(book, "public_date", None)
 
         self.year = None
         self.month = None
