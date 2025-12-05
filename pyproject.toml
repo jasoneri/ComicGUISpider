@@ -74,7 +74,7 @@ allow-direct-references = true
 
 [project.urls]
 Repository = "https://github.com/jasoneri/ComicGUISpider"
-Documentation = "https://jasoneri.github.io/ComicGUISpider/"
+Documentation = "https://doc.comicguisipder.nyc.mn/"
 Changelog = "https://github.com/jasoneri/ComicGUISpider/blob/GUI/docs/changelog/history.md"
 Releases = "https://github.com/jasoneri/ComicGUISpider/releases"
 

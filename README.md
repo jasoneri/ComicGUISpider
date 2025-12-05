@@ -13,16 +13,16 @@
   <p align="center">
   <a href="docs/_github/README_en.md">English</a> | 
   <a href="https://jasoneri.github.io/ComicGUISpider">🏠项目主页</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/deploy/quick-start">🚀快速上手</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/faq">❓常见问题</a> | 
+  <a href="https://doc.comicguisipder.nyc.mn/deploy/quick-start">🚀快速上手</a> | 
+  <a href="https://doc.comicguisipder.nyc.mn/faq">❓常见问题</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
   </p>
 </div>
 
-|       预览/多选/翻页       |       [读剪贴板](https://jasoneri.github.io/ComicGUISpider/feat/clip)       |
+|       预览/多选/翻页       |       [读剪贴板](https://doc.comicguisipder.nyc.mn/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
-| **[聚合搜索](https://jasoneri.github.io/ComicGUISpider/feat/ags)** | |
+| **[聚合搜索](https://doc.comicguisipder.nyc.mn/feat/ags)** | |
 | ![聚合搜索动图预留位](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif) | |
 
 ## ✨功能特性
@@ -33,7 +33,7 @@
 - 基于翻页保留，体验如同塞进购物车
 - 预设，去重，加标识符等自定义设置
 
-**更多移步查阅 [🎸功能文档](https://jasoneri.github.io/ComicGUISpider/feat/)**
+**更多移步查阅 [🎸功能文档](https://doc.comicguisipder.nyc.mn/feat/)**
 
 ## 📑介绍
 
@@ -55,7 +55,7 @@
 ---
 
 **🔉要提问时不管群里问还是 issue，都看一遍 [提问须知](https://github.com/tangx/Stop-Ask-Questions-The-Stupid-Ways?tab=readme-ov-file)** （相关链接 [文档](
-https://jasoneri.github.io/ComicGUISpider/faq) / [issue](
+https://doc.comicguisipder.nyc.mn/faq) / [issue](
 https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)）
 
 ---
@@ -70,8 +70,8 @@ https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)
 #### 🎁 Features
 
 ✅ 新增`聚合搜索`功能，具体看 [适用性](
-https://jasoneri.github.io/ComicGUISpider/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
-https://jasoneri.github.io/ComicGUISpider/feat/ags) （✨v2.6.1 增加 eh 适配）
+https://doc.comicguisipder.nyc.mn/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
+https://doc.comicguisipder.nyc.mn/feat/ags) （✨v2.6.1 增加 eh 适配）
 
 #### 🐞 Fix
 
@@ -101,7 +101,7 @@ https://jasoneri.github.io/ComicGUISpider/feat/ags) （✨v2.6.1 增加 eh 适�
       PyStand
     </a></div></td>
     <td><div align="center"><a href="https://github.com/sveinbjornt/Platypus" target="_blank">
-      <img src="https://jsd.vxo.im/gh/sveinbjornt/Platypus/Documentation/images/platypus.png" alt="logo" height="50">
+      <img src="https://cdn.jsdmirror.com/gh/sveinbjornt/Platypus/Documentation/images/platypus.png" alt="logo" height="50">
       <br>Platypus</a></div></td>
     <td><div align="center"><a href="https://github.com/sabrogden/Ditto" target="_blank">
       <img src="https://avatars.githubusercontent.com/u/16867884?v=4" alt="logo" height="50">

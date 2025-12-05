@@ -3,14 +3,14 @@ Vars:
   hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
 GUI:
   DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`使用手册`，内有配置详情/GUI视频使用指南等"
-  DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://jasoneri.github.io/ComicGUISpider/faq/'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
+  DESC2: "2、使用遇阻时可以先查阅说明中的 <a href='https://doc.comicguisipder.nyc.mn/faq/'>📖FAQ/额外说明</a> 文档，看能否解决疑惑 "
   DESC_ELSE: "若有其他问题/功能建议等到群反映/提issue"
   
   BrowserWindow_ensure_warning: "需要返回选择页，并确保有选择的情况下使用"
-  jm_desc: "支持多车号输入，例如`123456，654321，114514`（逗号分隔）<br>支持章节下载，此功能仅限在<a href='https://jasoneri.github.io/ComicGUISpider/feat/clip'>读剪贴板</a>流程上用<br>设置cookies能解锁游客隐藏，解决无效车号等，但CGS暂不会自动更新cookie，按需时粘贴curl用"
+  jm_desc: "支持多车号输入，例如`123456，654321，114514`（逗号分隔）<br>支持章节下载，此功能仅限在<a href='https://doc.comicguisipder.nyc.mn/feat/clip'>读剪贴板</a>流程上用<br>设置cookies能解锁游客隐藏，解决无效车号等，但CGS暂不会自动更新cookie，按需时粘贴curl用"
   wnacg_desc: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>墙内换发布页网址参考<a href='https://github.com/jasoneri/ComicGUISpider/issues/119'>此条issue</a>，可以免梯子解决域名缓存"
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
-  hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
+  hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://cdn.jsdmirror.com/gh/jasoneri/imgur@main/CGS/hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
   check_ehetai: "正在检测当前环境能否访问 `exhentai` 中..."
   check_mangabz: "正在检测当前环境能否访问 `Māngabz` 中..."
   check_hitomi: "正在检测当前环境能否访问 `hitomi` 中..."
@@ -167,8 +167,8 @@ SPIDER:
   PUBLISH_INVALID: "<a href=\"%s\">发布页</a>访问失效，<br>(简单)建议点击 rV 按钮 > domainTool 根据指示操作<br>(稍微复杂)或参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])"
   DOMAINS_INVALID: "<a href=\"%s\">发布页</a>清洗出的域名%s访问失效，<br>(简单)建议点击 rV 按钮 > domainTool 根据指示操作<br>(稍微复杂)或参考<a href=\"https://jasoneri.github.io/ComicGUISpider/faq/extra\">📒域名相关</a>处理[%s])<br>或通过 domainTool 进行操作"
   reduce_concurrency_tip: "任务量超20，已将并发降至%s；如无效果（继续卡网络），需之后手动设置更低的并发（假如仍是多任务量）"
-
-Updater:
+doc.comicguisipder.nyc.mn/
+Updater:doc.comicguisipder.nyc.mn/
   ver_check: "检查版本中"
   code_downloading: "下载代码文件中"
   finish: "更新完毕"
