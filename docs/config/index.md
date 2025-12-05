@@ -86,7 +86,7 @@
 
 目前选择编辑支持 `ehentai`, `jm`
 
-[🎬获取方法](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ehentai_get_cookies_new.gif) | [🔗动图中的curl转换网站](https://tool.lu/curl/)  
+[🎬获取方法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ehentai_get_cookies_new.gif) | [🔗动图中的curl转换网站](https://tool.lu/curl/)  
 任意网站同理，登录状态下开 F12 控制台然后点首页，筛选出 html/文档 类型请求复制其 curl (POSIX/bash)  
 支持直接将 curl 文本粘贴到编辑框内，程序已内置转换处理  
 
