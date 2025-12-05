@@ -32,7 +32,7 @@ class MarkdownConverter:
 
 class MdHtml(str):
     def cdn_replace(self, author, repo, branch):
-        return MdHtml(self.replace("raw.githubusercontent.com", "jsd.vxo.im/gh")
+        return MdHtml(self.replace("raw.githubusercontent.com", "cdn.jsdmirror.com/gh")
                 .replace(f"{author}/{repo}/{branch}", f"{author}/{repo}@{branch}"))
 
     @property

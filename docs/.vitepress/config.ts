@@ -12,7 +12,7 @@ export default defineConfig({
 
     head: [
         ['meta', {property: 'og:site_name', content: 'ComicGUISpider'}],
-        ['meta', {property: 'og:url', content: 'https://jasoneri.github.io/ComicGUISpider/'}],
+        ['meta', {property: 'og:url', content: 'https://doc.comicguisipder.nyc.mn/'}],
     ],
 
     locales: {
