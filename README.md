@@ -19,10 +19,10 @@
   </p>
 </div>
 
-|       预览/多选/翻页（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/common-usage.gif)）       |       [读剪贴板](https://jasoneri.github.io/ComicGUISpider/feat/clip)（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif)）       |
+|       预览/多选/翻页       |       [读剪贴板](https://jasoneri.github.io/ComicGUISpider/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
-| **[聚合搜索](https://jasoneri.github.io/ComicGUISpider/feat/ags)**（[图备链](https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif)） | |
+| **[聚合搜索](https://jasoneri.github.io/ComicGUISpider/feat/ags)** | |
 | ![聚合搜索动图预留位](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif) | |
 
 ## ✨功能特性
@@ -63,6 +63,9 @@ https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)
 ## 📢更新
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
+
+✨更换了 [🏠项目主页](https://doc.comicguisipder.nyc.mn/) 域名  
+（动图被镜像站限流截断！）取消各种动图的国内备链方案，推荐用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/) 反代 github  
 
 #### 🎁 Features
 
