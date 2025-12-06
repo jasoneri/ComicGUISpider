@@ -45,7 +45,7 @@ class SvPathCard(PushSettingCard):
             drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
             if cgs_flag or drive_flag:
                 CustomInfoBar.show("", res.GUI.Uic.confDia_svPathWarning, self.conf_dia, 
-                    "https://doc.comicguisipder.nyc.mn/config/#配置项-对应-yml-字段", 
+                    "https://doc.comicguispider.nyc.mn/config/#配置项-对应-yml-字段", 
                     "conf desc", _type="ERROR", position=InfoBarPosition.TOP)
                 return
             self.setContent(folder)
@@ -158,7 +158,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def bind_logic(self):
         def _open_docs():
-            QDesktopServices.openUrl(QUrl('https://jasoneri.github.io/ComicGUISpider/'))
+            QDesktopServices.openUrl(QUrl('https://doc.comicguispider.nyc.mn/'))
         self.descBtn.clicked.connect(_open_docs)
         def _switch_mode():
             if self.darkTheme.isChecked():
@@ -169,7 +169,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.darkTheme.clicked.connect(_switch_mode)
         def _regular_update():
             self.puThread = ProjUpdateThread(self)
-            Updater(self.gui).run()doc.comicguisipder.nyc.mn/
+            Updater(self.gui).run()
         self.updateBtn.clicked.connect(_regular_update)
         self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
             view=SupportView(Proj.url, self), target=self.supportBtn, parent=self

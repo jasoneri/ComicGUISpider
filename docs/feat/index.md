@@ -71,7 +71,7 @@ Maybe: 后续能扩展做订阅
 
 ### 4.4 hitomiTool
 
-仅 hitomi 用，[📹参考用法](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/hitomi-tools-usage.gif)
+仅 hitomi 用，[📹参考用法](https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif)
 
 ### 4.5 aggrSearch
 
