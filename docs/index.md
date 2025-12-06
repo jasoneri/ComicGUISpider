@@ -58,11 +58,11 @@ hero:
 </tbody></table>
 <table><tbody>
   <tr>
-    <td><img src="https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif"></td>
-    <td><img src="https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif"></td>
+    <td><img src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif"></td>
+    <td><img src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif"></td>
   </tr>  
   <tr>
-    <td><img src="https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif"></td>
+    <td><img src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif"></td>
   </tr>  
 </tbody></table>
 

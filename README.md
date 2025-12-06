@@ -12,18 +12,18 @@
 
   <p align="center">
   <a href="docs/_github/README_en.md">English</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider">🏠项目主页</a> | 
-  <a href="https://doc.comicguisipder.nyc.mn/deploy/quick-start">🚀快速上手</a> | 
-  <a href="https://doc.comicguisipder.nyc.mn/faq">❓常见问题</a> | 
+  <a href="https://doc.comicguispider.nyc.mn">🏠项目主页</a> | 
+  <a href="https://doc.comicguispider.nyc.mn/deploy/quick-start">🚀快速上手</a> | 
+  <a href="https://doc.comicguispider.nyc.mn/faq">❓常见问题</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
   </p>
 </div>
 
-|       预览/多选/翻页       |       [读剪贴板](https://doc.comicguisipder.nyc.mn/feat/clip)       |
+|       预览/多选/翻页       |       [读剪贴板](https://doc.comicguispider.nyc.mn/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
-| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
-| **[聚合搜索](https://doc.comicguisipder.nyc.mn/feat/ags)** | |
-| ![聚合搜索动图预留位](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/ags.gif) | |
+| ![turn-page-new](https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif) | ![load_clip](https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif) |
+| **[聚合搜索](https://doc.comicguispider.nyc.mn/feat/ags)** | |
+| ![聚合搜索动图预留位](https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif) | |
 
 ## ✨功能特性
 
@@ -33,7 +33,7 @@
 - 基于翻页保留，体验如同塞进购物车
 - 预设，去重，加标识符等自定义设置
 
-**更多移步查阅 [🎸功能文档](https://doc.comicguisipder.nyc.mn/feat/)**
+**更多移步查阅 [🎸功能文档](https://doc.comicguispider.nyc.mn/feat/)**
 
 ## 📑介绍
 
@@ -55,34 +55,32 @@
 ---
 
 **🔉要提问时不管群里问还是 issue，都看一遍 [提问须知](https://github.com/tangx/Stop-Ask-Questions-The-Stupid-Ways?tab=readme-ov-file)** （相关链接 [文档](
-https://doc.comicguisipder.nyc.mn/faq) / [issue](
+https://doc.comicguispider.nyc.mn/faq) / [issue](
 https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)）
 
 ---
 
 ## 📢更新
 
-### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
+✨ 更换了 [🏠项目主页](https://doc.comicguispider.nyc.mn/) 域名/部署  
+图链/项目主页/文档都已转用 cloudflare 加速优化，假如 cf 都能卡的话可以考虑用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
+【🔉长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
-✨更换了 [🏠项目主页](https://doc.comicguisipder.nyc.mn/) 域名  
-（动图被镜像站限流截断！）取消各种动图的国内备链方案，推荐用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/) 反代 github  
+### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
 #### 🎁 Features
 
 ✅ 新增`聚合搜索`功能，具体看 [适用性](
-https://doc.comicguisipder.nyc.mn/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
-https://doc.comicguisipder.nyc.mn/feat/ags) （✨v2.6.1 增加 eh 适配）
+https://doc.comicguispider.nyc.mn/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
+https://doc.comicguispider.nyc.mn/feat/ags) （✨v2.6.1 增加 eh 适配）
 
 #### 🐞 Fix
 
 ✅ 较多任务时自动降并发（✨v2.6.1 修复拷贝异常降并发）  
-✅ 修复 wnacg 发布页域名解析  
-✅ wnacg 已设代理下跳过域名缓存处理  
-✅ 排除 jm 的猜你喜欢的12本，空搜索时即空  
-✅ 优化 jm 剪贴板正则格式匹配  
-☑️【长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
+✅ 修复 wnacg 发布页域名解析, wnacg 已设代理下跳过域名缓存处理  
+✅ 排除 jm 的猜你喜欢的12本，空搜索时即空, 优化 jm 剪贴板正则格式匹配  
 
-> 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
+> 可参考 [更新方法](https://doc.comicguispider.nyc.mn/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
 
@@ -123,7 +121,7 @@ https://doc.comicguisipder.nyc.mn/feat/ags) （✨v2.6.1 增加 eh 适配）
 </a>
 
 <a href="https://afdian.com/a/jsoneri">
-  <img src="https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/CGS-aifadian.png" alt="在爱发电支持我">
+  <img src="https://img.comicguispider.nyc.mn/file/1765002001925_CGS-aifadian.png" alt="在爱发电支持我">
 </a>
 
 ## 🔇免责声明

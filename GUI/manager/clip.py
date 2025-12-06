@@ -42,7 +42,7 @@ class ClipGUIManager:
             CustomInfoBar.show(
                 title='Clip-db not found', content=res.GUI.Clip.db_not_found_guide,
                 parent=self.gui.textBrowser,
-                url="https://doc.comicguisipder.nyc.mn/config/#剪贴板db-clip-db", url_name="Guide"
+                url="https://doc.comicguispider.nyc.mn/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:
             clip = ClipSqlHandler(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",

@@ -272,7 +272,7 @@ class AggrSearchView(QWidget):
         
         extendLayout = QHBoxLayout()
         agsDocBtn = PrimaryToolButton(FIF.QUESTION)
-        agsDocBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://doc.comicguisipder.nyc.mn/feat/ags')))
+        agsDocBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://doc.comicguispider.nyc.mn/feat/ags')))
         extendBtn = PushButton(FIF.ADD, ags_res.extend_btn, self)
         extendBtn.setDisabled(1)
         extendLayout.addWidget(agsDocBtn)
