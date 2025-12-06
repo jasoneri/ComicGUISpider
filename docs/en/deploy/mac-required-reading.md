@@ -3,7 +3,7 @@
 ## 📑 Description
 
 ::: tip protable application after version of v2.4.0 is nolonger support except of chinese user, as script of CGS.app use gitee instead of github, and pypi chinese mirror.
-but it still easily install or use CGS by  `uv tool`, take a look for [uv tool install](/locate/en/deploy/quick-start), my friends.
+but it still easily install or use CGS by  `uv tool`, take a look for [uv tool install](/en/deploy/quick-start), my friends.
 :::
 
 ## Operation
