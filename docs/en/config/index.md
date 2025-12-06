@@ -1,6 +1,6 @@
 # 🔨 配置
 
-![conf](../../../assets/img/config/conf_usage_en.png)
+![conf](../../assets/img/config/conf_usage_en.png)
 
 ::: info config file is `conf.yml`, generated after initial use
 :::
