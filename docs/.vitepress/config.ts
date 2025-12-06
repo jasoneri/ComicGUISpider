@@ -18,7 +18,7 @@ export default defineConfig({
     locales: {
         root: {
           label: '简体中文',
-          lang: 'zh',
+          lang: 'zh-CN',
           titleTemplate: 'CGS'
         },
         en: {
