@@ -2,8 +2,8 @@
 ## 🎁 Features
 
 ✅ 新增`聚合搜索`功能，具体看 [适用性](
-https://jasoneri.github.io/ComicGUISpider/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
-https://jasoneri.github.io/ComicGUISpider/feat/ags)（✨v2.6.1 增加 eh 适配）
+https://doc.comicguispider.nyc.mn/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
+https://doc.comicguispider.nyc.mn/feat/ags)（✨v2.6.1 增加 eh 适配）
 
 ## 🐞 Fix
 
