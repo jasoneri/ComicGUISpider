@@ -12,31 +12,31 @@ hero:
   actions:
     - theme: brand
       text: Quick-start
-      link: /locate/en/deploy/quick-start
+      link: /en/deploy/quick-start
     - theme: alt
       text: Config
-      link: /locate/en/config
+      link: /en/config
 ---
 
 <table><tbody>  
   <tr>
     <td><div align="center"><a href="https://www.2025copy.com/" target="_blank">
-      <img src="../../assets/img/icons/website/copy.png" alt="logo" style="max-height: 80px">
+      <img src="../assets/img/icons/website/copy.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://mangabz.com" target="_blank">
-      <img src="../../assets/img/icons/website/mangabz.png" alt="logo" style="max-height: 80px">
+      <img src="../assets/img/icons/website/mangabz.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://18comic.vip/" target="_blank">
-      <img src="../../assets/img/icons/website/jm.png" alt="logo" style="max-height: 80px">
+      <img src="../assets/img/icons/website/jm.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://www.wnacg.com/" target="_blank">
-      <img src="../../assets/img/icons/website/wnacg.png" alt="logo" style="max-height: 80px">
+      <img src="../assets/img/icons/website/wnacg.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://exhentai.org/" target="_blank">
-      <img src="../../assets/img/icons/website/ehentai.png" alt="logo" style="max-height: 80px">
+      <img src="../assets/img/icons/website/ehentai.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://hitomi.la/" target="_blank">
-      <img src="../../assets/img/icons/website/hitomi.png" alt="logo" style="max-height: 80px">
+      <img src="../assets/img/icons/website/hitomi.png" alt="logo" style="max-height: 80px">
       </a></div></td>
   </tr>
   <tr>

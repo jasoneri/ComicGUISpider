@@ -8,7 +8,6 @@ const version = `v2.2`
 export default defineConfig({
     title: "主页/Index",
     description: "",
-    base: `/`,
 
     head: [
         ['meta', {property: 'og:site_name', content: 'ComicGUISpider'}],
@@ -24,7 +23,7 @@ export default defineConfig({
         en: {
           label: 'English',
           lang: 'en',
-          link: '/locate/en',
+          link: '/en',
           titleTemplate: 'CGS'
         }
       },
