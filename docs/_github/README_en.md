@@ -11,8 +11,8 @@
   </a>
 
   <p align="center">
-  <a href="https://jasoneri.github.io/ComicGUISpider/locate/en/">🏠HomePage</a> | 
-  <a href="https://jasoneri.github.io/ComicGUISpider/locate/en/deploy/quick-start">🚀Quick-Start</a> | 
+  <a href="https://doc.comicguispider.nyc.mn/locate/en/">🏠HomePage</a> | 
+  <a href="https://doc.comicguispider.nyc.mn/locate/en/deploy/quick-start">🚀Quick-Start</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦portable-pkg</a>
   </p>
 
@@ -22,7 +22,7 @@
 
 |                             Preview / Multi-select / Paging                              |                         Clipboard Tasks                         |
 |:-------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
-| ![turn-page-new](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/common-usage.gif) | ![load_clip](https://raw.githubusercontent.com/jasoneri/imgur/main/CGS/load_clip.gif) |
+| ![turn-page-new](https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif) | ![load_clip](https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif) |
 
 ## 📑 Introduction
 
@@ -36,7 +36,7 @@
 | [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
 | [ExHentai](https://exhentai.org/)       |   🌏   |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
-| [Kemono](https://kemono.cr)     | 🌏 |     🔞/[📒Usage](https://jasoneri.github.io/ComicGUISpider/feat/script)    |  |
+| [Kemono](https://kemono.cr)     | 🌏 |     🔞/[📒Usage](https://doc.comicguispider.nyc.mn/feat/script)    |  |
 
 <hr>
 
@@ -56,7 +56,7 @@ Left-bottom of the config-dialog has `Check Update` button, please update accord
 
 ## 🔨 Configuration
 
-[🔨Configuration](https://jasoneri.github.io/ComicGUISpider/locate/en/config)
+[🔨Configuration](https://doc.comicguispider.nyc.mn/locate/en/config)
 
 ## 🔇 Disclaimer
 

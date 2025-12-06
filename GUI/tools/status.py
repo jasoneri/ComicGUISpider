@@ -132,7 +132,7 @@ class StatusToolView(QWidget):
         first_row.addWidget(desc_label)
 
         self.second_row = QHBoxLayout()
-        linkBtn = HyperlinkButton(FIF.LINK, "https://jasoneri.github.io/ComicGUISpider/", "CGS")
+        linkBtn = HyperlinkButton(FIF.LINK, "https://doc.comicguispider.nyc.mn/", "CGS")
         self.second_row.insertWidget(1, linkBtn)
         self.second_row.addStretch()
 

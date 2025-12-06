@@ -61,13 +61,14 @@ class Queues:
 
 
 class TasksObj:
-    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None, episode_name: str = None):
+    def __init__(self, taskid: str, title: str, tasks_count: int, title_url: str = None, episode_name: str = None, comic_info=None):
         self.taskid = taskid
         self.title = title
         self.tasks_count = tasks_count
         self.title_url = title_url
         self.episode_name = episode_name
         self.downloaded = []
+        self.comic_info = comic_info
 
     @property
     def display_title(self) -> str:

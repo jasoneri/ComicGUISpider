@@ -20,7 +20,7 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 <table><tbody>
   <tr>
-    <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/load_clip.gif"></td>
+    <td><img src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif"></td>
   </tr>  
 </tbody></table>
 

@@ -6,7 +6,7 @@
 
 <table><tbody>
   <tr>
-    <td><img src="https://jsd.vxo.im/gh/jasoneri/imgur@main/CGS/ags.gif"></td>
+    <td><img src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif"></td>
   </tr>  
 </tbody></table>
 
