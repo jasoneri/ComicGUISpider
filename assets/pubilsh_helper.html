@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发布页面助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        .description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .image-container {
+            margin: 30px 0;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            background: #f5f5f5;
+            aspect-ratio: 16 / 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+        
+        .image-container img:hover {
+            transform: scale(1.02);
+        }
+        
+        .placeholder-icon {
+            font-size: 64px;
+            color: #ddd;
+        }
+        
+        .action-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            user-select: none;
+        }
+        
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        .action-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+        }
+        
+        .action-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .tips {
+            color: #999;
+            font-size: 13px;
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+        
+        .tips strong {
+            color: #667eea;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .feature-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #555;
+            border-left: 3px solid #667eea;
+        }
+        
+        .feature-item::before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 发布页面助手</h1>
+        
+        <div class="description">
+            <p>强大的发布页面管理工具，一键测试发布URL可用性</p>
+        </div>
+        
+        <!-- 直接添加图片 -->
+        <div class="image-container">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect fill='%23f0f0f0' width='400' height='300'/%3E%3Ctext x='200' y='140' font-size='48' fill='%23999' text-anchor='middle' dominant-baseline='middle'%3E🃄%3C/text%3E%3Ctext x='200' y='180' font-size='20' fill='%23999' text-anchor='middle'%3EPublish Page Preview%3C/text%3E%3C/svg%3E" alt="发布页面示意图">
+        </div>
+        
+        <!-- 主要功能按钮 -->
+        <button class="action-button" onclick="openPublishPage()" id="openBtn">🔗 打开发布页面</button>
+        
+        <!-- 功能描述 -->
+        <div class="feature-list">
+            <div class="feature-item">快速跳转发布URL</div>
+            <div class="feature-item">自动检测可用性</div>
+            <div class="feature-item">右键选中文本测试</div>
+            <div class="feature-item">实时结果反馈</div>
+        </div>
+        
+        <!-- 使用提示 -->
+        <div class="tips">
+            <p><strong>💡 使用技巧：</strong></p>
+            <p>点击上方按钮打开发布页面。需要测试具体URL？超简单！右键选中你指定的文本后，会子菜单会自动出现。</p>
+        </div>
+    </div>
+    
+    <script>
+        /**
+         * 打开发布页面
+         * 通过JavaScript的window.location或自定义协议与Qt网桥通信
+         */
+        function openPublishPage() {
+            const btn = document.getElementById('openBtn');
+            btn.disabled = true;
+            btn.textContent = '正在打开...';
+            
+            // 方案一：尝试调用自定义Qt协议
+            try {
+                // 这个URL串案根据实际情况处理
+                window.location.href = 'cgsspider://open_publish_page';
+            } catch (e) {
+                // 万一协议没有實裝，在测试控台打印消息
+                console.log('Open publish page triggered, check Qt implementation');
+            }
+            
+            // 恢复按钮状态
+            setTimeout(function() {
+                btn.disabled = false;
+                btn.textContent = '🔗 打开发布页面';
+            }, 2000);
+        }
+        
+        /**
+         * 监听右键点击事件
+         * 用于配合MonkeyPatch.rbutton_menu_PulishPage
+         */
+        document.addEventListener('contextmenu', function(event) {
+            // 不需要不干涉事，由提前Setup好的MonkeyPatch处理
+            // event.preventDefault(); // 不需要阻止默认菜单，填补或自定义
+        });
+        
+        /**
+         * 页面加载完成时执行
+         */
+        window.addEventListener('load', function() {
+            console.log('Publish Helper Page Loaded');
+            // 可以在这里执行一些初始化操作
+        });
+    </script>
+</body>
+</html>
