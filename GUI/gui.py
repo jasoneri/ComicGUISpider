@@ -5,7 +5,7 @@ import random
 import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
-from PyQt5.QtGui import QKeySequence
+from PyQt5.QtGui import QKeySequence, QGuiApplication
 from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect, QTimer
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
@@ -18,16 +18,17 @@ from GUI.core.theme import setupTheme
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
-from GUI.tools import ToolWindow, TextUtils
+from GUI.tools import ToolWindow, TextUtils, DomainToolView
 from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager
 from GUI.manager.preprocess import PreprocessManager
+from GUI.uic.qfluent import CustomFlyout
 from variables import *
 from assets import res
-from utils import Queues, QueuesManager, conf, p, curr_os, select
+from utils import Queues, QueuesManager, conf, p, curr_os, select, ori_path, bs_theme
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, refresh_state, crawl_what,
-    PreviewHtml
+    PreviewHtml, TmpFormatHtml
 )
 from utils.website import spider_utils_map, InfoMinix
 from utils.sql import SqlUtils
@@ -584,3 +585,22 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.error(exception)
         self.say(font_color(rf"{type(exc_value)}{exc_value}", cls='theme-err', size=4), ignore_http=True)
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))
+
+    def do_publish(self):
+        with open(ori_path.joinpath('assets/pubilsh_helper.html')) as f:
+            format_text = f.read()
+            html = format_text.replace("{bs_theme}", bs_theme()) \
+                    .replace("{publish_url}", self.spiderUtils.publish_url)
+            self.tf = TmpFormatHtml.created_temp_html(html, flag="publish")
+        self.set_preview()
+        screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
+        if self.BrowserWindow.width() < screen_width * 0.6:
+            self.BrowserWindow.resize(int(screen_width * 0.6), self.BrowserWindow.height()+100)
+        self.BrowserWindow.show()
+
+    def tpd(self, texts):
+        self.BrowserWindow.domain_v = DomainToolView(self)
+        CustomFlyout.make(
+            view=self.BrowserWindow.domain_v, target=self.BrowserWindow, parent=self.BrowserWindow
+        )
+        self.BrowserWindow.domain_v.handle(texts)

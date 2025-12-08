@@ -38,8 +38,8 @@
 ![toolsWin](../assets/img/feat/toolsWin.png)
 
 点击 rV 按钮触发显示，点击对应标签切换工具，常驻 rV工具，状态工具  
- 
-- 域名工具( domainTool )仅选择 jm/wnacg 触发  
+
+- 域名工具( domainTool ) 已在 v2.7.0 删除  
 - 聚合搜索( aggrSearch )目前仅选择 jm/wnacg/ehentai 触发  
 - hitomiTool 仅选择 hitomi 触发  
 
@@ -60,20 +60,11 @@ Maybe: 后续能扩展做订阅
 
 除了显示可用状态，还有对策加密更新勤快的网站功能 ~~（少更点吧欧内该）~~  
 
-### 4.3 域名工具 / domainTool
-
-预处理域名失败后会引导到此工具，内有详细指引  
-
-::: warning 发布页登不上的情况有两种  
-1. 自身网络问题：自行用手机测、切代理尝试
-2. 发布页崩了（参考 wnacg 之前换过域名）：先参考 [📒1-域名相关](/faq/extra) 排查，未果则上报  
-:::
-
-### 4.4 hitomiTool
+### 4.3 hitomiTool
 
 仅 hitomi 用，[📹参考用法](https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif)
 
-### 4.5 aggrSearch
+### 4.4 aggrSearch
 
 [🔎跳转阅读 > 使用](/feat/ags)  
 

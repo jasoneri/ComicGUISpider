@@ -84,7 +84,15 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.set_btn()
         self.set_html()
         self.patch_tip()
-        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+        if self.is_publish_page():
+            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
+        else:
+            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+
+    def is_publish_page(self) -> bool:
+        if hasattr(self.gui, 'tf') and self.gui.tf:
+            return 'publish' in str(self.gui.tf).lower()
+        return False
 
     def patch_tip(self):
         for button in (self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn):

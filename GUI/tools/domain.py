@@ -1,10 +1,9 @@
 import asyncio
 
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import QApplication, QHBoxLayout, QWidget
+from PyQt5.QtWidgets import QHBoxLayout
 from qfluentwidgets import (
-    VBoxLayout, PrimaryPushButton, 
-    HyperlinkButton, FluentIcon as FIF, StrongBodyLabel, ImageLabel,
+    VBoxLayout, FlyoutViewBase,
     InfoBadge, InfoBadgePosition, InfoBar, InfoBarPosition
 )
 
@@ -15,42 +14,23 @@ from utils.website import extract_domains
 tools_res = ori_res.GUI.Tools
 
 
-class DomainToolView(QWidget):
-    def __init__(self, parent=None):
-        super().__init__()
-        self.gui = parent
-        self.spiderUtils = self.gui.spiderUtils
-        self.init_ui()
+class DomainToolView(FlyoutViewBase):
+    def __init__(self, gui):
+        self.gui = gui
+        self.browser = gui.BrowserWindow
+        super(DomainToolView, self).__init__(self.browser)
+        self.setupUi()
 
-    def init_ui(self):
+    def setupUi(self):
         self.main_layout = VBoxLayout(self)
         self.setLayout(self.main_layout)
-        first_row = QHBoxLayout()
-        desc = StrongBodyLabel(tools_res.domain_desc)
-        imgLabel = ImageLabel(":/tools/domain_eg.png")
-        imgLabel.scaledToHeight(int(self.gui.toolWin.height() * 0.4))
-        imgLabel.setBorderRadius(8, 8, 8, 8)
-        first_row.addStretch()
-        first_row.addWidget(desc)
-        first_row.addWidget(imgLabel)
-        first_row.addStretch()
         self.second_row = QHBoxLayout()
-        self.second_row.addStretch()
-        goBtn = HyperlinkButton(FIF.LINK, self.gui.spiderUtils.publish_url, '发布页')
-        handleBtn = PrimaryPushButton(FIF.COMMAND_PROMPT, '执行', self)
-        handleBtn.clicked.connect(self.handle)
-        self.second_row.addWidget(goBtn)
-        self.second_row.addWidget(handleBtn)
-        self.second_row.addStretch()
-        self.main_layout.addLayout(first_row)
         self.main_layout.addLayout(self.second_row)
 
-    def handle(self):
-        clipboard = QApplication.clipboard()
-        text = clipboard.text()
+    def handle(self, text):
         domains = extract_domains(text)
         loop = asyncio.get_event_loop()
-        hosts = loop.run_until_complete(asyncio.gather(*[self.spiderUtils.test_aviable_domain(domain) for domain in domains]))
+        hosts = loop.run_until_complete(asyncio.gather(*[self.gui.spiderUtils.test_aviable_domain(domain) for domain in domains]))
         hosts = set(hosts) or set()
         aviable_domains = hosts & domains
         unaviable_domains = domains - aviable_domains
@@ -70,7 +50,7 @@ class DomainToolView(QWidget):
             ))
         if aviable_domains:
             _domain = aviable_domains.pop()
-            t_f = temp_p.joinpath(f"{self.spiderUtils.name}_domain.txt")
+            t_f = temp_p.joinpath(f"{self.gui.spiderUtils.name}_domain.txt")
             with open(t_f, 'w', encoding='utf-8') as f:
                 f.write(_domain)
             prefix_tip = tools_res.doamin_success_tip % (_domain, t_f)
@@ -78,16 +58,17 @@ class DomainToolView(QWidget):
             InfoBar.success(
                 title='', content=f"{prefix_tip}{tools_res.reboot_tip % str(sc)}",
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-                duration=sc*1000, parent=self
+                duration=sc*1000, parent=self.browser
             )
             QTimer.singleShot(sc*1000, self.close_later)
         else:
             InfoBar.error(
                 title='', content=tools_res.doamin_error_tip,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-                duration=7500, parent=self
+                duration=7500, parent=self.browser
             )
-    
+
     def close_later(self):
-        self.gui.toolWin.close()
+        self.browser.domain_v.close()
+        self.browser.close()
         self.gui.retrybtn.click()

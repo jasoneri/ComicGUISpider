@@ -165,7 +165,7 @@ SPIDER:
   close_check_log_guide3: "3. If same error persists, submit issue"
   ERO_BOOK_FOLDER: "Doujinshi"
   PUBLISH_INVALID: "<a href=\"%s\">Release page</a> inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution"
-  DOMAINS_INVALID: "<a href=\"%s\">Release page</a> domains %s inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution or use domainTool"
+  DOMAINS_INVALID: "<a href=\"%s\">Release page</a> domains %s inaccessible<br>Refer to📒Extra Notes Section 2 for [%s] resolution"
   reduce_concurrency_tip: "Task count exceeds 20, concurrency reduced to %s; if ineffective (network still congested), manually set lower concurrency later (if still multiple tasks)"
 
 Updater:
