@@ -1,5 +1,6 @@
 import types
 from PyQt5.QtWidgets import QWidget, QHBoxLayout
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from qfluentwidgets import (
     Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType
 )
@@ -151,5 +152,116 @@ class MonkeyPatch:
                 fluent_menu.addAction(fluent_action)
             return fluent_menu
 
+        web_view = browserWindow.view
+        web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
+
+    @staticmethod
+    def rbutton_menu_PulishPage(browserWindow):
+        """为BrowserWindow添加发布页面专用的右键菜单
+        
+        功能：不类于rbutton_menu_WebEngine，该方法专门为发布页面并提供托管文本测试功能
+        
+        Args:
+            browserWindow: BrowserWindow实例
+        """
+        def custom_context_menu(self, event):
+            # 获取选中文本
+            selected_text = ""
+            try:
+                # 尝试从求简的JavaScript获取选中文本
+                def get_selected_text(result):
+                    nonlocal selected_text
+                    selected_text = result or ""
+                
+                self.page().runJavaScript(
+                    "window.getSelection().toString();",
+                    get_selected_text
+                )
+            except:
+                pass
+            
+            # 构建流程上下文菜单
+            fluent_menu = RoundMenu(parent=self)
+            
+            # 发布页测试动作：对选定文本进行测试
+            test_action = Action(
+                FluentIcon.COMMAND_PROMPT,
+                text="测试选中文本",
+                triggered=lambda: _handle_test_selected_text(selected_text)
+            )
+            fluent_menu.addAction(test_action)
+            fluent_menu.addSeparator()
+            
+            # 也提供标准的WebEngine菜单选项
+            next_page_action = Action(
+                FluentIcon.PAGE_RIGHT,
+                web_view.tr(res.menu_next_page),
+                triggered=browserWindow.gui.nextPageBtn.click,
+                shortcut='Ctrl+.'
+            )
+            previous_page_action = Action(
+                FluentIcon.PAGE_LEFT,
+                web_view.tr(res.menu_prev_page),
+                triggered=browserWindow.gui.previousPageBtn.click,
+                shortcut='Ctrl+,'
+            )
+            fluent_menu.addAction(next_page_action)
+            fluent_menu.addAction(previous_page_action)
+            
+            fluent_menu.exec(event.globalPos())
+            event.accept()
+        
+        def _handle_test_selected_text(texts: str):
+            """处理选中文本的测试
+            
+            逻辑:
+            1. 接收选中文本
+            2. 调用PublishPageToolView.handle()进行测试
+            3. 显示测试结果
+            4. 根据结果处理后续操作
+            
+            Args:
+                texts: 选中的文本
+            """
+            if not texts or not texts.strip():
+                # 没有获取到文本，从剪贴板读取
+                from PyQt5.QtWidgets import QApplication
+                clipboard = QApplication.clipboard()
+                texts = clipboard.text().strip()
+            
+            if not texts:
+                from qfluentwidgets import InfoBar, InfoBarPosition
+                from PyQt5.QtCore import Qt
+                InfoBar.error(
+                    title='',
+                    content="请先选中或复制文本",
+                    orient=Qt.Horizontal,
+                    isClosable=True,
+                    position=InfoBarPosition.TOP,
+                    duration=3000,
+                    parent=browserWindow
+                )
+                return
+            
+            # 从发布页工具模块导入PublishPageToolView第一次会苦死，所以需要不总是核寰导入
+            # 仅在实际需要时导入
+            try:
+                from GUI.tools.publish_page import PublishPageToolView
+                # 调用已经初始化好的PublishPageToolView帮助类的handle()方法
+                publish_tool = PublishPageToolView(browserWindow.gui)
+                publish_tool.handle(texts)
+            except Exception as e:
+                from qfluentwidgets import InfoBar, InfoBarPosition
+                from PyQt5.QtCore import Qt
+                InfoBar.error(
+                    title='',
+                    content=f"测试出错: {str(e)}",
+                    orient=Qt.Horizontal,
+                    isClosable=True,
+                    position=InfoBarPosition.TOP,
+                    duration=5000,
+                    parent=browserWindow
+                )
+        
         web_view = browserWindow.view
         web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
