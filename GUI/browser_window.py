@@ -84,7 +84,25 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.set_btn()
         self.set_html()
         self.patch_tip()
-        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+        
+        # 为发布页面设置专用的右键菜单
+        # 检查是否是发布页面（通过文件名或URL标识）
+        if self.is_publish_page():
+            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
+        else:
+            # 普通预览页使用标准的WebEngine菜单
+            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+
+    def is_publish_page(self) -> bool:
+        """判断当前是否是发布页面
+        
+        Returns:
+            bool: 是否是发布页面
+        """
+        # 检查临时文件名是否包含publish字样
+        if hasattr(self.gui, 'tf') and self.gui.tf:
+            return 'publish' in str(self.gui.tf).lower()
+        return False
 
     def patch_tip(self):
         for button in (self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn):
