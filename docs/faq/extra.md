@@ -3,7 +3,7 @@
 
 ## 1. 域名相关
 
-::: tip 简化流程的方法 > [🎸4.3-域名工具](/feat/#_4-3-%E5%9F%9F%E5%90%8D%E5%B7%A5%E5%85%B7-domaintool)
+::: tip 简化流程 > `v2.7.0` 起在检测失败阶段已自动开内置浏览器引导  
 :::
 各网站的 `发布页`/`永久链接` 能在 `site-packages/utils/website/ins.py` 里找到  
 （国内域名专用）域名缓存文件为 `site-packages/__temp/xxx_domain.txt`（xxx = `wnacg`或`jm`），  

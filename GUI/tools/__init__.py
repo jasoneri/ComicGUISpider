@@ -63,10 +63,6 @@ class ToolWindow(FramelessWindow):
         self.main_layout.addLayout(first_row)
         self.main_layout.addLayout(second_row)
 
-    def addDomainTool(self):
-        self.dmInterface = DomainToolView(self.gui)
-        self.addSubInterface(self.dmInterface, 'dmInterface', 'domainTool')
-
     def addAggrSearchView(self):
         self.asInterface = AggrSearchView(self.gui)
         self.addSubInterface(self.asInterface, 'asInterface', 'aggrSearch')

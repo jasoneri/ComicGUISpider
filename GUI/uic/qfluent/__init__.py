@@ -153,3 +153,23 @@ class MonkeyPatch:
 
         web_view = browserWindow.view
         web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
+
+    @staticmethod
+    def rbutton_menu_PulishPage(browserWindow):
+        def custom_context_menu(self, event):
+            selected_text = ""
+            try:
+                def get_selected_text(result):
+                    nonlocal selected_text
+                    selected_text = result or ""
+                self.page().runJavaScript("window.getSelection().toString();", get_selected_text)
+            except:
+                pass
+            fluent_menu = RoundMenu(parent=self)
+            test_action = Action(FluentIcon.COMMAND_PROMPT, text="选中内地域名进行检测", triggered=lambda: browserWindow.gui.tpd(selected_text))
+            fluent_menu.addAction(test_action)
+            fluent_menu.exec(event.globalPos())
+            event.accept()
+
+        web_view = browserWindow.view
+        web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
