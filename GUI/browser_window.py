@@ -143,8 +143,9 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.load_home()
 
-    def keep_top_hint(self):
-        if self.topHintBox.isChecked():
+    def keep_top_hint(self, _flag: bool = None):
+        flag = _flag if _flag is not None else self.topHintBox.isChecked()
+        if flag:
             self.setWindowFlags(Qt.WindowStaysOnTopHint)
         else:
             self.setWindowFlags(Qt.Widget)

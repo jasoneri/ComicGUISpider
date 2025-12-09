@@ -233,7 +233,7 @@ class BaseComicSpider(scrapy.Spider):
         for ep in book.episodes:
             url_list = self.mk_page_tasks(url=ep.url)
             now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % book.name
-            self.say(font_color(f"📢	{now_start_crawl_desc}：{ep}", cls='theme-tip', size=5))
+            self.say(font_color(f"📢\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=5))
             for url in url_list:
                 yield scrapy.Request(url=url, callback=self.parse_fin_page, meta={'ep': ep})
 
@@ -258,9 +258,8 @@ class BaseComicSpider(scrapy.Spider):
         return [kw['url']]
 
     def set_task(self, task_info: t.Union[BookInfo, Episode]):
-        comic_info_obj = self.mr.out(task_info)
         tasks_obj = task_info.to_tasks_obj()
-        tasks_obj.comic_info = comic_info_obj
+        tasks_obj.meta_info = self.mr.toMetaInfo(task_info)
         self.tasks[tasks_obj.taskid] = tasks_obj
         self.Q('TasksQueue').send(tasks_obj, wait=True)
 
@@ -298,7 +297,7 @@ class BaseComicSpider(scrapy.Spider):
         spider.say = SayToGui(spider, q, spider.text_browser_state)
         spider.sql_handler = SqlUtils()
         spider.ut = spider_utils_map[spider.name]
-        spider.mr = MetaRecorder()
+        spider.mr = MetaRecorder(conf)
         return spider
 
     def _remove_cache(self):

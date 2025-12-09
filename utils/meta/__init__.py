@@ -1,13 +1,37 @@
-from typing import Optional, Union
 import re
+import pathlib as p
+import shutil
+import zipfile
+from typing import Optional, Union
 from utils.website.info import BookInfo, Episode
 
 
-class ComicInfo:
-    """ComicInfo.xml 数据对象，负责数据转换与XML生成。"""
+class MetaMixin:
+    file = ""
+    
+    def __init__(self, info: Union[BookInfo, Episode]):
+        self.info = info
+
+    @property
+    def content(self) -> str:
+        return ""
+
+    def sv_meta_in(self, path):
+        _p = path.joinpath(self.file)
+        if not _p.exists():
+            with open(_p, 'w', encoding='utf-8') as f:
+                f.write(self.content)
+
+    def fin_callback(self, *args):
+        ...
+
+
+class ComicInfo(MetaMixin):
+    file = "ComicInfo.xml"
 
     def __init__(self, info: Union[BookInfo, Episode]):
         """完成大部分通用正确的数据转换。"""
+        super().__init__(info)
         if isinstance(info, Episode):
             episode = info
             book = episode.from_book
@@ -58,8 +82,7 @@ class ComicInfo:
     def _parse_language(self) -> str:
         """从 source/tags 推断语言代码。明确解析到时写，否则默认 zh。"""
         if self.source == "ehentai":
-            lang_tag = next((t for t in self.tags if t.startswith("language:")), None)
-            if lang_tag:
+            if lang_tag := next((_ for _ in self.tags if _.startswith("language:")), None):
                 lang = lang_tag.split(":", 1)[1]
                 if lang == "chinese":
                     return "zh"
@@ -75,7 +98,7 @@ class ComicInfo:
         return self
 
     @property
-    def out(self) -> str:
+    def content(self) -> str:
         """生成 ComicInfo.xml 字符串。"""
         xml_lines = []
         xml_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
@@ -102,6 +125,7 @@ class ComicInfo:
         add_field("Number", self.number)
         add_field("Writer", self.artist)
         add_field("Publisher", self.source)
+        # TODO[0](2025-12-08): jm发布日期，来源等等
 
         if self.year:
             add_field("Year", self.year)
@@ -125,14 +149,31 @@ class ComicInfo:
         xml_lines.append("</ComicInfo>")
         return "\n".join(xml_lines)
 
+    def fin_callback(self, _p: p.Path):
+        create_cbz(_p)
+
+
+def create_cbz(src):
+    cbz_filename = src.parent / f"{src.name}.cbz"
+    with zipfile.ZipFile(cbz_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for file in sorted(src.iterdir()):
+            if file.is_file():
+                zipf.write(file, arcname=file.name)
+    shutil.rmtree(src)
+
+
+class Blank(MetaMixin):
+    def sv_meta_in(self, path):
+        return
+
 
 class MetaRecorder:
-    """元数据记录器入口类，未来可扩展为多种元数据格式。"""
+    def __init__(self, _conf):
+        self.meta_type = _conf.meta_type
 
-    def out(self, info: Union[BookInfo, Episode]) -> ComicInfo:
-        """对外唯一接口：生成元数据对象。"""
-        return self._toComicInfo(info)
-
-    def _toComicInfo(self, info: Union[BookInfo, Episode]) -> ComicInfo:
-        """内部方法：将 BookInfo/Episode 转换为 ComicInfo 对象。"""
-        return ComicInfo(info)
+    def toMetaInfo(self, info: Union[BookInfo, Episode]):
+        match self.meta_type:
+            case "ComicInfo.xml":
+                return ComicInfo(info)
+            case "-" | _:
+                return Blank(info)

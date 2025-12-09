@@ -31,9 +31,9 @@ CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6]
 
 DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
     1: ['更新', '排名日', '排名周', '排名月', '排名总'],
-    2: ['C106', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
-    3: ['C106', '更新', '汉化'],
-    4: [res.EHentai.MAPPINGS_POPULAR, res.EHentai.MAPPINGS_INDEX, 'C106'],
+    2: ['C107', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
+    3: ['C107', '更新', '汉化'],
+    4: [res.EHentai.MAPPINGS_POPULAR, res.EHentai.MAPPINGS_INDEX, 'C107'],
     5: ['更新', '人气'],
     6: ['index-all', 'popular/week-all', 'popular/month-all']
 }

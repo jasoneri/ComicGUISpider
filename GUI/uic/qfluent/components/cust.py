@@ -116,9 +116,15 @@ class ExpandSettings(QtWidgets.QWidget):
         setattr(self.conf_dia, "horizontalLayout_label_custom_map", custMapLayout)
 
         second_row = QtWidgets.QHBoxLayout()
-        first_label = StrongBodyLabel("拷贝设置", self)
-        self.conf_dia.kbShowDhb = CheckBox("展示单行本")
-        second_row.addWidget(first_label)
+        pypi_label = StrongBodyLabel(res.GUI.Uic.confDia_pypiLabel, self)
+        pypi_label.setMinimumSize(QtCore.QSize(40, 20))
+        lang_label = StrongBodyLabel(res.GUI.Uic.confDia_langLabel, self)
+        lang_label.setMinimumSize(QtCore.QSize(40, 20))
+        self.conf_dia.kbShowDhb = CheckBox("展示拷贝单行本")
+        second_row.addWidget(lang_label)
+        second_row.addWidget(self.conf_dia.langBox)
+        second_row.addWidget(pypi_label)
+        second_row.addWidget(self.conf_dia.pypiSourceBox)
         second_row.addStretch()
         second_row.addWidget(self.conf_dia.kbShowDhb)
         
