@@ -72,6 +72,7 @@ https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)
 #### 🎁 Features
 
 ✅ 新增 `元数据记录` 功能，例如 `.czb` 的 `ComicInfo.xml`，具体看 [`配置 > 元数据类型`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
+✅ `rvTool > 显示记录` 记录窗口新增 `将选中行发送至输入框` 按钮  
 
 #### 🐞 Fix
 

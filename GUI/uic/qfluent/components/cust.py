@@ -1,15 +1,15 @@
 import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, PrimaryPushButton,
+    TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
     FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, TeachingTipTailPosition, ImageLabel, 
-    StrongBodyLabel, CheckBox, TextEdit
+    StrongBodyLabel, CheckBox
 )
 
 
@@ -213,7 +213,7 @@ class TableFlyoutView(FlyoutViewBase):
 
     def __init__(self, data, parent=None):
         super().__init__(parent)
-        self.toolWin = parent
+        self.rvInterface = parent
         p_width = parent.width()
         p_height = parent.height()
         self.width = int(p_width * 0.8)
@@ -233,7 +233,10 @@ class TableFlyoutView(FlyoutViewBase):
         self.closeBtn.clicked.connect(self.closed)
         self.delBtn = PrimaryPushButton(FluentIcon.DELETE, "删除选中记录", self)
         self.delBtn.clicked.connect(self.delete_selected_record)
+        self.sendBtn = PrimaryPushButton(FluentIcon.SEND, "发送选中记录至输入框", self)
+        self.sendBtn.clicked.connect(self.send_selected_record)
         second_row.addWidget(self.delBtn)
+        second_row.addWidget(self.sendBtn)
         second_row.addItem(spacerItem)
         second_row.addWidget(self.closeBtn)
         
@@ -276,7 +279,7 @@ class TableFlyoutView(FlyoutViewBase):
             InfoBar.warning(
                 title='', content='请先选择要删除的记录',
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-                duration=5000, parent=self.toolWin
+                duration=5000, parent=self.rvInterface
             )
             return
         selected_indexes = selection_model.selectedRows()
@@ -285,3 +288,27 @@ class TableFlyoutView(FlyoutViewBase):
         book_name = model.item(row, 0).text()
         delete_record(book_name)
         model.removeRow(row)
+
+    def send_selected_record(self):
+        selection_model = self.tableView.selectionModel()
+        if not selection_model.hasSelection():
+            InfoBar.warning(
+                title='', content='请先选择要发送的记录',
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+                duration=5000, parent=self.rvInterface
+            )
+            return
+        selected_indexes = selection_model.selectedRows()
+        row = selected_indexes[0].row()
+        model = self.tableView.model()
+        book_name = model.item(row, 0).text()
+        def do():
+            self.rvInterface.toolWin.gui.searchinput.setText(book_name)
+            InfoBar.info(
+                title='', content=f'「{book_name}」已发至输入框',
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
+                duration=2000, parent=self.rvInterface.toolWin.gui.textBrowser
+            )
+        QTimer.singleShot(10, do)
+        self.rvInterface.table_fv.close()
+        self.rvInterface.toolWin.close()
