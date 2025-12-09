@@ -13,7 +13,7 @@ from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtCore import QUrl, Qt
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
-    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar
+    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
 )
 import uncurl
 
@@ -69,12 +69,18 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self._repaint_textEdit()
 
     def retranslateUiAgain(self, Dialog):
+        self.langBox = ComboBox(Dialog)
+        self.langBox.setObjectName("langBox")
+        self.langBox.setCurrentIndex(-1)
+        self.pypiSourceBox = ComboBox(Dialog)
+        self.pypiSourceBox.setObjectName("pypiSourceBox")
         _translate = QtCore.QCoreApplication.translate
         self.label_2.setText(_translate("Dialog", res.GUI.Uic.confDia_labelLogLevel))
         self.label_4.setText(_translate("Dialog", res.GUI.Uic.confDia_labelProxy))
         self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
         self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
         self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
+        self.metaTypeLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_metaType))
         self.concurr_numLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_labelConcurrNum))
         # 添加cookie类型选项
         support = list(COOKIES_PLACEHOLDER.keys())
@@ -88,6 +94,11 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.pypiSourceBox.setItemText(1, _translate("Dialog", "清华源"))
         self.pypiSourceBox.setItemText(2, _translate("Dialog", "阿里源"))
         self.pypiSourceBox.setItemText(3, _translate("Dialog", "华为源"))
+        self.metaTypeBox.addItem("")
+        self.metaTypeBox.addItem("")
+        self.metaTypeBox.setItemText(0, _translate("Dialog", "-"))
+        self.metaTypeBox.setItemText(1, _translate("Dialog", "ComicInfo.xml"))
+        self.metaTypeBox.setCurrentIndex(0)
         self.cookiesBox.setCurrentText(support[0])
         
         for k, ui_key in LANG.items():
@@ -182,6 +193,19 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                     duration=5000, parent=self
                 )
         self.langBox.activated.connect(_tip_lang_change)
+        def _tip_meta_change(idx):
+            match self.metaTypeBox.itemText(idx):
+                case "ComicInfo.xml":
+                    _meta_tip = "适配平台例如：ComicRack, Komga, kavita"
+                case _:
+                    _meta_tip = ""
+            if _meta_tip:
+                InfoBar.success(
+                    title="", content=_meta_tip,
+                    orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+                    duration=5000, parent=self
+                )
+        self.metaTypeBox.activated.connect(_tip_meta_change)
         self.cookiesBox.currentTextChanged.connect(self._on_cookie_type_changed)
         def _tip_on(is_checked: bool, tip_content=None):
             if is_checked:
@@ -213,6 +237,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         self.pypiSourceBox.setCurrentIndex(getattr(conf, "pypi_source"))
         self.langBox.setCurrentIndex(self.langBox.findData(getattr(conf, "lang")))
+        self.metaTypeBox.setCurrentIndex(self.metaTypeBox.findText(getattr(conf, "meta_type")))
         # 仅当 初次confdia ui创建 & conf值设入ui后，才绑定槽函数
         if self._init_flag:
             self.bind_logic()
@@ -254,6 +279,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "sv_path": sv_path,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
             "lang": getattr(self, "langBox").currentData(),
+            "meta_type": getattr(self, "metaTypeBox").currentText(),
             "concurr_num": getattr(self, "concurr_numEdit").value(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "addUuid": getattr(self, "addUuid").isChecked(),

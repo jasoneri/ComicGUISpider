@@ -32,8 +32,8 @@ export default defineConfig({
         outline: 'deep',
         // https://vitepress.dev/reference/default-theme-config
         logo: {
-            dark: '/CGS-girl.png',
-            light: '/CGS-girl.png',
+            dark: 'https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png',
+            light: 'https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png',
         },
         editLink: {
             pattern: 'https://github.com/jasoneri/ComicGUISpider/edit/main/docs/:path',
@@ -145,7 +145,11 @@ export default defineConfig({
                         link: "/dev/contribute",
                     },
                     {
-                        text: "开发指南",
+                        text: "🤖ai开发指南",
+                        link: "/dev/ai_dev",
+                    },
+                    {
+                        text: "原开发指南",
                         link: "/dev/dev_spider",
                     },
                     {

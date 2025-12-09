@@ -39,7 +39,6 @@ class PreprocessManager(QObject):
                     self._preprocess_jm()
                 else:
                     self.gui.say("🔔 已设置代理，跳过域名缓存处理")
-                    self.gui.toolWin.addDomainTool()
                     self.gui.toolWin.addAggrSearchView()
             case 4:
                 self._preprocess_ehentai()
@@ -88,14 +87,14 @@ class PreprocessManager(QObject):
 
         def on_error(_):
             self.gui.disable_start()
-            self.gui.say("<br>❌ 域名获取/测试失效，点击 rV按钮 > domainTool, 按指示操作")
+            self.gui.say("<br>❌ 域名获取/测试失效，按内置浏览器引导操作")
+            self.gui.do_publish()
 
         self.task_manager.execute_simple_task(
             task_func=task,
             success_callback=on_success, show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="更新域名缓存", task_id="domain_preprocess"
         )
-        self.gui.toolWin.addDomainTool()
         self.gui.toolWin.addAggrSearchView()
 
     def _preprocess_ehentai(self):

@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="docs/public/CGS-girl.png" alt="logo">
+    <img src="https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png" alt="logo">
   </a>
   <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
@@ -27,7 +27,7 @@
 
 ## ✨功能特性
 
-- 动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
+- 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
 - 开预览后随便点点就能下载，预览窗口充当于微型浏览器
 - 通过加减号，`0 全选`，`-3 选倒数三个` 等输入规则，方便指定选择
 - 基于翻页保留，体验如同塞进购物车
@@ -62,25 +62,25 @@ https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)
 
 ## 📢更新
 
-✨ 更换了 [🏠项目主页](https://doc.comicguispider.nyc.mn/) 域名/部署  
-图链/项目主页/文档都已转用 cloudflare 加速优化，假如 cf 都能卡的话可以考虑用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
+✨ 软件内外更新了 CGS 猫娘图（ ~~施法: 你是一只贫穷，只能捡路边法棍吃的猫娘~~ ）  
+✨ 更换了 [🏠项目主页](https://doc.comicguispider.nyc.mn/) 域名/部署，图链/项目主页/文档都已转用 cloudflare 加速优化，  
+假如 cf 都能卡的话可以考虑用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
 【🔉长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
 #### 🎁 Features
 
-✅ 新增`聚合搜索`功能，具体看 [适用性](
-https://doc.comicguispider.nyc.mn/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 和 [功能介绍](
-https://doc.comicguispider.nyc.mn/feat/ags) （✨v2.6.1 增加 eh 适配）
+✅ 新增 `元数据记录` 功能，例如 `.czb` 的 `ComicInfo.xml`，具体看 [`配置 > 元数据类型`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
+✅ 简化处理发布页域名相关流程  
+✅ `rvTool > 显示记录` 记录窗口新增 `将选中行发送至输入框` 按钮  
 
 #### 🐞 Fix
 
-✅ 较多任务时自动降并发（✨v2.6.1 修复拷贝异常降并发）  
-✅ 修复 wnacg 发布页域名解析, wnacg 已设代理下跳过域名缓存处理  
-✅ 排除 jm 的猜你喜欢的12本，空搜索时即空, 优化 jm 剪贴板正则格式匹配  
+✅ 配置窗口做了调整  
+✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
 
-> 可参考 [更新方法](https://doc.comicguispider.nyc.mn/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
+> 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
 

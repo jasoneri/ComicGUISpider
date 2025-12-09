@@ -84,7 +84,15 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.set_btn()
         self.set_html()
         self.patch_tip()
-        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+        if self.is_publish_page():
+            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
+        else:
+            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+
+    def is_publish_page(self) -> bool:
+        if hasattr(self.gui, 'tf') and self.gui.tf:
+            return 'publish' in str(self.gui.tf).lower()
+        return False
 
     def patch_tip(self):
         for button in (self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn):
@@ -135,8 +143,9 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.load_home()
 
-    def keep_top_hint(self):
-        if self.topHintBox.isChecked():
+    def keep_top_hint(self, _flag: bool = None):
+        flag = _flag if _flag is not None else self.topHintBox.isChecked()
+        if flag:
             self.setWindowFlags(Qt.WindowStaysOnTopHint)
         else:
             self.setWindowFlags(Qt.Widget)
