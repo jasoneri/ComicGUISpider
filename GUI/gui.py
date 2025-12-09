@@ -594,8 +594,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.tf = TmpFormatHtml.created_temp_html(html, flag="publish")
         self.set_preview()
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
-        if self.BrowserWindow.width() < screen_width * 0.6:
-            self.BrowserWindow.resize(int(screen_width * 0.6), self.BrowserWindow.height()+100)
+        o_w, o_h = self.BrowserWindow.width(), self.BrowserWindow.height()
+        if o_w < screen_width * 0.75:
+            o_w = int(screen_width * 0.75)
+        self.BrowserWindow.resize(o_w, o_h+150)
         self.BrowserWindow.show()
 
     def tpd(self, texts):
