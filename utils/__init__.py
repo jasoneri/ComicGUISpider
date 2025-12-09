@@ -22,9 +22,6 @@ conf = Conf()
 def bs_theme():
     return "dark" if conf.darkTheme else "light"
 
-def bs_theme():
-    return "dark" if conf.darkTheme else "light"
-
 
 class PresetHtmlEl:
     _rule = ['em', ]
