@@ -71,11 +71,8 @@ class ComicPipeline(ImagesPipeline):
         
         os.makedirs(path, exist_ok=True)
         tasks_obj = spider.tasks.get(uuid_md5)
-        if tasks_obj and getattr(tasks_obj, 'comic_info', None):
-            comic_info_path = path.joinpath("ComicInfo.xml")
-            if not comic_info_path.exists():
-                with open(comic_info_path, 'w', encoding='utf-8') as f:
-                    f.write(tasks_obj.comic_info.out)
+        if tasks_obj and getattr(tasks_obj, 'meta_info', None):
+            tasks_obj.meta_info.sv_meta_in(path)
 
         spider.tasks_path[uuid_md5] = path
         return path
@@ -98,6 +95,9 @@ class ComicPipeline(ImagesPipeline):
         _tasks.downloaded.append(task_obj)
         curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
         if conf.isDeduplicate and curr_progress >= 100:
+            tasks_obj = spider.tasks[task_obj.taskid]
+            if getattr(tasks_obj, 'meta_info', None):
+                tasks_obj.meta_info.fin_callback(spider.tasks_path[tasks_obj.taskid])
             spider.sql_handler.add(task_obj.taskid)
         spider.Q('TasksQueue').send(task_obj, wait=True)
         stats.inc_value('image/downloaded')

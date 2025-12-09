@@ -1,7 +1,6 @@
 # 🎸 常规功能
 
 ::: tip 欢迎提供功能建议，提交issue / PR / 此页下方评论区留言 等  
-例如打包 epub 格式 zip（需描述过程结果）
 :::
 
 ## 适用性
@@ -38,10 +37,10 @@
 ![toolsWin](../assets/img/feat/toolsWin.png)
 
 点击 rV 按钮触发显示，点击对应标签切换工具，常驻 rV工具，状态工具  
- 
-- 域名工具( domainTool )仅选择 jm/wnacg 触发  
+
 - 聚合搜索( aggrSearch )目前仅选择 jm/wnacg/ehentai 触发  
 - hitomiTool 仅选择 hitomi 触发  
+- `domainTool` 由于 v2.7.0 存在简化流程而删除, 需要手动处理的话参考 [📒域名相关](/faq/extra)  
 
 ### 4.1 rV工具 / rvTool
 
@@ -59,21 +58,14 @@ Maybe: 后续能扩展做订阅
 ### 4.2 状态工具 / statusTool
 
 除了显示可用状态，还有对策加密更新勤快的网站功能 ~~（少更点吧欧内该）~~  
-
-### 4.3 域名工具 / domainTool
-
-预处理域名失败后会引导到此工具，内有详细指引  
-
-::: warning 发布页登不上的情况有两种  
-1. 自身网络问题：自行用手机测、切代理尝试
-2. 发布页崩了（参考 wnacg 之前换过域名）：先参考 [📒1-域名相关](/faq/extra) 排查，未果则上报  
+::: warning new: 不要过于依赖这个指望开发者更新拷贝，目前已经没精力放在拷贝的墙内小杂网络优化处理上了  
 :::
 
-### 4.4 hitomiTool
+### 4.3 hitomiTool
 
 仅 hitomi 用，[📹参考用法](https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif)
 
-### 4.5 aggrSearch
+### 4.4 aggrSearch
 
 [🔎跳转阅读 > 使用](/feat/ags)  
 

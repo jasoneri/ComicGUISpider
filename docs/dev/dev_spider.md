@@ -1,4 +1,4 @@
-# ✒️ 其他网站的扩展开发指南
+# ✒️ 其他网站的扩展原开发指南
 
 Website crawler develope guide
 

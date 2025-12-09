@@ -129,13 +129,17 @@ class ComicDlAllProxyMiddleware(ComicspiderDownloaderMiddleware):
 
 
 class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
-    """使用情况是“通常页需要over wall访问”，“图源cn就能访问”... 因此domain的都使用代理"""
+    """使用情况是"通常页需要over wall访问"，"图源cn就能访问"... 因此domain的都使用代理
+    Spider 可定义 proxy_domains 列表指定需要代理的域名，未定义则回退到 domain
+    """
     domain_regex: re.Pattern = None
 
     @classmethod
     def from_crawler(cls, crawler):
         _ = super(ComicDlProxyMiddleware, cls).from_crawler(crawler)
-        _.domain_regex = re.compile(crawler.spider.domain)
+        spider = crawler.spider
+        domains = getattr(spider, 'proxy_domains', None) or [spider.domain]
+        _.domain_regex = re.compile('|'.join(re.escape(d) for d in domains))
         return _
 
     def process_request(self, request, spider):

@@ -1,8 +1,8 @@
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="../public/CGS-girl.png" alt="logo">
+    <img src="https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png" alt="logo">
   </a>
-  <h1 id="koishi"style="margin: 0.1em 0;">ComicGUISpider</h1>
+  <h1 id="koishi"style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
   <img src="https://img.shields.io/badge/Platform-All-blue?color=#4ec820" alt="tag">
   <img src="https://img.shields.io/badge/-%3E3.8%20%3C3.14-brightgreen.svg?logo=python" alt="tag">
@@ -11,8 +11,8 @@
   </a>
 
   <p align="center">
-  <a href="https://doc.comicguispider.nyc.mn/locate/en/">🏠HomePage</a> | 
-  <a href="https://doc.comicguispider.nyc.mn/locate/en/deploy/quick-start">🚀Quick-Start</a> | 
+  <a href="https://doc.comicguispider.nyc.mn/en/">🏠HomePage</a> | 
+  <a href="https://doc.comicguispider.nyc.mn/en/deploy/quick-start">🚀Quick-Start</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦portable-pkg</a>
   </p>
 

@@ -92,7 +92,7 @@ class Cache:
                 except Exception as e:
                     if cache_path.exists():
                         os.remove(cache_path)
-                    raise RuntimeError(f"{cache_path.stem} 失效，已删除<br>重启 CGS 以更新缓存")
+                    raise RuntimeError(f"{cache_path.stem} 失效，已删除<br>出错时优先看下方日志(若有)，次之可试重启 CGS 以更新缓存")
             return wrapper
         cache_path = temp_p.joinpath(self.cache_f)
         return decorator

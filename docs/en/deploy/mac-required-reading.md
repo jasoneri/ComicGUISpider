@@ -2,7 +2,7 @@
 
 ## 📑 Description
 
-::: tip protable application after version of v2.4.0 is nolonger support except of chinese user, as script of CGS.app use gitee instead of github, and pypi chinese mirror.
+::: tip Portable application versions after v2.4.0 are no longer supported except for Chinese users, as the script of CGS.app uses Gitee instead of GitHub and the Chinese PyPI mirror.
 but it still easily install or use CGS by  `uv tool`, take a look for [uv tool install](/en/deploy/quick-start), my friends.
 :::
 

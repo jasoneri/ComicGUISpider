@@ -1,10 +1,6 @@
 import tempfile
-from utils import ori_path, temp_p, conf
+from utils import ori_path, temp_p, conf, bs_theme
 from utils.preview.el import El
-
-
-def bs_theme():
-    return "dark" if conf.darkTheme else "light"
 
 
 class TF(str):
@@ -18,6 +14,15 @@ class TF(str):
 
 
 format_path = ori_path.joinpath("GUI/src/preview_format")
+
+
+class TmpFormatHtml:
+    @classmethod
+    def created_temp_html(cls, html, flag=None):
+        with tempfile.NamedTemporaryFile(prefix=flag, suffix=".html", delete=False, dir=temp_p) as tf:
+            tf.write(bytes(html, 'utf-8'))
+            f = str(tf.name)
+        return TF(f)
 
 
 class PreviewHtml:

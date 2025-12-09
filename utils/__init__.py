@@ -19,6 +19,9 @@ temp_p.mkdir(exist_ok=True)
 
 conf = Conf()
 
+def bs_theme():
+    return "dark" if conf.darkTheme else "light"
+
 
 class PresetHtmlEl:
     _rule = ['em', ]
