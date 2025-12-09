@@ -328,7 +328,7 @@ class BaseComicSpider(scrapy.Spider):
 
     def _handle_finished_status(self, stats):
         if 'init' in self.process_state.process:
-            self.say(font_color('unknown init end,<br>if error occur, please contact maintainer with operation-process', cls='theme-err', size=6))
+            self.say(font_color('unknown init end, if cgs not work, please contact maintainer with log', cls='theme-tip'))
             return
         downloaded_count = stats.get_value('image/downloaded', 0)
         exception_count = stats.get_value('process_exception/count', 0)
