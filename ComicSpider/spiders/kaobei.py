@@ -53,7 +53,7 @@ class KaobeiSpider(BaseComicSpider):
         'Accept': '*/*',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        'dnts': '2',
+        'dnts': '3',
         'Connection': 'keep-alive',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
@@ -75,6 +75,7 @@ class KaobeiSpider(BaseComicSpider):
     }
     domain = domain
     pc_domain = pc_domain
+    proxy_domains = [domain, pc_domain]  # 需要代理的域名列表
     custom_settings = {
         "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.UAKaobeiMiddleware': 5,
                                    'ComicSpider.middlewares.ComicDlProxyMiddleware': 6},

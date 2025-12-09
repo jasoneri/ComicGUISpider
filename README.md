@@ -27,7 +27,7 @@
 
 ## ✨功能特性
 
-- 动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
+- 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
 - 开预览后随便点点就能下载，预览窗口充当于微型浏览器
 - 通过加减号，`0 全选`，`-3 选倒数三个` 等输入规则，方便指定选择
 - 基于翻页保留，体验如同塞进购物车
@@ -76,6 +76,7 @@ https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)
 #### 🐞 Fix
 
 ✅ 配置窗口做了调整  
+✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 

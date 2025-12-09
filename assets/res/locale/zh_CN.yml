@@ -23,7 +23,7 @@ GUI:
   WorkThread_finish_flag: "后台完成"
   WorkThread_empty_flag: "后台正常退出没有"
   copymaga_tips: "拷贝已解锁章节，例如福利连"
-  copymaga_page_status_tip: "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
+  copymaga_page_status_tip: "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推\n⚠️拷贝墙内风控难以复现，只受理代理仍然流程出错的问题"
   global_err_hook: "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
   input_format_err: "输入格式错误，请鼠标移到输入框查看规则提示"
   reboot_tip: "♻️ 内置重启中: 正在清除残留后台进程.."
