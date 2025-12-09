@@ -7,7 +7,7 @@ hero:
   text: "鼠标点几点轻松下漫画"
   tagline: 最自在
   image:
-    src: /CGS-girl.png
+    src: /cgs_sleep.png
     alt: CGS
   actions:
     - theme: brand

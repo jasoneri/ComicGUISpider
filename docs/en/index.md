@@ -7,7 +7,7 @@ hero:
   text: "Easily dl Comic"
   tagline: have fun it
   image:
-    src: /CGS-girl.png
+    src: /cgs_sleep.png
     alt: CGS
   actions:
     - theme: brand

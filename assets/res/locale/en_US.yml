@@ -107,9 +107,12 @@ GUI:
     confDia_labelAddUuid: "AddUuid"
     confDia_labelProxy: "Proxy"
     confDia_labelMap: "Mapping"
+    confDia_langLabel: "Language"
+    confDia_pypiLabel: "Pypi"
     confDia_labelPreset: "Preset"
     confDia_labelClipDb: "ClipDB"
     confDia_labelClipNum: "ClipEntries"
+    confDia_metaType: "metaType"
     confDia_labelConcurrNum: "ConcurrNum"
     confDia_cookies_placeholder: "Refer to the animated guide in the configuration documentation for cookie acquisition methods\nIncluding fields:\n"
     confDia_svPathWarning: "set Save Path failed, read rule by right-button"
@@ -125,8 +128,8 @@ GUI:
     confDia_tip_deduplicate_on: "Dedup mode, take effect after save and reboot"
     confDia_tip_adduuid_on: "AddUuid, take effect after save and reboot"
     confDia_tip_adduuid_on: "kb show tankobon, take effect after save and reboot"
-    confDia_show_adv_settings: "click show advance settings"
-    confDia_hide_adv_settings: "click hide advance settings"
+    confDia_show_adv_settings: "click show other settings"
+    confDia_hide_adv_settings: "click hide other settings"
 
 EHentai:
   COOKIES_NOT_SET: "`eh-cookies` must be set for exhentai access"
