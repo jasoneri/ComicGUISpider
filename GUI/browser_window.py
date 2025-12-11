@@ -4,6 +4,7 @@ from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWebEngineWidgets import QWebEnginePage
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
 from qframelesswindow.webengine import FramelessWebEngineView
@@ -31,6 +32,23 @@ class RefererInterceptor(QWebEngineUrlRequestInterceptor):
             info.setHttpHeader(b"referer", self.referer_url.encode())
 
 
+class CustomWebEnginePage(QWebEnginePage):
+    def createWindow(self, _type):
+        new_page = QWebEnginePage(self.profile(), self.parent())
+        new_page.urlChanged.connect(lambda url: self.setUrl(url) if url.isValid() else None)
+        return new_page
+
+
+class CustomFramelessWebEngineView(FramelessWebEngineView):
+    def createPage(self):
+        return CustomWebEnginePage(self.page().profile(), self)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        custom_page = self.createPage()
+        self.setPage(custom_page)
+
+
 class BrowserWindow(QMainWindow, Ui_browser):
     def __init__(self, gui, proxies: str = None):
         super(BrowserWindow, self).__init__()
@@ -40,7 +58,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         if proxies:
             self.set_proxies(proxies)
         self.gui = gui
-        self.view = FramelessWebEngineView(self)
+        self.view = CustomFramelessWebEngineView(self)
         self.profile = self.view.page().profile()
         self.profile.setUrlRequestInterceptor(self.interceptor)
         self.home_url = QUrl.fromLocalFile(self.gui.tf)

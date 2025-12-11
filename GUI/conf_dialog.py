@@ -9,8 +9,8 @@ from functools import partial
 import yaml
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter, QApplication
-from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtCore import QUrl, Qt
+from PyQt5.QtGui import QGuiApplication
+from PyQt5.QtCore import QUrl, Qt, QRect
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
     PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
@@ -169,7 +169,15 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def bind_logic(self):
         def _open_docs():
-            QDesktopServices.openUrl(QUrl('https://doc.comicguispider.nyc.mn/'))
+            screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
+            rect = QRect(self.gui.x(), int(screen_height*0.05), 
+                self.gui.width(), int(screen_height*0.9))
+            if not getattr(self.gui, 'BrowserWindow'):
+                self.gui.set_preview(rect)
+            else:
+                self.gui.BrowserWindow.setGeometry(rect)
+            self.gui.BrowserWindow.view.load(QUrl('https://doc.comicguispider.nyc.mn/'))
+            self.gui.BrowserWindow.show()
         self.descBtn.clicked.connect(_open_docs)
         def _switch_mode():
             if self.darkTheme.isChecked():

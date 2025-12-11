@@ -329,14 +329,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.preview.duel_contents()
         self.tf = self.preview.created_temp_html
 
-    def set_preview(self):
+    def set_preview(self, rect=None):
         self.BrowserWindow = BrowserWindowCls(self)
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
-        self.BrowserWindow.setGeometry(QRect(
+        rect = rect or QRect(
             self.x() + self.funcGroupBox.x(),
             preview_y if preview_y > 0 else 200,
             self.BrowserWindow.width(), self.BrowserWindow.height()
-        ))
+        )
+        self.BrowserWindow.setGeometry(rect)
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()

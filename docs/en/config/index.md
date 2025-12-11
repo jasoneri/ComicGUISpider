@@ -1,4 +1,4 @@
-# 🔨 配置
+# 🔨 Config
 
 ![conf](../../assets/img/config/conf_usage_en.png)
 

@@ -65,24 +65,6 @@ class StatusToolService:
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
-    async def _fetch_aggr_status(self):
-        try:
-            resp_body = await fetch(Api.cloudflare_status(aggr=True),
-                                    dict(proxy=f"http://{conf.proxies[0]}") if conf.proxies else {})
-            resp_json = json.loads(resp_body)
-            return resp_json
-        except Exception as e:
-            return None
-
-    def fetch_all_status(self):
-        try:
-            resp_json = self.loop.run_until_complete(self._fetch_aggr_status())
-            if not resp_json:
-                return []
-            return [{"web": web, **info} for web, info in resp_json.items()]
-        except Exception as e:
-            return []
-
     async def _update_file(self, local_f, url):
         def to_md5(body: bytes):
             return hashlib.md5(body).hexdigest()
@@ -131,11 +113,6 @@ class StatusToolView(QWidget):
         desc_label = StrongBodyLabel(tools_res.status_desc)
         first_row.addWidget(desc_label)
 
-        self.second_row = QHBoxLayout()
-        linkBtn = HyperlinkButton(FIF.LINK, "https://doc.comicguispider.nyc.mn/", "CGS")
-        self.second_row.insertWidget(1, linkBtn)
-        self.second_row.addStretch()
-
         third_row = QHBoxLayout()
         self.copy2Btn = PrimaryPushButton(FIF.UPDATE, "Update 拷贝", self)
         self.copy2Btn.clicked.connect(self.update_copy2_files)
@@ -144,13 +121,8 @@ class StatusToolView(QWidget):
         third_row.addWidget(self.copy2Btn)
         third_row.addWidget(self.hitomiBtn)
 
-        for row in (first_row, self.second_row, third_row):
+        for row in (first_row, third_row):
             self.main_layout.addLayout(row)
-
-    def showEvent(self, event):
-        super().showEvent(event)
-        if len(self.gui.webs_status) < len(StatusToolService.webs):
-            self.fetch_status()
 
     def hideEvent(self, event):
         super().hideEvent(event)
@@ -159,22 +131,6 @@ class StatusToolView(QWidget):
     def closeEvent(self, event):
         super().closeEvent(event)
         self.task_manager.cleanup()
-
-    def fetch_status(self):
-        def on_success(results):
-            self.handle_status_results(results)
-
-        def on_error(error):
-            self.handle_status_results([])
-
-        # 使用异步任务管理器执行状态获取
-        self.task_manager.execute_simple_task(
-            task_func=self.service.fetch_all_status,
-            success_callback=on_success,
-            error_callback=on_error,
-            tooltip_title=tools_res.status_fetching, tooltip_parent=self,
-            task_id="fetch_status"
-        )
 
     def handle_status_results(self, resps_json):
         for resp_json in resps_json:
