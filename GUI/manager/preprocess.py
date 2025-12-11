@@ -63,7 +63,7 @@ class PreprocessManager(QObject):
 
         def on_error(_):
             self.gui.disable_start()
-            self.gui.say("<br>❌ 解密获取失败，点击 rV按钮 > statusTool > 更新拷贝")
+            self.gui.say("<br>❌ 解密获取失败，内置重启再试下")
 
         self.task_manager.execute_simple_task(
             task_func=manga_copy_task,
