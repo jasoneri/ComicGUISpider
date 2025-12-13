@@ -6,7 +6,7 @@ import traceback
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtGui import QKeySequence, QGuiApplication
-from PyQt5.QtCore import QThread, Qt, QCoreApplication, QRect, QTimer
+from PyQt5.QtCore import QThread, Qt, QCoreApplication, QUrl, QRect, QTimer
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
 from GUI.uic.qfluent import (
@@ -112,7 +112,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.keep_books = []
         self.eps = []
         self.conf_dia = ConfDialog(self)
-        self.textBrowser.setOpenExternalLinks(True)
         self.textBrowser.append(TextUtils.description())
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
@@ -329,14 +328,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.preview.duel_contents()
         self.tf = self.preview.created_temp_html
 
-    def set_preview(self):
+    def set_preview(self, rect=None):
         self.BrowserWindow = BrowserWindowCls(self)
         preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
-        self.BrowserWindow.setGeometry(QRect(
+        rect = rect or QRect(
             self.x() + self.funcGroupBox.x(),
             preview_y if preview_y > 0 else 200,
             self.BrowserWindow.width(), self.BrowserWindow.height()
-        ))
+        )
+        self.BrowserWindow.setGeometry(rect)
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
@@ -606,3 +606,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             view=self.BrowserWindow.domain_v, target=self.BrowserWindow, parent=self.BrowserWindow
         )
         self.BrowserWindow.domain_v.handle(texts)
+
+    def open_url_by_browser(self, url):
+        screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
+        rect = QRect(self.x(), int(screen_height*0.05), 
+            self.width(), int(screen_height*0.9))
+        if not getattr(self, 'BrowserWindow'):
+            self.set_preview(rect)
+        else:
+            self.BrowserWindow.setGeometry(rect)
+        self.BrowserWindow.view.load(QUrl(url))
+        self.BrowserWindow.show()

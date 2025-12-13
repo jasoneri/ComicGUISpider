@@ -50,7 +50,7 @@ class MitmMainWindow(Ui_MainWindow):
         if getattr(self, 'textBrowser', None):
             self.textBrowser.setParent(None)
             self.textBrowser.deleteLater()
-        self.textBrowser = TextBrowserWithBg(self.centralwidget)
+        self.textBrowser = TextBrowserWithBg(self)
         self.textBrowser.setMinimumSize(QtCore.QSize(200, 350))
         self.textBrowser.setObjectName("textBrowser")
         self.funcLayout.insertWidget(0, self.textBrowser)

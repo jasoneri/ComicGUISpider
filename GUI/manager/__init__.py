@@ -29,6 +29,8 @@ class TaskProgressManager:
         self._tasks = {}
         self.init_flag = True
         self.sql_handler = SqlUtils()
+        self._init_lock = False
+        self._pending_tasks = []
 
     def init(self):
         # 就是为了设定任务细化面板 包的饺子
@@ -42,14 +44,26 @@ class TaskProgressManager:
         if not getattr(self.gui, "BrowserWindow"):
             self.init()
         if not getattr(self.gui.tf, "tasks_progress_panel_flag"):
-            self.gui.BrowserWindow.init_tasks_progress_panel()
+            if not self._init_lock:
+                self._init_lock = True
+                self.gui.BrowserWindow.init_tasks_progress_panel(
+                    callback=self._process_pending_tasks
+                )
+            if isinstance(task, TasksObj):
+                self._pending_tasks.append(task)
+            return
         if isinstance(task, TasksObj):
             self.add_task(task)
         elif isinstance(task, TaskObj):
             if task.taskid not in self._tasks:
-                print(f"{task.taskid}: {task.page}")  # TODO[5](2025-10-29): 未解，但不怎么影响
+                print(f"{task.taskid}: {task.page}")
             else:
                 self.update_progress(task)  
+
+    def _process_pending_tasks(self):
+        for task in self._pending_tasks:
+            self.add_task(task)
+        self._pending_tasks.clear()
 
     def add_task(self, tasks_obj):
         self._tasks[tasks_obj.taskid] = tasks_obj

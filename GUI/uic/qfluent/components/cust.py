@@ -145,19 +145,17 @@ class SupportView(FlyoutViewBase):
     closed = pyqtSignal()  # 添加closed信号
     res = res.GUI.Uic
     
-    def __init__(self, proj_url, conf_dia=None):
+    def __init__(self, conf_dia=None):
         super(SupportView, self).__init__(conf_dia)
         self.conf_dia = conf_dia
         self.width = int(conf_dia.width() * 0.8)
         self.layout = VBoxLayout(self)
         self.titleLayout = QtWidgets.QHBoxLayout()
-        self.githubBtn = HyperlinkButton(FluentIcon.GITHUB, proj_url, "Github")
         self.qqGroupBtn = HyperlinkButton(CustomIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
         self.discordBtn = HyperlinkButton(CustomIcon.DISCORD, "https://discord.gg/znD4p2fpSE", "Discord")
         spacerItem = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
         self.closeBtn.clicked.connect(self.closed)
-        self.titleLayout.addWidget(self.githubBtn)
         self.titleLayout.addWidget(self.qqGroupBtn)
         self.titleLayout.addWidget(self.discordBtn)
         self.titleLayout.addItem(spacerItem)

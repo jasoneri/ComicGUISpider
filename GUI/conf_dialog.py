@@ -9,8 +9,7 @@ from functools import partial
 import yaml
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter, QApplication
-from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtCore import QUrl, Qt
+from PyQt5.QtCore import Qt
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
     PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
@@ -169,7 +168,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def bind_logic(self):
         def _open_docs():
-            QDesktopServices.openUrl(QUrl('https://doc.comicguispider.nyc.mn/'))
+            self.gui.open_url_by_browser('https://doc.comicguispider.nyc.mn/')
         self.descBtn.clicked.connect(_open_docs)
         def _switch_mode():
             if self.darkTheme.isChecked():
@@ -183,7 +182,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             Updater(self.gui).run()
         self.updateBtn.clicked.connect(_regular_update)
         self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
-            view=SupportView(Proj.url, self), target=self.supportBtn, parent=self
+            view=SupportView(self), target=self.supportBtn, parent=self
         ))
         def _tip_lang_change(idx):
             if self.langBox.itemData(idx) != conf.lang:
@@ -196,7 +195,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         def _tip_meta_change(idx):
             match self.metaTypeBox.itemText(idx):
                 case "ComicInfo.xml":
-                    _meta_tip = "适配平台例如：ComicRack, Komga, kavita"
+                    _meta_tip = "适配平台例如：ComicRack, Komga, kavita\n保存并内置重启后生效"
                 case _:
                     _meta_tip = ""
             if _meta_tip:

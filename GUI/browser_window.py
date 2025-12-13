@@ -4,6 +4,7 @@ from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWebEngineWidgets import QWebEnginePage
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
 from qframelesswindow.webengine import FramelessWebEngineView
@@ -31,6 +32,23 @@ class RefererInterceptor(QWebEngineUrlRequestInterceptor):
             info.setHttpHeader(b"referer", self.referer_url.encode())
 
 
+class CustomWebEnginePage(QWebEnginePage):
+    def createWindow(self, _type):
+        new_page = QWebEnginePage(self.profile(), self.parent())
+        new_page.urlChanged.connect(lambda url: self.setUrl(url) if url.isValid() else None)
+        return new_page
+
+
+class CustomFramelessWebEngineView(FramelessWebEngineView):
+    def createPage(self):
+        return CustomWebEnginePage(self.page().profile(), self)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        custom_page = self.createPage()
+        self.setPage(custom_page)
+
+
 class BrowserWindow(QMainWindow, Ui_browser):
     def __init__(self, gui, proxies: str = None):
         super(BrowserWindow, self).__init__()
@@ -40,8 +58,10 @@ class BrowserWindow(QMainWindow, Ui_browser):
         if proxies:
             self.set_proxies(proxies)
         self.gui = gui
-        self.view = FramelessWebEngineView(self)
+        self.view = CustomFramelessWebEngineView(self)
         self.profile = self.view.page().profile()
+        self.profile.setHttpUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
         self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.set_env_mode()
@@ -65,7 +85,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
             self.set_cookies("ehentai")
         elif index == 6:  # hitomi
             self.set_referer_nterceptor(self.gui.spiderUtils.index)
-    
+
     def _set_dev_tools(self):
         from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
         settings = self.view.settings()
@@ -222,8 +242,12 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.js_execute("get_curr_hml();", refresh_tf)
 
     # ---子任务模块
-    def init_tasks_progress_panel(self):
-        self.js_execute("initTaskPanel();", lambda _: self.gui.tf.set_tasks_progress_panel())
+    def init_tasks_progress_panel(self, callback=None):
+        def on_init_complete(_):
+            self.gui.tf.set_tasks_progress_panel()
+            if callback:
+                callback()
+        self.js_execute("initTaskPanel();", on_init_complete)
 
     def add_task(self, tasks_obj):
         _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.display_title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
