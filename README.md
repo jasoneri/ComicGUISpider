@@ -54,12 +54,6 @@
 
 ---
 
-**🔉要提问时不管群里问还是 issue，都看一遍 [提问须知](https://github.com/tangx/Stop-Ask-Questions-The-Stupid-Ways?tab=readme-ov-file)** （相关链接 [文档](
-https://doc.comicguispider.nyc.mn/faq) / [issue](
-https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)）
-
----
-
 ## 📢更新
 
 ✨ 软件内外更新了 CGS 猫娘图（ ~~施法: 你是一只贫穷，只能捡路边法棍吃的猫娘~~ ）  

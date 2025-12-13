@@ -191,7 +191,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             Updater(self.gui).run()
         self.updateBtn.clicked.connect(_regular_update)
         self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
-            view=SupportView(Proj.url, self), target=self.supportBtn, parent=self
+            view=SupportView(self), target=self.supportBtn, parent=self
         ))
         def _tip_lang_change(idx):
             if self.langBox.itemData(idx) != conf.lang:
@@ -204,7 +204,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         def _tip_meta_change(idx):
             match self.metaTypeBox.itemText(idx):
                 case "ComicInfo.xml":
-                    _meta_tip = "适配平台例如：ComicRack, Komga, kavita"
+                    _meta_tip = "适配平台例如：ComicRack, Komga, kavita\n保存并内置重启后生效"
                 case _:
                     _meta_tip = ""
             if _meta_tip:
