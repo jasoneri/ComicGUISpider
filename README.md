@@ -74,6 +74,16 @@
 ✅ 配置窗口做了调整  
 ✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
 
+
+<details>
+<summary> <code>🧪v2.7.1-beta</code> 开发版特性👈看就点</summary>
+
+#### 🐞 Fix
+
++ 子进度条修复，大部分转用内置浏览器
+
+</details>
+
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
 > [🕑更新历史](docs/changelog/history.md) / [📝开发板](https://github.com/jasoneri/ComicGUISpider/projects?query=is%3Aopen)
