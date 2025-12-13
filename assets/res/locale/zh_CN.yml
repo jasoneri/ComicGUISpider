@@ -3,7 +3,7 @@ Vars:
   hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
 GUI:
   DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`使用手册`，内有配置详情/GUI视频使用指南等"
-  DESC2: "2、使用出现问题时先查阅`使用手册`中的 <a href='https://doc.comicguispider.nyc.mn/faq/'>📖FAQ/额外说明</a> 文档排查 "
+  DESC2: "2、使用出现问题时先查阅 <a href='https://doc.comicguispider.nyc.mn/faq/'>📖FAQ/额外说明</a> 文档排查 "
   DESC_ELSE: "其他问题/功能建议等到群反映/提issue"
   
   BrowserWindow_ensure_warning: "需要返回选择页，并确保有选择的情况下使用"

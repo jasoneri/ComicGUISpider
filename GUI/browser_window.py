@@ -60,6 +60,8 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.gui = gui
         self.view = CustomFramelessWebEngineView(self)
         self.profile = self.view.page().profile()
+        self.profile.setHttpUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
         self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.set_env_mode()
@@ -83,7 +85,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
             self.set_cookies("ehentai")
         elif index == 6:  # hitomi
             self.set_referer_nterceptor(self.gui.spiderUtils.index)
-    
+
     def _set_dev_tools(self):
         from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
         settings = self.view.settings()
