@@ -1,5 +1,5 @@
 from PyQt5.QtCore import QTimer, QSize
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QDesktopServices
 from qfluentwidgets import ImageLabel, TextBrowser, TextEdit
 
 
@@ -7,6 +7,7 @@ class TextBrowserWithBg(TextBrowser):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.image_label = None
+        self.gui = parent
         self.setStyleSheet("""
             QTextBrowser {
                 background-color: transparent;
@@ -50,6 +51,14 @@ class TextBrowserWithBg(TextBrowser):
         super().resizeEvent(event)
         if self.image_label:
             QTimer.singleShot(0, self.position_image)
+
+    def setSource(self, url):
+        if url.isEmpty():
+            return
+        if self.gui.chooseBox.currentIndex() == 2:
+            QDesktopServices.openUrl(url)
+        else:
+            self.gui.open_url_by_browser(url.toString())
 
 
 class TextEditWithBg(TextEdit):
