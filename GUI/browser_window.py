@@ -49,6 +49,62 @@ class CustomFramelessWebEngineView(FramelessWebEngineView):
         self.setPage(custom_page)
 
 
+class ZoomManager:
+    _default = 1.0
+    _step = 0.05
+    _min = 0.25
+    _max = 5.0
+    
+    def __init__(self, browser):
+        self.browser = browser
+        self.view = browser.view
+        self._current = self._default
+        self.browser.zoomInBtn.clicked.connect(self._on_zoom_in_clicked)
+        self.browser.zoomOutBtn.clicked.connect(self._on_zoom_out_clicked)
+        self.view.loadFinished.connect(self._on_load_finished)
+    
+    @property
+    def current(self):
+        return self._current
+    
+    @property
+    def can_zoom_in(self):
+        return self._current < self._max - 1e-6
+    
+    @property
+    def can_zoom_out(self):
+        return self._current > self._min + 1e-6
+    
+    def set_zoom(self, factor: float):
+        factor = round(max(self._min, min(self._max, factor)), 2)
+        self._current = factor
+        try:
+            self.view.setZoomFactor(factor)
+        except Exception:
+            self.view.page().setZoomFactor(factor)
+    
+    def reset(self):
+        self.set_zoom(self._default)
+    
+    def _on_load_finished(self, ok: bool):
+        if ok:
+            self.set_zoom(self._current)
+
+    def _on_zoom_in_clicked(self):
+        if self.can_zoom_in:
+            self.set_zoom(self._current + self._step)
+        self._update_zoom_buttons()
+    
+    def _on_zoom_out_clicked(self):
+        if self.can_zoom_out:
+            self.set_zoom(self._current - self._step)
+        self._update_zoom_buttons()
+    
+    def _update_zoom_buttons(self):
+        self.browser.zoomInBtn.setEnabled(self.can_zoom_in)
+        self.browser.zoomOutBtn.setEnabled(self.can_zoom_out)
+
+
 class BrowserWindow(QMainWindow, Ui_browser):
     def __init__(self, gui, proxies: str = None):
         super(BrowserWindow, self).__init__()
@@ -68,6 +124,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.load_home()
         self.output = []
         self.setupUi(self)
+        self.zoom_mgr = ZoomManager(self)
 
     def set_env_mode(self):
         index = self.gui.chooseBox.currentIndex()
@@ -128,6 +185,8 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.refreshBtn.setIcon(FIF.SYNC)
         self.copyBtn.setIcon(FIF.COPY)
         self.ensureBtn.setIcon(FIF.DOWNLOAD)
+        self.zoomInBtn.setIcon(FIF.ZOOM_IN)
+        self.zoomOutBtn.setIcon(FIF.ZOOM)
         # logic
         self.homeBtn.clicked.connect(self.load_home)
         self.backBtn.clicked.connect(self.view.back)

@@ -138,9 +138,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.preprocess_mgr.handle_choosebox_changed(index)
                 return
             self.spiderUtils = spider_utils_map[index]
+            rmt_s2c = True
             if index in SPECIAL_WEBSITES_IDXES:
                 self.web_is_r18 = True
                 self.sut = self.spiderUtils(conf)
+                rmt_s2c = False
+            FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
             FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
