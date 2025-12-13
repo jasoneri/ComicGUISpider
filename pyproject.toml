@@ -1,6 +1,6 @@
 [project]
 name = "ComicGUISpider"
-version = "2.7.0"
+version = "2.7.1-beta"
 description = "GUI Comic Downloader"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"

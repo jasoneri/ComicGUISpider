@@ -54,12 +54,6 @@
 
 ---
 
-**🔉要提问时不管群里问还是 issue，都看一遍 [提问须知](https://github.com/tangx/Stop-Ask-Questions-The-Stupid-Ways?tab=readme-ov-file)** （相关链接 [文档](
-https://doc.comicguispider.nyc.mn/faq) / [issue](
-https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)）
-
----
-
 ## 📢更新
 
 ✨ 软件内外更新了 CGS 猫娘图（ ~~施法: 你是一只贫穷，只能捡路边法棍吃的猫娘~~ ）  
@@ -79,6 +73,16 @@ https://github.com/jasoneri/ComicGUISpider/issues?q=is%3Aissue%20state%3Aclosed)
 
 ✅ 配置窗口做了调整  
 ✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
+
+
+<details>
+<summary> <code>🧪v2.7.1-beta</code> 开发版特性👈看就点</summary>
+
+#### 🐞 Fix
+
++ 子进度条修复，大部分转用内置浏览器
+
+</details>
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
