@@ -45,11 +45,10 @@ class TaskProgressManager:
             self.init()
         if not getattr(self.gui.tf, "tasks_progress_panel_flag"):
             if not self._init_lock:
-                # 使用回调确保初始化完成后处理任务
+                self._init_lock = True
                 self.gui.BrowserWindow.init_tasks_progress_panel(
                     callback=self._process_pending_tasks
                 )
-            # 将任务加入待处理队列
             if isinstance(task, TasksObj):
                 self._pending_tasks.append(task)
             return
@@ -57,13 +56,11 @@ class TaskProgressManager:
             self.add_task(task)
         elif isinstance(task, TaskObj):
             if task.taskid not in self._tasks:
-                print(f"{task.taskid}: {task.page}")  # TODO[5](2025-10-29): 未解，但不怎么影响
+                print(f"{task.taskid}: {task.page}")
             else:
                 self.update_progress(task)  
 
     def _process_pending_tasks(self):
-        """处理等待队列中的任务"""
-        self._init_lock = True
         for task in self._pending_tasks:
             self.add_task(task)
         self._pending_tasks.clear()
