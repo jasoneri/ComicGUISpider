@@ -186,7 +186,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.copyBtn.setIcon(FIF.COPY)
         self.ensureBtn.setIcon(FIF.DOWNLOAD)
         self.zoomInBtn.setIcon(FIF.ZOOM_IN)
-        self.zoomOutBtn.setIcon(FIF.ZOOM)
+        self.zoomOutBtn.setIcon(FIF.ZOOM_OUT)
         # logic
         self.homeBtn.clicked.connect(self.load_home)
         self.backBtn.clicked.connect(self.view.back)

@@ -114,11 +114,11 @@ class MonkeyPatch:
             fluent_menu.addAction(select_all_action)
             if selected_text:
                 fluent_menu.addSeparator()
-                if not s2c:
-                    custom_action = Action(text=f"解析选中项发至序号输入框", 
+                if s2c and textBrowser.gui.next_btn.text() != ori_res.GUI.Uic.next_btnDefaultText:
+                    custom_action = Action(FIF.PENCIL_INK, "解析选中项发至序号输入框", 
                         triggered=lambda: send_to_chooseinput(selected_text))
                     fluent_menu.addAction(custom_action)
-                custom_action = Action(text=f"将选中文本加进预设", 
+                custom_action = Action(text="将选中文本加进预设", 
                     triggered=lambda: set_to_completer(selected_text))
                 fluent_menu.addAction(custom_action)
             fluent_menu.exec(event.globalPos())

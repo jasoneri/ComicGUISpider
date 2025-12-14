@@ -179,7 +179,8 @@ class rvTool(QWidget):
         _.show()
     
     def show_max(self):
-        self.table_fv = CustomFlyout.make(TableFlyoutView(show_max(), self), self.sv_path_card, self)
+        self.toolWin.gui.bsm = self.toolWin.gui.bsm or show_max()
+        self.table_fv = CustomFlyout.make(TableFlyoutView(self.toolWin.gui.bsm, self), self.sv_path_card, self)
 
     def combine_then_mv(self):
         done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))

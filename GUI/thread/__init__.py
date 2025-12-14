@@ -142,6 +142,9 @@ class WorkThread(QThread):
                         self.gui.show_keep_books()
                     elif '[httpok]' in _:
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
+                    elif _.endswith(f"{res.SPIDER.SayToGui.frame_section_print_extra}</font></p>"):
+                        self.print_signal.emit(_)
+                        self.gui.show_max()
                     else:
                         self.print_signal.emit(_)
                     self.msleep(2)
