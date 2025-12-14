@@ -86,6 +86,19 @@ def select(elect, infos: dict, **kw) -> list:
     return results
 
 
+def extract_eps_range(text) -> str:
+    matches = re.findall(r'-(\d+)', text)
+    if not matches:
+        return ""
+    numbers = [int(num) for num in matches]
+    first_num = numbers[0]
+    if len(numbers) > 1 and numbers[-1] < first_num:
+        numbers = numbers[:-1]
+    if len(numbers) == 1:
+        return f"{first_num}"
+    return f"{min(numbers)}-{max(numbers)}"
+
+
 cn_character = r'，。！？；：（）《》【】“”\‘\’、'
 en_character = r',.!?;:()<>[]""\'\' '
 character_table = str.maketrans(cn_character, en_character)

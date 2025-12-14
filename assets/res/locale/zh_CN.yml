@@ -22,7 +22,7 @@ GUI:
   textbrowser_load_if_http: "<b><font size=\"5\" color=\"black\">点击右下 `预览` </font></b><font color=\"black\"> 或者 </font><a href=\"%s\" ><b style=\"font-size:20px;\">浏览器查看结果</b></a>"
   WorkThread_finish_flag: "后台已下载"
   WorkThread_empty_flag: "后台正常退出没有"
-  copymaga_tips: "拷贝已解锁章节，例如福利连"
+  copymaga_tips: "拷贝已解锁章节，例如福利连<br>可用 rvTool 的 `显示记录` 进行快速操作"
   copymaga_page_status_tip: "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推\n⚠️拷贝墙内风控难以复现，只受理代理仍然流程出错的问题"
   global_err_hook: "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
   input_format_err: "输入格式错误，请鼠标移到输入框查看规则提示"
@@ -141,7 +141,7 @@ EHentai:
 
 SPIDER:
   SayToGui:
-    exp_txt: "请于【 输入序号 】框输入或框里右键菜单用点击输入要选的序号  "
+    exp_txt: "请于【 输入序号 】框常规输入 / 框里右键菜单点击输入要选的序号 / ✨选中多个选择项文本 > 右键菜单「解析..发送..」"
     exp_turn_page: "搜索输入框右侧为`翻页按钮组`，分别是 上一页/下一页/输入页数跳转"
     exp_preview: "进预览页面能直接点击封面进行多选，预览页面右上确认选择(确认选择能额外与【输入序号】框的序号相叠加)"
     exp_replace_keyword: "请于【"

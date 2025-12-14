@@ -4,7 +4,7 @@ from qfluentwidgets import (
     Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType
 )
 from assets import res as ori_res
-
+from utils import extract_eps_range, conf
 from .components import *
 
 __all__ = [
@@ -99,6 +99,38 @@ class MonkeyPatch:
             menu.exec_(event.globalPos())
             event.accept()
         line_edit.contextMenuEvent = types.MethodType(new_context_menu, line_edit)
+
+    @staticmethod
+    def rbutton_menu_textBrowser(textBrowser, cb_idx, s2c=False):
+        """cb_idx: chooseBox index
+        s2c: send to chooseinput"""
+        def custom_context_menu(self, event):
+            cursor = self.textCursor()
+            selected_text = cursor.selectedText()
+            fluent_menu = RoundMenu(parent=self)
+            copy_action = Action(FluentIcon.COPY, text=self.tr("COPY"), triggered=self.copy)
+            select_all_action = Action(self.tr("Select all"), triggered=self.selectAll)
+            fluent_menu.addAction(copy_action)
+            fluent_menu.addAction(select_all_action)
+            if selected_text:
+                fluent_menu.addSeparator()
+                if s2c and textBrowser.gui.next_btn.text() != ori_res.GUI.Uic.next_btnDefaultText:
+                    custom_action = Action(FIF.PENCIL_INK, "解析选中项发至序号输入框", 
+                        triggered=lambda: send_to_chooseinput(selected_text))
+                    fluent_menu.addAction(custom_action)
+                custom_action = Action(text="将选中文本加进预设", 
+                    triggered=lambda: set_to_completer(selected_text))
+                fluent_menu.addAction(custom_action)
+            fluent_menu.exec(event.globalPos())
+            event.accept()
+        def send_to_chooseinput(text):
+            out_text = extract_eps_range(text)
+            textBrowser.gui.chooseinput.setText(out_text)
+        def set_to_completer(text):
+            conf.completer[cb_idx].insert(0, text)
+            conf.update()
+            textBrowser.gui.set_completer()
+        textBrowser.contextMenuEvent = types.MethodType(custom_context_menu, textBrowser)
 
     @staticmethod
     def rbutton_menu_WebEngine(browserWindow):
