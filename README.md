@@ -37,7 +37,7 @@
 
 ## 📑介绍
 
-下都下载了，不点一下吗 👉 ⭐ [![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
+都下载了，不点一下吗 👉 ⭐ [![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
 )](https://github.com/jasoneri/ComicGUISpider/stargazers) &emsp;  
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
@@ -56,7 +56,7 @@
 
 ## 📢更新
 
-图链/项目主页/文档都已转用 cloudflare 加速优化，卡的话可以用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
+图链/项目主页/文档都已转用 Cloudflare 加速优化，卡的话可以用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
 【🔉长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
