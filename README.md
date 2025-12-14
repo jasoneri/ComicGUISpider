@@ -75,7 +75,7 @@
 ✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
 
 <details>
-<summary> <code>🧪v2.7.1-beta</code> 开发版特性👈看就点</summary>
+<summary> <code>🧪v2.7.1-beta.2</code> 开发版特性👈看就点</summary>
 
 #### 🎁 Features
 
@@ -84,6 +84,7 @@
 
 #### 🐞 Fix
 
+✅ 修复 jm 域名获取（保底简化处理流程保留）  
 ✅ 子进度条修复，大部分转用内置浏览器
 
 </details>
