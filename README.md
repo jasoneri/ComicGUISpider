@@ -37,8 +37,8 @@
 
 ## 📑介绍
 
-👉 点下 ⭐star [![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
-)](https://github.com/jasoneri/ComicGUISpider/stargazers) &emsp;推广 `CGS` 吧 👾  
+都下载了，不点一下吗 👉 ⭐ [![stars](https://img.shields.io/github/stars/jasoneri/ComicGUISpider
+)](https://github.com/jasoneri/ComicGUISpider/stargazers) &emsp;  
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
@@ -56,9 +56,7 @@
 
 ## 📢更新
 
-✨ 软件内外更新了 CGS 猫娘图（ ~~施法: 你是一只贫穷，只能捡路边法棍吃的猫娘~~ ）  
-✨ 更换了 [🏠项目主页](https://doc.comicguispider.nyc.mn/) 域名/部署，图链/项目主页/文档都已转用 cloudflare 加速优化，  
-假如 cf 都能卡的话可以考虑用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
+图链/项目主页/文档都已转用 Cloudflare 加速优化，卡的话可以用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
 【🔉长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
@@ -67,22 +65,16 @@
 
 ✅ 新增 `元数据记录` 功能，例如 `.czb` 的 `ComicInfo.xml`，具体看 [`配置 > 元数据类型`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
 ✅ 简化处理发布页域名相关流程  
-✅ `rvTool > 显示记录` 记录窗口新增 `将选中行发送至输入框` 按钮  
+✨ `rvTool > 显示记录` 记录窗口新增 `搜索选中行` 按钮  
+✨ 匹配记录提示，菜单操作增强
+
+<img src="https://img.comicguispider.nyc.mn/file/1765701939059_feat-2.7.1-beta.2.png" alt="tag" width="400">
 
 #### 🐞 Fix
 
-✅ 配置窗口做了调整  
 ✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
-
-
-<details>
-<summary> <code>🧪v2.7.1-beta</code> 开发版特性👈看就点</summary>
-
-#### 🐞 Fix
-
-+ 子进度条修复，大部分转用内置浏览器
-
-</details>
+✨ 修复 jm 域名获取（保底简化处理流程保留）  
+✨ 子进度条修复，大部分转用内置浏览器  
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 

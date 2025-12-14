@@ -65,7 +65,7 @@ class SayToGui:
             # 向gui传送rets并赋值需要比exp_txt(crawl_only的flag) 和 PreviewBookInfoEnd 早才行
             if make_preview:
                 self(f"[PreviewBookInfoEnd]{url}")
-            self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}
+            self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}<br>
                 {font_color(extra, cls='theme-tip')}</p><br>""")
             self("[ShowKeepBooks]")  # 由于 keep_books 现放在 gui 上，所以最后用 flag 形式触发
         else:
@@ -80,7 +80,7 @@ class SayToGui:
             batch = formatted_items[i:i + print_limit]
             self(", ".join(batch))
         self(rets)
-        self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}{font_color(extra, cls='theme-highlight')}</p><br>""")
+        self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}<br>{font_color(extra, cls='theme-highlight')}</p>""")
         return rets
 
 

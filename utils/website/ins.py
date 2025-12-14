@@ -26,6 +26,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
     name = "jm"
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
+    publish_url2 = "https://jm-3x.cc/mJ8rWd"
     status_forever = True
     status_publish = True
     cookies_field = COOKIES_SUPPORT[name]
@@ -124,18 +125,13 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
 
     @classmethod
     async def by_publish(cls):
-        async with httpx.AsyncClient(headers=cls.publish_headers,transport=httpx.AsyncHTTPTransport(retries=2)) as sess:
-            resp = await sess.get(cls.publish_url)
+        async with httpx.AsyncClient(headers=cls.publish_headers,transport=httpx.AsyncHTTPTransport(retries=2),http2=True) as sess:
+            resp = await sess.get(cls.publish_url2)
             e = None
             while True:
                 try:
                     if str(resp.status_code).startswith('3') and resp.headers.get('location'):
-                        if resp.status_code == 302:
-                            transport=dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
-                            async with httpx.AsyncClient(headers=cls.publish_headers,transport=httpx.AsyncHTTPTransport(**transport),verify=False) as cli:
-                                resp = await cli.get(resp.headers.get('location'))
-                        else:
-                            resp = await sess.get(resp.headers.get('location'))
+                        resp = await sess.get(resp.headers.get('location'))
                     elif str(resp.status_code).startswith('2'):
                         return await cls.parse_publish(resp.text)
                 except Exception as _e:
@@ -151,15 +147,19 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
         _html = etree.HTML(html_text)
         ps = _html.xpath('//div[@class="wrap"]//p')
         domains = []
-        order_p = list(filter(lambda p: '內地' in ''.join(p.xpath('.//text()')), ps))  # 小心这个"內"字是繁体
-        if order_p:
-            idx = ps.index(order_p[0])
-            for p in ps[idx:]:
-                fuck_text = p.xpath('./following-sibling::div//text()')
+        def get_text(p):
+            return ''.join(p.xpath('.//text()'))
+        idx_start = next((i for i, p in enumerate(ps) if '內地' in get_text(p)), None)
+        idx_end = next((i for i, p in enumerate(ps) if get_text(p).strip().lower().startswith('app')), len(ps))
+        if idx_start is not None:
+            if idx_end <= idx_start:
+                idx_end = len(ps)
+            for p in ps[idx_start:idx_end]:
+                fuck_text = p.xpath("./following-sibling::div//text()")
                 for _domain in fuck_text:
                     domain = _domain.strip()
-                    if "." in domain and not bool(re.search(r"discord|\.work|@|＠|<|/", domain)):
-                        domains.append(domain)
+                    if "." in domain and not bool(re.search(r"discord|\.work|@|＠|<", domain)):
+                        domains.append(re.sub(r'^https?://', '', domain).split('/', 1)[0])
         hosts = await asyncio.gather(*[cls.test_aviable_domain(domain) for domain in domains])
         for host in hosts:
             if host:
