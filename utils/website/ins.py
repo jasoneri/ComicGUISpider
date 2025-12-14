@@ -159,7 +159,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
                 for _domain in fuck_text:
                     domain = _domain.strip()
                     if "." in domain and not bool(re.search(r"discord|\.work|@|＠|<", domain)):
-                        domains.append(re.sub(r"http[s]?://", "", domain))
+                        domains.append(re.sub(r'^https?://', '', domain).split('/', 1)[0])
         hosts = await asyncio.gather(*[cls.test_aviable_domain(domain) for domain in domains])
         for host in hosts:
             if host:
