@@ -212,6 +212,7 @@ class TableFlyoutView(FlyoutViewBase):
     def __init__(self, data, parent=None):
         super().__init__(parent)
         self.rvInterface = parent
+        self.gui = parent.toolWin.gui
         p_width = parent.width()
         p_height = parent.height()
         self.width = int(p_width * 0.8)
@@ -231,10 +232,10 @@ class TableFlyoutView(FlyoutViewBase):
         self.closeBtn.clicked.connect(self.closed)
         self.delBtn = PrimaryPushButton(FluentIcon.DELETE, "删除选中记录", self)
         self.delBtn.clicked.connect(self.delete_selected_record)
-        self.sendBtn = PrimaryPushButton(FluentIcon.SEND, "发送选中记录至输入框", self)
-        self.sendBtn.clicked.connect(self.send_selected_record)
+        self.searchBtn = PrimaryPushButton(FluentIcon.SEARCH, "搜索选中记录", self)
+        self.searchBtn.clicked.connect(self.send_selected_record)
         second_row.addWidget(self.delBtn)
-        second_row.addWidget(self.sendBtn)
+        second_row.addWidget(self.searchBtn)
         second_row.addItem(spacerItem)
         second_row.addWidget(self.closeBtn)
         
@@ -262,6 +263,8 @@ class TableFlyoutView(FlyoutViewBase):
             ]
             model.appendRow(row)
         self.tableView.setModel(model)
+        self.tableView.setSortingEnabled(True)
+        self.tableView.horizontalHeader().setSortIndicatorShown(True)
         self.tableView.horizontalHeader().setStretchLastSection(True)
         # 调整列宽
         self.tableView.setColumnWidth(0, int(tb_width * 0.5))
@@ -291,9 +294,16 @@ class TableFlyoutView(FlyoutViewBase):
         selection_model = self.tableView.selectionModel()
         if not selection_model.hasSelection():
             InfoBar.warning(
-                title='', content='请先选择要发送的记录',
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-                duration=5000, parent=self.rvInterface
+                title='', content='请先选择行',
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_RIGHT,
+                duration=5000, parent=self.rvInterface.table_fv
+            )
+            return
+        elif self.gui.chooseBox.currentIndex() == 0:
+            InfoBar.warning(
+                title='', content='请先选择搜索源',
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_RIGHT,
+                duration=5000, parent=self.rvInterface.table_fv
             )
             return
         selected_indexes = selection_model.selectedRows()
@@ -301,11 +311,12 @@ class TableFlyoutView(FlyoutViewBase):
         model = self.tableView.model()
         book_name = model.item(row, 0).text()
         def do():
-            self.rvInterface.toolWin.gui.searchinput.setText(book_name)
+            self.gui.searchinput.setText(book_name)
+            self.gui.next_btn.click()
             InfoBar.info(
-                title='', content=f'「{book_name}」已发至输入框',
+                title='', content=f'「{book_name}」已发至输入框进行搜索中',
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=2000, parent=self.rvInterface.toolWin.gui.textBrowser
+                duration=2000, parent=self.gui.textBrowser
             )
         QTimer.singleShot(10, do)
         self.rvInterface.table_fv.close()

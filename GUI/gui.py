@@ -631,3 +631,5 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         bookShow = self.bsm.get(bc_name) or self.bsm.get(self.searchinput.text().strip())
         if bookShow:
             self.say(font_color(bookShow.show, cls='theme-tip', size=4), ignore_http=True)
+
+# ---

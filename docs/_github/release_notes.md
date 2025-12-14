@@ -3,7 +3,7 @@
 
 ✅ 新增 `元数据记录` 功能，例如 `.czb` 的 `ComicInfo.xml`，具体看 [`配置 > 元数据类型`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
 ✅ 简化处理发布页域名相关流程  
-✅ `rvTool > 显示记录` 记录窗口新增 `将选中行发送至输入框` 按钮  
+✨ `rvTool > 显示记录` 记录窗口新增 `搜索选中行` 按钮  
 ✨ 匹配记录提示，菜单操作增强
 ![improve](https://img.comicguispider.nyc.mn/file/1765701939059_feat-2.7.1-beta.2.png)
 
