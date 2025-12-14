@@ -37,7 +37,7 @@ AUTOTHROTTLE_ENABLED = True
 AUTOTHROTTLE_START_DELAY = 1  # 初始延迟1秒
 AUTOTHROTTLE_MAX_DELAY = 20   # 最大延迟60秒
 AUTOTHROTTLE_TARGET_CONCURRENCY = 5.0  # 目标并发数
-AUTOTHROTTLE_DEBUG = True  # 开启调试查看调整过程
+# AUTOTHROTTLE_DEBUG = True  # 开启调试查看调整过程
 
 DOWNLOAD_DELAY = 0.5
 # The download delay setting will honor only one of:

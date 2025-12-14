@@ -593,7 +593,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))
 
     def do_publish(self):
-        with open(ori_path.joinpath('assets/pubilsh_helper.html'), encoding='utff-8') as f:
+        with open(ori_path.joinpath('assets/pubilsh_helper.html'), encoding='utf-8') as f:
             format_text = f.read()
             html = format_text.replace("{bs_theme}", bs_theme()) \
                     .replace("{publish_url}", self.spiderUtils.publish_url)
