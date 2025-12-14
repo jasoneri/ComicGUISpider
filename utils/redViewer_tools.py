@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import typing as t
 import pathlib
 import re
 import shutil
@@ -44,8 +45,12 @@ class BookShow:
     show_max: str = ""
     dl_max: str = ""
 
+    @property
+    def show(self):
+        return f"🔖matched-record「{self.name}」\treaded: 【{self.show_max}】\tdownloaded: 【{self.dl_max}】"
 
-def show_max() -> list[BookShow]:
+
+def show_max() -> t.Dict[str, BookShow]:
     sec_regex = re.compile(r'.*?(\d+\.?\d*)')
     format_regex = re.compile('<(del|save|remove)>')
     show_map_raw = {}
@@ -87,7 +92,7 @@ def show_max() -> list[BookShow]:
     dl_map = _get_max_sections(dl_map_raw)
 
     all_books = show_map.keys() | dl_map.keys()
-    result = [BookShow(name=book, show_max=show_map.get(book, ""), dl_max=dl_map.get(book, "")) for book in all_books]
+    result = {book: BookShow(name=book, show_max=show_map.get(book, ""), dl_max=dl_map.get(book, "")) for book in all_books}
     return result
 
 

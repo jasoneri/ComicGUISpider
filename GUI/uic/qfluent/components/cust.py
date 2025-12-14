@@ -243,7 +243,7 @@ class TableFlyoutView(FlyoutViewBase):
         # 必须设置视图尺寸
         self.setFixedSize(self.width, self.height)
 
-    def set_table(self, data: t.List[BookShow]):
+    def set_table(self, data: t.Dict[str, BookShow]):
         self.tableView = TableView(self)
         self.tableView.setBorderRadius(15)
         self.tableView.setWordWrap(False)
@@ -254,7 +254,7 @@ class TableFlyoutView(FlyoutViewBase):
         # 设置数据模型
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["漫画", "已阅最新章节", "已下载最新章节"])
-        for book in data:
+        for book in data.values():
             row = [
                 QStandardItem(book.name),
                 QStandardItem(book.show_max),

@@ -30,6 +30,7 @@ from utils.processed_class import (
     GuiQueuesManger, refresh_state, crawl_what,
     PreviewHtml, TmpFormatHtml
 )
+from utils.redViewer_tools import show_max
 from utils.website import spider_utils_map, InfoMinix
 from utils.sql import SqlUtils
 
@@ -54,6 +55,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     web_is_r18 = False
     spiderUtils = None
     sut = None
+    bsm: dict = None  # books show max
 
     p_crawler: Process = None
     p_qm: Process = None
@@ -131,6 +133,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.previewInit = True
         self.previewSecondInit = False
         self.BrowserWindow = None
+        self.bsm = None
 
         def chooseBox_changed_handle(index):
             if index not in SPIDERS.keys() and index != 0:
@@ -590,7 +593,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))
 
     def do_publish(self):
-        with open(ori_path.joinpath('assets/pubilsh_helper.html')) as f:
+        with open(ori_path.joinpath('assets/pubilsh_helper.html'), encoding='utff-8') as f:
             format_text = f.read()
             html = format_text.replace("{bs_theme}", bs_theme()) \
                     .replace("{publish_url}", self.spiderUtils.publish_url)
@@ -604,6 +607,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.BrowserWindow.show()
 
     def tpd(self, texts):
+        """transfer publish-page domians"""
         self.BrowserWindow.domain_v = DomainToolView(self)
         CustomFlyout.make(
             view=self.BrowserWindow.domain_v, target=self.BrowserWindow, parent=self.BrowserWindow
@@ -620,3 +624,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.setGeometry(rect)
         self.BrowserWindow.view.load(QUrl(url))
         self.BrowserWindow.show()
+
+    def show_max(self):
+        self.bsm = self.bsm or show_max()
+        bc_name = self.book_choose[0].name
+        bookShow = self.bsm.get(bc_name) or self.bsm.get(self.searchinput.text().strip())
+        if bookShow:
+            self.say(font_color(bookShow.show, cls='theme-tip', size=4), ignore_http=True)

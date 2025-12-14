@@ -54,7 +54,7 @@ class DomainToolView(FlyoutViewBase):
             with open(t_f, 'w', encoding='utf-8') as f:
                 f.write(_domain)
             prefix_tip = tools_res.doamin_success_tip % (_domain, t_f)
-            sc = 6
+            sc = 4
             InfoBar.success(
                 title='', content=f"{prefix_tip}{tools_res.reboot_tip % str(sc)}",
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
