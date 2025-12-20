@@ -144,7 +144,7 @@ class Conf(BaseConf):
     sv_path: t.Union[p.Path, str] = curr_os.default_sv_path
     proxies: list = field(default_factory=list)
     log_level: str = 'WARNING'
-    meta_type: str = '-'
+    downloaded_handle: str = '-'
     lang: str = ''
     pypi_source: int = 0
     addUuid: bool = False

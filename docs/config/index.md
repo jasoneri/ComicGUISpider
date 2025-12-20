@@ -57,16 +57,22 @@
 
 > [!Info] 建议使用代理模式在此配置代理，而非全局代理模式，不然访问图源会吃走大量代理的流量
 
-### 元数据类型 / `meta_type`
+### 后处理 / `downloaded_handle`
 
-1. `-`: 默认，不储存元数据
-2. `ComicInfo.xml`: 适配 ComicRack, Komga, kavita 等，完整下载后会自动打包成 `.cbz`，并删除作品目录
+::: info `v2.7.1` 起 元数据信息 会本地储存在 __temp 目录，对应后续版本的功能
+:::
 
-::: info
+当一个任务完整下载所有子图片后进行的操作
+
+1. `-`: 默认，不进行操作
+2. `.cbz`: 打包成 `.cbz`，储存 `ComicInfo.xml` 元数据，并删除作品目录  
+    （适配 ComicRack, Komga, kavita 等）
+
+::: info `ComicInfo.xml` 元数据须知
 
 1. 注意不同获取方式的元数据字段可能不同，搜索接口的一般没有书页接口(例如读剪贴板/车号)的全
 2. 暂不支持章节型元数据
-:::
+
 ::: tip 了解其他热门元数据标准的可参与开发，或 [提需求(详细描述)](https://github.com/jasoneri/ComicGUISpider/issues/new?template=feature-request.yml)  
 :::
 
@@ -76,6 +82,7 @@
 
 自定义预设  
 鼠标悬停在输入框会有`序号对应网站`的提示(其实就是选择框的序号)  
+可用文本选择右键快递增设预设  
 `🎥视频使用指南3`有介绍用法  
 
 ### cookies / `cookies`
