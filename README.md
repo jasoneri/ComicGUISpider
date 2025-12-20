@@ -65,16 +65,14 @@
 
 ✅ 新增 `元数据记录` 功能，例如 `.czb` 的 `ComicInfo.xml`，具体看 [`配置 > 元数据类型`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
 ✅ 简化处理发布页域名相关流程  
-✨ `rvTool > 显示记录` 记录窗口新增 `搜索选中行` 按钮  
-✨ 匹配记录提示，菜单操作增强
-
-<img src="https://img.comicguispider.nyc.mn/file/1765701939059_feat-2.7.1-beta.2.png" alt="tag" width="400">
+✅ `rvTool > 显示记录` 记录窗口新增 `搜索选中行` 按钮  
+✅ 匹配记录提示，菜单操作增强 > [📷screenshot](https://img.comicguispider.nyc.mn/file/1765701939059_feat-2.7.1-beta.2.png)
 
 #### 🐞 Fix
 
 ✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
-✨ 修复 jm 域名获取（保底简化处理流程保留）  
-✨ 子进度条修复，大部分转用内置浏览器  
+✅ 修复 jm 域名获取（保底简化处理流程保留）, 子进度条修复  
+✨ 修复 kb 缓存失败重启卡死；报错 'tasks_progress_panel_flag';  
 
 > 可参考 [更新方法](https://jasoneri.github.io//ComicGUISpider/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) 进行更新  
 
@@ -113,11 +111,10 @@
 由 [Weblate](https://hosted.weblate.org/engage/comicguispider/) 托管实现多语言的翻译  
 
 <a href="https://hosted.weblate.org/engage/comicguispider/">
-<img src="https://hosted.weblate.org/widget/comicguispider/287x66-grey.png" alt="翻译状态" />
+<img src="https://hosted.weblate.org/widget/comicguispider/287x66-grey.png" alt="翻译状态" height="66" style="vertical-align: middle;" />
 </a>
-
-<a href="https://afdian.com/a/jsoneri">
-  <img src="https://img.comicguispider.nyc.mn/file/1765002001925_CGS-aifadian.png" alt="在爱发电支持我">
+<a href="https://ko-fi.com/jsoneri">
+  <img src="https://img.comicguispider.nyc.mn/file/1766128193347_sponsor_kofi.gif" alt="ko-fi" height="66" style="vertical-align: middle;">
 </a>
 
 ## 🔇免责声明

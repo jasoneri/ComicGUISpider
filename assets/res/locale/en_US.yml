@@ -122,7 +122,6 @@ GUI:
     confDia_updateDialog_dev: "New dev version available"
     confDia_supportBtn: "Support"
     confDia_promote_title: "Recommended VPN"
-    confDia_promote_content: "need VPN?"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
     confDia_support_content: "Donations will use to buy domain etc.."
     confDia_tip_deduplicate_on: "Dedup mode, take effect after save and reboot"
