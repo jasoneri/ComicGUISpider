@@ -43,7 +43,7 @@ class TaskProgressManager:
     def handle(self, task: t.Union[TasksObj, TaskObj]):
         if not getattr(self.gui, "BrowserWindow"):
             self.init()
-        if not getattr(self.gui.tf, "tasks_progress_panel_flag"):
+        if self.gui.tf and not getattr(self.gui.tf, "tasks_progress_panel_flag"):
             if not self._init_lock:
                 self._init_lock = True
                 self.gui.BrowserWindow.init_tasks_progress_panel(

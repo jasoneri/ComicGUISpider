@@ -163,9 +163,7 @@ class SupportView(FlyoutViewBase):
         
         self.promoteLayout = QtWidgets.QHBoxLayout()
         self.promoteBtn = HyperlinkButton(FluentIcon.LINK, self.res.confDia_promote_url, self.res.confDia_promote_title)
-        self.contentLabel = BodyLabel(self.res.confDia_promote_content) 
         self.promoteLayout.addWidget(self.promoteBtn)
-        self.promoteLayout.addWidget(self.contentLabel)
         self.promoteLayout.addItem(QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
 
         self.contentLabel = BodyLabel(res.GUI.Uic.confDia_support_content) 
