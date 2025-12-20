@@ -79,7 +79,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
         self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
         self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
-        self.metaTypeLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_metaType))
+        self.metaTypeLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_dledHandle))
         self.concurr_numLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_labelConcurrNum))
         # 添加cookie类型选项
         support = list(COOKIES_PLACEHOLDER.keys())
@@ -93,11 +93,11 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.pypiSourceBox.setItemText(1, _translate("Dialog", "清华源"))
         self.pypiSourceBox.setItemText(2, _translate("Dialog", "阿里源"))
         self.pypiSourceBox.setItemText(3, _translate("Dialog", "华为源"))
-        self.metaTypeBox.addItem("")
-        self.metaTypeBox.addItem("")
-        self.metaTypeBox.setItemText(0, _translate("Dialog", "-"))
-        self.metaTypeBox.setItemText(1, _translate("Dialog", "ComicInfo.xml"))
-        self.metaTypeBox.setCurrentIndex(0)
+        self.dledHandleBox.addItem("")
+        self.dledHandleBox.addItem("")
+        self.dledHandleBox.setItemText(0, _translate("Dialog", "-"))
+        self.dledHandleBox.setItemText(1, _translate("Dialog", ".cbz"))
+        self.dledHandleBox.setCurrentIndex(0)
         self.cookiesBox.setCurrentText(support[0])
         
         for k, ui_key in LANG.items():
@@ -193,8 +193,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                 )
         self.langBox.activated.connect(_tip_lang_change)
         def _tip_meta_change(idx):
-            match self.metaTypeBox.itemText(idx):
-                case "ComicInfo.xml":
+            match self.dledHandleBox.itemText(idx):
+                case ".cbz":
                     _meta_tip = "适配平台例如：ComicRack, Komga, kavita\n保存并内置重启后生效"
                 case _:
                     _meta_tip = ""
@@ -204,7 +204,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                     orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
                     duration=5000, parent=self
                 )
-        self.metaTypeBox.activated.connect(_tip_meta_change)
+        self.dledHandleBox.activated.connect(_tip_meta_change)
         self.cookiesBox.currentTextChanged.connect(self._on_cookie_type_changed)
         def _tip_on(is_checked: bool, tip_content=None):
             if is_checked:
@@ -236,7 +236,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.logLevelComboBox.setCurrentIndex(self.logLevelComboBox.findText(getattr(conf, "log_level")))
         self.pypiSourceBox.setCurrentIndex(getattr(conf, "pypi_source"))
         self.langBox.setCurrentIndex(self.langBox.findData(getattr(conf, "lang")))
-        self.metaTypeBox.setCurrentIndex(self.metaTypeBox.findText(getattr(conf, "meta_type")))
+        self.dledHandleBox.setCurrentIndex(self.dledHandleBox.findText(getattr(conf, "downloaded_handle")))
         # 仅当 初次confdia ui创建 & conf值设入ui后，才绑定槽函数
         if self._init_flag:
             self.bind_logic()
@@ -278,7 +278,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "sv_path": sv_path,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
             "lang": getattr(self, "langBox").currentData(),
-            "meta_type": getattr(self, "metaTypeBox").currentText(),
+            "downloaded_handle": getattr(self, "dledHandleBox").currentText(),
             "concurr_num": getattr(self, "concurr_numEdit").value(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "addUuid": getattr(self, "addUuid").isChecked(),

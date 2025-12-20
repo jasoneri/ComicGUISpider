@@ -29,9 +29,9 @@
 
 - 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
 - 开预览后随便点点就能下载，预览窗口充当于微型浏览器
-- 通过加减号，`0 全选`，`-3 选倒数三个` 等输入规则，方便指定选择
-- 基于翻页保留，体验如同塞进购物车
-- 预设，去重，加标识符等自定义设置
+- 丰富多样的输入规则，方便指定选择
+- 无感翻页保留选择，已下载记录等提示
+- 预设，去重，加标识符等各种自定义设置
 
 **更多移步查阅 [🎸功能文档](https://doc.comicguispider.nyc.mn/feat/)**
 
@@ -63,10 +63,10 @@
 
 #### 🎁 Features
 
-✅ 新增 `元数据记录` 功能，例如 `.czb` 的 `ComicInfo.xml`，具体看 [`配置 > 元数据类型`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
 ✅ 简化处理发布页域名相关流程  
 ✅ `rvTool > 显示记录` 记录窗口新增 `搜索选中行` 按钮  
 ✅ 匹配记录提示，菜单操作增强 > [📷screenshot](https://img.comicguispider.nyc.mn/file/1765701939059_feat-2.7.1-beta.2.png)
+✨ `元数据记录` 改成 `后处理`，下载完成的后处理，具体看 [`配置 > 后处理`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
 
 #### 🐞 Fix
 

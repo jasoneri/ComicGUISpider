@@ -112,7 +112,7 @@ GUI:
     confDia_labelPreset: "Preset"
     confDia_labelClipDb: "ClipDB"
     confDia_labelClipNum: "ClipEntries"
-    confDia_metaType: "metaType"
+    confDia_dledHandle: "dledHandle"
     confDia_labelConcurrNum: "ConcurrNum"
     confDia_cookies_placeholder: "Refer to the animated guide in the configuration documentation for cookie acquisition methods\nIncluding fields:\n"
     confDia_svPathWarning: "set Save Path failed, read rule by right-button"

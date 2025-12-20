@@ -169,11 +169,11 @@ class Blank(MetaMixin):
 
 class MetaRecorder:
     def __init__(self, _conf):
-        self.meta_type = _conf.meta_type
+        self.downloaded_handle = _conf.downloaded_handle
 
     def toMetaInfo(self, info: Union[BookInfo, Episode]):
-        match self.meta_type:
-            case "ComicInfo.xml":
+        match self.downloaded_handle:
+            case ".cbz":
                 return ComicInfo(info)
             case "-" | _:
                 return Blank(info)
