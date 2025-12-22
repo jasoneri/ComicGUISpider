@@ -224,7 +224,7 @@ class Kemono:
         async def create_task_of_post(self, post, _task_meta: TaskMeta):
             """commonly values-of-attachments include value-of-file,
             special institution: value-of-file exist but values-of-attachments empty"""
-            title = post.get('title').strip()
+            title = post.get('title').strip().rstrip(" .")
             published = time_format(post.get('published')).strftime("%Y-%m-%d")
             meta = asdict(_task_meta)
             tasks = post.get("attachments", [])
@@ -307,7 +307,7 @@ class Kemono:
             channels_info = await self.k.api.get_discord_info(creator_id, "server")
             for channel_info in channels_info.get("channels", []):
                 channel_id=channel_info["id"]
-                channel_name=folder_sub.sub("-", channel_info.get("name"))
+                channel_name=folder_sub.sub("-", channel_info.get("name")).rstrip(" .")
                 task_meta = TaskDiscordMeta(user_name=name, user_id=creator_id, service=service, 
                                 channel_id=channel_id, channel_name=channel_name)
                 posts = await self.k.api.get_discord_info(channel_id, "channel")
@@ -574,6 +574,7 @@ class Process:
     
     def run(self, **rkw):
         # 2 处理/执行任务
+        logger.debug("\n\n📢 留意 motrix 任务\n")
         self.loop.run_until_complete(self.k.temp_copy_vals(restore=True))
 
         tasks = self.loop.run_until_complete(self.k.step2_get_tasks())
