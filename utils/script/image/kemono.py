@@ -238,7 +238,7 @@ class Kemono:
                 {"url": f'''{server_map.get(task["name"], self.k.api.file_prefix)}/data{task.get("path")}?f={task.get("name")}''',
                     "file_name": task.get("name")} 
                 for task in tqdm.tqdm(tasks, ncols=100, desc=f"[{published}]{title}")
-                if not self.k.fm.file(task.get("name"))
+                if self.k.fm.file(task.get("name"))
             ]
             redis_task = {
                 "tasks": post_tasks, "meta": {**meta, "published": published, "title": title}
@@ -263,7 +263,7 @@ class Kemono:
             tasks = post.get("attachments", [])
             post_tasks = []
             for task in tqdm.tqdm(tasks, ncols=100, desc=f"[{published}]{title}"):
-                if not self.k.fm.file(task.get("name")):
+                if self.k.fm.file(task.get("name")):
                     fname = task.get("name") if task.get("name") != "image.png" else \
                         task.get("path").rsplit("/", 1)[-1]
                     _ = {"url": f'''{self.k.api.file_redirect_prefix}/data{task.get("path")}?f={fname}''',
@@ -288,7 +288,7 @@ class Kemono:
             """get filter from kemono_expander.Artists etc."""
             if valid_posts:
                 if _info["name"] in self.k.fm.re_f.artists_patterns:  # 【普通】标题自定义正则过滤
-                    _expander = self.k.fm.re_f.do_artist_patterns(_info["name"])
+                    _expander = self.k.fm.re_f.do_artist_pattern(_info["name"])
                 elif hasattr(self.k.fm.rule_f, _info["name"]):    # 【复杂】规则系，需自写代码
                     _expander = getattr(self.k.fm.rule_f, _info["name"])
                 elif _info["id"] in self.k.fm.rule_f.ae and hasattr(self.k.fm.rule_f, self.k.fm.rule_f.ae(_info["id"]).name):
@@ -551,8 +551,8 @@ class Process:
     def __init__(self) -> None:
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.k = Kemono(AioRClient())
-        
+        self.k = None
+
     def create(self, **ckw):
         # 0. 清除遗留任务
         self.loop.run_until_complete(self.k.clean_residual_tasks())
@@ -584,6 +584,28 @@ class Process:
     # self.k.delete(
     #     *self.k.sv_path.joinpath(r'MだSたろう_fanbox\[2024-06-16]フリーナっクス-アニメメーション版').glob('*動画*.zip')
     # )
+    
+    async def __aenter__(self):
+        self.k = Kemono(AioRClient())
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.k.redis.aclose()
+        await self.k.api.sess.aclose()
+        await self.k.rpc.sess.aclose()
+    
+    def __enter__(self):
+        self.k = Kemono(AioRClient())
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.loop.run_until_complete(self._cleanup())
+        self.loop.close()
+    
+    async def _cleanup(self):
+        await self.k.redis.aclose()
+        await self.k.api.sess.aclose()
+        await self.k.rpc.sess.aclose()
 
 
 if __name__ == '__main__':
@@ -615,12 +637,12 @@ if __name__ == '__main__':
     rkw = {
         "sem": args.sem
     }
-    process = Process()
-    match args.process:
-        case "create":
-            process.create(**ckw)
-        case "run":
-            process.run(**rkw)
-        case _:
-            process.create(**ckw)
-            process.run(**rkw)
+    with Process() as process:
+        match args.process:
+            case "create":
+                process.create(**ckw)
+            case "run":
+                process.run(**rkw)
+            case _:
+                process.create(**ckw)
+                process.run(**rkw)
