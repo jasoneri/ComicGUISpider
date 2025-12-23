@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from assets import res
 
-VER = "v2.7.1"
+VER = "v2.7.2"
 
 LANG = {
     "en_US": "English",
@@ -35,7 +35,8 @@ DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of co
     3: ['C107', '更新', '汉化'],
     4: [res.EHentai.MAPPINGS_POPULAR, res.EHentai.MAPPINGS_INDEX, 'C107'],
     5: ['更新', '人气'],
-    6: ['index-all', 'popular/week-all', 'popular/month-all']
+    6: ['index-all', 'popular/week-all', 'popular/month-all'],
+    7: []
 }
 STATUS_TIP = {
     0: None,

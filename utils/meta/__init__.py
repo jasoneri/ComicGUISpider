@@ -35,7 +35,7 @@ class ComicInfo(MetaMixin):
         if isinstance(info, Episode):
             episode = info
             book = episode.from_book
-            self.title = episode.display_title
+            self.title = episode.name
             self.series = self._extract_series_name(book.name)
             self.number = self._extract_number_from_episode_name(episode.name)
             self.pages = episode.pages or book.pages
@@ -169,11 +169,11 @@ class Blank(MetaMixin):
 
 class MetaRecorder:
     def __init__(self, _conf):
-        self.meta_type = _conf.meta_type
+        self.downloaded_handle = _conf.downloaded_handle
 
     def toMetaInfo(self, info: Union[BookInfo, Episode]):
-        match self.meta_type:
-            case "ComicInfo.xml":
+        match self.downloaded_handle:
+            case ".cbz":
                 return ComicInfo(info)
             case "-" | _:
                 return Blank(info)

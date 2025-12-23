@@ -382,8 +382,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.log.error(str(traceback.format_exc()))
             self.log = conf.cLog(name="GUI")
             self.BrowserWindow = None
-            self.Q('InputFieldQueue').clear()
-            QTimer.singleShot(10, lambda : self.setupUi(self))
+            def safe_setup():
+                if hasattr(self, 'p_crawler') and self.p_crawler and self.p_crawler.is_alive():
+                    QTimer.singleShot(70, safe_setup)
+                else:
+                    self.Q('InputFieldQueue').clear()
+                    self.setupUi(self)
+            QTimer.singleShot(10, safe_setup)
 
         self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
         QTimer.singleShot(50, retry_all)

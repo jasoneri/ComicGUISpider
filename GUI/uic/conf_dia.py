@@ -105,9 +105,9 @@ class Ui_Dialog(object):
         self.metaTypeLabel = StrongBodyLabel(Dialog)
         self.metaTypeLabel.setObjectName("metaTypeLabel")
         self.horizontalLayout_proxies.addWidget(self.metaTypeLabel)
-        self.metaTypeBox = ComboBox(Dialog)
-        self.metaTypeBox.setObjectName("metaTypeBox")
-        self.horizontalLayout_proxies.addWidget(self.metaTypeBox)
+        self.dledHandleBox = ComboBox(Dialog)
+        self.dledHandleBox.setObjectName("dledHandleBox")
+        self.horizontalLayout_proxies.addWidget(self.dledHandleBox)
         self.dialogVLayout.addLayout(self.horizontalLayout_proxies)
         self.horizontalLayout_label_completer = QtWidgets.QHBoxLayout()
         self.horizontalLayout_label_completer.setObjectName("horizontalLayout_label_completer")
@@ -208,7 +208,7 @@ class Ui_Dialog(object):
         self.gridLayout_2.addLayout(self.dialogVLayout, 0, 0, 1, 1)
 
         self.retranslateUi(Dialog)
-        self.metaTypeBox.setCurrentIndex(-1)
+        self.dledHandleBox.setCurrentIndex(-1)
         self.cancelBtn.clicked.connect(Dialog.reject) # type: ignore
         self.acceptBtn.clicked.connect(Dialog.accept) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(Dialog)
