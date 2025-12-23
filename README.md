@@ -67,7 +67,7 @@ ok的，`v2.7.2` 以后不发版只用 源码/tag 更新筛人了，更了什么
 ✅ `rvTool > 显示记录` 记录窗口新增 `搜索选中行` 按钮  
 ✅ 匹配记录提示，菜单操作增强 > [📷screenshot](https://img.comicguispider.nyc.mn/file/1765701939059_feat-2.7.1-beta.2.png)
 ✨ `元数据记录` 改成 `后处理`，下载完成的后处理，具体看 [`配置 > 后处理`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
-✨ `kemono` 过滤规则 修复&增强 > [看📏过滤规则示例](https://doc.comicguispider.nyc.mn/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B)  
+✨ `kemono` 过滤规则 修复&增强 > [看📏过滤规则示例](https://doc.comicguispider.nyc.mn/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B) （注意字段更改及时更新本地过滤规则）  
 
 #### 🐞 Fix
 
