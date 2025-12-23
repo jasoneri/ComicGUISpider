@@ -590,9 +590,7 @@ class Process:
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.k.redis.aclose()
-        await self.k.api.sess.aclose()
-        await self.k.rpc.sess.aclose()
+        await self._cleanup()
     
     def __enter__(self):
         self.k = Kemono(AioRClient())
