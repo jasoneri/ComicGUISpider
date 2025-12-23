@@ -1,0 +1,200 @@
+"""
+ComicGUISpider Updater
+"""
+import sys
+import os
+import re
+from pathlib import Path
+from loguru import logger
+
+# ===== uv env config (injected by main program) =====
+UV_ENV_DICT = {uv_env_dict}
+
+os.environ.update(UV_ENV_DICT)
+env = os.environ.copy()
+uv_tool_dir = Path(UV_ENV_DICT["UV_TOOL_DIR"])
+logger.add(uv_tool_dir.joinpath("cgs_update.log"),
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}",
+    level='INFO', retention='5 days', encoding='utf-8')
+
+from PyQt5.QtWidgets import QApplication, QVBoxLayout
+from PyQt5.QtCore import QProcess, QProcessEnvironment, QTimer
+from qfluentwidgets import TitleLabel, BodyLabel, ProgressBar, MessageBox
+from qframelesswindow import FramelessWindow
+GUI_AVAILABLE = True
+
+
+class UpdateWindow(FramelessWindow):
+    def __init__(self, uv_exc: str, version: str, index_url: str):
+        super().__init__()
+        self.uv_exc = uv_exc
+        self.version = version
+        self.index_url = index_url
+        self.process = None
+        self.log_file = None
+
+        self.cmd_args = [
+            'tool', 'install', f'ComicGUISpider=={version}',
+            '--force',
+            '--index-url', index_url,
+            '--python', '<3.14',
+        ]
+        logger.info(f"cmd_args: {self.cmd_args}")
+
+        # UI
+        self.title = TitleLabel("CGS Updater", self)
+        self.version_label = BodyLabel(f"ver: {version}", self)
+        self.status = BodyLabel("⏳ ...", self)
+        self.progress = ProgressBar(self)
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.title)
+        layout.addWidget(self.version_label)
+        layout.addWidget(self.status)
+        layout.addWidget(self.progress)
+        layout.setSpacing(12)
+        layout.setContentsMargins(30, 48, 30, 20)
+
+        self.setFixedSize(480, 220)
+        self.setWindowTitle("CGS Updater")
+
+        QTimer.singleShot(500, self.start_update)
+
+    def start_update(self):
+        self.process = QProcess(self)
+
+        proc_env = QProcessEnvironment.systemEnvironment()
+        for key, value in UV_ENV_DICT.items():
+            proc_env.insert(key, value)
+        self.process.setProcessEnvironment(proc_env)
+
+        self.process.readyReadStandardOutput.connect(self._handle_stdout)
+        self.process.readyReadStandardError.connect(self._handle_stderr)
+        self.process.finished.connect(self._update_finished)
+        self.process.errorOccurred.connect(self._process_error)
+
+        self.status.setText("🚀 ...")
+        self.progress.setValue(5)
+
+        logger.info(f"start: {self.uv_exc} {self.cmd_args}")
+        self.process.start(self.uv_exc, self.cmd_args)
+
+    def _handle_stdout(self):
+        data = bytes(self.process.readAllStandardOutput()).decode("utf8", errors="ignore")
+        if self.log_file:
+            self.log_file.write(data)
+        self._parse_progress(data)
+
+    def _handle_stderr(self):
+        data = bytes(self.process.readAllStandardError()).decode("utf8", errors="ignore")
+        if self.log_file:
+            self.log_file.write(data)
+        self._parse_progress(data)
+
+    def _parse_progress(self, text: str):
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            if "Resolved" in line:
+                if m := re.search(r'Resolved (\d+) package', line):
+                    self.progress.setValue(15)
+                    self.status.setText(f"📦 Resolved 已解析 ({m.group(1)})")
+
+            elif m := re.search(r'\((\d+)/(\d+)\)', line):
+                current, total = int(m.group(1)), int(m.group(2))
+                percent = 15 + int((current / total) * 60)
+                self.progress.setValue(percent)
+                self.status.setText(f"⬇️ Downloading 下载中 ({current}/{total})")
+
+            elif "Downloaded" in line:
+                if m := re.search(r'Downloaded (\d+) package', line):
+                    self.progress.setValue(75)
+                    self.status.setText(f"📥 Downloaded 已下载 ({m.group(1)})")
+
+            elif "Installing" in line:
+                self.progress.setValue(85)
+                self.status.setText("⚙️ Installing 安装中...")
+
+            elif "Installed" in line:
+                if m := re.search(r'Installed (\d+) package', line):
+                    self.progress.setValue(100)
+                    self.status.setText(f"✅ Installed 已安装 ({m.group(1)})")
+
+    def _update_finished(self, exit_code: int, exit_status):
+        logger.info(f"finished: exit_code={exit_code}, exit_status={exit_status}")
+        if self.log_file:
+            self.log_file.write(f"\nexit_code: {exit_code}\n")
+            self.log_file.close()
+            self.log_file = None
+
+        if exit_code == 0:
+            self.progress.setValue(100)
+            self.status.setText("✅ Done! Restarting 重启中...")
+            QTimer.singleShot(1500, self._restart_cgs)
+        else:
+            self.status.setText(f"❌ Failed 失败 (code: {exit_code})")
+            w = MessageBox("❌ Failed 失败", f"exit_code: {exit_code}", self)
+            w.yesButton.setText("OK")
+            w.cancelButton.hide()
+            w.exec()
+            self.close()
+
+    def _restart_cgs(self):
+        import subprocess
+        cmd = [self.uv_exc, 'tool', 'run', '--from', 'comicguispider', 'cgs']
+        logger.info(f"restart: {cmd}")
+        subprocess.Popen(cmd, env=env)
+        self.close()
+
+    def _process_error(self, error):
+        error_msgs = {
+            QProcess.FailedToStart: "❌ Failed to start 启动失败",
+            QProcess.Crashed: "💥 Crashed 崩溃",
+            QProcess.Timedout: "⏰ Timeout 超时",
+        }
+        msg = error_msgs.get(error, f"❌ Error 错误: {error}")
+        logger.error(f"process error: {msg}")
+        self.status.setText(msg)
+
+        if self.log_file:
+            self.log_file.write(f"error: {msg}\n")
+            self.log_file.close()
+            self.log_file = None
+
+
+@logger.catch
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="CGS Updater")
+    parser.add_argument("--uv-exc", required=True)
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--index-url", required=True)
+    args = parser.parse_args()
+
+    cmd_args = [
+        'tool', 'install', f'ComicGUISpider=={args.version}',
+        '--force',
+        '--index-url', args.index_url,
+        '--python', '<3.14',
+    ]
+
+    if not GUI_AVAILABLE:
+        import subprocess
+        logger.info(f"CLI: {cmd_args}")
+        proc = subprocess.run([args.uv_exc] + cmd_args, text=True)
+        print("✅" if proc.returncode == 0 else f"❌ code: {proc.returncode}")
+        return proc.returncode
+
+    app = QApplication(sys.argv)
+    window = UpdateWindow(args.uv_exc, args.version, args.index_url)
+    window.show()
+    sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()

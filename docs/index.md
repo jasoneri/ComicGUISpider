@@ -16,13 +16,15 @@ hero:
     - theme: alt
       text: 配置
       link: /config
-    - theme: sponsor
+    - theme: brand
       text: 🎸功能
       link: /feat
     - theme: alt
       text: FAQ
       link: /faq
-
+    - theme: sponsor
+      text: 🍖投喂
+      link: https://ko-fi.com/jsoneri
 
 ---
 
@@ -70,7 +72,7 @@ hero:
 
 - 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
 - 开预览后随便点点就能下载，预览窗口充当于微型浏览器
-- 通过加减号，`0 全选`，`-3 选倒数三个` 等输入规则，能方便指定选择
+- 丰富多样的输入规则，能方便指定选择
 - 基于翻页保留，体验如同塞进购物车
 - 预设，去重，加标识符等自定义设置
 
