@@ -71,7 +71,6 @@
 ::: info `ComicInfo.xml` 元数据须知
 
 1. 注意不同获取方式的元数据字段可能不同，搜索接口的一般没有书页接口(例如读剪贴板/车号)的全
-2. 暂不支持章节型元数据
 
 ::: tip 了解其他热门元数据标准的可参与开发，或 [提需求(详细描述)](https://github.com/jasoneri/ComicGUISpider/issues/new?template=feature-request.yml)  
 :::
