@@ -1,5 +1,6 @@
 import os
-import shlex
+import json
+from pathlib import Path
 import subprocess
 import typing as t
 
@@ -116,12 +117,11 @@ class Updater:
             except Exception:
                 pass
             ver = recv.update_info.get("tag_name")
-            log = str(conf.log_path.joinpath("update.log"))
-            CustomInfoBar.show("", self.res.to_update % log, 
+            CustomInfoBar.show("", self.res.to_update, 
                 self.gui.textBrowser, self.proj.update_info.get("html_url"), 
                 f"""<{ver}>""", _type="SUCCESS")
             _close_thread()
-            QTimer.singleShot(6000, lambda: self.to_update(ver, log))
+            QTimer.singleShot(4000, lambda: self.to_update(ver))
 
         def checked(recv):
             try:
@@ -164,13 +164,24 @@ class Updater:
         subprocess.Popen(cmd, cwd=exc_p, env=env)
         QTimer.singleShot(1000, self.gui.close)
 
-    def to_update(self, ver, log):
-        python_version_arg = "'<3.14'"
-        cmd = f"{uv_exc} tool install ComicGUISpider=={ver} --force --index-url {PYPI_SOURCE[conf.pypi_source]} --python {python_version_arg}"
+    def to_update(self, ver):
+        uv_env = {key: os.environ[key] for key in ('UV_TOOL_DIR', 'UV_TOOL_BIN_DIR') if key in os.environ}
+        tool_dir = Path(uv_env['UV_TOOL_DIR'])
         if os.name == "nt":
-            subprocess.Popen(["cmd", "/c", "start", "", "powershell", "-NoProfile", "-Command",
-                            f"{cmd} 2>&1 | Tee-Object -FilePath {shlex.quote(log)} ; Read-Host 'Press Enter to close'"])
+            python_exc = tool_dir / "comicguispider" / "Scripts" / "python.exe"
         else:
-            full = f"""{cmd} 2>&1 | tee -a {shlex.quote(log)} ; echo 'done'; read -n1 -s -r -p 'Press any key to close...'"""
-            subprocess.Popen(["setsid", "sh", "-c", full], start_new_session=True)
+            python_exc = tool_dir / "comicguispider" / "bin" / "python"
+        with ori_path.joinpath("assets/update.txt").open("r", encoding="utf-8") as f:
+            template = f.read()
+        updater_script = template.replace(r"{uv_env_dict}", json.dumps(uv_env, ensure_ascii=False))
+        script_path = tool_dir.joinpath("cgs_update.py")
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(updater_script)
+        args = [str(python_exc), str(script_path),
+            '--uv-exc', uv_exc, '--version', ver,
+            '--index-url', PYPI_SOURCE[conf.pypi_source]]
+        if os.name == "nt":
+            subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE, env=env)
+        else:
+            subprocess.Popen(args, start_new_session=True, env=env)
         self.gui.close()

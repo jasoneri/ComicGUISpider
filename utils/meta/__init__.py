@@ -35,7 +35,7 @@ class ComicInfo(MetaMixin):
         if isinstance(info, Episode):
             episode = info
             book = episode.from_book
-            self.title = episode.display_title
+            self.title = episode.name
             self.series = self._extract_series_name(book.name)
             self.number = self._extract_number_from_episode_name(episode.name)
             self.pages = episode.pages or book.pages

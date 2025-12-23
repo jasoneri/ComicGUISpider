@@ -16,13 +16,15 @@ hero:
     - theme: alt
       text: 配置
       link: /config
-    - theme: sponsor
+    - theme: brand
       text: 🎸功能
       link: /feat
     - theme: alt
       text: FAQ
       link: /faq
-
+    - theme: sponsor
+      text: 🍖投喂
+      link: https://ko-fi.com/jsoneri
 
 ---
 

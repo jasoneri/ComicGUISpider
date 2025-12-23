@@ -1,4 +1,6 @@
 
+📢 暂时不更了，还得亏某些人，原因看 README  
+
 ## 🎁 Features
 
 ✅ 新增 `元数据记录` 功能，例如 `.czb` 的 `ComicInfo.xml`，具体看 [`配置 > 元数据类型`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  

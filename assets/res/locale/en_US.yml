@@ -179,4 +179,4 @@ Updater:
   ver_check_fail: "Version check failed - retry or check releases"
   update_ensure: "Confirm Update"
   doing: "Involves code and dependency updates, Wait a moment.."
-  to_update: "🚧 Close main process and open new terminal for update, restart then look at version to determine whether update is success or not\nIf necessary, you can take screenshot of log path: [%s]"
+  to_update: "🚧 Close main process for update, restart then look at version to determine whether update is success or not"
