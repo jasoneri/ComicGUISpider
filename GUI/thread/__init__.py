@@ -115,12 +115,11 @@ class WorkThread(QThread):
     print_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(str)
     tasks_signal = pyqtSignal(object)
-    active = True
 
     def __init__(self, gui):
         super(WorkThread, self).__init__(gui)
         self.gui = gui
-        self.flag = 1
+        self.active = True
 
     def run(self):
         manager = self.gui.manager
@@ -167,7 +166,7 @@ class WorkThread(QThread):
     #     self.wait()
 
     def stop(self):
-        self.flag = 0
+        self.active = False
 
 
 class ProjUpdateThread(QThread):

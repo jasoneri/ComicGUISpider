@@ -368,6 +368,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             os.remove(self.tf)
 
     def retry_schedule(self):
+        if hasattr(self, 'preprocess_mgr'):
+            self.preprocess_mgr.cleanup()
         if getattr(self, 'p_crawler', None):
             try:
                 refresh_state(self, 'process_state', 'ProcessQueue')
