@@ -99,7 +99,9 @@ class ComicPipeline(ImagesPipeline):
             if getattr(tasks_obj, 'meta_info', None):
                 tasks_obj.meta_info.fin_callback(spider.tasks_path[tasks_obj.taskid])
             if conf.isDeduplicate:
-                spider.sql_handler.add(task_obj.taskid)
+                spider.record_sql.add(task_obj.taskid)
+            spider.rv_sql.write_episode(tasks_obj.title, tasks_obj.episode_name)
+            
         spider.Q('TasksQueue').send(task_obj, wait=True)
         stats.inc_value('image/downloaded')
 

@@ -30,9 +30,9 @@ from utils.processed_class import (
     GuiQueuesManger, refresh_state, crawl_what,
     PreviewHtml, TmpFormatHtml
 )
-from utils.redViewer_tools import show_max
+from utils.redViewer_tools import Handler as rVtools
 from utils.website import spider_utils_map, InfoMinix
-from utils.sql import SqlUtils
+from utils.sql import SqlRecorder, SqlrV
 
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
@@ -66,6 +66,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     Q = None
     s: m.Server = None
     sv_path = None
+    rv_tools: rVtools = None
 
     def __init__(self, parent=None):
         super(SpiderGUI, self).__init__(parent)
@@ -146,6 +147,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.web_is_r18 = True
                 self.sut = self.spiderUtils(conf)
                 rmt_s2c = False
+                self.rv_tools.sql.ero = 1
             FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
@@ -172,6 +174,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.first_tmp_sv_flag = True
         self.task_mgr = TaskProgressManager(self)
         self.preprocess_mgr = PreprocessManager(self)
+        self.rv_tools = rVtools(SqlrV())
 
         if hasattr(self, 'splashScreen'):
             self.splashScreen.finish()
@@ -252,7 +255,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         1.已下载标记,from sql;
         2.（未做）非被指定标记"""
         def mark_tip(_infos):
-            sql_utils = SqlUtils()
+            sql_utils = SqlRecorder()
             obj_to_md5 = {}
             md5s = []
             for obj in _infos:
@@ -263,6 +266,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             for md5, obj in obj_to_md5.items():
                 if md5 in downloaded_md5:
                     obj.mark_tip = "downloaded"
+            sql_utils.close()
         infos = sorted(ori_infos.values(), key=lambda x: x.idx)
         if conf.isDeduplicate:
             mark_tip(infos)
@@ -633,7 +637,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.BrowserWindow.show()
 
     def show_max(self):
-        self.bsm = self.bsm or show_max()
+        self.bsm = self.bsm or self.rv_tools.show_max()
         bc_name = self.book_choose[0].name
         bookShow = self.bsm.get(bc_name) or self.bsm.get(self.searchinput.text().strip())
         if bookShow:

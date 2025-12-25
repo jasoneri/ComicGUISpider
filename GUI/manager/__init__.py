@@ -14,7 +14,7 @@ from variables import PYPI_SOURCE
 from deploy.update import Proj
 from utils import conf, ori_path, env, uv_exc, exc_p, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
-from utils.sql import SqlUtils
+from utils.sql import SqlRecorder
 from utils.website import BookInfo, Episode
 from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox
@@ -29,7 +29,7 @@ class TaskProgressManager:
         self.gui = gui
         self._tasks = {}
         self.init_flag = True
-        self.sql_handler = SqlUtils()
+        self.record_sql = SqlRecorder()
         self._init_lock = False
         self._pending_tasks = []
 
@@ -85,12 +85,12 @@ class TaskProgressManager:
     @property
     def unfinished_tasks(self):
         _tasks_key = list(self._tasks.keys())
-        downloaded_taskids = self.sql_handler.batch_check_dupe(_tasks_key)
+        downloaded_taskids = self.record_sql.batch_check_dupe(_tasks_key)
         un_taskids = set(_tasks_key) - set(downloaded_taskids)
         return [self._tasks[taskid] for taskid in un_taskids]
         
     def close(self):
-        self.sql_handler.close()
+        self.record_sql.close()
 
 
 class Updater:

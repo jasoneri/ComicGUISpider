@@ -15,7 +15,6 @@ from qframelesswindow import FramelessWindow
 
 from assets import res as ori_res
 from utils import curr_os, conf, yaml_update
-from utils.redViewer_tools import show_max
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon
 
 tools_res = ori_res.GUI.Tools
@@ -135,6 +134,8 @@ class rvTool(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.toolWin = parent
+        self.gui = parent.gui
+        self.rv_sql = self.gui.rv_sql
         self.init_ui()
     
     def init_ui(self):
@@ -158,6 +159,8 @@ class rvTool(QWidget):
         self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
         self.deployBtn.clicked.connect(self.deploy)
         self.showMaxBtn.clicked.connect(self.show_max)
+        self.scanBtn = PushButton(FIF.SEARCH, "Scan")
+        self.scanBtn.clicked.connect(self.rv_scan)
         second_row.addSpacerItem(spacer_info)
         second_row.addWidget(self.deployBtn)
         second_row.addWidget(self.showMaxBtn)
@@ -176,8 +179,40 @@ class rvTool(QWidget):
         _.show()
     
     def show_max(self):
-        self.toolWin.gui.bsm = self.toolWin.gui.bsm or show_max()
-        self.table_fv = CustomFlyout.make(TableFlyoutView(self.toolWin.gui.bsm, self), self.sv_path_card, self)
+        db_path = pathlib.Path(conf.conf_dir).joinpath("rV.db")
+        need_init = False
+        
+        if not db_path.exists():
+            need_init = True
+        else:
+            self.rv_sql.cursor.execute(f"SELECT COUNT(*) FROM {self.rv_sql.eps_tb}")
+            count = self.rv_sql.cursor.fetchone()[0]
+            if count == 0:
+                need_init = True
+        
+        if need_init:
+            InfoBar.warning(
+                title='Warning', content='not db/table init, CGS do scaning..',
+                isClosable=False, position=InfoBarPosition.BOTTOM_LEFT,
+                duration=3000, parent=self
+            )
+            total = self.gui.rv_tools.scan(conf.sv_path, init=True)
+            if total == 0:
+                InfoBar.warning(
+                    title='Warning', content='empty scan things, take download first',
+                    position=InfoBarPosition.BOTTOM_LEFT, duration=5000, parent=self
+                )
+                return
+        self.gui.bsm = self.gui.bsm or self.gui.rv_tools.show_max()
+        self.table_fv = CustomFlyout.make(TableFlyoutView(self.gui.bsm, self), self.sv_path_card, self)
+
+    def rv_scan(self):
+        total = self.gui.rv_tools.scan(conf.sv_path)
+        InfoBar.success(
+            title='scan-ret', content=f'scaned {total} books/epsiodes',
+            isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+            duration=3000, parent=self
+        )
 
     def run(self):
         rv_script = pathlib.Path(getattr(conf, "rv_script"))
