@@ -3,40 +3,15 @@
 import typing as t
 import pathlib
 import re
-import shutil
 from dataclasses import dataclass
 
 from assets import res
 from utils import conf
 
-expect_dir = ('web', 'web_handle', 'log', res.SPIDER.ERO_BOOK_FOLDER)
+expect_dir = ('_save', res.SPIDER.ERO_BOOK_FOLDER)
 record_file = conf.sv_path.joinpath("web_handle/record.txt")
 
-
-def combine_then_mv(root_dir, target_dir, order_book=None) -> list:
-    p = pathlib.Path(root_dir)
-    target_p = pathlib.Path(target_dir)
-    done = []
-    for order_dir in filter(lambda x: x.is_dir() and x.name.lstrip("_") not in expect_dir, p.iterdir()):
-        for ordered_section in order_dir.iterdir():
-            ___ = target_p.joinpath(f"{order_dir.name}_{ordered_section.name}")
-            if ___.exists():
-                shutil.rmtree(___)
-            shutil.move(ordered_section, ___)
-        shutil.rmtree(order_dir)
-        done.append(order_dir.name)
-    return done
-
-
-def restore(ori):
-    p = pathlib.Path(ori)
-    book_p = None
-    for i in p.iterdir():
-        book, section = i.name.split('_')
-        if not p.parent.joinpath(book).exists():
-            book_p = p.parent.joinpath(book)
-            book_p.mkdir(exist_ok=True)
-        shutil.move(i, book_p.joinpath(section))
+SUPPORTED_COMIC_FORMATS = {'.cbz', '.cb7', '.pdf'}
 
 
 @dataclass
@@ -63,23 +38,18 @@ def show_max() -> t.Dict[str, BookShow]:
                 show_map_raw[book].append(section)
 
     dl_map_raw = {}
-    web_path = conf.sv_path.joinpath("web")
-    if web_path.exists():
-        for item in web_path.iterdir():
-            try:
-                book, section = item.name.split('_')
-                if book not in dl_map_raw:
-                    dl_map_raw[book] = []
-                dl_map_raw[book].append(section)
-            except ValueError:
-                continue
 
     for book_dir in filter(lambda x: x.is_dir() and x.name not in expect_dir, conf.sv_path.iterdir()):
         for section in book_dir.iterdir():
+            section_name = None
             if section.is_dir():
+                section_name = section.name
+            elif section.is_file() and section.suffix.lower() in SUPPORTED_COMIC_FORMATS:
+                section_name = section.stem  # 去除后缀，例如 "第100話.cbz" -> "第100話"
+            if section_name:
                 if book_dir.name not in dl_map_raw:
                     dl_map_raw[book_dir.name] = []
-                dl_map_raw[book_dir.name].append(section.name)
+                dl_map_raw[book_dir.name].append(section_name)
 
     def _get_max_sections(raw_map):
         processed_map = {}

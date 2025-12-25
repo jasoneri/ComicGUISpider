@@ -59,7 +59,7 @@ class ComicPipeline(ImagesPipeline):
         if uuid_md5 in spider.tasks_path:
             return spider.tasks_path[uuid_md5]
         if spider.name in spider.settings.get('SPECIAL'):
-            parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web")
+            parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}")
             _title = self._sub_index.sub('', set_author_ahead(title))
             if section != 'meaningless':
                 base_title_path = parent_p.joinpath(_title)

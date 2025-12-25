@@ -15,7 +15,7 @@ from qframelesswindow import FramelessWindow
 
 from assets import res as ori_res
 from utils import curr_os, conf, yaml_update
-from utils.redViewer_tools import combine_then_mv, show_max
+from utils.redViewer_tools import show_max
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon
 
 tools_res = ori_res.GUI.Tools
@@ -158,12 +158,9 @@ class rvTool(QWidget):
         self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
         self.deployBtn.clicked.connect(self.deploy)
         self.showMaxBtn.clicked.connect(self.show_max)
-        self.combineBtn = PushButton(CustomIcon.TOOL_MERGE, tools_res.rv_merge_move)
-        self.combineBtn.clicked.connect(self.combine_then_mv)
         second_row.addSpacerItem(spacer_info)
         second_row.addWidget(self.deployBtn)
         second_row.addWidget(self.showMaxBtn)
-        second_row.addWidget(self.combineBtn)
         second_row.addWidget(self.broomBtn)
         second_row.addWidget(self.runBtn)
 
@@ -181,14 +178,6 @@ class rvTool(QWidget):
     def show_max(self):
         self.toolWin.gui.bsm = self.toolWin.gui.bsm or show_max()
         self.table_fv = CustomFlyout.make(TableFlyoutView(self.toolWin.gui.bsm, self), self.sv_path_card, self)
-
-    def combine_then_mv(self):
-        done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
-        InfoBar.success(
-            title='combine_then_mv', content=ori_res.GUI.Tools.rv_combined_tip % (done, str(conf.sv_path.joinpath("web"))),
-            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-            duration=3000, parent=self
-        )
 
     def run(self):
         rv_script = pathlib.Path(getattr(conf, "rv_script"))
