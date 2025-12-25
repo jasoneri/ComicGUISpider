@@ -14,7 +14,7 @@ from qfluentwidgets import (
 
 
 from assets import res
-from utils.redViewer_tools import BookShow, delete_record
+from utils.redViewer_tools import BookShow
 
 
 class CustomInfoBar:
@@ -285,7 +285,7 @@ class TableFlyoutView(FlyoutViewBase):
         row = selected_indexes[0].row()
         model = self.tableView.model()
         book_name = model.item(row, 0).text()
-        delete_record(book_name)
+        self.gui.rv_tools.delete_record(book_name)
         model.removeRow(row)
 
     def send_selected_record(self):

@@ -158,7 +158,7 @@ class HitomiSpider(BaseComicSpider):
 
         book = meta.get('book')
         this_uuid, this_md5 = book.id_and_md5()
-        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
+        if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):
             self.say(f'📜 《{book.name}》')
             self.set_task(book)
             for pic_info in book.pics:
