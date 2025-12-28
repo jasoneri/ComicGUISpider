@@ -78,10 +78,24 @@ hero:
 
 ## 食用搭配(阅读器)
 
-`rV (redViewer)`, 完全适配 CGS  
-已内置显眼按钮以及小窗管理，后续会基于 rV 展开  
-
-[![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)
+<table><tbody>  
+  <tr>
+    <td><div align="center"><a href="https://github.com/jasoneri/redViewer" target="_blank">
+      <img src="https://img.comicguispider.nyc.mn/file/1766904566021_rv.png" alt="logo" height="60" style="max-height:60px;">
+      </a></div></td>
+    <td><div align="center"><a href="https://github.com/gotson/komga" target="_blank">
+      <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" style="min-height:60px;">
+      </a></div></td>
+    <td><div align="center"><a href="https://github.com/Ruben2776/PicView" target="_blank">
+      <img src="https://avatars.githubusercontent.com/u/4200419?s=48&v=4" alt="PicView" style="min-height:60px;">
+      </a></div></td>
+  </tr>
+  <tr>
+    <td>rV, 自用<br>全面无感适配 CGS<br><s>CGS 为它服务</s></td>
+    <td>komga/ComicRack系<br>需后处理设<code>.czb</code></td>
+    <td>PicView<br>图片管理器, 但用来操作子目录图片<br>或是<code>.cbz</code>都是不错选择</td>
+  </tr>
+</tbody></table>
 
 ## 致谢声明
 

@@ -38,7 +38,7 @@
 ## 📑介绍
 
 👍 什么玩意啊，最好再召集多点人把star降到 0 吧 👍 本来就是没人说的话我自用出错才修，还得谢谢用这方法把我恶心了 👍  
-ok的，`v2.7.2` 以后不发版只用 源码/tag 更新筛人了，更了什么修复什么也只会在软件内配置窗口更新按钮里写  
+ok的，`v2.7.2` 以后不发版只用 源码/tag 更新筛人了，更新和修复了什么看`并入GUI的PR`或软件内配置窗口更新按钮里看吧  
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
@@ -81,10 +81,24 @@ ok的，`v2.7.2` 以后不发版只用 源码/tag 更新筛人了，更了什么
 
 ## 🍮食用搭配(阅读器)
 
-完全适配 CGS ， `rV (redViewer)`  
-已内置显眼按钮以及小窗管理，后续会基于 rV 展开  
-
-[![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)
+<table><tbody>  
+  <tr>
+    <td><div align="center"><a href="https://github.com/jasoneri/redViewer" target="_blank">
+      <img src="https://img.comicguispider.nyc.mn/file/1766904566021_rv.png" alt="logo" height="60">
+      </a></div></td>
+    <td><div align="center"><a href="https://github.com/gotson/komga" target="_blank">
+      <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" height="60">
+      </a></div></td>
+    <td><div align="center"><a href="https://github.com/Ruben2776/PicView" target="_blank">
+      <img src="https://avatars.githubusercontent.com/u/4200419?s=48&v=4" alt="PicView" height="60">
+      </a></div></td>
+  </tr>
+  <tr>
+    <td>rV, 自用<br>全面无感适配 CGS<br><s>CGS 为它服务</s></td>
+    <td>komga/ComicRack系<br>需后处理设<code>.czb</code></td>
+    <td>PicView<br>图片管理器, 但用来操作子目录图片<br>或是<code>.cbz</code>都是不错选择</td>
+  </tr>
+</tbody></table>
 
 ## 💝感谢以下开源项目
 

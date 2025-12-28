@@ -18,7 +18,7 @@ def get_one_extra():
 
     name = "[野際かえで] おもちゃの人生3 [無修正] [sky110036漢化]"
     book_html = ori_path.joinpath(r"test/analyze/temp/temp.html")
-    tar_path = p.Path(conf.sv_path).joinpath(r"本子\web", name)
+    tar_path = p.Path(conf.sv_path).joinpath(r"本子", name)
 
     async def do(targets):
         async def pic_fetch(sess, url):

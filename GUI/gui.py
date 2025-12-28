@@ -162,7 +162,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.chooseBox_changed_tips(index)
             if self.web_is_r18:
                 self.clipBtn.setEnabled(1)
-                self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
+                self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
             # 输入框联想补全
             self.set_completer()
             # 预处理管理器处理

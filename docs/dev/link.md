@@ -14,10 +14,7 @@
 - [anyrouter](https://anyrouter.top/register?aff=p4Jb)
 - [code router](https://api.code-relay.com/register?aff=esN0) (真跑RMB的,优点是设置`claudeCode.environmentVariables`真能简单上手)
 
-## 一般/测不通
+## 其他
 
-[学渣](https://gptkey.eu.org/register?aff=1ugw) [薄荷](https://x666.me/register?aff=EUnG)
-
----
-
-[🎅LDC 投喂](https://credit.linux.do/paying/online?token=26af47ee90b1192086095d107dc9bc1ca4137bd12496fefaf22efadcc349a98a)
+- [🎅LDC 投喂](https://credit.linux.do/paying/online?token=26af47ee90b1192086095d107dc9bc1ca4137bd12496fefaf22efadcc349a98a)  
+- [学英语浏览器插件](Ries.ai?c=Jzva)

@@ -45,7 +45,7 @@ class ComicPipeline(ImagesPipeline):
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
         title = self._sub.sub('-', item.get('title'))
-        section = self._sub.sub('-', item.get('section'))
+        section = self._sub.sub('-', item.get('section') or '')
         taskid = item.get('uuid_md5')
         page = self.page_naming(taskid, item.get('page'), info)
         spider = self.spiderinfo.spider
@@ -61,7 +61,7 @@ class ComicPipeline(ImagesPipeline):
         if spider.name in spider.settings.get('SPECIAL'):
             parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}")
             _title = self._sub_index.sub('', set_author_ahead(title))
-            if section != 'meaningless':
+            if section:
                 base_title_path = parent_p.joinpath(_title)
                 path = base_title_path.joinpath(f"{section}[{item['uuid']}]" if conf.addUuid else section)
             else:
