@@ -72,7 +72,7 @@ class TasksObj:
 
     @property
     def display_title(self) -> str:
-        return f"{self.title} - {self.episode_name}" if (self.episode_name and self.episode_name != "meaningless") else self.title
+        return f"{self.title} - {self.episode_name}" if self.episode_name else self.title
 
 
 class TaskObj:

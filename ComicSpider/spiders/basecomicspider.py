@@ -280,7 +280,7 @@ class BaseComicSpider(scrapy.Spider):
             for taskid, _ in self.tasks.items():
                 if self.record_sql.check_dupe(taskid):
                     continue
-                elif len(tuple(self.tasks_path.get(taskid).iterdir())) >= self.tasks[taskid].tasks_count:
+                elif self.tasks_path.get(taskid) and len(tuple(self.tasks_path.get(taskid).iterdir())) >= self.tasks[taskid].tasks_count:
                     self.record_sql.add(taskid)
 
     def refresh_state(self, state_name, queue_name, monitor_change=False):
@@ -386,7 +386,7 @@ class BaseComicSpider2(BaseComicSpider):
         else:
             book = meta.get('book')
             this_uuid, this_md5 = book.id_and_md5()
-            ep_name = 'meaningless'
+            ep_name = None
             this_info = book
         book.name = PresetHtmlEl.sub(book.name)
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):

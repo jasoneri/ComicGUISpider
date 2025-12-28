@@ -217,7 +217,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
         epa_els = _html.xpath('(//div[@class="episode"])[last()]/ul/a')
         book = JmBookInfo(
             name=_html.xpath('//h1/text()').get(),
-            artist=(info_el.xpath('.//span[@data-type="author"]/a/text()').getall() or ["-"])[-1],
+            artist=(info_el.xpath('.//span[@data-type="author"]/a/text()').getall() or [None])[-1],
             id=jm_id,
             tags=info_el.xpath('.//span[@data-type="tags"]/a/text()').getall(),
             img_preview=cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src').get(),
@@ -321,8 +321,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         info_el = _html.xpath('//div[contains(@class, "uwconn")]')[0]
         label_texts = info_el.xpath('./label/text()').getall()
         book = WnacgBookInfo(
-            name=_html.xpath('//body/div/h2/text()').get(),
-            artist="-", url=url,
+            name=_html.xpath('//body/div/h2/text()').get(), url=url,
             tags=info_el.xpath('.//a[@class="tagshow"]/text()').getall(),
             img_preview=thumb_el.xpath('./img/@src').get().replace("////", "https://"),
             pages=re.search(r'\d+', next(filter(lambda _: "頁數" in _, label_texts))).group(0),
@@ -412,7 +411,7 @@ class EHentaiKits(EroUtils, Req, Cookies):
         book = EhBookInfo(
             id=gid,
             name=(_html.xpath('//h1[@id="gj"]/text()').get() or _html.xpath('//div[@id="gd2"]/h1/text()').get()),
-            artist=author_[0].split(':')[-1] if author_ else '-', 
+            artist=author_[0].split(':')[-1] if author_ else None, 
             url=f"/g/{gid}/{token}/",
             tags=list(map(lambda x: x.split(":")[-1], tags_)),
             img_preview=re.search(r"url\((.*?)\)", img_src_el.replace("&quot;", "").replace('"', '')).group(1),

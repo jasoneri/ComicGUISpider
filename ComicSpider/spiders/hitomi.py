@@ -165,7 +165,7 @@ class HitomiSpider(BaseComicSpider):
                 item = ComicspiderItem()
                 item['title'] = book.name
                 item['page'] = str(pic_info['name'])
-                item['section'] = 'meaningless'
+                item['section'] = None
                 img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
                 item['image_urls'] = [img_url]
                 item['uuid'] = this_uuid
