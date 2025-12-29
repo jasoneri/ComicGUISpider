@@ -178,9 +178,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             theme_mgr.set_dark(conf.darkTheme)
         self.darkTheme.clicked.connect(_switch_mode)
         def _regular_update():
-            # self.puThread = ProjUpdateThread(self)
-            # Updater(self.gui).run()
-            self.gui.open_url_by_browser('https://doc.comicguispider.nyc.mn/changelog/history')
+            self.puThread = ProjUpdateThread(self)
+            Updater(self.gui).run()
         self.updateBtn.clicked.connect(_regular_update)
         self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
             view=SupportView(self), target=self.supportBtn, parent=self

@@ -175,6 +175,6 @@ Updater:
   git_update_desc: "Git environment detected, please git pull manually and update dependencies yourself"
   ver_local_latest: "Local version current"
   ver_check_fail: "Version check failed - retry or check releases"
-  update_ensure: "Confirm Update"
+  update_ensure: "Look How-to Update"
   doing: "Involves code and dependency updates, Wait a moment.."
   to_update: "🚧 Close main process for update, restart then look at version to determine whether update is success or not"

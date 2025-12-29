@@ -175,6 +175,6 @@ Updater:
   git_update_desc: "检测为git环境，需自行git pull并自行更新依赖"
   ver_local_latest: "本地版本已是最新.."
   ver_check_fail: "检查版本失败，可重试或前往releases页面查看"
-  update_ensure: "确认更新"
+  update_ensure: "查看更新方法"
   doing: "过程会涉及代码与依赖的更新，请稍等片刻.."
   to_update: "🚧 即将关闭主进程进行更新，重启看版本号即可判断是否更新成功"
