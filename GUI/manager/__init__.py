@@ -10,12 +10,10 @@ from qfluentwidgets import (
 )
 
 from assets import res
-from variables import PYPI_SOURCE
 from deploy.update import Proj
 from utils import conf, ori_path, env, uv_exc, exc_p, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
 from utils.sql import SqlRecorder
-from utils.website import BookInfo, Episode
 from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox
 )
@@ -98,6 +96,7 @@ class Updater:
     proj = None
     version = None
     stateTooltip = None
+    changelog_url = 'https://doc.comicguispider.nyc.mn/changelog/history'
     
     def __init__(self, gui):
         self.gui = gui
@@ -117,11 +116,11 @@ class Updater:
             except Exception:
                 pass
             ver = recv.update_info.get("tag_name")
-            CustomInfoBar.show("", self.res.to_update, 
-                self.gui.textBrowser, self.proj.update_info.get("html_url"), 
-                f"""<{ver}>""", _type="SUCCESS")
+            # CustomInfoBar.show("", self.res.to_update, 
+            #     self.gui.textBrowser, self.changelog_url,
+            #     f"""<{ver}>""", _type="SUCCESS")
             _close_thread()
-            QTimer.singleShot(4000, lambda: self.to_update(ver))
+            QTimer.singleShot(400, lambda: self.to_update(ver))
 
         def checked(recv):
             try:
@@ -139,8 +138,7 @@ class Updater:
             print(f"checked: {recv.update_flag}")
             if recv.update_flag == "local":
                 CustomInfoBar.show("", self.res.ver_local_latest, 
-                self.conf_dia, f"https://github.com/jasoneri/ComicGUISpider/releases/tag/{recv.local_ver}", 
-                f"""updateInfo-<{recv.local_ver}> """, _type="SUCCESS",
+                self.conf_dia, self.changelog_url, "changelog ", _type="SUCCESS",
                 duration=7000, position=InfoBarPosition.BOTTOM_LEFT)
             else:
                 match recv.update_flag:
@@ -151,7 +149,7 @@ class Updater:
                     case _:
                         title = ""
                 self.gui.update_dialog = UpdaterMessageBox(title, self.gui)
-                self.gui.update_dialog.show_release_note(recv.update_info.get("body"))
+                self.gui.update_dialog.show_release_note(recv.update_info.get("body", ""))
         self.stateTooltip = StateToolTip("Checking..", "", self.conf_dia.cookiesEdit)
         self.stateTooltip.show()
         self.conf_dia.puThread.checked_signal.connect(checked)
@@ -165,23 +163,24 @@ class Updater:
         QTimer.singleShot(1000, self.gui.close)
 
     def to_update(self, ver):
-        uv_env = {key: os.environ[key] for key in ('UV_TOOL_DIR', 'UV_TOOL_BIN_DIR') if key in os.environ}
-        tool_dir = Path(uv_env['UV_TOOL_DIR'])
-        if os.name == "nt":
-            python_exc = tool_dir / "comicguispider" / "Scripts" / "python.exe"
-        else:
-            python_exc = tool_dir / "comicguispider" / "bin" / "python"
-        with ori_path.joinpath("assets/update.txt").open("r", encoding="utf-8") as f:
-            template = f.read()
-        updater_script = template.replace(r"{uv_env_dict}", json.dumps(uv_env, ensure_ascii=False))
-        script_path = tool_dir.joinpath("cgs_update.py")
-        with open(script_path, "w", encoding="utf-8") as f:
-            f.write(updater_script)
-        args = [str(python_exc), str(script_path),
-            '--uv-exc', uv_exc, '--version', ver,
-            '--index-url', PYPI_SOURCE[conf.pypi_source]]
-        if os.name == "nt":
-            subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE, env=env)
-        else:
-            subprocess.Popen(args, start_new_session=True, env=env)
-        self.gui.close()
+        self.gui.open_url_by_browser(self.changelog_url)
+        # uv_env = {key: os.environ[key] for key in ('UV_TOOL_DIR', 'UV_TOOL_BIN_DIR') if key in os.environ}
+        # tool_dir = Path(uv_env['UV_TOOL_DIR'])
+        # if os.name == "nt":
+        #     python_exc = tool_dir / "comicguispider" / "Scripts" / "python.exe"
+        # else:
+        #     python_exc = tool_dir / "comicguispider" / "bin" / "python"
+        # with ori_path.joinpath("assets/update.txt").open("r", encoding="utf-8") as f:
+        #     template = f.read()
+        # updater_script = template.replace(r"{uv_env_dict}", json.dumps(uv_env, ensure_ascii=False))
+        # script_path = tool_dir.joinpath("cgs_update.py")
+        # with open(script_path, "w", encoding="utf-8") as f:
+        #     f.write(updater_script)
+        # args = [str(python_exc), str(script_path),
+        #     '--uv-exc', uv_exc, '--version', ver,
+        #     '--index-url', PYPI_SOURCE[conf.pypi_source]]
+        # if os.name == "nt":
+        #     subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE, env=env)
+        # else:
+        #     subprocess.Popen(args, start_new_session=True, env=env)
+        # self.gui.close()
