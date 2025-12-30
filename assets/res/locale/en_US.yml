@@ -111,6 +111,7 @@ GUI:
     confDia_labelClipDb: "ClipDB"
     confDia_labelClipNum: "ClipEntries"
     confDia_dledHandle: "dledHandle"
+    confDia_n_dledHandle: "match：ComicRack, Komga, kavita\nactive after reboot"
     confDia_labelConcurrNum: "ConcurrNum"
     confDia_cookies_placeholder: "Refer to the animated guide in the configuration documentation for cookie acquisition methods\nIncluding fields:\n"
     confDia_svPathWarning: "set Save Path failed, read rule by right-button"
