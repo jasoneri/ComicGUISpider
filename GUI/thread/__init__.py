@@ -38,7 +38,7 @@ class ClipTasksThread(QThread):
                     book = self.gui.spiderUtils.parse_book(resp.text)
                     self.msleep(50)
                     book.idx = _idx
-                    book.url = url
+                    book.preview_url = book.url = url
                     self.info_signal.emit(book)
                     return _idx, book
                 except Exception as e:

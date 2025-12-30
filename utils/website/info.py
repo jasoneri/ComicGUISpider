@@ -150,6 +150,7 @@ class WnacgBookInfo(Ero):
 
 class EhBookInfo(Ero):
     source = "ehentai"
+    lang: str = None
 
     @property
     def say(self):
