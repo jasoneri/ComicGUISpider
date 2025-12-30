@@ -111,6 +111,7 @@ GUI:
     confDia_labelClipDb: "剪贴板db"
     confDia_labelClipNum: "读取条数"
     confDia_dledHandle: "后处理"
+    confDia_n_dledHandle: "适配平台例如：ComicRack, Komga, kavita\n保存并内置重启后生效"
     confDia_labelConcurrNum: "并发数"
     confDia_cookies_placeholder: "cookies获取方式参考配置说明页此栏目的动图\n需要包含以下字段：\n"
     confDia_svPathWarning: "设置存储路径失败，点击右侧查阅规则"
