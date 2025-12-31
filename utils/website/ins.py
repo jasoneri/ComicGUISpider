@@ -177,18 +177,20 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
 
     @staticmethod
     def parse_search_item(target):
+        _parent_div = target.xpath('./parent::*/parent::div')
         pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
         img_preview = target.xpath('./a/img/@src | ./img/@src').get()
         if (img_preview or "").endswith("blank.jpg"):
             img_preview: str = target.xpath('./a/img/@data-original | ./img/@data-original').get()
         _likes = target.xpath('.//span[contains(@id,"albim_likes")]/text()').get()
         _btypes = target.xpath('.//div[@class="category-icon"]/div/text()').getall()
+        artist = _parent_div.xpath('.//div//a[contains(@href, "main_tag=2")]/text()').get()
+        tags = _parent_div.xpath('.//div[contains(@class, "tags")]//a[@class="tag"]/text()').getall()
         book = JmBookInfo(
             name=target.xpath('.//img/@title').get().strip().replace("\n", ""),
-            preview_url=pre_url,
-            url=pre_url.replace('album', 'photo'),
-            btype=" ".join(_btypes).strip(),
-            img_preview=img_preview,
+            preview_url=pre_url, url=pre_url.replace('album', 'photo'),
+            btype=" ".join(map(str.strip, _btypes)).strip(),
+            img_preview=img_preview, artist=(artist or '').strip() or None, tags=tags,
             likes=_likes.strip() if _likes else 0
         ).get_id(pre_url)
         return book
@@ -215,13 +217,14 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
         pages_text = info_el.xpath('./div/div[contains(text(), "頁數") or contains(text(), "页数")]/text()').get()
         url = jm_id = re.search(r"var aid = (\d+);", resp_text).group(1)
         epa_els = _html.xpath('(//div[@class="episode"])[last()]/ul/a')
+        public_date = info_el.xpath('.//span[@itemprop="datePublished"][contains(text(), "上架日期")]/@content').get()
         book = JmBookInfo(
             name=_html.xpath('//h1/text()').get(),
-            artist=(info_el.xpath('.//span[@data-type="author"]/a/text()').getall() or ["-"])[-1],
+            artist=(info_el.xpath('.//span[@data-type="author"]/a/text()').getall() or [None])[-1],
             id=jm_id,
             tags=info_el.xpath('.//span[@data-type="tags"]/a/text()').getall(),
             img_preview=cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src').get(),
-            pages=re.search(r'\d+', pages_text).group(0), episodes=[]
+            pages=re.search(r'\d+', pages_text).group(0), public_date=public_date, episodes=[]
         )
         for epa_el in epa_els:
             if not book.episodes:
@@ -290,6 +293,8 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         pre_url = item_elem.xpath('./@href').get()
         _page = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
         _cate = (target.xpath(f"{tar_xpath}/@class").get() or "").split(" ")[-1]
+        public_date = re.search(r'\d{4}-\d{2}-\d{2}', _page).group() \
+            if _page and bool(re.search(r'\d{4}-\d{2}-\d{2}', _page)) else None
         book = WnacgBookInfo(
             name=item_elem.xpath('./@title').get(),
             preview_url=pre_url,
@@ -297,6 +302,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
             pages=re.search(r'(\d+)[張张]', _page.strip()).group(1) if _page else 0,
             btype=WnacgUtils.cate_mappings.get(_cate, ""),
             img_preview='http:' + item_elem.xpath('./img/@src').get(),
+            public_date=public_date,
         ).get_id(pre_url)
         return book
 
@@ -320,13 +326,19 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         url = thumb_el.xpath('./a/@href').get().replace('slide', 'gallery')
         info_el = _html.xpath('//div[contains(@class, "uwconn")]')[0]
         label_texts = info_el.xpath('./label/text()').getall()
+        
+        cate_hrefs = _html.xpath('//div[contains(@class, "bread")]//a[contains(@href, "albums-index-cate-")]/@href').getall()
+        btype = WnacgUtils.cate_mappings.get(f"cate-{m.group(1)}", "") if cate_hrefs and (m := re.search(r'cate-(\d+)', cate_hrefs[-1])) else None
+        date_text = _html.xpath('//div[@class="grid"]//li[1]//div[@class="info_col"]/text()').get()
+        public_date = re.search(r'\d{4}-\d{2}-\d{2}', date_text).group() if date_text else None
+        
         book = WnacgBookInfo(
-            name=_html.xpath('//body/div/h2/text()').get(),
-            artist="-", url=url,
+            name=_html.xpath('//body/div/h2/text()').get(), 
+            url=url, preview_url=url.replace('gallery', 'index'),
             tags=info_el.xpath('.//a[@class="tagshow"]/text()').getall(),
             img_preview=thumb_el.xpath('./img/@src').get().replace("////", "https://"),
             pages=re.search(r'\d+', next(filter(lambda _: "頁數" in _, label_texts))).group(0),
-            episodes=[]
+            btype=btype, public_date=public_date, episodes=[]
         ).get_id(url)
         return book
 
@@ -378,16 +390,33 @@ class EHentaiKits(EroUtils, Req, Cookies):
 
     @staticmethod
     def parse_search_item(target):
+        def _parse_tags(tag_divs):
+            artist = language = None
+            tags = []
+            for tag_div in tag_divs:
+                title = tag_div.xpath('./@title').get()
+                if not title or ':' not in title:
+                    continue
+                tag_type, tag_value = title.split(':', 1)
+                if tag_type == 'language' and tag_value != 'translated':
+                    language = tag_value
+                elif tag_type == 'artist':
+                    artist = tag_value
+                elif tag_type in ['character', 'female', 'parody', 'male', 'group']:
+                    tags.append(tag_value)
+            return language, tags, artist
         item_elem = target.xpath('./td/div[@class="glthumb"]')
         pages = (next(filter(
             lambda _: 'pages' in _, item_elem.xpath('.//div/text()').getall()))
                  .replace(" pages", ""))
         _url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
+        btype = " ".join(map(str.strip, target.xpath('./td[contains(@class, "gl1c")]/div/text()').getall())) or None
+        language, tags, artist = _parse_tags(target.xpath('.//div[@class="gt"]'))
         book = EhBookInfo(
             name=item_elem.xpath('.//img/@title').get(),
-            preview_url=_url, url=_url, pages=int(pages),
-            btype=target.xpath('./td[contains(@class, "glcat")]/div/text()').get(),
-            img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get()
+            preview_url=_url, url=_url, pages=int(pages), btype=btype,
+            img_preview=(item_elem.xpath('.//img/@data-src') or item_elem.xpath('.//img/@src')).get(),
+            lang=language, tags=tags, artist=artist
         ).get_id(_url)
         return book
 
@@ -409,15 +438,18 @@ class EHentaiKits(EroUtils, Req, Cookies):
         tags_ = _html.xpath('//td[@class="tc" and text()="female:"]/following-sibling::td/div/a/@id').getall()
         author_ = _html.xpath('//div[contains(@id, "td_artist:")]/@id').getall()
         img_src_el = _html.xpath('//div[@id="gleft"]/div/div/@style').get()
+        gdd_div_str = _html.xpath('//div[@id="gdd"]').get()
+        public_date = re.search(r'\d{4}-\d{2}-\d{2}', gdd_div_str).group() if gdd_div_str else None
+        pages = re.search(r">(\d+) pages<", gdd_div_str).group(1) if gdd_div_str else None
+        btype = " ".join(map(str.strip, _html.xpath('//div[@id="gdc"]/div/text()').getall())) or None
         book = EhBookInfo(
             id=gid,
             name=(_html.xpath('//h1[@id="gj"]/text()').get() or _html.xpath('//div[@id="gd2"]/h1/text()').get()),
-            artist=author_[0].split(':')[-1] if author_ else '-', 
-            url=f"/g/{gid}/{token}/",
+            artist=author_[0].split(':')[-1] if author_ else None, 
+            url=f"/g/{gid}/{token}/", preview_url=f"{EHentaiKits.index}g/{gid}/{token}/",
             tags=list(map(lambda x: x.split(":")[-1], tags_)),
             img_preview=re.search(r"url\((.*?)\)", img_src_el.replace("&quot;", "").replace('"', '')).group(1),
-            pages=re.search(r">(\d+) pages<", resp_text).group(1),
-            episodes=[]
+            btype=btype, public_date=public_date, pages=pages, episodes=[]
         )
         return book
 

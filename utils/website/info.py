@@ -44,6 +44,14 @@ class BookInfo(InfoMinix):
     def get_id(self, info):
         self.id = self.uuid.get(info, only_id=True)
         return self
+    
+    def to_sql(self) -> dict:
+        return {
+            'book': self.name,
+            'artist': self.artist, 'source': self.source, 'preview_url': self.preview_url,
+            'public_date': getattr(self, 'public_date', None),
+            'tags': self.tags, 'pages': self.pages, 'btype': self.btype,
+        }
 
 
 class Manga(BookInfo):
@@ -92,12 +100,12 @@ class Ero(BookInfo):
         for episode in (self.episodes or []):
             episodes.append({"ep": episode.name, "idx": episode.idx, "bid": episode.id})
         return self.idx, self.url, self.img_preview, self.name, \
-                self.artist, self.pages, self.tags[:20] if self.tags else [], episodes
+                self.artist or "-", self.pages, self.tags[:20] if self.tags else [], episodes
 
     def to_tasks_obj(self):
         assert self.pages is not None
         return TasksObj(
-            self.u_md5, self.name, int(self.pages), self.preview_url, 'meaningless'
+            self.u_md5, self.name, int(self.pages), self.preview_url, None
         )
 
 
@@ -106,7 +114,7 @@ class Episode(InfoMinix):
     id: str = None
     idx: int = None
     url: str = None
-    name: str = "meaningless"
+    name: str = None
     pages: t.Union[str, int] = None
     
     def id_and_md5(self):
@@ -150,13 +158,14 @@ class WnacgBookInfo(Ero):
 
 class EhBookInfo(Ero):
     source = "ehentai"
+    lang: str = None
 
     @property
     def say(self):
         return str(self.idx), self.pages, self.name, chr(12288)
     
     def get_group_infos(self) -> dict:
-        return {'title': self.name,'section': 'meaningless','uuid': self.uid,'uuid_md5': self.u_md5}
+        return {'title': self.name,'section': None,'uuid': self.uid,'uuid_md5': self.u_md5}
 
 
 class HitomiBookInfo(Ero):

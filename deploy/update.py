@@ -56,11 +56,13 @@ class GitHandler:
 
     def __init__(self, owner, proj_name, branch):
         self.sess = httpx.Client()
+        self.tags_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/tags"
         self.releases_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/releases"
         self.branch_commit_api = f" {owner}/{proj_name}/commits?sha={branch}"
         self.commit_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/commits"
         self.zipball_url = f"{self.api_prefix}/repos/{owner}/{proj_name}/zipball"
         self.src_url = f"{self.zipball_url}/{branch}"
+        self.release_notes_url = lambda cs: f"https://raw.githubusercontent.com/{owner}/{proj_name}/{cs}/docs/_github/release_notes.md"
         t_handler = TokenHandler()
         self.headers = t_handler.headers
 
@@ -81,6 +83,26 @@ class GitHandler:
         dev_release = next((release for release in releases_resp_json if release.get('prerelease')), releases_resp_json[0])
         stable_release = next((release for release in releases_resp_json if not release.get('prerelease')), releases_resp_json[0])
         return dev_release, stable_release
+
+    def get_tags_info(self) -> dict:
+        tags_resp_json = self.normal_req(self.tags_api)
+        if not tags_resp_json:
+            raise ValueError("No tags found")
+        latest_tag = tags_resp_json[0]
+        return {
+            'tag_name': latest_tag['name'],
+            'commit': latest_tag['commit'],
+            'zipball_url': latest_tag['zipball_url'],
+        }
+    
+    def get_release_notes(self, commit_sha: str) -> str:
+        try:
+            resp = self.sess.get(self.release_notes_url(commit_sha), timeout=10, headers=self.headers)
+            if resp.status_code == 200:
+                return resp.text
+            return f"Failed to fetch release notes: {resp.status_code}"
+        except Exception as e:
+            return f"Error fetching release notes: {str(e)}"
 
     def download_src_code(self, _url=None, zip_name="src.zip"):
         """proj less than 1Mb, actually just take little second"""
@@ -123,14 +145,13 @@ class Proj:
 
     def check(self):
         self.local_ver = local_ver = self.check_existed_version()
-        latest_dev_info, latest_stable_info = self.git_handler.get_releases_info()
+        latest_tag_info = self.git_handler.get_tags_info()
         ver_local = parse(self.local_ver.lstrip('v'))
-        ver_dev = parse(latest_dev_info.get('tag_name').lstrip('v'))
-        ver_stable = parse(latest_stable_info.get('tag_name').lstrip('v'))
-        if ver_local < ver_stable:
+        ver_latest = parse(latest_tag_info.get('tag_name').lstrip('v'))
+        if ver_local < ver_latest:
             self.update_flag = 'stable'
-            self.update_info = latest_stable_info
-        elif ver_local < ver_dev:
-            self.update_flag = 'dev'
-            self.update_info = latest_dev_info
+            self.update_info = latest_tag_info
+            commit_sha = latest_tag_info.get('commit', {}).get('sha', '')
+            if commit_sha:
+                self.update_info['body'] = self.git_handler.get_release_notes(commit_sha)
         updater_logger.info(f"local_ver: {self.local_ver}")

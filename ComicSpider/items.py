@@ -15,7 +15,7 @@ class ComicspiderItem(scrapy.Item):
     def get_group_infos(cls, resp_meta) -> dict:
         return {
             'title': resp_meta.get('title'),
-            'section': resp_meta.get('section') or 'meaningless',
+            'section': resp_meta.get('section'),
             'uuid': resp_meta.get('uuid'),
             'uuid_md5': resp_meta.get('uuid_md5'),
         }
