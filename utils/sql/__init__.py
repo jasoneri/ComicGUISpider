@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 import sqlite3
 
-from utils import conf_dir, md5
+from utils import conf, conf_dir, md5
+from utils.website.chore import set_author_ahead
 from variables import SPECIAL_WEBSITES
 
 
@@ -60,17 +61,31 @@ class SqlrV:
     init_flag = False
 
     def __init__(self, ero=0):
-        self.db = conf_dir.joinpath("rV.db")
+        self.db = conf.sv_path.joinpath("rV.db")
         if not self.db.exists():
             self.init_flag = True
         self.written_meta = set()
-        self.conn = sqlite3.connect(self.db)
-        self.cursor = self.conn.cursor()
+        self.conn = None
+        self.cursor = None
         self.meta_tb = "metainfos"
         self.eps_tb = "episodes"
         self.ero = ero
+
+    def __enter__(self):
+        self.conn = sqlite3.connect(self.db)
+        self.cursor = self.conn.cursor()
         if self.init_flag or not self.table_exists():
             self.create()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
+
+    def connect(self):
+        if self.conn is None:
+            return self.__enter__()
+        return self
 
     def table_exists(self):
         """检查两个表是否都存在"""
@@ -92,6 +107,7 @@ class SqlrV:
             `public_date` TEXT,
             `tags` TEXT,
             `pages` INTEGER,
+            `btype` TEXT,
             `ero` INTEGER NOT NULL DEFAULT 0
         );'''
         
@@ -99,7 +115,7 @@ class SqlrV:
         eps_tb_sql = f'''CREATE TABLE IF NOT EXISTS `{self.eps_tb}` (
             `id` INTEGER PRIMARY KEY AUTOINCREMENT,
             `book` TEXT NOT NULL,
-            `ep` TEXT NOT NULL DEFAULT 'meaningless',
+            `ep` TEXT NOT NULL DEFAULT '',
             `exist` INTEGER NOT NULL DEFAULT 1,
             `rv_handle` TEXT,
             `ero` INTEGER NOT NULL DEFAULT 0,
@@ -110,19 +126,24 @@ class SqlrV:
         self.cursor.execute(eps_tb_sql)
         self.conn.commit()
 
-    def write_meta(self, book_name: str, artist: str = None, source: str = None,
-                   preview_url: str = None, public_date: str = None,
-                   tags: list = None, pages: int = None):
+    def write_meta(self, **sql_kw):
+        """严格对应 self.meta_tb 表字段名的参数"""
+        book_name = sql_kw.get('book')
+        if not book_name:
+            raise ValueError("book_name is required")
+        book_name = set_author_ahead(book_name)
         book_md5 = md5(book_name)
         if book_md5 in self.written_meta:
             return
-        tags_str = ','.join(tags) if tags else None
+        tags_str = ','.join(sql_kw.get('tags') or []) or None
         
         sql = f'''INSERT OR REPLACE INTO {self.meta_tb}
-                  (md5, book, artist, source, preview_url, public_date, tags, pages, ero)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);'''
-        self.cursor.execute(sql, (book_md5, book_name, artist, source, preview_url,
-                                   public_date, tags_str, pages, self.ero))
+                  (md5, book, artist, source, preview_url, public_date, tags, pages, btype, ero)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'''
+        self.cursor.execute(sql, (
+            book_md5, book_name,
+            sql_kw.get('artist'), sql_kw.get('source'), sql_kw.get('preview_url'), sql_kw.get('public_date'),
+            tags_str, sql_kw.get('pages'), sql_kw.get('btype'), self.ero))
         self.conn.commit()
         self.written_meta.add(book_md5)
 
@@ -130,17 +151,19 @@ class SqlrV:
         sql = f'''INSERT OR REPLACE INTO {self.eps_tb}
                   (book, ep, exist, rv_handle, ero)
                   VALUES (?, ?, ?, ?, ?);'''
-        self.cursor.execute(sql, (book, ep, exist, None, self.ero))
+        self.cursor.execute(sql, (set_author_ahead(book), ep or '', exist, None, self.ero))
         self.conn.commit()
 
     def batch_write_episodes(self, episodes: list):
-        """批量写入章节信息
-        episodes: [(book, ep, exist, rv_handle, ero), ...]
-        """
+        """episodes: [(book, ep, exist, rv_handle, ero), ...]"""
+        normalized_episodes = [
+            (book, ep or '', exist, rv_handle, ero)
+            for book, ep, exist, rv_handle, ero in episodes
+        ]
         sql = f'''INSERT OR REPLACE INTO {self.eps_tb}
                   (book, ep, exist, rv_handle, ero)
                   VALUES (?, ?, ?, ?, ?);'''
-        self.cursor.executemany(sql, episodes)
+        self.cursor.executemany(sql, normalized_episodes)
         self.conn.commit()
 
     def handle(self):
@@ -185,7 +208,55 @@ class SqlrV:
         self.cursor.execute(sql, (book,))
         self.conn.commit()
 
+    def reset_exist(self):
+        if self.ero is not None:
+            sql = f'''UPDATE {self.eps_tb} SET exist = 0 WHERE ero = ?;'''
+            self.cursor.execute(sql, (self.ero,))
+        else:
+            sql = f'''UPDATE {self.eps_tb} SET exist = 0;'''
+            self.cursor.execute(sql)
+        self.conn.commit()
+
+    def sync_episodes(self, fs_episodes: set):
+        """同步文件系统状态到数据库
+        
+        Args:
+            fs_episodes: 文件系统中的章节集合 {(book, ep, ero), ...}
+            
+        职责：
+        1. 新增：本地存在但表中没有的记录
+        2. 更新：表中存在且本地存在的记录（exist=1）
+        3. 标记删除：表中存在但本地已删的记录（exist=0）
+        """
+        fs_episodes_normalized = {(book, ep or '', ero) for book, ep, ero in fs_episodes}
+        db_episodes = self.get_episodes()
+        db_episodes_map = {(book, ep, ero): (exist, rv_handle)
+                         for book, ep, exist, rv_handle, ero in db_episodes}
+        episodes_to_update = []
+        
+        for book, ep, ero in fs_episodes_normalized:
+            key = (book, ep, ero)
+            if key in db_episodes_map:
+                # 记录存在，如果 exist 不是 1，则更新为 1
+                old_exist, rv_handle = db_episodes_map[key]
+                if old_exist != 1:
+                    episodes_to_update.append((book, ep, 1, rv_handle, ero))
+            else:
+                # 记录不存在，插入新记录
+                episodes_to_update.append((book, ep, 1, None, ero))
+        # 检查数据库中存在但文件系统中不存在的记录，将 exist 设为 0
+        for (book, ep, ero), (exist, rv_handle) in db_episodes_map.items():
+            if (book, ep, ero) not in fs_episodes_normalized and exist != 0:
+                # 文件已被删除，更新 exist=0
+                episodes_to_update.append((book, ep, 0, rv_handle, ero))
+        # 批量写入/更新
+        if episodes_to_update:
+            self.batch_write_episodes(episodes_to_update)
+
     def close(self):
-        self.cursor.close()
-        self.conn.close()
-        del self.conn
+        if self.cursor:
+            self.cursor.close()
+        if self.conn:
+            self.conn.close()
+        self.conn = None
+        self.cursor = None

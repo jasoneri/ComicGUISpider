@@ -22,6 +22,9 @@ hero:
     - theme: alt
       text: FAQ
       link: /faq
+    - theme: brand
+      text: 🕑看更新
+      link: /changelog/history
     - theme: sponsor
       text: 🍖投喂
       link: https://ko-fi.com/jsoneri
@@ -73,7 +76,7 @@ hero:
 - 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
 - 开预览后随便点点就能下载，预览窗口充当于微型浏览器
 - 丰富多样的输入规则，能方便指定选择
-- 基于翻页保留，体验如同塞进购物车
+- 无感翻页保留选择，已下载记录等提示
 - 预设，去重，加标识符等自定义设置
 
 ## 食用搭配(阅读器)

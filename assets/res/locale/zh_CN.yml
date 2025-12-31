@@ -53,6 +53,7 @@ GUI:
     rv_deploy_desc: "rV 部署"
     rv_deploy_desc_content: "脚本检索异常，请选择正确的脚本或点击部署按钮进行部署"
     rv_book_marked: "显示记录"
+    rv_scan_local: "扫描本地"
     rv_set_script_err: "设置rV脚本无效，点右侧先查阅rV一键部署方法"
     hitomi_tip_search: "在网站中搜索选中的tag"
     hitomi_tip_sv: "保存到预设"

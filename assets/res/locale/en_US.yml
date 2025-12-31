@@ -53,6 +53,7 @@ GUI:
     rv_deploy_desc: "rV Deployment"
     rv_deploy_desc_content: "Script detection error, please select the correct script or click the deploy button to deploy"
     rv_book_marked: "Records"
+    rv_scan_local: "Scan Local"
     rv_set_script_err: "set rV script failed，read how to deploy rV by right-button"
     hitomi_tip_search: "search selected tags in website"
     hitomi_tip_sv: "save to custom presets"
