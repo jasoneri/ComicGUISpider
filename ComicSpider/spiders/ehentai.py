@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from concurrent.futures import ThreadPoolExecutor
 from scrapy import Request
 
 from utils import conf, re
@@ -36,8 +37,9 @@ class EHentaiSpider(BaseComicSpider3):
         frame_results = {}
         self.say(self.say_fm.format('index', 'pages', 'name') + '<br>')
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
-        for x, target in enumerate(targets):
-            book = EK.parse_search_item(target)
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(EK.parse_search_item, targets))
+        for x, book in enumerate(books):
             book.idx = x + 1
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}", url=response.url,

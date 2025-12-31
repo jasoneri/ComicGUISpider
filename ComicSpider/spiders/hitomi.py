@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import scrapy
 
 from utils import PresetHtmlEl, conf
@@ -183,8 +184,10 @@ class HitomiSpider(BaseComicSpider):
     def frame_book(self, rets, meta):
         frame_results = {}
         self.say(self.say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
-        for x, target in enumerate(rets):
-            book = self.ut.parse_search_item(target['text'])
+        texts = [target['text'] for target in rets]
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(self.ut.parse_search_item, texts))
+        for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f"{self.domain}{book.preview_url}"
             frame_results[book.idx] = book

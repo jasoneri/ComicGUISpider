@@ -4,6 +4,7 @@ import math
 import json
 from io import BytesIO
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 from PIL import Image
@@ -198,13 +199,12 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
     def parse_search(self, resp_text):
         self.domain = self.domain or self.get_domain()
         _html = Selector(text=resp_text)
-        books = []
         targets = _html.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
-        for target in targets:
-            book = self.parse_search_item(target)
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(self.parse_search_item, targets))
+        for book in books:
             book.preview_url = f'https://{self.domain}{book.preview_url}'
             book.url = f'https://{self.domain}{book.url}'
-            books.append(book)
         return books
 
     @classmethod
@@ -310,13 +310,12 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
         """parse search-page"""
         self.domain = self.domain or self.get_domain()
         _html = Selector(text=resp_text)
-        books = []
         targets = _html.xpath('//li[contains(@class, "gallary_item")]')
-        for target in targets:
-            book = self.parse_search_item(target)
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(self.parse_search_item, targets))
+        for book in books:
             book.preview_url = f'https://{self.domain}{book.preview_url}'
             book.url = f'https://{self.domain}{book.url}'
-            books.append(book)
         return books
 
     @staticmethod
@@ -422,11 +421,9 @@ class EHentaiKits(EroUtils, Req, Cookies):
 
     def parse_search(self, resp_text):
         _html = Selector(text=resp_text)
-        books = []
         targets = _html.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
-        for target in targets:
-            book = EHentaiKits.parse_search_item(target)
-            books.append(book)
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(EHentaiKits.parse_search_item, targets))
         return books
 
     @staticmethod

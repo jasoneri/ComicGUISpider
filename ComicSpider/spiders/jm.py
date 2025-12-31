@@ -2,6 +2,7 @@
 import re
 import typing as t
 from urllib.parse import urlencode, urlparse
+from concurrent.futures import ThreadPoolExecutor
 
 from utils import convert_punctuation, conf
 from utils.website import JmUtils, correct_domain, JmBookInfo
@@ -111,8 +112,9 @@ class JmSpider(BaseComicSpider2):
         frame_results = {}
         self.say(self.say_fm.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
-        for x, target in enumerate(targets):
-            book = JmUtils.parse_search_item(target)
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(JmUtils.parse_search_item, targets))
+        for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f'https://{self.domain}{book.preview_url}'
             book.url = f'https://{self.domain}{book.url}'

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from utils.website import WnacgUtils, correct_domain
 from .basecomicspider import BaseComicSpider2, font_color
@@ -33,8 +34,9 @@ class WnacgSpider(BaseComicSpider2):
         frame_results = {}
         self.say(self.say_fm.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
-        for x, target in enumerate(targets):
-            book = WnacgUtils.parse_search_item(target)
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(WnacgUtils.parse_search_item, targets))
+        for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f'https://{self.domain}{book.preview_url}'
             book.url = f'https://{self.domain}{book.url}'
