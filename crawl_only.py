@@ -12,13 +12,12 @@ from threading import Thread
 from loguru import logger
 
 from assets import res
-from utils import transfer_input
+from utils import transfer_input, select
 from utils.processed_class import (
     GuiQueuesManger, crawl_what, QueuesManager, QueueHandler, InputFieldState, refresh_state, ProcessState
 )
 from utils.website.info import Episode, BookInfo
 from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
-from GUI.gui import select
 
 is_debugging = os.getenv('CGS_DEBUG') == '1'
 

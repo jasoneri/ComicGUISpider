@@ -155,6 +155,10 @@ export default defineConfig({
                     {
                         text: "国际化",
                         link: "/dev/i18n",
+                    },
+                    {
+                        text: "🎅公益站",
+                        link: "/dev/link",
                     }
                 ]
             }
