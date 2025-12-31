@@ -36,7 +36,7 @@ class ClipTasksThread(QThread):
                 try:
                     resp = await cli.get(url, follow_redirects=True, timeout=6)
                     book = self.gui.spiderUtils.parse_book(resp.text)
-                    self.msleep(50)
+                    self.msleep(30)
                     book.idx = _idx
                     book.preview_url = book.url = url
                     self.info_signal.emit(book)
@@ -143,7 +143,7 @@ class WorkThread(QThread):
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     elif _.endswith(f"{res.SPIDER.SayToGui.frame_section_print_extra}</font></p>"):
                         self.print_signal.emit(_)
-                        self.gui.show_max()
+                        self.gui.say_show_max()
                     else:
                         self.print_signal.emit(_)
                     self.msleep(2)
@@ -201,3 +201,26 @@ class ProjUpdateThread(QThread):
 
     def run_update(self):
         self.toupdate_signal.emit(self.proj)
+
+
+class RvThread(QThread):
+    scan_completed = pyqtSignal(int)
+    scan_progress = pyqtSignal(str)
+    
+    def __init__(self, gui, show_progress: bool = False):
+        super().__init__(gui)
+        self.gui = gui
+        self.show_progress = show_progress
+        
+    def run(self):
+        try:
+            if self.show_progress:
+                self.scan_progress.emit("backend scaning local...")
+            self.gui.log.info(f"RvThread started, show_progress={self.show_progress}")
+            total = self.gui.rv_tools.scan(conf, init=False)
+            self.gui.log.info(f"RvThread completed: scanned {total} books/episodes")
+            if self.show_progress:
+                self.scan_completed.emit(total)
+        except Exception as e:
+            self.gui.log.exception(f"RvThread error: {e}")
+            self.gui.say(f"scan err: {str(e)}")

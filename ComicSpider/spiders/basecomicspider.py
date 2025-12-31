@@ -265,15 +265,10 @@ class BaseComicSpider(scrapy.Spider):
         self.Q('TasksQueue').send(tasks_obj, wait=True)
         
         book = task_info.from_book if isinstance(task_info, Episode) else task_info
-        self.rv_sql.write_meta(
-            book_name=book.name,
-            artist=book.artist,
-            source=book.source,
-            preview_url=book.preview_url,
-            public_date=getattr(book, 'public_date', None),
-            tags=book.tags,
-            pages=book.pages,
-        )
+        if book.preview_url and not book.preview_url.startswith("http"):
+            prefix = "" if book.preview_url.startswith("/") else "/"
+            book.preview_url = f"https://{self.domain}{prefix}{book.preview_url}"
+        self.rv_sql.write_meta(**book.to_sql())
 
     def makesure_tasks_status(self):
         if conf.isDeduplicate:
@@ -308,7 +303,7 @@ class BaseComicSpider(scrapy.Spider):
 
         spider.say = SayToGui(spider, q, spider.text_browser_state)
         spider.record_sql = SqlRecorder()
-        spider.rv_sql = SqlrV(1 if spider.name in spider.settings.get('SPECIAL') else 0)
+        spider.rv_sql = SqlrV(1 if spider.name in spider.settings.get('SPECIAL') else 0).connect()
         spider.ut = spider_utils_map[spider.name]
         spider.mr = MetaRecorder(conf)
         return spider

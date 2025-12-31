@@ -6,8 +6,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QGuiApplication
 from PyQt5.QtWidgets import QSpacerItem, QSizePolicy, QFileDialog, QHBoxLayout, QWidget
 from qfluentwidgets import (
-    VBoxLayout, PrimaryPushButton, PrimaryToolButton,
-    TransparentToolButton, PushButton, HyperlinkButton, 
+    VBoxLayout, PrimaryPushButton, ToolButton,
+    TransparentToolButton, PushButton, HyperlinkButton,
     FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition,
     BodyLabel
 )
@@ -131,20 +131,21 @@ class SvPathCard(PushSettingCard):
 
 
 class rvTool(QWidget):
+    infobar_pos = InfoBarPosition.BOTTOM_LEFT
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.toolWin = parent
         self.gui = parent.gui
-        self.rv_sql = self.gui.rv_sql
         self.init_ui()
-    
+
     def init_ui(self):
         self.main_layout = VBoxLayout(self)
         # 受 sv_path_card.setContent 影响的 btn 都置于 sv_path_card 前面
         self.runBtn = PrimaryPushButton(FIF.PLAY, "run rV")
         self.runBtn.clicked.connect(self.run)
         self.runBtn.setDisabled(True)
-        self.broomBtn = PrimaryToolButton(FIF.BROOM, self)
+        self.broomBtn = ToolButton(FIF.BROOM, self)
         self.broomBtn.clicked.connect(self.broom)
         self.broomBtn.setDisabled(True)
         
@@ -156,14 +157,15 @@ class rvTool(QWidget):
         second_row = QHBoxLayout()
         spacer_info = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.deployBtn = PrimaryPushButton(FIF.DICTIONARY, tools_res.rv_deploy_desc)
-        self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
+        self.showMaxBtn = PrimaryPushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
         self.deployBtn.clicked.connect(self.deploy)
         self.showMaxBtn.clicked.connect(self.show_max)
-        self.scanBtn = PushButton(FIF.SEARCH, "Scan")
+        self.scanBtn = PushButton(FIF.SYNC, tools_res.rv_scan_local)
         self.scanBtn.clicked.connect(self.rv_scan)
         second_row.addSpacerItem(spacer_info)
-        second_row.addWidget(self.deployBtn)
         second_row.addWidget(self.showMaxBtn)
+        second_row.addWidget(self.scanBtn)
+        second_row.addWidget(self.deployBtn)
         second_row.addWidget(self.broomBtn)
         second_row.addWidget(self.runBtn)
 
@@ -179,40 +181,15 @@ class rvTool(QWidget):
         _.show()
     
     def show_max(self):
-        db_path = pathlib.Path(conf.conf_dir).joinpath("rV.db")
-        need_init = False
-        
-        if not db_path.exists():
-            need_init = True
-        else:
-            self.rv_sql.cursor.execute(f"SELECT COUNT(*) FROM {self.rv_sql.eps_tb}")
-            count = self.rv_sql.cursor.fetchone()[0]
-            if count == 0:
-                need_init = True
-        
-        if need_init:
-            InfoBar.warning(
-                title='Warning', content='not db/table init, CGS do scaning..',
-                isClosable=False, position=InfoBarPosition.BOTTOM_LEFT,
-                duration=3000, parent=self
-            )
-            total = self.gui.rv_tools.scan(conf.sv_path, init=True)
-            if total == 0:
-                InfoBar.warning(
-                    title='Warning', content='empty scan things, take download first',
-                    position=InfoBarPosition.BOTTOM_LEFT, duration=5000, parent=self
-                )
-                return
         self.gui.bsm = self.gui.bsm or self.gui.rv_tools.show_max()
+        if not self.gui.bsm:
+            InfoBar.warning(title='', content='show empty, had you downloaded on this sv_path?',
+                position=self.infobar_pos, duration=3000, parent=self)
+            return
         self.table_fv = CustomFlyout.make(TableFlyoutView(self.gui.bsm, self), self.sv_path_card, self)
 
     def rv_scan(self):
-        total = self.gui.rv_tools.scan(conf.sv_path)
-        InfoBar.success(
-            title='scan-ret', content=f'scaned {total} books/epsiodes',
-            isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-            duration=3000, parent=self
-        )
+        self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self, pos=self.infobar_pos)
 
     def run(self):
         rv_script = pathlib.Path(getattr(conf, "rv_script"))

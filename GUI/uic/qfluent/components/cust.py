@@ -310,12 +310,13 @@ class TableFlyoutView(FlyoutViewBase):
         book_name = model.item(row, 0).text()
         def do():
             self.gui.searchinput.setText(book_name)
-            self.gui.next_btn.click()
-            InfoBar.info(
-                title='', content=f'「{book_name}」已发至输入框进行搜索中',
+            cont = '已发至输入框，自行调整再点击搜索'
+            if self.gui.rv_tools.ero != 1:
+                self.gui.next_btn.click()
+                cont = f'''「{book_name}」已发至输入框进行搜索中'''
+            InfoBar.info(title='', content=cont,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=2000, parent=self.gui.textBrowser
-            )
+                duration=2000, parent=self.gui.textBrowser)
         QTimer.singleShot(10, do)
         self.rvInterface.table_fv.close()
         self.rvInterface.toolWin.close()

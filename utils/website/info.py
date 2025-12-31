@@ -44,6 +44,14 @@ class BookInfo(InfoMinix):
     def get_id(self, info):
         self.id = self.uuid.get(info, only_id=True)
         return self
+    
+    def to_sql(self) -> dict:
+        return {
+            'book': self.name,
+            'artist': self.artist, 'source': self.source, 'preview_url': self.preview_url,
+            'public_date': getattr(self, 'public_date', None),
+            'tags': self.tags, 'pages': self.pages, 'btype': self.btype,
+        }
 
 
 class Manga(BookInfo):

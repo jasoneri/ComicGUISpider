@@ -311,6 +311,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "clip_read_num": getattr(self, "clip_read_numEdit").value(),
         }
         conf.update(**config)
+        
+        if sv_path != str(conf.sv_path):  # after conf.update(sv_path)
+            self._trigger_rv_scan()
+
+    def _trigger_rv_scan(self):
+        self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self.gui.textBrowser)
 
     def format_cookie(self):
         """格式化并保存当前cookiesEdit的内容到当前所选"""

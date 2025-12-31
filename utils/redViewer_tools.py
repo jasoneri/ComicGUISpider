@@ -3,15 +3,17 @@
 import typing as t
 import pathlib
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from assets import res
 from utils import conf
+from utils.config.rule import CgsRuleMgr
+from utils.sql import SqlrV
 
-expect_dir = ('_save', res.SPIDER.ERO_BOOK_FOLDER)
+expect_dir_regex = re.compile(r"^_")
+accpect_dir = lambda _: not bool(expect_dir_regex.search(_))
 record_file = conf.sv_path.joinpath("web_handle/record.txt")
-
-SUPPORTED_COMIC_FORMATS = {'.cbz', '.cb7', '.pdf'}
 
 
 @dataclass
@@ -26,113 +28,83 @@ class BookShow:
 
 
 class Handler:
-    def __init__(self, rv_sql):
-        self.sql = rv_sql
+    def __init__(self, ero=None):
+        self.ero = ero
+        self.strategy = None
 
-    def scan(self, sv_path: pathlib.Path, init: bool = False) -> int:
-        """扫描目录下的所有漫画和同人本，更新到 episodes 表
+    def sql(self):
+        return SqlrV(self.ero)
+
+    def scan(self, _conf, init: bool = False) -> int:
+        sv_path = _conf.sv_path
+        self.strategy = ScanStrategyFactory.create(CgsRuleMgr.get_download_handle(_conf))
+        fs_episodes = self._scan_filesystem(sv_path)
         
-        Args:
-            sv_path: 扫描路径，默认使用 conf.sv_path
-            init: 是否为初始化扫描（清空现有数据）
-        
-        Returns:
-            扫描到的章节总数
-        """
-        # 正则提取UUID（用于判断是否为同人本）
-        uuid_regex = re.compile(r'\[([a-f0-9]{32})\]$')
-        
-        # 获取文件系统中实际存在的章节
-        fs_episodes = set()  # 存储 (book, ep, ero) 元组
-        
-        # 扫描普通漫画目录
-        for book_dir in filter(lambda x: x.is_dir() and x.name not in expect_dir, sv_path.iterdir()):
-            book_name = book_dir.name
-            for section in book_dir.iterdir():
-                ep_name = None
-                if section.is_dir():
-                    ep_name = section.name
-                elif section.is_file() and section.suffix.lower() in SUPPORTED_COMIC_FORMATS:
-                    ep_name = section.stem
-                if ep_name:
-                    fs_episodes.add((book_name, ep_name, 0))
-        
-        # 扫描同人本目录（ERO_BOOK_FOLDER）
-        ero_folder = sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
-        if ero_folder.exists() and ero_folder.is_dir():
-            for item in ero_folder.iterdir():
-                if item.is_dir():
-                    # 检查是否为系列本（有子目录）
-                    has_subdirs = any(sub.is_dir() for sub in item.iterdir())
-                    
-                    if has_subdirs:
-                        # 系列本：目录名为 book，子目录/文件为 ep
-                        book_name = uuid_regex.sub('', item.name).strip()
-                        for sub in item.iterdir():
-                            ep_name = None
-                            if sub.is_dir():
-                                ep_name = uuid_regex.sub('', sub.name).strip()
-                            elif sub.is_file() and sub.suffix.lower() in SUPPORTED_COMIC_FORMATS:
-                                ep_name = uuid_regex.sub('', sub.stem).strip()
-                            if ep_name:
-                                fs_episodes.add((book_name, ep_name, 1))
-                    else:
-                        # 单本：目录名即为 book，ep 为 'meaningless'
-                        book_name = uuid_regex.sub('', item.name).strip()
-                        fs_episodes.add((book_name, None, 1))
-                
-                elif item.is_file() and item.suffix.lower() in SUPPORTED_COMIC_FORMATS:
-                    # 文件形式的单本
-                    book_name = uuid_regex.sub('', item.stem).strip()
-                    fs_episodes.add((book_name, None, 1))
-        
-        if init:
-            # 初始化模式：清空表后重新写入
-            self.sql.cursor.execute(f"DELETE FROM {self.sql.eps_tb}")
-            self.sql.conn.commit()
-            episodes_to_write = [(book, ep, 1, None, ero) for book, ep, ero in fs_episodes]
-            if episodes_to_write:
-                self.sql.batch_write_episodes(episodes_to_write)
-        else:
-            # 非初始化模式：对比数据库和文件系统
-            # 1. 获取数据库中的所有记录
-            db_episodes = self.sql.get_episodes()
-            db_episodes_map = {(book, ep, ero): (exist, rv_handle)
-                             for book, ep, exist, rv_handle, ero in db_episodes}
-            
-            episodes_to_update = []
-            
-            # 2. 遍历文件系统中的章节
-            for book, ep, ero in fs_episodes:
-                key = (book, ep, ero)
-                if key in db_episodes_map:
-                    # 记录存在，如果 exist 不是 1，则更新为 1
-                    old_exist, rv_handle = db_episodes_map[key]
-                    if old_exist != 1:
-                        episodes_to_update.append((book, ep, 1, rv_handle, ero))
-                else:
-                    # 记录不存在，插入新记录
-                    episodes_to_update.append((book, ep, 1, None, ero))
-            
-            # 3. 检查数据库中存在但文件系统中不存在的记录，将 exist 设为 0
-            for (book, ep, ero), (exist, rv_handle) in db_episodes_map.items():
-                if (book, ep, ero) not in fs_episodes and exist != 0:
-                    # 文件已被删除，更新 exist=0
-                    episodes_to_update.append((book, ep, 0, rv_handle, ero))
-            
-            # 4. 批量写入/更新
-            if episodes_to_update:
-                self.sql.batch_write_episodes(episodes_to_update)
+        with self.sql() as sql:
+            if init:
+                sql.reset_exist()
+            sql.sync_episodes(fs_episodes)
         
         return len(fs_episodes)
 
+    def _scan_filesystem(self, sv_path: pathlib.Path) -> set:
+        """扫描文件系统，返回所有章节信息
+        
+        根据 self.ero 决定扫描范围：
+        - ero=0: 仅扫描普通漫画
+        - ero=1: 仅扫描同人本
+        - ero=None: 扫描所有类型
+        
+        Returns:
+            {(book, ep, ero), ...}
+        """
+        fs_episodes = set()
+        if self.ero == 0:
+            fs_episodes.update(self._scan_normal_comics(sv_path))
+        elif self.ero == 1:
+            fs_episodes.update(self._scan_ero_books(sv_path))
+        else:
+            fs_episodes.update(self._scan_normal_comics(sv_path))
+            fs_episodes.update(self._scan_ero_books(sv_path))
+        return fs_episodes
+
+    def _scan_normal_comics(self, sv_path: pathlib.Path) -> set:
+        fs_episodes = set()
+        for book_dir in filter(lambda x: x.is_dir() and accpect_dir(x.name), sv_path.iterdir()):
+            book_name = book_dir.name
+            for item in book_dir.iterdir():
+                if self.strategy.should_scan_as_episode(item):
+                    fs_episodes.add((book_name, self.strategy.get_episode_name(item), 0))
+        return fs_episodes
+
+    def _scan_ero_books(self, sv_path: pathlib.Path) -> set:
+        fs_episodes = set()
+        uuid_regex = re.compile(r'\[([a-f0-9]{32})\]$')
+        ero_folder = sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
+        if not ero_folder.exists() or not ero_folder.is_dir():
+            return fs_episodes
+        for item in ero_folder.iterdir():
+            if item.is_dir() and accpect_dir(item.name):
+                sub_eps = [s for s in item.iterdir() if self.strategy.should_scan_as_episode(s)]
+                if sub_eps:
+                    book_name = uuid_regex.sub('', item.name).strip()
+                    for sub in sub_eps:
+                        ep_name = uuid_regex.sub('', self.strategy.get_episode_name(sub)).strip()
+                        fs_episodes.add((book_name, ep_name, 1))
+                else:
+                    book_name = uuid_regex.sub('', item.name).strip()
+                    fs_episodes.add((book_name, None, 1))
+            elif self.strategy.should_scan_as_episode(item):
+                book_name = uuid_regex.sub('', self.strategy.get_episode_name(item)).strip()
+                fs_episodes.add((book_name, None, 1))
+        return fs_episodes
 
     def show_max(self) -> t.Dict[str, BookShow]:
         """从 episodes 表读取已读和已下载的最大章节信息"""
         sec_regex = re.compile(r'.*?(\d+\.?\d*)')
         
-        # 从数据库读取数据
-        all_episodes = self.sql.get_episodes()
+        with self.sql() as sql:
+            all_episodes = sql.get_episodes()
         
         show_map_raw = {}  # 已读记录（rv_handle 非空）
         dl_map_raw = {}    # 已下载记录（exist=1）
@@ -165,4 +137,40 @@ class Handler:
         return result
 
     def delete_record(self, bn):
-        self.sql.delete_episodes(bn)
+        with self.sql() as sql:
+            sql.delete_episodes(bn)
+
+
+# Strategy
+class ScanStrategy(ABC):
+    @abstractmethod
+    def should_scan_as_episode(self, item: pathlib.Path) -> bool:
+        pass
+    
+    @abstractmethod
+    def get_episode_name(self, item: pathlib.Path) -> str:
+        pass
+
+
+class FolderStrategy(ScanStrategy):
+    def should_scan_as_episode(self, item: pathlib.Path) -> bool:
+        return item.is_dir()
+    
+    def get_episode_name(self, item: pathlib.Path) -> str:
+        return item.name
+
+
+class CbzStrategy(ScanStrategy):
+    def should_scan_as_episode(self, item: pathlib.Path) -> bool:
+        return item.is_file() and item.suffix.lower() == '.cbz'
+    
+    def get_episode_name(self, item: pathlib.Path) -> str:
+        return item.stem
+
+
+class ScanStrategyFactory:
+    _strategies = {"-": FolderStrategy, ".cbz": CbzStrategy}
+    
+    @classmethod
+    def create(cls, downloaded_handle: str) -> ScanStrategy:
+        return cls._strategies.get(downloaded_handle, FolderStrategy)()
