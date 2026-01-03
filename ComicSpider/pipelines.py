@@ -12,6 +12,7 @@ from scrapy.pipelines.images import ImagesPipeline, ImageException
 
 from utils import conf, TaskObj
 from utils.website import JmUtils, MangabzUtils, set_author_ahead
+from utils.config.rule import CgsRuleMgr
 from assets import res
 
 
@@ -45,7 +46,7 @@ class ComicPipeline(ImagesPipeline):
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
         title = self._sub.sub('-', item.get('title'))
-        section = self._sub.sub('-', item.get('section'))
+        section = self._sub.sub('-', item.get('section') or '')
         taskid = item.get('uuid_md5')
         page = self.page_naming(taskid, item.get('page'), info)
         spider = self.spiderinfo.spider
@@ -59,9 +60,9 @@ class ComicPipeline(ImagesPipeline):
         if uuid_md5 in spider.tasks_path:
             return spider.tasks_path[uuid_md5]
         if spider.name in spider.settings.get('SPECIAL'):
-            parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}/web")
+            parent_p = basepath.joinpath(f"{res.SPIDER.ERO_BOOK_FOLDER}")
             _title = self._sub_index.sub('', set_author_ahead(title))
-            if section != 'meaningless':
+            if section:
                 base_title_path = parent_p.joinpath(_title)
                 path = base_title_path.joinpath(f"{section}[{item['uuid']}]" if conf.addUuid else section)
             else:
@@ -70,10 +71,13 @@ class ComicPipeline(ImagesPipeline):
             path = basepath.joinpath(f"{title}/{section}")
         
         os.makedirs(path, exist_ok=True)
+        # init .cgsRule
+        CgsRuleMgr.create(basepath, conf.downloaded_handle)
+        # sv metaInfo
         tasks_obj = spider.tasks.get(uuid_md5)
         if tasks_obj and getattr(tasks_obj, 'meta_info', None):
             tasks_obj.meta_info.sv_meta_in(path)
-
+        # cache file_folder
         spider.tasks_path[uuid_md5] = path
         return path
 
@@ -99,7 +103,9 @@ class ComicPipeline(ImagesPipeline):
             if getattr(tasks_obj, 'meta_info', None):
                 tasks_obj.meta_info.fin_callback(spider.tasks_path[tasks_obj.taskid])
             if conf.isDeduplicate:
-                spider.sql_handler.add(task_obj.taskid)
+                spider.record_sql.add(task_obj.taskid)
+            spider.rv_sql.write_episode(tasks_obj.title, tasks_obj.episode_name)
+            
         spider.Q('TasksQueue').send(task_obj, wait=True)
         stats.inc_value('image/downloaded')
 

@@ -30,9 +30,9 @@ class ComicInfo(MetaMixin):
     file = "ComicInfo.xml"
 
     def __init__(self, info: Union[BookInfo, Episode]):
-        """完成大部分通用正确的数据转换。"""
         super().__init__(info)
-        if isinstance(info, Episode):
+        self.is_ep = isinstance(info, Episode)
+        if self.is_ep:
             episode = info
             book = episode.from_book
             self.title = episode.name
@@ -45,17 +45,15 @@ class ComicInfo(MetaMixin):
             self.series = self._extract_series_name(book.name)
             self.number = None
             self.pages = book.pages
-        self.web = book.preview_url
+        self.preview_url = book.preview_url
         self.artist = book.artist
         self.tags = book.tags or []
         self.source = book.source
+        self.btype = book.btype and book.btype.split(" ")
         self.public_date = getattr(book, "public_date", None)
-
-        self.year = None
-        self.month = None
-        self.day = None
+        
+        self.year = self.month = self.day = None
         self._parse_date()
-
         self.language_iso = self._parse_language()
         self._extra_fields = {}
 
@@ -64,14 +62,12 @@ class ComicInfo(MetaMixin):
         return name
 
     def _extract_number_from_episode_name(self, episode_name: str) -> Optional[str]:
-        """从 Episode.name 中提取数字或中文数字作为 Number。"""
         match = re.search(r'\d+', episode_name)
         if match:
             return match.group(0)
         return None
 
     def _parse_date(self):
-        """从 public_date 解析 Year/Month/Day。"""
         if not self.public_date or not isinstance(self.public_date, str):
             return
         sep = "-" if "-" in self.public_date else "/"
@@ -80,86 +76,63 @@ class ComicInfo(MetaMixin):
             self.year, self.month, self.day = parts[0], parts[1], parts[2]
 
     def _parse_language(self) -> str:
-        """从 source/tags 推断语言代码。明确解析到时写，否则默认 zh。"""
         if self.source == "ehentai":
             if lang_tag := next((_ for _ in self.tags if _.startswith("language:")), None):
-                lang = lang_tag.split(":", 1)[1]
-                if lang == "chinese":
-                    return "zh"
-                elif lang == "english":
-                    return "en"
-                elif lang == "japanese":
-                    return "ja"
+                match lang_tag.split(":", 1)[1]:
+                    case "chinese":
+                        return "zh"
+                    case "english":
+                        return "en"
+                    case "japanese":
+                        return "ja"
         return "zh"
 
     def add(self, tag: str, value: Optional[str]) -> 'ComicInfo':
-        """添加或覆盖特殊字段。"""
         self._extra_fields[tag] = value
         return self
 
     @property
     def content(self) -> str:
-        """生成 ComicInfo.xml 字符串。"""
-        xml_lines = []
-        xml_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
-        xml_lines.append(
-            '<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-            'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
-        )
-
-        def add_field(tag: str, value: Optional[str]):
-            if value is None:
-                return
-            if isinstance(value, str) and not value.strip():
-                return
-            v = (
-                str(value)
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-            )
-            xml_lines.append(f"  <{tag}>{v}</{tag}>")
-
-        add_field("Title", self.title)
-        add_field("Series", self.series)
-        add_field("Number", self.number)
-        add_field("Writer", self.artist)
-        add_field("Publisher", self.source)
-        # TODO[0](2025-12-08): jm发布日期，来源等等
-
-        if self.year:
-            add_field("Year", self.year)
-        if self.month:
-            add_field("Month", self.month)
-        if self.day:
-            add_field("Day", self.day)
-
-        if self.tags:
-            joined = ", ".join(map(str, self.tags))
-            add_field("Genre", joined)
-            add_field("Tags", joined)
-
-        add_field("Web", self.web)
-        add_field("PageCount", str(self.pages) if self.pages is not None else None)
-        add_field("LanguageISO", self.language_iso)
-
-        for tag, value in self._extra_fields.items():
-            add_field(tag, value)
-
-        xml_lines.append("</ComicInfo>")
-        return "\n".join(xml_lines)
+        def escape(v):
+            return str(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        
+        fields = {
+            "Title": self.title, "Writer": self.artist, "Publisher": self.source,
+            "Series": self.series, "Number": self.number,
+            "Year": self.year, "Month": self.month, "Day": self.day,
+            "Tags": ", ".join(map(str, self.tags)) if self.tags else None,
+            "Genre": ", ".join(map(str, self.btype)) if self.btype else None,
+            "Web": self.preview_url,
+            "PageCount": str(self.pages) if self.pages is not None else None,
+            "LanguageISO": self.language_iso,
+            **self._extra_fields
+        }
+        
+        lines = ['<?xml version="1.0" encoding="UTF-8"?>',
+                 '<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                 'xmlns:xsd="http://www.w3.org/2001/XMLSchema">']
+        
+        for tag, value in fields.items():
+            if value is not None and (not isinstance(value, str) or value.strip()):
+                lines.append(f"  <{tag}>{escape(value)}</{tag}>")
+        
+        lines.append("</ComicInfo>")
+        return "\n".join(lines)
 
     def fin_callback(self, _p: p.Path):
-        create_cbz(_p)
+        create_cbz(_p, self.is_ep)
 
 
-def create_cbz(src):
+def create_cbz(src, is_ep):
     cbz_filename = src.parent / f"{src.name}.cbz"
     with zipfile.ZipFile(cbz_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for file in sorted(src.iterdir()):
             if file.is_file():
                 zipf.write(file, arcname=file.name)
     shutil.rmtree(src)
+    if not is_ep:
+        src.mkdir(exist_ok=True)
+        shutil.move(cbz_filename, src)
 
 
 class Blank(MetaMixin):

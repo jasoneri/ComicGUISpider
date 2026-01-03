@@ -19,7 +19,7 @@ from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils, DomainToolView
-from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager
+from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager
 from GUI.manager.preprocess import PreprocessManager
 from GUI.uic.qfluent import CustomFlyout
 from variables import *
@@ -30,9 +30,9 @@ from utils.processed_class import (
     GuiQueuesManger, refresh_state, crawl_what,
     PreviewHtml, TmpFormatHtml
 )
-from utils.redViewer_tools import show_max
+from utils.redViewer_tools import Handler as rVtools
 from utils.website import spider_utils_map, InfoMinix
-from utils.sql import SqlUtils
+from utils.sql import SqlRecorder
 
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
@@ -66,6 +66,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     Q = None
     s: m.Server = None
     sv_path = None
+    rv_tools: rVtools = None
 
     def __init__(self, parent=None):
         super(SpiderGUI, self).__init__(parent)
@@ -100,6 +101,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.queue_init_thread = QueueInitThread(self)
         self.queue_init_thread.init_completed.connect(self.on_queue_init_completed)
         self.queue_init_thread.start()
+        
+        self.rv_mgr = RVManager(self)
+        self.rv_mgr.start_scan(show_progress=False)
 
     def on_queue_init_completed(self, manager, Q, queue_port):
         self.manager = manager
@@ -142,10 +146,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 return
             self.spiderUtils = spider_utils_map[index]
             rmt_s2c = True
+            self.rv_tools.ero = 0
             if index in SPECIAL_WEBSITES_IDXES:
                 self.web_is_r18 = True
                 self.sut = self.spiderUtils(conf)
                 rmt_s2c = False
+                self.rv_tools.ero = 1
             FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
@@ -160,7 +166,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.chooseBox_changed_tips(index)
             if self.web_is_r18:
                 self.clipBtn.setEnabled(1)
-                self.sv_path = conf.sv_path.joinpath(rf"{res.SPIDER.ERO_BOOK_FOLDER}/web")
+                self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
             # 输入框联想补全
             self.set_completer()
             # 预处理管理器处理
@@ -172,6 +178,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.first_tmp_sv_flag = True
         self.task_mgr = TaskProgressManager(self)
         self.preprocess_mgr = PreprocessManager(self)
+        self.rv_tools = rVtools()
 
         if hasattr(self, 'splashScreen'):
             self.splashScreen.finish()
@@ -252,7 +259,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         1.已下载标记,from sql;
         2.（未做）非被指定标记"""
         def mark_tip(_infos):
-            sql_utils = SqlUtils()
+            sql_utils = SqlRecorder()
             obj_to_md5 = {}
             md5s = []
             for obj in _infos:
@@ -263,6 +270,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             for md5, obj in obj_to_md5.items():
                 if md5 in downloaded_md5:
                     obj.mark_tip = "downloaded"
+            sql_utils.close()
         infos = sorted(ori_infos.values(), key=lambda x: x.idx)
         if conf.isDeduplicate:
             mark_tip(infos)
@@ -368,6 +376,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             os.remove(self.tf)
 
     def retry_schedule(self):
+        if hasattr(self, 'preprocess_mgr'):
+            self.preprocess_mgr.cleanup()
         if getattr(self, 'p_crawler', None):
             try:
                 refresh_state(self, 'process_state', 'ProcessQueue')
@@ -580,6 +590,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 delattr(self, _)
 
     def closeEvent(self, event):
+        if hasattr(self, 'rv_mgr'):
+            self.rv_mgr.stop_scan()
         if hasattr(self, 'task_mgr'):
             self.task_mgr.close()
         if hasattr(self, 'preprocess_mgr'):
@@ -630,8 +642,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.BrowserWindow.view.load(QUrl(url))
         self.BrowserWindow.show()
 
-    def show_max(self):
-        self.bsm = self.bsm or show_max()
+    def say_show_max(self):
+        self.bsm = self.bsm or self.rv_tools.show_max()
         bc_name = self.book_choose[0].name
         bookShow = self.bsm.get(bc_name) or self.bsm.get(self.searchinput.text().strip())
         if bookShow:

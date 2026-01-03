@@ -213,3 +213,5 @@ _bug_log
 # ide
 .cursor
 .claude
+.kilocode
+/plans

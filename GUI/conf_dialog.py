@@ -19,9 +19,10 @@ import uncurl
 from assets import res
 from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG
 from utils import conf, convert_punctuation as cp, exc_p
+from utils.config.rule import CgsRuleMgr
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
-from GUI.manager import Updater, Proj
+from GUI.manager import Updater
 from GUI.core.theme import theme_mgr
 from GUI.uic.qfluent.components import (
     SupportView, CustomFlyout, CustomInfoBar, ExpandSettings, TextEditWithBg
@@ -178,9 +179,8 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             theme_mgr.set_dark(conf.darkTheme)
         self.darkTheme.clicked.connect(_switch_mode)
         def _regular_update():
-            # self.puThread = ProjUpdateThread(self)
-            # Updater(self.gui).run()
-            self.gui.open_url_by_browser('https://doc.comicguispider.nyc.mn/changelog/history')
+            self.puThread = ProjUpdateThread(self)
+            Updater(self.gui).run()
         self.updateBtn.clicked.connect(_regular_update)
         self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
             view=SupportView(self), target=self.supportBtn, parent=self
@@ -194,9 +194,19 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                 )
         self.langBox.activated.connect(_tip_lang_change)
         def _tip_meta_change(idx):
-            match self.dledHandleBox.itemText(idx):
+            n_dledHandle = self.dledHandleBox.itemText(idx)
+            
+            if self.sv_path_card.contentLabel.text() == str(conf.sv_path) and CgsRuleMgr.exists(conf.sv_path):
+                is_valid, _msg = CgsRuleMgr.validate(conf.sv_path, n_dledHandle)
+                if not is_valid:
+                    InfoBar.error(title="", content=_msg, duration=-1, parent=self,
+                        orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT)
+                    self.dledHandleBox.setCurrentText(conf.downloaded_handle)
+                    return
+            
+            match n_dledHandle:
                 case ".cbz":
-                    _meta_tip = "适配平台例如：ComicRack, Komga, kavita\n保存并内置重启后生效"
+                    _meta_tip = res.GUI.Uic.confDia_n_dledHandle
                 case _:
                     _meta_tip = ""
             if _meta_tip:
@@ -273,6 +283,14 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def save_conf(self):
         sv_path = self.sv_path_card.contentLabel.text()
+        n_dledHandle = self.dledHandleBox.currentText()
+        
+        is_valid, _msg = CgsRuleMgr.validate(pathlib.Path(sv_path), n_dledHandle)
+        if not is_valid:
+            InfoBar.error(title="", content=f"{_msg}\n❌conf save fail", duration=-1, parent=self.gui.textBrowser,
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM)
+            return
+        
         self.format_cookie()
 
         config = {
@@ -293,6 +311,12 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "clip_read_num": getattr(self, "clip_read_numEdit").value(),
         }
         conf.update(**config)
+        
+        if sv_path != str(conf.sv_path):  # after conf.update(sv_path)
+            self._trigger_rv_scan()
+
+    def _trigger_rv_scan(self):
+        self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self.gui.textBrowser)
 
     def format_cookie(self):
         """格式化并保存当前cookiesEdit的内容到当前所选"""

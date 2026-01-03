@@ -6,16 +6,15 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QGuiApplication
 from PyQt5.QtWidgets import QSpacerItem, QSizePolicy, QFileDialog, QHBoxLayout, QWidget
 from qfluentwidgets import (
-    VBoxLayout, PrimaryPushButton, PrimaryToolButton,
-    TransparentToolButton, PushButton, HyperlinkButton, 
+    VBoxLayout, PrimaryPushButton, ToolButton,
+    TransparentToolButton, PushButton, HyperlinkButton,
     FluentIcon as FIF, PushSettingCard, InfoBar, InfoBarPosition,
     BodyLabel
 )
 from qframelesswindow import FramelessWindow
-
 from assets import res as ori_res
 from utils import curr_os, conf, yaml_update
-from utils.redViewer_tools import combine_then_mv, show_max
+from utils.config.rule import CgsRuleMgr
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon
 
 tools_res = ori_res.GUI.Tools
@@ -132,18 +131,21 @@ class SvPathCard(PushSettingCard):
 
 
 class rvTool(QWidget):
+    infobar_pos = InfoBarPosition.BOTTOM_LEFT
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.toolWin = parent
+        self.gui = parent.gui
         self.init_ui()
-    
+
     def init_ui(self):
         self.main_layout = VBoxLayout(self)
         # 受 sv_path_card.setContent 影响的 btn 都置于 sv_path_card 前面
         self.runBtn = PrimaryPushButton(FIF.PLAY, "run rV")
         self.runBtn.clicked.connect(self.run)
         self.runBtn.setDisabled(True)
-        self.broomBtn = PrimaryToolButton(FIF.BROOM, self)
+        self.broomBtn = ToolButton(FIF.BROOM, self)
         self.broomBtn.clicked.connect(self.broom)
         self.broomBtn.setDisabled(True)
         
@@ -155,15 +157,15 @@ class rvTool(QWidget):
         second_row = QHBoxLayout()
         spacer_info = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.deployBtn = PrimaryPushButton(FIF.DICTIONARY, tools_res.rv_deploy_desc)
-        self.showMaxBtn = PushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
+        self.showMaxBtn = PrimaryPushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
         self.deployBtn.clicked.connect(self.deploy)
         self.showMaxBtn.clicked.connect(self.show_max)
-        self.combineBtn = PushButton(CustomIcon.TOOL_MERGE, tools_res.rv_merge_move)
-        self.combineBtn.clicked.connect(self.combine_then_mv)
+        self.scanBtn = PushButton(FIF.SYNC, tools_res.rv_scan_local)
+        self.scanBtn.clicked.connect(self.rv_scan)
         second_row.addSpacerItem(spacer_info)
-        second_row.addWidget(self.deployBtn)
         second_row.addWidget(self.showMaxBtn)
-        second_row.addWidget(self.combineBtn)
+        second_row.addWidget(self.scanBtn)
+        second_row.addWidget(self.deployBtn)
         second_row.addWidget(self.broomBtn)
         second_row.addWidget(self.runBtn)
 
@@ -179,16 +181,18 @@ class rvTool(QWidget):
         _.show()
     
     def show_max(self):
-        self.toolWin.gui.bsm = self.toolWin.gui.bsm or show_max()
-        self.table_fv = CustomFlyout.make(TableFlyoutView(self.toolWin.gui.bsm, self), self.sv_path_card, self)
+        self.gui.bsm = self.gui.bsm or self.gui.rv_tools.show_max()
+        if not self.gui.bsm:
+            InfoBar.warning(title='', content='show empty, had you downloaded on this sv_path? or scan',
+                position=self.infobar_pos, duration=3000, parent=self)
+            return
+        self.table_fv = CustomFlyout.make(TableFlyoutView(self.gui.bsm, self), self.sv_path_card, self)
 
-    def combine_then_mv(self):
-        done = combine_then_mv(conf.sv_path, conf.sv_path.joinpath("web"))
-        InfoBar.success(
-            title='combine_then_mv', content=ori_res.GUI.Tools.rv_combined_tip % (done, str(conf.sv_path.joinpath("web"))),
-            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-            duration=3000, parent=self
-        )
+    def rv_scan(self):
+        if not CgsRuleMgr.exists(conf.sv_path):
+            InfoBar.warning(title='', content=tools_res.rv_notCgsRule,
+                position=InfoBarPosition.TOP_RIGHT, duration=4000, parent=self)
+        self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self, pos=self.infobar_pos)
 
     def run(self):
         rv_script = pathlib.Path(getattr(conf, "rv_script"))

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import scrapy
 
 from utils import PresetHtmlEl, conf
@@ -158,14 +159,14 @@ class HitomiSpider(BaseComicSpider):
 
         book = meta.get('book')
         this_uuid, this_md5 = book.id_and_md5()
-        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
+        if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):
             self.say(f'📜 《{book.name}》')
             self.set_task(book)
             for pic_info in book.pics:
                 item = ComicspiderItem()
                 item['title'] = book.name
                 item['page'] = str(pic_info['name'])
-                item['section'] = 'meaningless'
+                item['section'] = None
                 img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
                 item['image_urls'] = [img_url]
                 item['uuid'] = this_uuid
@@ -183,8 +184,10 @@ class HitomiSpider(BaseComicSpider):
     def frame_book(self, rets, meta):
         frame_results = {}
         self.say(self.say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
-        for x, target in enumerate(rets):
-            book = self.ut.parse_search_item(target['text'])
+        texts = [target['text'] for target in rets]
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(self.ut.parse_search_item, texts))
+        for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f"{self.domain}{book.preview_url}"
             frame_results[book.idx] = book
