@@ -31,9 +31,8 @@ class CgsRuleMgr:
             rule_data = {"downloaded_handle": conf_dh}
             with open(cls._get_rule_file(sv_path), 'w', encoding='utf-8') as f:
                 json.dump(rule_data, f, ensure_ascii=False, indent=2)
-            key = str(sv_path)
-            cls._exist_flags[key] = True
-            cls._cached_rules[key] = rule_data
+            cls._exist_flags[sv_path] = True
+            cls._cached_rules[sv_path] = rule_data
             return True
         except Exception:
             return False
