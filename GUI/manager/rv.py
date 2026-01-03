@@ -33,7 +33,7 @@ class RVManager(QObject):
             position=show_kws['pos'], duration=2000, parent=parent)
 
     def _on_scan_completed(self, total: int, **show_kws):
-        self.gui.log.info(f"scaned: {total} episodes scanned")
+        self.gui.log.info(f"Scanned: {total} episodes")
         self.gui.bsm = None
         parent = show_kws.get("parent_widget", self.gui.textBrowser)
         info_what = InfoBar.success if total else InfoBar.warning

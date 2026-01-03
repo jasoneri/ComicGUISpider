@@ -1,16 +1,11 @@
 
-📢 暂时不更了，还得亏某些人，原因看 README  
-
 ## 🎁 Features
 
-✅ 简化处理发布页域名相关流程  
-✅ `rvTool > 显示记录` 记录窗口新增 `搜索选中行` 按钮  
-✅ 匹配记录提示，菜单操作增强 > [📷screenshot](https://img.comicguispider.nyc.mn/file/1765701939059_feat-2.7.1-beta.2.png)
-✨ `元数据记录` 改成 `后处理`，下载完成的后处理，具体看 [`配置 > 后处理`](https://doc.comicguispider.nyc.mn/config/#%E4%BB%A3%E7%90%86-proxies)  
-✨ `kemono` 过滤规则 修复&增强 > [看📏过滤规则示例](https://doc.comicguispider.nyc.mn/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B) （注意字段更改及时更新本地过滤规则）  
+⚠️ 整改存储目录，为区分后处理模式，升 `v2.8.0` 后需切到新的空存储目录  
+&emsp;✅ 已测试设`.cbz`后无感适配 Komga ，但它框架问题切🔞需改存储目录，**rV 则不用**  
+✨ 补全元数据，并基于 `储存目录/rV.db` 本地储存信息，有望 rV 与 CGS 的后续开发展开  
+&emsp;✅ rvTool 的显示记录增强，区分🔞，自行尝试  
 
 ## 🐞 Fix
 
-✅ 修复代理状态时拷贝流程仍然出错，具体看 [`faq > 拷贝访问相关`](https://doc.comicguispider.nyc.mn/faq/#_2-%E7%88%AC%E8%99%AB)  
-✅ 修复 jm 域名获取（保底简化处理流程保留）, 子进度条修复  
-✨ 修复 kb 缓存失败重启卡死；报错 'tasks_progress_panel_flag'; 章节的 `.cbz`;  
+❔ 修复内置重启卡死（难以复现，只能一点点试）  

@@ -95,7 +95,7 @@ hero:
   </tr>
   <tr>
     <td>rV, 自用<br>全面无感适配 CGS<br><s>CGS 为它服务</s></td>
-    <td>komga/ComicRack系<br>需后处理设<code>.czb</code></td>
+    <td>komga/ComicRack系<br>需后处理设<code>.cbz</code></td>
     <td>PicView<br>图片管理器, 但用来操作子目录图片<br>或是<code>.cbz</code>都是不错选择</td>
   </tr>
 </tbody></table>

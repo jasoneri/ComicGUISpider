@@ -32,7 +32,7 @@ class ComicInfo(MetaMixin):
     def __init__(self, info: Union[BookInfo, Episode]):
         super().__init__(info)
         self.is_ep = isinstance(info, Episode)
-        if isinstance(info, Episode):
+        if self.is_ep:
             episode = info
             book = episode.from_book
             self.title = episode.name
