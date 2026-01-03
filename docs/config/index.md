@@ -59,20 +59,20 @@
 
 ### 后处理 / `downloaded_handle`
 
-::: info `v2.7.1` 起 元数据信息 会本地储存在 __temp 目录，对应后续版本的功能
+::: info `v2.8.0` 起 元数据信息会储存在 `存储路径/rv.db`，对应后续版本的功能
 :::
 
 当一个任务完整下载所有子图片后进行的操作
 
 1. `-`: 默认，不进行操作
-2. `.cbz`: 打包成 `.cbz`，储存 `ComicInfo.xml` 元数据，并删除作品目录  
-    （适配 ComicRack, Komga, kavita 等）
+2. `.cbz`: 打包 `.cbz` 并储存 `ComicInfo.xml` 元数据  
+    （已测 Komga 无感适配，ComicRack 系 kavita 等应该类同）
 
-::: info `ComicInfo.xml` 元数据须知
+::: info 后处理须知
 
-1. 注意不同获取方式的元数据字段可能不同，搜索接口的一般没有书页接口(例如读剪贴板/车号)的全
-
-::: tip 了解其他热门元数据标准的可参与开发，或 [提需求(详细描述)](https://github.com/jasoneri/ComicGUISpider/issues/new?template=feature-request.yml)  
+1. 为区分 🔞 存储路径，要想无感使用除 rV 以外的 Komga 等框架只能分开存储路径下载  
+2. 同一存储目录混放不同后处理时，会导致 rV/CGS 扫描异常  
+3. 不同获取方式的元数据字段可能不同，搜索接口一般没有书页接口（例如读剪贴板/车号）的那么全
 :::
 
 ---

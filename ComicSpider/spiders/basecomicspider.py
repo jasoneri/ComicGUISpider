@@ -20,7 +20,7 @@ from utils.website import (
     correct_domain, spider_utils_map, 
     InfoMinix, BookInfo, Episode
 )
-from utils.sql import SqlUtils
+from utils.sql import SqlRecorder, SqlrV
 from utils.meta import MetaRecorder
 
 
@@ -100,7 +100,8 @@ class BaseComicSpider(scrapy.Spider):
     Q: QueueHandler = None
     say: SayToGui = None
     ut = None
-    sql_handler: SqlUtils = None
+    record_sql: SqlRecorder = None
+    rv_sql: SqlrV = None
     ua = {}
     total = 0
     tasks = {}
@@ -262,14 +263,20 @@ class BaseComicSpider(scrapy.Spider):
         tasks_obj.meta_info = self.mr.toMetaInfo(task_info)
         self.tasks[tasks_obj.taskid] = tasks_obj
         self.Q('TasksQueue').send(tasks_obj, wait=True)
+        
+        book = task_info.from_book if isinstance(task_info, Episode) else task_info
+        if book.preview_url and not book.preview_url.startswith("http"):
+            prefix = "" if book.preview_url.startswith("/") else "/"
+            book.preview_url = f"https://{self.domain}{prefix}{book.preview_url}"
+        self.rv_sql.write_meta(**book.to_sql())
 
     def makesure_tasks_status(self):
         if conf.isDeduplicate:
             for taskid, _ in self.tasks.items():
-                if self.sql_handler.check_dupe(taskid):
+                if self.record_sql.check_dupe(taskid):
                     continue
-                elif len(tuple(self.tasks_path.get(taskid).iterdir())) >= self.tasks[taskid].tasks_count:
-                    self.sql_handler.add(taskid)
+                elif self.tasks_path.get(taskid) and len(tuple(self.tasks_path.get(taskid).iterdir())) >= self.tasks[taskid].tasks_count:
+                    self.record_sql.add(taskid)
 
     def refresh_state(self, state_name, queue_name, monitor_change=False):
         try:
@@ -295,7 +302,8 @@ class BaseComicSpider(scrapy.Spider):
         spider.Q('ProcessQueue').send(spider.process_state)
 
         spider.say = SayToGui(spider, q, spider.text_browser_state)
-        spider.sql_handler = SqlUtils()
+        spider.record_sql = SqlRecorder()
+        spider.rv_sql = SqlrV(1 if spider.name in spider.settings.get('SPECIAL') else 0).connect()
         spider.ut = spider_utils_map[spider.name]
         spider.mr = MetaRecorder(conf)
         return spider
@@ -317,7 +325,8 @@ class BaseComicSpider(scrapy.Spider):
             self.logger.error(f"Error closing resources: {e}")
             reason = "error"
         sleep(0.3)
-        self.sql_handler.close()
+        self.record_sql.close()
+        self.rv_sql.close()
         if reason == "ConnectionResetError":
             return
         elif reason == "finished":
@@ -372,10 +381,10 @@ class BaseComicSpider2(BaseComicSpider):
         else:
             book = meta.get('book')
             this_uuid, this_md5 = book.id_and_md5()
-            ep_name = 'meaningless'
+            ep_name = None
             this_info = book
         book.name = PresetHtmlEl.sub(book.name)
-        if not conf.isDeduplicate or not (conf.isDeduplicate and self.sql_handler.check_dupe(this_md5)):
+        if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):
             self.say(f'''📜 《{this_info.display_title}》''')
             results = self.frame_section(response)  # {1: url1……}
             this_info.pages = len(results)
@@ -408,7 +417,7 @@ class BaseComicSpider3(BaseComicSpider):
             check_dupe_pass = 1
         else:
             _, this_md5 = book.id_and_md5()
-            check_dupe_pass = not conf.isDeduplicate or not self.sql_handler.check_dupe(this_md5)
+            check_dupe_pass = not conf.isDeduplicate or not self.record_sql.check_dupe(this_md5)
         
         if check_dupe_pass:
             sec_page = response.meta.get('sec_page', 1)
