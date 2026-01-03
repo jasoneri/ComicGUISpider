@@ -55,6 +55,7 @@ GUI:
     rv_book_marked: "Records"
     rv_scan_local: "Scan Local"
     rv_set_script_err: "set rV script failed，read how to deploy rV by right-button"
+    rv_notCgsRule: ".cgsRule.json not initialized\nscan mode will follow the current `dledHandle` setting in config window"
     hitomi_tip_search: "search selected tags in website"
     hitomi_tip_sv: "save to custom presets"
     hitomi_tip_send: "send to searchInput box"
