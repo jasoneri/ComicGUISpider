@@ -12,9 +12,9 @@ from qfluentwidgets import (
     BodyLabel
 )
 from qframelesswindow import FramelessWindow
-
 from assets import res as ori_res
 from utils import curr_os, conf, yaml_update
+from utils.config.rule import CgsRuleMgr
 from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon
 
 tools_res = ori_res.GUI.Tools
@@ -183,12 +183,15 @@ class rvTool(QWidget):
     def show_max(self):
         self.gui.bsm = self.gui.bsm or self.gui.rv_tools.show_max()
         if not self.gui.bsm:
-            InfoBar.warning(title='', content='show empty, had you downloaded on this sv_path?',
+            InfoBar.warning(title='', content='show empty, had you downloaded on this sv_path? or scan',
                 position=self.infobar_pos, duration=3000, parent=self)
             return
         self.table_fv = CustomFlyout.make(TableFlyoutView(self.gui.bsm, self), self.sv_path_card, self)
 
     def rv_scan(self):
+        if not CgsRuleMgr.exists(conf.sv_path):
+            InfoBar.warning(title='', content=tools_res.rv_notCgsRule,
+                position=InfoBarPosition.TOP_RIGHT, duration=4000, parent=self)
         self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self, pos=self.infobar_pos)
 
     def run(self):

@@ -119,6 +119,8 @@ class SqlrV:
             `exist` INTEGER NOT NULL DEFAULT 1,
             `rv_handle` TEXT,
             `ero` INTEGER NOT NULL DEFAULT 0,
+            `mtime` REAL,
+            `first_img` TEXT,
             UNIQUE(`book`, `ep`)
         );'''
         
@@ -148,9 +150,12 @@ class SqlrV:
         self.written_meta.add(book_md5)
 
     def write_episode(self, book: str, ep: str = None, exist: int = 1):
-        sql = f'''INSERT OR REPLACE INTO {self.eps_tb}
-                  (book, ep, exist, rv_handle, ero)
-                  VALUES (?, ?, ?, ?, ?);'''
+        sql = f'''INSERT INTO {self.eps_tb} (book, ep, exist, rv_handle, ero)
+                  VALUES (?, ?, ?, ?, ?)
+                  ON CONFLICT(book, ep) DO UPDATE SET
+                      exist = excluded.exist,
+                      rv_handle = excluded.rv_handle,
+                      ero = excluded.ero;'''
         self.cursor.execute(sql, (set_author_ahead(book), ep or '', exist, None, self.ero))
         self.conn.commit()
 
@@ -160,17 +165,14 @@ class SqlrV:
             (book, ep or '', exist, rv_handle, ero)
             for book, ep, exist, rv_handle, ero in episodes
         ]
-        sql = f'''INSERT OR REPLACE INTO {self.eps_tb}
-                  (book, ep, exist, rv_handle, ero)
-                  VALUES (?, ?, ?, ?, ?);'''
+        sql = f'''INSERT INTO {self.eps_tb} (book, ep, exist, rv_handle, ero)
+                  VALUES (?, ?, ?, ?, ?)
+                  ON CONFLICT(book, ep) DO UPDATE SET
+                      exist = excluded.exist,
+                      rv_handle = excluded.rv_handle,
+                      ero = excluded.ero;'''
         self.cursor.executemany(sql, normalized_episodes)
         self.conn.commit()
-
-    def handle(self):
-        """used by rv
-        sql = '''UPDATE `episodes` SET rv_handle = ? WHERE book = ? AND ep = ?;'''
-        """
-        ...
 
     def get_meta(self, books: list) -> dict:
         """used by rv
@@ -179,7 +181,6 @@ class SqlrV:
                   FROM `metainfos` WHERE book IN ({placeholders});'''
         self.cursor.execute(sql, books)
         """
-        ...
 
     def get_episodes(self, book: str = None) -> list:
         """获取章节信息

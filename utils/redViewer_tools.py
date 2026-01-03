@@ -90,6 +90,8 @@ class Handler:
                     book_name = uuid_regex.sub('', item.name).strip()
                     for sub in sub_eps:
                         ep_name = uuid_regex.sub('', self.strategy.get_episode_name(sub)).strip()
+                        if ep_name == book_name:  # 单章节
+                            ep_name = None
                         fs_episodes.add((book_name, ep_name, 1))
                 else:
                     book_name = uuid_regex.sub('', item.name).strip()
