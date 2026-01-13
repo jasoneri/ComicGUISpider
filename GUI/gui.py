@@ -3,6 +3,7 @@ import re
 import sys
 import random
 import traceback
+import contextlib
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtGui import QKeySequence, QGuiApplication
@@ -379,10 +380,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if hasattr(self, 'preprocess_mgr'):
             self.preprocess_mgr.cleanup()
         if getattr(self, 'p_crawler', None):
-            try:
-                refresh_state(self, 'process_state', 'ProcessQueue')
-            except ConnectionResetError:
-                ...
+
+            with contextlib.suppress(ConnectionResetError):
+                # refresh_state 会发生阻塞，使用原生 Queues.recv
+                process_queue = self.Q('ProcessQueue')
+                state = Queues.recv(process_queue.queue)  # 直接调用底层方法
+                if state:
+                    self.process_state = state
+                    self.log.info(f'===--→ step: {state.process}， now retrying…… ')
+                else:
+                    self.log.info('===--→ now retrying (process state unavailable)…… ')
             self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
 
         def retry_all():
