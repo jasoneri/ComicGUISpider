@@ -461,10 +461,8 @@ class KaobeiUtils(Utils):
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
     }
-    cachef = Cache("kaobei_aeskey.txt")
 
     @classmethod
-    @cachef.with_error_cleanup()
     def decrypt_chapter_data(cls, ret: str, **meta_info):
         def _(cipher_hex: str, key: str, iv: str) -> dict:
             cipher_bytes = bytes.fromhex(cipher_hex)
@@ -480,29 +478,36 @@ class KaobeiUtils(Utils):
             unpadder = padding.PKCS7(128).unpadder()
             decrypted = unpadder.update(decrypted_padded) + unpadder.finalize()
             return json.loads(decrypted.decode('utf-8'))
-        if len(ret) < 1000:
-            raise ValueError(f"加密信息过短疑似风控变化\n{cls.cachef.val=}\n{ret=}\n{meta_info=}")
-        return _(ret[16:], cls.cachef.val, ret[:16])
+        
+        cls.cachef = getattr(cls, "cachef", Cache("kaobei_aeskey.txt"))
+        @cls.cachef.with_error_cleanup()
+        def _decrypt():
+            if len(ret) < 1000:
+                raise ValueError(f"加密信息过短疑似风控变化\n{cls.cachef.val=}\n{ret=}\n{meta_info=}")
+            return _(ret[16:], cls.cachef.val, ret[:16])
+        return _decrypt()
 
     @classmethod
-    @cachef.with_expiry("daily", write_in=True)
     def get_aes_key(cls):
         """获取AES密钥，使用缓存装饰器优化"""
-        async def fetch():
-            async with httpx.AsyncClient(headers=cls.headers) as cli:
-                resp = await cli.get(f"https://{cls.pc_domain}/comic/yiquanchaoren")
-                return resp.text
-        try:
-            loop = get_loop()
-            html_text = loop.run_until_complete(fetch())
-            html_doc = html.fromstring(html_text)
-            dio = list(map(lambda x: x.strip().replace(" ", ""), html_doc.xpath('//script/text()')))
-            real_dio = next(filter(lambda x: x.startswith("var"), dio))
-            aes_key = re.findall(r"""=['"](.*?)['"]""", real_dio.split("\n")[0])[0]
-            return aes_key
-        except Exception as e:
-            print(e)
-            raise ValueError("aes_key 获取失败")
+        def _fetch():
+            async def fetch():
+                async with httpx.AsyncClient(headers=cls.headers) as cli:
+                    resp = await cli.get(f"https://{cls.pc_domain}/comic/yiquanchaoren")
+                    return resp.text
+            try:
+                loop = get_loop()
+                html_text = loop.run_until_complete(fetch())
+                html_doc = html.fromstring(html_text)
+                dio = list(map(lambda x: x.strip().replace(" ", ""), html_doc.xpath('//script/text()')))
+                real_dio = next(filter(lambda x: x.startswith("var"), dio))
+                return re.findall(r"""=['"](.*?)['"]""", real_dio.split("\n")[0])[0]
+            except Exception as e:
+                print(e)
+                raise ValueError("aes_key 获取失败")
+        
+        cls.cachef = getattr(cls, "cachef", Cache("kaobei_aeskey.txt"))
+        return cls.cachef.run(_fetch, "daily", write_in=True)
 
 
 class MangabzUtils(Utils, Req):
