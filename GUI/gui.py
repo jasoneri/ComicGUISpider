@@ -103,8 +103,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.queue_init_thread.init_completed.connect(self.on_queue_init_completed)
         self.queue_init_thread.start()
         
+        self.rv_tools = rVtools(self)
         self.rv_mgr = RVManager(self)
         self.rv_mgr.start_scan(show_progress=False)
+        self.browser_zoom_factor = 1.0  # WebEngine 用户缩放率，生命周期同 SpiderGUI
 
     def on_queue_init_completed(self, manager, Q, queue_port):
         self.manager = manager
