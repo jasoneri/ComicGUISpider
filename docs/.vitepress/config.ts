@@ -157,8 +157,8 @@ export default defineConfig({
                         link: "/dev/i18n",
                     },
                     {
-                        text: "🎅公益站",
-                        link: "/dev/link",
+                        text: "🍖另类投喂",
+                        link: "/dev/feed",
                     }
                 ]
             }
