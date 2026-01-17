@@ -74,13 +74,13 @@ class CustomFramelessWebEngineView(FramelessWebEngineView):
         self.setPage(self.createPage())
         self.loadFinished.connect(self._inject_scrollbar_css)
         self.loadProgress.connect(self._on_load_progress)
-        theme_mgr.subscribe(self._on_theme_changed)
+        theme_mgr.subscribe(self.on_theme_changed)
     
     def _on_load_progress(self, progress):
         if progress >= 10 and not self._injected:
             self._inject_scrollbar_css()
     
-    def _on_theme_changed(self, _theme):
+    def on_theme_changed(self, _):
         self._inject_scrollbar_css()
     
     def _inject_scrollbar_css(self, _ok=True):
@@ -406,3 +406,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                 %s;
             } else { false; }""" % _js_code
         self.js_execute(js_code, lambda _: callback())
+
+    def closeEvent(self, event):
+        if hasattr(self, 'view'):  
+            theme_mgr.unsubscribe(self.view.on_theme_changed)  
+        super().closeEvent(event)

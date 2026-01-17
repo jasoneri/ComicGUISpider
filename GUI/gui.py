@@ -392,7 +392,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                     self.log.info(f'===--→ step: {state.process}， now retrying…… ')
                 else:
                     self.log.info('===--→ now retrying (process state unavailable)…… ')
-            self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
+            self.log.info(f'===--→ step: {getattr(self.process_state, "process", "unknown")}， now retrying…… ')
 
         def retry_all():
             try:
