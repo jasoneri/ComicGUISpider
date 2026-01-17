@@ -1,8 +1,9 @@
 import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
     FluentIcon, FluentIconBase, Theme,
@@ -32,12 +33,13 @@ class CustomInfoBar:
         w.show()
 
     @staticmethod
-    def show_custom(title, content, parent, _type="ERROR", widgets=[], **kw):
+    def show_custom(title, content, parent, _type="ERROR", ib_pos=InfoBarPosition.BOTTOM,
+                    widgets=[], **kw):
         InfoBar_kw = dict(
             icon=getattr(InfoBarIcon, _type.upper()),
             title=title, content=content,
             orient=Qt.Horizontal, isClosable=True,
-            position=InfoBarPosition.BOTTOM, duration=-1,
+            position=ib_pos, duration=-1,
             parent=parent
         )
         w = InfoBar(**{**InfoBar_kw, **kw})
@@ -167,6 +169,26 @@ class SupportView(FlyoutViewBase):
         self.promoteLayout.addItem(QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
 
         self.contentLabel = BodyLabel(res.GUI.Uic.confDia_support_content) 
+
+        self.affLayout = QtWidgets.QHBoxLayout()
+        self.riesBtn = HyperlinkButton(FluentIcon.EDUCATION, "https://Ries.ai?c=Jzva", "英语插件")
+        self.siliconBtn = HyperlinkButton(FluentIcon.CLOUD, "https://cloud.siliconflow.cn/i/j0SGXRO6", "硅基")
+        self.yuqueBtn = PrimaryPushButton(FluentIcon.QUICK_NOTE, "语雀")
+        def _yuque():
+            copyBtn = TransparentToolButton(FluentIcon.COPY)
+            def _copied():
+                QApplication.clipboard().setText("CZULIQ")
+                InfoBar.success(title='', content='已复制', parent=self.conf_dia, position=InfoBarPosition.TOP, duration=2000)
+            copyBtn.clicked.connect(_copied)
+            CustomInfoBar.show_custom(title='', content='点按钮复制邀请码', parent=self.conf_dia, _type="INFORMATION",
+                ib_pos=InfoBarPosition.TOP, widgets=[copyBtn])
+            QTimer.singleShot(4000, lambda: QDesktopServices.openUrl(QUrl("https://www.yuque.com")))
+        self.yuqueBtn.clicked.connect(_yuque)
+        self.affLayout.addWidget(self.riesBtn)
+        self.affLayout.addWidget(self.siliconBtn)
+        self.affLayout.addWidget(self.yuqueBtn)
+        self.affLayout.addItem(QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
+
         # self.picLayout = QtWidgets.QHBoxLayout()
         # self.aliPayLabel = ImageLabel(":/_support/alipay.png")
         # self.aliPayLabel.scaledToWidth(int(self.width * 0.4))
@@ -188,6 +210,7 @@ class SupportView(FlyoutViewBase):
         self.layout.addWidget(self.hLine)
         self.layout.addLayout(self.promoteLayout)
         self.layout.addWidget(self.contentLabel)
+        self.layout.addLayout(self.affLayout)
         # self.layout.addLayout(self.picLayout)
         self.setFixedWidth(self.width)
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)

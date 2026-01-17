@@ -137,7 +137,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.updateBtn = PushButton(FIF.UPDATE, res.GUI.Uic.confDia_updateBtn)
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
-        self.supportBtn = TransparentPushButton(FIF.CAFE, res.GUI.Uic.confDia_supportBtn)
+        self.supportBtn = TransparentPushButton(FIF.GAME, res.GUI.Uic.confDia_supportBtn)
         
         self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
