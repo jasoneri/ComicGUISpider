@@ -193,7 +193,7 @@ temp
 *-in.txt
 untitled*
 Pipfile
-Pipfile.lock
+*.lock
 codecov*
 *_local.yml
 *-lock.yaml

@@ -1,10 +1,10 @@
 {
   "devDependencies": {
-    "vitepress": "^1.6.3",
-    "@vue/tsconfig": "^0.4.0",
+    "vitepress": "^1.6.4",
+    "@vue/tsconfig": "^0.8.1",
     "@giscus/vue": "^3.1.1",
-    "typescript": "4.9.5",
-    "vue": "3.3.4"
+    "typescript": "5.9.3",
+    "vue": "3.5.27"
   },
   "scripts": {
     "docs:dev": "vitepress dev",

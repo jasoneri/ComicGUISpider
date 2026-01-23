@@ -61,15 +61,18 @@ hero:
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json"></td>
   </tr>
 </tbody></table>
+
+<ConcurrentImages>
 <table><tbody>
   <tr>
-    <td><img src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif"></td>
-    <td><img src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif"></td>
-  </tr>  
+    <td><img src="/cgs_sleep.png" data-src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif"></td>
+    <td><img src="/cgs_sleep.png" data-src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif"></td>
+  </tr>
   <tr>
-    <td><img src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif"></td>
-  </tr>  
+    <td><img src="/cgs_sleep.png" data-src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif"></td>
+  </tr>
 </tbody></table>
+</ConcurrentImages>
 
 ## 功能特性
 
