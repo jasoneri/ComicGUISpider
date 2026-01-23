@@ -10,6 +10,7 @@ from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
 from GUI.tools.status import StatusToolView
 from GUI.tools.ags import AggrSearchView
+from GUI.tools.mid_tool import MidToolInterface
 from GUI.tools.chore import *
 
 
@@ -72,6 +73,10 @@ class ToolWindow(FramelessWindow):
             self.htInterface = HitomiTools(self.gui)
             self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
 
+    def addMidTool(self):
+        self.midInterface = MidToolInterface(self.gui)
+        self.addSubInterface(self.midInterface, 'midInterface', 'midTool')
+
     def addSubInterface(self, widget: QWidget, objectName: str, text: str):
         widget.setObjectName(objectName)
         if isinstance(widget, QLabel):
@@ -93,6 +98,9 @@ class ToolWindow(FramelessWindow):
             self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
         if widget.objectName() == "asInterface":
             new_height = int(self.gui.height() * 0.5)
+            self.resize(self.width(), new_height)
+        elif widget.objectName() == "midInterface":
+            new_height = int(self.gui.height() * 0.7)
             self.resize(self.width(), new_height)
         else:
             self.resize(self.width(), self.default_height)
