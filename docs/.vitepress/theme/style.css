@@ -22,3 +22,22 @@
   );
   --vp-home-hero-image-filter: blur(40px);
 }
+
+/**
+ * Component: Lazy Loading Images
+ * -------------------------------------------------------------------------- */
+
+img[lazy="loading"] {
+  opacity: 0.6;
+  filter: blur(3px);
+  transition: opacity 0.4s ease-in-out, filter 0.4s ease-in-out;
+}
+
+img[lazy="loaded"] {
+  opacity: 1;
+  filter: blur(0);
+}
+
+img[lazy="error"] {
+  opacity: 0.3;
+}
