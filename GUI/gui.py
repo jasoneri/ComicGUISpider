@@ -21,6 +21,7 @@ from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils, DomainToolView
 from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager
+from GUI.manager.mid import CGSMidManagerGUI
 from GUI.manager.preprocess import PreprocessManager
 from GUI.uic.qfluent import CustomFlyout
 from variables import *
@@ -128,6 +129,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         # 按钮组
         self.clip_mgr = ClipGUIManager(self)
         self.ags_mgr = AggrSearchManager(self)
+        self.mid_mgr = CGSMidManagerGUI(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
@@ -214,6 +216,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
+        self.toolWin.addMidTool()
         self.rvBtn.clicked.connect(self.toolWin.show)
 
     def set_completer(self):
