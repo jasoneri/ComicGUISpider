@@ -1,15 +1,73 @@
-name: Release
+﻿name: Release
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 on:
   push:
     tags:
-      - 'v*.*.*'  
+      - 'v*.*.*'
   workflow_dispatch:
 
 jobs:
-  build:
+  validate-and-publish-pypi:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: false
+
+    - name: Build package
+      run: uv build
+
+    - name: Smoke test wheel before publish
+      env:
+        QT_QPA_PLATFORM: offscreen
+        CGS_CHECK_MODE: "1"
+      run: |
+        uv venv .venv-smoke
+        source .venv-smoke/bin/activate
+        uv pip install dist/*.whl
+        python - <<'PY'
+        import os
+        import subprocess
+        import sys
+
+        env = os.environ.copy()
+        tests = [
+            ("entrypoint import", [sys.executable, "-c", "import CGS"]),
+            ("check mode startup", [sys.executable, "-c", "import CGS; CGS.start()"]),
+            ("cli help", ["cgs-cli", "--help"]),
+        ]
+
+        failures = []
+        for name, cmd in tests:
+            print(f"::group::{name}")
+            result = subprocess.run(cmd, env=env, text=True, capture_output=True)
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr, file=sys.stderr)
+            print(f"exit_code={result.returncode}")
+            print("::endgroup::")
+            if result.returncode != 0:
+                failures.append(name)
+
+        if failures:
+            raise SystemExit(f"Smoke tests failed: {', '.join(failures)}")
+        PY
+
+    - name: Publish to PyPI
+      run: uv publish
+
+  create-release:
+    needs: validate-and-publish-pypi
     runs-on: ubuntu-latest
     container:
       image: python:3.12

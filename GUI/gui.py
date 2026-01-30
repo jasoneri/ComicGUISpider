@@ -21,8 +21,9 @@ from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils, DomainToolView
 from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager
-from GUI.manager.mid import CGSMidManagerGUI
+from GUI.manager.mid import CGSMidManagerGUI, WorkflowState
 from GUI.manager.preprocess import PreprocessManager
+from utils.middleware.timeline import TimelineStage
 from GUI.uic.qfluent import CustomFlyout
 from variables import *
 from assets import res
@@ -152,11 +153,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.spiderUtils = spider_utils_map[index]
             rmt_s2c = True
             self.rv_tools.ero = 0
-            if index in SPECIAL_WEBSITES_IDXES:
-                self.web_is_r18 = True
+            self.web_is_r18 = index in SPECIAL_WEBSITES_IDXES
+            if self.web_is_r18:
                 self.sut = self.spiderUtils(conf)
                 rmt_s2c = False
                 self.rv_tools.ero = 1
+            if hasattr(self, 'mid_mgr') and self.mid_mgr:
+                self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
             FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
@@ -168,6 +171,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
+                # Notify CGSMid: site selected → wait for search keyword
+                if self.mid_mgr.enabled:
+                    self.mid_mgr._workflow_session.reset()
+                    self.mid_mgr.set_state(WorkflowState.RUNNING)
+                    self.mid_mgr.set_state(WorkflowState.WAITING, TimelineStage.WAIT_SEARCH)
             self.chooseBox_changed_tips(index)
             if self.web_is_r18:
                 self.clipBtn.setEnabled(1)
@@ -456,6 +464,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self._next()
         else:
             start_and_search()
+            # Notify CGSMid: WAIT_SEARCH → RUNNING
+            if self.mid_mgr.enabled:
+                self.mid_mgr.set_state(WorkflowState.RUNNING, TimelineStage.SEARCHING)
 
         self.nextclickCnt += 1
         self.searchinput.setEnabled(False)

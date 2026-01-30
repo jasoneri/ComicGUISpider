@@ -100,8 +100,7 @@ class ToolWindow(FramelessWindow):
             new_height = int(self.gui.height() * 0.5)
             self.resize(self.width(), new_height)
         elif widget.objectName() == "midInterface":
-            new_height = int(self.gui.height() * 0.7)
-            self.resize(self.width(), new_height)
+            self.resize(900, 370)
         else:
             self.resize(self.width(), self.default_height)
         self.pivot.setCurrentItem(widget.objectName())
@@ -113,6 +112,7 @@ def main():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication([])
     window = ToolWindow()
+    window.addMidTool()
     window.show()
     app.exec_()
 

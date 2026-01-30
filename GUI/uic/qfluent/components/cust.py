@@ -2,20 +2,49 @@ import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QEvent
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
+    TransparentToolButton, HyperlinkButton, PrimaryPushButton,
     FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, TeachingTipTailPosition, ImageLabel, 
-    StrongBodyLabel, CheckBox
+    TeachingTip, TeachingTipTailPosition, ImageLabel,
+    StrongBodyLabel, CheckBox, IconInfoBadge, InfoBadgeManager, InfoLevel, InfoBadgePosition
 )
 
 
 from assets import res
 from utils.redViewer_tools import BookShow
+
+
+class ClickableIconInfoBadge(IconInfoBadge):
+    clicked = pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 移除透明鼠标事件属性，使 badge 可点击
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton and self.isEnabled():
+            self.clicked.emit()
+        super().mousePressEvent(e)
+
+    def eventFilter(self, obj, e):
+        if self._inside and obj is self._target and e.type() in (QEvent.Resize, QEvent.Move):
+            self._update_position_inside()
+        return super().eventFilter(obj, e)
+
+
+class CustomBadge:
+    @classmethod
+    def make(cls, bge_args, pos: InfoBadgePosition, target):
+        _bge = ClickableIconInfoBadge(*bge_args)
+        _bge.manager = InfoBadgeManager.make(pos, target, _bge)
+        _bge.move(_bge.manager.position())
+        return _bge
 
 
 class CustomInfoBar:
