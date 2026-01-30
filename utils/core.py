@@ -1,6 +1,12 @@
+import re
 import time
 import typing as t
 from dataclasses import asdict
+
+
+def sanitize_filename(name: str) -> str:
+    """清理文件名中的非法字符"""
+    return re.sub(r'[/\\:*?"<>|]', '_', name).strip() or "unnamed"
 
 
 class State:

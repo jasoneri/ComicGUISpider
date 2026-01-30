@@ -7,7 +7,7 @@ import hashlib
 import typing as t
 
 from utils.middleware.executor import MiddlewareDefinition
-from utils.middleware.timeline import TimelineStage
+from utils.middleware.timeline import TimelineStage, LaneStage
 
 
 class MiddlewareProvider(ABC):
@@ -28,31 +28,42 @@ class PresetProvider(MiddlewareProvider):
     def list_available(self) -> list[MiddlewareDefinition]:
         return [
             MiddlewareDefinition(
-                id="preset:auto_select_first",
-                type="auto_select_first",
-                name="Auto Select First Book",
-                priority=100,
+                id="preset:auto_select_first", type="select",
+                name="Select First Book",
+                default_priority=211,
                 supported_stages=[int(TimelineStage.WAIT_BOOK_DECISION)],
-                params={},
-                enabled=True,
+                params={}, enabled=True,
+                label="C1",
+                allowed_lanes=[LaneStage.BOOK.value],
             ),
             MiddlewareDefinition(
-                id="preset:auto_select_latest",
-                type="auto_select_latest",
-                name="Auto Select Latest Episode",
-                priority=100,
+                id="preset:auto_select_first_test", type="select",
+                name="Select First Book2",
+                default_priority=212,
+                supported_stages=[int(TimelineStage.WAIT_BOOK_DECISION)],
+                params={}, enabled=True,
+                label="C2",
+                allowed_lanes=[LaneStage.BOOK.value],
+            ),
+            MiddlewareDefinition(
+                id="preset:auto_select_latest", type="select",
+                name="Select Latest n Episode",
+                default_priority=311,
                 supported_stages=[int(TimelineStage.WAIT_EP_DECISION)],
-                params={},
+                params={'num': 1},
+                param_schema={'num': {'type': 'int', 'min': 1, 'max': 99, 'default': 1}},
                 enabled=True,
+                label="D1", desc="选择最新n个章节",
+                allowed_lanes=[LaneStage.EP.value],
             ),
             MiddlewareDefinition(
-                id="preset:cbz_post_processor",
-                type="cbz_post_processor",
-                name="CBZ Post Processor",
-                priority=600,
+                id="preset:cbz_post_processor", type="*file_type",
+                name="To CBZ",
+                default_priority=601,
                 supported_stages=[int(TimelineStage.POSTPROCESSING)],
-                params={},
-                enabled=True,
+                params={}, enabled=True,
+                label="E1",
+                allowed_lanes=[LaneStage.POSTPROCESSING.value],
             ),
         ]
 

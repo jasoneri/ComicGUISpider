@@ -5,6 +5,7 @@ from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtWidgets import QApplication
 from qfluentwidgets import setTheme, Theme
 from utils import conf
+from .mid import create_light_mid_colors, create_dark_mid_colors, MidNodeColors
 
 
 class CustTheme(Enum):
@@ -45,6 +46,7 @@ class Light:
         self.palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
         self.font_color = LightFontColor
         self.c = Theme.LIGHT
+        self.mid_colors = create_light_mid_colors()
 
 
 class Dark:
@@ -64,6 +66,7 @@ class Dark:
         self.palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
         self.font_color = DarkFontColor
         self.c = Theme.DARK
+        self.mid_colors = create_dark_mid_colors()
 
 
 _DEFAULT_COLORS = {
