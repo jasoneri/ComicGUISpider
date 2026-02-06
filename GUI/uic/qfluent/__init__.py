@@ -1,7 +1,9 @@
 import types
+import contextlib
 from PyQt5.QtWidgets import QWidget, QHBoxLayout
 from qfluentwidgets import (
-    Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType
+    Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType,
+    LineEdit, ToolButton
 )
 from assets import res as ori_res
 from utils import extract_eps_range, conf
@@ -188,17 +190,25 @@ class MonkeyPatch:
 
     @staticmethod
     def rbutton_menu_PulishPage(browserWindow):
+        def manual_input():
+            lineEdit = LineEdit()
+            lineEdit.setPlaceholderText("输入后按确认检测")
+            ensureBtn = ToolButton(FluentIcon.ACCEPT_MEDIUM)
+            ensureBtn.clicked.connect(lambda: browserWindow.gui.tpd(lineEdit.text()))
+            CustomInfoBar.show_custom(title='', content='', parent=browserWindow, _type="INFORMATION",
+                ib_pos=InfoBarPosition.BOTTOM, widgets=[lineEdit, ensureBtn])
+
         def custom_context_menu(self, event):
             selected_text = ""
-            try:
+            with contextlib.suppress(Exception):
                 def get_selected_text(result):
                     nonlocal selected_text
                     selected_text = result or ""
                 self.page().runJavaScript("window.getSelection().toString();", get_selected_text)
-            except:
-                pass
             fluent_menu = RoundMenu(parent=self)
+            manual_action = Action(FluentIcon.PENCIL_INK, text="手输域名", triggered=manual_input)
             test_action = Action(FluentIcon.COMMAND_PROMPT, text="选中内地域名进行检测", triggered=lambda: browserWindow.gui.tpd(selected_text))
+            fluent_menu.addAction(manual_action)
             fluent_menu.addAction(test_action)
             fluent_menu.exec(event.globalPos())
             event.accept()

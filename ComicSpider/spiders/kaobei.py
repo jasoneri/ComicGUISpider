@@ -9,8 +9,8 @@ from utils.processed_class import Url
 from utils.website import KaobeiUtils, KbBookInfo, Episode
 from .basecomicspider import BaseComicSpider, ComicspiderItem, conf
 
-pc_domain = "www.2025copy.com"
-domain = "api.2025copy.com"
+pc_domain = "www.2026copy.com"
+domain = "api.2026copy.com"
 
 
 class FrameBook:
@@ -69,7 +69,7 @@ class KaobeiSpider(BaseComicSpider):
         'Connection': 'keep-alive',
         'Accept-Encoding': 'gzip, compress, br',
         'platform': '1',
-        'version': '2025.07.15',
+        'version': '2026.02.02',
         'webp': '1',
         'region': '0'
     }

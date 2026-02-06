@@ -82,7 +82,7 @@ class Clean:
         import httpx    
         if not path.joinpath("fit.py").exists():
             script_url = "https://jsd.vxo.im/gh/mengdeer589/PythonSizeCruncher@main/main.py"
-            with httpx.Client(headers=headers, proxies=proxies) as sess:
+            with httpx.Client(headers=headers, proxy=proxies) as sess:
                 r = sess.get(script_url)
                 with open(path.joinpath("fit.py"), 'w', encoding='utf-8') as f:
                     f.write(r.text.replace('self.wm_iconbitmap', '...  # self.wm_iconbitmap').replace('\r', ''))

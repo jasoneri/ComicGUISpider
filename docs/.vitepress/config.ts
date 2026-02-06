@@ -158,7 +158,7 @@ export default defineConfig({
                     },
                     {
                         text: "🍖另类投喂",
-                        link: "/dev/feed",
+                        link: "https://doc.redviewer.nyc.mn/contribute/feed",
                     }
                 ]
             }

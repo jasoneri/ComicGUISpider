@@ -65,11 +65,11 @@ hero:
 <ConcurrentImages>
 <table><tbody>
   <tr>
-    <td><img src="/cgs_sleep.png" data-src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif"></td>
-    <td><img src="/cgs_sleep.png" data-src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif"></td>
+    <td><img src="/loading.png" data-src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif"></td>
+    <td><img src="/loading.png" data-src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif"></td>
   </tr>
   <tr>
-    <td><img src="/cgs_sleep.png" data-src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif"></td>
+    <td><img src="/loading.png" data-src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif"></td>
   </tr>
 </tbody></table>
 </ConcurrentImages>
