@@ -1,17 +1,23 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import sys
+import json
+import contextlib
 from PyQt5 import QtNetwork
-from PyQt5.QtCore import Qt, QUrl
+from PyQt5.QtCore import Qt, QUrl, QEvent, QSize
+from PyQt5.QtGui import QIcon
 from PyQt5.QtNetwork import QNetworkCookie
-from PyQt5.QtWidgets import QMainWindow
 from PyQt5.QtWebEngineWidgets import QWebEnginePage
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
+from qframelesswindow import FramelessMainWindow
 from qframelesswindow.webengine import FramelessWebEngineView
+from qframelesswindow.utils import startSystemMove
 
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
+from GUI.core.theme import theme_mgr, CustTheme
 from assets import res
 from variables import CN_PREVIEW_NEED_PROXIES_IDXES
 from utils import conf
@@ -40,17 +46,62 @@ class CustomWebEnginePage(QWebEnginePage):
 
 
 class CustomFramelessWebEngineView(FramelessWebEngineView):
+    _SCROLLBAR_CSS_TPL = """::-webkit-scrollbar {{ width: 12px; height: 12px; }}
+::-webkit-scrollbar-track {{ background: transparent; }}
+::-webkit-scrollbar-thumb {{
+    background: rgba({rgb}, 0.35);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+}}
+::-webkit-scrollbar-thumb:hover {{
+    background: rgba({rgb}, 0.55);
+    background-clip: content-box;
+}}"""
+    
+    @staticmethod
+    def _get_scrollbar_css():
+        rgb = "255,255,255" if theme_mgr.get_theme() == CustTheme.DARK else "0,0,0"
+        return CustomFramelessWebEngineView._SCROLLBAR_CSS_TPL.format(rgb=rgb)
+    
     def createPage(self):
         return CustomWebEnginePage(self.page().profile(), self)
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        custom_page = self.createPage()
-        self.setPage(custom_page)
+        self.browser = parent
+        self._injected = False
+        self.setPage(self.createPage())
+        self.loadFinished.connect(self._inject_scrollbar_css)
+        self.loadProgress.connect(self._on_load_progress)
+        theme_mgr.subscribe(self.on_theme_changed)
+    
+    def _on_load_progress(self, progress):
+        if progress >= 10 and not self._injected:
+            self._inject_scrollbar_css()
+    
+    def on_theme_changed(self, _):
+        self._inject_scrollbar_css()
+    
+    def _inject_scrollbar_css(self, _ok=True):
+        self._injected = True
+        css = self._get_scrollbar_css()
+        js = f"""(function(){{
+var id='__cgs_scrollbar__',old=document.getElementById(id);
+if(old)old.remove();
+var s=document.createElement('style');
+s.id=id;s.textContent={json.dumps(css)};
+(document.head||document.documentElement).appendChild(s);
+}})();"""
+        self.page().runJavaScript(js)
+        self.browser.keep_top_hint(self.browser.topHintBox.isChecked())
+        self.browser.updateFrameless()
+    
+    def _reset_injected(self):
+        self._injected = False
 
 
 class ZoomManager:
-    _default = 1.0
     _step = 0.05
     _min = 0.25
     _max = 5.0
@@ -58,7 +109,8 @@ class ZoomManager:
     def __init__(self, browser):
         self.browser = browser
         self.view = browser.view
-        self._current = self._default
+        self.gui = browser.gui
+        self._current = getattr(self.gui, 'browser_zoom_factor', 1.0)
         self.browser.zoomInBtn.clicked.connect(self._on_zoom_in_clicked)
         self.browser.zoomOutBtn.clicked.connect(self._on_zoom_out_clicked)
         self.view.loadFinished.connect(self._on_load_finished)
@@ -78,13 +130,15 @@ class ZoomManager:
     def set_zoom(self, factor: float):
         factor = round(max(self._min, min(self._max, factor)), 2)
         self._current = factor
+        if hasattr(self.gui, 'browser_zoom_factor'):
+            self.gui.browser_zoom_factor = factor
         try:
             self.view.setZoomFactor(factor)
         except Exception:
             self.view.page().setZoomFactor(factor)
     
     def reset(self):
-        self.set_zoom(self._default)
+        self.set_zoom(1.0)
     
     def _on_load_finished(self, ok: bool):
         if ok:
@@ -105,11 +159,12 @@ class ZoomManager:
         self.browser.zoomOutBtn.setEnabled(self.can_zoom_out)
 
 
-class BrowserWindow(QMainWindow, Ui_browser):
+class BrowserWindow(FramelessMainWindow, Ui_browser):
     def __init__(self, gui, proxies: str = None):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
+        self._first_show = True
         self.interceptor = RefererInterceptor()
         if proxies:
             self.set_proxies(proxies)
@@ -121,7 +176,6 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.profile.setUrlRequestInterceptor(self.interceptor)
         self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.set_env_mode()
-        self.load_home()
         self.output = []
         self.setupUi(self)
         self.zoom_mgr = ZoomManager(self)
@@ -154,9 +208,15 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.dev_tools.page().setInspectedPage(self.view.page())
         self.dev_tools.show()
 
+    def showEvent(self, event):
+        super(BrowserWindow, self).showEvent(event)
+        if self._first_show:
+            self._first_show = False
+            self.load_home()
+
     def setupUi(self, _window):
         super(BrowserWindow, self).setupUi(_window)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        self._setup_frameless_chrome()
         self.topHintBox.clicked.connect(self.keep_top_hint)
         self.set_btn()
         self.set_html()
@@ -170,6 +230,17 @@ class BrowserWindow(QMainWindow, Ui_browser):
         if hasattr(self.gui, 'tf') and self.gui.tf:
             return 'publish' in str(self.gui.tf).lower()
         return False
+
+    def _setup_frameless_chrome(self):
+        self.titleBar.hide()
+        self.groupBox.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is getattr(self, "groupBox", None) and event.type() == QEvent.MouseButtonPress \
+            and (event.button() == Qt.LeftButton and obj.childAt(event.pos()) is None):
+                startSystemMove(self, event.globalPos())
+                return True
+        return super().eventFilter(obj, event)
 
     def patch_tip(self):
         for button in (self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn):
@@ -187,12 +258,15 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.ensureBtn.setIcon(FIF.DOWNLOAD)
         self.zoomInBtn.setIcon(FIF.ZOOM_IN)
         self.zoomOutBtn.setIcon(FIF.ZOOM_OUT)
+        self.closeBtn.setIconSize(QSize(20, 20))
+        self.closeBtn.setIcon(QIcon(':/close.svg'))
         # logic
         self.homeBtn.clicked.connect(self.load_home)
         self.backBtn.clicked.connect(self.view.back)
         self.forwardBtn.clicked.connect(self.view.forward)
         self.refreshBtn.clicked.connect(self.view.reload)
         self.ensureBtn.clicked.connect(lambda : self.ensure(self.gui._next))
+        self.closeBtn.clicked.connect(self.close)
         def copyUnfinishedTasks():
             _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)
             _.to_clip()
@@ -208,6 +282,7 @@ class BrowserWindow(QMainWindow, Ui_browser):
         self.interceptor.set_referer_url(url)
 
     def load_home(self):
+        self.view._reset_injected()
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
             self.profile = self.view.page().profile()
@@ -224,11 +299,21 @@ class BrowserWindow(QMainWindow, Ui_browser):
 
     def keep_top_hint(self, _flag: bool = None):
         flag = _flag if _flag is not None else self.topHintBox.isChecked()
-        if flag:
-            self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        else:
-            self.setWindowFlags(Qt.Widget)
-        self.show()
+        self.topHintBox.setChecked(flag)
+        if sys.platform == "win32" and self.isVisible():
+            with contextlib.suppress(Exception):
+                import win32con
+                import win32gui
+                hwnd = int(self.winId())
+                insert_after = win32con.HWND_TOPMOST if flag else win32con.HWND_NOTOPMOST
+                win32gui.SetWindowPos(
+                    hwnd, insert_after, 0, 0, 0, 0,
+                    win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE
+                )
+                return
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, flag)
+        if self.isVisible():
+            self.show()
 
     def js_execute(self, js_code, callback):
         page = self.view.page()
@@ -321,3 +406,8 @@ class BrowserWindow(QMainWindow, Ui_browser):
                 %s;
             } else { false; }""" % _js_code
         self.js_execute(js_code, lambda _: callback())
+
+    def closeEvent(self, event):
+        if hasattr(self, 'view'):  
+            theme_mgr.unsubscribe(self.view.on_theme_changed)  
+        super().closeEvent(event)

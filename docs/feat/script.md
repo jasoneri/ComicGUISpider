@@ -76,10 +76,11 @@ RuleFEnum:
 2. file：正则对 post 内的附件文件名过滤
 3. RuleFEnum：复杂规则系过滤一般人用不上，需要自己编代码，可以参考 [keihh函数](https://github.com/jasoneri/ComicGUISpider/blob/GUI/utils/script/image/expander.py)  
 RuleFEnum则是因函数命名而无法处理非纯英作者名，故而使用id映射函数名这种动态方式
-::: info 4. keep 逻辑讲解 (不设默认 false, 下文 post 指代一个作品)
-true: `保留`匹配的_normal`或`作者正则匹配的 post，并仅`保留` post 中 `file正则` 匹配的文件  
-flase: `排除`匹配的_normal`后再排除`作者正则匹配的 post，并`排除` post 中 `file正则` 匹配的文件
-::: warning ⚠️ 过滤规则偏向高阶操作，最简单还是不设过滤手动删除
+> [!Info] 4. keep 逻辑讲解 (不设默认 false, 下文 post 指代一个作品)
+> true: `保留`匹配的_normal`或`作者正则匹配的 post，并仅`保留` post 中 `file正则` 匹配文件  
+> false: `排除`匹配的_normal`后再排除`作者正则匹配的 post，并`排除` post 中 `file正则` 匹配文件
+
+> [!Warning] ⚠️ 过滤规则偏向高阶操作，最简单还是不设过滤手动删除
 :::
 
 3. 命令行工具参考

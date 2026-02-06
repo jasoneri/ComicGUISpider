@@ -18,7 +18,6 @@
 :::
 
 默认值：&emsp;`win: D:\Comic`&emsp;`macOS: ~/Downloads/Comic`  
-目录结构里还有个 `web` 文件夹的情况是因为默认关联 [`redViewer`](https://github.com/jasoneri/redViewer) 项目而设的
 
 ---
 

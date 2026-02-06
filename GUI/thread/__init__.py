@@ -3,12 +3,13 @@ import asyncio
 from copy import deepcopy
 from multiprocessing import Process
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils import conf, get_loop, QueuesManager, code_env
+from utils import conf, get_loop, QueuesManager, code_env, Queues
 from utils.website.info import InfoMinix, BookInfo, Episode
 from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
 from GUI.core.font import font_color
+from utils.middleware.timeline import Event, EventSource, TimelineStage
 
 from .ags import AggrSearchThread
 
@@ -126,6 +127,19 @@ class WorkThread(QThread):
         TextBrowser = manager.TextBrowserQueue()
         Bar = manager.BarQueue()
         _Tasks = manager.TasksQueue()
+        ProcessQueue = manager.ProcessQueue()
+        last_process_state = None
+
+        def emit_mid_event(stage: TimelineStage, payload: dict):
+            mgr = getattr(self.gui, "mid_mgr", None)
+            if not mgr or not getattr(mgr, "enabled", False) or not getattr(mgr, "session", None):
+                return
+            mgr.session.ctx.input_state = getattr(self.gui, "input_state", None)
+            mgr.session.ctx.process_state = getattr(self.gui, "process_state", None)
+            mgr.session.ctx.books = getattr(self.gui, "books", {}) or {}
+            mgr.session.ctx.eps = getattr(self.gui, "eps", {}) or {}
+            mgr.session.handle_event(stage, Event(source=EventSource.TEXTBROWSER_QUEUE, stage=stage, payload=payload))
+
         while self.active:
             self.msleep(5)
             try:
@@ -133,8 +147,12 @@ class WorkThread(QThread):
                     _ = TextBrowser.get().text
                     if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
                         self.gui.books = deepcopy(_)
+                        emit_mid_event(TimelineStage.BOOKS_READY, {"books": deepcopy(self.gui.books)})
+                        emit_mid_event(TimelineStage.WAIT_BOOK_DECISION, {})
                     elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
                         self.gui.eps = deepcopy(_)
+                        emit_mid_event(TimelineStage.EPS_READY, {"eps": deepcopy(self.gui.eps)})
+                        emit_mid_event(TimelineStage.WAIT_EP_DECISION, {})
                     elif "PreviewBookInfoEnd" in _:
                         self.gui.preprocess_preview(_)
                     elif "[ShowKeepBooks]" == _:
@@ -152,6 +170,10 @@ class WorkThread(QThread):
                     # self.msleep(5)
                 if not _Tasks.empty():
                     self.tasks_signal.emit(_Tasks.get())
+                _process_state = Queues.recv(ProcessQueue)
+                if _process_state and _process_state != last_process_state:
+                    last_process_state = deepcopy(_process_state)
+                    self.gui.process_state = deepcopy(_process_state)
                 if res.GUI.WorkThread_finish_flag in self.gui.textBrowser.toPlainText():
                     self.item_count_signal.emit(100)
                     break

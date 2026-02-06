@@ -21,9 +21,9 @@
 
 |       预览/多选/翻页       |       [读剪贴板](https://doc.comicguispider.nyc.mn/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
-| ![turn-page-new](https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif) | ![load_clip](https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif) |
+| <img src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif" loading="lazy" alt="turn-page-new"> | <img src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif" loading="lazy" alt="load_clip"> |
 | **[聚合搜索](https://doc.comicguispider.nyc.mn/feat/ags)** | |
-| ![聚合搜索动图预留位](https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif) | |
+| <img src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif" loading="lazy" alt="聚合搜索动图预留位"> | |
 
 ## ✨功能特性
 

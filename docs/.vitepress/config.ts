@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitepress';
 
 
-const version = `v2.8.0`
+const version = `v2.8.1`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
@@ -157,8 +157,8 @@ export default defineConfig({
                         link: "/dev/i18n",
                     },
                     {
-                        text: "🎅公益站",
-                        link: "/dev/link",
+                        text: "🍖另类投喂",
+                        link: "https://doc.redviewer.nyc.mn/contribute/feed",
                     }
                 ]
             }

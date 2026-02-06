@@ -305,9 +305,7 @@ class PreprocessManager(QObject):
                     if progress_callback:
                         progress_callback(msg)
 
-                from utils.script.image.kemono import  KemonoAuthor, headers, Api
-                cache = Cache("kemono_data.pkl")
-                @cache.with_expiry(240, write_in=True)
+                from utils.script.image.kemono import KemonoAuthor, headers, Api
                 def download_kemono_data():
                     emit_progress("正在更新缓存数据...")
                     url = Api.creators_txt
@@ -319,7 +317,6 @@ class PreprocessManager(QObject):
                                 content += chunk
                         json_data = json.loads(content.decode('utf-8'))
                         author_dict = {}
-
                         for item in json_data:
                             author_id = item['id']
                             author = KemonoAuthor(
@@ -330,7 +327,9 @@ class PreprocessManager(QObject):
                         return author_dict
                     except Exception as e:
                         raise type(e)(f"数据下载失败: {str(e)}")
-                data = download_kemono_data()
+                
+                cache = Cache("kemono_data.pkl")
+                data = cache.run(download_kemono_data, 240, write_in=True)
                 return True
 
             def on_data_check_process(progress_msg):

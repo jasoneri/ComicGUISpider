@@ -83,6 +83,12 @@ class Cache:
                 expiry_flag = now > dynamic_expiry
         return decorator
 
+    def run(self, func, expiry_time=48, write_in=False):
+        """动态应用缓存装饰器并执行函数
+        每次调用都会重新检查缓存状态，适用于多进程场景
+        """
+        return self.with_expiry(expiry_time, write_in)(func)()
+
     def with_error_cleanup(self):
         def decorator(func):
             @functools.wraps(func)
@@ -191,7 +197,7 @@ class DomainUtils(Utils):
         if not cls.publish_url:
             return None
         async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, 
-                transport=httpx.AsyncHTTPTransport(retries=5)) as cli:
+                transport=httpx.AsyncHTTPTransport(http2=True, retries=5)) as cli:
             try:
                 resp = await cli.get(cls.publish_url)
                 resp.raise_for_status()
@@ -216,7 +222,7 @@ class DomainUtils(Utils):
                 return cls._get_domain_thread()
                 
         cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
-        return cls.cachef.with_expiry(48, write_in=True)(_)()
+        return cls.cachef.run(_, 48, write_in=True)
 
     @classmethod
     def _get_domain_thread(cls):
@@ -262,4 +268,3 @@ def retry(func, retry_limit, *args, retry_times=0, raise_error=False, **kwargs):
             return retry(func, retry_limit, *args, retry_times=retry_times, raise_error=raise_error, **kwargs)
         if raise_error:
             raise e
-
