@@ -3,6 +3,7 @@ import re
 import sys
 import random
 import traceback
+import contextlib
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtGui import QKeySequence, QGuiApplication
@@ -20,6 +21,7 @@ from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils, DomainToolView
 from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager
+from GUI.manager.mid import CGSMidManagerGUI
 from GUI.manager.preprocess import PreprocessManager
 from GUI.uic.qfluent import CustomFlyout
 from variables import *
@@ -102,8 +104,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.queue_init_thread.init_completed.connect(self.on_queue_init_completed)
         self.queue_init_thread.start()
         
+        self.rv_tools = rVtools()
         self.rv_mgr = RVManager(self)
         self.rv_mgr.start_scan(show_progress=False)
+        self.browser_zoom_factor = 1.0  # WebEngine 用户缩放率，生命周期同 SpiderGUI
 
     def on_queue_init_completed(self, manager, Q, queue_port):
         self.manager = manager
@@ -125,6 +129,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         # 按钮组
         self.clip_mgr = ClipGUIManager(self)
         self.ags_mgr = AggrSearchManager(self)
+        self.mid_mgr = CGSMidManagerGUI(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
@@ -211,6 +216,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
+        # self.toolWin.addMidTool()  # TODO[1](2026-02-07): v2.9.0恢复
         self.rvBtn.clicked.connect(self.toolWin.show)
 
     def set_completer(self):
@@ -379,11 +385,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if hasattr(self, 'preprocess_mgr'):
             self.preprocess_mgr.cleanup()
         if getattr(self, 'p_crawler', None):
-            try:
-                refresh_state(self, 'process_state', 'ProcessQueue')
-            except ConnectionResetError:
-                ...
-            self.log.info(f'===--→ step: {self.process_state.process}， now retrying…… ')
+
+            with contextlib.suppress(ConnectionResetError):
+                # refresh_state 会发生阻塞，使用原生 Queues.recv
+                process_queue = self.Q('ProcessQueue')
+                state = Queues.recv(process_queue.queue)  # 直接调用底层方法
+                if state:
+                    self.process_state = state
+                    self.log.info(f'===--→ step: {state.process}， now retrying…… ')
+                else:
+                    self.log.info('===--→ now retrying (process state unavailable)…… ')
+            self.log.info(f'===--→ step: {getattr(self.process_state, "process", "unknown")}， now retrying…… ')
 
         def retry_all():
             try:

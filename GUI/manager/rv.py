@@ -37,7 +37,7 @@ class RVManager(QObject):
         self.gui.bsm = None
         parent = show_kws.get("parent_widget", self.gui.textBrowser)
         info_what = InfoBar.success if total else InfoBar.warning
-        info_what(title='', content=f'scaned: {total} books/epsiodes',
+        info_what(title='', content=f'Scanned: {total} books/episodes',
             position=show_kws['pos'], duration=3000, parent=parent)
 
     def stop_scan(self):

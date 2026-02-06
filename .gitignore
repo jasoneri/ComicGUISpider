@@ -193,7 +193,7 @@ temp
 *-in.txt
 untitled*
 Pipfile
-Pipfile.lock
+*.lock
 codecov*
 *_local.yml
 *-lock.yaml
@@ -215,3 +215,4 @@ _bug_log
 .claude
 .kilocode
 /plans
+.ace-tool/
