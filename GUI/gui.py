@@ -216,7 +216,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
-        self.toolWin.addMidTool()
+        # self.toolWin.addMidTool()  # TODO[1](2026-02-07): v2.9.0恢复
         self.rvBtn.clicked.connect(self.toolWin.show)
 
     def set_completer(self):
