@@ -246,6 +246,11 @@ class WnacgUtils(EroUtils, DomainUtils, Req):
     publish_domain_old = ["wnacg.date"]
     publish_url = f"https://{publish_domain}"
     status_publish = True
+    publish_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,zh-TW;q=0.8,zh-HK;q=0.7,en-US;q=0.6,en;q=0.5',
+    }
     headers = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
@@ -454,7 +459,7 @@ class EHentaiKits(EroUtils, Req, Cookies):
 class KaobeiUtils(Utils):
     name = "manga_copy"
     uuid_regex = re.compile(r"(\d+)$")
-    pc_domain = "www.2025copy.com"
+    pc_domain = "www.2026copy.com"
     AES_KEY = None
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',

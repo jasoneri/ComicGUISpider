@@ -197,7 +197,7 @@ class DomainUtils(Utils):
         if not cls.publish_url:
             return None
         async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, 
-                transport=httpx.AsyncHTTPTransport(retries=5)) as cli:
+                transport=httpx.AsyncHTTPTransport(http2=True, retries=5)) as cli:
             try:
                 resp = await cli.get(cls.publish_url)
                 resp.raise_for_status()
