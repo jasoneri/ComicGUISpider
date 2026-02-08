@@ -1,11 +1,5 @@
 
-## 🎁 Features
-
-⚠️ 整改存储目录，为区分后处理模式，升 `v2.8.0` 后需切到新的空存储目录  
-&emsp;✅ 已测试设`.cbz`后无感适配 Komga ，但它框架问题切🔞需改存储目录，**rV 则不用**  
-✨ 补全元数据，并基于 `储存目录/rV.db` 本地储存信息，有望 rV 与 CGS 的后续开发展开  
-&emsp;✅ rvTool 的显示记录增强，区分🔞，自行尝试  
-
 ## 🐞 Fix
 
-❔ 修复内置重启卡死（难以复现，只能一点点试）  
+同 `v2.8.1` ， 见[参考](https://doc.comicguispider.nyc.mn/changelog/history)  
+发现 tag 包替换无法打开所以转 pypi 发布 `2.8.2` ，后续应该恢复 pypi  

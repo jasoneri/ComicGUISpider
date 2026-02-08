@@ -1,0 +1,63 @@
+name: Release
+permissions:
+  contents: write
+  pull-requests: write
+on:
+  push:
+    tags:
+      - 'v*.*.*'  
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.12
+      volumes:
+        - /tmp/build:/build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    - name: Download Preset
+      run: |
+        wget -O /build/CGS-macOS.7z \
+        https://github.com/jasoneri/imgur/releases/download/preset/CGS-macOS_preset.7z
+        wget -O  /build/CGS.7z \
+        https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z
+
+    - name: Compose Release Notes
+      id: compose_notes
+      run: |
+        TAG_NAME="${GITHUB_REF#refs/tags/}"
+        echo "version: $TAG_NAME"
+        base=$(cat docs/_github/release_notes.md)
+
+        case "$TAG_NAME" in
+          *beta*)
+            extra=$(cat docs/_github/preset_preview.md)
+            echo "is_beta=true" >> $GITHUB_OUTPUT
+            ;;
+          *)
+            extra=$(cat docs/_github/preset_stable.md)
+            echo "is_beta=false" >> $GITHUB_OUTPUT
+            ;;
+        esac
+
+        echo "$base\n$extra" > /build/full_body.md
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref }}
+        name: ${{ github.ref_name }}
+        prerelease: ${{ steps.compose_notes.outputs.is_beta == 'true' }}
+        body_path: /build/full_body.md
+        files: |
+          /build/CGS.7z
+          /build/CGS-macOS.7z
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
