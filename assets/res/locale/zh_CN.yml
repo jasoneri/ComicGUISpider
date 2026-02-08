@@ -87,6 +87,7 @@ GUI:
     run_btn: "运行"
     extend_btn: "待扩展.."
     reset_input: "还原文本"
+    clip_label: "剪贴板"
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"
