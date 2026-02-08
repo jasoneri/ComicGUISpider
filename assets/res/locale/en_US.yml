@@ -87,6 +87,7 @@ GUI:
     run_btn: "Run"
     extend_btn: "To be extended.."
     reset_input: "Reset text"
+    clip_label: "Clipboard"
   Uic:
     chooseBoxDefault: "Select Website"
     searchinputPlaceholderText: "Input Keyword"
