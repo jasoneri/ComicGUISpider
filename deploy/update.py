@@ -143,15 +143,29 @@ class Proj:
     def check_existed_version(self):
         return VER
 
+    # def check(self): # by_tags
+    #     self.local_ver = local_ver = self.check_existed_version()
+    #     latest_tag_info = self.git_handler.get_tags_info()
+    #     ver_local = parse(self.local_ver.lstrip('v'))
+    #     ver_latest = parse(latest_tag_info.get('tag_name').lstrip('v'))
+    #     if ver_local < ver_latest:
+    #         self.update_flag = 'stable'
+    #         self.update_info = latest_tag_info
+    #         commit_sha = latest_tag_info.get('commit', {}).get('sha', '')
+    #         if commit_sha:
+    #             self.update_info['body'] = self.git_handler.get_release_notes(commit_sha)
+    #     updater_logger.info(f"local_ver: {self.local_ver}")
+    
     def check(self):
         self.local_ver = local_ver = self.check_existed_version()
-        latest_tag_info = self.git_handler.get_tags_info()
+        latest_dev_info, latest_stable_info = self.git_handler.get_releases_info()
         ver_local = parse(self.local_ver.lstrip('v'))
-        ver_latest = parse(latest_tag_info.get('tag_name').lstrip('v'))
-        if ver_local < ver_latest:
+        ver_dev = parse(latest_dev_info.get('tag_name').lstrip('v'))
+        ver_stable = parse(latest_stable_info.get('tag_name').lstrip('v'))
+        if ver_local < ver_stable:
             self.update_flag = 'stable'
-            self.update_info = latest_tag_info
-            commit_sha = latest_tag_info.get('commit', {}).get('sha', '')
-            if commit_sha:
-                self.update_info['body'] = self.git_handler.get_release_notes(commit_sha)
+            self.update_info = latest_stable_info
+        elif ver_local < ver_dev:
+            self.update_flag = 'dev'
+            self.update_info = latest_dev_info
         updater_logger.info(f"local_ver: {self.local_ver}")
