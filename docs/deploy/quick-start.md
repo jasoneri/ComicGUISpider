@@ -7,8 +7,7 @@
 
 + 直接下载 [📦绿色包](https://github.com/jasoneri/ComicGUISpider/releases/latest)，并解压，初次打开应用时会进入自动部署流程
 
-::: warning macOS用户
-须阅读 [macOS 部署](./mac-required-reading.md) 文档
+::: warning macOS用户须阅读 [macOS 部署](./mac-required-reading.md) 文档
 :::
 
 ::: danger ⚠️ 自动部署流程异常处理方法 (仅`win`绿色包)
