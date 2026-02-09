@@ -19,6 +19,10 @@
   </p>
 </div>
 
+## 📑介绍
+
+下漫画的
+
 |       预览/多选/翻页       |       [读剪贴板](https://doc.comicguispider.nyc.mn/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | <img src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif" loading="lazy" alt="turn-page-new"> | <img src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif" loading="lazy" alt="load_clip"> |
@@ -27,18 +31,15 @@
 
 ## ✨功能特性
 
-- 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
-- 开预览后随便点点就能下载，预览窗口充当于微型浏览器
-- 丰富多样的输入规则，方便指定选择
+- 如上动图演示的多种使用方式，多开同时操作不同网站等
+- 开预览后随便点点就能下载，预览窗口/内置浏览器
+- 多种输入规则，方便指定选择
 - 无感翻页保留选择，已下载记录等提示
 - 预设，去重，加标识符等各种自定义设置
 
 **更多移步查阅 [🎸功能文档](https://doc.comicguispider.nyc.mn/feat/)**
 
-## 📑介绍
-
-与其下载使用后自个失望再消星，不如不点  
-这项目没你想的"每分钟在监控实时在修复"  
+## 🚨可用监控
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
@@ -62,7 +63,7 @@
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
 > [🔗这版改了什么](https://doc.comicguispider.nyc.mn/changelog/history) /
- [🔨更新方法](https://doc.comicguispider.nyc.mn/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) /
+ [⛅更新方法](https://doc.comicguispider.nyc.mn/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) /
  [📝开发板](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
 ## 🍮食用搭配(阅读器)

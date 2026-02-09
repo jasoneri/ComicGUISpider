@@ -4,25 +4,25 @@
 
 ### 🎁 Features
 
-&emsp; 更新内置浏览器样式  
++ 更新内置浏览器样式  
++ (内置浏览器发起的)发布页右键菜单支持手动输入域名  
 
 ### 🐞 Fix
 
 + ⚠️紧急修复拷贝域名更改  
-+ (内置浏览器发起的)发布页右键菜单支持手动输入域名  
 + 文档站访问优化  
 + 修复系统带缩放时内置浏览器的dpi问题（高清  
 + ❔ 修复内置重启卡死（这次可能修复了~~flag~~）  
 
-::: tip 新更新方法（待查证实验）  
+::: tip 备用更新方法（待查证实验）  
 win绿色包(exe): 待办，先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  
-&emsp;&emsp;然后解压覆盖在`解压目录\comicguispider\Lib\site-packages`里吧  
+&emsp;&emsp;然后解压覆盖在`解压目录\comicguispider\Lib\site-packages`里  
 mac/终端uv：ai 查 `uv tool 安装 .git, ComicGUISpider GUI 分支`  
 :::
 
 ---
 
-> [!Info] 此页面会忽略修复动作相关的记录，含引导意义的条目除外
+> [!Info] 此下方记录会忽略修复动作相关的记录，含引导意义的条目除外
 
 ::: details v2.8.0
 + 整改存储目录，区分后处理模式  
