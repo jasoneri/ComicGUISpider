@@ -37,6 +37,7 @@ GUI:
     ehentai: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     mangabz: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     hitomi: Temp only supports using presets or `hitomi-tools` generated words
+    h_comic: Enter keyword directly, e.g. NTR / Chinese / artist name
   Clip:
     process_warning: "Search process already started - requires restart to use this feature"
     db_not_found_guide: "Clipboard db not found - check related guides"
