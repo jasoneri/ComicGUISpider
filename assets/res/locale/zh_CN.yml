@@ -37,6 +37,7 @@ GUI:
     ehentai: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
     mangabz: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
     hitomi: '暂时仅支持使用预设 或 `hitomi-tools`生成的词'
+    h_comic: '直接输入关键词搜索，例如 NTR / 中文 / 作者名'
   Clip:
     process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
     db_not_found_guide: "剪贴板 db 不存在，请先查看相关指引"

@@ -3,7 +3,7 @@ import re
 import math
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -591,7 +591,7 @@ class HComicUtils(EroUtils, Req):
     @classmethod
     def _format_public_date(cls, unix_ts):
         try:
-            return datetime.utcfromtimestamp(int(unix_ts)).strftime("%Y-%m-%d")
+            return datetime.fromtimestamp(int(unix_ts), tz=timezone.utc).strftime("%Y-%m-%d")
         except (TypeError, ValueError):
             return None
 

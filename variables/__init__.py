@@ -28,7 +28,7 @@ COOKIES_PLACEHOLDER = {
     for k, v in COOKIES_SUPPORT.items()
 }
 SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6, 8]
-CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6]
+CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6, 8]
 
 DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
     1: ['更新', '排名日', '排名周', '排名月', '排名总'],
@@ -48,7 +48,7 @@ STATUS_TIP = {
     4: f"ehentai: {res.GUI.SearchInputStatusTip.ehentai}",
     5: f"mangabz: {res.GUI.SearchInputStatusTip.mangabz}",
     6: f"hitomi: {res.GUI.SearchInputStatusTip.hitomi}",
-    8: "h_comic: 直接输入关键词搜索，例如 NTR / 中文 / 作者名"
+    8: f"h_comic: {res.GUI.SearchInputStatusTip.h_comic}"
 }
 
 PYPI_SOURCE = {
