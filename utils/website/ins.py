@@ -2,6 +2,7 @@ import hashlib
 import re
 import math
 import json
+import logging
 from datetime import datetime
 from io import BytesIO
 import asyncio
@@ -23,6 +24,8 @@ from utils.website.core import *
 from utils.website.hitomi import *
 from . import registry
 from .info import *
+
+logger = logging.getLogger(__name__)
 
 
 class JmUtils(EroUtils, DomainUtils, Req, Cookies):
@@ -603,7 +606,12 @@ class HComicUtils(EroUtils, Req):
         if not m:
             raise ValueError("h-comic payload not found")
         payload_obj = cls._jsobj_to_dict(m.group(1))
-        return payload_obj.get("data", {})
+        if not isinstance(payload_obj, dict):
+            raise ValueError("h-comic payload root is not an object")
+        data = payload_obj.get("data")
+        if not isinstance(data, dict):
+            raise ValueError("h-comic payload missing `data` object")
+        return data
 
     @classmethod
     def _get_image_prefix(cls, comic_source):
@@ -662,16 +670,21 @@ class HComicUtils(EroUtils, Req):
     def parse_search(cls, resp_text):
         try:
             data = cls._extract_payload_data(resp_text)
-        except Exception:
+        except (ValueError, json.JSONDecodeError, TypeError) as e:
+            logger.warning("h-comic parse_search payload error: %s", e)
             return []
         targets = data.get("comics") or []
+        if not isinstance(targets, list):
+            logger.warning("h-comic parse_search payload invalid: `comics` is not a list")
+            return []
         books = []
         for target in targets:
             if not isinstance(target, dict):
                 continue
             try:
                 books.append(cls.parse_search_item(target))
-            except Exception:
+            except (KeyError, TypeError, ValueError) as e:
+                logger.debug("h-comic parse_search item skipped: %s", e)
                 continue
         return books
 
