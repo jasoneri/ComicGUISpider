@@ -16,8 +16,9 @@ SPIDERS = {
     4: 'ehentai',       # 🌎 🔞
     5: 'mangabz',       # 🇨🇳
     6: 'hitomi',        # 🌎 🔞
+    8: 'h_comic',       # 🌎 🔞
 }
-SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi']
+SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi', 'h_comic']
 COOKIES_SUPPORT = {
     'jm': set(), 
     'ehentai': {"igneous","ipb_member_id","ipb_pass_hash"}
@@ -26,7 +27,7 @@ COOKIES_PLACEHOLDER = {
     k: f"{res.GUI.Uic.confDia_cookies_placeholder}{', '.join(v)}"
     for k, v in COOKIES_SUPPORT.items()
 }
-SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6]
+SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6, 8]
 CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6]
 
 DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
@@ -36,7 +37,8 @@ DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of co
     4: [res.EHentai.MAPPINGS_POPULAR, res.EHentai.MAPPINGS_INDEX, 'C107'],
     5: ['更新', '人气'],
     6: ['index-all', 'popular/week-all', 'popular/month-all'],
-    7: []
+    7: [],
+    8: []
 }
 STATUS_TIP = {
     0: None,
@@ -45,7 +47,8 @@ STATUS_TIP = {
     3: f"wnacg: {res.GUI.SearchInputStatusTip.wnacg}",
     4: f"ehentai: {res.GUI.SearchInputStatusTip.ehentai}",
     5: f"mangabz: {res.GUI.SearchInputStatusTip.mangabz}",
-    6: f"hitomi: {res.GUI.SearchInputStatusTip.hitomi}"
+    6: f"hitomi: {res.GUI.SearchInputStatusTip.hitomi}",
+    8: "h_comic: 直接输入关键词搜索，例如 NTR / 中文 / 作者名"
 }
 
 PYPI_SOURCE = {

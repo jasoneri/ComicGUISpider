@@ -11,6 +11,7 @@ GUI:
   wnacg_desc: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>墙内换发布页网址参考<a href='https://github.com/jasoneri/ComicGUISpider/issues/119'>此条issue</a>，可以免梯子解决域名缓存"
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
   hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
+  h_comic_desc: "h-comic 为前端渲染站，建议优先使用简短关键词（如作品名核心词）进行搜索；搜索结果为空时可换同义词重试"
   check_ehetai: "正在检测当前环境能否访问 `exhentai` 中..."
   check_mangabz: "正在检测当前环境能否访问 `Māngabz` 中..."
   check_hitomi: "正在检测当前环境能否访问 `hitomi` 中..."

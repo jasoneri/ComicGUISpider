@@ -36,6 +36,8 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.setItemText(6, _translate("MainWindow", "6、hitomi🔞"))
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(7, _translate("MainWindow", "7、kemono🔞"))
+        self.chooseBox.addItem("")
+        self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
         self.chooseBox.setCurrentIndex(0)
         self.checkisopen.setText(_translate("MainWindow", res.checkisopenDefaultText))
         self.searchinput.setPlaceholderText(_translate("MainWindow", res.searchinputPlaceholderText))
