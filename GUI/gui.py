@@ -154,6 +154,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             rmt_s2c = True
             self.rv_tools.ero = 0
             self.web_is_r18 = index in SPECIAL_WEBSITES_IDXES
+            self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
             if self.web_is_r18:
                 self.sut = self.spiderUtils(conf)
                 rmt_s2c = False
@@ -633,11 +634,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))
 
     def do_publish(self):
-        with open(ori_path.joinpath('assets/pubilsh_helper.html'), encoding='utf-8') as f:
-            format_text = f.read()
-            html = format_text.replace("{bs_theme}", bs_theme()) \
-                    .replace("{publish_url}", self.spiderUtils.publish_url)
-            self.tf = TmpFormatHtml.created_temp_html(html, flag="publish")
+        self.tf = TmpFormatHtml.created_temp_html("publish", 
+            bs_theme=bs_theme(), publish_url=self.spiderUtils.publish_url)
         self.set_preview()
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
         o_w, o_h = self.BrowserWindow.width(), self.BrowserWindow.height()
