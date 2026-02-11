@@ -8,7 +8,7 @@ domain = "h-comic.com"
 class HComicSpider(BaseComicSpider2):
     custom_settings = {
         "DOWNLOADER_MIDDLEWARES": {
-            "ComicSpider.middlewares.ComicDlProxyMiddleware": 5,
+            "ComicSpider.middlewares.ComicDlAllProxyMiddleware": 5,
             "ComicSpider.middlewares.UAMiddleware": 6,
             "ComicSpider.middlewares.RefererMiddleware": 10,
         }
@@ -20,7 +20,6 @@ class HComicSpider(BaseComicSpider2):
     turn_page_info = (r"page=\d+",)
     book_id_url = f"https://{domain}/comics/1?id=%s"
     mappings = {}
-    proxy_domains = [domain, "h-comic.link"]
 
     @property
     def ua(self):
