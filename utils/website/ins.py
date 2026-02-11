@@ -28,6 +28,10 @@ from .info import *
 logger = logging.getLogger(__name__)
 
 
+class HComicParseError(ValueError):
+    """h-comic 解析异常，直接抛出给上层做统一错误展示。"""
+
+
 class JmUtils(EroUtils, DomainUtils, Req, Cookies):
     name = "jm"
     forever_url = "https://jm365.work/3YeBdF"
@@ -591,8 +595,11 @@ class HComicUtils(EroUtils, Req):
     @classmethod
     def _format_public_date(cls, unix_ts):
         try:
-            return datetime.fromtimestamp(int(unix_ts), tz=timezone.utc).strftime("%Y-%m-%d")
-        except (TypeError, ValueError):
+            ts = int(float(unix_ts))
+            if ts > 10_000_000_000:
+                ts = ts // 1000
+            return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+        except (TypeError, ValueError, OSError, OverflowError):
             return None
 
     @classmethod
@@ -671,21 +678,18 @@ class HComicUtils(EroUtils, Req):
         try:
             data = cls._extract_payload_data(resp_text)
         except (ValueError, json.JSONDecodeError, TypeError) as e:
-            logger.warning("h-comic parse_search payload error: %s", e)
-            return []
-        targets = data.get("comics") or []
+            raise HComicParseError(f"h-comic 搜索页解析失败: {e}") from e
+        targets = data.get("comics")
         if not isinstance(targets, list):
-            logger.warning("h-comic parse_search payload invalid: `comics` is not a list")
-            return []
+            raise HComicParseError("h-comic 搜索页解析失败: `comics` 字段不是列表")
         books = []
-        for target in targets:
+        for idx, target in enumerate(targets, start=1):
             if not isinstance(target, dict):
-                continue
+                raise HComicParseError(f"h-comic 搜索页解析失败: 第 {idx} 项不是对象")
             try:
                 books.append(cls.parse_search_item(target))
             except (KeyError, TypeError, ValueError) as e:
-                logger.debug("h-comic parse_search item skipped: %s", e)
-                continue
+                raise HComicParseError(f"h-comic 搜索条目解析失败(第 {idx} 项): {e}") from e
         return books
 
     @classmethod
