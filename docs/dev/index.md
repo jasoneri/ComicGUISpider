@@ -34,7 +34,10 @@ book_url=
    - domain：目标网站完整域名
    - search_url_head：搜索页URL前缀（不含关键词部分）
 4. 参考已有的 [WnacgSpider](ComicSpider/spiders/wnacg.py) 实现方式
-5. 与用户讨论目标网站是否需要代理才能访问，以此决定 custom_settings 属性是否增加 ComicDlProxyMiddleware / ComicDlAllProxyMiddleware
+5. **代理配置**：判断目标网站是否需要代理才能访问
+   - 需要代理：在 `custom_settings` 中添加 `ComicDlProxyMiddleware` 或 `ComicDlAllProxyMiddleware`
+   - 不需要代理：无需添加代理中间件
+   - 此判断结果用于后续解析类开发的 `test_index` 实现决策
 
 **二、解析部分（Utils类开发）**
 
@@ -46,16 +49,26 @@ book_url=
    - parse_search：解析 search.html 定位要素，调用 parse_search_item 得到 BookInfo 列表的方法
    - parse_search_item：传参定位要素为单个条目，返回 BookInfo 对象
    - parse_book：能将 book.html 解析为 BookInfo 对象的方法
-4. 完成后在 spider_utils_map 中注册该Utils类
+4. 可选属性和方法：
+   - 如果第一步判断网站需要代理，需实现 `test_index` 方法用于运行时检测网站可访问性
+5. 完成后在 spider_utils_map 中注册该Utils类
 
 **三、UI部分（界面配置）**
 
 1. 在 `variables/__init__.py` 中添加配置：
+   
+   **必需配置：**
    - SPIDERS：添加新序号和爬虫名称
    - DEFAULT_COMPLETER：添加序号和默认预设映射（可为空列表）
    - STATUS_TIP：添加序号和状态栏提示文字（可为空字符串）
-   - 若为18+网站：在 SPECIAL_WEBSITES 添加爬虫名，在 SPECIAL_WEBSITES_IDXES 添加序号
-   - 如预览图需代理访问：在 CN_PREVIEW_NEED_PROXIES_IDXES 添加序号
+   
+   **条件配置（根据网站特性判断）：**
+   | 配置项 | 添加条件 | 示例值 |
+   |--------|----------|--------|
+   | SPECIAL_WEBSITES | R18 | 添加爬虫名 |
+   | SPECIAL_WEBSITES_IDXES | R18 | 添加序号 |
+   | CN_PREVIEW_NEED_PROXIES_IDXES | 预览图需代理访问 | 添加序号 |
+   | AGGR_SEARCH_IDXES | 是否支持聚合搜索 | 添加序号 |
 
 2. 在 `GUI/mainwindow.py` 的 setupUi 方法中添加下拉选项：
 self.chooseBox.addItem("")
@@ -73,7 +86,7 @@ self.chooseBox.setItemText(序号, _translate("MainWindow", "序号、网站名"
 - 代码需符合 PEP 8 规范
 - XPath 选择器需准确可靠
 - 添加必要的注释说明
-- 确保错误处理机制完善
+- 已内置全局异常反馈和日志系统,开发需保持直接抛出自定义异常信息
 
 ## 线上开发相关
 开发分支命名格式为`x.x-dev`，根据项目中最新dev分支，提醒用户PR时合并需指向哪个分支
