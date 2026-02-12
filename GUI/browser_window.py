@@ -221,15 +221,13 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.set_btn()
         self.set_html()
         self.patch_tip()
-        if self.is_publish_page():
-            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
-        else:
-            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+        self.set_rbtn_menu()
 
-    def is_publish_page(self) -> bool:
+    def set_rbtn_menu(self):
         if hasattr(self.gui, 'tf') and self.gui.tf:
-            return 'publish' in str(self.gui.tf).lower()
-        return False
+            if 'publish' in str(self.gui.tf).lower():
+                return FluentMonkeyPatch.rbutton_menu_PulishPage(self)
+        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
 
     def _setup_frameless_chrome(self):
         self.titleBar.hide()

@@ -11,7 +11,7 @@ from PyQt5.QtCore import QThread, Qt, QCoreApplication, QUrl, QRect, QTimer
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
 from GUI.uic.qfluent import (
-    MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
+    MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen, CustomFlyout
 )
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
@@ -24,7 +24,6 @@ from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager, 
 from GUI.manager.mid import CGSMidManagerGUI, WorkflowState
 from GUI.manager.preprocess import PreprocessManager
 from utils.middleware.timeline import TimelineStage
-from GUI.uic.qfluent import CustomFlyout
 from variables import *
 from assets import res
 from utils import Queues, QueuesManager, conf, p, curr_os, select, ori_path, bs_theme
@@ -652,7 +651,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         )
         self.BrowserWindow.domain_v.handle(texts)
 
-    def open_url_by_browser(self, url):
+    def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
         rect = QRect(self.x(), int(screen_height*0.05), 
             self.width(), int(screen_height*0.9))
@@ -660,8 +659,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.set_preview(rect)
         else:
             self.BrowserWindow.setGeometry(rect)
-        self.BrowserWindow.view.load(QUrl(url))
         self.BrowserWindow.show()
+        self.BrowserWindow.view.load(QUrl(url))
+        if callback:
+            callback()
 
     def say_show_max(self):
         self.bsm = self.bsm or self.rv_tools.show_max()
