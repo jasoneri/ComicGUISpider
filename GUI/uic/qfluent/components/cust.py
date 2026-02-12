@@ -62,13 +62,13 @@ class CustomInfoBar:
         w.show()
 
     @staticmethod
-    def show_custom(title, content, parent, _type="ERROR", ib_pos=InfoBarPosition.BOTTOM,
+    def show_custom(title, content, parent, _type="ERROR", ib_pos=InfoBarPosition.BOTTOM, duration=-1,
                     widgets=[], **kw):
         InfoBar_kw = dict(
             icon=getattr(InfoBarIcon, _type.upper()),
             title=title, content=content,
             orient=Qt.Horizontal, isClosable=True,
-            position=ib_pos, duration=-1,
+            position=ib_pos, duration=duration,
             parent=parent
         )
         w = InfoBar(**{**InfoBar_kw, **kw})
@@ -217,20 +217,6 @@ class SupportView(FlyoutViewBase):
         self.affLayout.addWidget(self.siliconBtn)
         self.affLayout.addWidget(self.yuqueBtn)
         self.affLayout.addItem(QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
-
-        # self.picLayout = QtWidgets.QHBoxLayout()
-        # self.aliPayLabel = ImageLabel(":/_support/alipay.png")
-        # self.aliPayLabel.scaledToWidth(int(self.width * 0.4))
-        # self.aliPayLabel.setBorderRadius(8, 8, 8, 8)
-        # self.picLayout.addWidget(self.aliPayLabel)
-        # vLine = QtWidgets.QFrame(self)
-        # vLine.setFrameShape(QtWidgets.QFrame.VLine)
-        # vLine.setFrameShadow(QtWidgets.QFrame.Sunken)
-        # self.picLayout.addWidget(vLine)
-        # self.wePayLabel = ImageLabel(":/_support/wepay.png")
-        # self.wePayLabel.scaledToWidth(int(self.width * 0.4))
-        # self.wePayLabel.setBorderRadius(8, 8, 8, 8)
-        # self.picLayout.addWidget(self.wePayLabel)
 
         self.layout.addLayout(self.titleLayout)
         self.hLine = QtWidgets.QFrame(self)

@@ -69,8 +69,8 @@ class SayToGui:
                 {font_color(extra, cls='theme-tip')}</p><br>""")
             self("[ShowKeepBooks]")  # 由于 keep_books 现放在 gui 上，所以最后用 flag 形式触发
         else:
-            self(f"""{'✈' * 15}
-                {font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=5)}""")
+            self(f"<br>{'✈' * 15}<br>"
+                f"{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=5)}")
         return rets
 
     def frame_section_print(self, rets, fm, print_limit=5, extra=None):
