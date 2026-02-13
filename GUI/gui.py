@@ -50,7 +50,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     checkisopenCnt = 0
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
-    webs_status = []
     books = {}
     keep_books = []
     eps = []
@@ -178,7 +177,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                     self.mid_mgr.set_state(WorkflowState.WAITING, TimelineStage.WAIT_SEARCH)
             self.chooseBox_changed_tips(index)
             if self.web_is_r18:
-                self.clipBtn.setEnabled(1)
                 self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
             # 输入框联想补全
             self.set_completer()

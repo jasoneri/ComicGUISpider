@@ -31,7 +31,8 @@ SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6, 8]
 
 # GUI feat/behaviors
 CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6, 8]
-AGGR_SEARCH_IDXES = [2, 3, 4, 8]
+AGGR_SEARCH_IDXES = [2, 3, 4, 8]    # AggrSearchThread._async_run
+CLIP_IDXES = [2, 3, 4]              # ClipTasksThread._async_run
 
 DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
     1: ['更新', '排名日', '排名周', '排名月', '排名总'],
