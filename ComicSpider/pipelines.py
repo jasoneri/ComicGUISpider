@@ -11,6 +11,7 @@ from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
 
 from utils import conf, TaskObj
+from utils.core import sanitize_for_path
 from utils.website import JmUtils, MangabzUtils, set_author_ahead
 from utils.config.rule import CgsRuleMgr
 from assets import res
@@ -34,7 +35,6 @@ class PageNamingMgr:
 
 class ComicPipeline(ImagesPipeline):
     err_flag = 0
-    _sub = re.compile(r'([|:<>?*"\\/])')
     _sub_index = re.compile(r"^\(.*?\)")
     
     @classmethod
@@ -45,8 +45,8 @@ class ComicPipeline(ImagesPipeline):
 
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
-        title = self._sub.sub('-', item.get('title'))
-        section = self._sub.sub('-', item.get('section') or '')
+        title = sanitize_for_path(item.get('title'))
+        section = sanitize_for_path(item.get('section') or '')
         taskid = item.get('uuid_md5')
         page = self.page_naming(taskid, item.get('page'), info)
         spider = self.spiderinfo.spider

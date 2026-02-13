@@ -19,6 +19,7 @@ from lxml import etree
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList
+from utils.core import sanitize_for_path
 
 domain = "nekohouse.su"
 headers = {
@@ -177,7 +178,7 @@ class Nekohouse:
         async def create_task_of_post(post, _task_meta: TaskMeta):
             """commonly values-of-attachments include value-of-file,
             special institution: value-of-file exist but values-of-attachments empty"""
-            title = post.get('title').strip()
+            title = sanitize_for_path(post.get('title').strip())
             published = time_format(post.get('published')).strftime("%Y-%m-%d")
             meta = asdict(_task_meta)
             tasks = await self.get_post(post.get('url_path'))

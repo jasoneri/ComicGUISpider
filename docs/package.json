@@ -8,7 +8,7 @@
   },
   "scripts": {
     "docs:dev": "vitepress dev",
-    "docs:build": "rm _github/README_en.md && vitepress build && mkdir -p .vitepress/dist/assets/img/icons && cp -rf assets/img/icons/website .vitepress/dist/assets/img/icons/website",
+    "docs:build": "vitepress build && mkdir -p .vitepress/dist/assets/img/icons && cp -rf assets/img/icons/website .vitepress/dist/assets/img/icons/website",
     "docs:test-build": "vitepress build",
     "docs:preview": "vitepress preview"
   },

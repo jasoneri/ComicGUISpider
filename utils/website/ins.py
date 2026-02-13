@@ -2,7 +2,6 @@ import hashlib
 import re
 import math
 import json
-import logging
 from datetime import datetime, timezone
 from io import BytesIO
 import asyncio
@@ -24,8 +23,6 @@ from utils.website.core import *
 from utils.website.hitomi import *
 from . import registry
 from .info import *
-
-logger = logging.getLogger(__name__)
 
 
 class HComicParseError(ValueError):
