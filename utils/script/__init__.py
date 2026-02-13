@@ -1,19 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import json
-import re
 import typing as t
 import pathlib as p
 from functools import partial
 
 from redis import asyncio as aioredis
 from utils.config import ScriptConf
+from utils.core import ILLEGAL_FILENAME_RE
 
 conf = ScriptConf(iname="img")
 redis_conf: dict = conf.redis
 
 
-folder_sub = re.compile(r'([|:<>?*"\\/])')
+folder_sub = ILLEGAL_FILENAME_RE
 
 class AioRClient(aioredis.Redis):
     """

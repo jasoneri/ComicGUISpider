@@ -93,7 +93,7 @@ Left-bottom of the config-dialog has `Check Update` button, please update accord
 
 ## 🔇 Disclaimer
 
-See [License](LICENSE). By using this project you agree to:
+See [License](https://github.com/jasoneri/ComicGUISpider/blob/GUI/LICENSE). By using this project you agree to:
 
 - Non-commercial use only
 - Developer's final interpretation

@@ -207,7 +207,8 @@ class MonkeyPatch:
             page = self.page()
             native_menu = page.createStandardContextMenu()
             selected_text = page.selectedText().strip()
-            is_sauce_domain = page.url().host().lower().endswith("saucenao.com")
+            host = page.url().host().lower()
+            is_sauce_domain = host == "saucenao.com" or host.endswith(".saucenao.com")
             if selected_text and is_sauce_domain:
                 fluent_menu = RoundMenu(parent=web_view)
                 sauce_action = Action(FluentIcon.SEARCH, text='Search by saucenao', triggered=lambda: send_to_search(selected_text))
