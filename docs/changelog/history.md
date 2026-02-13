@@ -1,18 +1,16 @@
 # 🕑 更新历史
 
-## ~~`v2.8.1`~~ `v2.8.5`
+## `v2.8.6`
 
 ### 🎁 Features
 
-+ 更新内置浏览器样式  
-+ (内置浏览器发起的)发布页右键菜单支持手动输入域名  
++ 新增 [h-comic](https://h-comic.com) 站点支持 by [@xulingran](https://github.com/xulingran) in [#144](https://github.com/jasoneri/ComicGUISpider/pull/144)
++ rvTool 布局更改，并加入新功能 `以图搜索`，参照 [适用性](/feat) 和文档 [rvTool 以图搜索](/feat/#_3-%E5%B7%A5%E5%85%B7%E8%A7%86%E7%AA%97) 部分
++ 聚合搜索增加 [from 剪贴板](/feat/ags.html#_2-%E5%89%AA%E8%B4%B4%E6%9D%BF) 方式
 
 ### 🐞 Fix
 
-+ ⚠️紧急修复拷贝域名更改  
-+ 文档站访问优化  
-+ 修复系统带缩放时内置浏览器的dpi问题（高清  
-+ ❔ 修复内置重启卡死（这次可能修复了~~flag~~）  
++ 修复内置浏览器读外链时的空白访问
 
 ::: tip 备用更新方法（待查证实验）  
 win绿色包(exe): 待办，先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  
@@ -22,7 +20,12 @@ mac/终端uv：ai 查 `uv tool 安装 .git, ComicGUISpider GUI 分支`
 
 ---
 
-> [!Info] 此下方记录会忽略修复动作相关的记录，含引导意义的条目除外
+> [!Info] 下方记录会忽略修复动作相关的记录，含引导意义的条目除外
+
+::: details v2.8.5
++ 更新内置浏览器样式  
++ (内置浏览器发起的)发布页右键菜单支持手动输入域名  
+:::
 
 ::: details v2.8.0
 + 整改存储目录，区分后处理模式  

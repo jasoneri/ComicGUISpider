@@ -14,7 +14,7 @@
 1. git 克隆本项目到本地，使用主流的模型/Cli (claudecode/codex)
 2. 将第一步的两个 url 值加进下面的 prompt 上，上传/指定两个 html 文件，将 prompt 发给 ai
 
-::: details prompt 参考
+::: details prompt
 
 ```text
 search_url=
@@ -23,7 +23,7 @@ book_url=
 作为熟悉python与scrapy，优良代码规范的爬虫工程师，现在你需要在此项目上扩展新网站，
 
 ## 本地开发相关
-请按照以下四个部分完成开发：
+请按照以下五个部分完成开发：
 
 **一、爬虫部分（Spider类开发）**
 
@@ -69,6 +69,7 @@ book_url=
    | SPECIAL_WEBSITES_IDXES | R18 | 添加序号 |
    | CN_PREVIEW_NEED_PROXIES_IDXES | 预览图需代理访问 | 添加序号 |
    | AGGR_SEARCH_IDXES | 是否支持聚合搜索 | 添加序号 |
+   | CLIP_IDXES | 是否支持读剪贴板 | 添加序号 |
 
 2. 在 `GUI/mainwindow.py` 的 setupUi 方法中添加下拉选项：
 self.chooseBox.addItem("")
@@ -78,21 +79,31 @@ self.chooseBox.setItemText(序号, _translate("MainWindow", "序号、网站名"
 
 1. 无GUI测试：运行 `python crawl_only.py -w 序号 -k 关键词 -i 1` 验证爬虫基本功能
 2. GUI测试：运行 `python CGS.py` 完整测试：
-- 测试新网站的完整流程（搜索、下载等）
+   - 测试新网站的完整流程（搜索、下载等）
 3. 注意日志配置：`ComicSpider/settings.py` 中的 LOG_FILE
+
+**五、文档补充**
+
+1. 在 `docs/feat/index.md` 的功能适用性表格中，为新网站添加一列，根据实际实现情况标注各功能的支持状态：
+   - 预览：处于 `SPECIAL_WEBSITES_IDXES` 时总是支持（✔️/❌）
+   - 📋读剪贴板：是否配置了 `CLIP_IDXES`（✔️/❌）
+   - 🔎聚合搜索：是否配置了 `AGGR_SEARCH_IDXES`（✔️/❌）
+   - 以图搜索：处于 `SPECIAL_WEBSITES_IDXES` 时总是支持（✔️/❌）
 
 **输出要求：**
 - 提供完整可运行的代码
 - 代码需符合 PEP 8 规范
 - XPath 选择器需准确可靠
 - 添加必要的注释说明
-- 已内置全局异常反馈和日志系统,开发需保持直接抛出自定义异常信息
+- 已内置全局异常反馈和日志系统，开发需保持直接抛出自定义异常信息
 
 ## 线上开发相关
 开发分支命名格式为`x.x-dev`，根据项目中最新dev分支，提醒用户PR时合并需指向哪个分支
 ```
 
 :::
+
+> [实例 PR 参考](https://github.com/jasoneri/ComicGUISpider/issues?q=state%3Aclosed%20label%3A%22dev%20spider%22)
 
 ## 注意
 

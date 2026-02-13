@@ -70,7 +70,7 @@ class CGSMidManagerGUI(QObject):
         ctx = ExecutionContext(session_id=session_id)
         ctx.input_state = getattr(self.gui, "input_state", None)
         ctx.process_state = getattr(self.gui, "process_state", None)
-        ctx.flow_type = getattr(self.gui, "webs_status", None)
+        ctx.flow_type = getattr(self.gui, "webs_status", None)  # TODO[1](2026-02-13): 错误引用，根本就无关，删除前需先理清 flow_type 上下文
         ctx.books = getattr(self.gui, "books", {})
         ctx.eps = getattr(self.gui, "eps", {})
 

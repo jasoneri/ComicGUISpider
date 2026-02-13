@@ -7,11 +7,12 @@
 
 > [!Info] 没列出的功能全网适用，一眼独占的工具如 hitomiTool 也不会列出  
 
-|  |  [拷贝](https://www.2025copy.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) |
-|:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----------:|:----------:|
-| 预览 | ❌ |     ❌ | ✔️ | ✔️ | ✔️ | ✔️ |
-| 📋读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
-| 🔎聚合搜索 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 |
+|  |  [拷贝](https://www.2025copy.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) | [hcomic](https://h-comic.com) |
+|:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----------:|:----------:|:----------:|
+| 预览 | ❌ |     ❌ | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| 📋读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ❌ |
+| 🔎聚合搜索 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ✔️ |
+| 以图搜索 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ✔️ |
 
 ## 1. 主界面
 
@@ -37,8 +38,34 @@
 
 点击 rV 按钮触发显示，点击对应标签切换工具，常驻 rV工具
 
-| 功能项 | 说明 |
-|:-------------:|:---------|
-| rV工具(rvTool) | - **显示记录**: 显示已阅最新话、下载最新话<br>&emsp;（已阅最新话需配合 [rV(redViewer)](https://github.com/jasoneri/redViewer) 使用才有记录）<br>- **扫描本地**: 重新刷本地数据存至`储存目录/rV.db`，<br>&emsp;供`显示记录`使用（并且与 rV 共用） |
-| 聚合搜索(aggrSearch) | 上方适用性触发，[🔎跳转阅读 > 使用](/feat/ags)   |
-| hitomiTool | 仅选择 hitomi 触发，[📹参考用法](https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif) |
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center;">功能项</th>
+      <th style="text-align: left;">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center; vertical-align: middle;" rowspan="4">rV工具<br><small>rvTool</small></td>
+      <td style="text-align: left;"><strong>显示记录</strong>: 显示已阅最新话、下载最新话<br><code>已阅最新话</code>需用 <a href="https://github.com/jasoneri/redViewer" target="_blank" rel="noopener noreferrer">rV</a> 操作过才有记录</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;"><strong>扫描本地</strong>: 重新刷本地数据存至<code>储存目录/rV.db</code>，<br>供<code>显示记录</code>使用，并且与 rV 共用</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;"><strong>rv相关</strong>: 下载&emsp;/&emsp;(右下)绑定<code>锚点</code>与运行&emsp;/&emsp;(左下)清除<code>锚点</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>（图一乐，你可以沿着链路继续找，或者来提供点靠谱的api/网站）</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">聚合搜索<br><small>aggrSearch</small></td>
+      <td style="text-align: left;"><a href="/feat/ags">🔎跳转阅读 > 使用</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">hitomiTool</td>
+      <td style="text-align: left;"><a href="https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif" target="_blank" rel="noopener noreferrer">📹参考用法</a></td>
+    </tr>
+  </tbody>
+</table>

@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES
+from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -45,6 +45,8 @@ class PreprocessManager(QObject):
 
         if index in AGGR_SEARCH_IDXES:
             self._add_aggr_search()
+        if index in CLIP_IDXES:
+            self.gui.clipBtn.setEnabled(1)
 
     def _preprocess_manga_copy(self):
         def manga_copy_task():
