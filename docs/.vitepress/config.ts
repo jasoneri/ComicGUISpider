@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitepress';
 
 
-const version = `v2.8.5`
+const version = `v2.8.6-beta`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
