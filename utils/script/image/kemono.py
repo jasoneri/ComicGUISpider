@@ -27,15 +27,6 @@ temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
 
 
-@dataclass
-class KemonoAuthor:
-    id: str
-    name: str
-    service: str
-    updated: int
-    favorited: int
-
-
 kemono_topic = """
   ┏┓┏┓┏┓  ┓            
   ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
@@ -47,6 +38,19 @@ headers = {
     "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
     'Accept': 'text/css',
 }
+
+
+@dataclass
+class KemonoAuthor:
+    id: str
+    name: str
+    service: str
+    updated: int
+    favorited: int
+    
+    @property
+    def avatar(self):
+        return f"https://img.{domain}/icons/{self.service}/{self.id}"
 
 
 class OverSizeErr(Exception):
