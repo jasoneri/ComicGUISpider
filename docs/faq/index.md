@@ -55,9 +55,9 @@ ValueError: 加密信息过短疑似风控变化
 
 ## 3. 其他
 
-### ModuleNotFoundError: No module named 'xxx'
+### 遇到带报错信息的小窗警告时
 
-截图或带上 `log` 提交 [issue](
+截图并带上脱敏 `cgs_fatal.log` 发到下方评论，或提交 [issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
 )
 

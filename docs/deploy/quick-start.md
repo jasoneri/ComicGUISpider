@@ -7,24 +7,21 @@
 
 + 直接下载 [📦绿色包](https://github.com/jasoneri/ComicGUISpider/releases/latest)，并解压，初次打开应用时会进入自动部署流程
 
-::: warning macOS用户
-须阅读 [macOS 部署](./mac-required-reading.md) 文档
+::: warning macOS用户须阅读 [macOS 部署](./mac-required-reading.md) 文档
 :::
 
-::: danger ⚠️ 自动部署流程异常处理方法 (仅`win`绿色包)
+::: danger ⚠️ 初始自动部署流程异常处理方法
 ::: details 点击展开
 
-+ 参考解压包内的 `异常处理提示.txt`
++ 过一遍 [faq](/faq/)
++ 参考解压包内的 `异常处理提示.txt` (仅`win`绿色包)
 + 开终端参考`./CGS.exe --help`，使用参数重新部署，例子：下方[更新第三种方法](#_4-更新)
 
 :::
 
 + 或使用`uv tool`  
 
-::: warning ‼️⚠️ `v2.5.2~`后，发现依赖 [pillow-avif](https://github.com/fdintino/pillow-avif-plugin) 跟 `python3.14` 暂不兼容，  
-需要注意自行准备环境如 `python3.13`  
-:::
-::: details `uv tool` 细节部署流程（点击展开）：  
+::: details `uv tool` 细节部署流程：  
 1. 安装 [uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的 [远程安装脚本](https://docs.astral.sh/uv/#installation)  
 2. （可选）设置 uv tool 的环境变量，否则 win 会默认装在C盘上  
     win: 新建用户级的环境变量，设置后需开新终端窗口生效  
@@ -35,12 +32,12 @@
     最后执行 `uv tool update-shell` 更新进 PATH，之后新终端窗口可直接运行 cgs / cgs-cli
 3. uv tool 安装 CGS  
 ``` bash
-uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple --python "<3.14"
+uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 ::: tip 可以选择 `uv` 中更轻量化的 `uvx`，命令为部署运行一体化  
 ```bash
-uvx comicguispider --python "<3.14"
+uvx comicguispider
 ```
 两者区别在于 `uvx` 为临时/一次性的虚拟环境，`uv tool` 方式为持久化
 :::
@@ -87,20 +84,20 @@ cgs-cli --help
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 或 uv tool 管理的指定版本，例如 `2.5.0`
++ 或 uv tool 管理的指定版本，例如 `2.8.0`
 
 ```zsh
-uv tool install ComicGUISpider==2.5.0 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple --python "<3.14"
+uv tool install ComicGUISpider==2.8.0 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-+ 或 win-绿色包 安装指定版本，例如 `2.5.0`  
++ 或 win-绿色包 安装指定版本，例如 `2.8.0`  
 
 ```cmd
-.\CGS.exe -v 2.5.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+.\CGS.exe -v 2.8.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ## 5. 搭配阅读器
 
 欢迎尝试使用 redViewer ，最适 CGS ！也希望能提供有创意的功能想法给 rV ！💑
 
-[![点击前往redViewer](https://github-readme-stats.vercel.app/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)
+[![点击前往redViewer](https://ghstat.101114105.xyz/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)

@@ -7,8 +7,9 @@ win: [🌐Ditto](https://github.com/sabrogden/Ditto)
 macOS: [🌐Maccy](https://github.com/p0deje/Maccy)  
 
 
-::: tip 不下载剪贴板软件仅影响 `读剪贴板` 功能，不影响常规流程使用  
-但需要 下载jm带章节作品 的话必须
+::: tip 以下特定功能需要，不下载也不会影响常规流程使用  
+1. `读剪贴板`功能（注：jm带章节作品只能通过此途径）
+2. `聚合搜索` 的 `from 剪贴板`
 :::
 
 ## 使用

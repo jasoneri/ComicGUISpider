@@ -1,6 +1,7 @@
 import types
 import contextlib
 from PyQt5.QtWidgets import QWidget, QHBoxLayout
+from PyQt5.QtCore import QTimer
 from qfluentwidgets import (
     Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType,
     LineEdit, ToolButton
@@ -186,6 +187,41 @@ class MonkeyPatch:
             return fluent_menu
 
         web_view = browserWindow.view
+        web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
+
+    @staticmethod
+    def rbutton_menu_sauce(browserWindow):
+        def send_to_search(text):
+            if not text:
+                return
+            gui.searchinput.setText(text)
+            gui.next_btn.click()
+            def close():
+                browserWindow.close()
+                gui.BrowserWindow = None
+                if gui.toolWin.isVisible():
+                    gui.toolWin.close()
+            QTimer.singleShot(10, close)
+
+        def custom_context_menu(self, event):
+            page = self.page()
+            native_menu = page.createStandardContextMenu()
+            selected_text = page.selectedText().strip()
+            host = page.url().host().lower()
+            is_sauce_domain = host == "saucenao.com" or host.endswith(".saucenao.com")
+            if selected_text and is_sauce_domain:
+                fluent_menu = RoundMenu(parent=web_view)
+                sauce_action = Action(FluentIcon.SEARCH, text='Search by saucenao', triggered=lambda: send_to_search(selected_text))
+                fluent_menu.addAction(sauce_action)
+                fluent_menu.exec(event.globalPos())
+                event.accept()
+                native_menu.deleteLater()
+            else:
+                event.accept()
+                native_menu.deleteLater()
+
+        web_view = browserWindow.view
+        gui = browserWindow.gui
         web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
 
     @staticmethod

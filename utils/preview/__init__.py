@@ -18,8 +18,16 @@ format_path = ori_path.joinpath("GUI/src/preview_format")
 
 class TmpFormatHtml:
     @classmethod
-    def created_temp_html(cls, html, flag=None):
-        with tempfile.NamedTemporaryFile(prefix=flag, suffix=".html", delete=False, dir=temp_p) as tf:
+    def created_temp_html(cls, flag, **kw):
+        return getattr(cls, f"to_{flag}")(**kw)
+
+    @classmethod
+    def to_publish(cls, **kw):
+        with open(format_path.joinpath('pubilsh_helper.html'), encoding='utf-8') as f:
+            html = f.read()
+        for k, w in kw.items():
+            html = html.replace(k, w)
+        with tempfile.NamedTemporaryFile(prefix="publish", suffix=".html", delete=False, dir=temp_p) as tf:
             tf.write(bytes(html, 'utf-8'))
             f = str(tf.name)
         return TF(f)

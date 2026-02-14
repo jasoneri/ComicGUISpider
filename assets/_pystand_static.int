@@ -1,0 +1,76 @@
+# version:【v2.8.6】
+import os
+import shutil
+import argparse
+import pathlib
+import subprocess
+
+def clean(p):
+    if p.exists() and p.is_dir():
+        shutil.rmtree(p)
+
+
+if __name__ == '__main__':
+    DEFAULT_INDEX = r'https://pypi.tuna.tsinghua.edu.cn/simple/'
+
+    parser = argparse.ArgumentParser(
+        description="""cgs""",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument('-i', '--index', type=str, nargs='?', default=None,
+                        help=f'pypi source (default: {DEFAULT_INDEX})')
+    parser.add_argument('-v', '--version', type=str, default=None,
+                        help='specify ComicGUISpider version to install, e.g. 2.8.0')
+    parser.add_argument('-c', '--conf', type=str, default=None,
+                        help='uv.toml')
+    parser.add_argument('-s', '--script', action='store_true',
+                        help='comicguispider[script]')
+    args = parser.parse_args()
+
+    index_provided = args.index is not None
+    index_value = args.index or DEFAULT_INDEX
+    version_provided = args.version is not None
+
+    portable_env = pathlib.Path(__file__).parent
+    uv_runtime = portable_env.joinpath('runtime')
+    uvtoolbin_env = portable_env.joinpath("bin")
+    uvtoolbin_env.mkdir(exist_ok=True)
+    uv_exec = uv_runtime.joinpath("uv.exe")
+    cgs_exec = uvtoolbin_env.joinpath("cgs.exe")
+    env = os.environ.copy()
+    env['UV_TOOL_DIR'] = str(portable_env)
+    env['UV_TOOL_BIN_DIR'] = str(uvtoolbin_env)
+    env['PATH'] = str(uv_runtime) + os.pathsep + env.get('PATH', '')
+    env['UV_NO_MANAGED_PYTHON'] = '1'
+    env['VIRTUAL_ENV'] = str(uv_runtime)
+    def clean_cgsp():
+        clean(uvtoolbin_env)
+        clean(portable_env.joinpath("comicguispider"))
+    def run():
+        cmd = [str(cgs_exec)]
+        process = subprocess.Popen(cmd, env=env, text=True)
+    if (not cgs_exec.exists()) or index_provided or version_provided or args.script or args.conf:
+        clean_cgsp()
+        pkg_spec = f"ComicGUISpider=={args.version}" if version_provided else "ComicGUISpider"
+        if args.script:
+            pkg_spec = pkg_spec.replace("ComicGUISpider", "ComicGUISpider[script]")
+        install_cmd = [str(uv_exec), "tool", "install", pkg_spec, "--force"]
+        if args.conf:
+            install_cmd.extend(["--config-file", portable_env.joinpath(args.conf)])
+        else:
+            install_cmd.extend(["--index-url", index_value])
+        print(install_cmd)
+        process = subprocess.Popen(install_cmd, env=env, text=True)
+        process.wait()
+        new_int = portable_env.joinpath("comicguispider/Lib/site-packages/assets/_pystand_static.int")
+        if new_int.exists():
+            with open(new_int, "r", encoding="utf-8") as fr:
+                with open(portable_env.joinpath("_pystand_static.int"), "w", encoding="utf-8") as fw:
+                    fw.write(fr.read())
+        if cgs_exec.exists():
+            run()
+        else:
+            clean_cgsp()
+            input(r"安装失败，参考换源安装 \n https://doc.comicguispider.nyc.mn/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
+    else:
+        run()

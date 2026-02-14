@@ -11,6 +11,7 @@ GUI:
   wnacg_desc: "wancg 国内源偶尔会很慢，或者抽风，假如报错的话 <br>网络问题如 [Errno 11001 10054 10060]（httpx那块已内置重试8次） / `ReadTimeout` 一般重启就好了，<br>重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>墙内换发布页网址参考<a href='https://github.com/jasoneri/ComicGUISpider/issues/119'>此条issue</a>，可以免梯子解决域名缓存"
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
   hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
+  h_comic_desc: "h-comic 为前端渲染站，建议优先使用简短关键词（如作品名核心词）进行搜索；搜索结果为空时可换同义词重试"
   check_ehetai: "正在检测当前环境能否访问 `exhentai` 中..."
   check_mangabz: "正在检测当前环境能否访问 `Māngabz` 中..."
   check_hitomi: "正在检测当前环境能否访问 `hitomi` 中..."
@@ -36,6 +37,7 @@ GUI:
     ehentai: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
     mangabz: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设'
     hitomi: '暂时仅支持使用预设 或 `hitomi-tools`生成的词'
+    h_comic: '直接输入关键词搜索，例如 NTR / 中文 / 作者名'
   Clip:
     process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
     db_not_found_guide: "剪贴板 db 不存在，请先查看相关指引"
@@ -45,12 +47,9 @@ GUI:
     all_fail: "没有一个成功的任务，如http错误请更新配置如代理/cookies后重新运行此功能，若总是失败提issue"
     view_log: "在日志文件查看详细报错堆栈"
   Tools:
-    rv_scriptp_desc: "rV脚本路径"
-    rv_scriptp_desc_tip: "选择脚本文件（ %s ）"
-    rv_deployBtn: "选择目录并部署"
     rv_deployDesc: "看起来你需要部署rV<br>1. 需选择与 CGS 和存储目录无关的非中文空目录<br>2. 根据控制台进行操作，部署后重新选择脚本"
     rv_deployWinRequire: "<br>3. win补充：控制面板 > 时钟与区域 > 区域 > 更改系统区域设置 > 勾选beta版 unicode UTF-8 > 重启"
-    rv_deploy_desc: "rV 部署"
+    rv_deploy_desc: "rV 下载"
     rv_deploy_desc_content: "脚本检索异常，请选择正确的脚本或点击部署按钮进行部署"
     rv_book_marked: "显示记录"
     rv_scan_local: "扫描本地"
@@ -64,16 +63,10 @@ GUI:
     hitomi_info_copied: "已复制，注意为 urldecode"
     hitomi_info_sved: "已保存 urlencode 后的值到预设之首"
     hitomi_info_sended: "已发送到搜索框，程序最适配urlencode值无需担心"
-    domain_btn: "发布页"
-    domain_desc: "点击发布页然后按图示复制你能用的部分（内地），<br>回来点击执行按键，CGS会花几秒检测是否可用并相应通知，<br>CGS并不能突破你的网络环境， 浏览器开不了CGS也开不了，请知悉"
     doamin_success_tip: "[%s]已设进下方临时文件，有效时间为48小时\n[%s]\n"
     doamin_error_tip: "域名全无效，请你自行检查，再次声明CGS并不能突破现网络环境去访问"
-    status_desc: "原本的状态展示放到 `配置窗口 > 使用手册` 上查看（单独更新的功能2后续可能会跟statusTool整个删去）\n功能2：按钮组对应更新解密相关小变动，更新成功会重启（避免状态出来前点击）"
-    status_fetching: "正在获取网站可用状态"
-    status_waiting: "请等待一会~~"
-    status_web_erratic: "[Warn]网络不稳定未能获取全部状态.."
-    status_cf_error: "国内访问cloudflare的dev域名异常，可移步官网查看"
-    status_no_update: "本地与线上内容一致。如果使用异常，你可以结合目标网站的公告等反馈有效信息发群内"
+    search_by_pic: "以图搜索"
+    search_by_pic_guide: "1) 选择图片后点击搜索，等 saucenao 出结果。\n2) （隐藏可点击展开）选择(标题)文本，然后右键点击菜单项`Search by saucenao`。\n3) 文本将自动发送回主界面搜索框并进行搜索。"
     reboot_tip: "CGS将在%s秒后重启以确保后台进程应用有效更改"
   Ags:
     empty_search: "搜索为空"
@@ -87,6 +80,7 @@ GUI:
     run_btn: "运行"
     extend_btn: "待扩展.."
     reset_input: "还原文本"
+    clip_label: "剪贴板"
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"

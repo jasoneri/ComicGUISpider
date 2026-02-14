@@ -177,3 +177,7 @@ class HitomiBookInfo(Ero):
     @property
     def say(self):
         return str(self.idx), self.lang, self.pages, self.name, chr(12288)
+
+
+class HComicBookInfo(Ero):
+    source = "h_comic"

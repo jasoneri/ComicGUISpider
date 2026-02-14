@@ -1,3 +1,7 @@
+<div align="right">
+🌍<a href="docs/_github/README_en.md">English</a> / 中文
+</div>
+
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
     <img src="https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png" alt="logo">
@@ -5,19 +9,22 @@
   <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
   <img src="https://img.shields.io/badge/Platform-All-blue?color=#4ec820" alt="tag">
-  <img src="https://img.shields.io/badge/-%3E3.8%20%3C3.14-brightgreen.svg?logo=python" alt="tag">
+  <img src="https://img.shields.io/badge/-%3E3.12-brightgreen.svg?logo=python" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
 
   <p align="center">
-  <a href="docs/_github/README_en.md">English</a> | 
   <a href="https://doc.comicguispider.nyc.mn">🏠项目主页</a> | 
   <a href="https://doc.comicguispider.nyc.mn/deploy/quick-start">🚀快速上手</a> | 
   <a href="https://doc.comicguispider.nyc.mn/faq">❓常见问题</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
   </p>
 </div>
+
+## 📑介绍
+
+下漫画的
 
 |       预览/多选/翻页       |       [读剪贴板](https://doc.comicguispider.nyc.mn/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
@@ -27,18 +34,15 @@
 
 ## ✨功能特性
 
-- 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
-- 开预览后随便点点就能下载，预览窗口充当于微型浏览器
-- 丰富多样的输入规则，方便指定选择
+- 如上动图演示的多种使用方式，多开同时操作不同网站等
+- 开预览后随便点点就能下载，预览窗口/内置浏览器
+- 多种输入规则，方便指定选择
 - 无感翻页保留选择，已下载记录等提示
 - 预设，去重，加标识符等各种自定义设置
 
 **更多移步查阅 [🎸功能文档](https://doc.comicguispider.nyc.mn/feat/)**
 
-## 📑介绍
-
-与其下载使用后自个失望再消星，不如不点  
-这项目没你想的"每分钟在监控实时在修复"  
+## 🚨可用监控
 
 | 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
 |:--------------------------------------|:----:|:----------:|:----:|
@@ -49,6 +53,7 @@
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
 | [Kemono](https://kemono.cr)     | 🌏 |     🔞     |  |
+| [HComic](https://kemono.cr)     | 🌏 |     🔞/代理/`2.8.6-beta`~     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
@@ -57,12 +62,11 @@
 ## 📢更新
 
 图链/项目主页/文档都已转用 Cloudflare 加速优化，卡的话可以用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
-【🔉长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
 > [🔗这版改了什么](https://doc.comicguispider.nyc.mn/changelog/history) /
- [🔨更新方法](https://doc.comicguispider.nyc.mn/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) /
+ [⛅更新方法](https://doc.comicguispider.nyc.mn/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) /
  [📝开发板](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
 ## 🍮食用搭配(阅读器)

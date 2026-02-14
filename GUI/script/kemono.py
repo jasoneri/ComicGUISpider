@@ -5,15 +5,16 @@ import pickle
 import typing as t
 from datetime import datetime
 
+import httpx
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QThread, QDate, QAbstractTableModel, QModelIndex
-from PyQt5.QtGui import QFont, QGuiApplication, QDesktopServices
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer, QByteArray, QBuffer, QIODevice
+from PyQt5.QtGui import QFont, QGuiApplication, QDesktopServices, QPixmap, QColor
 from qfluentwidgets import (
     LineEdit, PrimaryPushButton,
     VBoxLayout, FluentIcon as FIF, ZhDatePicker, StrongBodyLabel,
     TransparentToolButton, HyperlinkButton, PushButton, PrimaryToolButton, TransparentTogglePushButton,
-    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, qconfig,
+    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, qconfig, ImageLabel,
     Flyout, CommandBarView, Action, InfoBar, InfoBarPosition
 )
 from qframelesswindow import FramelessWindow
@@ -24,6 +25,8 @@ from utils.script.image.kemono import kemono_topic, conf, KemonoAuthor
 from utils.config.qc import kemono_cfg
 from GUI.core.font import font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
+from GUI.manager.async_task import AsyncTaskManager, TaskConfig
+from GUI.script.avatar_cache import AvatarCache
 
 
 class FilterView(FlyoutViewBase):
@@ -76,6 +79,7 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         self.authors_list = sorted(data_dict.values(), key=lambda x: x.favorited, reverse=True)
         self.filtered_indices = list(range(len(self.authors_list)))  # 用于搜索过滤
         self.headers = ["作者", "平台", "更新时间", "收藏数"]
+        self.favorite_headers = ["头像", "作者", "平台", "更新时间", "收藏数"]
         self.current_row_author = None  # 存储当前选中行的作者数据
         self.favorites_only_mode = False
         self.favorite_ids = []
@@ -84,7 +88,7 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         return len(self.filtered_indices)
 
     def columnCount(self, parent=QModelIndex()):
-        return 4
+        return 5 if self.favorites_only_mode else 4
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid() or index.row() >= len(self.filtered_indices):
@@ -93,6 +97,11 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         actual_row = self.filtered_indices[index.row()]
         author = self.authors_list[actual_row]
         col = index.column()
+
+        if self.favorites_only_mode:
+            if col == 0:
+                return None
+            col -= 1
 
         if role == Qt.DisplayRole:
             if col == 0:
@@ -112,13 +121,21 @@ class VirtualKemonoTableModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.headers[section]
+            headers = self.favorite_headers if self.favorites_only_mode else self.headers
+            if 0 <= section < len(headers):
+                return headers[section]
         return None
 
     def sort(self, column, order):
         self.layoutAboutToBeChanged.emit()
 
         reverse = (order == Qt.DescendingOrder)
+
+        if self.favorites_only_mode:
+            if column == 0:
+                self.layoutChanged.emit()
+                return
+            column -= 1
 
         if column == 0:  # 作者名
             self.authors_list.sort(key=lambda x: x.name, reverse=reverse)
@@ -154,6 +171,12 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         self.endResetModel()
 
     def update_filtered_indices(self):
+        if self.favorites_only_mode:
+            self.filtered_indices = [
+                i for i, author in enumerate(self.authors_list)
+                if author.id in self.favorite_ids
+            ]
+            return
         if len(self.filtered_indices) != len(self.authors_list):
             # 这里需要重新应用当前的过滤条件
             # 暂时重置为显示所有数据，实际使用时会通过apply_filter重新设置
@@ -193,6 +216,33 @@ class KemonoTableView(FramelessWindow):
         super().__init__()
         self.interface = parent
         self._table_initialized = False  # 标记表格是否已初始化
+
+        self._avatar_size = 32
+        self._avatar_col_width = 44
+        self._avatar_row_height = 40
+        self._avatar_task_mgr = AsyncTaskManager(gui=None)
+        self._avatar_cache = AvatarCache(temp_p.joinpath("kemono_avatars.pkl"))
+        self._avatar_cache.load()
+        self._avatar_widgets: t.Dict[int, ImageLabel] = {}
+        self._avatar_pending: t.List[t.Tuple[KemonoAuthor, ImageLabel]] = []
+        self._avatar_max_concurrent = 12
+        self._avatar_http_cli = httpx.Client(
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Accept": "image/*",
+                "Referer": "https://kemono.cr/",
+            },
+            follow_redirects=True,
+            timeout=15,
+            limits=httpx.Limits(
+                max_connections=self._avatar_max_concurrent,
+                max_keepalive_connections=self._avatar_max_concurrent,
+            ),
+        )
+        self._avatar_sync_scheduled = False
+        self._avatar_save_timer = QTimer(self)
+        self._avatar_save_timer.setSingleShot(True)
+        self._avatar_save_timer.timeout.connect(self._avatar_cache.save)
 
         # 隐藏标题栏按钮
         self.titleBar.minBtn.hide()
@@ -272,11 +322,10 @@ class KemonoTableView(FramelessWindow):
 
         self.virtual_model.sort(3, Qt.DescendingOrder)
 
-        # 调整列宽
-        self.tableView.setColumnWidth(0, int(tb_width * 0.3))  # 作者名
-        self.tableView.setColumnWidth(1, int(tb_width * 0.2))  # 服务
-        self.tableView.setColumnWidth(2, int(tb_width * 0.25)) # 更新时间
-        self.tableView.setColumnWidth(3, int(tb_width * 0.2))  # 收藏数
+        self.virtual_model.layoutChanged.connect(self._schedule_avatar_sync)
+        self.virtual_model.modelReset.connect(self._schedule_avatar_sync)
+
+        self._apply_column_layout()
 
         self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.tableView.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -300,9 +349,184 @@ class KemonoTableView(FramelessWindow):
     def show_favorites_only(self):
         favorite_ids = kemono_cfg.favoriteAuthors.value
         self.virtual_model.show_favorites_only(favorite_ids)
+        self._apply_column_layout()
+        self._schedule_avatar_sync()
 
     def show_all_authors(self):
+        self._clear_avatar_widgets()
         self.virtual_model.show_all_authors()
+        self._apply_column_layout()
+
+    def _apply_column_layout(self):
+        tb_width = self.tableView.width()
+        vh = self.tableView.verticalHeader()
+        if self.virtual_model.favorites_only_mode:
+            vh.setDefaultSectionSize(self._avatar_row_height)
+            self.tableView.setColumnWidth(0, self._avatar_col_width)
+            self.tableView.setColumnWidth(1, int(tb_width * 0.26))
+            self.tableView.setColumnWidth(2, int(tb_width * 0.18))
+            self.tableView.setColumnWidth(3, int(tb_width * 0.24))
+            self.tableView.setColumnWidth(4, int(tb_width * 0.18))
+        else:
+            vh.setDefaultSectionSize(30)
+            self.tableView.setColumnWidth(0, int(tb_width * 0.3))
+            self.tableView.setColumnWidth(1, int(tb_width * 0.2))
+            self.tableView.setColumnWidth(2, int(tb_width * 0.25))
+            self.tableView.setColumnWidth(3, int(tb_width * 0.2))
+
+    def _schedule_avatar_sync(self):
+        if self._avatar_sync_scheduled:
+            return
+        self._avatar_sync_scheduled = True
+        QTimer.singleShot(0, self._sync_avatar_widgets)
+
+    def _sync_avatar_widgets(self):
+        self._avatar_sync_scheduled = False
+        if not self.virtual_model.favorites_only_mode:
+            return
+
+        self._clear_avatar_widgets()
+        rows = self.virtual_model.rowCount()
+        for row in range(rows):
+            idx = self.virtual_model.index(row, 0)
+            author = self.virtual_model.get_author_at_row(row)
+            if not author:
+                continue
+
+            label = ImageLabel(self.tableView)
+            label.scaledToHeight(self._avatar_size)
+            label.scaledToWidth(self._avatar_size)
+            self._set_placeholder(label)
+            label.setProperty("avatar_key", self._avatar_key(author))
+            self.tableView.setIndexWidget(idx, label)
+            self._avatar_widgets[row] = label
+
+            cached = self._avatar_cache.get(self._avatar_key(author))
+            if cached:
+                self._apply_bytes_to_label(label, cached)
+                continue
+            self._start_download(author, label)
+
+    def _clear_avatar_widgets(self):
+        self._avatar_pending.clear()
+        for w in self._avatar_widgets.values():
+            if self._widget_alive(w):
+                w.setParent(None)
+                w.deleteLater()
+        self._avatar_widgets.clear()
+
+    def _start_download(self, author: KemonoAuthor, label: ImageLabel):
+        key = self._avatar_key(author)
+        task_id = f"av_{key}"
+        if self._avatar_task_mgr.is_task_running(task_id):
+            return
+        if len(self._avatar_task_mgr.get_running_tasks()) >= self._avatar_max_concurrent:
+            self._avatar_pending.append((author, label))
+            return
+
+        config = TaskConfig(
+            task_func=lambda _url=author.avatar: self._download_bytes(_url),
+            success_callback=lambda data, _k=key, _l=label: self._on_download_ok(_k, _l, data),
+            error_callback=lambda err, _k=key: self._drain_pending(),
+            tooltip_title="",
+            show_success_info=False,
+            show_error_info=False,
+            tooltip_parent=None,
+        )
+        self._avatar_task_mgr.execute_task(task_id, config)
+
+    def _download_bytes(self, url: str) -> bytes:
+        resp = self._avatar_http_cli.get(url)
+        resp.raise_for_status()
+        content_length = resp.headers.get("content-length")
+        if content_length and int(content_length) > 2 * 1024 * 1024:
+            raise ValueError("invalid_avatar_response")
+        data = resp.content
+        if not data or len(data) > 2 * 1024 * 1024:
+            raise ValueError("invalid_avatar_response")
+        return data
+
+    def _on_download_ok(self, key: str, label: ImageLabel, data: bytes):
+        scaled = self._scale_to_png(data)
+        if not scaled:
+            self._drain_pending()
+            return
+        self._avatar_cache.set(key, scaled)
+        self._avatar_save_timer.start(800)
+        if not self._widget_alive(label):
+            self._drain_pending()
+            return
+        try:
+            if label.property("avatar_key") != key:
+                self._drain_pending()
+                return
+        except RuntimeError:
+            self._drain_pending()
+            return
+        self._apply_bytes_to_label(label, scaled)
+        self._drain_pending()
+
+    def _scale_to_png(self, raw: bytes) -> t.Optional[bytes]:
+        pm = QPixmap()
+        if not pm.loadFromData(raw):
+            return None
+        scaled = pm.scaled(self._avatar_size, self._avatar_size,
+                           Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        ba = QByteArray()
+        buf = QBuffer(ba)
+        if not buf.open(QIODevice.WriteOnly):
+            return None
+        if not scaled.save(buf, "PNG"):
+            buf.close()
+            return None
+        buf.close()
+        return bytes(ba)
+
+    def _apply_bytes_to_label(self, label: ImageLabel, img_bytes: bytes):
+        pm = QPixmap()
+        if not pm.loadFromData(img_bytes):
+            return
+        label.setImage(pm)
+        label.setFixedSize(self._avatar_size, self._avatar_size)
+
+    def _set_placeholder(self, label: ImageLabel):
+        ph = QPixmap(self._avatar_size, self._avatar_size)
+        ph.fill(QColor(235, 235, 235))
+        label.setImage(ph)
+        label.setFixedSize(self._avatar_size, self._avatar_size)
+
+    @staticmethod
+    def _avatar_key(author: KemonoAuthor) -> str:
+        return f"{author.service}:{author.id}"
+
+    @staticmethod
+    def _widget_alive(w) -> bool:
+        if w is None:
+            return False
+        try:
+            w.objectName()
+            return True
+        except RuntimeError:
+            return False
+
+    def _drain_pending(self):
+        if not self.virtual_model.favorites_only_mode:
+            self._avatar_pending.clear()
+            return
+        while self._avatar_pending and len(self._avatar_task_mgr.get_running_tasks()) < self._avatar_max_concurrent:
+            author, label = self._avatar_pending.pop(0)
+            if not self._widget_alive(label):
+                continue
+            self._start_download(author, label)
+            break
+
+    def closeEvent(self, event):
+        self._avatar_task_mgr.cancel_all_tasks()
+        self._avatar_http_cli.close()
+        if self._avatar_save_timer.isActive():
+            self._avatar_save_timer.stop()
+        self._avatar_cache.save()
+        super().closeEvent(event)
 
     def on_right_click(self, position):
         index = self.tableView.indexAt(position)

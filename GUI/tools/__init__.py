@@ -8,7 +8,6 @@ from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
 from GUI.tools.hitomi_tool import HitomiTools, hitomi_db_path
 from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
-from GUI.tools.status import StatusToolView
 from GUI.tools.ags import AggrSearchView
 from GUI.tools.mid_tool import MidToolInterface
 from GUI.tools.chore import *
@@ -30,7 +29,7 @@ class ToolWindow(FramelessWindow):
         window_height = int(screen_geo.height() * 0.22)
         self.setMinimumSize(self.window_width, window_height)
         self.default_height = 120
-        self.resize(self.window_width, self.default_height)
+        self.resize(0,0)
         self.move(
             int((screen_geo.width() - self.window_width) / 2),
             int((screen_geo.height() - window_height) / 2)
@@ -45,9 +44,6 @@ class ToolWindow(FramelessWindow):
         first_row = QHBoxLayout()
         self.rvInterface = rvTool(self)
         self.addSubInterface(self.rvInterface, 'rvInterface', 'rvTool')
-        self.stInterface = StatusToolView(self.gui)
-        self.addSubInterface(self.stInterface, 'stInterface', 'statusTool')
-
         # 连接信号并初始化当前标签页
         self.stackedWidget.currentChanged.connect(self.onCurrentIndexChanged)
         self.stackedWidget.setCurrentWidget(self.rvInterface)
@@ -100,10 +96,9 @@ class ToolWindow(FramelessWindow):
             new_height = int(self.gui.height() * 0.5)
             self.resize(self.width(), new_height)
         elif widget.objectName() == "midInterface":
-            new_height = int(self.gui.height() * 0.7)
-            self.resize(self.width(), new_height)
+            self.resize(900, 370)
         else:
-            self.resize(self.width(), self.default_height)
+            self.resize(0,0)
         self.pivot.setCurrentItem(widget.objectName())
 
 
@@ -113,6 +108,7 @@ def main():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication([])
     window = ToolWindow()
+    # window.addMidTool()
     window.show()
     app.exec_()
 

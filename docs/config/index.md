@@ -87,7 +87,7 @@
 
 目前选择编辑支持 `ehentai`, `jm`
 
-[🎬获取方法](https://img.comicguispider.nyc.mn/file/1764957600555_ehentai_get_cookies_new.gif) | [🔗动图中的curl转换网站](https://tool.lu/curl/)  
+[🎬获取方法](https://img.comicguispider.nyc.mn/file/1764957600555_ehentai_get_cookies_new.gif) (**动图不会更新，看懂要操作的位置就行，实际根据以下文字操作**)  
 任意网站同理，登录状态下开 F12 控制台然后点首页，筛选出 html/文档 类型请求复制其 curl (POSIX/bash)  
 支持直接将 curl 文本粘贴到编辑框内，程序已内置转换处理  
 
@@ -124,7 +124,6 @@
 
 ### pypi源 / `pypi_source`
 
-「代理输入框」右侧的选择框  
 涉及到 CGS更新、脚本集额外依赖安装等，其序号映射如下
 
 ```yaml
@@ -136,7 +135,6 @@
 
 ### ui语言选择 / `lang`
 
-「pypi源选择框」右侧的选择框，默认系统语言  
 切换语言需保存并关闭重启后生效
 
 ### 展示拷贝单行本 / `kbShowDhb`
