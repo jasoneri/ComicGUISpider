@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitepress';
 
 
-const version = `v2.8.5`
+const version = `v2.8.6-beta`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
@@ -145,19 +145,15 @@ export default defineConfig({
                         link: "/dev/contribute",
                     },
                     {
-                        text: "🤖ai开发指南",
-                        link: "/dev/ai_dev",
-                    },
-                    {
-                        text: "原开发指南",
-                        link: "/dev/dev_spider",
+                        text: "✒️开发指南",
+                        link: "/dev/index",
                     },
                     {
                         text: "国际化",
                         link: "/dev/i18n",
                     },
                     {
-                        text: "🍖另类投喂",
+                        text: "🍖另类投喂/福利",
                         link: "https://doc.redviewer.nyc.mn/contribute/feed",
                     }
                 ]

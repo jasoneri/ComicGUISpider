@@ -1,4 +1,5 @@
 import importlib
+import pathlib
 from dataclasses import dataclass
 from typing import Optional
 from PyQt5 import QtWidgets
@@ -10,12 +11,13 @@ from qfluentwidgets import (
     SmoothScrollArea,TeachingTip,TeachingTipTailPosition,
     FluentIcon as FIF, InfoBar, InfoBarIcon, InfoBarPosition,
     LineEdit, TransparentToggleToolButton, TransparentToolButton, ImageLabel,
-    ToolTipFilter, ToolTipPosition, BodyLabel
+    ToolTipFilter, ToolTipPosition, BodyLabel, CompactSpinBox
 )
 
 from assets import res as ori_res
 from utils import conf
 from utils.ags import Extractor, parse, SearchKey
+from utils.processed_class import ClipSqlHandler
 
 ags_res = ori_res.GUI.Ags
 methods = Extractor.get_available_methods()
@@ -226,6 +228,39 @@ class AgsFromFileLayout(QHBoxLayout):
             )
 
 
+class AgsFromClipLayout(QHBoxLayout):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.view = parent
+        self.gui = parent.gui
+        self.init_ui()
+
+    def init_ui(self):
+        self.clipNumSpinBox = CompactSpinBox(self.view)
+        self.clipNumSpinBox.setRange(1, 10)
+        self.clipNumSpinBox.setValue(5)
+
+        self.fromClipBtn = PushButton(f"from {ags_res.clip_label}", self.view)
+        self.fromClipBtn.clicked.connect(self._onLoadFromClip)
+
+        self.addWidget(self.clipNumSpinBox)
+        self.addWidget(self.fromClipBtn)
+
+    def _onLoadFromClip(self):
+        limit = self.clipNumSpinBox.value()
+        handler = ClipSqlHandler(
+            conf.clip_db,
+            f"{conf.clip_sql} limit {limit}",
+            r".*"  # Match all - no regex filtering
+        )
+        items = handler.get_clip_items()
+        filtered = [item.strip() for item in items if item and item.strip()]
+
+        def make_search_tasks_from_clip(_text):
+            return filtered
+        self.view.set_select(make_search_tasks_func=make_search_tasks_from_clip)
+
+
 class AggrSearchView(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self)
@@ -263,6 +298,11 @@ class AggrSearchView(QWidget):
     def set_inputBtn(self):
         self.fileLayout = AgsFromFileLayout(self)
         self.inputBtnLayout.addLayout(self.fileLayout)
+
+        if pathlib.Path(conf.clip_db).exists():
+            self.clipLayout = AgsFromClipLayout(self)
+            self.inputBtnLayout.addLayout(self.clipLayout)
+
         extractor_module = importlib.import_module('utils.ags.extractor')
         for method in methods:
             btn = PushButton(f"from {method}", self)

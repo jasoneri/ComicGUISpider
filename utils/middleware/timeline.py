@@ -9,7 +9,9 @@ import typing as t
 class TimelineStage(IntEnum):
     SESSION_INIT = 50
 
-    WAIT_KEYWORD = 100
+    WAIT_SITE = 90
+    WAIT_SEARCH = 100
+    WAIT_KEYWORD = 100  # Legacy alias for WAIT_SEARCH
     KEYWORD_SENT = 110
     SPIDER_INIT = 120
     SEARCHING = 130
@@ -89,3 +91,41 @@ def stage_from_ui_action(action_name: str) -> t.Optional[TimelineStage]:
     if action_name == "ep_sent":
         return TimelineStage.EP_SENT
     return None
+
+
+class LaneStage(str, Enum):
+    SITE = "SITE"
+    SEARCH = "SEARCH"
+    BOOK = "BOOK"
+    EP = "EP"
+    POSTPROCESSING = "POSTPROCESSING"
+
+    @classmethod
+    def from_timeline_stage(cls, stage: TimelineStage) -> t.Optional["LaneStage"]:
+        mapping = {
+            TimelineStage.WAIT_SITE: cls.SITE,
+            TimelineStage.WAIT_SEARCH: cls.SEARCH,
+            TimelineStage.WAIT_BOOK_DECISION: cls.BOOK,
+            TimelineStage.WAIT_EP_DECISION: cls.EP,
+            TimelineStage.POSTPROCESSING: cls.POSTPROCESSING,
+        }
+        return mapping.get(stage)
+
+    @property
+    def prefix(self) -> str:
+        return {
+            LaneStage.SITE: "A",
+            LaneStage.SEARCH: "B",
+            LaneStage.BOOK: "C",
+            LaneStage.EP: "D",
+            LaneStage.POSTPROCESSING: "E",
+        }[self]
+
+
+LANE_PREFIX_MAP: dict[str, LaneStage] = {
+    "A": LaneStage.SITE,
+    "B": LaneStage.SEARCH,
+    "C": LaneStage.BOOK,
+    "D": LaneStage.EP,
+    "E": LaneStage.POSTPROCESSING,
+}

@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER
+from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -29,25 +29,24 @@ class PreprocessManager(QObject):
         self.task_manager = AsyncTaskManager(gui)
 
     def handle_choosebox_changed(self, index: int):
-        match index:
-            case 1:
-                self._preprocess_manga_copy()
-            case 2:
-                self._preprocess_jm()
-            case 3:
-                if not conf.proxies:
-                    self._preprocess_jm()
-                else:
-                    self.gui.say("🔔 已设置代理，跳过域名缓存处理")
-                    self.gui.toolWin.addAggrSearchView()
-            case 4:
-                self._preprocess_ehentai()
-            case 5:
-                self._preprocess_mangabz()
-            case 6:
-                self._preprocess_hitomi()
-            case 7:
-                self._preprocess_kemono()
+        special = {
+            1: self._preprocess_manga_copy,
+            2: self._preprocess_jm,
+            3: self._preprocess_wnacg,
+            4: self._preprocess_ehentai,
+            6: self._preprocess_hitomi,
+            7: self._preprocess_kemono,
+        }
+        handler = special.get(index)
+        if handler:
+            handler()
+        elif hasattr(self.gui.spiderUtils, 'test_index'):
+            self._preprocess_test_index()
+
+        if index in AGGR_SEARCH_IDXES:
+            self._add_aggr_search()
+        if index in CLIP_IDXES:
+            self.gui.clipBtn.setEnabled(1)
 
     def _preprocess_manga_copy(self):
         def manga_copy_task():
@@ -95,13 +94,12 @@ class PreprocessManager(QObject):
             success_callback=on_success, show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="更新域名缓存", task_id="domain_preprocess"
         )
-        self.gui.toolWin.addAggrSearchView()
 
     def _preprocess_ehentai(self):
+        eh_kits = EHentaiKits(conf)
         def ehentai_task():
             if not conf.cookies.get("ehentai"):
                 raise ValueError("cookies_not_set")
-            eh_kits = EHentaiKits(conf)
             if not eh_kits.test_index():
                 raise RuntimeError("access_fail")
             BrowserWindow.eh_kits = eh_kits
@@ -117,7 +115,6 @@ class PreprocessManager(QObject):
                     duration=-1, parent=self.gui.textBrowser
                 )
             elif "access_fail" in error_msg:
-                eh_kits = EHentaiKits(conf)
                 CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, self.gui.textBrowser,
                     eh_kits.index, eh_kits.name)
 
@@ -127,26 +124,38 @@ class PreprocessManager(QObject):
             show_error_info=self.show_err, error_callback=on_error,
             tooltip_title="exhentai 访问检测", task_id="ehentai_preprocess"
         )
-        self.gui.toolWin.addAggrSearchView()
 
-    def _preprocess_mangabz(self):
-        def mangabz_task():
+    def _preprocess_test_index(self):
+        name = self.gui.spiderUtils.name
+        index = self.gui.spiderUtils.index
+
+        def task():
             self.gui.sut = self.gui.spiderUtils(conf)
             if not self.gui.sut.test_index():
-                raise RuntimeError(f"access_fail:{self.gui.spiderUtils.name}:{self.gui.spiderUtils.index}")
+                raise RuntimeError(f"access_fail:{name}:{index}")
             return True
 
         def on_error(_):
             self.gui.disable_start()
             CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
-                    self.gui.spiderUtils.index, self.gui.spiderUtils.name)
+                    index, name)
 
         self.task_manager.execute_simple_task(
-            task_func=mangabz_task,
-            success_callback=lambda _: self.gui.say("<br>✅ mangabz 访问检测通过"),
+            task_func=task,
+            success_callback=lambda _: self.gui.say(f"<br>✅ {name} 访问检测通过"),
             show_error_info=self.show_err, error_callback=on_error,
-            tooltip_title="mangabz 访问检测", task_id="mangabz_preprocess"
+            tooltip_title=f"{name} 访问检测", task_id=f"{name}_preprocess"
         )
+
+    def _add_aggr_search(self):
+        if not hasattr(self.gui.toolWin, 'asInterface'):
+            self.gui.toolWin.addAggrSearchView()
+
+    def _preprocess_wnacg(self):
+        if conf.proxies:
+            self.gui.say("🔔 已设置代理，跳过域名缓存处理")
+        else:
+            self._preprocess_jm()
 
     def _preprocess_hitomi(self):
         def hitomi_check():
@@ -254,7 +263,7 @@ class PreprocessManager(QObject):
 
                 if missing_packages:
                     # 使用pyproject.toml安装脚本依赖
-                    cmd = [uv_exc, "tool", "install", "--force", f"ComicGUISpider[script]=={VER}", "--python", "<3.14"]
+                    cmd = [uv_exc, "tool", "install", "--force", f"ComicGUISpider[script]=={VER}"]
                     cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
                     process = subprocess.Popen(
                         cmd, cwd=exc_p, env=env,

@@ -5,14 +5,13 @@ from enum import Enum
 from typing import Dict, Optional
 import pandas as pd
 
-
-sanitize_re = re.compile(r'[|:<>?*"\\/]')
+from utils.core import ILLEGAL_FILENAME_RE, sanitize_for_path
 
 
 def format_naming(posts):
     for post in posts:
         if post.get("title"):
-            post['title'] = sanitize_re.sub('-', post['title'])
+            post['title'] = sanitize_for_path(post['title'])
     return posts
 
 
@@ -37,7 +36,6 @@ class FilterMgr:
 
 class ReFilter:
     def __init__(self, title_filters: Optional[Dict[str, str]] = None, keep: bool = False):
-        self._sanitize_re = re.compile(r'[|:<>?*"\\/]')
         self.artists_patterns = {}
         self.has_normal = False
         self.keep = keep
@@ -90,7 +88,7 @@ class RuleFilter:
         df['Version'] = df['title'].apply(lambda x: re.search(r'\([vV](\d+)\)', x))
         df['Version'] = df['Version'].apply(lambda x: f"v{x.group(1)}" if x else 'v0')
 
-        df['title'] = df['title'].str.replace(r'([|:<>?*"\\/])', '', regex=True)
+        df['title'] = df['title'].str.replace(ILLEGAL_FILENAME_RE, '', regex=True)
         
         latest_versions = df.loc[df.groupby('BaseName')['Version'].idxmax()]
         dic_posts = latest_versions.drop(['BaseName','Version'], axis=1).to_dict('records')

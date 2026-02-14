@@ -6,7 +6,7 @@
 ::: tip 简化流程 > `v2.7.0` 起在检测失败阶段已自动开内置浏览器引导  
 :::
 各网站的 `发布页`/`永久链接` 能在 `site-packages/utils/website/ins.py` 里找到  
-（国内域名专用）域名缓存文件为 `site-packages/__temp/xxx_domain.txt`（xxx = `wnacg`或`jm`），  
+（国内）域名缓存文件为 `site-packages/__temp/xxx_domain.txt`（xxx = `wnacg`或`jm`），  
 缓存有效期为 48 小时  
 程序每次启动会检测是否处于有效期内，过期或网络问题会删除缓存，下次启动重新获取  
 处于有效期内则可对此文件删改换域名等或加个空格保存即时生效  
@@ -16,21 +16,33 @@
 
 ## 2. 配置生效相关
 
-除少部分条目例如预设(只影响gui)，能当即保存时立即生效(保存配置的操作与gui同一进程);  
-其余影响后台进程的配置条目在选择网站后定型(点选网站后`后台进程`即开始)，  
-如果选网站后才反应过来改配置，需重启CGS方可生效
+| 保存生效时机 | 配置项 |
+| :---: | :---: |
+| 即时生效 | 预设/剪贴板相关/日夜模式 (等等 gui 相关) |
+| 内置重启生效 | 绝大部分 |
+
+::: tip 选择网站后会`开启后台进程`：当`选择网站前`保存，`内置重启生效` 的配置项等同于 `即时生效`
+内置重启仍不生效可尝试关掉 CGS 再启动  
+特殊：语言切换必需重启 CGS 方可生效
+:::
 
 ## 3. 配置系文件路径
 
-执行如下命令查看
+win: `%USERPROFILE%\AppData\Local\CGS`  
+mac: `~/Library/Application Support/CGS`
+
+::: tip 如果没找到，执行如下命令查看
 
 ```shell
 uv run python -c "from pathlib import Path;from PyQt5.QtCore import QStandardPaths;print(Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath('CGS'))"
 ```
 
-此路径设有文件如下:  
+:::
 
-- `conf.yml`: 配置文件  
-- `conf_img.yml`: scriptTool配置文件  
-- `reccord.db`: 去重记录  
-- `cookies.pkl`: cookies序列化文件  
+## 4. 短更新
+
+::: info 原 statusTool 的功能2，用于处理极小频繁的更改（非常规，参考拷贝频繁换域名的那段时期）  
+:::
+
+开发组：用`git tag`方式处理，格式: `hf26/02/10-2_9_0`  
+用户：参考[备用更新方法](/changelog/history)（开发组打`tag`后会在最新的`release`上增加提示导向此处）  

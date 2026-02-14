@@ -51,6 +51,9 @@ hero:
     <td><div align="center"><a href="https://hitomi.la/" target="_blank">
       <img src="/assets/img/icons/website/hitomi.png" alt="logo" style="max-height: 80px">
       </a></div></td>
+    <td><div align="center"><a href="https://h-comic.com/" target="_blank">
+      <img src="/assets/img/icons/website/hcomic.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
   </tr>
   <tr>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json"></td>
@@ -59,6 +62,7 @@ hero:
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json"></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json"></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json"></td>
+    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json"></td>
   </tr>
 </tbody></table>
 

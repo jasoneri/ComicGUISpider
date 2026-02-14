@@ -11,7 +11,7 @@ from PyQt5.QtCore import QThread, Qt, QCoreApplication, QUrl, QRect, QTimer
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
 from GUI.uic.qfluent import (
-    MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
+    MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen, CustomFlyout
 )
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
@@ -21,9 +21,9 @@ from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils, DomainToolView
 from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager
-from GUI.manager.mid import CGSMidManagerGUI
+from GUI.manager.mid import CGSMidManagerGUI, WorkflowState
 from GUI.manager.preprocess import PreprocessManager
-from GUI.uic.qfluent import CustomFlyout
+from utils.middleware.timeline import TimelineStage
 from variables import *
 from assets import res
 from utils import Queues, QueuesManager, conf, p, curr_os, select, ori_path, bs_theme
@@ -50,7 +50,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     checkisopenCnt = 0
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
-    webs_status = []
     books = {}
     keep_books = []
     eps = []
@@ -152,11 +151,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.spiderUtils = spider_utils_map[index]
             rmt_s2c = True
             self.rv_tools.ero = 0
-            if index in SPECIAL_WEBSITES_IDXES:
-                self.web_is_r18 = True
+            self.web_is_r18 = index in SPECIAL_WEBSITES_IDXES
+            self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
+            if self.web_is_r18:
                 self.sut = self.spiderUtils(conf)
                 rmt_s2c = False
                 self.rv_tools.ero = 1
+            if hasattr(self, 'mid_mgr') and self.mid_mgr:
+                self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
             FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
@@ -168,9 +170,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
+                # Notify CGSMid: site selected → wait for search keyword
+                if self.mid_mgr.enabled:
+                    self.mid_mgr._workflow_session.reset()
+                    self.mid_mgr.set_state(WorkflowState.RUNNING)
+                    self.mid_mgr.set_state(WorkflowState.WAITING, TimelineStage.WAIT_SEARCH)
             self.chooseBox_changed_tips(index)
             if self.web_is_r18:
-                self.clipBtn.setEnabled(1)
                 self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
             # 输入框联想补全
             self.set_completer()
@@ -456,6 +462,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self._next()
         else:
             start_and_search()
+            # Notify CGSMid: WAIT_SEARCH → RUNNING
+            if self.mid_mgr.enabled:
+                self.mid_mgr.set_state(WorkflowState.RUNNING, TimelineStage.SEARCHING)
 
         self.nextclickCnt += 1
         self.searchinput.setEnabled(False)
@@ -622,11 +631,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))
 
     def do_publish(self):
-        with open(ori_path.joinpath('assets/pubilsh_helper.html'), encoding='utf-8') as f:
-            format_text = f.read()
-            html = format_text.replace("{bs_theme}", bs_theme()) \
-                    .replace("{publish_url}", self.spiderUtils.publish_url)
-            self.tf = TmpFormatHtml.created_temp_html(html, flag="publish")
+        self.tf = TmpFormatHtml.created_temp_html("publish", 
+            bs_theme=bs_theme(), publish_url=self.spiderUtils.publish_url)
         self.set_preview()
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
         o_w, o_h = self.BrowserWindow.width(), self.BrowserWindow.height()
@@ -643,7 +649,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         )
         self.BrowserWindow.domain_v.handle(texts)
 
-    def open_url_by_browser(self, url):
+    def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
         rect = QRect(self.x(), int(screen_height*0.05), 
             self.width(), int(screen_height*0.9))
@@ -651,8 +657,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.set_preview(rect)
         else:
             self.BrowserWindow.setGeometry(rect)
-        self.BrowserWindow.view.load(QUrl(url))
         self.BrowserWindow.show()
+        self.BrowserWindow.view.load(QUrl(url))
+        if callback:
+            callback()
 
     def say_show_max(self):
         self.bsm = self.bsm or self.rv_tools.show_max()

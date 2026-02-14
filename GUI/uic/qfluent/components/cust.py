@@ -2,20 +2,49 @@ import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QEvent
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
+    TransparentToolButton, HyperlinkButton, PrimaryPushButton,
     FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, TeachingTipTailPosition, ImageLabel, 
-    StrongBodyLabel, CheckBox
+    TeachingTip, TeachingTipTailPosition, ImageLabel,
+    StrongBodyLabel, CheckBox, IconInfoBadge, InfoBadgeManager, InfoLevel, InfoBadgePosition
 )
 
 
 from assets import res
 from utils.redViewer_tools import BookShow
+
+
+class ClickableIconInfoBadge(IconInfoBadge):
+    clicked = pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 移除透明鼠标事件属性，使 badge 可点击
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton and self.isEnabled():
+            self.clicked.emit()
+        super().mousePressEvent(e)
+
+    def eventFilter(self, obj, e):
+        if self._inside and obj is self._target and e.type() in (QEvent.Resize, QEvent.Move):
+            self._update_position_inside()
+        return super().eventFilter(obj, e)
+
+
+class CustomBadge:
+    @classmethod
+    def make(cls, bge_args, pos: InfoBadgePosition, target):
+        _bge = ClickableIconInfoBadge(*bge_args)
+        _bge.manager = InfoBadgeManager.make(pos, target, _bge)
+        _bge.move(_bge.manager.position())
+        return _bge
 
 
 class CustomInfoBar:
@@ -33,13 +62,13 @@ class CustomInfoBar:
         w.show()
 
     @staticmethod
-    def show_custom(title, content, parent, _type="ERROR", ib_pos=InfoBarPosition.BOTTOM,
+    def show_custom(title, content, parent, _type="ERROR", ib_pos=InfoBarPosition.BOTTOM, duration=-1,
                     widgets=[], **kw):
         InfoBar_kw = dict(
             icon=getattr(InfoBarIcon, _type.upper()),
             title=title, content=content,
             orient=Qt.Horizontal, isClosable=True,
-            position=ib_pos, duration=-1,
+            position=ib_pos, duration=duration,
             parent=parent
         )
         w = InfoBar(**{**InfoBar_kw, **kw})
@@ -188,20 +217,6 @@ class SupportView(FlyoutViewBase):
         self.affLayout.addWidget(self.siliconBtn)
         self.affLayout.addWidget(self.yuqueBtn)
         self.affLayout.addItem(QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
-
-        # self.picLayout = QtWidgets.QHBoxLayout()
-        # self.aliPayLabel = ImageLabel(":/_support/alipay.png")
-        # self.aliPayLabel.scaledToWidth(int(self.width * 0.4))
-        # self.aliPayLabel.setBorderRadius(8, 8, 8, 8)
-        # self.picLayout.addWidget(self.aliPayLabel)
-        # vLine = QtWidgets.QFrame(self)
-        # vLine.setFrameShape(QtWidgets.QFrame.VLine)
-        # vLine.setFrameShadow(QtWidgets.QFrame.Sunken)
-        # self.picLayout.addWidget(vLine)
-        # self.wePayLabel = ImageLabel(":/_support/wepay.png")
-        # self.wePayLabel.scaledToWidth(int(self.width * 0.4))
-        # self.wePayLabel.setBorderRadius(8, 8, 8, 8)
-        # self.picLayout.addWidget(self.wePayLabel)
 
         self.layout.addLayout(self.titleLayout)
         self.hLine = QtWidgets.QFrame(self)

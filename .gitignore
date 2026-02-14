@@ -210,9 +210,11 @@ docs/*.html
 deploy/launcher/mac/*.html
 # self/bug-report
 _bug_log
-# ide
+# AI
 .cursor
 .claude
 .kilocode
 /plans
 .ace-tool/
+openspec/
+nul

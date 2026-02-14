@@ -1,6 +1,18 @@
+import re
 import time
 import typing as t
 from dataclasses import asdict
+
+ILLEGAL_FILENAME_RE = re.compile(r'[|:<>?*"\\/]')
+
+
+def sanitize_filename(name: str, repl: str = '_') -> str:
+    """清理文件名中的非法字符"""
+    return ILLEGAL_FILENAME_RE.sub(repl, name).strip() or "unnamed"
+
+
+def sanitize_for_path(name: str) -> str:
+    return ILLEGAL_FILENAME_RE.sub('-', name)
 
 
 class State:
