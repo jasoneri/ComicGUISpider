@@ -1,12 +1,9 @@
-# version:【v2.5.2】
+# version:【v2.8.6】
 import os
 import shutil
 import argparse
-from datetime import datetime
 import pathlib
 import subprocess
-
-_log_file_handle = None
 
 def clean(p):
     if p.exists() and p.is_dir():
@@ -23,9 +20,9 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--index', type=str, nargs='?', default=None,
                         help=f'pypi source (default: {DEFAULT_INDEX})')
     parser.add_argument('-v', '--version', type=str, default=None,
-                        help='specify ComicGUISpider version to install, e.g. 2.4.4')
-    parser.add_argument('-l', '--log', action='store_true',
-                        help='enable logging to cgs_pystand_static.log in the portable folder')
+                        help='specify ComicGUISpider version to install, e.g. 2.8.0')
+    parser.add_argument('-c', '--conf', type=str, default=None,
+                        help='uv.toml')
     parser.add_argument('-s', '--script', action='store_true',
                         help='comicguispider[script]')
     args = parser.parse_args()
@@ -43,42 +40,35 @@ if __name__ == '__main__':
     env = os.environ.copy()
     env['UV_TOOL_DIR'] = str(portable_env)
     env['UV_TOOL_BIN_DIR'] = str(uvtoolbin_env)
+    env['PATH'] = str(uv_runtime) + os.pathsep + env.get('PATH', '')
+    env['UV_NO_MANAGED_PYTHON'] = '1'
     env['VIRTUAL_ENV'] = str(uv_runtime)
     def clean_cgsp():
         clean(uvtoolbin_env)
         clean(portable_env.joinpath("comicguispider"))
     def run():
         cmd = [str(cgs_exec)]
-        print(cmd)
-        global _log_file_handle
-        if args.log:
-            logpath = portable_env.joinpath("cgs_pystand_static.log")
-            print("日志模式已启用，写入：", logpath)
-            f = open(logpath, "a", encoding="utf-8")
-            f.write(f"\n=== Started at {datetime.now().isoformat()} cmd: {cmd}\n")
-            f.flush()
-            _log_file_handle = f
-            try:
-                os.set_inheritable(f.fileno(), True)
-            except Exception as e:
-                print("设置日志文件句柄为 inheritable 失败：", e)
-            process = subprocess.Popen(cmd, env=env, stdout=f, stderr=f, text=True)
-        else:
-            process = subprocess.Popen(cmd, env=env, text=True)
-    if (not cgs_exec.exists()) or index_provided or version_provided or args.script:
+        process = subprocess.Popen(cmd, env=env, text=True)
+    if (not cgs_exec.exists()) or index_provided or version_provided or args.script or args.conf:
         clean_cgsp()
         pkg_spec = f"ComicGUISpider=={args.version}" if version_provided else "ComicGUISpider"
         if args.script:
             pkg_spec = pkg_spec.replace("ComicGUISpider", "ComicGUISpider[script]")
-        install_cmd = [str(uv_exec), "tool", "install", pkg_spec, "--force", "--python", "<3.14"]
-        install_cmd.extend(["--index-url", index_value])
+        install_cmd = [str(uv_exec), "tool", "install", pkg_spec, "--force"]
+        if args.conf:
+            install_cmd.extend(["--config-file", args.conf])
+        else:
+            install_cmd.extend(["--index-url", index_value])
         print(install_cmd)
         process = subprocess.Popen(install_cmd, env=env, text=True)
         process.wait()
+        with open(portable_env.joinpath("_pystand_static.int"), "w", encoding="utf-8") as fw:
+            with open(portable_env.joinpath("comicguispider/Lib/site-packages/assets/_pystand_static.int"), "r", encoding="utf-8") as fr:
+                fw.write(fr.read())
         if cgs_exec.exists():
             run()
         else:
             clean_cgsp()
-            input(r"安装失败，参考换源安装 \n https://jasoneri.github.io/ComicGUISpider/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
+            input(r"安装失败，参考换源安装 \n https://doc.comicguispider.nyc.mn/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
     else:
         run()

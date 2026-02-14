@@ -1,3 +1,7 @@
+<div align="right">
+🌍<a href="docs/_github/README_en.md">English</a> / 中文
+</div>
+
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
     <img src="https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png" alt="logo">
@@ -5,13 +9,12 @@
   <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
   <img src="https://img.shields.io/badge/Platform-All-blue?color=#4ec820" alt="tag">
-  <img src="https://img.shields.io/badge/-%3E3.8%20%3C3.14-brightgreen.svg?logo=python" alt="tag">
+  <img src="https://img.shields.io/badge/-%3E3.12-brightgreen.svg?logo=python" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
   </a>
 
   <p align="center">
-  <a href="docs/_github/README_en.md">English</a> | 
   <a href="https://doc.comicguispider.nyc.mn">🏠项目主页</a> | 
   <a href="https://doc.comicguispider.nyc.mn/deploy/quick-start">🚀快速上手</a> | 
   <a href="https://doc.comicguispider.nyc.mn/faq">❓常见问题</a> | 
@@ -59,7 +62,6 @@
 ## 📢更新
 
 图链/项目主页/文档都已转用 Cloudflare 加速优化，卡的话可以用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
-【🔉长驻提示】`avif依赖` 与 `python3.14` 不兼容，针对初始安装脚本/说明等做了版本限制  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 

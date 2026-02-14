@@ -49,7 +49,7 @@ echo "$INDEX_URL"
 
 if ! command -v cgs &> /dev/null; then
     echo "[CGS]installing cgs..."
-    uv tool install ComicGUISpider --force --index-url "$INDEX_URL" --python "<3.14"
+    uv tool install ComicGUISpider --force --index-url "$INDEX_URL"
 else
     echo "→ cgs installed, now runing"
 fi
