@@ -12,6 +12,7 @@
 ### 🐞 Fix
 
 + 修复内置浏览器读外链时的空白访问
++ 优化应用壳的外层异常反馈，整理绿色包相关，建议重新下载
 
 ::: tip 备用更新方法（待查证实验）  
 win绿色包(exe): 待办，先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  

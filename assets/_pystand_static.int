@@ -56,15 +56,17 @@ if __name__ == '__main__':
             pkg_spec = pkg_spec.replace("ComicGUISpider", "ComicGUISpider[script]")
         install_cmd = [str(uv_exec), "tool", "install", pkg_spec, "--force"]
         if args.conf:
-            install_cmd.extend(["--config-file", args.conf])
+            install_cmd.extend(["--config-file", portable_env.joinpath(args.conf)])
         else:
             install_cmd.extend(["--index-url", index_value])
         print(install_cmd)
         process = subprocess.Popen(install_cmd, env=env, text=True)
         process.wait()
-        with open(portable_env.joinpath("_pystand_static.int"), "w", encoding="utf-8") as fw:
-            with open(portable_env.joinpath("comicguispider/Lib/site-packages/assets/_pystand_static.int"), "r", encoding="utf-8") as fr:
-                fw.write(fr.read())
+        new_int = portable_env.joinpath("comicguispider/Lib/site-packages/assets/_pystand_static.int")
+        if new_int.exists():
+            with open(new_int, "r", encoding="utf-8") as fr:
+                with open(portable_env.joinpath("_pystand_static.int"), "w", encoding="utf-8") as fw:
+                    fw.write(fr.read())
         if cgs_exec.exists():
             run()
         else:

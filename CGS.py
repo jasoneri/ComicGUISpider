@@ -7,7 +7,7 @@ from multiprocessing import freeze_support
 from pathlib import Path
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 # from multiprocessing.managers import RemoteError
 # sys.setrecursionlimit(5000)
@@ -33,13 +33,24 @@ def _append_fatal_log(phase, trace_text):
 def _raise_with_context(exc, phase):
     trace_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     log_path = _append_fatal_log(phase, trace_text)
-    sys.stderr.write(
-        "\n[CGS Fatal] startup failed\n"
+    msg = (
+        f"[CGS Fatal] startup failed\n"
         f"phase: {phase}\n"
-        f"error: {type(exc).__name__}: {exc}\n"
+        f"error: {type(exc).__name__}: {exc}\n\n"
         f"trace log: {log_path}\n"
-        "建议：检查 wheel 打包完整性，并执行发布前冒烟测试。\n"
     )
+    if sys.stderr is not None:
+        try:
+            sys.stderr.write("\n" + msg + "\n")
+        except OSError:
+            pass
+    app = QApplication.instance() or QApplication(sys.argv)
+    box = QMessageBox()
+    box.setWindowFlags(box.windowFlags() | Qt.WindowStaysOnTopHint)
+    box.setIcon(QMessageBox.Critical)
+    box.setWindowTitle("CGS Fatal Error")
+    box.setText(msg)
+    box.exec_()
     raise
 
 
