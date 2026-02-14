@@ -3,8 +3,7 @@
 import markdown
 from utils import ori_path
 
-
-with open(ori_path.joinpath('assets/github_format.html'), 'r', encoding='utf-8') as f:
+with open(ori_path.joinpath("GUI/src/preview_format/github_format.html"), 'r', encoding='utf-8') as f:
     github_markdown_format = f.read()
 
 

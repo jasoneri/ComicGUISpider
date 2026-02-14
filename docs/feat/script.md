@@ -13,12 +13,12 @@ saucenao / kemono / nekohouse
 :::
 ::: tip 源码使用 `uv` 安装脚本集依赖（GUI下的程序内切到 kemono 时已自动化处理了）
 ```bash
-uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple --python "<3.14"
+uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 ⚠️ win绿色包自动安装依赖失败时则用以下命令  
 （基于`_pystand_static.int` 的 `version` 大于等于 `v2`）
 ```cmd
-.\CGS.exe -v 2.4.4 --script -i https://pypi.tuna.tsinghua.edu.cn/simple
+.\CGS.exe -v 2.8.0 -s -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 

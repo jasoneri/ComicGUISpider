@@ -49,7 +49,7 @@ class AvatarCache:
         if not self._dirty:
             return
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with contextlib.suppress():
+        with contextlib.suppress(Exception):
             with open(self.cache_path, "wb") as f:
                 pickle.dump(self._data, f, protocol=pickle.HIGHEST_PROTOCOL)
             self._dirty = False
