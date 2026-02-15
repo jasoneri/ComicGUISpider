@@ -5,7 +5,7 @@ mod version;
 
 use args::CliArgs;
 use clap::Parser;
-use process::{cleanup_stale_dirs, run_update_cli, wait_for_parent_exit, InstallerConfig};
+use process::{InstallerConfig, cleanup_stale_dirs, run_update_cli, wait_for_parent_exit};
 
 fn main() {
     let args = CliArgs::parse();

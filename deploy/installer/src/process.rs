@@ -90,7 +90,7 @@ pub fn wait_for_parent_exit(parent_pid: u32, timeout_ms: u32) {
     {
         use windows::Win32::Foundation::CloseHandle;
         use windows::Win32::System::Threading::{
-            OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
+            OpenProcess, PROCESS_SYNCHRONIZE, WaitForSingleObject,
         };
 
         unsafe {
@@ -168,11 +168,7 @@ fn run_update_worker(config: &InstallerConfig, tx: &Sender<InstallerEvent>) -> i
 
     log_msg(
         &logger,
-        &format!(
-            "GUI mode: {} {}",
-            config.uv_exc.display(),
-            args.join(" ")
-        ),
+        &format!("GUI mode: {} {}", config.uv_exc.display(), args.join(" ")),
     );
     let _ = tx.send(InstallerEvent::Progress {
         percent: 5,
@@ -189,20 +185,23 @@ fn run_update_worker(config: &InstallerConfig, tx: &Sender<InstallerEvent>) -> i
 
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
+    let parser = Arc::new(Mutex::new(ProgressParser::default()));
 
     let lg1 = Arc::clone(&logger);
+    let p1 = Arc::clone(&parser);
     let tx1 = tx.clone();
     let t1 = thread::spawn(move || {
         if let Some(r) = stdout {
-            stream_lines(r, &lg1, &tx1);
+            stream_lines(r, &lg1, &tx1, &p1);
         }
     });
 
     let lg2 = Arc::clone(&logger);
+    let p2 = Arc::clone(&parser);
     let tx2 = tx.clone();
     let t2 = thread::spawn(move || {
         if let Some(r) = stderr {
-            stream_lines(r, &lg2, &tx2);
+            stream_lines(r, &lg2, &tx2, &p2);
         }
     });
 
@@ -242,74 +241,94 @@ fn run_update_worker(config: &InstallerConfig, tx: &Sender<InstallerEvent>) -> i
     Ok(())
 }
 
-fn stream_lines<R: Read>(reader: R, logger: &Arc<Mutex<File>>, tx: &Sender<InstallerEvent>) {
-    for line in BufReader::new(reader).lines() {
-        let Ok(line) = line else { continue };
-        log_msg(logger, &line);
-        if let Some(ev) = parse_progress(&line) {
-            let _ = tx.send(ev);
-        }
-    }
+#[derive(Debug, Default)]
+struct ProgressParser {
+    total_packages: u32,
+    downloaded_count: u32,
 }
 
 static RE_RESOLVED: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"Resolved (\d+) package").unwrap());
-static RE_DL_STEP: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\((\d+)/(\d+)\)").unwrap());
-static RE_DOWNLOADED: LazyLock<Regex> =
+static RE_DL_SUMMARY: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"Downloaded (\d+) package").unwrap());
-static RE_INSTALLED: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"Installed (\d+) package").unwrap());
+static RE_DL_ITEM: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*Downloaded\s+(.+)$").unwrap());
 
-fn parse_progress(line: &str) -> Option<InstallerEvent> {
-    if line.contains("Resolved") {
-        if let Some(caps) = RE_RESOLVED.captures(line) {
+impl ProgressParser {
+    fn parse(&mut self, line: &str) -> Option<InstallerEvent> {
+        if line.contains("Resolved") {
+            if let Some(caps) = RE_RESOLVED.captures(line) {
+                self.total_packages = caps[1].parse().unwrap_or(0);
+                self.downloaded_count = 0;
+                return Some(InstallerEvent::Progress {
+                    percent: 15,
+                    status: format!("Resolved ({})", &caps[1]),
+                });
+            }
+        } else if line.contains("Downloaded") {
+            if let Some(caps) = RE_DL_SUMMARY.captures(line) {
+                return Some(InstallerEvent::Progress {
+                    percent: 75,
+                    status: format!("Downloaded ({})", &caps[1]),
+                });
+            }
+            if RE_DL_ITEM.is_match(line) {
+                self.downloaded_count = self.downloaded_count.saturating_add(1);
+                if self.total_packages > 0 {
+                    let count = self.downloaded_count.min(self.total_packages);
+                    let pct = (15 + count * 60 / self.total_packages).min(75) as u8;
+                    return Some(InstallerEvent::Progress {
+                        percent: pct,
+                        status: format!("Downloading ({}/{})", count, self.total_packages),
+                    });
+                }
+                return Some(InstallerEvent::Progress {
+                    percent: 45,
+                    status: "Downloading...".into(),
+                });
+            }
+        } else if line.contains("Prepared") {
             return Some(InstallerEvent::Progress {
-                percent: 15,
-                status: format!("Resolved ({})", &caps[1]),
+                percent: 80,
+                status: "Prepared".into(),
+            });
+        } else if line.contains("Installing") {
+            return Some(InstallerEvent::Progress {
+                percent: 85,
+                status: "Installing...".into(),
+            });
+        } else if line.contains("Installed") {
+            return Some(InstallerEvent::Progress {
+                percent: 100,
+                status: "Installed".into(),
             });
         }
-    } else if let Some(caps) = RE_DL_STEP.captures(line) {
-        let cur: u32 = caps[1].parse().unwrap_or(0);
-        let tot: u32 = caps[2].parse().unwrap_or(1).max(1);
-        let pct = (15 + cur * 60 / tot).min(75) as u8;
-        return Some(InstallerEvent::Progress {
-            percent: pct,
-            status: format!("Downloading ({cur}/{tot})"),
-        });
-    } else if line.contains("Downloaded") {
-        if let Some(caps) = RE_DOWNLOADED.captures(line) {
-            return Some(InstallerEvent::Progress {
-                percent: 75,
-                status: format!("Downloaded ({})", &caps[1]),
-            });
-        }
-    } else if line.contains("Installing") {
-        return Some(InstallerEvent::Progress {
-            percent: 85,
-            status: "Installing...".into(),
-        });
-    } else if line.contains("Installed") {
-        let n = RE_INSTALLED
-            .captures(line)
-            .map(|c| c[1].to_string())
-            .unwrap_or_default();
-        let status = if n.is_empty() {
-            "Installed".into()
-        } else {
-            format!("Installed ({n})")
-        };
-        return Some(InstallerEvent::Progress {
-            percent: 100,
-            status,
-        });
+        None
     }
-    None
+}
+
+fn stream_lines<R: Read>(
+    reader: R,
+    logger: &Arc<Mutex<File>>,
+    tx: &Sender<InstallerEvent>,
+    parser: &Arc<Mutex<ProgressParser>>,
+) {
+    for line in BufReader::new(reader).lines() {
+        let Ok(line) = line else { continue };
+        log_msg(logger, &line);
+        if let Ok(mut p) = parser.lock() {
+            if let Some(ev) = p.parse(&line) {
+                let _ = tx.send(ev);
+            }
+        }
+    }
 }
 
 fn restart_cgs(config: &InstallerConfig) -> io::Result<()> {
-    Command::new(&config.uv_exc)
-        .args(["tool", "run", "--from", "comicguispider", "cgs"])
+    let cgs = config
+        .uv_tool_bin_dir
+        .join(if cfg!(windows) { "cgs.exe" } else { "cgs" });
+    Command::new(cgs)
         .env("UV_TOOL_DIR", &config.uv_tool_dir)
         .env("UV_TOOL_BIN_DIR", &config.uv_tool_bin_dir)
         .stdout(Stdio::null())
