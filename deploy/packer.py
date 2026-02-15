@@ -142,7 +142,7 @@ class Packer(Proj):
                 return self.packup()
             zip_file = self.preset_zip_file
             specified = ('runtime', '_pystand_static.int',
-                         f'{self._proj}.exe')
+                         f'{self._proj}.exe', 'installer.exe')
             mode = "w"
         elif self.preset_zip_file.exists():
             shutil.copy(self.preset_zip_file, self.zip_file)
