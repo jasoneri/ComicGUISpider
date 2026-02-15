@@ -53,7 +53,7 @@
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
 | [Kemono](https://kemono.cr)     | 🌏 |     🔞     |  |
-| [HComic](https://kemono.cr)     | 🌏 |     🔞/代理/`2.8.6-beta.2`~     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
+| [HComic](https://kemono.cr)     | 🌏 |     🔞/代理/`2.8.6`~     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
