@@ -1,5 +1,4 @@
 import os
-import shlex
 import subprocess
 import typing as t
 
@@ -175,27 +174,103 @@ class Updater:
         QTimer.singleShot(1000, self.gui.close)
 
     def to_update(self, ver):
-        index_url = PYPI_SOURCE[conf.pypi_source]
-        installer_exe = exc_p / "installer.exe"
-        log = str(exc_p / "cgs_update.log")
-        if os.name == "nt" and installer_exe.exists():
-            args = [
-                str(installer_exe),
-                '--version', ver,
-                '--uv-exc', uv_exc,
-                '--index-url', index_url,
-                '--parent-pid', str(os.getpid()),
-            ]
-            for key in ('UV_TOOL_DIR', 'UV_TOOL_BIN_DIR'):
-                if key in os.environ:
-                    args.extend([f'--{key.lower().replace("_", "-")}', os.environ[key]])
-            subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE, env=env)
-        else:
-            cmd = f"{uv_exc} tool install ComicGUISpider=={ver} --force --index-url {index_url}"
-            if os.name == "nt":
-                subprocess.Popen(["cmd", "/c", "start", "", "powershell", "-NoProfile", "-Command",
-                                f"{cmd} 2>&1 | Tee-Object -FilePath {shlex.quote(log)} ; Read-Host 'Press Enter to close'"], env=env)
-            else:
-                full = f"""{cmd} 2>&1 | tee -a {shlex.quote(log)} ; echo 'done'; read -n1 -s -r -p 'Press any key to close...'"""
-                subprocess.Popen(["setsid", "sh", "-c", full], start_new_session=True, env=env)
+        _UpdateLauncher(ver).run()
         self.gui.close()
+
+
+class _UpdateLauncher:
+    def __init__(self, ver: str):
+        self.ver = ver
+        self.install_spec = f"ComicGUISpider=={ver}"
+        self.index_url = PYPI_SOURCE[conf.pypi_source]
+        self.log_path = exc_p / "cgs_update.log"
+        self.installer_exe = exc_p / "runtime" / "installer.exe"
+
+    def run(self):
+        if os.name == "nt" and self.installer_exe.exists():
+            self._run_installer()
+            return
+        if os.name == "nt":
+            self._run_windows_fallback()
+            return
+        self._run_posix_fallback()
+
+    def _run_installer(self):
+        args = [
+            str(self.installer_exe),
+            "--version", self.ver,
+            "--uv-exc", uv_exc,
+            "--index-url", self.index_url,
+            "--parent-pid", str(os.getpid()),
+        ]
+        for key in ("UV_TOOL_DIR", "UV_TOOL_BIN_DIR"):
+            value = os.environ.get(key)
+            if value:
+                args.extend([f"--{key.lower().replace('_', '-')}", value])
+        subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE, env=env)
+
+    def _run_windows_fallback(self):
+        ps1_path = exc_p / "updater.ps1"
+        script = r"""param(
+    [Parameter(Mandatory = $true)][string]$UvExe,
+    [Parameter(Mandatory = $true)][string]$InstallSpec,
+    [Parameter(Mandatory = $true)][string]$IndexUrl,
+    [Parameter(Mandatory = $true)][string]$LogPath,
+    [string]$UvToolDir = "",
+    [string]$UvToolBinDir = ""
+)
+
+if ($UvToolDir) { $env:UV_TOOL_DIR = $UvToolDir }
+if ($UvToolBinDir) { $env:UV_TOOL_BIN_DIR = $UvToolBinDir }
+
+& $UvExe tool install $InstallSpec --force --index-url $IndexUrl 2>&1 |
+    Tee-Object -FilePath $LogPath
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "`nUpdate failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
+}
+
+Read-Host "Press Enter to close"
+"""
+        self._write(ps1_path, script)
+        subprocess.Popen(
+            [
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit",
+                "-File", str(ps1_path),
+                "-UvExe", uv_exc,
+                "-InstallSpec", self.install_spec,
+                "-IndexUrl", self.index_url,
+                "-LogPath", str(self.log_path),
+                "-UvToolDir", os.environ.get("UV_TOOL_DIR", ""),
+                "-UvToolBinDir", os.environ.get("UV_TOOL_BIN_DIR", ""),
+            ],
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+            env=env,
+        )
+
+    def _run_posix_fallback(self):
+        sh_path = exc_p / "updater.sh"
+        script = """#!/bin/sh
+uv_exe="$1"
+install_spec="$2"
+index_url="$3"
+log_path="$4"
+
+"$uv_exe" tool install "$install_spec" --force --index-url "$index_url" 2>&1 | tee -a "$log_path"
+echo "done"
+printf "Press any key to close..."
+stty -icanon -echo
+dd bs=1 count=1 >/dev/null 2>&1
+stty icanon echo
+"""
+        self._write(sh_path, script)
+        os.chmod(sh_path, 0o755)
+        subprocess.Popen(
+            ["setsid", "sh", str(sh_path), uv_exc, self.install_spec, self.index_url, str(self.log_path)],
+            start_new_session=True,
+            env=env,
+        )
+
+    @staticmethod
+    def _write(path, content: str):
+        path.write_text(content, encoding="utf-8")

@@ -1,9 +1,9 @@
-use crate::process::{spawn_update_worker, InstallerConfig, InstallerEvent};
+use crate::process::{InstallerConfig, InstallerEvent, spawn_update_worker};
 use eframe::egui;
 use egui::{Color32, Frame, Margin, RichText};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::mpsc;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const BG: Color32 = Color32::from_rgb(26, 26, 46);
@@ -26,7 +26,11 @@ fn status_color(status: &str) -> Color32 {
     let s = status.to_ascii_lowercase();
     if s.contains("fail") || s.contains("error") {
         ERROR
-    } else if s.contains("installed") || s.contains("success") || s.contains("restart") || s.contains("done") {
+    } else if s.contains("installed")
+        || s.contains("success")
+        || s.contains("restart")
+        || s.contains("done")
+    {
         SUCCESS
     } else if s.contains("download") || s.contains("resolv") || s.contains("install") {
         ACCENT
@@ -68,21 +72,21 @@ struct UpdaterApp {
     version: String,
     status: String,
     progress: u8,
+    target_progress: u8,
+    last_event_time: Instant,
     rx: mpsc::Receiver<InstallerEvent>,
     exit_code: Arc<AtomicI32>,
     close_at: Option<Instant>,
 }
 
 impl UpdaterApp {
-    fn new(
-        version: String,
-        rx: mpsc::Receiver<InstallerEvent>,
-        exit_code: Arc<AtomicI32>,
-    ) -> Self {
+    fn new(version: String, rx: mpsc::Receiver<InstallerEvent>, exit_code: Arc<AtomicI32>) -> Self {
         Self {
             version,
             status: "Preparing update...".into(),
             progress: 0,
+            target_progress: 0,
+            last_event_time: Instant::now(),
             rx,
             exit_code,
             close_at: None,
@@ -93,7 +97,9 @@ impl UpdaterApp {
         while let Ok(ev) = self.rx.try_recv() {
             match ev {
                 InstallerEvent::Progress { percent, status } => {
-                    self.progress = percent.min(100);
+                    let p = percent.min(100);
+                    self.target_progress = self.target_progress.max(p);
+                    self.progress = self.target_progress;
                     self.status = status;
                 }
                 InstallerEvent::Finished { exit_code, message } => {
@@ -101,6 +107,7 @@ impl UpdaterApp {
                     self.status = message;
                     if exit_code == 0 {
                         self.progress = 100;
+                        self.target_progress = 100;
                         self.close_at = Some(Instant::now() + Duration::from_millis(1500));
                     }
                 }
@@ -109,6 +116,7 @@ impl UpdaterApp {
                     self.status = message;
                 }
             }
+            self.last_event_time = Instant::now();
         }
     }
 }
@@ -125,22 +133,61 @@ impl eframe::App for UpdaterApp {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
 
+        let elapsed = self.last_event_time.elapsed().as_secs_f32();
+        let display_progress = if elapsed > 2.0 && self.target_progress < 100 {
+            let next = match self.target_progress {
+                0..=14 => 14.0,
+                15..=74 => 72.0,
+                75..=79 => 79.0,
+                80..=84 => 84.0,
+                85..=99 => 98.0,
+                _ => self.target_progress as f32,
+            };
+            let t = ((elapsed - 2.0) / 60.0).min(0.9);
+            self.target_progress as f32 + t * (next - self.target_progress as f32)
+        } else {
+            self.target_progress as f32
+        };
+        let display_status = if elapsed > 3.0 && self.target_progress < 100 {
+            format!("{} — {}s", self.status, elapsed as u64)
+        } else {
+            self.status.clone()
+        };
+
         let panel = Frame::new()
-            .inner_margin(Margin { left: 30, right: 30, top: 28, bottom: 20 })
+            .inner_margin(Margin {
+                left: 30,
+                right: 30,
+                top: 28,
+                bottom: 20,
+            })
             .corner_radius(8.0)
             .fill(BG);
 
         egui::CentralPanel::default().frame(panel).show(ctx, |ui| {
-            ui.label(RichText::new("CGS Updater").size(22.0).strong().color(TEXT_PRIMARY));
+            ui.label(
+                RichText::new("CGS Updater")
+                    .size(22.0)
+                    .strong()
+                    .color(TEXT_PRIMARY),
+            );
             ui.add_space(4.0);
-            ui.label(RichText::new(format!("v{}", self.version)).size(13.0).color(TEXT_SECONDARY));
+            ui.label(
+                RichText::new(format!("v{}", self.version))
+                    .size(13.0)
+                    .color(TEXT_SECONDARY),
+            );
             ui.add_space(12.0);
             ui.separator();
             ui.add_space(12.0);
-            ui.label(RichText::new(&self.status).size(14.0).color(status_color(&self.status)));
+            ui.label(
+                RichText::new(&display_status)
+                    .size(14.0)
+                    .color(status_color(&self.status)),
+            );
             ui.add_space(16.0);
             ui.add(
-                egui::ProgressBar::new(self.progress as f32 / 100.0)
+                egui::ProgressBar::new((display_progress / 100.0).clamp(0.0, 1.0))
                     .fill(ACCENT)
                     .show_percentage(),
             );

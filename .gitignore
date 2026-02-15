@@ -189,7 +189,7 @@ src/
 !GUI/src/preview_format/
 !GUI/src/material_ct.py
 !GUI/src/__init__.py
-!tools/installer/src/
+!deploy/installer/src/
 temp
 *-in.txt
 untitled*
