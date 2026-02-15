@@ -56,7 +56,7 @@ if __name__ == '__main__':
             pkg_spec = pkg_spec.replace("ComicGUISpider", "ComicGUISpider[script]")
         install_cmd = [str(uv_exec), "tool", "install", pkg_spec, "--force"]
         if args.conf:
-            install_cmd.extend(["--config-file", portable_env.joinpath(args.conf)])
+            install_cmd = [str(uv_exec), "--config-file", portable_env.joinpath(args.conf), "tool", "install", pkg_spec, "--force"]
         else:
             install_cmd.extend(["--index-url", index_value])
         print(install_cmd)

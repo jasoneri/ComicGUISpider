@@ -1,6 +1,5 @@
 import os
-import json
-from pathlib import Path
+import shlex
 import subprocess
 import typing as t
 
@@ -12,7 +11,7 @@ from qfluentwidgets import (
 from assets import res
 from variables import PYPI_SOURCE
 from deploy.update import Proj
-from utils import conf, ori_path, env, uv_exc, exc_p, TaskObj, TasksObj
+from utils import conf, env, uv_exc, exc_p, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
 from utils.sql import SqlRecorder
 from GUI.uic.qfluent.components import (
@@ -176,24 +175,27 @@ class Updater:
         QTimer.singleShot(1000, self.gui.close)
 
     def to_update(self, ver):
-        # self.gui.open_url_by_browser(self.changelog_url)
-        uv_env = {key: os.environ[key] for key in ('UV_TOOL_DIR', 'UV_TOOL_BIN_DIR') if key in os.environ}
-        tool_dir = Path(uv_env['UV_TOOL_DIR'])
-        if os.name == "nt":
-            python_exc = tool_dir / "comicguispider" / "Scripts" / "python.exe"
-        else:
-            python_exc = tool_dir / "comicguispider" / "bin" / "python"
-        with ori_path.joinpath("assets/update.txt").open("r", encoding="utf-8") as f:
-            template = f.read()
-        updater_script = template.replace(r"{uv_env_dict}", json.dumps(uv_env, ensure_ascii=False))
-        script_path = tool_dir.joinpath("cgs_update.py")
-        with open(script_path, "w", encoding="utf-8") as f:
-            f.write(updater_script)
-        args = [str(python_exc), str(script_path),
-            '--uv-exc', uv_exc, '--version', ver,
-            '--index-url', PYPI_SOURCE[conf.pypi_source]]
-        if os.name == "nt":
+        index_url = PYPI_SOURCE[conf.pypi_source]
+        installer_exe = exc_p / "installer.exe"
+        log = str(exc_p / "cgs_update.log")
+        if os.name == "nt" and installer_exe.exists():
+            args = [
+                str(installer_exe),
+                '--version', ver,
+                '--uv-exc', uv_exc,
+                '--index-url', index_url,
+                '--parent-pid', str(os.getpid()),
+            ]
+            for key in ('UV_TOOL_DIR', 'UV_TOOL_BIN_DIR'):
+                if key in os.environ:
+                    args.extend([f'--{key.lower().replace("_", "-")}', os.environ[key]])
             subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE, env=env)
         else:
-            subprocess.Popen(args, start_new_session=True, env=env)
+            cmd = f"{uv_exc} tool install ComicGUISpider=={ver} --force --index-url {index_url}"
+            if os.name == "nt":
+                subprocess.Popen(["cmd", "/c", "start", "", "powershell", "-NoProfile", "-Command",
+                                f"{cmd} 2>&1 | Tee-Object -FilePath {shlex.quote(log)} ; Read-Host 'Press Enter to close'"], env=env)
+            else:
+                full = f"""{cmd} 2>&1 | tee -a {shlex.quote(log)} ; echo 'done'; read -n1 -s -r -p 'Press any key to close...'"""
+                subprocess.Popen(["setsid", "sh", "-c", full], start_new_session=True, env=env)
         self.gui.close()
