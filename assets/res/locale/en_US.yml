@@ -3,14 +3,14 @@ Vars:
   hitomiDb_tmp_url: "https://github.com/jasoneri/imgur/releases/download/preset/hitomi.db"
 GUI:
   DESC1: "1. First-time users, click <img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\"> button. Then read `Doc(Document)` at the bottom-left corner for Config-details/GUI video guides."
-  DESC2: "2. If encountering issues, check the <a href='https://doc.comicguispider.nyc.mn/faq/'>📖FAQ/Extra Notes</a> document before seeking help."
+  DESC2: "2. If encountering issues, check the <a href='https://cgs.101114105.xyz/faq/'>📖FAQ/Extra Notes</a> document before seeking help."
   DESC_ELSE: "For issues/feature suggestions, contact with an issue."
   
   BrowserWindow_ensure_warning: "Return to selection page and ensure valid selection before proceeding."
   jm_desc: "Supports multiple book IDs (decimal numbers), e.g. `123456,654321,114514` (comma-separated)<br>[Clipboard function: Avoid copying `18comic.vip` domain due to 5-second shield - direct ID input recommended]"
   wnacg_desc: "wnacg CN source may be slow/unstable. Common network errors [Errno 11001 10054 10060]/`ReadTimeout`:<br>Restart usually resolves. If persistent after multiple attempts, contact group/submit issue."
   mangabz_desc: "Māngabz uses iPhone web version. Note: Volumes/chapters both use numeric labels (e.g. Vol.1 and Ch.1 both labeled '1') - identify via adjacent chapters."
-  hitomi_desc: "Except presets, use `hitomi-tools` for input<a href='https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif'>📹References</a><br>1. Avoid using search-keyword 2. Hitomi does not support mappings"
+  hitomi_desc: "Except presets, use `hitomi-tools` for input<a href='https://img-cgs.101114105.xyz/file/1764957586207_hitomi-tools-usage.gif'>📹References</a><br>1. Avoid using search-keyword 2. Hitomi does not support mappings"
   h_comic_desc: "h-comic is a frontend-rendered site. Prefer short keywords (core title words). If search returns empty, retry with synonyms."
   check_ehetai: "Checking current environment's access to `exhentai`..."
   check_mangabz: "Checking current environment's access to `Māngabz`..."

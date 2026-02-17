@@ -188,7 +188,7 @@ class rvTool(QWidget):
             CustomInfoBar.show(
                 title='', content=tools_res.rv_nonwin_guide,
                 parent=self,
-                url="https://doc.redviewer.nyc.mn/deploy/#%E2%8C%98-2-%E5%91%BD%E4%BB%A4%E8%A1%8C-%E9%83%A8%E7%BD%B2-%E8%BF%90%E8%A1%8C%E2%80%94%E5%A4%9A%E5%90%88%E4%B8%80%E8%84%9A%E6%9C%AC",
+                url="https://rv.101114105.xyz/deploy/#%E2%8C%98-2-%E5%91%BD%E4%BB%A4%E8%A1%8C-%E9%83%A8%E7%BD%B2-%E8%BF%90%E8%A1%8C%E2%80%94%E5%A4%9A%E5%90%88%E4%B8%80%E8%84%9A%E6%9C%AC",
                 url_name=tools_res.rv_deploy_desc,
                 _type="INFORMATION"
             )
