@@ -1,6 +1,6 @@
 [project]
 name = "ComicGUISpider"
-version = "2.8.6"
+version = "2.8.7"
 description = "GUI Comic Downloader"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -74,8 +74,8 @@ allow-direct-references = true
 
 [project.urls]
 Repository = "https://github.com/jasoneri/ComicGUISpider"
-Documentation = "https://doc.comicguispider.nyc.mn/"
-Changelog = "https://doc.comicguispider.nyc.mn/changelog/history"
+Documentation = "https://cgs.101114105.xyz/"
+Changelog = "https://cgs.101114105.xyz/changelog/history"
 Releases = "https://github.com/jasoneri/ComicGUISpider/releases"
 
 [project.scripts]

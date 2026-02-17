@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitepress';
 
 
-const version = `v2.8.6-beta`
+const version = `v2.8.7`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
@@ -11,7 +11,7 @@ export default defineConfig({
 
     head: [
         ['meta', {property: 'og:site_name', content: 'ComicGUISpider'}],
-        ['meta', {property: 'og:url', content: 'https://doc.comicguispider.nyc.mn/'}],
+        ['meta', {property: 'og:url', content: 'https://cgs.101114105.xyz/'}],
     ],
 
     locales: {
@@ -32,8 +32,8 @@ export default defineConfig({
         outline: 'deep',
         // https://vitepress.dev/reference/default-theme-config
         logo: {
-            dark: 'https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png',
-            light: 'https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png',
+            dark: 'https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png',
+            light: 'https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png',
         },
         editLink: {
             pattern: 'https://github.com/jasoneri/ComicGUISpider/edit/main/docs/:path',
@@ -154,7 +154,7 @@ export default defineConfig({
                     },
                     {
                         text: "🍖另类投喂/福利",
-                        link: "https://doc.redviewer.nyc.mn/contribute/feed",
+                        link: "https://rv.101114105.xyz/contribute/feed",
                     }
                 ]
             }

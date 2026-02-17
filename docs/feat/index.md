@@ -65,7 +65,7 @@
     </tr>
     <tr>
       <td style="text-align: center;">hitomiTool</td>
-      <td style="text-align: left;"><a href="https://img.comicguispider.nyc.mn/file/1764957586207_hitomi-tools-usage.gif" target="_blank" rel="noopener noreferrer">📹参考用法</a></td>
+      <td style="text-align: left;"><a href="https://img-cgs.101114105.xyz/file/1764957586207_hitomi-tools-usage.gif" target="_blank" rel="noopener noreferrer">📹参考用法</a></td>
     </tr>
   </tbody>
 </table>
