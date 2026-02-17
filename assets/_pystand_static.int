@@ -71,6 +71,6 @@ if __name__ == '__main__':
             run()
         else:
             clean_cgsp()
-            input(r"安装失败，参考换源安装 \n https://doc.comicguispider.nyc.mn/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
+            input(r"安装失败，参考换源安装 \n https://cgs.101114105.xyz/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
     else:
         run()

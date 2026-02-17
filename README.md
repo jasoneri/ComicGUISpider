@@ -4,7 +4,7 @@
 
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png" alt="logo">
+    <img src="https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png" alt="logo">
   </a>
   <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
@@ -15,9 +15,9 @@
   </a>
 
   <p align="center">
-  <a href="https://doc.comicguispider.nyc.mn">🏠项目主页</a> | 
-  <a href="https://doc.comicguispider.nyc.mn/deploy/quick-start">🚀快速上手</a> | 
-  <a href="https://doc.comicguispider.nyc.mn/faq">❓常见问题</a> | 
+  <a href="https://cgs.101114105.xyz">🏠项目主页</a> | 
+  <a href="https://cgs.101114105.xyz/deploy/quick-start">🚀快速上手</a> | 
+  <a href="https://cgs.101114105.xyz/faq">❓常见问题</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
   </p>
 </div>
@@ -26,11 +26,13 @@
 
 下漫画的
 
-|       预览/多选/翻页       |       [读剪贴板](https://doc.comicguispider.nyc.mn/feat/clip)       |
+> [26/02/18] （文档等）nyc.mn 旧域名已废弃，新域名后缀 xyz
+
+|       预览/多选/翻页       |       [读剪贴板](https://cgs.101114105.xyz/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
-| <img src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif" loading="lazy" alt="turn-page-new"> | <img src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif" loading="lazy" alt="load_clip"> |
-| **[聚合搜索](https://doc.comicguispider.nyc.mn/feat/ags)** | |
-| <img src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif" loading="lazy" alt="聚合搜索动图预留位"> | |
+| <img src="https://img-cgs.101114105.xyz/file/1764957470369_common-usage.gif" loading="lazy" alt="turn-page-new"> | <img src="https://img-cgs.101114105.xyz/file/1764957479778_load_clip.gif" loading="lazy" alt="load_clip"> |
+| **[聚合搜索](https://cgs.101114105.xyz/feat/ags)** | |
+| <img src="https://img-cgs.101114105.xyz/file/1764957291429_ags.gif" loading="lazy" alt="聚合搜索动图预留位"> | |
 
 ## ✨功能特性
 
@@ -40,7 +42,7 @@
 - 无感翻页保留选择，已下载记录等提示
 - 预设，去重，加标识符等各种自定义设置
 
-**更多移步查阅 [🎸功能文档](https://doc.comicguispider.nyc.mn/feat/)**
+**更多移步查阅 [🎸功能文档](https://cgs.101114105.xyz/feat/)**
 
 ## 🚨可用监控
 
@@ -65,8 +67,8 @@
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 
-> [🔗这版改了什么](https://doc.comicguispider.nyc.mn/changelog/history) /
- [⛅更新方法](https://doc.comicguispider.nyc.mn/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) /
+> [🔗这版改了什么](https://cgs.101114105.xyz/changelog/history) /
+ [⛅更新方法](https://cgs.101114105.xyz/deploy/quick-start.html#_4-%E6%9B%B4%E6%96%B0) /
  [📝开发板](https://www.yuque.com/baimusheng/programer/vxlg9kdke2by2t7h?singleDoc)
 
 ## 🍮食用搭配(阅读器)
@@ -74,7 +76,7 @@
 <table><tbody>  
   <tr>
     <td><div align="center"><a href="https://github.com/jasoneri/redViewer" target="_blank">
-      <img src="https://img.comicguispider.nyc.mn/file/1766904566021_rv.png" alt="logo" height="60">
+      <img src="https://img-cgs.101114105.xyz/file/1766904566021_rv.png" alt="logo" height="60">
       </a></div></td>
     <td><div align="center"><a href="https://github.com/gotson/komga" target="_blank">
       <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" height="60">
@@ -119,7 +121,7 @@
 <img src="https://hosted.weblate.org/widget/comicguispider/287x66-grey.png" alt="翻译状态" height="66" style="vertical-align: middle;" />
 </a>
 <a href="https://ko-fi.com/jsoneri">
-  <img src="https://img.comicguispider.nyc.mn/file/1766128193347_sponsor_kofi.gif" alt="ko-fi" height="66" style="vertical-align: middle;">
+  <img src="https://img-cgs.101114105.xyz/file/1766128193347_sponsor_kofi.gif" alt="ko-fi" height="66" style="vertical-align: middle;">
 </a>
 
 ## 🔇免责声明

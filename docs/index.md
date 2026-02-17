@@ -69,11 +69,11 @@ hero:
 <ConcurrentImages>
 <table><tbody>
   <tr>
-    <td><img src="/loading.png" data-src="https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif"></td>
-    <td><img src="/loading.png" data-src="https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif"></td>
+    <td><img src="/loading.png" data-src="https://img-cgs.101114105.xyz/file/1764957470369_common-usage.gif"></td>
+    <td><img src="/loading.png" data-src="https://img-cgs.101114105.xyz/file/1764957479778_load_clip.gif"></td>
   </tr>
   <tr>
-    <td><img src="/loading.png" data-src="https://img.comicguispider.nyc.mn/file/1764957291429_ags.gif"></td>
+    <td><img src="/loading.png" data-src="https://img-cgs.101114105.xyz/file/1764957291429_ags.gif"></td>
   </tr>
 </tbody></table>
 </ConcurrentImages>
@@ -91,7 +91,7 @@ hero:
 <table><tbody>  
   <tr>
     <td><div align="center"><a href="https://github.com/jasoneri/redViewer" target="_blank">
-      <img src="https://img.comicguispider.nyc.mn/file/1766904566021_rv.png" alt="logo" height="60" style="max-height:60px;">
+      <img src="https://img-cgs.101114105.xyz/file/1766904566021_rv.png" alt="logo" height="60" style="max-height:60px;">
       </a></div></td>
     <td><div align="center"><a href="https://github.com/gotson/komga" target="_blank">
       <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" style="min-height:60px;">

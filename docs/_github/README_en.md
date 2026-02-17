@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="https://img.comicguispider.nyc.mn/file/1765128492268_cgs_eat.png" alt="logo">
+    <img src="https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png" alt="logo">
   </a>
   <h1 id="koishi"style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
@@ -11,8 +11,8 @@
   </a>
 
   <p align="center">
-  <a href="https://doc.comicguispider.nyc.mn/en/">🏠HomePage</a> | 
-  <a href="https://doc.comicguispider.nyc.mn/en/deploy/quick-start">🚀Quick-Start</a> | 
+  <a href="https://cgs.101114105.xyz/en/">🏠HomePage</a> | 
+  <a href="https://cgs.101114105.xyz/en/deploy/quick-start">🚀Quick-Start</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦portable-pkg</a>
   </p>
 
@@ -26,7 +26,7 @@ Comic-Downloader
 
 |                             Preview / Multi-select / Paging                              |                         Clipboard Tasks                         |
 |:-------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
-| ![turn-page-new](https://img.comicguispider.nyc.mn/file/1764957470369_common-usage.gif) | ![load_clip](https://img.comicguispider.nyc.mn/file/1764957479778_load_clip.gif) |
+| ![turn-page-new](https://img-cgs.101114105.xyz/file/1764957470369_common-usage.gif) | ![load_clip](https://img-cgs.101114105.xyz/file/1764957479778_load_clip.gif) |
 
 ## ✨Features
 
@@ -49,14 +49,14 @@ Comic-Downloader
 | [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
 | [ExHentai](https://exhentai.org/)       |   🌏   |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
-| [Kemono](https://kemono.cr)     | 🌏 |     🔞/[📒Usage](https://doc.comicguispider.nyc.mn/feat/script)    |  |
+| [Kemono](https://kemono.cr)     | 🌏 |     🔞/[📒Usage](https://cgs.101114105.xyz/feat/script)    |  |
 
 ---
 
 ## 📜Contributing
 
-- [✒️Dev Guide](https://doc.comicguispider.nyc.mn/en/dev)  
-- [🌏i18n Guide](https://doc.comicguispider.nyc.mn/dev/i18n)  
+- [✒️Dev Guide](https://cgs.101114105.xyz/en/dev)  
+- [🌏i18n Guide](https://cgs.101114105.xyz/dev/i18n)  
 
 ---
 
@@ -64,18 +64,18 @@ Comic-Downloader
 
 Left-bottom of the config-dialog has `Check Update` button, please update according to the prompt
 
-> [🕑Full History](https://doc.comicguispider.nyc.mn/changelog/history.html)
+> [🕑Full History](https://cgs.101114105.xyz/changelog/history.html)
 
 ## 🔨 Configuration
 
-[🔨Configuration](https://doc.comicguispider.nyc.mn/locate/en/config)
+[🔨Configuration](https://cgs.101114105.xyz/locate/en/config)
 
 ## 🍮Adaptable Reader
 
 <table><tbody>  
   <tr>
     <td><div align="center"><a href="https://github.com/jasoneri/redViewer" target="_blank">
-      <img src="https://img.comicguispider.nyc.mn/file/1766904566021_rv.png" alt="logo" height="60">
+      <img src="https://img-cgs.101114105.xyz/file/1766904566021_rv.png" alt="logo" height="60">
       </a></div></td>
     <td><div align="center"><a href="https://github.com/gotson/komga" target="_blank">
       <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" height="60">

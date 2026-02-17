@@ -106,7 +106,7 @@ class Updater:
     proj = None
     version = None
     stateTooltip = None
-    changelog_url = 'https://doc.comicguispider.nyc.mn/changelog/history'
+    changelog_url = 'https://cgs.101114105.xyz/changelog/history'
     
     def __init__(self, gui):
         self.gui = gui
