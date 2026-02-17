@@ -238,7 +238,7 @@ class PreprocessManager(QObject):
                     title="服务检测失败",
                     content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
                     parent=self.gui.textBrowser,
-                    url="https://doc.comicguispider.nyc.mn/feat/script", url_name="脚本集指南"
+                    url="https://cgs.101114105.xyz/feat/script", url_name="脚本集指南"
                 )
 
             self.task_manager.execute_simple_task(
@@ -291,7 +291,7 @@ class PreprocessManager(QObject):
                     title="依赖安装失败",
                     content="点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）",
                     parent=self.gui.textBrowser,
-                    url="https://doc.comicguispider.nyc.mn/feat/script", url_name="脚本集指南"
+                    url="https://cgs.101114105.xyz/feat/script", url_name="脚本集指南"
                 )
 
             def on_dependencies_success(_):

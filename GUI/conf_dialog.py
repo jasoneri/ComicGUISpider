@@ -45,7 +45,7 @@ class SvPathCard(PushSettingCard):
             drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
             if cgs_flag or drive_flag:
                 CustomInfoBar.show("", res.GUI.Uic.confDia_svPathWarning, self.conf_dia, 
-                    "https://doc.comicguispider.nyc.mn/config/#配置项-对应-yml-字段", 
+                    "https://cgs.101114105.xyz/config/#配置项-对应-yml-字段", 
                     "conf desc", _type="ERROR", position=InfoBarPosition.TOP)
                 return
             self.setContent(folder)
@@ -169,7 +169,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def bind_logic(self):
         def _open_docs():
-            self.gui.open_url_by_browser('https://doc.comicguispider.nyc.mn/')
+            self.gui.open_url_by_browser('https://cgs.101114105.xyz/')
         self.descBtn.clicked.connect(_open_docs)
         def _switch_mode():
             if self.darkTheme.isChecked():

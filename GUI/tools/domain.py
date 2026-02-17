@@ -8,7 +8,7 @@ from qfluentwidgets import (
 )
 
 from assets import res as ori_res
-from utils import temp_p
+from utils import temp_p, get_loop
 from utils.website import extract_domains
 
 tools_res = ori_res.GUI.Tools
@@ -29,7 +29,7 @@ class DomainToolView(FlyoutViewBase):
 
     def handle(self, text):
         domains = extract_domains(text)
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         hosts = loop.run_until_complete(asyncio.gather(*[self.gui.spiderUtils.test_aviable_domain(domain) for domain in domains]))
         hosts = set(hosts) or set()
         aviable_domains = hosts & domains

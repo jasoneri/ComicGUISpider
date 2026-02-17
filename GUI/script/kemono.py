@@ -48,7 +48,7 @@ class FilterView(FlyoutViewBase):
         first_row.addWidget(self.textEdit)
         
         second_row = QtWidgets.QHBoxLayout()
-        self.linkBtn = HyperlinkButton(FIF.LINK, "https://doc.comicguispider.nyc.mn/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
+        self.linkBtn = HyperlinkButton(FIF.LINK, "https://cgs.101114105.xyz/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
         spacerItem = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.svBtn = PrimaryToolButton(FIF.SAVE, self)
         self.svBtn.clicked.connect(self.save)
