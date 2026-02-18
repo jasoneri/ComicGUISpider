@@ -7,7 +7,7 @@
 
 <table><tbody>
   <tr>
-    <td><img src="https://img-cgs.101114105.xyz/file/1764957291429_ags.gif"></td>
+    <td><img src="{{URL_IMG}}/file/1764957291429_ags.gif"></td>
   </tr>  
 </tbody></table>
 

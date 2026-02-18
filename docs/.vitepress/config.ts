@@ -1,4 +1,6 @@
 import {defineConfig} from 'vitepress';
+import { markdownUrlReplacePlugin } from './plugins/markdown-url-replace';
+import { URLS } from './shared/urls';
 
 
 const version = `v2.8.7`
@@ -11,7 +13,7 @@ export default defineConfig({
 
     head: [
         ['meta', {property: 'og:site_name', content: 'ComicGUISpider'}],
-        ['meta', {property: 'og:url', content: 'https://cgs.101114105.xyz/'}],
+        ['meta', {property: 'og:url', content: URLS.main('/')}],
     ],
 
     locales: {
@@ -28,12 +30,16 @@ export default defineConfig({
         }
       },
 
+    vite: {
+        plugins: [markdownUrlReplacePlugin()],
+    },
+
     themeConfig: {
         outline: 'deep',
         // https://vitepress.dev/reference/default-theme-config
         logo: {
-            dark: 'https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png',
-            light: 'https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png',
+            dark: URLS.assets.logo,
+            light: URLS.assets.logo,
         },
         editLink: {
             pattern: 'https://github.com/jasoneri/ComicGUISpider/edit/main/docs/:path',
@@ -154,7 +160,7 @@ export default defineConfig({
                     },
                     {
                         text: "🍖另类投喂/福利",
-                        link: "https://rv.101114105.xyz/contribute/feed",
+                        link: URLS.pages.rvFeed,
                     }
                 ]
             }
