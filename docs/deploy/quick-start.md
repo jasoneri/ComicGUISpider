@@ -100,4 +100,4 @@ uv tool install ComicGUISpider==2.8.0 --force --index-url https://pypi.tuna.tsin
 
 欢迎尝试使用 redViewer ，最适 CGS ！也希望能提供有创意的功能想法给 rV ！💑
 
-[![点击前往redViewer](https://ghstat.101114105.xyz/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)
+[![点击前往redViewer]({{URL_GHSTAT}}/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)

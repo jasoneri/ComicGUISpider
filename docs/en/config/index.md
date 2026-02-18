@@ -76,7 +76,7 @@ There will be a `number corresponding to the website` prompt when the mouse hove
 ### Cookies / `cookies`
 
 It is necessary to use `exhentai`  
-[🎬 Method of acquisition](https://img-cgs.101114105.xyz/file/1764957600555_ehentai_get_cookies_new.gif)  
+[🎬 Method of acquisition]({{URL_IMG}}/file/1764957600555_ehentai_get_cookies_new.gif)  
 [🔗 Tool Website](https://tool.lu/en_US/curl/)
 Now support paste curl string to Edit, CGS will inner handle it.
 
