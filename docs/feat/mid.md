@@ -55,8 +55,7 @@ Lane 旁 ▶ 按钮可手动触发该 Lane 的规则执行
 
 | 标签 | 名称 | Lane | 说明 |
 |------|------|------|------|
-| C1 | Select First Book | C | 自动选择第一本 |
-| C2 | Select First Book2 | C | 同上（备用） |
+| C1 | Select First n Books | C | 选择前 n 本书，参数 `num` 可调 |
 | D1 | Select Latest n Episode | D | 选择最新 n 个章节，参数 `num` 可调 |
 | E1 | To CBZ | E | 下载完成后转换为 CBZ 格式 |
 

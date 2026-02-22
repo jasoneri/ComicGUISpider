@@ -169,13 +169,10 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def bind_logic(self):
         def _open_docs():
-            self.gui.open_url_by_browser(f'{CGS_DOC}/')
+            self.gui.open_url_by_browser(CGS_DOC)
         self.descBtn.clicked.connect(_open_docs)
         def _switch_mode():
-            if self.darkTheme.isChecked():
-                conf.darkTheme = True
-            else:
-                conf.darkTheme = False
+            conf.darkTheme = bool(self.darkTheme.isChecked())
             theme_mgr.set_dark(conf.darkTheme)
         self.darkTheme.clicked.connect(_switch_mode)
         def _regular_update():

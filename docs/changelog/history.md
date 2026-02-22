@@ -10,6 +10,7 @@
 ### 🐞 Fix
 
 + 修复翻页时可能的阻塞
++ ~~hitomi其实一直能用~~
 
 ::: tip 备用更新方法（待查证实验）  
 win绿色包(exe): 待办，先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  

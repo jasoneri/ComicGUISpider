@@ -39,18 +39,12 @@ class PresetProvider(MiddlewareProvider):
             _preset(
                 id="preset:auto_select_first",
                 type="auto_select_first",
-                name="Select First Book",
+                name="Select First n Books",
                 default_priority=211,
                 label="C1",
-                lane=LaneStage.BOOK,
-                stage=TimelineStage.WAIT_BOOK_DECISION,
-            ),
-            _preset(
-                id="preset:auto_select_first_test",
-                type="auto_select_first",
-                name="Select First Book2",
-                default_priority=212,
-                label="C2",
+                desc="选择前n本书",
+                params={'num': 1},
+                param_schema={'num': {'type': 'int', 'min': 1, 'max': 99, 'default': 1}},
                 lane=LaneStage.BOOK,
                 stage=TimelineStage.WAIT_BOOK_DECISION,
             ),
@@ -66,15 +60,15 @@ class PresetProvider(MiddlewareProvider):
                 lane=LaneStage.EP,
                 stage=TimelineStage.WAIT_EP_DECISION,
             ),
-            _preset(
-                id="preset:cbz_post_processor",
-                type="cbz_post_processor",
-                name="To CBZ",
-                default_priority=601,
-                label="E1",
-                lane=LaneStage.POSTPROCESSING,
-                stage=TimelineStage.POSTPROCESSING,
-            ),
+            # _preset(
+            #     id="preset:cbz_post_processor",
+            #     type="cbz_post_processor",
+            #     name="To CBZ",
+            #     default_priority=601,
+            #     label="E1",
+            #     lane=LaneStage.POSTPROCESSING,
+            #     stage=TimelineStage.POSTPROCESSING,
+            # ),
         ]
 
 
