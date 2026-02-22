@@ -222,8 +222,7 @@ class LaneButtonGroup(QWidget):
 
     def set_disabled(self, disabled: bool):
         self._is_disabled = disabled
-        for btn in self.rules:
-            btn.setEnabled(not disabled)
+        self.laneRunBtn.setEnabled(not disabled)
 
     def clear(self):
         for btn in self.rules:
