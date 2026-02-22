@@ -20,15 +20,14 @@ from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.manager.clip import ClipGUIManager
 from GUI.manager.ags import AggrSearchManager
 from GUI.manager.rv import RVManager
+from GUI.manager.mid import CGSMidManagerGUI
+from GUI.manager.preview import MangaPreviewManager
 
 __all__ = [
-    'TaskProgressManager',
-    'Updater',
-    'AsyncTaskManager',
-    'TaskConfig',
-    'ClipGUIManager',
-    'AggrSearchManager',
-    'RVManager',
+    'Updater', 'TaskConfig',
+    'RVManager', 'TaskProgressManager','AsyncTaskManager', 
+    'ClipGUIManager', 'AggrSearchManager', 'CGSMidManagerGUI',
+    'MangaPreviewManager'
 ]
 
 

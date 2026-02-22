@@ -56,6 +56,7 @@ class BookInfo(InfoMinix):
 
 class Manga(BookInfo):
     episodes: list = []
+    img_preview: str = None  
     latest_sec: str = None
     render_keys: list = []
     
