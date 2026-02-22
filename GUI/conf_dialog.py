@@ -17,7 +17,7 @@ from qfluentwidgets import (
 import uncurl
 
 from assets import res
-from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG
+from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG, CGS_DOC
 from utils import conf, convert_punctuation as cp, exc_p
 from utils.config.rule import CgsRuleMgr
 from GUI.thread import ProjUpdateThread
@@ -45,7 +45,7 @@ class SvPathCard(PushSettingCard):
             drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
             if cgs_flag or drive_flag:
                 CustomInfoBar.show("", res.GUI.Uic.confDia_svPathWarning, self.conf_dia, 
-                    "https://cgs.101114105.xyz/config/#配置项-对应-yml-字段", 
+                    f"{CGS_DOC}/config/#配置项-对应-yml-字段", 
                     "conf desc", _type="ERROR", position=InfoBarPosition.TOP)
                 return
             self.setContent(folder)
@@ -169,7 +169,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def bind_logic(self):
         def _open_docs():
-            self.gui.open_url_by_browser('https://cgs.101114105.xyz/')
+            self.gui.open_url_by_browser(f'{CGS_DOC}/')
         self.descBtn.clicked.connect(_open_docs)
         def _switch_mode():
             if self.darkTheme.isChecked():

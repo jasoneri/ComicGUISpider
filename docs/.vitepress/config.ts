@@ -3,7 +3,7 @@ import { markdownUrlReplacePlugin } from './plugins/markdown-url-replace';
 import { URLS } from './shared/urls';
 
 
-const version = `v2.8.7`
+const version = `v2.9.0-beta`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
