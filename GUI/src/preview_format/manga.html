@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-bs-theme="{bs_theme}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Normal Preview</title>
+    <link rel="stylesheet" href="../GUI/src/preview_format/bootstrap.min.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/public.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/manga.css">
+</head>
+<body>
+<div class="container-fluid px-0">
+    <div class="row g-2" id="bookCards">
+        {body}
+    </div>
+</div>
+
+<div class="modal" id="episodeModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header flex-column align-items-stretch gap-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title" id="episodeTitle">Episodes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="input-group input-group-sm d-none" id="handleBtnGroup">
+                        <button class="btn btn-outline-secondary" type="button" id="toggleAllEpBtn">All</button>
+                        <button class="btn btn-outline-secondary" type="button" id="beginBtn">First</button>
+                        <input type="number" class="form-control text-center" id="EpsNumInput" value="1" min="1" step="1" inputmode="numeric" aria-label="Number of episodes to select" style="max-width: 60px;">
+                        <button class="btn btn-outline-secondary" type="button" id="lastBtn">Last</button>
+                    </div>
+                    <span class="badge text-bg-primary" id="epCount">0 selected</span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="episodeList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scan Notification Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1050">
+  <div id="scanToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        <span id="scanToastBody">Scanning...</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<script src="../GUI/src/preview_format/bootstrap.min.js"></script>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="../GUI/src/preview_format/public.js"></script>
+<script src="../GUI/src/preview_format/manga.js"></script>
+<script src="../GUI/src/preview_format/tasks_extend.js"></script>
+</body>
+</html>

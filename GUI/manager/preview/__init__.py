@@ -224,7 +224,7 @@ class MangaPreviewManager:
         return "\n".join(cards)
 
     def _create_html_file(self, body):
-        with open(format_path.joinpath("normal.html"), encoding="utf-8") as f:
+        with open(format_path.joinpath("manga.html"), encoding="utf-8") as f:
             template = f.read()
         html = template.replace("{bs_theme}", bs_theme()).replace("{body}", body)
         tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
