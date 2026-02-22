@@ -34,34 +34,7 @@ jobs:
         uv venv .venv-smoke
         source .venv-smoke/bin/activate
         uv pip install dist/*.whl
-        python - <<'PY'
-        import os
-        import subprocess
-        import sys
-
-        env = os.environ.copy()
-        tests = [
-            ("entrypoint import", [sys.executable, "-c", "import CGS"]),
-            ("check mode startup", [sys.executable, "-c", "import CGS; CGS.start()"]),
-            ("cli help", ["cgs-cli", "--help"]),
-        ]
-
-        failures = []
-        for name, cmd in tests:
-            print(f"::group::{name}")
-            result = subprocess.run(cmd, env=env, text=True, capture_output=True)
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print(result.stderr, file=sys.stderr)
-            print(f"exit_code={result.returncode}")
-            print("::endgroup::")
-            if result.returncode != 0:
-                failures.append(name)
-
-        if failures:
-            raise SystemExit(f"Smoke tests failed: {', '.join(failures)}")
-        PY
+        uv run .github/scripts/smoke_wheel.py
 
     - name: Publish to PyPI
       run: uv publish

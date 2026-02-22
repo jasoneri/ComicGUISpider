@@ -8,7 +8,7 @@ from qfluentwidgets import (
 )
 
 from assets import res
-from variables import PYPI_SOURCE
+from variables import PYPI_SOURCE, CGS_DOC
 from deploy.update import Proj
 from utils import conf, env, uv_exc, exc_p, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
@@ -20,15 +20,14 @@ from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.manager.clip import ClipGUIManager
 from GUI.manager.ags import AggrSearchManager
 from GUI.manager.rv import RVManager
+from GUI.manager.mid import CGSMidManagerGUI
+from GUI.manager.preview import MangaPreviewManager
 
 __all__ = [
-    'TaskProgressManager',
-    'Updater',
-    'AsyncTaskManager',
-    'TaskConfig',
-    'ClipGUIManager',
-    'AggrSearchManager',
-    'RVManager',
+    'Updater', 'TaskConfig',
+    'RVManager', 'TaskProgressManager','AsyncTaskManager', 
+    'ClipGUIManager', 'AggrSearchManager', 'CGSMidManagerGUI',
+    'MangaPreviewManager'
 ]
 
 
@@ -106,7 +105,7 @@ class Updater:
     proj = None
     version = None
     stateTooltip = None
-    changelog_url = 'https://cgs.101114105.xyz/changelog/history'
+    changelog_url = f'{CGS_DOC}/changelog/history'
     
     def __init__(self, gui):
         self.gui = gui

@@ -24,7 +24,7 @@ class RulePanel(CardWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(280)
+        self.setFixedWidth(300)
         self.rule_rows: dict[str, QWidget] = {}
         self._lane_groups: dict[str, QVBoxLayout] = {}
         self._init_ui()

@@ -146,11 +146,21 @@ class MonkeyPatch:
             native_menu.deleteLater()
 
         def custom_menu():
+            def route_turn(direction: str):
+                manga_mgr = getattr(browserWindow.gui, "manga_mgr", None)
+                if manga_mgr and getattr(manga_mgr, "_current_keyword", ""):
+                    manga_mgr.navigate_page(direction)
+                    return
+                if direction == "next":
+                    browserWindow.gui.nextPageBtn.click()
+                else:
+                    browserWindow.gui.previousPageBtn.click()
+
             fluent_menu = RoundMenu(parent=web_view)
             next_page_action = Action(FluentIcon.PAGE_RIGHT, web_view.tr(res.menu_next_page),
-                                      triggered=browserWindow.gui.nextPageBtn.click, shortcut='Ctrl+.')
+                                      triggered=lambda: route_turn("next"), shortcut='Ctrl+.')
             previous_page_action = Action(FluentIcon.PAGE_LEFT, web_view.tr(res.menu_prev_page),
-                                          triggered=browserWindow.gui.previousPageBtn.click, shortcut='Ctrl+,')
+                                          triggered=lambda: route_turn("prev"), shortcut='Ctrl+,')
             fluent_menu.addAction(next_page_action)
             fluent_menu.addAction(previous_page_action)
             fluent_menu.addSeparator()

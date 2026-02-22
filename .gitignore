@@ -186,6 +186,8 @@ custom/start/*
 *.ico
 *.qrc
 src/
+!GUI/src/
+GUI/src/*
 !GUI/src/preview_format/
 !GUI/src/material_ct.py
 !GUI/src/__init__.py
@@ -204,7 +206,7 @@ version.json
 # self/conf
 gitee_t.json
 record.db
-hitomi.db
+hitomi.db*
 # self/desc created html
 desc.html
 docs/*.html
@@ -214,6 +216,8 @@ _bug_log
 # AI
 .cursor
 .claude
+.codex
+.gemini
 .kilocode
 /plans
 .ace-tool/

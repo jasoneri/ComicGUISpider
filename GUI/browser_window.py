@@ -165,6 +165,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.eh_kits = None
         self._set_referer_nterceptor = False
         self._first_show = True
+        self._ensure_callback = gui._next
+        self._on_close = None
         self.interceptor = RefererInterceptor()
         if proxies:
             self.set_proxies(proxies)
@@ -263,7 +265,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.backBtn.clicked.connect(self.view.back)
         self.forwardBtn.clicked.connect(self.view.forward)
         self.refreshBtn.clicked.connect(self.view.reload)
-        self.ensureBtn.clicked.connect(lambda : self.ensure(self.gui._next))
+        self.ensureBtn.clicked.connect(lambda: self.ensure(self._ensure_callback))
         self.closeBtn.clicked.connect(self.close)
         def copyUnfinishedTasks():
             _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)
@@ -274,6 +276,12 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                 duration=2500, parent=self.view
             )
         self.copyBtn.clicked.connect(copyUnfinishedTasks)
+
+    def set_ensure_handler(self, callback=None):
+        self._ensure_callback = callback or self.gui._next
+
+    def set_close_handler(self, callback=None):
+        self._on_close = callback
 
     def set_referer_nterceptor(self, url):
         self._set_referer_nterceptor = True
@@ -406,6 +414,15 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.js_execute(js_code, lambda _: callback())
 
     def closeEvent(self, event):
-        if hasattr(self, 'view'):  
-            theme_mgr.unsubscribe(self.view.on_theme_changed)  
+        if hasattr(self, 'view'):
+            theme_mgr.unsubscribe(self.view.on_theme_changed)
+        if self._on_close:
+            self._on_close(self, event)
+            self._on_close = None
+        if not event.isAccepted():
+            return
+        if getattr(self.gui, "BrowserWindow", None) is self:
+            self.gui.BrowserWindow = None
+            self.gui.previewInit = True
+            self.gui.previewSecondInit = False
         super().closeEvent(event)

@@ -1,11 +1,16 @@
 # 🕑 更新历史
 
-## `v2.8.7`
+## `v2.9.0-beta`
+
+### 🎁 Features
+
++ [CGSMid](/feat/mid)，托管操作的系统
++ 常规漫预览（与 CGSMid 相斥），输入搜索词 > 点右下`搜索预览`（不要点左下`搜索键`）
 
 ### 🐞 Fix
 
-+ 文档域名改为 xyz
-+ [#148](https://github.com/jasoneri/ComicGUISpider/issues/148)
++ 修复翻页时可能的阻塞
++ ~~hitomi其实一直能用~~
 
 ::: tip 备用更新方法（待查证实验）  
 win绿色包(exe): 待办，先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  
@@ -17,9 +22,16 @@ mac/终端uv：ai 查 `uv tool 安装 .git, ComicGUISpider GUI 分支`
 
 > [!Info] 下方记录会忽略修复动作相关的记录，含引导意义的条目除外
 
+::: details v2.8.6
++ 新增 [h-comic](https://h-comic.com) 站点支持
++ rvTool 布局更改，并加入新功能 `以图搜索`
++ 聚合搜索增加 [from 剪贴板](/feat/ags.html#_2-%E5%89%AA%E8%B4%B4%E6%9D%BF) 方式
++ kemono 本地收藏增加作者头像缓存
+:::
+
 ::: details v2.8.5
-+ 更新内置浏览器样式  
-+ (内置浏览器发起的)发布页右键菜单支持手动输入域名  
++ 更新内置浏览器样式
++ (内置浏览器发起的)发布页右键菜单支持手动输入域名
 :::
 
 ::: details v2.8.0

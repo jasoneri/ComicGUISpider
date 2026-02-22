@@ -100,7 +100,7 @@ class rvTool(QWidget):
         self.deployBtn.setGraphicsEffect(deploy_opacity)
         btn_row = QHBoxLayout()
         btn_row.setContentsMargins(0, 0, 0, 0)
-        self.broomBtn = ToolButton(FIF.BROOM, self)
+        self.broomBtn = TransparentToolButton(FIF.BROOM, self)
         self.broomBtn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._sync_broom_state()
         self.runBtn = PrimaryToolButton(FIF.PLAY)

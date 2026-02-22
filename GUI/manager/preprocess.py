@@ -1,3 +1,4 @@
+import os
 import json
 import importlib
 import subprocess
@@ -8,7 +9,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES
+from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES, CGS_DOC
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -37,8 +38,7 @@ class PreprocessManager(QObject):
             6: self._preprocess_hitomi,
             7: self._preprocess_kemono,
         }
-        handler = special.get(index)
-        if handler:
+        if handler:= special.get(index):
             handler()
         elif hasattr(self.gui.spiderUtils, 'test_index'):
             self._preprocess_test_index()
@@ -48,6 +48,20 @@ class PreprocessManager(QObject):
         if index in CLIP_IDXES:
             self.gui.clipBtn.setEnabled(1)
 
+    def _cache_hit(self) -> bool:
+        cache = getattr(self.gui.spiderUtils, "cachef", None)
+        return bool(cache and cache.flag != "new")
+
+    def _say_cache_or(self, success_msg: str):
+        if self._cache_hit():
+            self.gui.say("<br>➖ 缓存处于有效期内，跳过测试")
+        else:
+            self.gui.say(success_msg)
+
+    def _try_add_hitomi_tool(self):
+        if hasattr(self.gui, 'toolWin'):
+            self.gui.toolWin.addHitomiTool()
+
     def _preprocess_manga_copy(self):
         def manga_copy_task():
             # 1. 更新加密缓存
@@ -55,10 +69,7 @@ class PreprocessManager(QObject):
             return True
         
         def on_success(_):
-            if getattr(self.gui.spiderUtils, "cachef") and self.gui.spiderUtils.cachef.flag != "new":
-                self.gui.say("<br>➖ 缓存处于有效期内，跳过测试")
-            else:
-                self.gui.say("<br>✅ 拷贝预处理完成")
+            self._say_cache_or("<br>✅ 拷贝预处理完成")
 
         def on_error(_):
             self.gui.disable_start()
@@ -79,10 +90,8 @@ class PreprocessManager(QObject):
             return True
 
         def on_success(_):
-            if getattr(self.gui.spiderUtils, "cachef") and self.gui.spiderUtils.cachef.flag != "new":
-                self.gui.say("<br>➖ 缓存处于有效期内，跳过测试")
-            else:
-                self.gui.say("<br>✅ 已设置有效域名")
+            self._say_cache_or("<br>✅ 已设置有效域名")
+
 
         def on_error(_):
             self.gui.disable_start()
@@ -174,29 +183,46 @@ class PreprocessManager(QObject):
             error_callback=on_error,
             tooltip_title="hitomi 访问检测", task_id="hitomi_preprocess"
         )
+        
+        HITOMI_DB_URLS = [
+            "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/hitomi.db",
+            res.Vars.hitomiDb_tmp_url,  # locale-based fallback 
+        ]
 
-        def dl_db():
-            with data_cli.stream("GET", res.Vars.hitomiDb_tmp_url, follow_redirects=True) as resp:
-                with open(hitomi_db_path, 'wb') as f:
-                    for chunk in resp.iter_bytes():
-                        f.write(chunk)
+        def _download_hitomi_db(db_path):
+            """Try multiple sources, atomic replace via .tmp"""
+            tmp_path = db_path.with_suffix('.db.tmp')
+            errors = []
+            for url in HITOMI_DB_URLS:
+                try:
+                    with data_cli.stream("GET", url, follow_redirects=True, timeout=30) as resp:
+                        resp.raise_for_status()
+                        with open(tmp_path, 'wb') as f:
+                            for chunk in resp.iter_bytes(chunk_size=8192):
+                                f.write(chunk)
+                    os.replace(str(tmp_path), str(db_path))
+                    return True
+                except Exception as e:
+                    tmp_path.unlink(missing_ok=True)
+                    errors.append(f"{url}: {e}")
+            raise RuntimeError(f"all download sources failed: {'; '.join(errors)}")
 
         hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
         if not hitomi_db_path.exists():
-            self.gui.say("⚠️ hitomi db not found, ready to download..")
+            self.gui.say("⚠️ hitomi db not found, downloading...")
+
             def on_db_download_success(_):
                 self.gui.say("<br>✅ hitomi db downloaded")
-                if hasattr(self.gui, 'toolWin'):
-                    self.gui.toolWin.addHitomiTool()
+                self._try_add_hitomi_tool()
 
             self.task_manager.execute_simple_task(
-                task_func=dl_db,
+                task_func=lambda: _download_hitomi_db(hitomi_db_path),
                 success_callback=on_db_download_success,
-                error_callback=lambda _: self.gui.say("<br>❌ hitomi-db failed"),
-                tooltip_title="hitomi-db predownloading", task_id="hitomi_db"
+                error_callback=lambda _: self.gui.say("<br>❌ hitomi-db download failed"),
+                tooltip_title="hitomi-db downloading", task_id="hitomi_db"
             )
         else:
-            self.gui.toolWin.addHitomiTool()
+            self._try_add_hitomi_tool()
 
     def _preprocess_kemono(self):
         kemono_flag = {}
@@ -238,7 +264,7 @@ class PreprocessManager(QObject):
                     title="服务检测失败",
                     content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
                     parent=self.gui.textBrowser,
-                    url="https://cgs.101114105.xyz/feat/script", url_name="脚本集指南"
+                    url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
 
             self.task_manager.execute_simple_task(
@@ -291,7 +317,7 @@ class PreprocessManager(QObject):
                     title="依赖安装失败",
                     content="点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）",
                     parent=self.gui.textBrowser,
-                    url="https://cgs.101114105.xyz/feat/script", url_name="脚本集指南"
+                    url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
 
             def on_dependencies_success(_):

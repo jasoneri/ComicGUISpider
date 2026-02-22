@@ -1,67 +1,17 @@
 # -*- coding: utf-8 -*-
 import re
-import datetime
-import jsonpath_rw as jsonp
-from collections import OrderedDict
 
 from utils.processed_class import execute_js
-from utils.website import MangabzBookInfo, Episode
-from .basecomicspider import FormReqBaseComicSpider, ComicspiderItem, BodyFormat
+from utils.website import MangabzUtils
+from utils.website.req_schema import MbBody as Body, MbSearchBody as SearchBody, mb_curr_time_format as curr_time_format
+from .basecomicspider import FormReqBaseComicSpider, ComicspiderItem
 
-domain = "www.mangabz.com"
-
-
-def curr_time_format():
-    return datetime.datetime.now().strftime('%a %b %d %Y %H:%M:%S') + ' GMT 0800 (中国标准时间)'
-
-
-class Body(BodyFormat):
-    page_index_field = "pageindex"
-    dic = {
-        "action": "getclasscomics",
-        "pageindex": "1",
-        "pagesize": "21",
-        "tagid": "0",
-        "status": "0",
-        "sort": "2"
-    }
-    say_fm = ' {}、\t《{}》\t【{}】\t[{}]'
-    print_head = ['book_path', 'name', 'artist', 'last_chapter_name']
-    target_json_path = ['UrlKey', 'Title', 'Author.[*]', 'ShowLastPartName']
-
-    def rendering_map(self):
-        return dict(zip(self.print_head, list(map(jsonp.parse, self.target_json_path))))
-
-
-class SearchBody(Body):
-    dic = {
-        "t": "3",
-        "pageindex": "1",
-        "pagesize": "12",
-        "f": "0",
-        "title": "廢淵"
-    }
-    target_json_path = ['Url', 'Title', 'Author.[*]', 'LastPartShowName']
+domain = MangabzUtils.domain
 
 
 class MangabzSpider(FormReqBaseComicSpider):
     name = 'mangabz'
-    ua = {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-User": "?1",
-        "Priority": "u=0, i",
-        "Pragma": "no-cache",
-        "Cache-Control": "no-cache",
-        "TE": "trailers"
-    }
+    ua = MangabzUtils.ua
     num_of_row = 50
     domain = domain
     custom_settings = {
@@ -74,6 +24,7 @@ class MangabzSpider(FormReqBaseComicSpider):
                 "人气": ["manga-list", "10"],
                 }
     body = Body()
+    _enable_episode_dispatch = True
 
     @property
     def search(self):
@@ -96,34 +47,19 @@ class MangabzSpider(FormReqBaseComicSpider):
         self.say(say_fm.format('序号', *render_keys) + '<br>')
         targets = response.json() if isinstance(self.body, SearchBody) \
             else response.json().get('UpdateComicItems')
-        rendering_map = self.body.rendering_map().items()
+        rendering_map = self.body.rendering_map()
         for x, target in enumerate(targets):
-            rendered = OrderedDict()
-            for attr_name, _path in rendering_map:
-                rendered[attr_name] = ",".join(map(lambda __: str(__.value), _path.find(target))).strip()
-            url = f"https://{self.domain}/{rendered.pop('book_path').strip('/')}/"
-            book = MangabzBookInfo(
-                idx=x+1, render_keys=render_keys, url=url, preview_url=url,
-            )
-            for k in render_keys:
-                setattr(book, k, rendered.get(k))
+            book = MangabzUtils.parse_book_item(
+                target, rendering_map, render_keys, x + 1, self.domain)
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, fm=say_fm, url=response.url)
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        frame_results = {}
         say_ep_fm = ' -{}、【{}】'
         self.say(say_ep_fm.format('序号', '章节') + '<br>')
-        targets = response.xpath('//div[@class="detail-list-item"]/a')
-        for x, target in enumerate(reversed(targets)):
-            ep = Episode(
-                from_book=book,
-                idx=x+1,
-                url=rf"https://{domain}{target.xpath('./@href').get()}",
-                name="".join(target.xpath('./text()').get()).strip(),
-            )
-            frame_results[ep.idx] = ep
+        episodes = MangabzUtils.parse_episodes(response, book, domain)
+        frame_results = {ep.idx: ep for ep in episodes}
         return self.say.frame_section_print(frame_results, fm=say_ep_fm)
 
     def parse_fin_page(self, response):
