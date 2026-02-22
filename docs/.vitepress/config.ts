@@ -112,6 +112,10 @@ export default defineConfig({
                         link: "/feat/ags",
                     },
                     {
+                        text: "🀄️CGSMid",
+                        link: "/feat/mid",
+                    },
+                    {
                         text: "🚧其他脚本集",
                         link: "/feat/script",
                     }
