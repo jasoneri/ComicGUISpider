@@ -252,12 +252,12 @@ class LaneNode:
             config.lane_id, config.prefix, config.stage, parent
         )
 
-        self._layout = QVBoxLayout()
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(0)
-        self._layout.addStretch(1)
-        self._layout.addWidget(self.button_group)
-        self._layout.addWidget(self.node_widget)
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
+        self.layout.addStretch(1)
+        self.layout.addWidget(self.button_group)
+        self.layout.addWidget(self.node_widget)
 
     def apply_theme(self, scheme: LaneColorScheme):
         """应用主题配色"""

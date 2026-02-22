@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import typing as t
 
 from utils.middleware.executor import Action, MiddlewareChain, MiddlewareDefinition
-from utils.middleware.timeline import Event, TimelineStage
+from utils.middleware.timeline import Event, TimelineStage, LaneStage
 from utils.middleware.providers import PresetProvider
 from utils.middleware.presets import register_presets
 
@@ -41,8 +41,13 @@ class CGSMid:
     def handle_event(self, stage: TimelineStage, evt: t.Optional[Event] = None) -> list[Action]:
         self.ctx.current_stage = stage
         actions = self.chain.run(stage, self.ctx)
-        if self.action_sink:
-            for action in actions:
+        lane = LaneStage.from_timeline_stage(stage)
+        for action in actions:
+            if not action.stage:
+                action.stage = int(stage)
+            if not action.lane and lane:
+                action.lane = lane.value
+            if self.action_sink:
                 self.action_sink(action)
         return actions
 

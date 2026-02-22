@@ -27,6 +27,7 @@ def _init_preset_registry():
 class WorkflowDefinition:
     workflow_name: str = "default"
     flow_type: str = "auto"
+    auto_enabled: bool = False
     middlewares: list[MiddlewareDefinition] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -51,6 +52,7 @@ class WorkflowDefinition:
             "schema_version": SCHEMA_VERSION,
             "workflow_name": self.workflow_name,
             "flow_type": self.flow_type,
+            "auto_enabled": self.auto_enabled,
             "set_rules": set_rules,
             "customs": customs,
         }
@@ -100,6 +102,7 @@ def workflow_from_dict(raw: dict) -> WorkflowDefinition:
     return WorkflowDefinition(
         workflow_name=str(raw.get("workflow_name", "default")),
         flow_type=str(raw.get("flow_type", "auto")),
+        auto_enabled=bool(raw.get("auto_enabled", False)),
         middlewares=middlewares,
     )
 
