@@ -204,7 +204,7 @@ version.json
 # self/conf
 gitee_t.json
 record.db
-hitomi.db
+hitomi.db*
 # self/desc created html
 desc.html
 docs/*.html
@@ -214,6 +214,8 @@ _bug_log
 # AI
 .cursor
 .claude
+.codex
+.gemini
 .kilocode
 /plans
 .ace-tool/

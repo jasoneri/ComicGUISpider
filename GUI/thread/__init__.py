@@ -9,7 +9,7 @@ from utils.processed_class import GuiQueuesManger, QueueHandler
 from assets import res
 from deploy.update import Proj
 from GUI.core.font import font_color
-from utils.middleware.timeline import Event, EventSource, TimelineStage
+from utils.middleware.timeline import Event, EventSource, TimelineStage, stage_from_process_name
 
 from .ags import AggrSearchThread
 
@@ -114,13 +114,22 @@ class WorkThread(QThread):
     """only for monitor signals"""
     item_count_signal = pyqtSignal(int)
     print_signal = pyqtSignal(str)
-    finish_signal = pyqtSignal(str)
     tasks_signal = pyqtSignal(object)
+    mid_event_signal = pyqtSignal(object)
+    # FR-3 signals
+    books_ready_signal = pyqtSignal(object)
+    eps_ready_signal = pyqtSignal(object)
+    show_max_signal = pyqtSignal()
+    preview_signal = pyqtSignal(str)
+    keep_books_signal = pyqtSignal()
+    process_state_signal = pyqtSignal(object)
+    worker_finished_signal = pyqtSignal(str)
 
     def __init__(self, gui):
         super(WorkThread, self).__init__(gui)
         self.gui = gui
         self.active = True
+        self._mid_last_stage = None
 
     def run(self):
         manager = self.gui.manager
@@ -129,63 +138,86 @@ class WorkThread(QThread):
         _Tasks = manager.TasksQueue()
         ProcessQueue = manager.ProcessQueue()
         last_process_state = None
+        _finish_flag = res.GUI.WorkThread_finish_flag
+        _empty_flag = res.GUI.WorkThread_empty_flag
+        _draining = False
 
-        def emit_mid_event(stage: TimelineStage, payload: dict):
+        def emit_mid_event(stage: TimelineStage, payload: dict, source: EventSource):
             mgr = getattr(self.gui, "mid_mgr", None)
-            if not mgr or not getattr(mgr, "enabled", False) or not getattr(mgr, "session", None):
+            if not mgr or not getattr(mgr, "enabled", False):
                 return
-            mgr.session.ctx.input_state = getattr(self.gui, "input_state", None)
-            mgr.session.ctx.process_state = getattr(self.gui, "process_state", None)
-            mgr.session.ctx.books = getattr(self.gui, "books", {}) or {}
-            mgr.session.ctx.eps = getattr(self.gui, "eps", {}) or {}
-            mgr.session.handle_event(stage, Event(source=EventSource.TEXTBROWSER_QUEUE, stage=stage, payload=payload))
+            evt = Event(source=source, stage=stage, payload=payload or {})
+            self.mid_event_signal.emit(evt)
+
+        def emit_collection_ready(raw, item_type, ready_signal, ready_stage, wait_stage, payload_key):
+            if not (isinstance(raw, dict) and all(isinstance(v, item_type) for v in raw.values())):
+                return False
+            data = deepcopy(raw)
+            ready_signal.emit(data)
+            emit_mid_event(ready_stage, {payload_key: deepcopy(data)}, EventSource.TEXTBROWSER_QUEUE)
+            emit_mid_event(wait_stage, {}, EventSource.TEXTBROWSER_QUEUE)
+            return True
 
         while self.active:
             self.msleep(5)
             try:
                 if not TextBrowser.empty():
                     _ = TextBrowser.get().text
-                    if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
-                        self.gui.books = deepcopy(_)
-                        emit_mid_event(TimelineStage.BOOKS_READY, {"books": deepcopy(self.gui.books)})
-                        emit_mid_event(TimelineStage.WAIT_BOOK_DECISION, {})
-                    elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
-                        self.gui.eps = deepcopy(_)
-                        emit_mid_event(TimelineStage.EPS_READY, {"eps": deepcopy(self.gui.eps)})
-                        emit_mid_event(TimelineStage.WAIT_EP_DECISION, {})
+                    if emit_collection_ready(
+                        _,
+                        BookInfo,
+                        self.books_ready_signal,
+                        TimelineStage.BOOKS_READY,
+                        TimelineStage.WAIT_BOOK_DECISION,
+                        "books",
+                    ):
+                        pass
+                    elif emit_collection_ready(
+                        _,
+                        Episode,
+                        self.eps_ready_signal,
+                        TimelineStage.EPS_READY,
+                        TimelineStage.WAIT_EP_DECISION,
+                        "eps",
+                    ):
+                        pass
                     elif "PreviewBookInfoEnd" in _:
-                        self.gui.preprocess_preview(_)
+                        self.preview_signal.emit(_)
                     elif "[ShowKeepBooks]" == _:
-                        self.gui.show_keep_books()
+                        self.keep_books_signal.emit()
                     elif '[httpok]' in _:
                         self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
                     elif _.endswith(f"{res.SPIDER.SayToGui.frame_section_print_extra}</font></p>"):
                         self.print_signal.emit(_)
-                        self.gui.say_show_max()
+                        self.show_max_signal.emit()
                     else:
                         self.print_signal.emit(_)
+                    if isinstance(_, str) and (_finish_flag in _ or _empty_flag in _):
+                        _draining = True
                     self.msleep(2)
                 if not Bar.empty():
                     self.item_count_signal.emit(Bar.get())
-                    # self.msleep(5)
                 if not _Tasks.empty():
                     self.tasks_signal.emit(_Tasks.get())
+                if _draining and TextBrowser.empty() and Bar.empty() and _Tasks.empty():
+                    self.item_count_signal.emit(100)
+                    break
                 _process_state = Queues.recv(ProcessQueue)
                 if _process_state and _process_state != last_process_state:
                     last_process_state = deepcopy(_process_state)
-                    self.gui.process_state = deepcopy(_process_state)
-                if res.GUI.WorkThread_finish_flag in self.gui.textBrowser.toPlainText():
-                    self.item_count_signal.emit(100)
-                    break
-                elif res.GUI.WorkThread_empty_flag in self.gui.textBrowser.toPlainText():
-                    break
+                    self.process_state_signal.emit(deepcopy(_process_state))
+                    stage = stage_from_process_name(getattr(_process_state, "process", ""))
+                    if stage is not None and stage != self._mid_last_stage:
+                        self._mid_last_stage = stage
+                        emit_mid_event(
+                            stage,
+                            {"process_state": deepcopy(_process_state)},
+                            EventSource.PROCESS_QUEUE,
+                        )
             except ConnectionResetError:
                 self.active = False
         if self.active:
-            self.finish_signal.emit(str(conf.sv_path))
-
-    # def __del__(self):
-    #     self.wait()
+            self.worker_finished_signal.emit(str(conf.sv_path))
 
     def stop(self):
         self.active = False
