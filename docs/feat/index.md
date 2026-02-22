@@ -9,7 +9,6 @@
 
 |  |  [拷贝](https://www.2025copy.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) | [hcomic](https://h-comic.com) |
 |:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----------:|:----------:|:----------:|
-| 预览 | ❌ |     ❌ | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
 | 📋读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ❌ |
 | 🔎聚合搜索 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ✔️ |
 | 以图搜索 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ✔️ |
@@ -30,7 +29,12 @@
 | 顶栏按钮组 | 左上窗口置顶，其他常规浏览器的按钮自行摸索<br>可鼠标 **按住顶栏空白处** 移动内置浏览器窗口 |
 | 右上复制按钮 | 复制未完成任务链接，[📋跳转阅读 > 复制未完成任务链接](/feat/clip.md#复制未完成任务链接)   |
 | 其他常规 | 多选/翻页等如动图所示。详情使用看 `🎥视频使用指南3` |
-  
+
+::: details 常规漫的预览 > 输入搜索词 > 点右下`搜索预览`（不要点左下`搜索键`）
+
+![manga_preview]({{URL_IMG}}/file/screenshots/1771746417351_manga_preview.png)
+
+:::
 
 ## 3. 工具视窗
 
@@ -58,6 +62,10 @@
     </tr>
     <tr>
       <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>（图一乐，你可以沿着链路继续找，或者来提供点靠谱的api/网站）</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">CGSMid<br><small>midTool</small></td>
+      <td style="text-align: left;"><a href="/feat/mid">🀄️跳转阅读 > 使用</a></td>
     </tr>
     <tr>
       <td style="text-align: center;">聚合搜索<br><small>aggrSearch</small></td>

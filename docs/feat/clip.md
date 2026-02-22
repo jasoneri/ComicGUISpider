@@ -39,6 +39,6 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 - [win] 进ditto选项，点高级进页面后，查找图示的两个值将其改为150
 
-![ditto_settings](../assets/img/faq/ditto_settings.png)
+![ditto_settings]({{URL_IMG}}/file/screenshots/1771752245633_ditto_settings.png)
 
 - [macOS] maccy：没得改，不用改  
