@@ -8,7 +8,7 @@ from qfluentwidgets import (
 )
 
 from assets import res
-from variables import PYPI_SOURCE
+from variables import PYPI_SOURCE, CGS_DOC
 from deploy.update import Proj
 from utils import conf, env, uv_exc, exc_p, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
@@ -105,7 +105,7 @@ class Updater:
     proj = None
     version = None
     stateTooltip = None
-    changelog_url = 'https://cgs.101114105.xyz/changelog/history'
+    changelog_url = f'{CGS_DOC}/changelog/history'
     
     def __init__(self, gui):
         self.gui = gui

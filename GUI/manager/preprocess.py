@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES
+from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES, CGS_DOC
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -38,8 +38,7 @@ class PreprocessManager(QObject):
             6: self._preprocess_hitomi,
             7: self._preprocess_kemono,
         }
-        handler = special.get(index)
-        if handler:
+        if handler:= special.get(index):
             handler()
         elif hasattr(self.gui.spiderUtils, 'test_index'):
             self._preprocess_test_index()
@@ -265,7 +264,7 @@ class PreprocessManager(QObject):
                     title="服务检测失败",
                     content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
                     parent=self.gui.textBrowser,
-                    url="https://cgs.101114105.xyz/feat/script", url_name="脚本集指南"
+                    url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
 
             self.task_manager.execute_simple_task(
@@ -318,7 +317,7 @@ class PreprocessManager(QObject):
                     title="依赖安装失败",
                     content="点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）",
                     parent=self.gui.textBrowser,
-                    url="https://cgs.101114105.xyz/feat/script", url_name="脚本集指南"
+                    url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
 
             def on_dependencies_success(_):

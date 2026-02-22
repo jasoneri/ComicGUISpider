@@ -1,19 +1,16 @@
 import re
 import pathlib
 from PyQt5.QtCore import Qt, QTimer
-from qfluentwidgets import (
-    InfoBar, InfoBarIcon, InfoBarPosition
-)
+from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
 from utils.website.info import BookInfo, Episode
-from variables import SPIDERS
+from variables import CGS_DOC
 from utils import conf
-from utils.processed_class import PreviewHtml, ClipSqlHandler
+from utils.processed_class import ClipSqlHandler
 from GUI.thread import ClipTasksThread
-from GUI.uic.qfluent import (
-    CustomInfoBar
-)
+from GUI.uic.qfluent import CustomInfoBar
+
 """处理所有剪贴板任务数据"""
 
 
@@ -42,7 +39,7 @@ class ClipGUIManager:
             CustomInfoBar.show(
                 title='Clip-db not found', content=res.GUI.Clip.db_not_found_guide,
                 parent=self.gui.textBrowser,
-                url="https://cgs.101114105.xyz/config/#剪贴板db-clip-db", url_name="Guide"
+                url=f"{CGS_DOC}/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:
             clip = ClipSqlHandler(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
@@ -112,8 +109,6 @@ class ClipGUIManager:
                 if conf.isDeduplicate:
                     # 延迟一点确保页面刷新完成
                     def delayed_mark():
-                        # page = self.page if self.page else None
-                        # PreviewHtml.mark_tip(SPIDERS[self.gui.chooseBox.currentIndex()], self.gui.tf, page)
                         books_and_eps = self.gui.mark_tip(self.infos)
                         dled_bidxes = []
                         dled_eidxes = []

@@ -14,6 +14,7 @@ from qfluentwidgets import (
     ToolTipFilter, ToolTipPosition, BodyLabel, CompactSpinBox
 )
 
+from variables import CGS_DOC
 from assets import res as ori_res
 from utils import conf
 from utils.ags import Extractor, parse, SearchKey
@@ -312,7 +313,7 @@ class AggrSearchView(QWidget):
         
         extendLayout = QHBoxLayout()
         agsDocBtn = PrimaryToolButton(FIF.QUESTION)
-        agsDocBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://cgs.101114105.xyz/feat/ags')))
+        agsDocBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(f'{CGS_DOC}/feat/ags')))
         extendBtn = PushButton(FIF.ADD, ags_res.extend_btn, self)
         extendBtn.setDisabled(1)
         extendLayout.addWidget(agsDocBtn)

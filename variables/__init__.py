@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from assets import res
 
-VER = "v2.8.7"
+VER = "v2.9.0-beta"
 
 LANG = {
     "en_US": "English",
@@ -61,3 +61,4 @@ PYPI_SOURCE = {
     2: "https://mirrors.aliyun.com/pypi/simple/",
     3: "https://repo.huaweicloud.com/repository/pypi/simple/",
 }
+CGS_DOC = "https://cgs.101114105.xyz"

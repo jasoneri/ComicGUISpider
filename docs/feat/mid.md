@@ -1,9 +1,10 @@
 # 🀄️ CGSMid
 
-::: tip 长期试行ing
+::: tip 长期试行ing, [Mid专用开发板](https://www.yuque.com/baimusheng/programer/tk3vi1nznnttl31v?singleDoc)
 :::
 
-托管各类操作/决策的自动化系统，以规则(Mid)驱动
+托管各类操作/决策的自动化系统，以规则(Mid)驱动  
+执行顺序：在当组中`自上而下`, 整体`自左而右`
 
 ![mid]({{URL_IMG}}/file/screenshots/1771752003264_mid.png)
 
