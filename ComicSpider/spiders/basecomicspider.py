@@ -20,6 +20,7 @@ from utils.website import (
     correct_domain, spider_utils_map, 
     InfoMinix, BookInfo, Episode
 )
+from utils.website.req_schema import BodyFormat
 from utils.sql import SqlRecorder, SqlrV
 from utils.meta import MetaRecorder
 
@@ -120,16 +121,35 @@ class BaseComicSpider(scrapy.Spider):
     frame_book_format = ['title', 'preview_url']
     turn_page_search: str = None
     turn_page_info: tuple = None
+    _enable_episode_dispatch = False
 
     def preready(self):
         ...
+
+    def _dispatch_episodes(self, book):
+        episodes = book.episodes
+        if not isinstance(episodes, list) or not episodes:
+            raise ValueError("episode dispatch requires a non-empty list[Episode]")
+        if not all(isinstance(ep, Episode) for ep in episodes):
+            raise TypeError("episode dispatch requires list[Episode]")
+        self.process_state.process = 'parse section'
+        self.Q('ProcessQueue').send(self.process_state)
+        for ep in episodes:
+            if not ep.url:
+                raise ValueError(f"episode dispatch: url is required, got {ep!r}")
+            for url in self.mk_page_tasks(url=ep.url):
+                yield scrapy.Request(
+                    url=url, callback=self.parse_fin_page, meta={'ep': ep})
 
     def start_requests(self):
         self.refresh_state('input_state', 'InputFieldQueue')
         self.process_state.process = 'start_requests'
         self.preready()
         indexes = self.input_state.indexes
-        if isinstance(indexes, list) and all(isinstance(s, InfoMinix) for s in indexes):
+        if (self._enable_episode_dispatch
+                and isinstance(indexes, BookInfo) and indexes.episodes):
+            yield from self._dispatch_episodes(indexes)
+        elif isinstance(indexes, list) and all(isinstance(s, InfoMinix) for s in indexes):
             self.process_state.process = 'parse'
             self.Q('ProcessQueue').send(self.process_state)
             self.refresh_state('input_state', 'InputFieldQueue')
@@ -436,17 +456,6 @@ class BaseComicSpider3(BaseComicSpider):
                     yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 
 
-class BodyFormat:
-    page_index_field = "pageindex"
-    dic = {}
-
-    def __init__(self, **dic):
-        self.dic.update(**dic)
-
-    def update(self, **dic):
-        self.dic.update(**dic)
-
-
 class FormReqBaseComicSpider(BaseComicSpider):
     """e.g. mangabz"""
     body = BodyFormat()
@@ -456,6 +465,11 @@ class FormReqBaseComicSpider(BaseComicSpider):
         try:
             self.process_state.process = 'start_requests'
             self.preready()
+            indexes = self.input_state.indexes
+            if (self._enable_episode_dispatch
+                    and isinstance(indexes, BookInfo) and indexes.episodes):
+                yield from self._dispatch_episodes(indexes)
+                return
             search_start = self.search
             if self.domain not in search_start:
                 search_start = correct_domain(self.domain, search_start)
