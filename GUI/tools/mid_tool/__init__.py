@@ -3,12 +3,12 @@ from pathlib import Path
 from copy import deepcopy
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QStackedWidget, QApplication
+    QWidget, QHBoxLayout, QScrollArea, QStackedWidget, QApplication, QSizePolicy
 )
 from qfluentwidgets import (
-    SwitchButton, PushButton, PrimaryToolButton, TransparentToolButton,
-    FluentIcon as FIF,
-    SubtitleLabel, EditableComboBox, InfoBar, InfoBarPosition
+    SwitchButton, PrimaryToolButton, TransparentToolButton, PrimaryPushButton,
+    FluentIcon as FIF, TeachingTip, TeachingTipTailPosition,
+    SubtitleLabel, EditableComboBox, InfoBar, InfoBarPosition, VBoxLayout
 )
 
 from GUI.core.theme import theme_mgr, CustTheme
@@ -66,7 +66,7 @@ class WorkflowCanvas(QWidget):
         self._init_theme()
 
     def _init_ui(self):
-        layout = QVBoxLayout(self)
+        layout = VBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
@@ -193,10 +193,13 @@ class MidToolInterface(QWidget):
         self._populate_rule_panel()
         self._try_load_active_workflow()
         self._update_workflow_dropdown()
-        self._connect_manager()
+        if getattr(self.gui, "is_setup_finished", False):
+            self._on_setup_finished()
+        else:
+            self.gui.setup_finished.connect(self._on_setup_finished)
 
     def _init_ui(self):
-        layout = QVBoxLayout(self)
+        layout = VBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 0)
         layout.setSpacing(12)
 
@@ -204,12 +207,13 @@ class MidToolInterface(QWidget):
         self.title_label = SubtitleLabel("CGSMid")
 
         self.workflow_combo = EditableComboBox()
-        self.workflow_combo.setMaximumWidth(200)
+        self.workflow_combo.setMaximumWidth(135)
         self.workflow_combo.setPlaceholderText("输入名称")
         self.workflow_combo.currentIndexChanged.connect(self._on_workflow_index_changed)
 
         self.enable_switch = SwitchButton()
-        self.enable_switch.setText("自动化")
+        self.enable_switch.setOffText("")
+        self.enable_switch.setOnText("")
         self.enable_switch.checkedChanged.connect(self._on_enable_changed)
 
         self.delete_btn = TransparentToolButton(FIF.DELETE, self)
@@ -219,8 +223,8 @@ class MidToolInterface(QWidget):
         self.save_btn.clicked.connect(self._on_save)
 
         header.addWidget(self.title_label)
-        header.addWidget(self.enable_switch)
         header.addStretch()
+        header.addWidget(self.enable_switch)
         header.addWidget(self.workflow_combo)
         header.addWidget(self.delete_btn)
         header.addWidget(self.save_btn)
@@ -266,6 +270,12 @@ class MidToolInterface(QWidget):
         if conf.active_workflow:
             self._load_workflow(conf.active_workflow)
 
+    def _on_setup_finished(self):
+        self._connect_manager()
+        if self.workflow.auto_enabled:
+            if mgr := getattr(self.gui, "mid_mgr", None):
+                mgr.set_enabled(True, workflow=self.workflow)
+
     def _connect_manager(self):
         mgr = getattr(self.gui, "mid_mgr", None)
         if mgr:
@@ -281,12 +291,31 @@ class MidToolInterface(QWidget):
             self.canvas.lane_nodes[lane_id].set_hidden(hidden)
 
     def _on_enable_changed(self, checked: bool):
-        if mgr:= getattr(self.gui, "mid_mgr", None):
-            mgr.set_enabled(checked)
+        self.workflow.auto_enabled = checked
+        if checked:
+            self._enable_tip = TeachingTip.create(
+                target=self.enable_switch,
+                title="",
+                content="保存后，下次触发时将自动执行，或👇",
+                isClosable=True, duration=3000,
+                tailPosition=TeachingTipTailPosition.RIGHT_TOP,
+                parent=self
+            )
+            acceptBtn = PrimaryPushButton(FIF.PLAY, "立即激活")
+            acceptBtn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            acceptBtn.clicked.connect(self.run_now)
+            acceptBtn.clicked.connect(self._enable_tip.close)
+            self._enable_tip.view.widgetLayout.addWidget(acceptBtn)
+        elif hasattr(self, "_enable_tip"):
+            self._enable_tip.close()
 
     def on_flow_changed(self, index: int):
         flow_types = ["auto", "ep", "book"]
         self.workflow.flow_type = flow_types[index]
+
+    def run_now(self):
+        if mgr := getattr(self.gui, "mid_mgr", None):
+            mgr.set_enabled(True, workflow=self.workflow, force_restart=True)
 
     def _on_rule_selected(self, definition: MiddlewareDefinition, lane_id: str):
         if definition.id in [m.id for m in self.workflow.middlewares]:
@@ -367,9 +396,18 @@ class MidToolInterface(QWidget):
         if not filepath.exists():
             return
         content = filepath.read_text(encoding="utf-8")
-        self.workflow = workflow_from_json(content)
+        self._apply_workflow(workflow_from_json(content))
+
+    def _apply_workflow(self, workflow: WorkflowDefinition):
+        self.workflow = workflow
         self.canvas.update_workflow(self.workflow)
         self._sync_rule_panel()
+        self._set_auto_enabled_switch(self.workflow.auto_enabled)
+
+    def _set_auto_enabled_switch(self, enabled: bool):
+        self.enable_switch.blockSignals(True)
+        self.enable_switch.setChecked(enabled)
+        self.enable_switch.blockSignals(False)
 
     def _sync_rule_panel(self):
         """同步 rule_panel 的显示/隐藏状态"""
@@ -419,9 +457,7 @@ class MidToolInterface(QWidget):
             self._load_workflow(saved[0])
             conf.update(active_workflow=sanitize_filename(saved[0]))
         else:
-            self.workflow = WorkflowDefinition(workflow_name="Untitled")
-            self.canvas.update_workflow(self.workflow)
-            self._sync_rule_panel()
+            self._apply_workflow(WorkflowDefinition(workflow_name="Untitled"))
             conf.update(active_workflow="")
 
         self._update_workflow_dropdown()

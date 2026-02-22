@@ -13,6 +13,8 @@ class Action:
     kind: str
     payload: dict = field(default_factory=dict)
     stop_propagation: bool = False
+    lane: str = ""
+    stage: int = 0
 
 
 _LABEL_PATTERN = re.compile(r"^[A-Z]\d+$")
