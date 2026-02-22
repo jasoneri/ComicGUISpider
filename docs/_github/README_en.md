@@ -2,7 +2,7 @@
   <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
     <img src="https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png" alt="logo">
   </a>
-  <h1 id="koishi"style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
+  <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
   <img src="https://img.shields.io/badge/Platform-All-blue?color=#4ec820" alt="tag">
   <img src="https://img.shields.io/badge/-%3E3.12-brightgreen.svg?logo=python" alt="tag">

@@ -52,7 +52,7 @@ utils
 
 2. GUI 方式运行 (网站选择kemono，预检测通过即进入)
 
-![run_png](../assets/img/feat/scriptTool.png)
+![run_png]({{URL_IMG}}/file/screenshots/1771751999788_scriptTool.png)
 
 ::: warning 一些使用心得说明:
 

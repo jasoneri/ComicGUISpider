@@ -137,12 +137,10 @@ class Req:
         """parse search_page
         由于 domain 关系，需要带状态
         """
-        ...
 
     @classmethod
     def parse_book(cls, resp_text):
         """parse book-page"""
-        ...
 
 
 class Utils:
@@ -152,6 +150,18 @@ class Utils:
     @classmethod
     def get_uuid(cls, info):
         return f"{cls.name}-{info}"
+
+
+class MangaPreview:
+    """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
+
+    @classmethod
+    async def preview_search(cls, keyword: str, client, **kw) -> list:
+        raise NotImplementedError(f"{cls.__name__}.preview_search")
+
+    @classmethod
+    async def preview_fetch_episodes(cls, book, client, **kw) -> list:
+        raise NotImplementedError(f"{cls.__name__}.preview_fetch_episodes")
 
 
 class EroUtils(Utils):

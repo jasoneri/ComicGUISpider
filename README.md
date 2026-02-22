@@ -26,8 +26,6 @@
 
 下漫画的
 
-> [26/02/18] （文档等）nyc.mn 旧域名已废弃，新域名后缀 xyz
-
 |       预览/多选/翻页       |       [读剪贴板](https://cgs.101114105.xyz/feat/clip)       |
 |:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
 | <img src="https://img-cgs.101114105.xyz/file/1764957470369_common-usage.gif" loading="lazy" alt="turn-page-new"> | <img src="https://img-cgs.101114105.xyz/file/1764957479778_load_clip.gif" loading="lazy" alt="load_clip"> |
@@ -55,13 +53,15 @@
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
 | [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
 | [Kemono](https://kemono.cr)     | 🌏 |     🔞     |  |
-| [HComic](https://kemono.cr)     | 🌏 |     🔞/代理/`2.8.6`~     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
+| [HComic](https://kemono.cr)     | 🌏 |     🔞/代理     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
 
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
 ---
 
 ## 📢更新
+
+[![Sparkline](https://stars.medv.io/jasoneri/ComicGUISpider.svg)](https://stars.medv.io/jasoneri/ComicGUISpider)
 
 图链/项目主页/文档都已转用 Cloudflare 加速优化，卡的话可以用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
 

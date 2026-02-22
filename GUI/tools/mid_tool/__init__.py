@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
+import contextlib
 from copy import deepcopy
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QStackedWidget, QApplication
+    QWidget, QHBoxLayout, QScrollArea, QStackedWidget, QApplication, QSizePolicy
 )
 from qfluentwidgets import (
-    SwitchButton, PushButton, PrimaryToolButton, TransparentToolButton,
-    FluentIcon as FIF,
-    SubtitleLabel, EditableComboBox, InfoBar, InfoBarPosition
+    SwitchButton, PrimaryToolButton, TransparentToolButton, PrimaryPushButton,
+    FluentIcon as FIF, TeachingTip, TeachingTipTailPosition,
+    SubtitleLabel, EditableComboBox, InfoBar, InfoBarPosition, VBoxLayout, MessageBox
 )
 
 from GUI.core.theme import theme_mgr, CustTheme
@@ -66,7 +67,7 @@ class WorkflowCanvas(QWidget):
         self._init_theme()
 
     def _init_ui(self):
-        layout = QVBoxLayout(self)
+        layout = VBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
@@ -188,15 +189,20 @@ class MidToolInterface(QWidget):
         super().__init__(gui)
         self.gui = gui
         self.workflow = WorkflowDefinition(workflow_name="Untitled")
+        self._is_dirty = False
+        self._suspend_dirty = False
 
         self._init_ui()
         self._populate_rule_panel()
         self._try_load_active_workflow()
         self._update_workflow_dropdown()
-        self._connect_manager()
+        if getattr(self.gui, "is_setup_finished", False):
+            self._on_setup_finished()
+        else:
+            self.gui.setup_finished.connect(self._on_setup_finished)
 
     def _init_ui(self):
-        layout = QVBoxLayout(self)
+        layout = VBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 0)
         layout.setSpacing(12)
 
@@ -204,12 +210,13 @@ class MidToolInterface(QWidget):
         self.title_label = SubtitleLabel("CGSMid")
 
         self.workflow_combo = EditableComboBox()
-        self.workflow_combo.setMaximumWidth(200)
+        self.workflow_combo.setMaximumWidth(135)
         self.workflow_combo.setPlaceholderText("输入名称")
         self.workflow_combo.currentIndexChanged.connect(self._on_workflow_index_changed)
 
         self.enable_switch = SwitchButton()
-        self.enable_switch.setText("自动化")
+        self.enable_switch.setOffText("")
+        self.enable_switch.setOnText("")
         self.enable_switch.checkedChanged.connect(self._on_enable_changed)
 
         self.delete_btn = TransparentToolButton(FIF.DELETE, self)
@@ -219,8 +226,8 @@ class MidToolInterface(QWidget):
         self.save_btn.clicked.connect(self._on_save)
 
         header.addWidget(self.title_label)
-        header.addWidget(self.enable_switch)
         header.addStretch()
+        header.addWidget(self.enable_switch)
         header.addWidget(self.workflow_combo)
         header.addWidget(self.delete_btn)
         header.addWidget(self.save_btn)
@@ -248,6 +255,7 @@ class MidToolInterface(QWidget):
 
         self.detail_panel = DetailPanel(self)
         self.detail_panel.back_requested.connect(self._show_rule_panel)
+        self.detail_panel.param_changed.connect(self._on_param_changed)
         self._panel_stack.addWidget(self.detail_panel)
 
         content.addWidget(self.canvas)
@@ -266,27 +274,80 @@ class MidToolInterface(QWidget):
         if conf.active_workflow:
             self._load_workflow(conf.active_workflow)
 
+    def _on_setup_finished(self):
+        self._connect_manager()
+        if self.workflow.auto_enabled:
+            if mgr := getattr(self.gui, "mid_mgr", None):
+                mgr.set_enabled(True, workflow=self.workflow)
+
     def _connect_manager(self):
         mgr = getattr(self.gui, "mid_mgr", None)
         if mgr:
             mgr.state_changed.connect(self._on_state_changed)
             mgr.lane_visibility_changed.connect(self._on_lane_visibility_changed)
+            mgr.lane_execution_requested.connect(self._on_lane_execution_requested)
+            mgr.transition_rejected.connect(self._on_transition_rejected)
             self.canvas.set_state(mgr.workflow_state, mgr._workflow_session.current_stage)
+            self._sync_runtime_locks(mgr.workflow_state)
 
     def _on_state_changed(self, state: WorkflowState, stage):
         self.canvas.set_state(state, stage)
+        self._sync_runtime_locks(state)
+
+    def _sync_runtime_locks(self, state: WorkflowState):
+        locked = state in (WorkflowState.RUNNING, WorkflowState.WAITING)
+        self.workflow_combo.setEnabled(not locked)
+        self.delete_btn.setEnabled(not locked)
+
+    def _dev_reload_ui(self):  # FIXME[0] ai禁止对此注释操作，开发者自身记得测试完毕后删除哦
+        tool_win = getattr(self.gui, "toolWin", None)
+        if tool_win and hasattr(tool_win, "reloadMidTool"):
+            tool_win.reloadMidTool()
+            return
+
+        saved_workflow = self.workflow
+        self.layout().deleteLater()
+        self._init_ui()
+        self._apply_workflow(saved_workflow)
+        self._update_workflow_dropdown()
+        self._connect_manager()
 
     def _on_lane_visibility_changed(self, lane_id: str, hidden: bool):
         if lane_id in self.canvas.lane_nodes:
             self.canvas.lane_nodes[lane_id].set_hidden(hidden)
 
     def _on_enable_changed(self, checked: bool):
-        if mgr:= getattr(self.gui, "mid_mgr", None):
-            mgr.set_enabled(checked)
+        self.workflow.auto_enabled = checked
+        self._mark_dirty()
+        if not checked:
+            if mgr := getattr(self.gui, "mid_mgr", None):
+                mgr.set_enabled(False)
+            if hasattr(self, "_enable_tip"):
+                with contextlib.suppress(RuntimeError):
+                    getattr(self, "_enable_tip").close()
+            return
+
+        self._enable_tip = TeachingTip.create(
+            target=self.enable_switch,
+            title="",
+            content="保存后，下次触发时将自动执行，或👇",
+            isClosable=True, duration=3000,
+            tailPosition=TeachingTipTailPosition.RIGHT_TOP,
+            parent=self
+        )
+        acceptBtn = PrimaryPushButton(FIF.PLAY, "立即激活")
+        acceptBtn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        acceptBtn.clicked.connect(self.run_now)
+        acceptBtn.clicked.connect(self._enable_tip.close)
+        self._enable_tip.view.widgetLayout.addWidget(acceptBtn)
 
     def on_flow_changed(self, index: int):
         flow_types = ["auto", "ep", "book"]
         self.workflow.flow_type = flow_types[index]
+
+    def run_now(self):
+        if mgr := getattr(self.gui, "mid_mgr", None):
+            mgr.set_enabled(True, workflow=self.workflow, force_restart=True)
 
     def _on_rule_selected(self, definition: MiddlewareDefinition, lane_id: str):
         if definition.id in [m.id for m in self.workflow.middlewares]:
@@ -295,10 +356,12 @@ class MidToolInterface(QWidget):
         self.workflow.middlewares.append(new_def)
         self.canvas.lane_nodes[lane_id].button_group.add_rule(new_def)
         self.rule_panel.hide_rule(definition.id)
+        self._mark_dirty()
 
     def _on_rule_removed(self, rule_id: str):
         self.workflow.middlewares = [m for m in self.workflow.middlewares if m.id != rule_id]
         self.rule_panel.show_rule(rule_id)
+        self._mark_dirty()
 
     def _on_rule_moved(self, rule_id: str, from_idx: int, to_idx: int):
         for lane_node in self.canvas.lane_nodes.values():
@@ -308,10 +371,10 @@ class MidToolInterface(QWidget):
             base = min(priorities)
             for i, btn in enumerate(lane_node.button_group.rules):
                 btn.definition.priority = base + i
+        self._mark_dirty()
 
     def _on_rule_clicked(self, definition: MiddlewareDefinition):
-        rule_btn = self.canvas.find_rule_button(definition)
-        if rule_btn:
+        if rule_btn:= self.canvas.find_rule_button(definition):
             self.canvas.set_active_rule(rule_btn)
         self.detail_panel.show_definition(definition)
         self._panel_stack.setCurrentWidget(self.detail_panel)
@@ -367,9 +430,29 @@ class MidToolInterface(QWidget):
         if not filepath.exists():
             return
         content = filepath.read_text(encoding="utf-8")
-        self.workflow = workflow_from_json(content)
-        self.canvas.update_workflow(self.workflow)
-        self._sync_rule_panel()
+        self._apply_workflow(workflow_from_json(content))
+
+    def _apply_workflow(self, workflow: WorkflowDefinition):
+        self._suspend_dirty = True
+        try:
+            self.workflow = workflow
+            self.canvas.update_workflow(self.workflow)
+            self._sync_rule_panel()
+            self._set_auto_enabled_switch(self.workflow.auto_enabled)
+            if mgr := getattr(self.gui, "mid_mgr", None):
+                self.canvas.set_state(mgr.workflow_state, mgr._workflow_session.current_stage)
+                self._sync_runtime_locks(mgr.workflow_state)
+            else:
+                self.canvas.set_state(WorkflowState.IDLE)
+                self._sync_runtime_locks(WorkflowState.IDLE)
+        finally:
+            self._suspend_dirty = False
+            self._is_dirty = False
+
+    def _set_auto_enabled_switch(self, enabled: bool):
+        self.enable_switch.blockSignals(True)
+        self.enable_switch.setChecked(enabled)
+        self.enable_switch.blockSignals(False)
 
     def _sync_rule_panel(self):
         """同步 rule_panel 的显示/隐藏状态"""
@@ -385,13 +468,7 @@ class MidToolInterface(QWidget):
         self.workflow_combo.blockSignals(True)
         self.workflow_combo.clear()
         self.workflow_combo.addItems(saved)
-
-        current = sanitize_filename(self.workflow.workflow_name)
-        if current in saved:
-            self.workflow_combo.setCurrentText(current)
-        else:
-            self.workflow_combo.setItemText(0, self.workflow.workflow_name)
-
+        self.workflow_combo.setCurrentText(self.workflow.workflow_name)
         self.workflow_combo.blockSignals(False)
 
     def _on_workflow_index_changed(self, index: int):
@@ -399,10 +476,22 @@ class MidToolInterface(QWidget):
             return
         name = self.workflow_combo.itemText(index)
         if name and name != sanitize_filename(self.workflow.workflow_name):
+            if self._is_dirty:
+                w = MessageBox("未保存更改", "当前工作流有未保存的修改，是否放弃？", self)
+                if not w.exec():
+                    self.workflow_combo.blockSignals(True)
+                    self.workflow_combo.setCurrentText(self.workflow.workflow_name)
+                    self.workflow_combo.blockSignals(False)
+                    return
             self._load_workflow(name)
             conf.update(active_workflow=sanitize_filename(name))
 
     def _on_delete_workflow(self):
+        if self._is_dirty:
+            w = MessageBox("未保存更改", "当前工作流有未保存的修改，删除前将丢失，是否继续？", self)
+            if not w.exec():
+                return
+
         index = self.workflow_combo.currentIndex()
         if index < 0:
             return
@@ -415,23 +504,49 @@ class MidToolInterface(QWidget):
             return
 
         filepath.unlink(missing_ok=True)
-        if saved:= self._list_saved_workflows():
+        if saved := self._list_saved_workflows():
             self._load_workflow(saved[0])
             conf.update(active_workflow=sanitize_filename(saved[0]))
         else:
-            self.workflow = WorkflowDefinition(workflow_name="Untitled")
-            self.canvas.update_workflow(self.workflow)
-            self._sync_rule_panel()
+            self._apply_workflow(WorkflowDefinition(workflow_name="Untitled"))
             conf.update(active_workflow="")
 
         self._update_workflow_dropdown()
+        self._is_dirty = False
 
     def _on_save(self):
         name = self.workflow_combo.currentText().strip() or "Untitled"
         self.workflow.workflow_name = name
         self._save_workflow()
         self._update_workflow_dropdown()
+        self._is_dirty = False
         InfoBar.success(
             "保存成功", f"工作流已保存: {self.workflow.workflow_name}",
             parent=self, position=InfoBarPosition.TOP, duration=3000
+        )
+
+    def _mark_dirty(self):
+        if not self._suspend_dirty:
+            self._is_dirty = True
+
+    def _on_param_changed(self, key: str, value):
+        self._mark_dirty()
+
+    def _on_lane_execution_requested(self, lane_id: str, stage):
+        lane_names = {
+            "SITE": "选择网站", "SEARCH": "输入搜索",
+            "BOOK": "选择书本", "EP": "选择章节",
+            "POSTPROCESSING": "后处理"
+        }
+        name = lane_names.get(lane_id, lane_id)
+        InfoBar.info(
+            "等待操作", f"当前节点: {name}",
+            parent=self, position=InfoBarPosition.TOP_LEFT, duration=2000
+        )
+
+    def _on_transition_rejected(self, from_state, to_state, stage):
+        InfoBar.warning(
+            "状态切换受限",
+            f"{getattr(from_state, 'name', from_state)} → {getattr(to_state, 'name', to_state)} @ {stage}",
+            parent=self, position=InfoBarPosition.TOP_LEFT, duration=3000
         )

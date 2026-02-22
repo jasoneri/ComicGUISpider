@@ -7,7 +7,7 @@ import contextlib
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtGui import QKeySequence, QGuiApplication
-from PyQt5.QtCore import QThread, Qt, QCoreApplication, QUrl, QRect, QTimer
+from PyQt5.QtCore import QThread, Qt, QCoreApplication, QUrl, QRect, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
 from GUI.uic.qfluent import (
@@ -20,10 +20,12 @@ from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils, DomainToolView
-from GUI.manager import TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager
-from GUI.manager.mid import CGSMidManagerGUI, WorkflowState
+from GUI.manager import (
+    TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager,
+    CGSMidManagerGUI, MangaPreviewManager
+)
 from GUI.manager.preprocess import PreprocessManager
-from utils.middleware.timeline import TimelineStage
+from utils.middleware.timeline import EventSource, TimelineStage
 from variables import *
 from assets import res
 from utils import Queues, QueuesManager, conf, p, curr_os, select, ori_path, bs_theme
@@ -39,6 +41,7 @@ from utils.sql import SqlRecorder
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
+    setup_finished = pyqtSignal()
     input_state: InputFieldState = None
     text_browser_state: TextBrowserState = None
     process_state: ProcessState = None
@@ -129,6 +132,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.clip_mgr = ClipGUIManager(self)
         self.ags_mgr = AggrSearchManager(self)
         self.mid_mgr = CGSMidManagerGUI(self)
+        self.manga_mgr = MangaPreviewManager(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.checkisopenCnt = 0
@@ -142,22 +146,29 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.previewSecondInit = False
         self.BrowserWindow = None
         self.bsm = None
+        self.previewBtn.setVisible(True)
+        self.mpreviewBtn.setVisible(False)
 
         def chooseBox_changed_handle(index):
             if index not in SPIDERS.keys() and index != 0:
+                self.mpreviewBtn.setVisible(False)
+                self.previewBtn.setVisible(False)
                 self.retrybtn.setEnabled(True)
+                self.manga_mgr.handle_choosebox_changed(index)
                 self.preprocess_mgr.handle_choosebox_changed(index)
                 return
             self.spiderUtils = spider_utils_map[index]
             rmt_s2c = True
             self.rv_tools.ero = 0
             self.web_is_r18 = index in SPECIAL_WEBSITES_IDXES
+            is_normal_spider = index in SPIDERS and not self.web_is_r18
+            self.mpreviewBtn.setVisible(is_normal_spider)
+            self.previewBtn.setVisible(self.web_is_r18)
             self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
             if self.web_is_r18:
                 self.sut = self.spiderUtils(conf)
                 rmt_s2c = False
                 self.rv_tools.ero = 1
-            if hasattr(self, 'mid_mgr') and self.mid_mgr:
                 self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
             FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
@@ -170,17 +181,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.p_crawler.start()
                 self.chooseBox.setDisabled(True)
                 self.retrybtn.setEnabled(True)
-                # Notify CGSMid: site selected → wait for search keyword
-                if self.mid_mgr.enabled:
-                    self.mid_mgr._workflow_session.reset()
-                    self.mid_mgr.set_state(WorkflowState.RUNNING)
-                    self.mid_mgr.set_state(WorkflowState.WAITING, TimelineStage.WAIT_SEARCH)
             self.chooseBox_changed_tips(index)
             if self.web_is_r18:
                 self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
             # 输入框联想补全
             self.set_completer()
             # 预处理管理器处理
+            self.manga_mgr.handle_choosebox_changed(index)
             self.preprocess_mgr.handle_choosebox_changed(index)
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
 
@@ -193,6 +200,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         if hasattr(self, 'splashScreen'):
             self.splashScreen.finish()
+
+        self.is_setup_finished = True
+        self.setup_finished.emit()
 
     def setup_chooseinput_number_keypad(self):
         if not hasattr(self.chooseinput, 'objectName') or not self.chooseinput.objectName():
@@ -222,7 +232,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
-        # self.toolWin.addMidTool()  # TODO[1](2026-02-07): v2.9.0恢复
+        self.toolWin.addMidTool()
         self.rvBtn.clicked.connect(self.toolWin.show)
 
     def set_completer(self):
@@ -248,12 +258,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.searchinput.textChanged.connect(search_btn)
         self.next_btn.setDisabled(True)
         self.previewBtn.setDisabled(True)
-        self.crawl_btn.clicked.connect(self.crawl)
+        self.crawl_btn.clicked.connect(lambda _: self.crawl())
         self.retrybtn.clicked.connect(self.retry_schedule)
-        self.next_btn.clicked.connect(self.next_schedule)
+        self.next_btn.clicked.connect(lambda _: self.next_schedule())
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
+
+        with contextlib.suppress(TypeError):
+            self.mpreviewBtn.clicked.disconnect()
+        self.mpreviewBtn.clicked.connect(self.manga_mgr.on_spreview_clicked)
 
         def checkisopen_btn():
             if self.checkisopenCnt > 0:
@@ -290,18 +304,26 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def page_turn_frame(self):
         def refresh_view(_prev_tf):
-            if self.BrowserWindow and self.BrowserWindow.isVisible():
-                i = 0
-                while i < 1000:  # i * 3ms = 极限等待3s
-                    if self.tf != _prev_tf:
-                        self.BrowserWindow.second_init()
-                        self.previewSecondInit = False
-                        break
-                    i += 1
-                    QThread.msleep(4)
-                if self.tf == _prev_tf:
-                    self.previewSecondInit = True
-                    self.BrowserWindow.close()
+            # 只有 R18 预览模式才使用 tf 变化判定
+            if (
+                not self.BrowserWindow
+                or not self.BrowserWindow.isVisible()
+                or not self.web_is_r18  # 非R18模式由 MangaPreviewManager 管理，不需要等待 tf 变化
+            ):
+                return
+            i = 0
+            while i < 1000:  # i * 4ms = 极限等待4s
+                if self.tf != _prev_tf:
+                    self.BrowserWindow.second_init()
+                    self.previewSecondInit = False
+                    break
+                i += 1
+                QThread.msleep(4)
+                # 每次循环后处理事件队列，避免阻塞
+                QCoreApplication.processEvents()
+            # 超时不再强制关闭窗口，仅标记状态
+            if self.tf == _prev_tf:
+                self.previewSecondInit = True
 
         def page_turn(_p):
             _prev_tf = self.tf
@@ -375,11 +397,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         elif self.previewSecondInit:
             self.BrowserWindow.second_init()
             self.previewSecondInit = False
+        self.BrowserWindow.set_ensure_handler()
         self.BrowserWindow.show()
 
     def clean_preview(self):
+        self.clean_temp_file()
         if self.BrowserWindow:
-            self.clean_temp_file()
             self.BrowserWindow.destroy()
 
     def clean_temp_file(self):
@@ -408,6 +431,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.close_process(stop_mgr=False)
             except (FileNotFoundError, m.RemoteError, ConnectionRefusedError, ValueError, BrokenPipeError) as e:
                 self.log.error(str(traceback.format_exc()))
+            if getattr(self, "mid_mgr", None):
+                self.mid_mgr.stop()
             self.log = conf.cLog(name="GUI")
             self.BrowserWindow = None
             def safe_setup():
@@ -428,18 +453,95 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.next_btn.setDisabled(True)
         self.clipBtn.setDisabled(True)
 
-    def next_schedule(self):
+    # --- WorkThread lifecycle API (FR-2) ---
+
+    def ensure_work_thread(self) -> WorkThread:
+        if self.bThread and self.bThread.isRunning():
+            return self.bThread
+        self.bThread = WorkThread(self)
+        self._connect_worker_signals(self.bThread)
+        mgr = getattr(self, "mid_mgr", None)
+        if mgr:
+            mgr.attach_worker(self.bThread)
+        self.bThread.start()
+        self.log.info("-*-*- Background thread & spider starting")
+        return self.bThread
+
+    def stop_work_thread(self, wait_ms=800):
+        worker = self.bThread
+        if worker is None:
+            return
+        if mgr:= getattr(self, "mid_mgr", None):
+            mgr.detach_worker(worker)
+        worker.stop()
+        worker.quit()
+        worker.wait(wait_ms)
+        self.bThread = None
+
+    def _connect_worker_signals(self, worker: WorkThread):
+        signal_slot_pairs = (
+            (worker.print_signal, self.say),
+            (worker.item_count_signal, self.processbar_load),
+            (worker.tasks_signal, self.task_mgr.handle),
+            (worker.worker_finished_signal, self._on_worker_finished),
+            (worker.books_ready_signal, self._on_books_ready),
+            (worker.eps_ready_signal, self._on_eps_ready),
+            (worker.show_max_signal, self.say_show_max),
+            (worker.preview_signal, self.preprocess_preview),
+            (worker.keep_books_signal, self.show_keep_books),
+            (worker.process_state_signal, self._on_process_state_changed),
+        )
+        for signal, slot in signal_slot_pairs:
+            signal.connect(slot)
+
+    def _on_books_ready(self, books: dict):
+        self.books = books
+
+    def _on_eps_ready(self, eps: dict):
+        self.eps = eps
+
+    def _on_process_state_changed(self, state):
+        self.process_state = state
+
+    def _on_worker_finished(self, imgs_path: str):
+        self.bThread = None
+        self.crawl_end(imgs_path)
+
+    def submit_decision(self, lane: str, indexes, *, page_turn: str = ""):
+        """Unified decision pipeline (FR-1).
+
+        Both manual UI operations and mid_mgr automation funnel through here
+        to ensure GUI state (book_choose / keep_books / book_num) stays consistent.
+        """
+        self.input_state.pageTurn = page_turn
+        if lane == "BOOK":
+            if isinstance(indexes, list):
+                self.keep_books.extend(indexes)
+            self.input_state.indexes = self.keep_books
+            if self.nextclickCnt == 1:
+                self.book_choose = self.input_state.indexes
+                self.book_num = len(self.book_choose)
+        else:
+            self.input_state.indexes = indexes
+
+        self.q_InputFieldQueue_send(self.input_state)
+
+        mgr = getattr(self, "mid_mgr", None)
+        if mgr and mgr.enabled:
+            stage_map = {"BOOK": TimelineStage.BOOK_SENT, "EP": TimelineStage.EP_SENT}
+            if stage := stage_map.get(lane):
+                mgr.dispatch_stage(stage, EventSource.UI, {"lane": lane})
+
+    def next_schedule(self, keyword=None, site_index=None):
         def start_and_search():
             self.log.info('===--→ -*- searching')
             self.next_btn.setText('Next')
 
-            self.input_state.keyword = self.searchinput.text().strip()
-            self.input_state.bookSelected = self.chooseBox.currentIndex()
-            # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
-            self.q_InputFieldQueue_send(self.input_state)
+            self.input_state.keyword = keyword if keyword is not None else self.searchinput.text().strip()
+            self.input_state.bookSelected = site_index if site_index is not None else self.chooseBox.currentIndex()
 
             if self.nextclickCnt == 0:          # 从section步 回parse步 的话以免重开
-                self.bThread = WorkThread(self)
+                self.ensure_work_thread()
 
                 def crawl_btn(text):
                     if len(text.strip()) > 0:
@@ -448,12 +550,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                         self.next_btn.setDisabled(self.crawl_btn.isEnabled())
                 self.chooseinput.textChanged.connect(crawl_btn)
 
-                self.bThread.print_signal.connect(self.say)
-                self.bThread.item_count_signal.connect(self.processbar_load)
-                self.bThread.tasks_signal.connect(self.task_mgr.handle)
-                self.bThread.finish_signal.connect(self.crawl_end)
-                self.bThread.start()
-                self.log.info(f'-*-*- Background thread & spider starting')
+            # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
+            self.q_InputFieldQueue_send(self.input_state)
 
             self.log.debug(
                 f'website_index:[{self.input_state.bookSelected}], keyword [{self.input_state.keyword}] success ')
@@ -462,9 +560,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self._next()
         else:
             start_and_search()
-            # Notify CGSMid: WAIT_SEARCH → RUNNING
-            if self.mid_mgr.enabled:
-                self.mid_mgr.set_state(WorkflowState.RUNNING, TimelineStage.SEARCHING)
 
         self.nextclickCnt += 1
         self.searchinput.setEnabled(False)
@@ -492,12 +587,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             if selected_list and len(selected_list) > 20 and int(conf.concurr_num) > 10:
                 conf.update(concurr_num=8)
                 self.say(res.SPIDER.reduce_concurrency_tip % 8)
-            self.bThread = WorkThread(self)
-            self.bThread.print_signal.connect(self.say)
-            self.bThread.item_count_signal.connect(self.processbar_load)
-            self.bThread.tasks_signal.connect(self.task_mgr.handle)
-            self.bThread.finish_signal.connect(self.crawl_end)
-            self.bThread.start()
+            self.ensure_work_thread()
 
             self.input_state.indexes = selected_list
             self.input_state.pageTurn = ""
@@ -509,31 +599,22 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.BrowserWindow and self.BrowserWindow.output:
             idxes = f"[combine]{str(self.BrowserWindow.output)} and {idxes}"
         __ = select(idxes, self.books)
-        self.keep_books.extend(__)
-        self.input_state.indexes = self.keep_books
-        self.input_state.pageTurn = ""
-        if self.nextclickCnt == 1:
-            self.book_choose = self.input_state.indexes if self.input_state.indexes != "0" else \
-                [_ for _ in range(1, 11)]  # 选0的话这里要爬虫返回书本数量数据，还要加个Queue
-            self.book_num = len(self.book_choose)
+        self.books = {}
         self.chooseinput.clear()
-        # choose逻辑 交由crawl, next,retry3个btn的schedule控制
-        self.q_InputFieldQueue_send(self.input_state)
-        self.log.debug(f'send choose: {self.input_state.indexes} success')
+        self.submit_decision("BOOK", __)
 
-    def crawl(self):
-        idxes = self.chooseinput.text().strip()
-        __ = select(idxes, self.eps)
-        if not __:
+    def crawl(self, episodes=None):
+        if episodes is None:
+            idxes = self.chooseinput.text().strip()
+            episodes = select(idxes, self.eps)
+        if not episodes:
             self.say(font_color(r'selected idxes error!!!', cls='theme-err', size=5))
             return
-        book = __[0].from_book
-        book.episodes = __
-        self.input_state.indexes = book
+        book = episodes[0].from_book
+        book.episodes = episodes
 
         QThread.msleep(10)
-        self.q_InputFieldQueue_send(self.input_state)
-        self.log.debug(f'send choose success')
+        self.submit_decision("EP", book)
 
         if self.book_num == 0:
             self.crawl_btn.setDisabled(True)
@@ -599,16 +680,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def close_process(self, stop_mgr=True):
         self.clean_preview()
-        if self.bThread is not None:  # 线程停止
-            self.bThread.stop()
+        self.stop_work_thread()
         targets = ('p_qm', 'p_crawler',) if stop_mgr else ('p_crawler',)
         for _ in targets:
             _p = getattr(self, _)
-            if _p is not None:  # 进程停止
+            if _p is not None:
                 _p.kill()
                 _p.join()
                 _p.close()
                 delattr(self, _)
+        if stop_mgr and getattr(self, "mid_mgr", None):
+            self.mid_mgr.stop()
 
     def closeEvent(self, event):
         if hasattr(self, 'rv_mgr'):

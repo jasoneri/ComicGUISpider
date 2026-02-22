@@ -76,11 +76,10 @@ class HitomiUtils(EroUtils, Req):
         def __init__(self, gg):
             self.gg = gg
 
-        def subdomain_from_url(self, base, 
+        def subdomain_from_url(self, base,
                                img_type, gg_s):
             if base:    # 目前仅有"tn"
-                retval = base
-                # retval = chr(97 + self.gg.m(gg_s)) + base
+                retval = chr(97 + self.gg.m(gg_s)) + base
             else:
                 retval = f"{img_type[0]}{1 + self.gg.m(gg_s)}"
             return retval

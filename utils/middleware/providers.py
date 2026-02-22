@@ -26,45 +26,49 @@ class PresetProvider(MiddlewareProvider):
     category = "Built-in"
 
     def list_available(self) -> list[MiddlewareDefinition]:
+        def _preset(*, lane: LaneStage, stage: TimelineStage, **kwargs) -> MiddlewareDefinition:
+            kwargs.setdefault("enabled", True)
+            kwargs.setdefault("params", {})
+            return MiddlewareDefinition(
+                supported_stages=[int(stage)],
+                allowed_lanes=[lane.value],
+                **kwargs,
+            )
+
         return [
-            MiddlewareDefinition(
-                id="preset:auto_select_first", type="select",
-                name="Select First Book",
+            _preset(
+                id="preset:auto_select_first",
+                type="auto_select_first",
+                name="Select First n Books",
                 default_priority=211,
-                supported_stages=[int(TimelineStage.WAIT_BOOK_DECISION)],
-                params={}, enabled=True,
                 label="C1",
-                allowed_lanes=[LaneStage.BOOK.value],
-            ),
-            MiddlewareDefinition(
-                id="preset:auto_select_first_test", type="select",
-                name="Select First Book2",
-                default_priority=212,
-                supported_stages=[int(TimelineStage.WAIT_BOOK_DECISION)],
-                params={}, enabled=True,
-                label="C2",
-                allowed_lanes=[LaneStage.BOOK.value],
-            ),
-            MiddlewareDefinition(
-                id="preset:auto_select_latest", type="select",
-                name="Select Latest n Episode",
-                default_priority=311,
-                supported_stages=[int(TimelineStage.WAIT_EP_DECISION)],
+                desc="选择前n本书",
                 params={'num': 1},
                 param_schema={'num': {'type': 'int', 'min': 1, 'max': 99, 'default': 1}},
-                enabled=True,
-                label="D1", desc="选择最新n个章节",
-                allowed_lanes=[LaneStage.EP.value],
+                lane=LaneStage.BOOK,
+                stage=TimelineStage.WAIT_BOOK_DECISION,
             ),
-            MiddlewareDefinition(
-                id="preset:cbz_post_processor", type="*file_type",
-                name="To CBZ",
-                default_priority=601,
-                supported_stages=[int(TimelineStage.POSTPROCESSING)],
-                params={}, enabled=True,
-                label="E1",
-                allowed_lanes=[LaneStage.POSTPROCESSING.value],
+            _preset(
+                id="preset:auto_select_latest",
+                type="auto_select_latest",
+                name="Select Latest n Episode",
+                default_priority=311,
+                label="D1",
+                desc="选择最新n个章节",
+                params={'num': 1},
+                param_schema={'num': {'type': 'int', 'min': 1, 'max': 99, 'default': 1}},
+                lane=LaneStage.EP,
+                stage=TimelineStage.WAIT_EP_DECISION,
             ),
+            # _preset(
+            #     id="preset:cbz_post_processor",
+            #     type="cbz_post_processor",
+            #     name="To CBZ",
+            #     default_priority=601,
+            #     label="E1",
+            #     lane=LaneStage.POSTPROCESSING,
+            #     stage=TimelineStage.POSTPROCESSING,
+            # ),
         ]
 
 

@@ -21,7 +21,7 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 <table><tbody>
   <tr>
-    <td><img src="https://img-cgs.101114105.xyz/file/1764957479778_load_clip.gif"></td>
+    <td><img src="{{URL_IMG}}/file/1764957479778_load_clip.gif"></td>
   </tr>  
 </tbody></table>
 
@@ -39,6 +39,6 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 - [win] 进ditto选项，点高级进页面后，查找图示的两个值将其改为150
 
-![ditto_settings](../assets/img/faq/ditto_settings.png)
+![ditto_settings]({{URL_IMG}}/file/screenshots/1771752245633_ditto_settings.png)
 
 - [macOS] maccy：没得改，不用改  

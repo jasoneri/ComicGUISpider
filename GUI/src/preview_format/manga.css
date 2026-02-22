@@ -1,0 +1,60 @@
+body {
+    padding: 16px;
+}
+
+.normal-book-card {
+    cursor: pointer;
+    transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.normal-book-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.16);
+}
+
+.card-img-top {
+    object-fit: cover;
+    aspect-ratio: 3 / 4;
+    background: rgba(127, 127, 127, 0.18);
+}
+
+.episodes-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+}
+
+.episodes-grid .btn {
+    font-size: 0.82rem;
+    padding: 4px 12px;
+}
+
+.episodes-grid .btn-check {
+    position: static !important;
+    clip: unset !important;
+    appearance: none;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.episode-container-downloaded {
+    background-color: lightsalmon !important;
+    color: #000 !important;
+    opacity: 1 !important;
+}
+
+.status-badge-fade {
+    animation: badgeFadeIn .4s ease;
+}
+@keyframes badgeFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.card-footer:empty {
+    display: none !important;
+}
