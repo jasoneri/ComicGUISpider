@@ -169,32 +169,18 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# self
-analyze/
-*.d
-*.zip
-*.psd
-*.clip
-*demo*.py
-__temp
-test/*
-.lh/
-assets/res/*.png
+# cgs
 custom/bg/*
 custom/start/*
-# self/build
-*.ico
-*.qrc
-src/
 !GUI/src/
 GUI/src/*
 !GUI/src/preview_format/
 !GUI/src/material_ct.py
-!GUI/src/__init__.py
+*.db*
+# cgs/build
+*.ico
+*.qrc
 !deploy/installer/src/
-temp
-*-in.txt
-untitled*
 Pipfile
 *.lock
 codecov*
@@ -203,16 +189,11 @@ codecov*
 *.hash
 uv.lock
 version.json
-# self/conf
-gitee_t.json
-record.db
-hitomi.db*
-# self/desc created html
+# cgs/desc created html
 desc.html
 docs/*.html
 deploy/launcher/mac/*.html
-# self/bug-report
-_bug_log
+
 # AI
 .cursor
 .claude

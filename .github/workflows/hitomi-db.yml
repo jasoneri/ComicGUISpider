@@ -24,18 +24,19 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install httpx[http2] lxml loguru PyYAML polib PyQt5
+        run: uv sync
 
       - name: Scrape dataset
         id: scrape
         continue-on-error: true
         run: |
-          python -m utils.website.hitomi.scape_dataset \
+          uv run python -m utils.website.hitomi.scape_dataset \
             --db-path assets/hitomi.db \
             --workers 2 \
             --max-retries 5 \
@@ -45,7 +46,7 @@ jobs:
         id: retry
         if: steps.scrape.outcome == 'failure'
         run: |
-          python -m utils.website.hitomi.scape_dataset \
+          uv run python -m utils.website.hitomi.scape_dataset \
             --db-path assets/hitomi.db \
             --workers 1 \
             --max-retries 8 \
@@ -53,11 +54,11 @@ jobs:
             --only-failed
 
       - name: Quality gate
-        run: python .github/scripts/hitomi_db_gate.py assets/hitomi.db
+        run: uv run python .github/scripts/hitomi_db_gate.py assets/hitomi.db
 
       - name: Generate manifest
         run: |
-          python .github/scripts/generate_hitomi_manifest.py \
+          uv run python .github/scripts/generate_hitomi_manifest.py \
             assets/hitomi.db \
             --output assets/hitomi-manifest.json
 
