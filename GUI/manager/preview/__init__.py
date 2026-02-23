@@ -1,6 +1,8 @@
 import json
+import pickle
 import tempfile
 import traceback
+import contextlib
 from collections import defaultdict
 from pathlib import Path
 
@@ -10,8 +12,10 @@ from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.core.font import font_color
 from GUI.thread.manga_preview import MangaPreviewWorker
+from assets import res as ori_res
+from variables import SPIDERS
 
-from utils import bs_theme, conf, temp_p
+from utils import bs_theme, conf, temp_p, conf_dir
 from utils.sql import SqlRecorder
 from utils.preview import TF, El, format_path
 
@@ -24,6 +28,10 @@ class MangaPreviewBridge(QObject):
     @pyqtSlot(str)
     def fetchEpisodes(self, bookKey):
         self._mgr.start_fetch_episodes(bookKey)
+
+    @pyqtSlot(str)
+    def toggleFavorite(self, bookKey):
+        self._mgr.toggle_favorite(bookKey)
 
 
 class _ScanSignals(QObject):
@@ -73,7 +81,17 @@ class MangaPreviewManager:
         self._pending_js = []
         self._inflight_books = set()
         self._page_load_page = None
+        self._is_local_mode = False
+        self._favorites_dir = conf_dir.joinpath("manga")
+        self._favorites_dir.mkdir(parents=True, exist_ok=True)
+        self._fav_completer_exists = False
+        self._check_lc_completer_exists()
         self.gui.destroyed.connect(self._stop_worker)
+
+    def _check_lc_completer_exists(self):
+        kw = ori_res.GUI.local_fav
+        completer_list = conf.completer.get(self.site_index)
+        self._fav_completer_exists = bool(completer_list and kw in completer_list)
 
     def _stop_worker(self, *_):
         if self._worker:
@@ -95,8 +113,118 @@ class MangaPreviewManager:
         self._worker.start()
         return self._worker
 
+    def _favorites_pkl_path(self):
+        spider_name = SPIDERS.get(self.site_index)
+        if not spider_name:
+            return None
+        return self._favorites_dir.joinpath(f"{spider_name}_local.pkl")
+
+    @staticmethod
+    def _book_unique_url(book):
+        return (getattr(book, "url", None) or getattr(book, "preview_url", "") or "").strip()
+
+    def _load_favorites(self):
+        pkl_path = self._favorites_pkl_path()
+        if not pkl_path or not pkl_path.exists():
+            return []
+        with open(pkl_path, "rb") as f:
+            data = pickle.load(f)
+        deduped, seen = [], set()
+        for book in data:
+            key = self._book_unique_url(book)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            deduped.append(book)
+        return deduped
+
+    def _save_favorites(self, books):
+        pkl_path = self._favorites_pkl_path()
+        if not pkl_path:
+            return False
+        self._favorites_dir.mkdir(parents=True, exist_ok=True)
+        tmp_path = pkl_path.with_name(f"{pkl_path.name}.tmp")
+        ok = False
+        try:
+            with open(tmp_path, "wb") as f:
+                pickle.dump(books, f, protocol=pickle.HIGHEST_PROTOCOL)
+            tmp_path.replace(pkl_path)
+            ok = True
+        finally:
+            if not ok and tmp_path.exists():
+                with contextlib.suppress(Exception):
+                    tmp_path.unlink()
+        return ok
+
+    def _get_favorite_urls(self):
+        return {self._book_unique_url(book) for book in self._load_favorites()}
+
+    def toggle_favorite(self, book_key):
+        if book_key not in self.books_cache:
+            return
+        book = self.books_cache[book_key]
+        book_url = self._book_unique_url(book)
+        if not book_url:
+            return
+        favorites = self._load_favorites()
+        existed_index = next(
+            (i for i, fav in enumerate(favorites) if self._book_unique_url(fav) == book_url),
+            None
+        )
+        was_favorited = existed_index is not None
+        if existed_index is not None:
+            favorites.pop(existed_index)
+        else:
+            favorites.append(book)
+        saved = self._save_favorites(favorites)
+        final_state = (not was_favorited) if saved else was_favorited
+        if saved and final_state and not self._fav_completer_exists:
+            self._ensure_local_fav_completer()
+            self._fav_completer_exists = True
+        js = (
+            f"if (typeof updateFavoriteState === 'function') "
+            f"updateFavoriteState('{book_key}', {'true' if final_state else 'false'});"
+        )
+        self._js_guarded(js, self._session_id)
+
+    def _ensure_local_fav_completer(self):
+        idx = self.site_index
+        kw = ori_res.GUI.local_fav
+        completer_list = conf.completer.get(idx)
+        if completer_list is None:
+            from variables import DEFAULT_COMPLETER
+            completer_list = list(DEFAULT_COMPLETER.get(idx, []))
+            conf.completer[idx] = completer_list
+        if kw not in completer_list:
+            completer_list.insert(0, kw)
+            conf.update()
+            self.gui.set_completer()
+
+    def _show_local_fav(self):
+        books = self._load_favorites()
+        for idx, book in enumerate(books):
+            book.idx = idx
+        self._is_local_mode = True
+        self._searching = False
+        self._current_page = 1
+        self._current_keyword = ori_res.GUI.local_fav
+        self._session_id += 1
+        sid = self._session_id
+        self._page_ready = False
+        self._pending_js.clear()
+        self._inflight_books.clear()
+        self.books_cache = {str(book.idx): book for book in books}
+        self.episodes_cache.clear()
+        self.gui.clean_temp_file()
+        body = self._build_cards_html(books)
+        self.gui.tf = self._create_html_file(body)
+        self._show_preview_window()
+        self._start_dl_scan(sid)
+
     def handle_choosebox_changed(self, index):
         self.site_index = index
+        self._check_lc_completer_exists()
+        self._is_local_mode = False
         self._current_page = 1
         self._current_keyword = ""
         self.books_cache.clear()
@@ -112,10 +240,15 @@ class MangaPreviewManager:
         keyword = self.gui.searchinput.text().strip()
         if not keyword:
             InfoBar.info(
-                title='', content='先输入搜索词吧', isClosable=True, 
+                title='', content='先输入搜索词吧', isClosable=True,
                 position=InfoBarPosition.BOTTOM, duration=2000, parent=self.gui.textBrowser
             )
             return
+
+        if keyword == ori_res.GUI.local_fav:
+            return self._show_local_fav()
+        self._is_local_mode = False
+
         if (keyword == self._current_keyword
                 and self.books_cache
                 and self.gui.tf
@@ -135,10 +268,9 @@ class MangaPreviewManager:
         self._ensure_worker().enqueue_search(keyword, self.site_index, page=1)
 
     def navigate_page(self, direction: str):
-        """direction: 'next' | 'prev'"""
-        if self._searching or not self._current_keyword:
-            return
-        if direction not in {"next", "prev"}:
+        if (self._searching or not self._current_keyword) or \
+            self._is_local_mode or \
+            direction not in {"next", "prev"}:
             return
         new_page = self._current_page + (1 if direction == "next" else -1)
         if new_page < 1:
@@ -158,6 +290,7 @@ class MangaPreviewManager:
         self._searching = False
         if site_index != self.site_index:
             return
+        self._is_local_mode = False
         self._session_id += 1
         sid = self._session_id
         self._page_ready = False
@@ -285,6 +418,21 @@ class MangaPreviewManager:
         for saved_sid, js in pending:
             if saved_sid == sid:
                 browser.js_execute(js, lambda _: None)
+
+        if self.books_cache:
+            if self._is_local_mode:
+                fav_keys = list(self.books_cache.keys())
+            else:
+                favorite_urls = self._get_favorite_urls()
+                fav_keys = [
+                    key for key, book in self.books_cache.items()
+                    if self._book_unique_url(book) in favorite_urls
+                ]
+            keys_json = json.dumps(fav_keys)
+            js = (
+                f"if (typeof initFavoriteStates === 'function') initFavoriteStates({keys_json});"
+            )
+            self._js_guarded(js, sid)
 
     def _js_guarded(self, js, session_id=None):
         sid = self._session_id if session_id is None else session_id

@@ -58,3 +58,32 @@ body {
 .card-footer:empty {
     display: none !important;
 }
+
+/* Local Collections / Favorites Star */
+.card-favorite-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    opacity: 0;
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+}
+
+.normal-book-card:hover .card-favorite-btn,
+.card-favorite-btn.is-favorited {
+    opacity: 1;
+}
+
+.card-favorite-btn.is-favorited {
+    color: #ffc107;
+}
+
+.card-favorite-btn:hover {
+    transform: scale(1.2);
+}

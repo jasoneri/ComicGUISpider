@@ -30,6 +30,7 @@ GUI:
   reboot_tip: "♻️ rebooting: cleaning background processes..."
   reboot_tip2: "⛺️ rebooting: reconstructing UI and instances.."
   ui_lang_need_reboot: "⚠️ui-language settings will take effect when save config and reboot"
+  local_fav: "Local Favorites"
   SearchInputStatusTip:
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
