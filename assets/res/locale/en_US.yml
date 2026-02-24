@@ -116,6 +116,8 @@ GUI:
     confDia_updateBtn: "Update"
     confDia_updateDialog_stable: "New stable version available"
     confDia_updateDialog_dev: "New dev version available"
+    confDia_skipDevRelease: "Skip dev releases"
+    confDia_kbShowDhb: "Show tankobon"
     confDia_supportBtn: "Pandora box"
     confDia_promote_title: "Recommended VPN"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
@@ -176,3 +178,4 @@ Updater:
   update_ensure: "Accept Update"
   doing: "Involves code and dependency updates, Wait a moment.."
   to_update: "🚧 Close main process for update, restart then look at version to determine whether update is success or not"
+  skip_this_ver: "Skip this version"

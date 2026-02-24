@@ -22,7 +22,7 @@ from GUI.thread import WorkThread, QueueInitThread
 from GUI.tools import ToolWindow, TextUtils, DomainToolView
 from GUI.manager import (
     TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager,
-    CGSMidManagerGUI, MangaPreviewManager
+    CGSMidManagerGUI, MangaPreviewManager, UpdateNotifier
 )
 from GUI.manager.preprocess import PreprocessManager
 from utils.middleware.timeline import EventSource, TimelineStage
@@ -201,6 +201,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if hasattr(self, 'splashScreen'):
             self.splashScreen.finish()
 
+        self.update_notifier = UpdateNotifier(self)
+        self.update_notifier.check_on_startup()
         self.is_setup_finished = True
         self.setup_finished.emit()
 

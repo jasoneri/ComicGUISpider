@@ -162,6 +162,8 @@ class Conf(BaseConf):
     clip_sql = curr_os.clip_sql
     kbShowDhb: bool = False
     active_workflow: str = ''
+    skipDev: bool = False
+    skipped_version: str = ''
 
     def __init__(self, path=None, iname=None):
         self.init_conf()
