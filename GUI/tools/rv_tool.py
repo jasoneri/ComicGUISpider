@@ -154,8 +154,10 @@ class rvTool(QWidget):
             target.setX(target.x() + 18)
             target.setY(target.y() - 18)
             guide = BodyLabel(tools_res.search_by_pic_guide)
-            CustomInfoBar.show_custom(title='', content='', parent=bro.view, _type="INFORMATION", duration=6000,
-                ib_pos=InfoBarPosition.TOP_LEFT, widgets=[guide])
+            img = ImageLabel()
+            img.setImage(QPixmap(":/tools/ascii2d.png"))
+            CustomInfoBar.show_custom(title='', content='', parent=bro.view, _type="INFORMATION", duration=7000,
+                ib_pos=InfoBarPosition.TOP_LEFT, widgets=[guide,img])
         self.gui.open_url_by_browser("https://saucenao.com/", callback)
 
     def show_max(self):

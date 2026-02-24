@@ -67,7 +67,7 @@ GUI:
     doamin_success_tip: "[%s]已设进下方临时文件，有效时间为48小时\n[%s]\n"
     doamin_error_tip: "域名全无效，请你自行检查，再次声明CGS并不能突破现网络环境去访问"
     search_by_pic: "以图搜索"
-    search_by_pic_guide: "1) 选择图片后点击搜索，等 saucenao 出结果。\n2) （隐藏可点击展开）选择(标题)文本，然后右键点击菜单项`Search by saucenao`。\n3) 文本将自动发送回主界面搜索框并进行搜索。"
+    search_by_pic_guide: "1) 选择图片后点击搜索，等 saucenao 出结果。\n2) （隐藏可点击展开）选择(标题)文本，然后右键点击菜单项`Search by saucenao`。\n3) 文本将自动发送回主界面搜索框并进行搜索。\n注：saucenao 转如图的 ascii2d 有奇效"
     reboot_tip: "CGS将在%s秒后重启以确保后台进程应用有效更改"
   Ags:
     empty_search: "搜索为空"
