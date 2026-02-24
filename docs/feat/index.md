@@ -61,7 +61,7 @@
       <td style="text-align: left;"><strong>rv相关</strong>: 下载&emsp;/&emsp;(右下)绑定<code>锚点</code>与运行&emsp;/&emsp;(左下)清除<code>锚点</code></td>
     </tr>
     <tr>
-      <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>（图一乐，你可以沿着链路继续找，或者来提供点靠谱的api/网站）</td>
+      <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>ps: 搜索后按图示转 ascii2d 有奇效</td>
     </tr>
     <tr>
       <td style="text-align: center;">CGSMid<br><small>midTool</small></td>
