@@ -1,8 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """code update"""
+import json
 import pathlib
 import platform
+from datetime import date
 
 import httpx
 from tqdm import tqdm
@@ -12,6 +14,7 @@ from packaging.version import parse
 from assets import res as ori_res
 from variables import VER
 from utils import conf
+from utils.config import conf_dir
 
 
 curr_os = platform.system()
@@ -111,9 +114,49 @@ class GitHandler:
             with open(zip_file, 'wb') as f:
                 size = 50 * 1024
                 for chunk in tqdm(resp.iter_bytes(size), ncols=80,
-                                  ascii=True, desc=Fore.BLUE + f"[ {res.code_downloading}.. ]"):
+                                  ascii=True, desc=f"{Fore.BLUE}[ {res.code_downloading}.. ]"):
                     f.write(chunk)
         return zip_file
+
+
+class UpdateState:
+    _file = conf_dir / "update_state.json"
+
+    def __init__(self):
+        self.last_check_date = ""
+        self.update_flag = "local"
+        self.update_info = {}
+        self.load()
+
+    def load(self):
+        if not self._file.exists():
+            return
+        try:
+            with open(self._file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return
+        self.last_check_date = data.get("last_check_date", "")
+        self.update_flag = data.get("update_flag", "local")
+        self.update_info = data.get("update_info", {})
+
+    def save(self):
+        payload = {
+            "last_check_date": self.last_check_date,
+            "update_flag": self.update_flag,
+            "update_info": self.update_info,
+        }
+        with open(self._file, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    def needs_check_today(self) -> bool:
+        return self.last_check_date != date.today().isoformat()
+
+    def clear(self):
+        self.last_check_date = ""
+        self.update_flag = "local"
+        self.update_info = {}
+        self.save()
 
 
 class Proj:

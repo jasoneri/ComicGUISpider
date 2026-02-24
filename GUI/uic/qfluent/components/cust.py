@@ -1,8 +1,8 @@
 import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QEvent
+from PyQt5.QtWidgets import QApplication, QGraphicsOpacityEffect
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QEvent, QPropertyAnimation, QEasingCurve, QPoint, QObject
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton,
@@ -10,7 +10,8 @@ from qfluentwidgets import (
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, TeachingTipTailPosition, ImageLabel,
-    StrongBodyLabel, CheckBox, IconInfoBadge, InfoBadgeManager, InfoLevel, InfoBadgePosition
+    StrongBodyLabel, IconInfoBadge, InfoBadgeManager, InfoBadgePosition,
+    DotInfoBadge, SwitchButton
 )
 
 
@@ -38,6 +39,29 @@ class ClickableIconInfoBadge(IconInfoBadge):
         return super().eventFilter(obj, e)
 
 
+class _BadgeAnchor(QObject):
+    """Tracks target widget movement and repositions badge via mapTo."""
+    def __init__(self, target, badge, parent_widget, pos):
+        super().__init__(badge)
+        self.target = target
+        self.badge = badge
+        self.parent_widget = parent_widget
+        self.pos = pos
+        target.installEventFilter(self)
+        if target.parentWidget():
+            target.parentWidget().installEventFilter(self)
+
+    def eventFilter(self, obj, e):
+        if e.type() in (QEvent.Resize, QEvent.Move):
+            self.badge.move(self.calc_position())
+        return False
+
+    def calc_position(self):
+        tr = self.target.rect().topRight()
+        mapped = self.target.mapTo(self.parent_widget, tr)
+        return QPoint(mapped.x() - self.badge.width() // 2, mapped.y() - self.badge.height() // 2)
+
+
 class CustomBadge:
     @classmethod
     def make(cls, bge_args, pos: InfoBadgePosition, target):
@@ -45,6 +69,30 @@ class CustomBadge:
         _bge.manager = InfoBadgeManager.make(pos, target, _bge)
         _bge.move(_bge.manager.position())
         return _bge
+
+    @classmethod
+    def make_ani_dot(cls, parent, size=None, target=None, level="success", pos=InfoBadgePosition.TOP_RIGHT):
+        t = target or parent
+        sz = size or (10, 10)
+        dot = getattr(DotInfoBadge, level)(parent, target=None, position=pos)
+        dot.setFixedSize(*sz)
+        anchor = _BadgeAnchor(t, dot, parent, pos)
+        dot.move(anchor.calc_position())
+        dot._anchor = anchor
+        opacity = QGraphicsOpacityEffect(dot)
+        dot.setGraphicsEffect(opacity)
+        anim = QPropertyAnimation(opacity, b"opacity")
+        anim.setDuration(1500)
+        anim.setStartValue(0.3)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.InOutSine)
+        anim.finished.connect(lambda: (
+            anim.setDirection(anim.Backward if anim.direction() == anim.Forward else anim.Forward),
+            anim.start()
+        ))
+        anim.start()
+        dot._breath_anim = anim
+        return dot
 
 
 class CustomInfoBar:
@@ -151,16 +199,30 @@ class ExpandSettings(QtWidgets.QWidget):
         pypi_label.setMinimumSize(QtCore.QSize(40, 20))
         lang_label = StrongBodyLabel(res.GUI.Uic.confDia_langLabel, self)
         lang_label.setMinimumSize(QtCore.QSize(40, 20))
-        self.conf_dia.kbShowDhb = CheckBox("展示拷贝单行本")
         second_row.addWidget(lang_label)
         second_row.addWidget(self.conf_dia.langBox)
         second_row.addWidget(pypi_label)
         second_row.addWidget(self.conf_dia.pypiSourceBox)
         second_row.addStretch()
-        second_row.addWidget(self.conf_dia.kbShowDhb)
         
         self.main_layout.addLayout(custMapLayout)
         self.main_layout.addLayout(second_row)
+
+        third_row = QtWidgets.QHBoxLayout()
+        self.conf_dia.skipDev = SwitchButton(self)
+        self.conf_dia.skipDev.setOnText(res.GUI.Uic.confDia_skipDevRelease)
+        self.conf_dia.skipDev.setOffText(res.GUI.Uic.confDia_skipDevRelease)
+        self.conf_dia.kbShowDhb = SwitchButton(self)
+        self.conf_dia.kbShowDhb.setOnText(res.GUI.Uic.confDia_kbShowDhb)
+        self.conf_dia.kbShowDhb.setOffText(res.GUI.Uic.confDia_kbShowDhb)
+        line = QtWidgets.QFrame(self)
+        line.setFrameShape(QtWidgets.QFrame.VLine)
+        line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        third_row.addWidget(self.conf_dia.skipDev)
+        third_row.addWidget(line)
+        third_row.addWidget(self.conf_dia.kbShowDhb)
+        third_row.addStretch()
+        self.main_layout.addLayout(third_row)
 
     def bind(self):
         def _toggle_adv(_=None):

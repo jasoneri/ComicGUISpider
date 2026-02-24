@@ -5,7 +5,8 @@
 ### 🎁 Features
 
 + [CGSMid](/feat/mid)，托管操作的系统
-+ 常规漫预览（与 CGSMid 相斥），输入搜索词 > 点右下`搜索预览`（不要点左下`搜索键`）
++ 常规漫预览，看[说明](/feat/#_2-1-%E5%B8%B8%E8%A7%84%E6%BC%AB%E7%9A%84%E9%A2%84%E8%A7%88)，与 CGSMid 相斥
++ 更新提醒
 
 ### 🐞 Fix
 
@@ -41,7 +42,7 @@ mac/终端uv：ai 查 `uv tool 安装 .git, ComicGUISpider GUI 分支`
 :::
 
 <details>
-<summary> 古早记录</summary>
+<summary> 古早记录 ⇩</summary>
 
 ::: details v2.2.5
 

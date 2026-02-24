@@ -1,4 +1,5 @@
 import os
+import contextlib
 import subprocess
 import typing as t
 
@@ -9,12 +10,13 @@ from qfluentwidgets import (
 
 from assets import res
 from variables import PYPI_SOURCE, CGS_DOC
-from deploy.update import Proj
+from datetime import date
+from deploy.update import Proj, UpdateState
 from utils import conf, env, uv_exc, exc_p, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
 from utils.sql import SqlRecorder
 from GUI.uic.qfluent.components import (
-    CustomInfoBar, UpdaterMessageBox
+    CustomInfoBar, UpdaterMessageBox, CustomBadge
 )
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.manager.clip import ClipGUIManager
@@ -24,8 +26,8 @@ from GUI.manager.mid import CGSMidManagerGUI
 from GUI.manager.preview import MangaPreviewManager
 
 __all__ = [
-    'Updater', 'TaskConfig',
-    'RVManager', 'TaskProgressManager','AsyncTaskManager', 
+    'Updater', 'UpdateNotifier', 'TaskConfig',
+    'RVManager', 'TaskProgressManager','AsyncTaskManager',
     'ClipGUIManager', 'AggrSearchManager', 'CGSMidManagerGUI',
     'MangaPreviewManager'
 ]
@@ -100,6 +102,81 @@ class TaskProgressManager:
         self.record_sql.close()
 
 
+class UpdateNotifier:
+    def __init__(self, gui):
+        self.gui = gui
+        self.state = UpdateState()
+        self._badges = []
+
+    def check_on_startup(self):
+        self.refresh_badges()
+        if not self.state.needs_check_today():
+            return
+        self.gui.preprocess_mgr.task_manager.execute_simple_task(
+            task_func=self._do_check,
+            success_callback=self.on_check_done,
+            error_callback=lambda _: None,
+            show_tooltip=False,
+            show_success_info=False,
+            show_error_info=False,
+            task_id="update_check_startup",
+        )
+
+    @staticmethod
+    def _do_check():
+        proj = Proj()
+        proj.check()
+        return proj
+
+    def on_check_done(self, proj):
+        self.state.last_check_date = date.today().isoformat()
+        self.state.update_flag = proj.update_flag
+        info = proj.update_info or {}
+        self.state.update_info = {
+            "tag_name": info.get("tag_name", ""),
+            "body": info.get("body", ""),
+            "html_url": info.get("html_url", ""),
+        }
+        self.state.save()
+        self.refresh_badges()
+
+    def refresh_badges(self):
+        flag = self.state.update_flag
+        info = self.state.update_info or {}
+        tag_name = info.get("tag_name", "")
+
+        if flag == "dev" and conf.skipDev:
+            flag = "local"
+        if flag != "local" and tag_name and tag_name == conf.skipped_version:
+            flag = "local"
+
+        self._clear_badges()
+        if flag in ("stable", "dev"):
+            self._show_badges()
+
+    def _show_badges(self):
+        badge = CustomBadge.make_ani_dot(self.gui.funcGroupBox, target=self.gui.confBtn)
+        badge.show()
+        self._badges.append(badge)
+        badge2 = CustomBadge.make_ani_dot(self.gui.conf_dia, target=self.gui.conf_dia.updateBtn)
+        badge2.show()
+        self._badges.append(badge2)
+
+    def _clear_badges(self):
+        for badge in self._badges:
+            with contextlib.suppress(RuntimeError):
+                badge.hide()
+                badge.deleteLater()
+        self._badges.clear()
+
+    def on_version_skipped(self, tag_name: str):
+        conf.update(skipped_version=tag_name)
+        self.refresh_badges()
+
+    def on_updated_or_dismissed(self):
+        self._clear_badges()
+
+
 class Updater:
     res = res.Updater
     proj = None
@@ -118,25 +195,22 @@ class Updater:
                 self.conf_dia.puThread.wait()
 
         def to_update(recv):
-            try:
+            with contextlib.suppress(Exception):
                 self.gui.updaterStateTooltip.setContent("Finish..")
                 self.gui.updaterStateTooltip.setState(True)
                 self.gui.updaterStateTooltip = None
-            except Exception:
-                pass
             ver = recv.update_info.get("tag_name")
             CustomInfoBar.show("", self.res.to_update, 
                 self.gui.textBrowser, self.proj.update_info.get("html_url"), 
                 f"""<{ver}>""", _type="SUCCESS")
             _close_thread()
+            self.gui.update_notifier.on_updated_or_dismissed()
             QTimer.singleShot(4000, lambda: self.to_update(ver))
 
         def checked(recv):
-            try:
+            with contextlib.suppress(RuntimeError):
                 self.stateTooltip.setState(True)
                 self.stateTooltip = None
-            except RuntimeError:
-                pass
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
                 CustomInfoBar.show("", self.res.ver_check_fail, self.gui.textBrowser, 
@@ -158,8 +232,9 @@ class Updater:
                         title = f"📫{res.GUI.Uic.confDia_updateDialog_dev} 🧪{recv.update_info.get('tag_name')}"
                     case _:
                         title = ""
-                self.gui.update_dialog = UpdaterMessageBox(title, self.gui)
+                self.gui.update_dialog = UpdaterMessageBox(title, self.gui, tag_name=recv.update_info.get("tag_name", ""))
                 self.gui.update_dialog.show_release_note(recv.update_info.get("body", ""))
+            self.gui.update_notifier.on_check_done(recv)
         self.stateTooltip = StateToolTip("Checking..", "", self.conf_dia.cookiesEdit)
         self.stateTooltip.show()
         self.conf_dia.puThread.checked_signal.connect(checked)
