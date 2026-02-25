@@ -299,18 +299,6 @@ class MidToolInterface(QWidget):
         self.workflow_combo.setEnabled(not locked)
         self.delete_btn.setEnabled(not locked)
 
-    def _dev_reload_ui(self):  # FIXME[0] ai禁止对此注释操作，开发者自身记得测试完毕后删除哦
-        tool_win = getattr(self.gui, "toolWin", None)
-        if tool_win and hasattr(tool_win, "reloadMidTool"):
-            tool_win.reloadMidTool()
-            return
-
-        saved_workflow = self.workflow
-        self.layout().deleteLater()
-        self._init_ui()
-        self._apply_workflow(saved_workflow)
-        self._update_workflow_dropdown()
-        self._connect_manager()
 
     def _on_lane_visibility_changed(self, lane_id: str, hidden: bool):
         if lane_id in self.canvas.lane_nodes:

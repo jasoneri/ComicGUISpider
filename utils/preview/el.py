@@ -46,6 +46,7 @@ class MangaEl(ElMinix):
 
         return f"""<div class="col-sm-6 col-md-4 col-lg-3 mb-3 singal-task" style="max-width:{cls.max_width}px">
             <div class="card h-100 normal-book-card" data-book-key="{idx}" data-book-title="{safe_title}" role="button" aria-label="{safe_title}">
+                <div class="card-favorite-btn" data-book-key="{idx}" role="button" tabindex="0" aria-pressed="false" title="收藏/取消收藏">☆</div>
                 <img src="{safe_img_src}" class="card-img-top" alt="{safe_title}" title="{safe_title}" onerror="this.onerror=null;this.src='../GUI/src/preview_format/placeholder.svg';">
                 <div class="card-body"><h6 class="card-title mb-2">{safe_title}</h6>{meta_html}</div>
                 <div id="status-row-{idx}" class="card-footer bg-transparent border-0 pt-0 pb-2 px-2 d-flex gap-1 flex-wrap align-items-center small"></div>

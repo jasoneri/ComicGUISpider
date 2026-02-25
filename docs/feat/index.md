@@ -30,10 +30,17 @@
 | 右上复制按钮 | 复制未完成任务链接，[📋跳转阅读 > 复制未完成任务链接](/feat/clip.md#复制未完成任务链接)   |
 | 其他常规 | 多选/翻页等如动图所示。详情使用看 `🎥视频使用指南3` |
 
-::: details 常规漫的预览 > 输入搜索词 > 点右下`搜索预览`（不要点左下`搜索键`）
+### 2.1 常规漫的预览
 
+输入搜索词 > 点右下`搜索预览`（不要点左下`搜索键`） >  
+  &emsp;点书本卡片然后出列表 > 选章节然后右上点下载
+
+::: details 图 ⇩
 ![manga_preview]({{URL_IMG}}/file/screenshots/1771746417351_manga_preview.png)
+:::
 
+::: tip 点卡片右上角 ★ 后可加为本地收藏
+之后搜索框用预设的 `本地收藏` 就会仅列出对应的书本卡片列表
 :::
 
 ## 3. 工具视窗
@@ -61,7 +68,7 @@
       <td style="text-align: left;"><strong>rv相关</strong>: 下载&emsp;/&emsp;(右下)绑定<code>锚点</code>与运行&emsp;/&emsp;(左下)清除<code>锚点</code></td>
     </tr>
     <tr>
-      <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>（图一乐，你可以沿着链路继续找，或者来提供点靠谱的api/网站）</td>
+      <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>ps: 搜索后按图示转 ascii2d 有奇效</td>
     </tr>
     <tr>
       <td style="text-align: center;">CGSMid<br><small>midTool</small></td>

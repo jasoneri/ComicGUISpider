@@ -14,7 +14,7 @@
 1. git 克隆本项目到本地，使用主流的模型/Cli (claudecode/codex)
 2. 将第一步的两个 url 值加进下面的 prompt 上，上传/指定两个 html 文件，将 prompt 发给 ai
 
-::: details prompt
+::: details prompt ⇩
 
 ```text
 search_url=

@@ -11,7 +11,8 @@ from qfluentwidgets import (
     SmoothScrollArea,TeachingTip,TeachingTipTailPosition,
     FluentIcon as FIF, InfoBar, InfoBarIcon, InfoBarPosition,
     LineEdit, TransparentToggleToolButton, TransparentToolButton, ImageLabel,
-    ToolTipFilter, ToolTipPosition, BodyLabel, CompactSpinBox
+    ToolTipFilter, ToolTipPosition, BodyLabel, CompactSpinBox, SplitPushButton,
+    RoundMenu, Action
 )
 
 from variables import CGS_DOC
@@ -305,22 +306,39 @@ class AggrSearchView(QWidget):
             self.inputBtnLayout.addLayout(self.clipLayout)
 
         extractor_module = importlib.import_module('utils.ags.extractor')
+        default_method = methods[0]
+        self._current_method_func = getattr(extractor_module, default_method)
+
+        self.methodSplitBtn = SplitPushButton(f"from {default_method}", self)
+        self.methodSplitBtn.setMaximumWidth(165)
+        self.methodSplitBtn.hBoxLayout.itemAt(0).setAlignment(Qt.Alignment())
+        self.methodSplitBtn.clicked.connect(
+            lambda: self.set_select(make_search_tasks_func=self._current_method_func)
+        )
+
+        menu = RoundMenu(parent=self.methodSplitBtn)
         for method in methods:
-            btn = PushButton(f"from {method}", self)
-            _func = getattr(extractor_module, method)
-            btn.clicked.connect(lambda checked, func=_func: self.set_select(make_search_tasks_func=func))
-            self.inputBtnLayout.addWidget(btn)
+            func = getattr(extractor_module, method)
+            menu.addAction(Action(f"from {method}", triggered=lambda checked, m=method, f=func: self._switch_method(m, f)))
+        self.methodSplitBtn.setFlyout(menu)
+
+        self.inputBtnLayout.addWidget(self.methodSplitBtn)
         
         extendLayout = QHBoxLayout()
         agsDocBtn = PrimaryToolButton(FIF.QUESTION)
-        agsDocBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(f'{CGS_DOC}/feat/ags')))
+        agsDocBtn.clicked.connect(lambda: self.gui.open_url_by_browser(f'{CGS_DOC}/feat/ags'))
         extendBtn = PushButton(FIF.ADD, ags_res.extend_btn, self)
         extendBtn.setDisabled(1)
         extendLayout.addWidget(agsDocBtn)
         extendLayout.addWidget(extendBtn)
         
         self.inputBtnLayout.addLayout(extendLayout)
-        self.inputBtnLayout.addItem(QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
+        self.inputBtnLayout.addStretch()
+
+    def _switch_method(self, method_name, func):
+        self._current_method_func = func
+        self.methodSplitBtn.button.setText(f"from {method_name}")
+        self.set_select(make_search_tasks_func=func)
 
     def set_select(self, make_search_tasks_func):
         self.selection_widgets = []

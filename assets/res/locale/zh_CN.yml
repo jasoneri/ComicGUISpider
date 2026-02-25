@@ -30,6 +30,7 @@ GUI:
   reboot_tip: "♻️ 内置重启中: 正在清除残留后台进程.."
   reboot_tip2: "⛺️ 内置重启中: 正在重建ui与后台通讯管道.."
   ui_lang_need_reboot: "⚠️ui语言设置需保存配置并关闭程序后重启才生效"
+  local_fav: "本地收藏"
   SearchInputStatusTip:
     manga_copy: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"'
     jm: '（1）输入【搜索词】返回搜索结果（2）按空格弹出预设（2.1）规则补充：时间维度可选 日/周/月/总，例如"收藏总"（3）翻页规则："&page=\d+"'
@@ -66,7 +67,7 @@ GUI:
     doamin_success_tip: "[%s]已设进下方临时文件，有效时间为48小时\n[%s]\n"
     doamin_error_tip: "域名全无效，请你自行检查，再次声明CGS并不能突破现网络环境去访问"
     search_by_pic: "以图搜索"
-    search_by_pic_guide: "1) 选择图片后点击搜索，等 saucenao 出结果。\n2) （隐藏可点击展开）选择(标题)文本，然后右键点击菜单项`Search by saucenao`。\n3) 文本将自动发送回主界面搜索框并进行搜索。"
+    search_by_pic_guide: "1) 选择图片后点击搜索，等 saucenao 出结果。\n2) （隐藏可点击展开）选择(标题)文本，然后右键点击菜单项`Search by saucenao`。\n3) 文本将自动发送回主界面搜索框并进行搜索。\n注：saucenao 转如图的 ascii2d 有奇效"
     reboot_tip: "CGS将在%s秒后重启以确保后台进程应用有效更改"
   Ags:
     empty_search: "搜索为空"
@@ -115,10 +116,12 @@ GUI:
     confDia_updateBtn: "检查更新"
     confDia_updateDialog_stable: "检测到最新稳定版"
     confDia_updateDialog_dev: "检测到最新开发版"
+    confDia_skipDevRelease: "跳过开发版"
+    confDia_kbShowDhb: "展示拷贝单行本"
     confDia_supportBtn: "潘多拉之盒"
     confDia_promote_title: "机场搜索"
     confDia_promote_url: "https://github.com/search?q=%E6%9C%BA%E5%9C%BA&type=repositories"
-    confDia_support_content: "👇水注册羊毛"
+    confDia_support_content: "注册以下等助力开发"
     confDia_tip_deduplicate_on: "「去重模式」需保存并内置重启后生效"
     confDia_tip_adduuid_on: "「增加标识」需保存并内置重启后生效"
     confDia_tip_kbshowdhb_on: "「展示拷贝单行本」需保存并内置重启后生效\n注意章节选择时的序号变化"
@@ -175,3 +178,4 @@ Updater:
   update_ensure: "确认更新"
   doing: "过程会涉及代码与依赖的更新，请稍等片刻.."
   to_update: "🚧 即将关闭主进程进行更新，重启看版本号即可判断是否更新成功"
+  skip_this_ver: "跳过此版本"

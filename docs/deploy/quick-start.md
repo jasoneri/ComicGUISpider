@@ -21,7 +21,7 @@
 
 + 或使用`uv tool`  
 
-::: details `uv tool` 细节部署流程：  
+::: details `uv tool` 细节部署流程：⇩  
 1. 安装 [uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的 [远程安装脚本](https://docs.astral.sh/uv/#installation)  
 2. （可选）设置 uv tool 的环境变量，否则 win 会默认装在C盘上  
     win: 新建用户级的环境变量，设置后需开新终端窗口生效  

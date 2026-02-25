@@ -11,7 +11,7 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter, QApplication
 from PyQt5.QtCore import Qt
 from qfluentwidgets import (
-    FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, 
+    FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,
     PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
 )
 import uncurl
@@ -138,7 +138,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
         self.supportBtn = TransparentPushButton(FIF.GAME, res.GUI.Uic.confDia_supportBtn)
-        
+
         self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
@@ -223,7 +223,11 @@ class ConfDialog(QDialog, Ui_ConfDialog):
                 )
         self.isDeduplicate.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_deduplicate_on))
         self.addUuid.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_adduuid_on))
-        self.kbShowDhb.toggled.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_kbshowdhb_on))
+        self.kbShowDhb.checkedChanged.connect(partial(_tip_on, tip_content=res.GUI.Uic.confDia_tip_kbshowdhb_on))
+        def _on_skip_dev_changed(checked: bool):
+            conf.update(skipDev=checked)
+            self.gui.update_notifier.refresh_badges()
+        self.skipDev.checkedChanged.connect(_on_skip_dev_changed)
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
@@ -232,7 +236,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 处理cookies配置
         self._load_cookie_config()
         # 2. CheckBox类配置
-        for _ in ('addUuid', 'isDeduplicate', "darkTheme", "kbShowDhb"):
+        for _ in ('addUuid', 'isDeduplicate', "darkTheme", "kbShowDhb", "skipDev"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
@@ -300,6 +304,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "addUuid": getattr(self, "addUuid").isChecked(),
             "darkTheme": getattr(self, "darkTheme").isChecked(),
             "kbShowDhb": getattr(self, "kbShowDhb").isChecked(),
+            "skipDev": getattr(self, "skipDev").isChecked(),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
             "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
             "custom_map": yaml.safe_load(cp(getattr(self, "custom_mapEdit").toPlainText())),

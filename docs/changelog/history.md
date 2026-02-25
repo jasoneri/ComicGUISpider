@@ -1,16 +1,25 @@
 # 🕑 更新历史
 
-## `v2.9.0-beta`
+## `v2.9.0`
 
 ### 🎁 Features
 
 + [CGSMid](/feat/mid)，托管操作的系统
-+ 常规漫预览（与 CGSMid 相斥），输入搜索词 > 点右下`搜索预览`（不要点左下`搜索键`）
++ 常规漫预览，看[说明](/feat/#_2-1-%E5%B8%B8%E8%A7%84%E6%BC%AB%E7%9A%84%E9%A2%84%E8%A7%88)，与 CGSMid 相斥
++ 版本更新提醒
+
+<details>
+<summary> 图 ⇩ </summary>
+
+![常规漫预览](https://img-cgs.101114105.xyz/file/screenshots/1771746417351_manga_preview.png)
+
+</details>
 
 ### 🐞 Fix
 
++ 以图搜图新增有效图示
 + 修复翻页时可能的阻塞
-+ ~~hitomi其实一直能用~~
++ ~~hitomi其实一直能用~~，站点似乎是故意做成的请求失败重试几次才偶尔成功..
 
 ::: tip 备用更新方法（待查证实验）  
 win绿色包(exe): 待办，先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  
@@ -41,7 +50,7 @@ mac/终端uv：ai 查 `uv tool 安装 .git, ComicGUISpider GUI 分支`
 :::
 
 <details>
-<summary> 古早记录</summary>
+<summary> 古早记录 ⇩</summary>
 
 ::: details v2.2.5
 

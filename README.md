@@ -51,7 +51,7 @@
 | [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
-| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
+| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     |  |
 | [Kemono](https://kemono.cr)     | 🌏 |     🔞     |  |
 | [HComic](https://kemono.cr)     | 🌏 |     🔞/代理     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
 
@@ -62,8 +62,6 @@
 ## 📢更新
 
 [![Sparkline](https://stars.medv.io/jasoneri/ComicGUISpider.svg)](https://stars.medv.io/jasoneri/ComicGUISpider)
-
-图链/项目主页/文档都已转用 Cloudflare 加速优化，卡的话可以用 [Steamcommunity 302](https://www.dogfight360.com/blog/18682/)  
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 

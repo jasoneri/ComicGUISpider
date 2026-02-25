@@ -240,4 +240,53 @@
   window.hideScanNotification = function() {
     if (_scanToastInstance) _scanToastInstance.hide();
   };
+
+  // --- Favorites System ---
+
+  window.updateFavoriteState = function(key, isFavorited) {
+    const btn = document.querySelector(`.card-favorite-btn[data-book-key="${key}"]`);
+    if (btn) {
+      btn.textContent = isFavorited ? '★' : '☆';
+      btn.classList.toggle('is-favorited', isFavorited);
+      btn.setAttribute('aria-pressed', isFavorited);
+    }
+  };
+
+  window.initFavoriteStates = function(keys) {
+    // Reset all buttons first
+    document.querySelectorAll('.card-favorite-btn').forEach(btn => {
+      const key = btn.dataset.bookKey;
+      window.updateFavoriteState(key, false);
+    });
+
+    if (Array.isArray(keys)) {
+      keys.forEach(key => {
+        window.updateFavoriteState(key, true);
+      });
+    }
+  };
+
+  // Event delegation for favorites (Capture phase to stop propagation)
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.matches('.card-favorite-btn')) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const key = e.target.dataset.bookKey;
+      // Call Bridge (no optimistic UI - backend returns correct state)
+      if (bridge && typeof bridge.toggleFavorite === 'function') {
+        bridge.toggleFavorite(String(key));
+      }
+    }
+  }, true);
+
+  // Accessibility: Handle Keyboard Activation
+  document.addEventListener('keydown', function(e) {
+    if (e.target && e.target.matches('.card-favorite-btn')) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.target.click();
+      }
+    }
+  }, true);
 })();

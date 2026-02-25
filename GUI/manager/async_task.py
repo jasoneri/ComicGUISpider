@@ -60,6 +60,7 @@ class TaskConfig:
                  show_error_info: bool = True,
                  success_message: str = "操作完成",
                  auto_hide_tooltip: bool = True,
+                 show_tooltip: bool = True,
                  tooltip_position: Optional[tuple] = None,  # (x, y) 或 None 使用默认位置
                  tooltip_parent: Optional[QObject] = None,  # 自定义 tooltip 父组件
                  *args, **kwargs):
@@ -73,6 +74,7 @@ class TaskConfig:
         self.show_error_info = show_error_info
         self.success_message = success_message
         self.auto_hide_tooltip = auto_hide_tooltip
+        self.show_tooltip = show_tooltip
         self.tooltip_position = tooltip_position
         self.tooltip_parent = tooltip_parent
         self.args = args
@@ -121,9 +123,9 @@ class AsyncTaskManager(QObject):
             thread.progress_signal.connect(
                 lambda progress: self._handle_progress(task_id, progress, config)
             )
-            # 显示状态提示
-            self._show_tooltip(task_id, config.tooltip_title, config.tooltip_content,
-                             config.tooltip_position, config.tooltip_parent)
+            if config.show_tooltip:
+                self._show_tooltip(task_id, config.tooltip_title, config.tooltip_content,
+                                 config.tooltip_position, config.tooltip_parent)
             # 启动线程
             thread.start()
             return True
@@ -137,6 +139,7 @@ class AsyncTaskManager(QObject):
                            error_callback: Optional[Callable] = None,
                            tooltip_title: str = "处理中...",
                            tooltip_position: Optional[tuple] = None,
+                           show_tooltip: bool = True,
                            tooltip_parent: Optional[QObject] = None,
                            task_id: Optional[str] = None,
                            *args, **kwargs) -> bool:
@@ -165,6 +168,7 @@ class AsyncTaskManager(QObject):
             success_callback=success_callback,
             error_callback=error_callback,
             tooltip_title=tooltip_title,
+            show_tooltip=show_tooltip,
             tooltip_position=tooltip_position,
             tooltip_parent=tooltip_parent,
             *args, **kwargs
