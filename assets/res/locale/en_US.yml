@@ -30,6 +30,7 @@ GUI:
   reboot_tip: "♻️ rebooting: cleaning background processes..."
   reboot_tip2: "⛺️ rebooting: reconstructing UI and instances.."
   ui_lang_need_reboot: "⚠️ui-language settings will take effect when save config and reboot"
+  local_fav: "Local Favorites"
   SearchInputStatusTip:
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
@@ -66,7 +67,7 @@ GUI:
     doamin_success_tip: "[%s] has been set in the temporary file below, valid for 48 hours<br>[%s]<br>CGS will restart in 5 seconds to ensure background processes apply the valid domain"
     doamin_error_tip: "All domains are invalid, please check yourself. Again, CGS cannot bypass the current network environment to access"
     search_by_pic: "search by pic"
-    search_by_pic_guide: "1) Select an image and wait for search results.\n2) Select a matched title, then right-click menu item.\n3) The text will be sent to the main search box and searched automatically."
+    search_by_pic_guide: "1) Select an image and wait for search results.\n2) Select a matched title, then right-click menu item.\n3) The text will be sent to the main search box and searched automatically.\n4) effect by ascii2d as shown"
     reboot_tip: "CGS will restart in %s seconds to ensure background processes apply valid changes"
   Ags:
     empty_search: "empty search results"
@@ -115,6 +116,8 @@ GUI:
     confDia_updateBtn: "Update"
     confDia_updateDialog_stable: "New stable version available"
     confDia_updateDialog_dev: "New dev version available"
+    confDia_skipDevRelease: "Skip dev releases"
+    confDia_kbShowDhb: "Show tankobon"
     confDia_supportBtn: "Pandora box"
     confDia_promote_title: "Recommended VPN"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"
@@ -175,3 +178,4 @@ Updater:
   update_ensure: "Accept Update"
   doing: "Involves code and dependency updates, Wait a moment.."
   to_update: "🚧 Close main process for update, restart then look at version to determine whether update is success or not"
+  skip_this_ver: "Skip this version"

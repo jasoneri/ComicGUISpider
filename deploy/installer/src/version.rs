@@ -26,7 +26,7 @@ pub fn build_install_args(version: &str, index_url: &str) -> Vec<String> {
     }
 
     if is_prerelease {
-        cmd.extend(["--prerelease".into(), "allow".into()]);
+        cmd.extend(["--prerelease".into(), "if-necessary-or-explicit".into()]);
     }
     cmd.push("--force".into());
     cmd
@@ -73,7 +73,9 @@ mod tests {
     fn test_build_args_prerelease() {
         let args = build_install_args("2.8.6b1", "");
         assert!(args.contains(&"ComicGUISpider==2.8.6b1".to_string()));
-        assert!(args.contains(&"--prerelease".to_string()));
+        let idx = args.iter().position(|a| a == "--prerelease").expect("--prerelease flag missing");
+        assert_eq!(args.get(idx + 1).map(String::as_str), Some("if-necessary-or-explicit"));
+        assert!(!args.contains(&"allow".to_string()));
     }
 
     #[test]

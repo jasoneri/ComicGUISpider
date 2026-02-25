@@ -3,9 +3,8 @@
 import re
 
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import QApplication
 from qfluentwidgets import (
-    MessageBoxBase, TextBrowser, SubtitleLabel, StateToolTip, PrimaryPushButton, FluentIcon as FIF
+    MessageBoxBase, TextBrowser, SubtitleLabel, StateToolTip, PushButton
 )
 
 from assets import res
@@ -15,9 +14,10 @@ from GUI.uic.qfluent.components.cust import CustomInfoBar
 
 
 class UpdaterMessageBox(MessageBoxBase):
-    def __init__(self, title, parent=None):
+    def __init__(self, title, parent=None, tag_name=""):
         super().__init__(parent)
         self.gui = parent
+        self.tag_name = tag_name
         self.yesButton.setText(res.Updater.update_ensure)
         self.textBrowser = TextBrowser(self)
         # self.textBrowser.setWordWrapMode(QtGui.QTextOption.NoWrap)  # 禁用自动换行
@@ -27,6 +27,15 @@ class UpdaterMessageBox(MessageBoxBase):
             self.viewLayout.addWidget(self.titleLabel)
         self.viewLayout.addWidget(self.textBrowser)
         self.widget.setMinimumWidth(int(parent.width() * 0.8))
+
+        self.skipButton = PushButton(res.Updater.skip_this_ver, self)
+        self.buttonLayout.insertWidget(0, self.skipButton)
+        self.skipButton.clicked.connect(self._on_skip_version)
+
+    def _on_skip_version(self):
+        if self.tag_name:
+            self.gui.update_notifier.on_version_skipped(self.tag_name)
+        self.close()
 
     def validate(self):
         if code_env == "git":

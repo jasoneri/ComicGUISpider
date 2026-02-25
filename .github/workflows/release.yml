@@ -56,9 +56,9 @@ jobs:
     - name: Download Preset
       run: |
         wget -O /build/CGS-macOS.7z \
-        https://github.com/jasoneri/imgur/releases/download/preset/CGS-macOS_preset.7z
+        https://github.com/jasoneri/ComicGUISpider/releases/download/preset/CGS-macOS_preset.7z
         wget -O  /build/CGS.7z \
-        https://github.com/jasoneri/imgur/releases/download/preset/CGS_preset.7z
+        https://github.com/jasoneri/ComicGUISpider/releases/download/preset/CGS_preset.7z
 
     - name: Compose Release Notes
       id: compose_notes
