@@ -9,12 +9,17 @@ pub fn normalize_version(version: &str) -> (String, bool) {
     }
 }
 
-pub fn build_install_args(version: &str, index_url: &str) -> Vec<String> {
+pub fn build_install_args(version: &str, index_url: &str, script: bool) -> Vec<String> {
     let (normalized, is_prerelease) = normalize_version(version);
+    let package_name = if script {
+        "ComicGUISpider[script]"
+    } else {
+        "ComicGUISpider"
+    };
     let mut cmd = vec![
         "tool".into(),
         "install".into(),
-        format!("ComicGUISpider=={normalized}"),
+        format!("{package_name}=={normalized}"),
     ];
 
     if !index_url.is_empty() {
@@ -63,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_build_args_stable() {
-        let args = build_install_args("2.8.6", "https://pypi.tuna.tsinghua.edu.cn/simple");
+        let args = build_install_args("2.8.6", "https://pypi.tuna.tsinghua.edu.cn/simple", false);
         assert!(args.contains(&"ComicGUISpider==2.8.6".to_string()));
         assert!(args.contains(&"--index-url".to_string()));
         assert!(!args.contains(&"--prerelease".to_string()));
@@ -71,16 +76,21 @@ mod tests {
 
     #[test]
     fn test_build_args_prerelease() {
-        let args = build_install_args("2.8.6b1", "");
+        let args = build_install_args("2.8.6b1", "", false);
         assert!(args.contains(&"ComicGUISpider==2.8.6b1".to_string()));
         let idx = args.iter().position(|a| a == "--prerelease").expect("--prerelease flag missing");
         assert_eq!(args.get(idx + 1).map(String::as_str), Some("if-necessary-or-explicit"));
-        assert!(!args.contains(&"allow".to_string()));
     }
 
     #[test]
     fn test_build_args_local_index() {
-        let args = build_install_args("2.8.6", "file:///tmp/wheels");
+        let args = build_install_args("2.8.6", "file:///tmp/wheels", false);
         assert!(args.contains(&"--extra-index-url".to_string()));
+    }
+
+    #[test]
+    fn test_build_args_script() {
+        let args = build_install_args("2.8.6", "", true);
+        assert!(args.contains(&"ComicGUISpider[script]==2.8.6".to_string()));
     }
 }

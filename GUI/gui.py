@@ -409,7 +409,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def clean_temp_file(self):
         """when: 1. preview BrowserWindow destroy; 2. pageTurn btn group clicked"""
-        if self.tf and p.Path(self.tf).exists():
+        if getattr(self, "tf") and p.Path(self.tf).exists():
             os.remove(self.tf)
 
     def retry_schedule(self):

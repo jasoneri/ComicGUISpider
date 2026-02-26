@@ -15,6 +15,7 @@ pub struct InstallerConfig {
     pub uv_exc: PathBuf,
     pub version: String,
     pub index_url: String,
+    pub script: bool,
     pub uv_tool_dir: PathBuf,
     pub uv_tool_bin_dir: PathBuf,
 }
@@ -48,6 +49,7 @@ impl InstallerConfig {
             uv_exc: PathBuf::from(&args.uv_exc),
             version: args.version.clone(),
             index_url: args.index_url.clone(),
+            script: args.script,
             uv_tool_dir,
             uv_tool_bin_dir,
         }
@@ -58,7 +60,7 @@ impl InstallerConfig {
     }
 
     pub fn install_args(&self) -> Vec<String> {
-        build_install_args(&self.version, &self.index_url)
+        build_install_args(&self.version, &self.index_url, self.script)
     }
 }
 
