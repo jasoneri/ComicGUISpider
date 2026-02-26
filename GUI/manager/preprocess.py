@@ -1,7 +1,6 @@
 import os
 import json
 import importlib
-import subprocess
 
 import psutil
 import httpx
@@ -13,6 +12,7 @@ from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES, CGS_DOC
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
+from GUI.manager import _UpdateLauncher
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import CustomInfoBar
 from GUI.core.theme import setupTheme, theme_mgr
@@ -235,10 +235,20 @@ class PreprocessManager(QObject):
                 setupTheme(scriptWin.kemonoInterface)
                 setTheme(theme_mgr.theme.c)
                 scriptWin.show()
-            if k == "dependencies" and v:
-                _data_check()
             kemono_flag[k] = v
-            if len(kemono_flag) == 3 and all(kemono_flag.values()):
+            if "services" in kemono_flag and "dependencies" in kemono_flag:
+                services_result = kemono_flag["services"]
+                dependencies_result = kemono_flag["dependencies"]
+
+                if dependencies_result is not True:
+                    _UpdateLauncher(VER, script=True).run()
+                    self.gui.close()
+                    return
+                if services_result is not True:
+                    return
+                if "data" not in kemono_flag:
+                    _data_check()
+            if len(kemono_flag) == 3 and all(v is True for v in kemono_flag.values()):
                 run_scriptWin()
 
         def _services_check():
@@ -266,6 +276,7 @@ class PreprocessManager(QObject):
                     parent=self.gui.textBrowser,
                     url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
+                triggle_or_not("services", False)
 
             self.task_manager.execute_simple_task(
                 task_func=services_check,
@@ -276,37 +287,16 @@ class PreprocessManager(QObject):
 
         def _dependencies_check():
             def dependencies_check(progress_callback=None):
-                def emit_progress(msg):
-                    if progress_callback:
-                        progress_callback(msg)
                 pkgs = ("redis", "pandas")
-                missing_packages = []
+                missing = []
                 for pkg in pkgs:
                     try:
                         importlib.import_module(pkg)
                     except ImportError:
-                        missing_packages.append(pkg)
-
-                if missing_packages:
-                    # 使用pyproject.toml安装脚本依赖
-                    cmd = [uv_exc, "tool", "install", "--force", f"ComicGUISpider[script]=={VER}"]
-                    cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
-                    process = subprocess.Popen(
-                        cmd, cwd=exc_p, env=env,
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                        text=True, bufsize=1, universal_newlines=True
-                    )
-                    while True:
-                        line = process.stdout.readline()
-                        if not line:
-                            if process.poll() is not None:
-                                break
-                            continue
-                        emit_progress(f"{line.strip()}")
-                    exit_code = process.wait()
-                    for pkg in pkgs:
-                        importlib.import_module(pkg)
-                return True
+                        missing.append(pkg)
+                if not missing:
+                    return True
+                return missing
 
             def on_dependencies_check_process(progress_msg):
                 self.gui.say(progress_msg)
@@ -319,9 +309,10 @@ class PreprocessManager(QObject):
                     parent=self.gui.textBrowser,
                     url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
+                triggle_or_not("dependencies", False)
 
             def on_dependencies_success(_):
-                if isinstance(_, bool) and _:
+                if _ is True:
                     self.gui.say("✅ 额外依赖检测")
                 triggle_or_not("dependencies", _)
 
