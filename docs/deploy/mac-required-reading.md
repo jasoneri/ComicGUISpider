@@ -52,7 +52,7 @@ _**根据终端提示操作**_
 # 1. 终端运行
 cgs
 # 或
-uv tool run --from comicguispider cgs
+uvx --from comicguispider cgs
 # 2. 更新到指定版本2.5.0
 uv tool install ComicGUISpider==2.5.0 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
