@@ -11,7 +11,7 @@ from qfluentwidgets import (
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, TeachingTipTailPosition, ImageLabel,
     StrongBodyLabel, IconInfoBadge, InfoBadgeManager, InfoBadgePosition,
-    DotInfoBadge, SwitchButton
+    DotInfoBadge, SwitchButton, ComboBox, TextEdit
 )
 
 
@@ -179,6 +179,30 @@ class ExpandSettings(QtWidgets.QWidget):
         self.main_layout = VBoxLayout(self)
         self.setLayout(self.main_layout)
         
+        cookiesLayout = QtWidgets.QHBoxLayout()
+        cookiesLayout.setObjectName("cookiesLayout")
+        self.conf_dia.verticalLayout_3 = QtWidgets.QVBoxLayout()
+        self.conf_dia.verticalLayout_3.setObjectName("verticalLayout_3")
+        self.conf_dia.cookiesLabel = StrongBodyLabel()
+        self.conf_dia.cookiesLabel.setEnabled(True)
+        self.conf_dia.cookiesLabel.setMinimumSize(QtCore.QSize(60, 20))
+        self.conf_dia.cookiesLabel.setMaximumSize(QtCore.QSize(60, 40))
+        self.conf_dia.cookiesLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.conf_dia.cookiesLabel.setObjectName("cookiesLabel")
+        self.conf_dia.cookiesLabel.setText("Cookies")
+        self.conf_dia.verticalLayout_3.addWidget(self.conf_dia.cookiesLabel)
+        self.conf_dia.cookiesBox = ComboBox()
+        self.conf_dia.cookiesBox.setObjectName("cookiesBox")
+        self.conf_dia.verticalLayout_3.addWidget(self.conf_dia.cookiesBox)
+        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.conf_dia.verticalLayout_3.addItem(spacerItem2)
+        cookiesLayout.addLayout(self.conf_dia.verticalLayout_3)
+        self.conf_dia.cookiesEdit = TextEdit()
+        self.conf_dia.cookiesEdit.setObjectName("cookiesEdit")
+        cookiesLayout.addWidget(self.conf_dia.cookiesEdit)
+        setattr(self.conf_dia, "horizontalLayout_label_cookies", cookiesLayout)
+        # self.conf_dia.cookiesLabel.setText(_translate("Dialog", "Cookies"))
+        
         custMapLayout = QtWidgets.QHBoxLayout()
         custMapLayout.setObjectName("custMapLayout")
         self.custMapLabelLayout = QtWidgets.QVBoxLayout()
@@ -205,10 +229,10 @@ class ExpandSettings(QtWidgets.QWidget):
         second_row.addWidget(self.conf_dia.pypiSourceBox)
         second_row.addStretch()
         
+        self.main_layout.addLayout(cookiesLayout)
         self.main_layout.addLayout(custMapLayout)
         self.main_layout.addLayout(second_row)
 
-        third_row = QtWidgets.QHBoxLayout()
         self.conf_dia.skipDev = SwitchButton(self)
         self.conf_dia.skipDev.setOnText(res.GUI.Uic.confDia_skipDevRelease)
         self.conf_dia.skipDev.setOffText(res.GUI.Uic.confDia_skipDevRelease)
@@ -218,11 +242,9 @@ class ExpandSettings(QtWidgets.QWidget):
         line = QtWidgets.QFrame(self)
         line.setFrameShape(QtWidgets.QFrame.VLine)
         line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        third_row.addWidget(self.conf_dia.skipDev)
-        third_row.addWidget(line)
-        third_row.addWidget(self.conf_dia.kbShowDhb)
-        third_row.addStretch()
-        self.main_layout.addLayout(third_row)
+        second_row.addWidget(self.conf_dia.skipDev)
+        second_row.addWidget(line)
+        second_row.addWidget(self.conf_dia.kbShowDhb)
 
     def bind(self):
         def _toggle_adv(_=None):

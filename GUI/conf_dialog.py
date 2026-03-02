@@ -78,14 +78,9 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.label_2.setText(_translate("Dialog", res.GUI.Uic.confDia_labelLogLevel))
         self.label_4.setText(_translate("Dialog", res.GUI.Uic.confDia_labelProxy))
         self.label_completer.setText(_translate("Dialog", res.GUI.Uic.confDia_labelPreset))
-        self.label_6.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipDb))
-        self.label_7.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
-        self.metaTypeLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_dledHandle))
+        self.clip_read_numLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_labelClipNum))
+        self.dledHandleLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_dledHandle))
         self.concurr_numLabel.setText(_translate("Dialog", res.GUI.Uic.confDia_labelConcurrNum))
-        # 添加cookie类型选项
-        support = list(COOKIES_PLACEHOLDER.keys())
-        for cookie_type in support:
-            self.cookiesBox.addItem(cookie_type)
         self.pypiSourceBox.addItem("")
         self.pypiSourceBox.addItem("")
         self.pypiSourceBox.addItem("")
@@ -99,7 +94,6 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.dledHandleBox.setItemText(0, _translate("Dialog", "-"))
         self.dledHandleBox.setItemText(1, _translate("Dialog", ".cbz"))
         self.dledHandleBox.setCurrentIndex(0)
-        self.cookiesBox.setCurrentText(support[0])
         
         for k, ui_key in LANG.items():
             self.langBox.addItem(ui_key, userData=k)
@@ -122,7 +116,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def _preset(self):
         self.sv_path_card = SvPathCard(self)
-        self.dialogVLayout.insertWidget(0, self.sv_path_card)
+        self.topLayout.insertWidget(0, self.sv_path_card)
         
         completer = QCompleter(['127.0.0.1:10809'])
         completer.setFilterMode(QtCore.Qt.MatchStartsWith)
@@ -131,6 +125,9 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.proxiesEdit.setClearButtonEnabled(True)
 
     def insert_btn(self):
+        self.clipDbBtn = PrimaryPushButton(FIF.FOLDER_ADD, res.GUI.Uic.confDia_labelClipDb)
+        self.clipLayout.insertWidget(0, self.clipDbBtn)
+        
         self.descBtn = PrimaryPushButton(FIF.LIBRARY, res.GUI.Uic.confDia_descBtn)
         self.descBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.descBtn.setMaximumSize(QtCore.QSize(110, 16777215))
@@ -146,14 +143,20 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         self.isDeduplicate = TransparentToggleToolButton(FIF.FILTER)
         self.addUuid = TransparentToggleToolButton(FIF.FLAG)
         self.darkTheme = TransparentToggleToolButton(FIF.QUIET_HOURS)
-        self.horizontalLayout_log_level.addWidget(self.isDeduplicate)
-        self.horizontalLayout_log_level.addWidget(self.addUuid)
-        self.horizontalLayout_log_level.addWidget(self.darkTheme)
+        self.mixHLayout.addWidget(self.isDeduplicate)
+        self.mixHLayout.addWidget(self.addUuid)
+        self.mixHLayout.addWidget(self.darkTheme)
         
         self.advBtn = TransparentPushButton(FIF.MORE, res.GUI.Uic.confDia_show_adv_settings, self)
         self._adv_content = ExpandSettings(self)
         self.expandLayout.insertWidget(0, self.advBtn)
         self.expandLayout.addWidget(self._adv_content)
+        
+        # 添加cookie类型选项
+        support = list(COOKIES_PLACEHOLDER.keys())
+        for cookie_type in support:
+            self.cookiesBox.addItem(cookie_type)
+        self.cookiesBox.setCurrentText(support[0])
 
     def refresh_size_for_expand(self, _):
         QApplication.processEvents()
@@ -179,6 +182,16 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             self.puThread = ProjUpdateThread(self)
             Updater(self.gui).run()
         self.updateBtn.clicked.connect(_regular_update)
+        def set_clipDb():
+            file, _ = QFileDialog.getOpenFileName(self, "select DB", "", "Ditto (*.db);;Maccy (*.sqlite)")
+            if not file:
+                return
+            conf.update(clip_db=file)
+            InfoBar.success(
+                title="", content="set db success", duration=3000, parent=self,
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP
+            )
+        self.clipDbBtn.clicked.connect(set_clipDb)
         self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
             view=SupportView(self), target=self.supportBtn, parent=self
         ))
@@ -231,7 +244,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
-        for _ in ('proxies', 'custom_map', "completer", "clip_db"):
+        for _ in ('proxies', 'custom_map', "completer"):
             getattr(self, f"{_}Edit").setText(self.transfer_to_gui(getattr(conf, _) or ""))
         # 处理cookies配置
         self._load_cookie_config()
@@ -309,7 +322,6 @@ class ConfDialog(QDialog, Ui_ConfDialog):
             "pypi_source": getattr(self, "pypiSourceBox").currentIndex(),
             "custom_map": yaml.safe_load(cp(getattr(self, "custom_mapEdit").toPlainText())),
             "completer": yaml.safe_load(cp(getattr(self, "completerEdit").toPlainText())),
-            "clip_db": getattr(self, "clip_dbEdit").text(),
             "clip_read_num": getattr(self, "clip_read_numEdit").value(),
         }
         conf.update(**config)

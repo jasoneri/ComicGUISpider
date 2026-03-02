@@ -15,7 +15,8 @@ REPLACE_MAP = {
     "QSpinBox": "CompactSpinBox",
 }
 DEFAULT_CUSTOM_SUB = {
-    "import material_ct_rc\n": ""
+    "import material_ct_rc\n": "",
+    "# Form implementation generated.*": ""
 }
 
 
