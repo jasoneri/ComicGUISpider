@@ -50,7 +50,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     book_num: int = 0
     nextclickCnt = 0
     pageFrameClickCnt = 0
-    checkisopenCnt = 0
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
     books = {}
@@ -86,6 +85,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         super(SpiderGUI, self).setupUi(MainWindow)
         if self.first_init:
             self.splashScreen = CustomSplashScreen(self)
+            self.setup_sleep_widget(self.bg_mgr.bg_f)
             self.show()
             setupTheme(self)
             QTimer.singleShot(10, self.setupUi_)
@@ -94,10 +94,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.say(font_color(f"<br>{self.res.reboot_tip2}", cls='theme-highlight', size=4))
             self.chooseBox.setDisabled(True)
             if getattr(self, 'bg_mgr', None):
-                self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
+                # self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
+                ...
             setupTheme(self)
             if getattr(self.bg_mgr, "bg_fs"):
-                self.textBrowser.set_fixed_image(random.choice(self.bg_mgr.bg_fs)[0])
+                # self.textBrowser.set_fixed_image(random.choice(self.bg_mgr.bg_fs)[0])
+                ...
             self.on_queue_init_completed(self.manager, self.Q, self.queue_port)
 
     def setupUi_(self):
@@ -135,7 +137,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.manga_mgr = MangaPreviewManager(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
-        self.checkisopenCnt = 0
         self.sv_path = conf.sv_path
         self.btn_logic_bind()
         self.set_shortcut()
@@ -170,11 +171,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 rmt_s2c = False
                 self.rv_tools.ero = 1
                 self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
-            FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
+            # FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, index, rmt_s2c)
             self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
             self.searchinput.setEnabled(True)
             FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
-            FluentMonkeyPatch.rbutton_menu_lineEdit(self.chooseinput)
             if index and not getattr(self, 'p_crawler'):
                 # optimize backend scrapy start speed
                 self.p_crawler = Process(target=crawl_what, args=(index, self.queue_port))
@@ -191,8 +191,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preprocess_mgr.handle_choosebox_changed(index)
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
 
-        self.setup_chooseinput_number_keypad()
-
         self.first_tmp_sv_flag = True
         self.task_mgr = TaskProgressManager(self)
         self.preprocess_mgr = PreprocessManager(self)
@@ -205,10 +203,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.update_notifier.check_on_startup()
         self.is_setup_finished = True
         self.setup_finished.emit()
-
-    def setup_chooseinput_number_keypad(self):
-        if not hasattr(self.chooseinput, 'objectName') or not self.chooseinput.objectName():
-            self.chooseinput.setObjectName('chooseinput')
 
     def chooseBox_changed_tips(self, index):
         match index:
@@ -248,37 +242,22 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.searchinput.setCompleter(completer)
         completer.activated.connect(lambda :
             self.searchinput.setCursorPosition(len(self.searchinput.text())))
-        _completer = QCompleter(list(map(lambda x: f" {x}", ['1', '-1', '-3', '0'])))
-        _completer.setCompletionMode(QCompleter.PopupCompletion)
-        self.chooseinput.setCompleter(_completer)
-        _completer.activated.connect(lambda :
-            self.chooseinput.setCursorPosition(len(self.chooseinput.text())))
 
     def btn_logic_bind(self):
-        def search_btn(text):
-            self.next_btn.setEnabled(len(text.strip()) > 0 and self.chooseBox.currentIndex() != 0)  # else None
-        self.searchinput.textChanged.connect(search_btn)
-        self.next_btn.setDisabled(True)
+        def _search_troggle(text):
+            # TODO[0](2026-03-02):  # 处理 previewBtn Enable
+            ...
+        self.searchinput.textChanged.connect(_search_troggle)
         self.previewBtn.setDisabled(True)
-        self.crawl_btn.clicked.connect(lambda _: self.crawl())
         self.retrybtn.clicked.connect(self.retry_schedule)
-        self.next_btn.clicked.connect(lambda _: self.next_schedule())
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
+        self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
 
         with contextlib.suppress(TypeError):
             self.mpreviewBtn.clicked.disconnect()
         self.mpreviewBtn.clicked.connect(self.manga_mgr.on_spreview_clicked)
-
-        def checkisopen_btn():
-            if self.checkisopenCnt > 0:
-                curr_os.open_folder(self.sv_path)
-            self.checkisopen.setText(self.res.checkisopen_text_change)
-            self.checkisopen.setStatusTip(self.res.checkisopen_status_tip)
-            self.checkisopenCnt += 1
-
-        self.checkisopen.clicked.connect(checkisopen_btn)
 
         self.page_turn_frame()
 
@@ -333,10 +312,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.pageFrameClickCnt += 1
             self.clean_temp_file()
             if self.BrowserWindow and self.BrowserWindow.output:
-                idxes = f"[combine]{str(self.BrowserWindow.output)} and {self.chooseinput.text().strip()}"
+                idxes = f"[combine]{str(self.BrowserWindow.output)}"
                 self.BrowserWindow.output = []
-            elif self.chooseinput.text().strip():
-                idxes = self.chooseinput.text().strip()
             else:
                 idxes = ""
             __ = select(idxes, self.books)
@@ -349,7 +326,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.input_state.pageTurn = _p
             self.q_InputFieldQueue_send(self.input_state)
             refresh_view(_prev_tf)
-            self.chooseinput.clear()
 
         _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg)) if self.BrowserWindow else page_turn(arg)
         self.nextPageBtn.clicked.connect(lambda: _(f"next{self.pageFrameClickCnt}"))
@@ -452,7 +428,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def disable_start(self):
         self.searchinput.setDisabled(True)
-        self.next_btn.setDisabled(True)
         self.clipBtn.setDisabled(True)
 
     # --- WorkThread lifecycle API (FR-2) ---
@@ -535,22 +510,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 mgr.dispatch_stage(stage, EventSource.UI, {"lane": lane})
 
     def next_schedule(self, keyword=None, site_index=None):
+        # TODO[0](2026-03-02): 删掉了next_btn 重做
         def start_and_search():
             self.log.info('===--→ -*- searching')
-            self.next_btn.setText('Next')
 
             self.input_state.keyword = keyword if keyword is not None else self.searchinput.text().strip()
             self.input_state.bookSelected = site_index if site_index is not None else self.chooseBox.currentIndex()
 
             if self.nextclickCnt == 0:          # 从section步 回parse步 的话以免重开
                 self.ensure_work_thread()
-
-                def crawl_btn(text):
-                    if len(text.strip()) > 0:
-                        refresh_state(self, 'process_state', 'ProcessQueue')
-                        self.crawl_btn.setEnabled(self.process_state.process == 'parse section')
-                        self.next_btn.setDisabled(self.crawl_btn.isEnabled())
-                self.chooseinput.textChanged.connect(crawl_btn)
 
             # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
             self.q_InputFieldQueue_send(self.input_state)
@@ -566,13 +534,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.nextclickCnt += 1
         self.searchinput.setEnabled(False)
         self.pageFrame.setEnabled(True)
-        # self.next_btn.setEnabled(False)
-        self.chooseinput.setFocusPolicy(Qt.StrongFocus)
 
         refresh_state(self, 'process_state', 'ProcessQueue')
         self.log.info(f"===--→ next_schedule end (now step: {self.process_state.process})\n")
 
     def _next(self):
+        # TODO[0](2026-03-02): 删掉了next_btn 重做
         self.log.info('===--→ nexting')
         self.pageFrame.setEnabled(False)
         if self.BrowserWindow:
@@ -597,18 +564,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             refresh_state(self, 'process_state', 'ProcessQueue')
             self.clipBtn.setDisabled(True)
             return
-        idxes = self.chooseinput.text().strip()
         if self.BrowserWindow and self.BrowserWindow.output:
-            idxes = f"[combine]{str(self.BrowserWindow.output)} and {idxes}"
+            idxes = f"[combine]{str(self.BrowserWindow.output)}"
         __ = select(idxes, self.books)
         self.books = {}
-        self.chooseinput.clear()
         self.submit_decision("BOOK", __)
 
     def crawl(self, episodes=None):
+        # TODO[0](2026-03-02): 删掉了 crawl_btn 重做
         if episodes is None:
-            idxes = self.chooseinput.text().strip()
-            episodes = select(idxes, self.eps)
+            episodes = select("123456465465464", self.eps)
         if not episodes:
             self.say(font_color(r'selected idxes error!!!', cls='theme-err', size=5))
             return
@@ -618,10 +583,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         QThread.msleep(10)
         self.submit_decision("EP", book)
 
-        if self.book_num == 0:
-            self.crawl_btn.setDisabled(True)
-        else:
-            self.chooseinput.clear()
         self.eps = []  # 在复数本选择下，清空 eps 确保 eps 不会同序号不同book
         self.log.debug(f'book_num remain: {self.book_num}')
         self.log.info(f"===--→ crawl finish (now step: {self.process_state.process})\n")
@@ -643,8 +604,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def crawl_end(self, imgs_path):
         self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
                                        r'QProgressBar::chunk { background-color: #00ff00;}')
-        self.chooseinput.setDisabled(True)
-        self.next_btn.setDisabled(True)
         self.retrybtn.setEnabled(True)
 
         if self.BrowserWindow:
@@ -655,8 +614,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.process_state.process = 'fin'
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
-        if self.checkisopen.isChecked():
-            curr_os.open_folder(self.sv_path)
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
     def say(self, string, ignore_http=False):
