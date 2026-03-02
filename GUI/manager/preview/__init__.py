@@ -328,7 +328,7 @@ class MangaPreviewManager:
         self.gui.say(
             font_color(
                 f"<br>normal preview search error:<br><pre>{error}</pre>",
-                cls="theme-err", size=4,
+                cls="theme-err", size=3,
             ),
             ignore_http=True,
         )

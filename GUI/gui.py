@@ -368,12 +368,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.tf = self.preview.created_temp_html
 
     def set_preview(self, rect=None):
-        self.BrowserWindow = BrowserWindowCls(self)
-        preview_y = self.y() + self.funcGroupBox.y() - self.BrowserWindow.height() - 28
+        sb = self.BrowserWindow = BrowserWindowCls(self)
+        preview_y = self.y() + self.funcGroupBox.y() - sb.height()
         rect = rect or QRect(
-            self.x() + self.funcGroupBox.x(),
-            preview_y if preview_y > 0 else 200,
-            self.BrowserWindow.width(), self.BrowserWindow.height()
+            self.x(), preview_y if preview_y > 0 else 200,
+            sb.width(), sb.height()
         )
         self.BrowserWindow.setGeometry(rect)
         # button group
@@ -683,7 +682,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         exception = str("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         self.log.error(exception)
         self.say(font_color(rf"{type(exc_value)}{exc_value}", cls='theme-err', size=4), ignore_http=True)
-        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))
+        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=3))
 
     def do_publish(self):
         self.tf = TmpFormatHtml.created_temp_html("publish",
