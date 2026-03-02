@@ -8,8 +8,9 @@ from functools import partial
 
 import yaml
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QDialog, QSizePolicy, QFileDialog, QCompleter, QApplication
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QSizePolicy, QFileDialog, QCompleter, QApplication
+from PyQt5.QtCore import Qt, QRect
+from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,
     PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
@@ -23,6 +24,7 @@ from utils.config.rule import CgsRuleMgr
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater
+from GUI.core.anim import animate_popup_show
 from GUI.core.theme import theme_mgr
 from GUI.uic.qfluent.components import (
     SupportView, CustomFlyout, CustomInfoBar, ExpandSettings, TextEditWithBg
@@ -51,7 +53,7 @@ class SvPathCard(PushSettingCard):
             self.setContent(folder)
 
 
-class ConfDialog(QDialog, Ui_ConfDialog):
+class ConfDialog(FramelessDialog, Ui_ConfDialog):
     def __init__(self, parent=None):
         super(ConfDialog, self).__init__(parent)
         self._init_flag = True
@@ -60,6 +62,7 @@ class ConfDialog(QDialog, Ui_ConfDialog):
 
     def setupUi(self, Dialog):
         super(ConfDialog, self).setupUi(Dialog)
+        self.titleBar.closeBtn.hide()
         self.retranslateUiAgain(Dialog)
         self.acceptBtn.clicked.connect(self.save_conf)
         self.acceptBtn.setIcon(FIF.SAVE)
@@ -254,7 +257,10 @@ class ConfDialog(QDialog, Ui_ConfDialog):
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
             getattr(self, f"{_}Edit").setValue(int(getattr(conf, _)))
-        super(ConfDialog, self).show()
+        abs_y = self.gui.y()-self.height()+30
+        target_rect = QRect(self.gui.x(), abs_y if abs_y > 0 else 0, self.width(), self.height())
+        self.setGeometry(target_rect)
+        animate_popup_show(self, target_rect, duration_ms=500, direction="up")
         # 4. SettingCard卡片类配置
         self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
         # 5. ComboBox类

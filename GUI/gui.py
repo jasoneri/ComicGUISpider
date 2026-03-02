@@ -7,7 +7,10 @@ import contextlib
 from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtGui import QKeySequence, QGuiApplication
-from PyQt5.QtCore import QThread, Qt, QCoreApplication, QUrl, QRect, QTimer, pyqtSignal
+from PyQt5.QtCore import (
+    QThread, Qt, QCoreApplication, QUrl, QRect, QTimer,
+    pyqtSignal
+)
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
 from GUI.uic.qfluent import (
@@ -16,6 +19,7 @@ from GUI.uic.qfluent import (
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
+from GUI.core.anim import animate_popup_show
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
@@ -229,7 +233,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
         self.toolWin.addMidTool()
-        self.rvBtn.clicked.connect(self.toolWin.show)
+
+        def show_toolWin():
+            t = self.toolWin
+            h = self.height()
+            abs_y = self.y() + h
+            screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
+            target_y = screen_height - t.height() if abs_y + t.height() > screen_height else abs_y
+            target_rect = QRect(self.x(), target_y, t.width(), t.height())
+            animate_popup_show(t, target_rect, duration_ms=220, direction="down")
+        self.rvBtn.clicked.connect(show_toolWin)
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()
@@ -376,7 +389,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.second_init()
             self.previewSecondInit = False
         self.BrowserWindow.set_ensure_handler()
-        self.BrowserWindow.show()
+        final_rect = self.BrowserWindow.geometry()
+        animate_popup_show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
     def clean_preview(self):
         self.clean_temp_file()
@@ -672,7 +686,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=5))
 
     def do_publish(self):
-        self.tf = TmpFormatHtml.created_temp_html("publish", 
+        self.tf = TmpFormatHtml.created_temp_html("publish",
             bs_theme=bs_theme(), publish_url=self.spiderUtils.publish_url)
         self.set_preview()
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
@@ -680,7 +694,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if o_w < screen_width * 0.75:
             o_w = int(screen_width * 0.75)
         self.BrowserWindow.resize(o_w, o_h+150)
-        self.BrowserWindow.show()
+        final_rect = self.BrowserWindow.geometry()
+        animate_popup_show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
     def tpd(self, texts):
         """transfer publish-page domians"""
@@ -692,13 +707,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
-        rect = QRect(self.x(), int(screen_height*0.05), 
+        rect = QRect(self.x(), int(screen_height*0.05),
             self.width(), int(screen_height*0.9))
         if not getattr(self, 'BrowserWindow'):
             self.set_preview(rect)
         else:
             self.BrowserWindow.setGeometry(rect)
-        self.BrowserWindow.show()
+        final_rect = self.BrowserWindow.geometry()
+        animate_popup_show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
         self.BrowserWindow.view.load(QUrl(url))
         if callback:
             callback()
