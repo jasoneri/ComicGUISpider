@@ -102,7 +102,6 @@ class CustomSplashScreen(SplashScreen):
         
         if self.gui.bg_mgr.bg_f:
             self.gui.bg_f = self.gui.bg_mgr.bg_f
-            self.gui.textBrowser.set_fixed_image(self.gui.bg_f)
 
     @staticmethod
     def pil_to_qpixmap(pil_image):

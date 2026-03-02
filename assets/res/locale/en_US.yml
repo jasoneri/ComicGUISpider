@@ -2,7 +2,7 @@ Vars:
   ua_accept_language: "en-US,en;q=0.9"
   hitomiDb_tmp_url: "https://github.com/jasoneri/imgur/releases/download/preset/hitomi.db"
 GUI:
-  DESC1: "1. First-time users, click <img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\"> button. Then read `Doc(Document)` at the bottom-left corner for Config-details/GUI video guides."
+  DESC1: "1. First-time users, click <img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\"> button. Then read `Doc(Document)` at the bottom-left corner"
   DESC2: "2. If encountering issues, check the <a href='https://cgs.101114105.xyz/faq/'>📖FAQ/Extra Notes</a> document before seeking help."
   DESC_ELSE: "For issues/feature suggestions, contact with an issue."
   
@@ -15,8 +15,6 @@ GUI:
   check_ehetai: "Checking current environment's access to `exhentai`..."
   check_mangabz: "Checking current environment's access to `Māngabz`..."
   check_hitomi: "Checking current environment's access to `hitomi`..."
-  checkisopen_text_change: "(Click)Immediately open sv-path"
-  checkisopen_status_tip: "sv-path auto-open after completion"
   ACCESS_FAIL: "Current proxy configuration/global proxy environment cannot access<br>Please verify site accessibility (direct CN access unsupported)"
   cookies_copy_err: "Format error - review latest GIF instructions and retry"
   copied_tip: "Background will copy [%s] items to clipboard"
@@ -85,10 +83,6 @@ GUI:
   Uic:
     chooseBoxDefault: "Select Website"
     searchinputPlaceholderText: "Input Keyword"
-    chooseinputPlaceholderText: "Input Serials"
-    next_btnDefaultText: "Search"
-    checkisopenDefaultText: "(Auto) Open sv-path when done"
-    chooseinputTip: "Examples: 0 → Select all | 2 → Single select 2 | 7+9 → Multi select 7,9 (plus) | 3-5 → Multi select 3,4,5 (hyphen) | 1+7-9 → Combined: 1,7,8,9 | -3 → Last 3"
     chooseBoxToolTip: "Check status bar for input hints after selecting a website"
     previewBtnStatusTip: "Click to open preview window (available after book list appears)"
     progressBarStatusTip: " >>> Ⅰ. Green 100% = Complete Ⅱ. Even at 100%, some pages may be missing. Use Copy Unfinished and Clip-function to fill gaps"
@@ -146,8 +140,7 @@ SPIDER:
     frame_book_print_extra: " →_→ Hover over number field for input rules"
     frame_book_print_retry_tip: "No results found. Possible causes:<br>1. Server blocking 2. End of results 3. Verify URL in browser"
     frame_section_print_extra: " ←_← Click【Start Crawling!】"
-  chooseInput_flag: "Enter Selected Serials"
-  sectionInput_flag: "Start Crawling"
+   sectionInput_flag: "Start Crawling"
   search_url_head_NotImplementedError: "Custom search URL required"
   choice_list_before_turn_page: "Previous page selections pending"
   parse_step: "Comic"

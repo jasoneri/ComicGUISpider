@@ -18,59 +18,6 @@ __all__ = [
 res = ori_res.GUI.Uic
 
 
-class NumberKeypadWidget(QWidget):
-    def __init__(self, line_edit, parent=None):
-        super().__init__(parent)
-        self.line_edit = line_edit
-        self.setup_ui()
-
-    def setup_ui(self):
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(2, 0, 2, 0)
-        layout.setSpacing(2)
-
-        _size = (32, 32)
-        for i in range(10):
-            btn = PushButton(str(i))
-            btn.setFixedSize(*_size)
-            btn.clicked.connect(lambda _, num=str(i): self.append_to_input(num))
-            layout.addWidget(btn)
-
-        layout.addSpacing(8)
-        for i in ("+", "-"):
-            btn = PushButton(i)
-            btn.setFixedSize(*_size)
-            btn.clicked.connect(lambda _, num=i: self.append_to_input(num))
-            layout.addWidget(btn)
-
-        layout.addSpacing(8)
-        close_btn = PushButton("×")
-        close_btn.setFixedSize(*_size)
-        close_btn.clicked.connect(self.close_keypad)
-        layout.addWidget(close_btn)
-
-    def append_to_input(self, text):
-        self.line_edit.insert(text)
-
-    def close_keypad(self):
-        parent = self.parent()
-        while parent:
-            if hasattr(parent, 'close') and 'Flyout' in parent.__class__.__name__:
-                parent.close()
-                break
-            parent = parent.parent()
-
-
-def show_number_keypad(line_edit, target_widget):
-    keypad_widget = NumberKeypadWidget(line_edit)
-    Flyout.make(
-        view=keypad_widget,
-        target=target_widget,
-        parent=target_widget.window(),
-        aniType=FlyoutAnimationType.DROP_DOWN
-    )
-
-
 class MonkeyPatch:
     @staticmethod
     def rbutton_menu_lineEdit(line_edit):
@@ -78,10 +25,6 @@ class MonkeyPatch:
             def _showCompleterMenu():
                 if not self.text().strip():
                     self.setText(" ")
-                self._showCompleterMenu()
-
-            def _showNumberKeypad():
-                show_number_keypad(self, self)
 
             menu = RoundMenu(parent=self)
             undo_action = Action(FluentIcon.CANCEL, text=self.tr("Cancel"), triggered=self.undo)
@@ -90,10 +33,6 @@ class MonkeyPatch:
             show_completer = Action(FluentIcon.ALIGNMENT, text=self.tr(res.menu_show_completer),
                                     triggered=_showCompleterMenu)
             menu.addAction(show_completer)
-            if hasattr(self, 'objectName') and self.objectName() == 'chooseinput':
-                number_keypad_action = Action(
-                    FluentIcon.EDIT, text="点击输入", triggered=_showNumberKeypad)
-                menu.addAction(number_keypad_action)
             menu.addSeparator()
             menu.addAction(paste_action)
             menu.addAction(undo_action)
@@ -105,6 +44,7 @@ class MonkeyPatch:
 
     @staticmethod
     def rbutton_menu_textBrowser(textBrowser, cb_idx, s2c=False):
+        # TODO[2](2026-03-02): 废弃或改造
         """cb_idx: chooseBox index
         s2c: send to chooseinput"""
         def custom_context_menu(self, event):
@@ -118,7 +58,7 @@ class MonkeyPatch:
             if selected_text:
                 fluent_menu.addSeparator()
                 if s2c and textBrowser.gui.next_btn.text() != ori_res.GUI.Uic.next_btnDefaultText:
-                    custom_action = Action(FIF.PENCIL_INK, "解析选中项发至序号输入框", 
+                    custom_action = Action(FluentIcon.PENCIL_INK, "解析选中项发至序号输入框", 
                         triggered=lambda: send_to_chooseinput(selected_text))
                     fluent_menu.addAction(custom_action)
                 custom_action = Action(text="将选中文本加进预设", 

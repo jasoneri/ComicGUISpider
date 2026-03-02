@@ -2,7 +2,7 @@ Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
   hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
 GUI:
-  DESC1: "1、首次使用请点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，配置窗口左下角点击`使用手册`，内有配置详情/GUI视频使用指南等"
+  DESC1: "1、首次使用点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，看配置窗口左下的`使用手册`"
   DESC2: "2、使用出现问题时先查阅 <a href='https://cgs.101114105.xyz/faq/'>📖FAQ/额外说明</a> 文档排查 "
   DESC_ELSE: "其他问题/功能建议等到群反映/提issue"
   
@@ -15,8 +15,6 @@ GUI:
   check_ehetai: "正在检测当前环境能否访问 `exhentai` 中..."
   check_mangabz: "正在检测当前环境能否访问 `Māngabz` 中..."
   check_hitomi: "正在检测当前环境能否访问 `hitomi` 中..."
-  checkisopen_text_change: "现在点击立刻打开存储目录"
-  checkisopen_status_tip: "勾选状态下完成后也会自动打开目录的"
   ACCESS_FAIL: "当前`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
   cookies_copy_err: "格式错误，请看清楚最新gif的操作重新复制"
   copied_tip: "后台将复制[%s]条到剪贴板"
@@ -85,10 +83,6 @@ GUI:
   Uic:
     chooseBoxDefault: "选择网站"
     searchinputPlaceholderText: "输入关键字"
-    chooseinputPlaceholderText: "输入序号"
-    next_btnDefaultText: "搜索"
-    checkisopenDefaultText: "(完成后自动)打开存储目录"
-    chooseinputTip: "示例： 0 →全选(特殊)  |  2 →单选2  |  7+9 →多选 7、9 (加号)  |  3-5 →多选 3、4、5 (减号) |  1+7-9 →复合 多选 1、7、8、9 | -3 →倒数3个"
     chooseBoxToolTip: "选中网站后看状态栏有输入提示"
     previewBtnStatusTip: "点击打开预览窗口，仅当出现书列表后才能使用"
     progressBarStatusTip: " >>> Ⅰ、绿色100%表示完成 Ⅱ、 任务细化后查得绿色100%也有漏页情况，可结合`复制未完成`与`剪贴板功能`进行补页"
@@ -146,7 +140,6 @@ SPIDER:
     frame_book_print_extra: " →_→ 鼠标移到序号栏有教输入规则"
     frame_book_print_retry_tip: "什么意思？唔……就是你搜的在放✈(飞机)<br>翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没 / 重开换种姿势再搜"
     frame_section_print_extra: " ←_← 点击【开始爬取！】"
-  chooseInput_flag: "输入要选的序号"
   sectionInput_flag: "开始爬取"
   search_url_head_NotImplementedError: "需要自定义搜索网址"
   choice_list_before_turn_page: "此前页面已选择(待结算)"
