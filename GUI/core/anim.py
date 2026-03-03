@@ -1,15 +1,80 @@
 from typing import Literal
 
 from PyQt5.QtCore import (
+    QObject,
     QAbstractAnimation,
     QPropertyAnimation,
     QEasingCurve,
     QParallelAnimationGroup,
     QRect,
 )
+from PyQt5.QtWidgets import QGraphicsOpacityEffect
 
 
 PopupDirection = Literal["right", "up", "down"]
+
+
+class BreathingEffect(QObject):
+    def __init__(self, widget, duration_ms=1500, min_opacity=0.6, max_opacity=1.0):
+        super().__init__(widget)
+        self._widget = widget
+        self._duration = duration_ms
+        self._min_opacity = min_opacity
+        self._max_opacity = max_opacity
+        self._effect = None
+        self._anim = None
+        self._running = False
+        if widget is not None:
+            widget.destroyed.connect(self._cleanup)
+
+    def _ensure_effect_and_anim(self):
+        if self._widget is None:
+            return False
+        if self._effect is None:
+            self._effect = QGraphicsOpacityEffect(self._widget)
+            self._widget.setGraphicsEffect(self._effect)
+        if self._anim is None:
+            self._anim = QPropertyAnimation(self._effect, b"opacity", self._widget)
+            self._anim.setDuration(self._duration)
+            self._anim.setStartValue(self._min_opacity)
+            self._anim.setEndValue(self._max_opacity)
+            self._anim.setEasingCurve(QEasingCurve.InOutSine)
+            self._anim.finished.connect(self._on_finished)
+        return True
+
+    def _on_finished(self):
+        if not self._running or self._anim is None:
+            return
+        direction = QAbstractAnimation.Backward if self._anim.direction() == QAbstractAnimation.Forward else QAbstractAnimation.Forward
+        self._anim.setDirection(direction)
+        self._anim.start()
+
+    def start(self):
+        if not self._ensure_effect_and_anim():
+            return
+        self._running = True
+        self._anim.setDirection(QAbstractAnimation.Forward)
+        self._anim.start()
+
+    def stop(self, restore_opacity=True):
+        self._running = False
+        if self._anim and self._anim.state() == QAbstractAnimation.Running:
+            self._anim.stop()
+        if restore_opacity and self._effect is not None:
+            self._effect.setOpacity(1.0)
+
+    def is_running(self) -> bool:
+        return self._running and self._anim is not None and self._anim.state() == QAbstractAnimation.Running
+
+    def _cleanup(self):
+        self._running = False
+        if self._anim is not None:
+            if self._anim.state() == QAbstractAnimation.Running:
+                self._anim.stop()
+            self._anim.deleteLater()
+            self._anim = None
+        self._effect = None
+        self._widget = None
 
 
 def _calc_start_rect(final_rect: QRect, direction: PopupDirection, offset_px: int) -> QRect:
