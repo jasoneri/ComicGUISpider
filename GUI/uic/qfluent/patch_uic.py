@@ -13,6 +13,7 @@ REPLACE_MAP = {
     "QComboBox": "ComboBox",
     "QCheckBox": "CheckBox",
     "QSpinBox": "CompactSpinBox",
+    "QProgressBar": "ProgressBar",
 }
 DEFAULT_CUSTOM_SUB = {
     "import material_ct_rc\n": "",
@@ -59,6 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('filename', help='要转换的UI文件名（不含路径）')
     args = parser.parse_args()
     
+    file = f"{args.filename}.py"
     file = f"{args.filename}.py"
     match args.filename:
         case "conf_dia":
