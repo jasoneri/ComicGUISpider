@@ -47,25 +47,33 @@ class MitmMainWindow(Ui_MainWindow):
         self.progressBar.setStatusTip(_translate("MainWindow", res.progressBarStatusTip))
         self.setup_bubble_widget()
 
+    # === bg and bubble.svg
+
+    def _mk_overlay(self, parent, name, image, refresh_cb, *, init=None, lower=False):
+        label = ImageLabel(parent)
+        label.setObjectName(name)
+        label.setImage(image)
+        if init:
+            init(label)
+        pixmap = label.pixmap()
+        label.show()
+        if lower:
+            label.lower()
+        QTimer.singleShot(0, refresh_cb)
+        return label, pixmap
+
     def setup_bubble_widget(self):
-        self.bubbleLabel = ImageLabel(self.tbWidget)
-        self.bubbleLabel.setObjectName("bubbleLabel")
-        self.bubbleLabel.setImage(':/speak.svg')
-        self.bubbleBasePixmap = self.bubbleLabel.pixmap()
-        self.bubbleLabel.show()
-        self.bubbleLabel.lower()
+        self.bubbleLabel, self.bubbleBasePixmap = self._mk_overlay(
+            self.tbWidget, "bubbleLabel", ':/speak.svg', self._refresh_bubble_label_size, lower=True
+        )
         self.textBrowser.raise_()
         self.textBrowser.setStyleSheet("background: transparent; border: none;")
-        QTimer.singleShot(0, self._refresh_bubble_label_size)
 
     def setup_sleep_widget(self, _img=None):
-        self.sleepLabel = ImageLabel(self.sleepWidget)
-        self.sleepLabel.setObjectName("sleepLabel")
-        self.sleepLabel.setImage(_img or "docs/public/cgs_sleep.png")
-        self.sleepLabel.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-        self.sleepLabel.setScaledContents(True)
-        self.sleepBasePixmap = self.sleepLabel.pixmap()
-        QTimer.singleShot(0, self._refresh_sleep_label_size)
+        self.sleepLabel, self.sleepBasePixmap = self._mk_overlay(
+            self.sleepWidget, "sleepLabel", _img or "docs/public/cgs_sleep.png", self._refresh_sleep_label_size,
+            init=lambda l: (l.setAlignment(Qt.AlignLeft | Qt.AlignBottom), l.setScaledContents(True)),
+        )
 
     def resizeEvent(self, event):
         QtWidgets.QMainWindow.resizeEvent(self, event)
@@ -73,21 +81,19 @@ class MitmMainWindow(Ui_MainWindow):
         self._refresh_sleep_label_size()
 
     def _refresh_bubble_label_size(self):
-        label = getattr(self, 'bubbleLabel', None)
-        pixmap = getattr(self, 'bubbleBasePixmap', None)
-        target_width = self.tbWidget.width()
-        target_height = self.tbWidget.height()
-        scaled = pixmap.scaled(target_width, target_height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-        label.setPixmap(scaled)
-        label.setFixedSize(target_width, target_height)
-        label.move(0, 0)
-        label.lower()
+        width, height = self.tbWidget.width(), self.tbWidget.height()
+        self.bubbleLabel.setPixmap(self.bubbleBasePixmap.scaled(width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+        self.bubbleLabel.setFixedSize(width, height)
+        self.bubbleLabel.move(0, 0)
+        self.bubbleLabel.lower()
 
     def _refresh_sleep_label_size(self):
         sw = self.sleepWidget.width()
         act_h = int(sw * (self.sleepBasePixmap.height() / self.sleepBasePixmap.width()))
         self.sleepLabel.setFixedSize(sw, act_h)
         self.sleepLabel.move(0, max(0, self.sleepWidget.height()-act_h))
+
+    # ===
 
     def _repaint_textBrowser(self):
         if getattr(self, 'textBrowser', None):
@@ -102,7 +108,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.openPBtn = ToolButton(self.frame)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
         self.openPBtn.setSizePolicy(sizePolicy)
-        self.openPBtn.setMinimumSize(QtCore.QSize(55, 0))
+        self.openPBtn.setMinimumSize(QtCore.QSize(40, 0))
         self.openPBtn.setObjectName("openPBtn")
         self.openPBtn.setIcon(FIF.FOLDER)
         self.toolVLayout.insertWidget(0, self.openPBtn)
