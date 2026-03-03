@@ -1,98 +1,21 @@
 import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QApplication, QGraphicsOpacityEffect
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QEvent, QPropertyAnimation, QEasingCurve, QPoint, QObject
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, PrimaryPushButton,
+    TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
     FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, TeachingTipTailPosition, ImageLabel,
-    StrongBodyLabel, IconInfoBadge, InfoBadgeManager, InfoBadgePosition,
-    DotInfoBadge, SwitchButton, ComboBox, TextEdit
+    StrongBodyLabel, SwitchButton, ComboBox, TextEdit
 )
 
 
 from assets import res
 from utils.redViewer_tools import BookShow
-
-
-class ClickableIconInfoBadge(IconInfoBadge):
-    clicked = pyqtSignal()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 移除透明鼠标事件属性，使 badge 可点击
-        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
-        self.setCursor(Qt.PointingHandCursor)
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and self.isEnabled():
-            self.clicked.emit()
-        super().mousePressEvent(e)
-
-    def eventFilter(self, obj, e):
-        if self._inside and obj is self._target and e.type() in (QEvent.Resize, QEvent.Move):
-            self._update_position_inside()
-        return super().eventFilter(obj, e)
-
-
-class _BadgeAnchor(QObject):
-    """Tracks target widget movement and repositions badge via mapTo."""
-    def __init__(self, target, badge, parent_widget, pos):
-        super().__init__(badge)
-        self.target = target
-        self.badge = badge
-        self.parent_widget = parent_widget
-        self.pos = pos
-        target.installEventFilter(self)
-        if target.parentWidget():
-            target.parentWidget().installEventFilter(self)
-
-    def eventFilter(self, obj, e):
-        if e.type() in (QEvent.Resize, QEvent.Move):
-            self.badge.move(self.calc_position())
-        return False
-
-    def calc_position(self):
-        tr = self.target.rect().topRight()
-        mapped = self.target.mapTo(self.parent_widget, tr)
-        return QPoint(mapped.x() - self.badge.width() // 2, mapped.y() - self.badge.height() // 2)
-
-
-class CustomBadge:
-    @classmethod
-    def make(cls, bge_args, pos: InfoBadgePosition, target):
-        _bge = ClickableIconInfoBadge(*bge_args)
-        _bge.manager = InfoBadgeManager.make(pos, target, _bge)
-        _bge.move(_bge.manager.position())
-        return _bge
-
-    @classmethod
-    def make_ani_dot(cls, parent, size=None, target=None, level="success", pos=InfoBadgePosition.TOP_RIGHT):
-        t = target or parent
-        sz = size or (10, 10)
-        dot = getattr(DotInfoBadge, level)(parent, target=None, position=pos)
-        dot.setFixedSize(*sz)
-        anchor = _BadgeAnchor(t, dot, parent, pos)
-        dot.move(anchor.calc_position())
-        dot._anchor = anchor
-        opacity = QGraphicsOpacityEffect(dot)
-        dot.setGraphicsEffect(opacity)
-        anim = QPropertyAnimation(opacity, b"opacity")
-        anim.setDuration(1500)
-        anim.setStartValue(0.3)
-        anim.setEndValue(1.0)
-        anim.setEasingCurve(QEasingCurve.InOutSine)
-        anim.finished.connect(lambda: (
-            anim.setDirection(anim.Backward if anim.direction() == anim.Forward else anim.Forward),
-            anim.start()
-        ))
-        anim.start()
-        dot._breath_anim = anim
-        return dot
 
 
 class CustomInfoBar:

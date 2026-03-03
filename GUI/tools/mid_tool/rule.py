@@ -10,7 +10,7 @@ from qfluentwidgets import (
 )
 
 from GUI.tools.mid_tool.svg import SvgWidget, NodeType
-from GUI.uic.qfluent.components.cust import CustomBadge
+from GUI.uic.qfluent.components import CustomBadge
 from utils.middleware import (
     MiddlewareDefinition,
 )
