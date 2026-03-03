@@ -61,7 +61,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     file = f"{args.filename}.py"
-    file = f"{args.filename}.py"
     match args.filename:
         case "conf_dia":
             cb = ConvertBase('conf_dia.py', 'conf_dia.py', custom_sub={
