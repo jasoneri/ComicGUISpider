@@ -2,20 +2,42 @@ import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QSize
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene
+
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
     FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, TeachingTipTailPosition, ImageLabel,
+    TeachingTip, ImageLabel, TeachingTipView,
     StrongBodyLabel, SwitchButton, ComboBox, TextEdit
 )
 
-
 from assets import res
+from GUI.core.anim import ProxyRotationController
 from utils.redViewer_tools import BookShow
+
+
+class FlexImageLabel(ImageLabel):
+    def setImage(self, image=None):
+        self.image = image or QImage()
+        if isinstance(image, str):
+            reader = QImageReader(image)
+            if reader.supportsAnimation():
+                self.setMovie(QMovie(image))
+            else:
+                self.image = reader.read()
+        elif isinstance(image, QPixmap):
+            self.image = image.toImage()
+        self.update()
+
+    def sizeHint(self):
+        return QSize(0, 0)
+
+    def minimumSizeHint(self):
+        return QSize(0, 0)
 
 
 class CustomInfoBar:
@@ -71,13 +93,21 @@ class CustomFlyout:
 
 class CustomTeachingTip:
     @classmethod
-    def make(cls, view, target, parent, tailPosition=TeachingTipTailPosition.BOTTOM):
-        _tip = TeachingTip.make(
-            view=view, target=target, duration=-1, tailPosition=tailPosition, parent=parent
+    def create(cls, widgets, target, parent, content,
+             isClosable=True, duration=-1, **kw):
+        view = TeachingTipView(
+            title="", content=content, isClosable=isClosable
         )
-        if hasattr(view, "closed"):
-            view.closed.connect(_tip.close)
-        return _tip
+        offset = 0
+        cindex = 1 if isClosable else 0
+        for w in widgets:
+            view.viewLayout.insertWidget(view.viewLayout.count() - cindex, w)
+            offset += (w.sizeHint().width() + 5)
+        view.adjustSize()
+        tip = TeachingTip(view, target, duration, parent=parent, **kw)
+        tip.show()
+        view.closeButton.clicked.connect(tip.close)
+        return tip
 
 
 class CustomIcon(FluentIconBase, Enum):
@@ -365,3 +395,55 @@ class TableFlyoutView(FlyoutViewBase):
         QTimer.singleShot(10, do)
         self.rvInterface.table_fv.close()
         self.rvInterface.toolWin.close()
+
+
+_ICON_SIZE = 18
+_VIEW_SIZE = 24
+_PAD = (_VIEW_SIZE - _ICON_SIZE) // 2
+
+class ExpandButton(QWidget):
+    clicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.expanded = False
+
+        self._label = ImageLabel()
+        self._label.setImage(QPixmap(":/expand.svg"))
+        self._label.setFixedSize(_ICON_SIZE, _ICON_SIZE)
+
+        self._scene = QGraphicsScene(self)
+        self._view = QGraphicsView(self._scene, self)
+        self._proxy = self._scene.addWidget(self._label)
+        self._proxy.setPos(_PAD, _PAD)
+        self._proxy.setTransformOriginPoint(_ICON_SIZE / 2, _ICON_SIZE / 2)
+        self._scene.setSceneRect(0, 0, _VIEW_SIZE, _VIEW_SIZE)
+
+        self._view.setFixedSize(_VIEW_SIZE, _VIEW_SIZE)
+        self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._view.setFrameShape(QGraphicsView.NoFrame)
+        self._view.setStyleSheet("background: transparent;")
+        self._view.setBackgroundBrush(QBrush(Qt.transparent))
+        self._view.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        self._anim_ctrl = ProxyRotationController(self._proxy)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._view)
+
+        self.setFixedSize(_VIEW_SIZE, _VIEW_SIZE)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def expand(self):
+        self.expanded = not self.expanded
+        self._anim_ctrl.rotate_to(-45.0 if self.expanded else 0.0)
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(e)
+
+    def click(self):
+        self.clicked.emit()

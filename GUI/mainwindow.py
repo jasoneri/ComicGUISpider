@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt, QTimer
-from qfluentwidgets import FluentIcon as FIF, ToolButton, ImageLabel
+from PyQt5.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
+from qfluentwidgets import (
+    FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea
+)
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
-from GUI.uic.qfluent.components import TextBrowserWithBg
+from GUI.uic.qfluent.components import TextBrowserWithBg, FlexImageLabel, ExpandButton
 from assets import res as ori_res
 from variables import VER
 
@@ -17,10 +20,13 @@ class MitmMainWindow(Ui_MainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
         _mainWindow.setWindowTitle(_translate("MainWindow", f"ComicGUISpider {VER}"))
+
+    def apply_translations(self):
+        """依赖 res 翻译的文案设置，延迟到 set_language 之后调用"""
+        _translate = QtCore.QCoreApplication.translate
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
         self.searchinput.setClearButtonEnabled(1)
-        # self._repaint_textBrowser()
         self.preset()
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(0, _translate("MainWindow", res.chooseBoxDefault))
@@ -63,10 +69,33 @@ class MitmMainWindow(Ui_MainWindow):
         return label, pixmap
 
     def setup_bubble_widget(self):
-        self.bubbleLabel, self.bubbleBasePixmap = self._mk_overlay(
-            self.tbWidget, "bubbleLabel", ':/speak.svg', self._refresh_bubble_label_size, lower=True
-        )
-        self.textBrowser.raise_()
+        if hasattr(self, "tbWidgetLayout") and self.textBrowser.parent() is self.tbWidget:
+            self.tbWidgetLayout.removeWidget(self.textBrowser)
+        self.tbWidgetStackHost = QWidget(self.tbWidget)
+        self.tbWidgetStackHost.setMinimumHeight(140)
+        self.tbWidgetStackHost.setObjectName("tbWidgetStackHost")
+        self.tbWidgetStackedLayout = QStackedLayout(self.tbWidgetStackHost)
+        self.tbWidgetStackedLayout.setObjectName("tbWidgetStackedLayout")
+        self.tbWidgetStackedLayout.setContentsMargins(0, 0, 0, 0)
+        self.tbWidgetStackedLayout.setStackingMode(QStackedLayout.StackAll)
+        self.bubbleLabel = FlexImageLabel(self.tbWidgetStackHost)
+        self.bubbleLabel.setObjectName("bubbleLabel")
+        self.bubbleLabel.setImage(':/speak.svg')
+        self.bubbleLabel.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self.bubbleLabel.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.tbWidgetStackedLayout.addWidget(self.bubbleLabel)
+        contentWidget = QWidget(self.tbWidgetStackHost)
+        contentWidget.setAttribute(Qt.WA_TranslucentBackground)
+        contentLayout = QVBoxLayout(contentWidget)
+        contentLayout.setContentsMargins(10,7,16,7)
+        contentLayout.setSpacing(0)
+        contentLayout.addWidget(self.textBrowser)
+        self.tbWidgetStackedLayout.addWidget(contentWidget)
+
+        self.tbWidgetStackedLayout.setCurrentWidget(contentWidget)
+        if hasattr(self, "tbWidgetLayout"):
+            self.tbWidgetLayout.addWidget(self.tbWidgetStackHost)
+
         self.textBrowser.setStyleSheet("background: transparent; border: none;")
 
     def setup_sleep_widget(self, _img=None):
@@ -77,15 +106,7 @@ class MitmMainWindow(Ui_MainWindow):
 
     def resizeEvent(self, event):
         QtWidgets.QMainWindow.resizeEvent(self, event)
-        self._refresh_bubble_label_size()
         self._refresh_sleep_label_size()
-
-    def _refresh_bubble_label_size(self):
-        width, height = self.tbWidget.width(), self.tbWidget.height()
-        self.bubbleLabel.setPixmap(self.bubbleBasePixmap.scaled(width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
-        self.bubbleLabel.setFixedSize(width, height)
-        self.bubbleLabel.move(0, 0)
-        self.bubbleLabel.lower()
 
     def _refresh_sleep_label_size(self):
         sw = self.sleepWidget.width()
@@ -112,3 +133,23 @@ class MitmMainWindow(Ui_MainWindow):
         self.openPBtn.setObjectName("openPBtn")
         self.openPBtn.setIcon(FIF.FOLDER)
         self.toolVLayout.insertWidget(0, self.openPBtn)
+        
+        self.expandBtn = ExpandButton(self)
+        self.clearBtn = TransparentToolButton(FIF.BROOM)
+        
+        self.scroll_content = QWidget()
+        self.task_list_layout = QVBoxLayout(self.scroll_content)
+        self.task_list_layout.setContentsMargins(4, 4, 4, 4)
+        self.task_list_layout.setSpacing(2)
+
+        self.scroll_area = ScrollArea()
+        self.scroll_area.setWidget(self.scroll_content)
+        self.scroll_area.setWidgetResizable(True)
+
+        self.barHLayout.insertWidget(0, self.expandBtn)
+        self.barHLayout.addWidget(self.clearBtn)
+        self.barVLayout.addWidget(self.scroll_area)
+        
+        self.expandBtn.setVisible(False)
+        self.clearBtn.setVisible(False)
+        self.scroll_area.setVisible(False)

@@ -84,13 +84,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.setupUi(self)
 
     def setupUi(self, MainWindow):
-        if self.first_init:
-            res.set_language(conf.lang)
         super(SpiderGUI, self).setupUi(MainWindow)
         if self.first_init:
             self.splashScreen = CustomSplashScreen(self)
             self.setup_sleep_widget(self.bg_mgr.bg_f)
             self.show()
+            res.set_language(conf.lang)
+            self.apply_translations()
+            self.task_mgr = TaskProgressManager(self)
+            self.task_mgr.init_native_panel()
             setupTheme(self)
             QTimer.singleShot(10, self.setupUi_)
             self.first_init = False
@@ -131,8 +133,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.eps = []
         self.conf_dia = ConfDialog(self)
         self.textBrowser.append(TextUtils.description())
-        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
-                                       r'QProgressBar::chunk {background-color: #0cc7ff; width: 3px;}')
         self.input_state = InputFieldState(keyword='', bookSelected=0, indexes='', pageTurn='')
         # 按钮组
         self.clip_mgr = ClipGUIManager(self)
@@ -196,7 +196,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.currentIndexChanged.connect(chooseBox_changed_handle)
 
         self.first_tmp_sv_flag = True
-        self.task_mgr = TaskProgressManager(self)
         self.preprocess_mgr = PreprocessManager(self)
         self.rv_tools = rVtools()
 
@@ -615,8 +614,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             raise ValueError(self.res.input_format_err)
 
     def crawl_end(self, imgs_path):
-        self.progressBar.setStyleSheet(r'QProgressBar {text-align: center; border-color: #0000ff;}'
-                                       r'QProgressBar::chunk { background-color: #00ff00;}')
+        self.progressBar.setCustomBarColor(light="#00ff00", dark="#00cc00")
         self.retrybtn.setEnabled(True)
 
         if self.BrowserWindow:

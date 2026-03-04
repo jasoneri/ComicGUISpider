@@ -27,12 +27,13 @@ class ClickableIconInfoBadge(IconInfoBadge):
 
 class _BadgeAnchor(QObject):
     """Tracks target widget movement and repositions badge via mapTo."""
-    def __init__(self, target, badge, parent_widget, pos):
+    def __init__(self, target, badge, parent_widget, pos, division=2):
         super().__init__(badge)
         self.target = target
         self.badge = badge
         self.parent_widget = parent_widget
         self.pos = pos
+        self.division = division
         target.installEventFilter(self)
         if target.parentWidget():
             target.parentWidget().installEventFilter(self)
@@ -45,7 +46,7 @@ class _BadgeAnchor(QObject):
     def calc_position(self):
         tr = self.target.rect().topRight()
         mapped = self.target.mapTo(self.parent_widget, tr)
-        return QPoint(mapped.x() - self.badge.width() // 2, mapped.y() - self.badge.height() // 2)
+        return QPoint(mapped.x() - int(self.badge.width() // self.division), mapped.y() - self.badge.height() // 2)
 
 
 class CustomBadge:
@@ -78,19 +79,20 @@ class DlStatusBadge:
 
     def __init__(self, parent, target, pos=InfoBadgePosition.TOP_LEFT):
         self.badge = InfoBadge.custom("", self.COLOR_PROGRESS, self.COLOR_PROGRESS, parent, target=None, position=pos)
-        self._anchor = _BadgeAnchor(target, self.badge, parent, pos)
+        self._anchor = _BadgeAnchor(target, self.badge, parent, pos, division=3)
         self.badge.move(self._anchor.calc_position())
         self.badge._anchor = self._anchor
         self._breathing = BreathingEffect(self.badge)
         self._set_color(self.COLOR_PROGRESS)
 
     def update_progress(self, downloaded: int, total: int):
-        self.badge.setText(f"{downloaded}/{total}")
-        self.badge.setFixedSize(25,15)
+        text = f"{downloaded}/{total}"
+        self.badge.setText(text)
+        self.badge.setFixedSize(int(8.5*len(text)),15)
         if total > 0 and downloaded >= total:
             self._breathing.stop()
             self._set_color(self.COLOR_COMPLETE)
-        elif downloaded > 0:
+        elif downloaded >= 0:
             if not self._breathing.is_running():
                 self._breathing.start()
             self._set_color(self.COLOR_PROGRESS)
