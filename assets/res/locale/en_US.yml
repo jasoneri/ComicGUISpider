@@ -85,7 +85,7 @@ GUI:
     searchinputPlaceholderText: "Input Keyword"
     chooseBoxToolTip: "Check status bar for input hints after selecting a website"
     previewBtnStatusTip: "Click to open preview window (available after book list appears)"
-    progressBarStatusTip: " >>> Ⅰ. Green 100% = Complete Ⅱ. Even at 100%, some pages may be missing. Use Copy Unfinished and Clip-function to fill gaps"
+    progressBarStatusTip: " >>> Ⅰ. Green filled = Complete Ⅱ. When some pages missing. Use Copy Unfinished and Clip-function to fill gaps"
     sv_path_desc: "Save path"
     sv_path_desc_tip: "Select directory"
     menu_show_completer: "Show presets"
@@ -125,7 +125,7 @@ GUI:
 EHentai:
   COOKIES_NOT_SET: "`eh-cookies` must be set for exhentai access"
   ACCESS_FAIL: "Current `eh-cookies`/proxy configuration cannot access exhentai<br>Verify site accessibility (direct CN access unsupported)"
-  GUIDE: "exhentai (EH) Usage Guide:<br>1. Ensure account with `exhentai.org` access<br> - Configure `eh-cookies` per setup instructions<br>2. (CN Users) Ensure working proxy (no direct access)<br> - Use global proxy or configure proxy before launch (recommend v2rayN)<br>⚠️ API test uses 3s timeout to prevent UI freeze - check `GUI.log` for debug info if errors persist"
+  GUIDE: "exhentai (EH) Usage Guide:<br>1. Ensure account with `exhentai.org` access<br> - Configure `eh-cookies` per setup instructions<br>2. (CN Users) Ensure working proxy (no direct access)<br> - Use global proxy or configure proxy before launch<br>⚠️ API test uses 3s timeout to prevent UI freeze - check `GUI.log` for debug info if errors persist"
   JUMP_TIP: "EH pagination is special - page jump feature currently disabled"
   MAPPINGS_INDEX: "index"
   MAPPINGS_POPULAR: "popular"
