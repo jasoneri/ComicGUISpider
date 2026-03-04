@@ -8,7 +8,7 @@ from qfluentwidgets import (
 )
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
-from GUI.uic.qfluent.components import TextBrowserWithBg, FlexImageLabel, ExpandButton
+from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
 from assets import res as ori_res
 from variables import VER
 
@@ -20,14 +20,12 @@ class MitmMainWindow(Ui_MainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
         _mainWindow.setWindowTitle(_translate("MainWindow", f"ComicGUISpider {VER}"))
+        self.preset()
 
     def apply_translations(self):
         """依赖 res 翻译的文案设置，延迟到 set_language 之后调用"""
         _translate = QtCore.QCoreApplication.translate
-        self.retrybtn.setDisabled(True)
-        self.clipBtn.setDisabled(1)
         self.searchinput.setClearButtonEnabled(1)
-        self.preset()
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(0, _translate("MainWindow", res.chooseBoxDefault))
         self.chooseBox.addItem("")
@@ -69,6 +67,8 @@ class MitmMainWindow(Ui_MainWindow):
         return label, pixmap
 
     def setup_bubble_widget(self):
+        self._repaint_textBrowser()
+        
         if hasattr(self, "tbWidgetLayout") and self.textBrowser.parent() is self.tbWidget:
             self.tbWidgetLayout.removeWidget(self.textBrowser)
         self.tbWidgetStackHost = QWidget(self.tbWidget)
@@ -120,12 +120,20 @@ class MitmMainWindow(Ui_MainWindow):
         if getattr(self, 'textBrowser', None):
             self.textBrowser.setParent(None)
             self.textBrowser.deleteLater()
-        self.textBrowser = TextBrowserWithBg(self)
-        self.textBrowser.setMinimumSize(QtCore.QSize(200, 350))
+        self.textBrowser = TextBrowserLite(self)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.textBrowser.sizePolicy().hasHeightForWidth())
+        self.textBrowser.setSizePolicy(sizePolicy)
+        self.textBrowser.setMinimumSize(QtCore.QSize(20, 140))
         self.textBrowser.setObjectName("textBrowser")
-        self.funcLayout.insertWidget(0, self.textBrowser)
+        self.tbWidgetLayout.addWidget(self.textBrowser)
 
     def preset(self):
+        self.retrybtn.setDisabled(True)
+        self.clipBtn.setDisabled(1)
+        
         self.openPBtn = ToolButton(self.frame)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
         self.openPBtn.setSizePolicy(sizePolicy)
@@ -133,7 +141,8 @@ class MitmMainWindow(Ui_MainWindow):
         self.openPBtn.setObjectName("openPBtn")
         self.openPBtn.setIcon(FIF.FOLDER)
         self.toolVLayout.insertWidget(0, self.openPBtn)
-        
+
+    def task_init(self):
         self.expandBtn = ExpandButton(self)
         self.clearBtn = TransparentToolButton(FIF.BROOM)
         

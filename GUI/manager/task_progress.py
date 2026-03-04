@@ -117,6 +117,9 @@ class TaskProgressManager:
         self._transitioning = False
         self._window_restore_height = None
 
+    def _on_clear_btn_clicked(self):
+        teachtip(self.gui.clearBtn, self.zero_task_state)
+
     def init_native_panel(self):
         for entry in self._entries.values():
             if entry.view:
@@ -142,7 +145,7 @@ class TaskProgressManager:
         self.expandBtn = self.gui.expandBtn
         self.clearBtn = self.gui.clearBtn
         self.expandBtn.clicked.connect(self._on_expand_clicked)
-        self.gui.clearBtn.clicked.connect(lambda: teachtip(self.gui.clearBtn, self.zero_task_state))
+        self.gui.clearBtn.clicked.connect(self._on_clear_btn_clicked)
 
         self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
@@ -151,6 +154,66 @@ class TaskProgressManager:
         self._panel_anim = PanelHeightAnimator(self.gui.scroll_area)
         self._transitioning = False
         self._window_restore_height = None
+
+    def capture_native_snapshot(self) -> dict:
+        return {'task_ids': list(self._entries.keys())}
+
+    def rebind_native_panel(self, snapshot: dict = None):
+        task_ids = snapshot.get('task_ids') if snapshot else None
+        self._dispose_native_runtime_only()
+
+        self.expandBtn = self.gui.expandBtn
+        self.clearBtn = self.gui.clearBtn
+        self._bind_native_signals_once()
+
+        self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
+        self._dl_status_badge.hide()
+        self._height_anim = WindowHeightAnimator(self.gui)
+        self._panel_anim = PanelHeightAnimator(self.gui.scroll_area)
+        self._transitioning = False
+        self._window_restore_height = None
+
+        self._rebuild_native_views(task_ids)
+        self.gui.scroll_area.setVisible(False)
+        self._panel_anim.set_height(0)
+        self._refresh_dl_status_badge()
+
+    def _dispose_native_runtime_only(self):
+        for entry in self._entries.values():
+            if entry.view:
+                entry.view.dispose()
+                entry.view = None
+        if self._dl_status_badge is not None:
+            self._dl_status_badge.hide()
+            self._dl_status_badge.badge.deleteLater()
+            self._dl_status_badge = None
+        if self._height_anim is not None:
+            self._height_anim.stop()
+            self._height_anim.cleanup()
+            self._height_anim = None
+        if self._panel_anim is not None:
+            self._panel_anim.stop()
+            self._panel_anim = None
+
+    def _bind_native_signals_once(self):
+        self.expandBtn.clicked.connect(self._on_expand_clicked)
+        self.clearBtn.clicked.connect(self._on_clear_btn_clicked)
+
+    def _rebuild_native_views(self, task_ids=None):
+        order = task_ids if task_ids is not None else list(self._entries.keys())
+        for tid in order:
+            entry = self._entries.get(tid)
+            if entry is None:
+                continue
+            pc = ProgressClass(entry.progress.taskid, entry.progress.tasks_count, self.gui.scroll_content)
+            self.gui.task_list_layout.addWidget(pc.widget)
+            pc.set_progress(entry.progress.last_percent)
+            if entry.progress.completed:
+                pc.mark_completed()
+            entry.view = pc
+        has_entries = len(self._entries) > 0
+        self.expandBtn.setVisible(has_entries)
+        self.clearBtn.setVisible(has_entries)
 
     def _available_screen_height(self) -> int:
         window_handle = self.gui.windowHandle()

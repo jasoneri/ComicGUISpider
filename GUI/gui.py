@@ -84,6 +84,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.setupUi(self)
 
     def setupUi(self, MainWindow):
+        snapshot = None
+        if not self.first_init and getattr(self, 'task_mgr', None):
+            snapshot = self.task_mgr.capture_native_snapshot()
         super(SpiderGUI, self).setupUi(MainWindow)
         if self.first_init:
             self.splashScreen = CustomSplashScreen(self)
@@ -91,21 +94,22 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.show()
             res.set_language(conf.lang)
             self.apply_translations()
+            self.task_init()
             self.task_mgr = TaskProgressManager(self)
             self.task_mgr.init_native_panel()
             setupTheme(self)
             QTimer.singleShot(10, self.setupUi_)
             self.first_init = False
         else:
-            self.say(font_color(f"<br>{self.res.reboot_tip2}", cls='theme-highlight', size=4))
+            self.apply_translations()
             self.chooseBox.setDisabled(True)
-            if getattr(self, 'bg_mgr', None):
-                # self.textBrowser.set_fixed_image(self.bg_mgr.bg_f)
-                ...
+            if getattr(self.bg_mgr, "bg_fs", []):
+                self.setup_sleep_widget(random.choice(self.bg_mgr.bg_fs)[0])
+            else:
+                self.setup_sleep_widget(self.bg_mgr.bg_f)
             setupTheme(self)
-            if getattr(self.bg_mgr, "bg_fs"):
-                # self.textBrowser.set_fixed_image(random.choice(self.bg_mgr.bg_fs)[0])
-                ...
+            self.task_init()
+            self.task_mgr.rebind_native_panel(snapshot)
             self.on_queue_init_completed(self.manager, self.Q, self.queue_port)
 
     def setupUi_(self):
