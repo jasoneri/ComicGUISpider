@@ -259,7 +259,6 @@ class MangaPreviewManager:
             else:
                 self._show_preview_window()
             return
-        self.gui.next_btn.setDisabled(True)
         self._searching = True
         self._current_page = 1
         self._current_keyword = keyword

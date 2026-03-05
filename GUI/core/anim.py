@@ -7,6 +7,9 @@ from PyQt5.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
     QRect,
+    QPoint,
+    QTimer,
+    pyqtProperty,
 )
 from PyQt5.QtWidgets import QGraphicsOpacityEffect
 
@@ -120,7 +123,7 @@ class WindowHeightAnimator(QObject):
     def __init__(self, window, duration_ms=250, easing=QEasingCurve.OutCubic):
         super().__init__(window)
         self._window = window
-        self._anim = QPropertyAnimation(window, b"geometry", window)
+        self._anim = QPropertyAnimation(self, b"animatedHeight", self)
         self._anim.setDuration(duration_ms)
         self._anim.setEasingCurve(easing)
         self._original_height = window.height()
@@ -136,6 +139,19 @@ class WindowHeightAnimator(QObject):
     def original_height(self) -> int:
         return self._original_height
 
+    @pyqtProperty(int)
+    def animatedHeight(self):
+        return 0 if self._window is None else int(self._window.height())
+
+    @animatedHeight.setter
+    def animatedHeight(self, value):
+        if self._window is None:
+            return
+        target_h = max(0, int(value))
+        if target_h == self._window.height():
+            return
+        self._window.resize(self._window.width(), target_h)
+
     def stop(self):
         if self._anim is not None and self._anim.state() == QAbstractAnimation.Running:
             self._anim.stop()
@@ -149,12 +165,18 @@ class WindowHeightAnimator(QObject):
 
     def animate_to(self, target_height: int, on_finished=None):
         if self._window is None or self._anim is None:
+            if on_finished:
+                on_finished()
             return
-        current_geo = self._window.geometry()
-        target_geo = QRect(current_geo.x(), current_geo.y(), current_geo.width(), target_height)
+        current_h = int(self._window.height())
+        target_h = max(0, int(target_height))
+        if target_h == current_h:
+            if on_finished:
+                on_finished()
+            return
         self._anim.stop()
-        self._anim.setStartValue(current_geo)
-        self._anim.setEndValue(target_geo)
+        self._anim.setStartValue(current_h)
+        self._anim.setEndValue(target_h)
         self._pending_callback = on_finished
         self._anim.start()
 
@@ -172,6 +194,83 @@ class WindowHeightAnimator(QObject):
             self._anim = None
         self._window = None
         self._pending_callback = None
+
+
+class WindowExpandDriver(QObject):
+    def __init__(self, window, duration_ms=250, easing=QEasingCurve.OutCubic):
+        super().__init__(window)
+        self._window = window
+        self._anim = WindowHeightAnimator(window, duration_ms, easing)
+        self._restore_height = None
+        self._transitioning = False
+        window.destroyed.connect(self.cleanup)
+
+    @property
+    def is_running(self) -> bool:
+        return self._anim is not None and self._anim.is_running
+
+    @property
+    def is_transitioning(self) -> bool:
+        return self._transitioning or self.is_running
+
+    def begin_expand(self, target_height: int, on_finished=None):
+        if self.is_transitioning:
+            return False
+        if self._window is None or self._anim is None:
+            if on_finished:
+                on_finished()
+            return False
+        current_h = self._window.height()
+        if self._restore_height is None:
+            self._restore_height = current_h
+        if target_height <= current_h:
+            if on_finished:
+                on_finished()
+            return True
+        self._transitioning = True
+        self._anim.animate_to(target_height, lambda: self._done(on_finished))
+        return True
+
+    def begin_collapse(self, on_finished=None):
+        if self.is_transitioning:
+            return False
+        if self._window is None or self._anim is None:
+            self._restore_height = None
+            if on_finished:
+                on_finished()
+            return False
+        restore_h = self._restore_height
+        if restore_h is None or self._window.height() <= restore_h:
+            self._restore_height = None
+            if on_finished:
+                on_finished()
+            return True
+        self._transitioning = True
+
+        def _collapse_done():
+            self._restore_height = None
+            self._done(on_finished)
+
+        self._anim.animate_to(restore_h, _collapse_done)
+        return True
+
+    def _done(self, cb):
+        self._transitioning = False
+        if cb:
+            cb()
+
+    def stop(self):
+        if self._anim:
+            self._anim.stop()
+        self._transitioning = False
+
+    def cleanup(self):
+        self.stop()
+        if self._anim:
+            self._anim.cleanup()
+            self._anim = None
+        self._window = None
+        self._restore_height = None
 
 
 class PanelHeightAnimator(QObject):
@@ -248,17 +347,17 @@ class PanelHeightAnimator(QObject):
         self._pending_callback = None
 
 
-def _calc_start_rect(final_rect: QRect, direction: PopupDirection, offset_px: int) -> QRect:
-    start_rect = QRect(final_rect)
+def _calc_start_pos(final_rect: QRect, direction: PopupDirection, offset_px: int) -> QPoint:
+    x, y = final_rect.x(), final_rect.y()
     if direction == "right":
-        start_rect.moveLeft(final_rect.x() - offset_px)
+        x -= offset_px
     elif direction == "up":
-        start_rect.moveTop(final_rect.y() + offset_px)
+        y += offset_px
     elif direction == "down":
-        start_rect.moveTop(final_rect.y() - offset_px)
+        y -= offset_px
     else:
         raise ValueError(f"Unsupported direction: {direction}")
-    return start_rect
+    return QPoint(x, y)
 
 
 def animate_popup_show(
@@ -276,21 +375,20 @@ def animate_popup_show(
         old_group.deleteLater()
         widget._popup_anim_group = None
 
-    start_rect = _calc_start_rect(final_rect, direction, offset_px)
-    widget.setGeometry(start_rect)
-
-    if with_fade:
-        widget.setWindowOpacity(0.0)
+    start_pos = _calc_start_pos(final_rect, direction, offset_px)
+    widget.resize(final_rect.size())
+    widget.move(start_pos)
+    widget.setWindowOpacity(0.0)
     widget.show()
 
-    geo_anim = QPropertyAnimation(widget, b"geometry", widget)
-    geo_anim.setDuration(duration_ms)
-    geo_anim.setStartValue(start_rect)
-    geo_anim.setEndValue(final_rect)
-    geo_anim.setEasingCurve(QEasingCurve.Linear)
+    pos_anim = QPropertyAnimation(widget, b"pos", widget)
+    pos_anim.setDuration(duration_ms)
+    pos_anim.setStartValue(start_pos)
+    pos_anim.setEndValue(final_rect.topLeft())
+    pos_anim.setEasingCurve(QEasingCurve.Linear)
 
     group = QParallelAnimationGroup(widget)
-    group.addAnimation(geo_anim)
+    group.addAnimation(pos_anim)
 
     if with_fade:
         fade_anim = QPropertyAnimation(widget, b"windowOpacity", widget)
@@ -308,4 +406,12 @@ def animate_popup_show(
         group.deleteLater()
 
     group.finished.connect(_on_finished)
-    group.start()
+
+    def _start_anim():
+        if getattr(widget, "_popup_anim_group", None) is not group:
+            return
+        if not with_fade:
+            widget.setWindowOpacity(1.0)
+        group.start()
+
+    QTimer.singleShot(0, _start_anim)

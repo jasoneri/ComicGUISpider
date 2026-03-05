@@ -161,18 +161,6 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             self.cookiesBox.addItem(cookie_type)
         self.cookiesBox.setCurrentText(support[0])
 
-    def refresh_size_for_expand(self, _):
-        QApplication.processEvents()
-        if _:
-            self.adjustSize()
-        else:
-            self.resize(0, 0)
-        screen_geom = QApplication.primaryScreen().availableGeometry()
-        max_allowed = int(screen_geom.height() * 0.9)
-        if self.height() > max_allowed:
-            self.setMaximumHeight(max_allowed)
-            self.resize(self.width(), max_allowed)
-
     def bind_logic(self):
         def _open_docs():
             self.gui.open_url_by_browser(CGS_DOC)
@@ -258,8 +246,9 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         for _ in ('clip_read_num', 'concurr_num'):
             getattr(self, f"{_}Edit").setValue(int(getattr(conf, _)))
         abs_y = self.gui.y()-self.height()+30
-        target_rect = QRect(self.gui.x(), abs_y if abs_y > 0 else 0, self.width(), self.height())
-        self.setGeometry(target_rect)
+        pos = (self.gui.x(), abs_y if abs_y > 0 else 0)
+        target_rect = QRect(*pos, self.width(), self.height())
+        self.move(*pos)
         animate_popup_show(self, target_rect, duration_ms=500, direction="up")
         # 4. SettingCard卡片类配置
         self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
