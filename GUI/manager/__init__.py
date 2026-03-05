@@ -22,12 +22,13 @@ from GUI.manager.rv import RVManager
 from GUI.manager.mid import CGSMidManagerGUI
 from GUI.manager.preview import MangaPreviewManager
 from GUI.manager.task_progress import TaskProgressManager
+from GUI.manager.publish import PublishDomainManager
 
 __all__ = [
     'Updater', 'UpdateNotifier', 'TaskConfig',
     'RVManager', 'TaskProgressManager','AsyncTaskManager',
     'ClipGUIManager', 'AggrSearchManager', 'CGSMidManagerGUI',
-    'MangaPreviewManager'
+    'MangaPreviewManager', 'PublishDomainManager'
 ]
 
 
@@ -112,7 +113,7 @@ class Updater:
     version = None
     stateTooltip = None
     changelog_url = f'{CGS_DOC}/changelog/history'
-    
+
     def __init__(self, gui):
         self.gui = gui
         self.conf_dia = self.gui.conf_dia
@@ -129,8 +130,8 @@ class Updater:
                 self.gui.updaterStateTooltip.setState(True)
                 self.gui.updaterStateTooltip = None
             ver = recv.update_info.get("tag_name")
-            CustomInfoBar.show("", self.res.to_update, 
-                self.gui.textBrowser, self.proj.update_info.get("html_url"), 
+            CustomInfoBar.show("", self.res.to_update,
+                self.gui.textBrowser, self.proj.update_info.get("html_url"),
                 f"""<{ver}>""", _type="SUCCESS")
             _close_thread()
             self.gui.update_notifier.on_updated_or_dismissed()
@@ -142,15 +143,15 @@ class Updater:
                 self.stateTooltip = None
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
-                CustomInfoBar.show("", self.res.ver_check_fail, self.gui.textBrowser, 
+                CustomInfoBar.show("", self.res.ver_check_fail, self.gui.textBrowser,
                                    f"{Proj.url}/releases", "access releases", _type="ERROR")
                 _close_thread()
                 return
             self.proj = recv
             print(f"checked: {recv.update_flag}")
             if recv.update_flag == "local":
-                CustomInfoBar.show("", self.res.ver_local_latest, 
-                self.conf_dia, f"https://github.com/jasoneri/ComicGUISpider/releases/tag/{recv.local_ver}", 
+                CustomInfoBar.show("", self.res.ver_local_latest,
+                self.conf_dia, f"https://github.com/jasoneri/ComicGUISpider/releases/tag/{recv.local_ver}",
                 f"""updateInfo-<{recv.local_ver}> """, _type="SUCCESS",
                 duration=7000, position=InfoBarPosition.BOTTOM_LEFT)
             else:

@@ -57,6 +57,7 @@ class ProgressClass:
     def _make_task_widget(self, taskid: str, parent: QWidget):
         w = QWidget(parent)
         w.setMinimumHeight(35)
+        w.setMaximumHeight(40)
         layout = VBoxLayout(w)
         layout.setContentsMargins(8, 4, 8, 4)
         row = QHBoxLayout()
