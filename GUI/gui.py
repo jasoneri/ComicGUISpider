@@ -14,7 +14,7 @@ from PyQt5.QtCore import (
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 
 from GUI.uic.qfluent import (
-    MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen, CustomFlyout
+    MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
 )
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
@@ -23,10 +23,10 @@ from GUI.core.anim import animate_popup_show
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
-from GUI.tools import ToolWindow, TextUtils, DomainToolView
+from GUI.tools import ToolWindow, TextUtils
 from GUI.manager import (
     TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager,
-    CGSMidManagerGUI, MangaPreviewManager, UpdateNotifier
+    CGSMidManagerGUI, MangaPreviewManager, UpdateNotifier, PublishDomainManager
 )
 from GUI.manager.preprocess import PreprocessManager
 from utils.middleware.timeline import EventSource, TimelineStage
@@ -39,7 +39,7 @@ from utils.processed_class import (
     PreviewHtml, TmpFormatHtml
 )
 from utils.redViewer_tools import Handler as rVtools
-from utils.website import spider_utils_map, InfoMinix
+from utils.website import spider_utils_map, InfoMinix, WnacgUtils
 from utils.sql import SqlRecorder
 
 
@@ -143,6 +143,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.ags_mgr = AggrSearchManager(self)
         self.mid_mgr = CGSMidManagerGUI(self)
         self.manga_mgr = MangaPreviewManager(self)
+        self.publish_mgr = PublishDomainManager(self)
         self.nextclickCnt = 0
         self.pageFrameClickCnt = 0
         self.sv_path = conf.sv_path
@@ -687,24 +688,21 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=3))
 
     def do_publish(self):
+        cache_file = temp_p.joinpath(f"{self.spiderUtils.name}_domain.txt")
+        cached = cache_file.read_text(encoding='utf-8').strip() if cache_file.exists() else ""
         self.tf = TmpFormatHtml.created_temp_html("publish",
-            bs_theme=bs_theme(), publish_url=self.spiderUtils.publish_url)
+            bs_theme=bs_theme(), publish_url=self.spiderUtils.publish_url,
+            wnacg_publish=WnacgUtils.publish_domain, __cached_domain__=cached
+        )
         self.set_preview()
+        self.publish_mgr.setup_channel(self.BrowserWindow.view.page())
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
-        o_w, o_h = self.BrowserWindow.width(), self.BrowserWindow.height()
-        if o_w < screen_width * 0.75:
-            o_w = int(screen_width * 0.75)
+        o_h = self.BrowserWindow.height()
+        o_w = int(screen_width * 0.75) if self.BrowserWindow.width() < screen_width * 0.75 else self.BrowserWindow.width()
         self.BrowserWindow.resize(o_w, o_h+150)
         final_rect = self.BrowserWindow.geometry()
         animate_popup_show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
-    def tpd(self, texts):
-        """transfer publish-page domians"""
-        self.BrowserWindow.domain_v = DomainToolView(self)
-        CustomFlyout.make(
-            view=self.BrowserWindow.domain_v, target=self.BrowserWindow, parent=self.BrowserWindow
-        )
-        self.BrowserWindow.domain_v.handle(texts)
 
     def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()

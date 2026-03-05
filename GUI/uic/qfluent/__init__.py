@@ -178,7 +178,7 @@ class MonkeyPatch:
             lineEdit = LineEdit()
             lineEdit.setPlaceholderText("输入后按确认检测")
             ensureBtn = ToolButton(FluentIcon.ACCEPT_MEDIUM)
-            ensureBtn.clicked.connect(lambda: browserWindow.gui.tpd(lineEdit.text()))
+            ensureBtn.clicked.connect(lambda: gui.publish_mgr.start_domain_test(lineEdit.text()))
             CustomInfoBar.show_custom(title='', content='', parent=browserWindow, _type="INFORMATION",
                 ib_pos=InfoBarPosition.BOTTOM, widgets=[lineEdit, ensureBtn])
 
@@ -191,11 +191,12 @@ class MonkeyPatch:
                 self.page().runJavaScript("window.getSelection().toString();", get_selected_text)
             fluent_menu = RoundMenu(parent=self)
             manual_action = Action(FluentIcon.PENCIL_INK, text="手输域名", triggered=manual_input)
-            test_action = Action(FluentIcon.COMMAND_PROMPT, text="选中内地域名进行检测", triggered=lambda: browserWindow.gui.tpd(selected_text))
+            test_action = Action(FluentIcon.COMMAND_PROMPT, text="选中内地域名进行检测", triggered=lambda: gui.publish_mgr.start_domain_test(selected_text))
             fluent_menu.addAction(manual_action)
             fluent_menu.addAction(test_action)
             fluent_menu.exec(event.globalPos())
             event.accept()
 
         web_view = browserWindow.view
+        gui = browserWindow.gui
         web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
