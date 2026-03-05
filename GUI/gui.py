@@ -32,7 +32,7 @@ from GUI.manager.preprocess import PreprocessManager
 from utils.middleware.timeline import EventSource, TimelineStage
 from variables import *
 from assets import res
-from utils import Queues, QueuesManager, conf, p, curr_os, select, ori_path, bs_theme
+from utils import Queues, QueuesManager, conf, p, curr_os, select, ori_path, bs_theme, temp_p
 from utils.processed_class import (
     InputFieldState, TextBrowserState, ProcessState,
     GuiQueuesManger, refresh_state, crawl_what,
@@ -373,12 +373,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def set_preview(self, rect=None):
         sb = self.BrowserWindow = BrowserWindowCls(self)
-        preview_y = self.y() + self.funcGroupBox.y() - sb.height()
-        rect = rect or QRect(
-            self.x(), preview_y if preview_y > 0 else 200,
-            sb.width(), sb.height()
-        )
-        self.BrowserWindow.setGeometry(rect)
+        preview_y = self.y() + self.funcGroupBox.y() - sb.height() + 25
+        if rect:
+            self.BrowserWindow.setGeometry(rect)
+        else:
+            self.BrowserWindow.move(self.x(), preview_y if preview_y > 0 else 200) 
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()

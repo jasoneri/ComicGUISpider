@@ -1,15 +1,15 @@
 
 import typing as t
 
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel
 from PyQt5.QtGui import QGuiApplication
 from qfluentwidgets import (
-    ProgressBar, ScrollArea, VBoxLayout, TransparentToolButton, PrimaryToolButton,
+    ProgressBar, VBoxLayout, PrimaryToolButton,
     FluentIcon as FIF, TeachingTipTailPosition
 )
 
-from GUI.core.anim import WindowHeightAnimator, PanelHeightAnimator
-from GUI.uic.qfluent.components import ExpandButton, DlStatusBadge, CustomTeachingTip
+from GUI.core.anim import WindowExpandDriver, PanelHeightAnimator
+from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
 from utils import conf, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
 from utils.sql import SqlRecorder
@@ -36,6 +36,11 @@ class TaskProgress:
     def tasks_count(self) -> int:
         return self.tasks_obj.tasks_count
 
+    @property
+    def name(self) -> int:
+        return self.tasks_obj.display_title
+    
+
     def apply(self, event: TaskObj) -> int:
         """接收一个下载事件，更新进度，返回百分比"""
         self.tasks_obj.downloaded.append(event)
@@ -47,21 +52,21 @@ class TaskProgress:
 
 
 class ProgressClass:
-    def __init__(self, taskid: str, tasks_count: int, parent: QWidget):
+    def __init__(self, taskid:str, tasks_count: int, parent: QWidget, task_name: str=None):
         self.taskid = taskid
         self.tasks_count = tasks_count
         self.is_completed = False
         self._last_percent = 0
-        self._make_task_widget(taskid, parent)
+        self._make_task_widget(task_name or taskid, parent)
 
-    def _make_task_widget(self, taskid: str, parent: QWidget):
+    def _make_task_widget(self, task_name: str, parent: QWidget):
         w = QWidget(parent)
         w.setMinimumHeight(35)
         w.setMaximumHeight(40)
         layout = VBoxLayout(w)
         layout.setContentsMargins(8, 4, 8, 4)
         row = QHBoxLayout()
-        self.title_label = QLabel(taskid, w)
+        self.title_label = QLabel(task_name, w)
         self.progress_bar = ProgressBar(w)
         row.addWidget(self.title_label)
         row.addStretch()
@@ -101,7 +106,7 @@ def teachtip(btn, accept_callback):
 
 
 class TaskProgressManager:
-    PANEL_MIN_HEIGHT = 100
+    PANEL_MIN_HEIGHT = 130
     PANEL_MAX_HEIGHT = 450
 
     def __init__(self, gui):
@@ -113,10 +118,9 @@ class TaskProgressManager:
         self._pending_tasks = []
         self.expandBtn = None
         self._dl_status_badge = None
-        self._height_anim = None
+        self._window_driver = None
         self._panel_anim = None
         self._transitioning = False
-        self._window_restore_height = None
 
     def _on_clear_btn_clicked(self):
         teachtip(self.gui.clearBtn, self.zero_task_state)
@@ -129,10 +133,10 @@ class TaskProgressManager:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()
             self._dl_status_badge = None
-        if self._height_anim is not None:
-            self._height_anim.stop()
-            self._height_anim.cleanup()
-            self._height_anim = None
+        if self._window_driver is not None:
+            self._window_driver.stop()
+            self._window_driver.cleanup()
+            self._window_driver = None
         if self._panel_anim is not None:
             self._panel_anim.stop()
             self._panel_anim = None
@@ -141,7 +145,6 @@ class TaskProgressManager:
         self._pending_tasks.clear()
         self._init_lock = False
         self.init_flag = True
-        self._window_restore_height = None
 
         self.expandBtn = self.gui.expandBtn
         self.clearBtn = self.gui.clearBtn
@@ -151,10 +154,9 @@ class TaskProgressManager:
         self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
 
-        self._height_anim = WindowHeightAnimator(self.gui)
+        self._window_driver = WindowExpandDriver(self.gui)
         self._panel_anim = PanelHeightAnimator(self.gui.scroll_area)
         self._transitioning = False
-        self._window_restore_height = None
 
     def capture_native_snapshot(self) -> dict:
         return {'task_ids': list(self._entries.keys())}
@@ -169,10 +171,9 @@ class TaskProgressManager:
 
         self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
-        self._height_anim = WindowHeightAnimator(self.gui)
+        self._window_driver = WindowExpandDriver(self.gui)
         self._panel_anim = PanelHeightAnimator(self.gui.scroll_area)
         self._transitioning = False
-        self._window_restore_height = None
 
         self._rebuild_native_views(task_ids)
         self.gui.scroll_area.setVisible(False)
@@ -188,10 +189,10 @@ class TaskProgressManager:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()
             self._dl_status_badge = None
-        if self._height_anim is not None:
-            self._height_anim.stop()
-            self._height_anim.cleanup()
-            self._height_anim = None
+        if self._window_driver is not None:
+            self._window_driver.stop()
+            self._window_driver.cleanup()
+            self._window_driver = None
         if self._panel_anim is not None:
             self._panel_anim.stop()
             self._panel_anim = None
@@ -206,7 +207,7 @@ class TaskProgressManager:
             entry = self._entries.get(tid)
             if entry is None:
                 continue
-            pc = ProgressClass(entry.progress.taskid, entry.progress.tasks_count, self.gui.scroll_content)
+            pc = ProgressClass(entry.progress.taskid, entry.progress.tasks_count, self.gui.scroll_content, entry.progress.name)
             self.gui.task_list_layout.addWidget(pc.widget)
             pc.set_progress(entry.progress.last_percent)
             if entry.progress.completed:
@@ -247,20 +248,20 @@ class TaskProgressManager:
                 self._finish_transition()
 
         self.gui.scroll_area.setVisible(True)
-        self._window_restore_height = self.gui.height()
 
         if self._panel_anim:
             self._panel_anim.expand(panel_h, lambda: finish_one("panel"))
         else:
             finish_one("panel")
 
-        if self._height_anim and self._can_expand_window(panel_h):
+        if self._window_driver and self._can_expand_window(panel_h):
             target = min(
                 self.gui.height() + panel_h,
                 self.gui.maximumHeight(),
                 self._available_screen_height()
             )
-            self._height_anim.animate_to(target, lambda: finish_one("window"))
+            if not self._window_driver.begin_expand(target, lambda: finish_one("window")):
+                finish_one("window")
         else:
             finish_one("window")
 
@@ -279,21 +280,14 @@ class TaskProgressManager:
         else:
             finish_one("panel")
 
-        restore_h = self._window_restore_height
-        if (
-            self._height_anim
-            and restore_h is not None
-            and self.gui.height() > restore_h
-        ):
-            self._height_anim.animate_to(restore_h, lambda: finish_one("window"))
+        if self._window_driver:
+            if not self._window_driver.begin_collapse(lambda: finish_one("window")):
+                finish_one("window")
         else:
             finish_one("window")
-        self._window_restore_height = None
 
     def _on_expand_clicked(self):
-        if self._transitioning:
-            return
-        if self._height_anim and self._height_anim.is_running:
+        if self._transitioning or (self._window_driver and self._window_driver.is_transitioning):
             return
         if self._panel_anim and self._panel_anim.is_running:
             return
@@ -346,7 +340,7 @@ class TaskProgressManager:
             print(f"[TaskProgressManager] duplicate taskid: {tasks_obj.taskid}")
             return
         progress = TaskProgress(tasks_obj)
-        pc = ProgressClass(progress.taskid, progress.tasks_count, self.gui.scroll_content)
+        pc = ProgressClass(progress.taskid, progress.tasks_count, self.gui.scroll_content, progress.name)
         self.gui.task_list_layout.addWidget(pc.widget)
         self._entries[tasks_obj.taskid] = TaskProgressEntry(progress=progress, view=pc)
         if len(self._entries) == 1:
@@ -402,12 +396,9 @@ class TaskProgressManager:
         if self._panel_anim is not None:
             self._panel_anim.stop()
             self._panel_anim.set_height(0)
-        if self._height_anim is not None:
-            self._height_anim.stop()
-            restore_h = self._window_restore_height
-            if restore_h is not None and self.gui.height() > restore_h:
-                self._height_anim.animate_to(restore_h)
-        self._window_restore_height = None
+        if self._window_driver is not None:
+            self._window_driver.stop()
+            self._window_driver.begin_collapse()
         self.gui.scroll_area.setVisible(False)
         if self.expandBtn.expanded:
             self.expandBtn.expanded = False

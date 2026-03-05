@@ -125,6 +125,7 @@ class ExpandSettings(QtWidgets.QWidget):
         super().__init__(parent)
         self.conf_dia = parent
         self.setVisible(False)
+        self._driver = None
         self.bind()
         self.setupUi()
 
@@ -200,13 +201,52 @@ class ExpandSettings(QtWidgets.QWidget):
         second_row.addWidget(self.conf_dia.kbShowDhb)
 
     def bind(self):
+        from GUI.core.anim import WindowExpandDriver
+        self._driver = WindowExpandDriver(self.conf_dia)
+
+        hide_text = res.GUI.Uic.confDia_hide_adv_settings
+        show_text = res.GUI.Uic.confDia_show_adv_settings
+
         def _toggle_adv(_=None):
-            now = not self.isVisible()
-            self.setVisible(now)
-            self.conf_dia.advBtn.setChecked(now)
-            self.conf_dia.refresh_size_for_expand(now)
-            self.conf_dia.advBtn.setText(res.GUI.Uic.confDia_hide_adv_settings if now else res.GUI.Uic.confDia_show_adv_settings)
+            if self._driver.is_transitioning:
+                return
+            want_expand = not self.isVisible()
+            self.conf_dia.advBtn.setChecked(want_expand)
+            self.conf_dia.advBtn.setText(hide_text if want_expand else show_text)
+
+            if want_expand:
+                self.conf_dia.setWindowOpacity(0.0)
+                self.setVisible(True)
+
+                def _begin_expand():
+                    if self._driver is None or self.conf_dia is None:
+                        if self.conf_dia is not None:
+                            self.conf_dia.setWindowOpacity(1.0)
+                        return
+                    try:
+                        target = self._calc_expand_target()
+                        self.conf_dia.setWindowOpacity(1.0)
+                        self._driver.begin_expand(target)
+                    except Exception:
+                        self.conf_dia.setWindowOpacity(1.0)
+                        raise
+
+                QTimer.singleShot(0, _begin_expand)
+            else:
+                def _on_collapse_done():
+                    self.setVisible(False)
+                self._driver.begin_collapse(_on_collapse_done)
+
         self.conf_dia.advBtn.clicked.connect(_toggle_adv)
+
+    def _calc_expand_target(self):
+        original_h = self.conf_dia.height()
+        self.conf_dia.adjustSize()
+        expanded_h = self.conf_dia.height()
+        self.conf_dia.resize(self.conf_dia.width(), original_h)
+        screen_h = QApplication.primaryScreen().availableGeometry().height()
+        max_allowed = int(screen_h * 0.9)
+        return min(expanded_h, max_allowed)
 
 
 class SupportView(FlyoutViewBase):
