@@ -12,11 +12,11 @@ from qfluentwidgets import (
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, ImageLabel, TeachingTipView,
-    StrongBodyLabel, SwitchButton, ComboBox, TextEdit
+    StrongBodyLabel, SwitchButton, ComboBox
 )
 
 from assets import res
-from GUI.core.anim import ProxyRotationController
+from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, ContentTarget
 from utils.redViewer_tools import BookShow
 
 
@@ -126,8 +126,9 @@ class ExpandSettings(QtWidgets.QWidget):
         self.conf_dia = parent
         self.setVisible(False)
         self._driver = None
-        self.bind()
+        self._section_widgets = []
         self.setupUi()
+        self.bind()
 
     def setupUi(self):
         self.main_layout = VBoxLayout(self)
@@ -139,7 +140,7 @@ class ExpandSettings(QtWidgets.QWidget):
         self.conf_dia.verticalLayout_3.setObjectName("verticalLayout_3")
         self.conf_dia.cookiesLabel = StrongBodyLabel()
         self.conf_dia.cookiesLabel.setEnabled(True)
-        self.conf_dia.cookiesLabel.setMinimumSize(QtCore.QSize(60, 20))
+        self.conf_dia.cookiesLabel.setMinimumSize(QtCore.QSize(60, 0))
         self.conf_dia.cookiesLabel.setMaximumSize(QtCore.QSize(60, 40))
         self.conf_dia.cookiesLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.conf_dia.cookiesLabel.setObjectName("cookiesLabel")
@@ -151,9 +152,6 @@ class ExpandSettings(QtWidgets.QWidget):
         spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.conf_dia.verticalLayout_3.addItem(spacerItem2)
         cookiesLayout.addLayout(self.conf_dia.verticalLayout_3)
-        self.conf_dia.cookiesEdit = TextEdit()
-        self.conf_dia.cookiesEdit.setObjectName("cookiesEdit")
-        cookiesLayout.addWidget(self.conf_dia.cookiesEdit)
         setattr(self.conf_dia, "horizontalLayout_label_cookies", cookiesLayout)
         # self.conf_dia.cookiesLabel.setText(_translate("Dialog", "Cookies"))
         
@@ -162,7 +160,7 @@ class ExpandSettings(QtWidgets.QWidget):
         self.custMapLabelLayout = QtWidgets.QVBoxLayout()
         self.custMapLabelLayout.setSpacing(0)
         custMapLabel = StrongBodyLabel(self.conf_dia)
-        custMapLabel.setMinimumSize(QtCore.QSize(40, 20))
+        custMapLabel.setMinimumSize(QtCore.QSize(40, 0))
         custMapLabel.setMaximumSize(QtCore.QSize(40, 20))
         custMapLabel.setAlignment(QtCore.Qt.AlignCenter)
         custMapLabel.setObjectName("label_3")
@@ -174,35 +172,79 @@ class ExpandSettings(QtWidgets.QWidget):
 
         second_row = QtWidgets.QHBoxLayout()
         pypi_label = StrongBodyLabel(res.GUI.Uic.confDia_pypiLabel, self)
-        pypi_label.setMinimumSize(QtCore.QSize(40, 20))
+        pypi_label.setMinimumSize(QtCore.QSize(40, 0))
         lang_label = StrongBodyLabel(res.GUI.Uic.confDia_langLabel, self)
-        lang_label.setMinimumSize(QtCore.QSize(40, 20))
+        lang_label.setMinimumSize(QtCore.QSize(40, 0))
         second_row.addWidget(lang_label)
         second_row.addWidget(self.conf_dia.langBox)
         second_row.addWidget(pypi_label)
         second_row.addWidget(self.conf_dia.pypiSourceBox)
         second_row.addStretch()
         
-        self.main_layout.addLayout(cookiesLayout)
-        self.main_layout.addLayout(custMapLayout)
-        self.main_layout.addLayout(second_row)
+        self.cookies_section = QtWidgets.QWidget(self)
+        cookies_section_layout = QtWidgets.QVBoxLayout(self.cookies_section)
+        cookies_section_layout.setContentsMargins(10,0,10,0)
+        cookies_section_layout.setSpacing(10)
+        cookies_section_layout.addLayout(cookiesLayout)
+
+        self.cust_map_section = QtWidgets.QWidget(self)
+        cust_map_section_layout = QtWidgets.QVBoxLayout(self.cust_map_section)
+        cust_map_section_layout.setContentsMargins(10,0,10,0)
+        cust_map_section_layout.setSpacing(10)
+        cust_map_section_layout.addLayout(custMapLayout)
+
+        self.second_row_section = QtWidgets.QWidget(self)
+        second_row_section_layout = QtWidgets.QVBoxLayout(self.second_row_section)
+        second_row_section_layout.setContentsMargins(10,0,10,0)
+        second_row_section_layout.setSpacing(10)
+        second_row_section_layout.addLayout(second_row)
+
+        self.main_layout.addWidget(self.cookies_section)
+        self.main_layout.addWidget(self.cust_map_section)
+        self.main_layout.addWidget(self.second_row_section)
+        self._section_widgets = [
+            self.cookies_section,
+            self.cust_map_section,
+            self.second_row_section,
+        ]
 
         self.conf_dia.skipDev = SwitchButton(self)
+        self.conf_dia.skipDev.setMinimumHeight(0)
         self.conf_dia.skipDev.setOnText(res.GUI.Uic.confDia_skipDevRelease)
         self.conf_dia.skipDev.setOffText(res.GUI.Uic.confDia_skipDevRelease)
         self.conf_dia.kbShowDhb = SwitchButton(self)
+        self.conf_dia.kbShowDhb.setMinimumHeight(0)
         self.conf_dia.kbShowDhb.setOnText(res.GUI.Uic.confDia_kbShowDhb)
         self.conf_dia.kbShowDhb.setOffText(res.GUI.Uic.confDia_kbShowDhb)
-        line = QtWidgets.QFrame(self)
-        line.setFrameShape(QtWidgets.QFrame.VLine)
-        line.setFrameShadow(QtWidgets.QFrame.Sunken)
         second_row.addWidget(self.conf_dia.skipDev)
-        second_row.addWidget(line)
         second_row.addWidget(self.conf_dia.kbShowDhb)
 
     def bind(self):
-        from GUI.core.anim import WindowExpandDriver
-        self._driver = WindowExpandDriver(self.conf_dia)
+        self._driver = ExpandCollapseOrchestrator(
+            window_target=self.conf_dia,
+            content_targets=[
+                ContentTarget(widget=self.cookies_section,
+                    measure_height=self._section_target_height,
+                    duration_weight=98.0,
+                ),
+                ContentTarget(widget=self.cust_map_section,
+                    measure_height=self._section_target_height,
+                    duration_weight=98.0,
+                ),
+                ContentTarget(widget=self.second_row_section,
+                    measure_height=self._section_target_height,
+                    duration_weight=32.0,
+                ),
+            ],
+            duration_ms=233,
+            window_target_height_getter=self._window_target_height,
+            before_expand=self._before_expand,
+            after_collapse=self._after_collapse,
+            parent=self,
+        )
+        for section_widget in self._section_widgets:
+            self._driver.set_content_height(section_widget, 0)
+            section_widget.setVisible(False)
 
         hide_text = res.GUI.Uic.confDia_hide_adv_settings
         show_text = res.GUI.Uic.confDia_show_adv_settings
@@ -224,29 +266,33 @@ class ExpandSettings(QtWidgets.QWidget):
                             self.conf_dia.setWindowOpacity(1.0)
                         return
                     try:
-                        target = self._calc_expand_target()
                         self.conf_dia.setWindowOpacity(1.0)
-                        self._driver.begin_expand(target)
+                        if not self._driver.expand():
+                            self.conf_dia.setWindowOpacity(1.0)
                     except Exception:
+                        self.setVisible(False)
                         self.conf_dia.setWindowOpacity(1.0)
                         raise
-
                 QTimer.singleShot(0, _begin_expand)
             else:
-                def _on_collapse_done():
-                    self.setVisible(False)
-                self._driver.begin_collapse(_on_collapse_done)
+                self._driver.collapse()
 
         self.conf_dia.advBtn.clicked.connect(_toggle_adv)
 
-    def _calc_expand_target(self):
-        original_h = self.conf_dia.height()
-        self.conf_dia.adjustSize()
-        expanded_h = self.conf_dia.height()
-        self.conf_dia.resize(self.conf_dia.width(), original_h)
-        screen_h = QApplication.primaryScreen().availableGeometry().height()
-        max_allowed = int(screen_h * 0.9)
-        return min(expanded_h, max_allowed)
+    def _before_expand(self):
+        self.conf_dia.completerEdit.setMaximumHeight(100)
+
+    def _after_collapse(self):
+        self.conf_dia.completerEdit.setMaximumHeight(1000)
+        self.setVisible(False)
+
+    @staticmethod
+    def _section_target_height(section_widget):
+        return max(0, int(section_widget.sizeHint().height()))
+
+    def _window_target_height(self, total_expand_delta):
+        target_height = self.conf_dia.maximumHeight()
+        return min(target_height, self.conf_dia.maximumHeight())
 
 
 class SupportView(FlyoutViewBase):

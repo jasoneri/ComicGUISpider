@@ -19,7 +19,7 @@ from GUI.uic.qfluent import (
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
-from GUI.core.anim import animate_popup_show
+from GUI.core.anim import PopupAnimator
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.thread import WorkThread, QueueInitThread
@@ -245,7 +245,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
             target_y = screen_height - t.height() if abs_y + t.height() > screen_height else abs_y
             target_rect = QRect(self.x(), target_y, t.width(), t.height())
-            animate_popup_show(t, target_rect, duration_ms=220, direction="down")
+            PopupAnimator.show(t, target_rect, duration_ms=220, direction="down")
         self.rvBtn.clicked.connect(show_toolWin)
 
     def set_completer(self):
@@ -392,7 +392,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.previewSecondInit = False
         self.BrowserWindow.set_ensure_handler()
         final_rect = self.BrowserWindow.geometry()
-        animate_popup_show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
+        PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
     def clean_preview(self):
         self.clean_temp_file()
@@ -700,7 +700,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         o_w = int(screen_width * 0.75) if self.BrowserWindow.width() < screen_width * 0.75 else self.BrowserWindow.width()
         self.BrowserWindow.resize(o_w, o_h+150)
         final_rect = self.BrowserWindow.geometry()
-        animate_popup_show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
+        PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
 
     def open_url_by_browser(self, url, callback=None):
@@ -712,7 +712,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         else:
             self.BrowserWindow.setGeometry(rect)
         final_rect = self.BrowserWindow.geometry()
-        animate_popup_show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
+        PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
         self.BrowserWindow.view.load(QUrl(url))
         if callback:
             callback()
