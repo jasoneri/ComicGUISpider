@@ -24,7 +24,7 @@ from utils.config.rule import CgsRuleMgr
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater
-from GUI.core.anim import animate_popup_show
+from GUI.core.anim import PopupAnimator
 from GUI.core.theme import theme_mgr
 from GUI.uic.qfluent.components import (
     SupportView, CustomFlyout, CustomInfoBar, ExpandSettings, TextEditWithBg
@@ -113,6 +113,11 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             textEditWidget.set_fixed_image(f":/configDialog/{imge}.png")
             setattr(self, imgew, textEditWidget)
             getattr(self, f"horizontalLayout_label_{imge}").insertWidget(1, textEditWidget)
+        self.completerEdit.setMinimumHeight(100)
+        self.cookiesEdit.setMinimumHeight(0)
+        self.custom_mapEdit.setMinimumHeight(0)
+        self.cookiesEdit.setMaximumHeight(98)
+        self.custom_mapEdit.setMaximumHeight(98)
         tip = QtCore.QCoreApplication.translate("Dialog", F"idx corresponds/序号对应：\n{json.dumps(SPIDERS)}")
         self.completerEdit.setToolTip(tip)
         self.label_completer.setToolTip(tip)
@@ -249,7 +254,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         pos = (self.gui.x(), abs_y if abs_y > 0 else 0)
         target_rect = QRect(*pos, self.width(), self.height())
         self.move(*pos)
-        animate_popup_show(self, target_rect, duration_ms=500, direction="up")
+        PopupAnimator.show(self, target_rect, duration_ms=500, direction="up")
         # 4. SettingCard卡片类配置
         self.sv_path_card.setContent(str(getattr(conf, "sv_path")))
         # 5. ComboBox类

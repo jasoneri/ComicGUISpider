@@ -8,7 +8,7 @@ from qfluentwidgets import (
     FluentIcon as FIF, TeachingTipTailPosition
 )
 
-from GUI.core.anim import WindowExpandDriver, PanelHeightAnimator
+from GUI.core.anim import ExpandCollapseOrchestrator, ContentTarget
 from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
 from utils import conf, TaskObj, TasksObj
 from utils.processed_class import PreviewHtml
@@ -118,8 +118,7 @@ class TaskProgressManager:
         self._pending_tasks = []
         self.expandBtn = None
         self._dl_status_badge = None
-        self._window_driver = None
-        self._panel_anim = None
+        self._expand_orchestrator = None
         self._transitioning = False
 
     def _on_clear_btn_clicked(self):
@@ -133,13 +132,9 @@ class TaskProgressManager:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()
             self._dl_status_badge = None
-        if self._window_driver is not None:
-            self._window_driver.stop()
-            self._window_driver.cleanup()
-            self._window_driver = None
-        if self._panel_anim is not None:
-            self._panel_anim.stop()
-            self._panel_anim = None
+        if self._expand_orchestrator is not None:
+            self._expand_orchestrator.cleanup()
+            self._expand_orchestrator = None
 
         self._entries.clear()
         self._pending_tasks.clear()
@@ -154,8 +149,7 @@ class TaskProgressManager:
         self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
 
-        self._window_driver = WindowExpandDriver(self.gui)
-        self._panel_anim = PanelHeightAnimator(self.gui.scroll_area)
+        self._expand_orchestrator = self._create_expand_orchestrator()
         self._transitioning = False
 
     def capture_native_snapshot(self) -> dict:
@@ -171,13 +165,12 @@ class TaskProgressManager:
 
         self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
-        self._window_driver = WindowExpandDriver(self.gui)
-        self._panel_anim = PanelHeightAnimator(self.gui.scroll_area)
+        self._expand_orchestrator = self._create_expand_orchestrator()
         self._transitioning = False
 
         self._rebuild_native_views(task_ids)
         self.gui.scroll_area.setVisible(False)
-        self._panel_anim.set_height(0)
+        self._expand_orchestrator.set_content_height(self.gui.scroll_area, 0)
         self._refresh_dl_status_badge()
 
     def _dispose_native_runtime_only(self):
@@ -189,17 +182,26 @@ class TaskProgressManager:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()
             self._dl_status_badge = None
-        if self._window_driver is not None:
-            self._window_driver.stop()
-            self._window_driver.cleanup()
-            self._window_driver = None
-        if self._panel_anim is not None:
-            self._panel_anim.stop()
-            self._panel_anim = None
+        if self._expand_orchestrator is not None:
+            self._expand_orchestrator.cleanup()
+            self._expand_orchestrator = None
 
     def _bind_native_signals_once(self):
         self.expandBtn.clicked.connect(self._on_expand_clicked)
         self.clearBtn.clicked.connect(self._on_clear_btn_clicked)
+
+    def _create_expand_orchestrator(self):
+        return ExpandCollapseOrchestrator(
+            window_target=self.gui,
+            content_targets=[
+                ContentTarget(widget=self.gui.scroll_area,
+                    measure_height=lambda _widget: self._panel_target_height(),
+                )
+            ],
+            window_target_height_getter=self._window_target_height,
+            can_expand_window=self._can_expand_window,
+            after_collapse=self._sync_scroll_visibility,
+        )
 
     def _rebuild_native_views(self, task_ids=None):
         order = task_ids if task_ids is not None else list(self._entries.keys())
@@ -235,61 +237,35 @@ class TaskProgressManager:
         max_by_screen = self._available_screen_height()
         return self.gui.height() < min(max_by_window, max_by_screen)
 
+    def _window_target_height(self, total_expand_delta: int) -> int:
+        return min(
+            self.gui.height() + total_expand_delta + 5,
+            self.gui.maximumHeight(),
+            self._available_screen_height(),
+        )
+
+    def _sync_scroll_visibility(self):
+        self.gui.scroll_area.setVisible(self.expandBtn.expanded)
+
     def _finish_transition(self):
         self._transitioning = False
 
     def _start_expand(self):
-        panel_h = self._panel_target_height()
-        done = {"panel": False, "window": False}
-
-        def finish_one(name):
-            done[name] = True
-            if done["panel"] and done["window"]:
+        if self._expand_orchestrator:
+            if not self._expand_orchestrator.expand(self._finish_transition):
                 self._finish_transition()
-
-        self.gui.scroll_area.setVisible(True)
-
-        if self._panel_anim:
-            self._panel_anim.expand(panel_h, lambda: finish_one("panel"))
         else:
-            finish_one("panel")
-
-        if self._window_driver and self._can_expand_window(panel_h):
-            target = min(
-                self.gui.height() + panel_h,
-                self.gui.maximumHeight(),
-                self._available_screen_height()
-            )
-            if not self._window_driver.begin_expand(target, lambda: finish_one("window")):
-                finish_one("window")
-        else:
-            finish_one("window")
+            self._finish_transition()
 
     def _start_collapse(self):
-        done = {"panel": False, "window": False}
-
-        def finish_one(name):
-            done[name] = True
-            if done["panel"] and done["window"]:
-                if not self.expandBtn.expanded:
-                    self.gui.scroll_area.setVisible(False)
+        if self._expand_orchestrator:
+            if not self._expand_orchestrator.collapse(self._finish_transition):
                 self._finish_transition()
-
-        if self._panel_anim:
-            self._panel_anim.collapse(lambda: finish_one("panel"))
         else:
-            finish_one("panel")
-
-        if self._window_driver:
-            if not self._window_driver.begin_collapse(lambda: finish_one("window")):
-                finish_one("window")
-        else:
-            finish_one("window")
+            self._finish_transition()
 
     def _on_expand_clicked(self):
-        if self._transitioning or (self._window_driver and self._window_driver.is_transitioning):
-            return
-        if self._panel_anim and self._panel_anim.is_running:
+        if self._transitioning or (self._expand_orchestrator and self._expand_orchestrator.is_transitioning):
             return
         self._transitioning = True
         self.expandBtn.expand()
@@ -393,12 +369,9 @@ class TaskProgressManager:
         if self._dl_status_badge is not None:
             self._dl_status_badge.hide()
         self._transitioning = False
-        if self._panel_anim is not None:
-            self._panel_anim.stop()
-            self._panel_anim.set_height(0)
-        if self._window_driver is not None:
-            self._window_driver.stop()
-            self._window_driver.begin_collapse()
+        if self._expand_orchestrator is not None:
+            self._expand_orchestrator.stop()
+            self._expand_orchestrator.set_content_height(self.gui.scroll_area, 0)
         self.gui.scroll_area.setVisible(False)
         if self.expandBtn.expanded:
             self.expandBtn.expanded = False
