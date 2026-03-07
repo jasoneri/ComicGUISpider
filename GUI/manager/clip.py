@@ -38,7 +38,7 @@ class ClipGUIManager:
         if not pathlib.Path(conf.clip_db).exists():
             CustomInfoBar.show(
                 title='Clip-db not found', content=res.GUI.Clip.db_not_found_guide,
-                parent=self.gui.textBrowser,
+                parent=self.gui.showArea,
                 url=f"{CGS_DOC}/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:

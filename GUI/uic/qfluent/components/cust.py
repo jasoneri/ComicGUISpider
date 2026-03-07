@@ -474,11 +474,11 @@ class TableFlyoutView(FlyoutViewBase):
             cont = '已发至输入框，自行调整再点击搜索'
             if self.gui.rv_tools.ero != 1:
                 # TODO[1](2026-03-05): 处理一下
-                self.gui.next_btn.click()
+                self.gui.mpreviewBtn.click()
                 cont = f'''「{book_name}」已发至输入框进行搜索中'''
             InfoBar.info(title='', content=cont,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=2000, parent=self.gui.textBrowser)
+                duration=2000, parent=self.gui.showArea)
         QTimer.singleShot(10, do)
         self.rvInterface.table_fv.close()
         self.rvInterface.toolWin.close()

@@ -133,6 +133,7 @@ class MitmMainWindow(Ui_MainWindow):
     def preset(self):
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
+        self.aggrBtn.setVisible(False)
         
         self.openPBtn = ToolButton(self.frame)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)

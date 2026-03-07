@@ -373,12 +373,12 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             InfoBar.error(
                 title='', content=res.EHentai.COOKIES_NOT_SET,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=-1, parent=gui.textBrowser
+                duration=-1, parent=gui.showArea
             )
             return
         cls.eh_kits = EHentaiKits(conf)
         if not cls.eh_kits.test_index():
-            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, gui.textBrowser,
+            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, gui.showArea,
                 cls.eh_kits.index, cls.eh_kits.name)
             return
         return True

@@ -301,7 +301,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         
         is_valid, _msg = CgsRuleMgr.validate(pathlib.Path(sv_path), n_dledHandle)
         if not is_valid:
-            InfoBar.error(title="", content=f"{_msg}\n❌conf save fail", duration=-1, parent=self.gui.textBrowser,
+            InfoBar.error(title="", content=f"{_msg}\n❌conf save fail", duration=-1, parent=self.gui.showArea,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM)
             return
         
@@ -330,7 +330,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             self._trigger_rv_scan()
 
     def _trigger_rv_scan(self):
-        self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self.gui.textBrowser)
+        self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self.gui.showArea)
 
     def format_cookie(self):
         """格式化并保存当前cookiesEdit的内容到当前所选"""

@@ -25,6 +25,7 @@ class MonkeyPatch:
             def _showCompleterMenu():
                 if not self.text().strip():
                     self.setText(" ")
+                self._showCompleterMenu()
 
             menu = RoundMenu(parent=self)
             undo_action = Action(FluentIcon.CANCEL, text=self.tr("Cancel"), triggered=self.undo)
