@@ -49,7 +49,7 @@ CGS命令行脚本，目前支持简单下载/调试功能
     parser.add_argument('-w', '--website', type=int, help='选择网站序号')
     parser.add_argument('-k', '--keyword', help='关键字（作品名）')
     parser.add_argument('-i', '--indexes', type=str, nargs='?',
-                        help=res.GUI.Uic.chooseinputTip)
+                        help=str(res.GUI.Uic.chooseBoxToolTip))
     parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{list(Spider.specials())}时，必须设置用于选择章节')
     parser.add_argument('-l', '--log_level', type=str, nargs='?', default='DEBUG', help='log level')
     parser.add_argument('-tw', '--time_wait',
