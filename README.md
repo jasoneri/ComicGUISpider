@@ -3,8 +3,8 @@
 </div>
 
 <div align="center">
-  <a href="https://github.com/jasoneri/ComicGUISpider" target="_blank">
-    <img src="https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png" alt="logo">
+  <a href="https://cgs.101114105.xyz" target="_blank">
+    <img src="https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png" alt="logo" height="180">
   </a>
   <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
@@ -22,21 +22,14 @@
   </p>
 </div>
 
-## 📑介绍
-
-下漫画的
-
-|       预览/多选/翻页       |       [读剪贴板](https://cgs.101114105.xyz/feat/clip)       |
-|:--------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------:|
-| <img src="https://img-cgs.101114105.xyz/file/1764957470369_common-usage.gif" loading="lazy" alt="turn-page-new"> | <img src="https://img-cgs.101114105.xyz/file/1764957479778_load_clip.gif" loading="lazy" alt="load_clip"> |
-| **[聚合搜索](https://cgs.101114105.xyz/feat/ags)** | |
-| <img src="https://img-cgs.101114105.xyz/file/1764957291429_ags.gif" loading="lazy" alt="聚合搜索动图预留位"> | |
+<div align="center">
+<a href="https://img-cgs.101114105.xyz/file/cgs/1772894706883_normal.mp4" target="_blank">
+  <img src="https://img-cgs.101114105.xyz/file/cgs/1772889192994_fake-play.png" alt="logo" height="200">
+</a></div>
 
 ## ✨功能特性
 
-- 如上动图演示的多种使用方式，多开同时操作不同网站等
-- 开预览后随便点点就能下载，预览窗口/内置浏览器
-- 多种输入规则，方便指定选择
+- 多种使用方式，多开同时操作不同网站等
 - 无感翻页保留选择，已下载记录等提示
 - 预设，去重，加标识符等各种自定义设置
 
