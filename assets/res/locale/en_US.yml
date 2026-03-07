@@ -21,6 +21,7 @@ GUI:
   textbrowser_load_if_http: "<font color=\"black\"> or </font><a href=\"%s\" ><b style=\"font-size:20px;\">View in Browser</b></a>"
   WorkThread_finish_flag: "Backend downloaded"
   WorkThread_empty_flag: "Backend exited normally without"
+  manga_fav_tip: "Click right-top corner ★ of card, add to local favorites"
   copymaga_tips: "Copy unlocked chapters (e.g. Frieren)"
   copymaga_page_status_tip: "Page offset: Each page contains 30 items. For page 3, enter 60 (outputs 60-89), etc."
   global_err_hook: "Last operation caused GUI exception - check GUI logs for details"

@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES, CGS_DOC
+from variables import PYPI_SOURCE, VER, Spider, CGS_DOC
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -43,9 +43,9 @@ class PreprocessManager(QObject):
         elif hasattr(self.gui.spiderUtils, 'test_index'):
             self._preprocess_test_index()
 
-        if index in AGGR_SEARCH_IDXES:
+        if index in Spider.aggr():
             self._add_aggr_search()
-        if index in CLIP_IDXES:
+        if index in Spider.clip():
             self.gui.clipBtn.setEnabled(1)
 
     def _cache_hit(self) -> bool:

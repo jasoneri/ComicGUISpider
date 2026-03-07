@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from enum import IntEnum
 from assets import res
 
 VER = "v2.9.0"
@@ -9,30 +10,39 @@ LANG = {
     "zh_CN": "简体中文"
 }
 
-SPIDERS = {
-    1: 'manga_copy',    # 🇨🇳 
-    2: 'jm',            # 🇨🇳 🔞
-    3: 'wnacg',         # 🇨🇳 🔞
-    4: 'ehentai',       # 🌎 🔞
-    5: 'mangabz',       # 🇨🇳
-    6: 'hitomi',        # 🌎 🔞
-    8: 'h_comic',       # 🌎 🔞
-}
-SPECIAL_WEBSITES = ['wnacg', 'jm', 'ehentai', 'hitomi', 'h_comic']
+class Spider(IntEnum):
+    MANGA_COPY = 1   # 🇨🇳
+    JM = 2           # 🇨🇳 🔞
+    WNACG = 3        # 🇨🇳 🔞
+    EHENTAI = 4      # 🌎 🔞
+    MANGABZ = 5      # 🇨🇳
+    HITOMI = 6       # 🌎 🔞
+    H_COMIC = 8      # 🌎 🔞
+
+    @property
+    def spider_name(self): return self.name.lower()
+
+    @classmethod
+    def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC})
+    @classmethod
+    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ})
+    @classmethod
+    def cn_proxy(cls):  return frozenset({cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC})
+    @classmethod
+    def aggr(cls):      return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.H_COMIC})   # AggrSearchThread._async_run
+    @classmethod
+    def clip(cls):      return frozenset({cls.JM, cls.WNACG, cls.EHENTAI})                # ClipTasksThread._async_run
+
+
+SPIDERS: dict[int, str] = {s.value: s.spider_name for s in Spider}
 COOKIES_SUPPORT = {
-    'jm': set(), 
+    'jm': set(),
     'ehentai': {"igneous","ipb_member_id","ipb_pass_hash"}
 }
 COOKIES_PLACEHOLDER = {
     k: f"{res.GUI.Uic.confDia_cookies_placeholder}{', '.join(v)}"
     for k, v in COOKIES_SUPPORT.items()
 }
-SPECIAL_WEBSITES_IDXES = [2, 3, 4, 6, 8]
-
-# GUI feat/behaviors
-CN_PREVIEW_NEED_PROXIES_IDXES = [3, 4, 6, 8]
-AGGR_SEARCH_IDXES = [2, 3, 4, 8]    # AggrSearchThread._async_run
-CLIP_IDXES = [2, 3, 4]              # ClipTasksThread._async_run
 
 DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
     1: ['更新', '排名日', '排名周', '排名月', '排名总'],

@@ -21,6 +21,7 @@ GUI:
   textbrowser_load_if_http: "<font color=\"black\"> 或者 </font><a href=\"%s\" ><b style=\"font-size:20px;\">浏览器查看结果</b></a>"
   WorkThread_finish_flag: "后台已下载"
   WorkThread_empty_flag: "后台正常退出没有"
+  manga_fav_tip: "点击卡片右上角 ★ 加进本地收藏"
   copymaga_tips: "拷贝已解锁章节，例如福利连<br>可用 rvTool 的 `显示记录` 进行快速操作"
   copymaga_page_status_tip: "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
   global_err_hook: "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"

@@ -26,6 +26,7 @@
       window.onBookClick = (bookKey, title) => this.onBookClick(bookKey, title);
       window.updateEpisodes = (bookKey, episodesJson) => this.updateEpisodes(bookKey, episodesJson);
       window.showEpisodeError = (message) => this.showEpisodeError(message);
+      window.showEpisodeFetchError = (bookKey, code) => this.showEpisodeFetchError(bookKey, code);
       window.markDownloadedEpisodes = (epIds) => this.markDownloadedEpisodes(epIds);
       window.renderCardBadgeDl = (bookKey, dlMax) => this.renderCardBadgeDl(bookKey, dlMax);
       window.renderCardBadgeLatest = (bookKey, latestEpName) => this.renderCardBadgeLatest(bookKey, latestEpName);
@@ -144,6 +145,21 @@
       this.showBtnGroup(false);
       this.listEl.innerHTML = `<div class="alert alert-danger mb-0" role="alert">${this.escapeHtml(message)}</div>`;
       this.updateCount();
+    }
+
+    buildEpisodeErrorMessage(code) {
+      const retryHint = "请关闭弹窗后再次点击卡片重试。";
+      switch (code) {
+        case "timeout":
+          return `章节加载超时（8 秒）。${retryHint}`;
+        case "bridge_not_ready":
+          return `预览通道尚未就绪。${retryHint}`;
+        case "parse_error":
+          return `章节数据解析失败。${retryHint}`;
+        case "fetch_failed":
+        default:
+          return `章节加载失败。${retryHint}`;
+      }
     }
 
     toggleAllEpisodes() {
@@ -345,12 +361,12 @@
       this.clearPendingTimer();
       this.pendingTimer = setTimeout(() => {
         if (this.activeBookKey === String(bookKey)) {
-          this.showEpisodeError("Episode loading timeout (8s). Please retry.");
+          this.showEpisodeError(this.buildEpisodeErrorMessage("timeout"));
         }
       }, 8000);
 
       if (!this.bridge || typeof this.bridge.fetchEpisodes !== "function") {
-        this.showEpisodeError("QWebChannel bridge not ready.");
+        this.showEpisodeError(this.buildEpisodeErrorMessage("bridge_not_ready"));
         return;
       }
 
@@ -370,14 +386,21 @@
         this.episodesCache.set(bookKey, episodes);
         this.renderEpisodes(bookKey, episodes);
       } catch (error) {
-        this.showEpisodeError(`Episode parse error: ${error}`);
+        this.showEpisodeError(this.buildEpisodeErrorMessage("parse_error"));
       }
     }
 
     showEpisodeError(message) {
       this.clearPendingTimer();
       this.setLoadingState(false);
-      this.renderError(message || "Episode request failed.");
+      this.renderError(message || this.buildEpisodeErrorMessage("fetch_failed"));
+    }
+
+    showEpisodeFetchError(bookKey, code = "fetch_failed") {
+      if (String(bookKey) !== this.activeBookKey) {
+        return;
+      }
+      this.showEpisodeError(this.buildEpisodeErrorMessage(code));
     }
 
     markDownloadedEpisodes(epIds) {

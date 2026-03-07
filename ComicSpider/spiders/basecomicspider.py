@@ -34,7 +34,7 @@ class SayToGui:
 
     def __init__(self, spider, queue, state):
         self.spider = spider
-        if spider.name in SPECIAL_WEBSITES:
+        if spider.name in {s.spider_name for s in Spider.specials()}:
             self.exp_txt = self.exp_txt.replace(self.res.exp_replace_keyword, self.exp_extra)
         self.text_browser = self.TextBrowser(queue, state)
 
