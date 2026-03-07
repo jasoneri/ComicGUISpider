@@ -18,7 +18,7 @@ class Cache:
         self.flag = None
         self.val = None
 
-    def with_expiry(self, expiry_time: t.Union[int, datetime, str, callable]=48, write_in=False):
+    def with_expiry(self, expiry_time: t.Union[int, datetime, str, callable]=168, write_in=False):
         """缓存有效期装饰器
 
         Args:
@@ -83,7 +83,7 @@ class Cache:
                 expiry_flag = now > dynamic_expiry
         return decorator
 
-    def run(self, func, expiry_time=48, write_in=False):
+    def run(self, func, expiry_time=168, write_in=False):
         """动态应用缓存装饰器并执行函数
         每次调用都会重新检查缓存状态，适用于多进程场景
         """
@@ -232,7 +232,7 @@ class DomainUtils(Utils):
                 return cls._get_domain_thread()
                 
         cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
-        return cls.cachef.run(_, 48, write_in=True)
+        return cls.cachef.run(_, 168, write_in=True)
 
     @classmethod
     def _get_domain_thread(cls):
