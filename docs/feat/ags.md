@@ -5,11 +5,13 @@
 从下文输入方式获取一组搜索词，然后将多个搜索列表一次性在预览窗口中列出，  
 后面就是常规选择下载流程  
 
+<ConcurrentImages>
 <table><tbody>
   <tr>
-    <td><img src="{{URL_IMG}}/file/1764957291429_ags.gif"></td>
+    <td><img src="{{URL_IMG}}/file/cgs/1772895430400_ags.gif"></td>
   </tr>  
 </tbody></table>
+</ConcurrentImages>
 
 ### 输入
 

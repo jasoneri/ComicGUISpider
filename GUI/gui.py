@@ -247,7 +247,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
-        self.toolWin.addMidTool()
+        # self.toolWin.addMidTool()  # TODO[2](2026-03-07): 下个稳定版本恢复
 
         def show_toolWin():
             t = self.toolWin

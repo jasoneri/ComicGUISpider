@@ -1,35 +1,32 @@
 # 🕑 更新历史
 
-## `v2.9.0`
+## `v2.9.9`
 
 ### 🎁 Features
 
-+ [CGSMid](/feat/mid)，托管操作的系统
-+ 常规漫预览，看[说明](/feat/#_2-1-%E5%B8%B8%E8%A7%84%E6%BC%AB%E7%9A%84%E9%A2%84%E8%A7%88)，与 CGSMid 相斥
-+ 版本更新提醒
-
-<details>
-<summary> 图 ⇩ </summary>
-
-![常规漫预览](https://img-cgs.101114105.xyz/file/screenshots/1771746417351_manga_preview.png)
-
-</details>
++ ui 大改，加入几个动画，去掉搜索键/序号输入框，统一预览键调度
++ 发布页交互优化，预览选择交互增强
 
 ### 🐞 Fix
 
-+ 以图搜图新增有效图示
-+ 修复翻页时可能的阻塞
-+ ~~hitomi其实一直能用~~，站点似乎是故意做成的请求失败重试几次才偶尔成功..
++ 常规漫预览 OOM
++ 此版本 CGSMid 暂时关闭
 
-::: tip 备用更新方法（待查证实验）  
-win绿色包(exe): 待办，先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  
+::: tip 备用更新方法  
+win绿色包(exe): 先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  
 &emsp;&emsp;然后解压覆盖在`解压目录\comicguispider\Lib\site-packages`里  
-mac/终端uv：ai 查 `uv tool 安装 .git, ComicGUISpider GUI 分支`  
+mac/终端uv：如上下载 {tag}.zip，解压目录直接跑 `uv run CGS.py`  
 :::
 
 ---
 
 > [!Info] 下方记录会忽略修复动作相关的记录，含引导意义的条目除外
+
+::: details v2.9.0
++ CGSMid
++ 常规漫预览，与 CGSMid 相斥
++ 版本更新提醒
+:::
 
 ::: details v2.8.6
 + 新增 [h-comic](https://h-comic.com) 站点支持
