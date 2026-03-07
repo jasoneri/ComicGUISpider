@@ -4,7 +4,6 @@ import sqlite3
 
 from utils import conf, conf_dir, md5
 from utils.website.chore import set_author_ahead
-from variables import SPECIAL_WEBSITES
 
 
 class SqlRecorder:

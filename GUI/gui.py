@@ -171,7 +171,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.spiderUtils = spider_utils_map[index]
             rmt_s2c = True
             self.rv_tools.ero = 0
-            self.web_is_r18 = index in SPECIAL_WEBSITES_IDXES
+            self.web_is_r18 = index in Spider.specials()
             is_normal_spider = index in SPIDERS and not self.web_is_r18
             self.mpreviewBtn.setVisible(is_normal_spider)
             self.previewBtn.setVisible(self.web_is_r18)
@@ -228,6 +228,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
                 self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
+        if index in Spider.mangas():
+            self.say(font_color(self.res.manga_fav_tip, cls='theme-tip'))
 
     def set_shortcut(self):
         self.previousPageShort = QShortcut(QKeySequence("Ctrl+,"), self)
@@ -663,6 +665,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def close_process(self, stop_mgr=True):
         self.clean_preview()
+        if mgr := getattr(self, "manga_mgr", None):
+            mgr.shutdown()
         self.stop_work_thread()
         targets = ('p_qm', 'p_crawler',) if stop_mgr else ('p_crawler',)
         for _ in targets:
