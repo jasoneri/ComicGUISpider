@@ -29,16 +29,16 @@ class ClipGUIManager:
         self.clipTasksThread = None
 
     def read_clip(self):
-        if self.gui.next_btn.text() != res.GUI.Uic.next_btnDefaultText:
-            InfoBar.warning(
-                title='Clip start error', content=res.GUI.Clip.process_warning,
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=3500, parent=self.gui.textBrowser
-            )
-        elif not pathlib.Path(conf.clip_db).exists():
+        # TODO[2](2026-03-02): 与搜索流程区分处理
+        #     InfoBar.warning(
+        #         title='Clip start error', content=res.GUI.Clip.process_warning,
+        #         orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
+        #         duration=3500, parent=self.gui.textBrowser
+        #     )
+        if not pathlib.Path(conf.clip_db).exists():
             CustomInfoBar.show(
                 title='Clip-db not found', content=res.GUI.Clip.db_not_found_guide,
-                parent=self.gui.textBrowser,
+                parent=self.gui.showArea,
                 url=f"{CGS_DOC}/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:

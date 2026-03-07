@@ -34,7 +34,7 @@ class SayToGui:
 
     def __init__(self, spider, queue, state):
         self.spider = spider
-        if spider.name in SPECIAL_WEBSITES:
+        if spider.name in {s.spider_name for s in Spider.specials()}:
             self.exp_txt = self.exp_txt.replace(self.res.exp_replace_keyword, self.exp_extra)
         self.text_browser = self.TextBrowser(queue, state)
 
@@ -56,10 +56,7 @@ class SayToGui:
 
     def frame_book_print(self, rets, fm=None, url=None, extra=None, make_preview=False):
         fm = fm or self.spider.say_fm
-        fk = sorted(rets.keys())
-        for idx in fk:
-            self(fm.format(*rets[idx].say))
-        extra = extra or self.res.frame_book_print_extra
+        extra = extra or ""
         self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         if len(rets):
             self(rets)  
@@ -71,7 +68,7 @@ class SayToGui:
             self("[ShowKeepBooks]")  # 由于 keep_books 现放在 gui 上，所以最后用 flag 形式触发
         else:
             self(f"<br>{'✈' * 15}<br>"
-                f"{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=5)}")
+                f"{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=4)}")
         return rets
 
     def frame_section_print(self, rets, fm, print_limit=5, extra=None):
@@ -232,13 +229,12 @@ class BaseComicSpider(scrapy.Spider):
             return
 
         book = response.meta.get('book')
-        self.say(f'📜 《{book.name}》')
         frame_eps_result = self.frame_section(response)
 
         self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
         book = self.input_state.indexes
         if not book.episodes:
-            self.say(font_color(f'<br><br>{self.res.parse_sec_not_match}<br>', cls='theme-err'))
+            self.say(font_color(f'{self.res.parse_sec_not_match}<br>', cls='theme-err'))
             self.logger.info(f'no result return, choose_input is wrong')
             return
         choose = ','.join(map(str, book.episodes))
@@ -254,7 +250,7 @@ class BaseComicSpider(scrapy.Spider):
         for ep in book.episodes:
             url_list = self.mk_page_tasks(url=ep.url)
             now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % book.name
-            self.say(font_color(f"📢\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=5))
+            self.say(font_color(f"📢\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=4))
             for url in url_list:
                 yield scrapy.Request(url=url, callback=self.parse_fin_page, meta={'ep': ep})
 
@@ -362,24 +358,24 @@ class BaseComicSpider(scrapy.Spider):
         downloaded_count = stats.get_value('image/downloaded', 0)
         exception_count = stats.get_value('process_exception/count', 0)
         if self.total != 0 and downloaded_count > 0:
-            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}', cls='theme-success', size=6))
+            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}', cls='theme-success', size=4))
         elif not downloaded_count and exception_count > 0:
             last_exception = stats.get_value("process_exception/last_exception", "")
             self.say(font_color(
                 f'<br>{self.res.finished_err % last_exception}<br>log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', 
-            cls='theme-err', size=4))
+            cls='theme-err', size=3))
             self._remove_cache()
         else:
-            self.say(font_color(f'{self.res.finished_empty}<br>', cls='theme-highlight', size=6))
+            self.say(font_color(f'{self.res.finished_empty}<br>', cls='theme-highlight', size=4))
 
     def _handle_error_status(self, reason):
         if reason.startswith("[error]"):
             self.say(font_color(f"[httpok]{reason}" if "http" in reason else reason, cls='theme-err', size=4))
         error_guides = (self.res.close_check_log_guide1, self.res.close_check_log_guide2, self.res.close_check_log_guide3)
         self.say(
-            font_color(f'{self.res.close_backend_error}<br>', size=5) +
-            font_color('<br>'.join(error_guides), cls='theme-tip', size=4) + "<br>" +
-            font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', cls='theme-err', size=4)
+            font_color(f'{self.res.close_backend_error}<br>', size=4) +
+            font_color('<br>'.join(error_guides), cls='theme-tip', size=3) + "<br>" +
+            font_color(f'log path/日志文件地址: [{self.settings.get("LOG_FILE")}]', cls='theme-err', size=3)
         )
 
 

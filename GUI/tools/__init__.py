@@ -29,7 +29,7 @@ class ToolWindow(FramelessWindow):
         window_height = int(screen_geo.height() * 0.22)
         self.setMinimumSize(self.window_width, window_height)
         self.default_height = 120
-        self.resize(0,0)
+        self.resize(self.window_width, self.default_height)
         self.move(
             int((screen_geo.width() - self.window_width) / 2),
             int((screen_geo.height() - window_height) / 2)
@@ -93,12 +93,12 @@ class ToolWindow(FramelessWindow):
             self.htInterface = HitomiTools(self.gui)
             self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
         if widget.objectName() == "asInterface":
-            new_height = int(self.gui.height() * 0.5)
-            self.resize(self.width(), new_height)
+            new_height = int(self.gui.height() * 0.85)
+            self.resize(self.gui.width(), new_height)
         elif widget.objectName() == "midInterface":
-            self.resize(900, 370)
+            self.resize(self.gui.width(), min(370, self.gui.height()))
         else:
-            self.resize(0,0)
+            self.resize(self.window_width, self.default_height)
         self.pivot.setCurrentItem(widget.objectName())
 
 

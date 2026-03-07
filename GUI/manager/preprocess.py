@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES, CGS_DOC
+from variables import PYPI_SOURCE, VER, Spider, CGS_DOC
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -43,9 +43,9 @@ class PreprocessManager(QObject):
         elif hasattr(self.gui.spiderUtils, 'test_index'):
             self._preprocess_test_index()
 
-        if index in AGGR_SEARCH_IDXES:
+        if index in Spider.aggr():
             self._add_aggr_search()
-        if index in CLIP_IDXES:
+        if index in Spider.clip():
             self.gui.clipBtn.setEnabled(1)
 
     def _cache_hit(self) -> bool:
@@ -121,10 +121,10 @@ class PreprocessManager(QObject):
                 InfoBar.error(
                     title='', content=res.EHentai.COOKIES_NOT_SET,
                     orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                    duration=-1, parent=self.gui.textBrowser
+                    duration=-1, parent=self.gui.showArea
                 )
             elif "access_fail" in error_msg:
-                CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, self.gui.textBrowser,
+                CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, self.gui.showArea,
                     eh_kits.index, eh_kits.name)
 
         self.task_manager.execute_simple_task(
@@ -146,7 +146,7 @@ class PreprocessManager(QObject):
 
         def on_error(_):
             self.gui.disable_start()
-            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
+            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.showArea,
                     index, name)
 
         self.task_manager.execute_simple_task(
@@ -159,6 +159,7 @@ class PreprocessManager(QObject):
     def _add_aggr_search(self):
         if not hasattr(self.gui.toolWin, 'asInterface'):
             self.gui.toolWin.addAggrSearchView()
+        self.gui.aggrBtn.setVisible(True)
 
     def _preprocess_wnacg(self):
         if conf.proxies:
@@ -174,7 +175,7 @@ class PreprocessManager(QObject):
             return True
 
         def on_error(_):
-            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
+            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.showArea,
                     self.gui.spiderUtils.index, self.gui.spiderUtils.name)
 
         self.task_manager.execute_simple_task(
@@ -272,8 +273,8 @@ class PreprocessManager(QObject):
                 self.gui.say("❌ 后台服务检测")
                 CustomInfoBar.show(
                     title="服务检测失败",
-                    content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
-                    parent=self.gui.textBrowser,
+                    content="Redis 或 Motrix 服务未运行，<br>点击指南查看`前置须知`，安装并运行相关服务",
+                    parent=self.gui.showArea,
                     url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
                 triggle_or_not("services", False)
@@ -306,7 +307,7 @@ class PreprocessManager(QObject):
                 CustomInfoBar.show(
                     title="依赖安装失败",
                     content="点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）",
-                    parent=self.gui.textBrowser,
+                    parent=self.gui.showArea,
                     url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
                 triggle_or_not("dependencies", False)

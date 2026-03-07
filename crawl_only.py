@@ -17,7 +17,7 @@ from utils.processed_class import (
     GuiQueuesManger, crawl_what, QueuesManager, QueueHandler, InputFieldState, refresh_state, ProcessState
 )
 from utils.website.info import Episode, BookInfo
-from variables import SPECIAL_WEBSITES_IDXES, SPIDERS
+from variables import Spider, SPIDERS
 
 is_debugging = os.getenv('CGS_DEBUG') == '1'
 
@@ -50,7 +50,7 @@ CGS命令行脚本，目前支持简单下载/调试功能
     parser.add_argument('-k', '--keyword', help='关键字（作品名）')
     parser.add_argument('-i', '--indexes', type=str, nargs='?',
                         help=res.GUI.Uic.chooseinputTip)
-    parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{SPECIAL_WEBSITES_IDXES}时，必须设置用于选择章节')
+    parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{list(Spider.specials())}时，必须设置用于选择章节')
     parser.add_argument('-l', '--log_level', type=str, nargs='?', default='DEBUG', help='log level')
     parser.add_argument('-tw', '--time_wait',
                         help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')
@@ -64,13 +64,13 @@ CGS命令行脚本，目前支持简单下载/调试功能
     if not args.keyword or not args.indexes:
         parser.error("the following arguments are required: -k/--keyword and -i/--indexes")
 
-    if args.website not in SPECIAL_WEBSITES_IDXES:
+    if args.website not in Spider.specials():
         if not args.indexes2:
             parser.error(
-                "the following argument is required when website is not in SPECIAL_WEBSITES_IDXES: -i2/--indexes2")
+                "the following argument is required when website is not in Spider.specials(): -i2/--indexes2")
     else:
         if args.indexes2:
-            parser.error("the argument -i2/--indexes2 is not allowed when website is in SPECIAL_WEBSITES_IDXES")
+            parser.error("the argument -i2/--indexes2 is not allowed when website is in Spider.specials()")
 
     spider_choice = args.website if args.website else 1  # 选网站/爬虫，转crawl_what方法一目了然
 

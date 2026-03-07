@@ -8,12 +8,13 @@ from PyQt5.QtWidgets import (
 )
 from qfluentwidgets import (
     SwitchButton, PrimaryToolButton, TransparentToolButton, PrimaryPushButton,
-    FluentIcon as FIF, TeachingTip, TeachingTipTailPosition,
+    FluentIcon as FIF, TeachingTipTailPosition,
     SubtitleLabel, EditableComboBox, InfoBar, InfoBarPosition, VBoxLayout, MessageBox
 )
 
 from GUI.core.theme import theme_mgr, CustTheme
 from GUI.manager.mid import WorkflowState
+from GUI.uic.qfluent.components import CustomTeachingTip
 from utils.middleware import (
     WorkflowDefinition, MiddlewareDefinition,
     TimelineStage, LaneStage
@@ -315,19 +316,13 @@ class MidToolInterface(QWidget):
                     getattr(self, "_enable_tip").close()
             return
 
-        self._enable_tip = TeachingTip.create(
-            target=self.enable_switch,
-            title="",
-            content="保存后，下次触发时将自动执行，或👇",
-            isClosable=True, duration=3000,
-            tailPosition=TeachingTipTailPosition.RIGHT_TOP,
-            parent=self
-        )
         acceptBtn = PrimaryPushButton(FIF.PLAY, "立即激活")
-        acceptBtn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        tip = CustomTeachingTip.create([acceptBtn], 
+            target=self.enable_switch, parent=self, duration=3000,
+            content="保存后，下次触发时将自动执行，或", tailPosition=TeachingTipTailPosition.RIGHT
+        )
         acceptBtn.clicked.connect(self.run_now)
-        acceptBtn.clicked.connect(self._enable_tip.close)
-        self._enable_tip.view.widgetLayout.addWidget(acceptBtn)
+        acceptBtn.clicked.connect(tip.close)
 
     def on_flow_changed(self, index: int):
         flow_types = ["auto", "ep", "book"]

@@ -233,7 +233,7 @@ class HitomiTools(QWidget):
         InfoBar.success(
             title='', content=res.GUI.Tools.hitomi_info_sended,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-            duration=4000, parent=self.gui.textBrowser
+            duration=4000, parent=self.gui.showArea
         )
         QTimer.singleShot(100, self.gui.toolWin.close)
 

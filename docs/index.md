@@ -66,25 +66,23 @@ hero:
   </tr>
 </tbody></table>
 
-<ConcurrentImages>
 <table><tbody>
   <tr>
-    <td><img src="/loading.png" data-src="{{URL_IMG}}/file/1764957470369_common-usage.gif"></td>
-    <td><img src="/loading.png" data-src="{{URL_IMG}}/file/1764957479778_load_clip.gif"></td>
+    <td style="text-align: center; vertical-align: middle;" rowspan="4">
+      <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1772894706883_normal.mp4" title="AGS demo"></HomeDemoVideo>
+    </td>
   </tr>
-  <tr>
-    <td><img src="/loading.png" data-src="{{URL_IMG}}/file/1764957291429_ags.gif"></td>
-  </tr>
+  <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
+  <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜素</strong></a></td></tr>
+  <tr><td style="text-align: left;"></td></tr>
 </tbody></table>
-</ConcurrentImages>
 
 ## 功能特性
 
-- 如上动图演示的多种使用方式，方便的内置重启，多开同时操作不同网站等
-- 开预览后随便点点就能下载，预览窗口充当于微型浏览器
-- 丰富多样的输入规则，能方便指定选择
+- 多种使用方式，多开同时操作不同网站等
+- 多种输入规则
 - 无感翻页保留选择，已下载记录等提示
-- 预设，去重，加标识符等自定义设置
+- 预设，去重，加标识符等各种自定义设置
 
 ## 食用搭配(阅读器)
 

@@ -11,7 +11,7 @@
 import warnings
 from scrapy.exceptions import ScrapyDeprecationWarning
 
-from variables import SPECIAL_WEBSITES
+from variables import Spider
 from utils import conf
 
 warnings.filterwarnings("ignore", message=".*deprecated start_requests.*", category=ScrapyDeprecationWarning)
@@ -72,4 +72,4 @@ UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefo
 
 # 日志输出
 LOG_FILE = log_path.joinpath("scrapy.log")
-SPECIAL = SPECIAL_WEBSITES
+SPECIAL = [s.spider_name for s in Spider.specials()]
