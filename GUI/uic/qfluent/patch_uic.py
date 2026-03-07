@@ -13,9 +13,11 @@ REPLACE_MAP = {
     "QComboBox": "ComboBox",
     "QCheckBox": "CheckBox",
     "QSpinBox": "CompactSpinBox",
+    "QProgressBar": "ProgressBar",
 }
 DEFAULT_CUSTOM_SUB = {
-    "import material_ct_rc\n": ""
+    "import material_ct_rc\n": "",
+    "# Form implementation generated.*": ""
 }
 
 

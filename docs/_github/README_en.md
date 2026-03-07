@@ -22,17 +22,16 @@
 
 Comic-Downloader
 
-▼ Demo ▼
 
-|                             Preview / Multi-select / Paging                              |                         Clipboard Tasks                         |
-|:-------------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
-| ![turn-page-new](https://img-cgs.101114105.xyz/file/1764957470369_common-usage.gif) | ![load_clip](https://img-cgs.101114105.xyz/file/1764957479778_load_clip.gif) |
+<div align="center">
+<a href="https://img-cgs.101114105.xyz/file/cgs/1772894706883_normal.mp4" target="_blank">
+  <img src="https://img-cgs.101114105.xyz/file/cgs/1772889192994_fake-play.png" alt="logo" height="200">
+</a></div>
 
 ## ✨Features
 
 - Easy to use with simple configuration
 - Just click a few times after preview to download, and you can also browse the website on the preview window
-- Convenient to specify selection with input rules like -3 (select the last three), 0 (select all), etc.
 - Based on page retention, flipping pages is like putting items in a shopping cart
 - Built-in restart is very convenient, and it is even more convenient with multiple launches
 - Read clipboard stream

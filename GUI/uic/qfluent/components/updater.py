@@ -39,10 +39,10 @@ class UpdaterMessageBox(MessageBoxBase):
 
     def validate(self):
         if code_env == "git":
-            CustomInfoBar.show_custom("", res.Updater.git_update_desc, self.gui.textBrowser, _type="INFORMATION")
+            CustomInfoBar.show_custom("", res.Updater.git_update_desc, self.gui.showArea, _type="INFORMATION")
             QTimer.singleShot(3000, self.gui.conf_dia.puThread.update_signal.emit)
         else:
-            self.gui.updaterStateTooltip = StateToolTip("Updating", res.Updater.doing, self.gui.textBrowser)
+            self.gui.updaterStateTooltip = StateToolTip("Updating", res.Updater.doing, self.gui.showArea)
             self.gui.updaterStateTooltip.show()
             self.gui.conf_dia.puThread.update_signal.emit()
         return True

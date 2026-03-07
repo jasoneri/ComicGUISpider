@@ -160,7 +160,6 @@ class HitomiSpider(BaseComicSpider):
         book = meta.get('book')
         this_uuid, this_md5 = book.id_and_md5()
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):
-            self.say(f'📜 《{book.name}》')
             self.set_task(book)
             for pic_info in book.pics:
                 item = ComicspiderItem()
@@ -183,7 +182,6 @@ class HitomiSpider(BaseComicSpider):
     # ==============================================
     def frame_book(self, rets, meta):
         frame_results = {}
-        self.say(self.say_fm.format('index', 'lang', 'pages', 'name') + '<br>')
         texts = [target['text'] for target in rets]
         with ThreadPoolExecutor() as executor:
             books = list(executor.map(self.ut.parse_search_item, texts))

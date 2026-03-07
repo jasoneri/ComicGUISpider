@@ -19,7 +19,7 @@ from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
 from GUI.core.theme import theme_mgr, CustTheme
 from assets import res
-from variables import CN_PREVIEW_NEED_PROXIES_IDXES
+from variables import Spider
 from utils import conf
 from utils.website import EHentaiKits
 
@@ -186,7 +186,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         index = self.gui.chooseBox.currentIndex()
         conf_proxy = (conf.proxies or [None])[0]
         if res.lang == 'zh-CN':  # 中文圈环境
-            proxies = None if index not in CN_PREVIEW_NEED_PROXIES_IDXES else \
+            proxies = None if index not in Spider.cn_proxy() else \
                 conf_proxy
             if proxies:
                 BrowserWindow.set_proxies(proxies)
@@ -373,12 +373,12 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             InfoBar.error(
                 title='', content=res.EHentai.COOKIES_NOT_SET,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=-1, parent=gui.textBrowser
+                duration=-1, parent=gui.showArea
             )
             return
         cls.eh_kits = EHentaiKits(conf)
         if not cls.eh_kits.test_index():
-            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, gui.textBrowser,
+            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, gui.showArea,
                 cls.eh_kits.index, cls.eh_kits.name)
             return
         return True

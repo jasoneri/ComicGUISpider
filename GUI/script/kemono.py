@@ -705,6 +705,8 @@ class KemonoInterface(QFrame):
         if not self.table_inited:
             self._set_kemono_table()
             self.table_inited = True
+        p = self.parent_window.pos()
+        self.table_window.move(p.x(), p.y()+10)
         self.table_window.show()
 
     def _set_kemono_table(self):

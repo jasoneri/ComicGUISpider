@@ -35,7 +35,6 @@ class EHentaiSpider(BaseComicSpider3):
 
     def frame_book(self, response):
         frame_results = {}
-        self.say(self.say_fm.format('index', 'pages', 'name') + '<br>')
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         with ThreadPoolExecutor() as executor:
             books = list(executor.map(EK.parse_search_item, targets))

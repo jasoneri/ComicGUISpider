@@ -88,6 +88,16 @@ class MangaPreviewManager:
         self._check_lc_completer_exists()
         self.gui.destroyed.connect(self._stop_worker)
 
+    def shutdown(self):
+        self._searching = False
+        self._pending_js.clear()
+        self._inflight_books.clear()
+        self._page_ready = False
+        self._channel = None
+        self._channel_page = None
+        self._page_load_page = None
+        self._stop_worker()
+
     def _check_lc_completer_exists(self):
         kw = ori_res.GUI.local_fav
         completer_list = conf.completer.get(self.site_index)
@@ -259,7 +269,6 @@ class MangaPreviewManager:
             else:
                 self._show_preview_window()
             return
-        self.gui.next_btn.setDisabled(True)
         self._searching = True
         self._current_page = 1
         self._current_keyword = keyword
@@ -328,7 +337,7 @@ class MangaPreviewManager:
         self.gui.say(
             font_color(
                 f"<br>normal preview search error:<br><pre>{error}</pre>",
-                cls="theme-err", size=4,
+                cls="theme-err", size=3,
             ),
             ignore_http=True,
         )
@@ -535,8 +544,9 @@ class MangaPreviewManager:
     def _on_episodes_error(self, book_key, error):
         self._inflight_books.discard((self._session_id, book_key))
         self.gui.log.error(error)
-        msg_js = json.dumps(str(error))
-        self._js_guarded(f"showEpisodeError({msg_js})", self._session_id)
+        key_js = json.dumps(str(book_key))
+        code_js = json.dumps("fetch_failed")
+        self._js_guarded(f"showEpisodeFetchError({key_js}, {code_js})", self._session_id)
 
     def _handle_ensure_result(self):
         checked_ids = self.gui.BrowserWindow.output if self.gui.BrowserWindow else []

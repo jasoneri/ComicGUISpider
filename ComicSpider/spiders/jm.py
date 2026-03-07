@@ -110,7 +110,6 @@ class JmSpider(BaseComicSpider2):
 
     def frame_book(self, response):
         frame_results = {}
-        self.say(self.say_fm.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
         with ThreadPoolExecutor() as executor:
             books = list(executor.map(JmUtils.parse_search_item, targets))
@@ -120,7 +119,7 @@ class JmSpider(BaseComicSpider2):
             book.url = f'https://{self.domain}{book.url}'
             frame_results[book.idx] = book
         self.say.frame_book_print(frame_results, url=response.url, make_preview=True)
-        self.say(font_color("<br>  jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))
+        self.say(font_color("jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))
 
     def frame_section(self, response):
         targets = response.xpath(".//img[contains(@id,'album_photo_')]")
