@@ -40,7 +40,6 @@ class KaobeiSpider(BaseComicSpider):
         frame_results = {}
         say_fm = self.preset_book_frame.say_fm
         render_keys = self.preset_book_frame.print_head[1:]
-        self.say(say_fm.format('序号', *render_keys) + '<br>')
         targets = response.json().get('results', {}).get('list', [])
         rendering_map = self.preset_book_frame.rendering_map()
         for x, target in enumerate(targets):
@@ -48,13 +47,11 @@ class KaobeiSpider(BaseComicSpider):
             frame_results[book.idx] = book
         return self.say.frame_book_print(
             frame_results, fm=say_fm, url=response.url,
-            extra=" →_→ 鼠标移到序号栏有教输入规则，此步特殊禁止用全选，想多选请多开<br>" +
-                  "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算")
+            extra=" →_→ 拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算")
 
     def frame_section(self, response):
         book = response.meta.get("book")
         say_ep_fm = ' -{}、【{}】'
-        self.say(say_ep_fm.format('序号', '章节') + '<br>')
         episodes = KaobeiUtils.parse_episodes(
             response.json()['results'], book, url=response.url, show_dhb=conf.kbShowDhb)
         frame_results = {ep.idx: ep for ep in episodes}

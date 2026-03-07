@@ -4,110 +4,96 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>发布页处理</title>
-    <link rel="stylesheet" href="./bootstrap.min.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/bootstrap.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(105deg,var(--bs-body-bg) 45%,#ffa51eca 100%);overflow-y:auto;overflow-x:hidden;padding:20px 0}
+        .content-wrapper{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;max-width:90vw;width:100%}
+        .content-wrapper > * + *{margin-top:20px}
+        .page-title{color:white;font-weight:600;text-align:left;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 2px 10px rgba(0,0,0,0.5);margin:0}
+        .image-container{flex:0 0 auto;max-width:45vw;max-height:50vh;display:flex;align-items:center;justify-content:center;border-radius:15px;padding:15px}
+        .image-container img{max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+        .title-image-row{display:flex;flex-direction:row;align-items:center;justify-content:center;width:100%}
+        .titles-container{display:flex;margin-right:30px;flex-direction:column;flex:1;min-width:0}
+        .titles-container > * + *{margin-top:12px}
+
+        /* ===== 按钮组样式 ===== */
+        .btn-group-bar, .btn-group-bar * {
+            font-weight: 600; font-size: inherit;
         }
-        body {
-            min-height: 100vh;
-            width: 100vw;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(90deg, #eaba662f 45%, #ffa51eca 100%);
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 20px 0;
+        /* 容器：flex 2:3:5 */
+        .btn-group-bar {
+            width: 100%; display: flex; border-radius: 50px; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,.35); height: 58px;
         }
-        .content-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            padding: 20px;
-            max-width: 90vw;
-            width: 100%;
+        .btn-group-bar .btn1 { flex: 2; background: #764ba2; border: none; transition: background .2s; }
+        .btn-group-bar .btn1:hover { background: #5c3680; }
+        .btn-group-bar .btn2-wrap {
+            flex: 3; display: flex; border-left: 1px solid rgba(255,255,255,.15); border-right: 1px solid rgba(255,255,255,.835);
         }
-        .page-title {
-            color: white;
-            font-weight: 600;
-            text-align: center;
-            text-shadow: 
-                -1px -1px 0 #000,
-                1px -1px 0 #000,
-                -1px 1px 0 #000,
-                1px 1px 0 #000,
-                0 2px 10px rgba(0, 0, 0, 0.5);
-            margin: 0;
+        .btn-group-bar .btn2-wrap input {
+            flex: 2; border: none; outline: none; background: rgba(241,142,12,.235); padding: 0 14px;
         }
-        .image-container {
-            width: 100%;
-            max-width: 80vw;
-            max-height: 50vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 15px;
-            padding: 15px;
+        .btn-group-bar .btn2-wrap input::placeholder { color: rgba(0,0,0,.45); }
+        .btn-group-bar .btn2-wrap .send-btn {
+            flex: 2; border: none; border-left: 1px solid rgba(255,255,255,.15); background: rgba(241,142,12,.507);
+            cursor: pointer; transition: background .2s;
         }
-        .image-container img {
-            max-width: 100%;
-            max-height: 48vh;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        .btn-group-bar .btn2-wrap .send-btn:hover { background: rgba(255,255,255,.3); }
+        .btn-group-bar .btn3 {
+            flex: 4; border: none; background: white; color: #764ba2; cursor: pointer; transition: background .2s;
         }
-        .action-button {
-            width: 100%;
-            padding: 18px 50px;
-            font-size: clamp(1rem, 2.5vw, 1.3rem);
-            font-weight: 600;
-            border-radius: 50px;
-            border: none;
-            background: rgba(255, 255, 255, 0.95);
-            color: #764ba2;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .action-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-            background: white;
-            color: #ff9500;
-        }
-        .action-button:active {
-            color: #ff9500;
-            transform: translateY(-1px);
-        }
-        .icon {
-            font-size: 1.4em;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
+        .btn-group-bar .btn3:hover { background: #f0e6fa; }
+
     </style>
 </head>
 <body>
-<script src="./bootstrap.min.js"></script>
+<script src="../GUI/src/preview_format/bootstrap.min.js"></script>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <div class="content-wrapper">
-    <h2 class="page-title">CGS 获取域名过程中无法执行，请按以下动图手动处理一下</h2>
-    <h4 class="page-title">选中多少个域名就测多少个，wnacg 同理 不做图了<br>⚠️若要针对域名发问，先考虑清楚并排查你的网络究竟有没问题</h2>
-    <p class="page-title">📢 此页面右键菜单新增"手输域名"</p>
-    <div class="image-container">
-        <img src="https://img.comicguispider.nyc.mn/file/1765221404809_publisher.gif" alt="发布页面操作指引">
+
+    <div class="title-image-row">
+        <div class="titles-container">
+            <h2 class="page-title">CGS 自动处理失败，按动图手动处理下</h2>
+            <h5 class="page-title">选中多少个域名就测多少个<br>⚠️若要针对域名发问，先考虑清楚并排查你的网络究竟有没问题</h5>
+            <p class="page-title">方法2️⃣：下方输入域名点"输入检测"，与右键菜单"手输域名"效果相同</p>
+            <p class="page-title">常态3️⃣：缓存可能有效，先测下本地缓存即可</p>
+            <p class="page-title">📢论外：CGS 目前可能进不去 wnacg 发布页，<br>用自己浏览器打开 wnacg_publish 再回来输入</p>
+        </div>
+        <div class="image-container">
+            <img src="https://img.comicguispider.nyc.mn/file/1765221404809_publisher.gif" alt="发布页面操作指引">
+        </div>
     </div>
-    <button class="btn action-button" onclick="openPublishPage()">
-        <span class="icon">🔗</span>打开发布页面
-    </button>
+
+    <div class="btn-group-bar">
+        <button class="btn1" type="button">🚩 检测本地缓存</button>
+        <div class="btn2-wrap">
+            <input type="text" placeholder="✏️ 输入域名...">
+            <button class="send-btn" type="button">✏️ 输入检测</button>
+        </div>
+        <button class="btn3" type="button" onclick="openPublishPage()">
+            🔗 打开发布页面
+        </button>
+    </div>
 </div>
 <script>
+    var bridge = null;
     function openPublishPage() {window.location.href = "publish_url";}
+
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.qt && window.qt.webChannelTransport) {
+            new QWebChannel(window.qt.webChannelTransport, function (channel) {
+                bridge = channel.objects.bridge || null;
+            });
+        }
+        document.querySelector(".btn1").addEventListener("click", function () {
+            if (bridge) bridge.tpd("__cached_domain__");
+        });
+        document.querySelector(".send-btn").addEventListener("click", function () {
+            var text = document.querySelector(".btn2-wrap input").value.trim();
+            if (bridge && text) bridge.tpd(text);
+        });
+    });
 </script>
 </body>
 </html>

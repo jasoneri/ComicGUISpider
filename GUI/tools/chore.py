@@ -27,14 +27,10 @@ class TextUtils:
     @staticmethod
     def description():
         return r"""<style>* {margin: 1px;padding: 1px;}</style><div>
-    <div style="text-align: center;align-items: center;height: 75px">
-        <img alt="描述" src="%s" height="150">
-    </div>
     <div>
         <p><font class="theme-tip">%s</font></p>
-        <p><font class="theme-tip">%s</font><span style="color: white"> %s</span></p>
+        <p><font class="theme-tip">%s</font></p>
         <hr><p></p>
     </div></div>
-    """ % (rf'file:///{ori_path.joinpath("docs/public/cgs_sleep.png")}',
-             res.GUI.DESC1 % rf'file:///{ori_path.joinpath("assets/config_icon.png")}', 
-             res.GUI.DESC2, res.GUI.DESC_ELSE)
+    """ % (res.GUI.DESC1 % rf'file:///{ori_path.joinpath("assets/config_icon.png")}', 
+           res.GUI.DESC2)

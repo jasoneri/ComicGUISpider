@@ -83,6 +83,7 @@ class TaskConfig:
 
 class AsyncTaskManager(QObject):
     """异步任务管理器 - 流程化耗时操作处理"""
+    TOOLTIP_VERTICAL_SPACING = 64
 
     def __init__(self, gui=None):
         super().__init__()
@@ -266,7 +267,7 @@ class AsyncTaskManager(QObject):
         else:
             # 计算智能位置，避免重叠
             x = tooltip_parent.width() - tooltip.width() - 30
-            y = 20 + (self._tooltip_offset_counter * 80)  # 每个tooltip垂直间隔80像素
+            y = 20 + (self._tooltip_offset_counter * self.TOOLTIP_VERTICAL_SPACING)
             tooltip.move(x, y)
             self._tooltip_offset_counter += 1
         tooltip.setState(False)  # 设置为加载状态
@@ -303,7 +304,7 @@ class AsyncTaskManager(QObject):
         # 按创建顺序重新排列tooltip位置
         for i, tooltip in enumerate(self.current_tooltips.values()):
             x = self.gui.width() - tooltip.width() - 30
-            y = 20 + (i * 80)  # 每个tooltip垂直间隔80像素
+            y = 20 + (i * self.TOOLTIP_VERTICAL_SPACING)
             tooltip.move(x, y)
 
         # 更新偏移计数器

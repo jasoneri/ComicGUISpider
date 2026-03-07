@@ -97,12 +97,11 @@ class CustomSplashScreen(SplashScreen):
         if self.gui.bg_mgr.start_bg_f:
             self._set_start_bg()
         else:
-            height = int(self.gui.height() * 0.7)
+            height = self.gui.height()
             self.setIconSize(QSize(height, height))
         
         if self.gui.bg_mgr.bg_f:
             self.gui.bg_f = self.gui.bg_mgr.bg_f
-            self.gui.textBrowser.set_fixed_image(self.gui.bg_f)
 
     @staticmethod
     def pil_to_qpixmap(pil_image):

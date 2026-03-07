@@ -19,27 +19,27 @@
 
 :::
 
-+ 或使用`uv tool`  
++ 或使用 `uv tool`  
 
 ::: details `uv tool` 细节部署流程：⇩  
 1. 安装 [uv](https://github.com/astral-sh/uv)，使用 brew 安装最简单，或者使用官方的 [远程安装脚本](https://docs.astral.sh/uv/#installation)  
-2. （可选）设置 uv tool 的环境变量，否则 win 会默认装在C盘上  
-    win: 新建用户级的环境变量，设置后需开新终端窗口生效  
-    &emsp;`UV_TOOL_DIR`(uv tool安装项目的位置),  
-    &emsp;`UV_TOOL_BIN_DIR`(uv编译执行程序的放置位置)  
-    mac(示例zsh): `echo "export UV_TOOL_DIR=放置tool的位置" >> ~/.zshrc`,  
-    &emsp;`UV_TOOL_BIN_DIR`同理操作，`source ~/.zshrc`后生效  
-    最后执行 `uv tool update-shell` 更新进 PATH，之后新终端窗口可直接运行 cgs / cgs-cli
-3. uv tool 安装 CGS  
+2. 安装 python，（如没安装）  
+```
+uv python install 3.13 --mirror https://mirror.nju.edu.cn/github-release/astral-sh/python-build-standalone
+```
+3. （可选）C盘洁癖~~飘红~~：将以下 `D:\uv` 改为你想要放的位置，创建子目录`cache`,`tools`,`bin`,  
+然后控制台开 powershell 执行以下命令，重启控制台生效
+```powershell
+[System.Environment]::SetEnvironmentVariable("UV_CACHE_DIR", "D:\uv\cache", "User")
+[System.Environment]::SetEnvironmentVariable("UV_TOOL_DIR", "D:\uv\tools", "User")
+[System.Environment]::SetEnvironmentVariable("UV_TOOL_BIN_DIR", "D:\uv\bin", "User")
+uv tool update-shell
+```
+  
+4. uv 安装 CGS  
 ``` bash
-uv tool install ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+uvx ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
-:::
-::: tip 可以选择 `uv` 中更轻量化的 `uvx`，命令为部署运行一体化  
-```bash
-uvx comicguispider
-```
-两者区别在于 `uvx` 为临时/一次性的虚拟环境，`uv tool` 方式为持久化
 :::
 ::: info 若需要用 `git` 克隆源码方式，需要自行管理环境 `uv sync`  
 :::
@@ -47,7 +47,7 @@ uvx comicguispider
 ## 2. 运行
 
 ::: tip 以下非绿色包命令均基于已执行 `uv tool update-shell`
-否则为 `uv tool run --from comicguispider cgs`
+否则为 `uvx --from comicguispider cgs`
 :::
 
 ### 常规 GUI 运行
@@ -79,21 +79,21 @@ cgs-cli --help
 
 ## 4. 更新
 
-+ CGS 内置了更新模块，能在配置窗口中点击 `检查更新` 按钮进行更新  
++ CGS 内置了 更新模块 和 每日检测  
 ::: info 当 `本地版本` < `最新稳定版` < `最新开发版` 时  
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 或 uv tool 管理的指定版本，例如 `2.8.0`
++ 或 uv tool 管理的指定版本，例如 `2.9.0`
 
 ```zsh
-uv tool install ComicGUISpider==2.8.0 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+uv tool install ComicGUISpider==2.9.0 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-+ 或 win-绿色包 安装指定版本，例如 `2.8.0`  
++ 或 win-绿色包 安装指定版本，例如 `2.9.0`  
 
 ```cmd
-.\CGS.exe -v 2.8.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+.\CGS.exe -v 2.9.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ## 5. 搭配阅读器

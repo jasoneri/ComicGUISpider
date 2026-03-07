@@ -27,7 +27,6 @@ class HComicSpider(BaseComicSpider2):
 
     def frame_book(self, response):
         frame_results = {}
-        self.say(self.say_fm.format("序号", "漫画名") + "<br>")
         books = self.ut.parse_search(response.text)
         for idx, book in enumerate(books, 1):
             book.idx = idx

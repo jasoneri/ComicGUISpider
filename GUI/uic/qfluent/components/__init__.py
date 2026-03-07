@@ -4,3 +4,4 @@ from .updater import *
 from .splash_screen import *
 from .text_componet import *
 from .cust import *
+from .badge import *

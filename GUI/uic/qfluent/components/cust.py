@@ -1,98 +1,43 @@
 import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QApplication, QGraphicsOpacityEffect
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QEvent, QPropertyAnimation, QEasingCurve, QPoint, QObject
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QSize
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene
+
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, PrimaryPushButton,
+    TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
     FluentIcon, FluentIconBase, Theme,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, TeachingTipTailPosition, ImageLabel,
-    StrongBodyLabel, IconInfoBadge, InfoBadgeManager, InfoBadgePosition,
-    DotInfoBadge, SwitchButton
+    TeachingTip, ImageLabel, TeachingTipView,
+    StrongBodyLabel, SwitchButton, ComboBox
 )
 
-
 from assets import res
+from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, ContentTarget
 from utils.redViewer_tools import BookShow
 
 
-class ClickableIconInfoBadge(IconInfoBadge):
-    clicked = pyqtSignal()
+class FlexImageLabel(ImageLabel):
+    def setImage(self, image=None):
+        self.image = image or QImage()
+        if isinstance(image, str):
+            reader = QImageReader(image)
+            if reader.supportsAnimation():
+                self.setMovie(QMovie(image))
+            else:
+                self.image = reader.read()
+        elif isinstance(image, QPixmap):
+            self.image = image.toImage()
+        self.update()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 移除透明鼠标事件属性，使 badge 可点击
-        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
-        self.setCursor(Qt.PointingHandCursor)
+    def sizeHint(self):
+        return QSize(0, 0)
 
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and self.isEnabled():
-            self.clicked.emit()
-        super().mousePressEvent(e)
-
-    def eventFilter(self, obj, e):
-        if self._inside and obj is self._target and e.type() in (QEvent.Resize, QEvent.Move):
-            self._update_position_inside()
-        return super().eventFilter(obj, e)
-
-
-class _BadgeAnchor(QObject):
-    """Tracks target widget movement and repositions badge via mapTo."""
-    def __init__(self, target, badge, parent_widget, pos):
-        super().__init__(badge)
-        self.target = target
-        self.badge = badge
-        self.parent_widget = parent_widget
-        self.pos = pos
-        target.installEventFilter(self)
-        if target.parentWidget():
-            target.parentWidget().installEventFilter(self)
-
-    def eventFilter(self, obj, e):
-        if e.type() in (QEvent.Resize, QEvent.Move):
-            self.badge.move(self.calc_position())
-        return False
-
-    def calc_position(self):
-        tr = self.target.rect().topRight()
-        mapped = self.target.mapTo(self.parent_widget, tr)
-        return QPoint(mapped.x() - self.badge.width() // 2, mapped.y() - self.badge.height() // 2)
-
-
-class CustomBadge:
-    @classmethod
-    def make(cls, bge_args, pos: InfoBadgePosition, target):
-        _bge = ClickableIconInfoBadge(*bge_args)
-        _bge.manager = InfoBadgeManager.make(pos, target, _bge)
-        _bge.move(_bge.manager.position())
-        return _bge
-
-    @classmethod
-    def make_ani_dot(cls, parent, size=None, target=None, level="success", pos=InfoBadgePosition.TOP_RIGHT):
-        t = target or parent
-        sz = size or (10, 10)
-        dot = getattr(DotInfoBadge, level)(parent, target=None, position=pos)
-        dot.setFixedSize(*sz)
-        anchor = _BadgeAnchor(t, dot, parent, pos)
-        dot.move(anchor.calc_position())
-        dot._anchor = anchor
-        opacity = QGraphicsOpacityEffect(dot)
-        dot.setGraphicsEffect(opacity)
-        anim = QPropertyAnimation(opacity, b"opacity")
-        anim.setDuration(1500)
-        anim.setStartValue(0.3)
-        anim.setEndValue(1.0)
-        anim.setEasingCurve(QEasingCurve.InOutSine)
-        anim.finished.connect(lambda: (
-            anim.setDirection(anim.Backward if anim.direction() == anim.Forward else anim.Forward),
-            anim.start()
-        ))
-        anim.start()
-        dot._breath_anim = anim
-        return dot
+    def minimumSizeHint(self):
+        return QSize(0, 0)
 
 
 class CustomInfoBar:
@@ -148,13 +93,21 @@ class CustomFlyout:
 
 class CustomTeachingTip:
     @classmethod
-    def make(cls, view, target, parent, tailPosition=TeachingTipTailPosition.BOTTOM):
-        _tip = TeachingTip.make(
-            view=view, target=target, duration=-1, tailPosition=tailPosition, parent=parent
+    def create(cls, widgets, target, parent, content,
+             isClosable=True, duration=-1, **kw):
+        view = TeachingTipView(
+            title="", content=content, isClosable=isClosable
         )
-        if hasattr(view, "closed"):
-            view.closed.connect(_tip.close)
-        return _tip
+        offset = 0
+        cindex = 1 if isClosable else 0
+        for w in widgets:
+            view.viewLayout.insertWidget(view.viewLayout.count() - cindex, w)
+            offset += (w.sizeHint().width() + 5)
+        view.adjustSize()
+        tip = TeachingTip(view, target, duration, parent=parent, **kw)
+        tip.show()
+        view.closeButton.clicked.connect(tip.close)
+        return tip
 
 
 class CustomIcon(FluentIconBase, Enum):
@@ -172,19 +125,42 @@ class ExpandSettings(QtWidgets.QWidget):
         super().__init__(parent)
         self.conf_dia = parent
         self.setVisible(False)
-        self.bind()
+        self._driver = None
+        self._section_widgets = []
         self.setupUi()
+        self.bind()
 
     def setupUi(self):
         self.main_layout = VBoxLayout(self)
         self.setLayout(self.main_layout)
+        
+        cookiesLayout = QtWidgets.QHBoxLayout()
+        cookiesLayout.setObjectName("cookiesLayout")
+        self.conf_dia.verticalLayout_3 = QtWidgets.QVBoxLayout()
+        self.conf_dia.verticalLayout_3.setObjectName("verticalLayout_3")
+        self.conf_dia.cookiesLabel = StrongBodyLabel()
+        self.conf_dia.cookiesLabel.setEnabled(True)
+        self.conf_dia.cookiesLabel.setMinimumSize(QtCore.QSize(60, 0))
+        self.conf_dia.cookiesLabel.setMaximumSize(QtCore.QSize(60, 40))
+        self.conf_dia.cookiesLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.conf_dia.cookiesLabel.setObjectName("cookiesLabel")
+        self.conf_dia.cookiesLabel.setText("Cookies")
+        self.conf_dia.verticalLayout_3.addWidget(self.conf_dia.cookiesLabel)
+        self.conf_dia.cookiesBox = ComboBox()
+        self.conf_dia.cookiesBox.setObjectName("cookiesBox")
+        self.conf_dia.verticalLayout_3.addWidget(self.conf_dia.cookiesBox)
+        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.conf_dia.verticalLayout_3.addItem(spacerItem2)
+        cookiesLayout.addLayout(self.conf_dia.verticalLayout_3)
+        setattr(self.conf_dia, "horizontalLayout_label_cookies", cookiesLayout)
+        # self.conf_dia.cookiesLabel.setText(_translate("Dialog", "Cookies"))
         
         custMapLayout = QtWidgets.QHBoxLayout()
         custMapLayout.setObjectName("custMapLayout")
         self.custMapLabelLayout = QtWidgets.QVBoxLayout()
         self.custMapLabelLayout.setSpacing(0)
         custMapLabel = StrongBodyLabel(self.conf_dia)
-        custMapLabel.setMinimumSize(QtCore.QSize(40, 20))
+        custMapLabel.setMinimumSize(QtCore.QSize(40, 0))
         custMapLabel.setMaximumSize(QtCore.QSize(40, 20))
         custMapLabel.setAlignment(QtCore.Qt.AlignCenter)
         custMapLabel.setObjectName("label_3")
@@ -196,42 +172,127 @@ class ExpandSettings(QtWidgets.QWidget):
 
         second_row = QtWidgets.QHBoxLayout()
         pypi_label = StrongBodyLabel(res.GUI.Uic.confDia_pypiLabel, self)
-        pypi_label.setMinimumSize(QtCore.QSize(40, 20))
+        pypi_label.setMinimumSize(QtCore.QSize(40, 0))
         lang_label = StrongBodyLabel(res.GUI.Uic.confDia_langLabel, self)
-        lang_label.setMinimumSize(QtCore.QSize(40, 20))
+        lang_label.setMinimumSize(QtCore.QSize(40, 0))
         second_row.addWidget(lang_label)
         second_row.addWidget(self.conf_dia.langBox)
         second_row.addWidget(pypi_label)
         second_row.addWidget(self.conf_dia.pypiSourceBox)
         second_row.addStretch()
         
-        self.main_layout.addLayout(custMapLayout)
-        self.main_layout.addLayout(second_row)
+        self.cookies_section = QtWidgets.QWidget(self)
+        cookies_section_layout = QtWidgets.QVBoxLayout(self.cookies_section)
+        cookies_section_layout.setContentsMargins(10,0,10,0)
+        cookies_section_layout.setSpacing(10)
+        cookies_section_layout.addLayout(cookiesLayout)
 
-        third_row = QtWidgets.QHBoxLayout()
+        self.cust_map_section = QtWidgets.QWidget(self)
+        cust_map_section_layout = QtWidgets.QVBoxLayout(self.cust_map_section)
+        cust_map_section_layout.setContentsMargins(10,0,10,0)
+        cust_map_section_layout.setSpacing(10)
+        cust_map_section_layout.addLayout(custMapLayout)
+
+        self.second_row_section = QtWidgets.QWidget(self)
+        second_row_section_layout = QtWidgets.QVBoxLayout(self.second_row_section)
+        second_row_section_layout.setContentsMargins(10,0,10,0)
+        second_row_section_layout.setSpacing(10)
+        second_row_section_layout.addLayout(second_row)
+
+        self.main_layout.addWidget(self.cookies_section)
+        self.main_layout.addWidget(self.cust_map_section)
+        self.main_layout.addWidget(self.second_row_section)
+        self._section_widgets = [
+            self.cookies_section,
+            self.cust_map_section,
+            self.second_row_section,
+        ]
+
         self.conf_dia.skipDev = SwitchButton(self)
+        self.conf_dia.skipDev.setMinimumHeight(0)
         self.conf_dia.skipDev.setOnText(res.GUI.Uic.confDia_skipDevRelease)
         self.conf_dia.skipDev.setOffText(res.GUI.Uic.confDia_skipDevRelease)
         self.conf_dia.kbShowDhb = SwitchButton(self)
+        self.conf_dia.kbShowDhb.setMinimumHeight(0)
         self.conf_dia.kbShowDhb.setOnText(res.GUI.Uic.confDia_kbShowDhb)
         self.conf_dia.kbShowDhb.setOffText(res.GUI.Uic.confDia_kbShowDhb)
-        line = QtWidgets.QFrame(self)
-        line.setFrameShape(QtWidgets.QFrame.VLine)
-        line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        third_row.addWidget(self.conf_dia.skipDev)
-        third_row.addWidget(line)
-        third_row.addWidget(self.conf_dia.kbShowDhb)
-        third_row.addStretch()
-        self.main_layout.addLayout(third_row)
+        second_row.addWidget(self.conf_dia.skipDev)
+        second_row.addWidget(self.conf_dia.kbShowDhb)
 
     def bind(self):
+        self._driver = ExpandCollapseOrchestrator(
+            window_target=self.conf_dia,
+            content_targets=[
+                ContentTarget(widget=self.cookies_section,
+                    measure_height=self._section_target_height,
+                    duration_weight=98.0,
+                ),
+                ContentTarget(widget=self.cust_map_section,
+                    measure_height=self._section_target_height,
+                    duration_weight=98.0,
+                ),
+                ContentTarget(widget=self.second_row_section,
+                    measure_height=self._section_target_height,
+                    duration_weight=32.0,
+                ),
+            ],
+            duration_ms=233,
+            window_target_height_getter=self._window_target_height,
+            before_expand=self._before_expand,
+            after_collapse=self._after_collapse,
+            parent=self,
+        )
+        for section_widget in self._section_widgets:
+            self._driver.set_content_height(section_widget, 0)
+            section_widget.setVisible(False)
+
+        hide_text = res.GUI.Uic.confDia_hide_adv_settings
+        show_text = res.GUI.Uic.confDia_show_adv_settings
+
         def _toggle_adv(_=None):
-            now = not self.isVisible()
-            self.setVisible(now)
-            self.conf_dia.advBtn.setChecked(now)
-            self.conf_dia.refresh_size_for_expand(now)
-            self.conf_dia.advBtn.setText(res.GUI.Uic.confDia_hide_adv_settings if now else res.GUI.Uic.confDia_show_adv_settings)
+            if self._driver.is_transitioning:
+                return
+            want_expand = not self.isVisible()
+            self.conf_dia.advBtn.setChecked(want_expand)
+            self.conf_dia.advBtn.setText(hide_text if want_expand else show_text)
+
+            if want_expand:
+                self.conf_dia.setWindowOpacity(0.0)
+                self.setVisible(True)
+
+                def _begin_expand():
+                    if self._driver is None or self.conf_dia is None:
+                        if self.conf_dia is not None:
+                            self.conf_dia.setWindowOpacity(1.0)
+                        return
+                    try:
+                        self.conf_dia.setWindowOpacity(1.0)
+                        if not self._driver.expand():
+                            self.conf_dia.setWindowOpacity(1.0)
+                    except Exception:
+                        self.setVisible(False)
+                        self.conf_dia.setWindowOpacity(1.0)
+                        raise
+                QTimer.singleShot(0, _begin_expand)
+            else:
+                self._driver.collapse()
+
         self.conf_dia.advBtn.clicked.connect(_toggle_adv)
+
+    def _before_expand(self):
+        self.conf_dia.completerEdit.setMaximumHeight(100)
+
+    def _after_collapse(self):
+        self.conf_dia.completerEdit.setMaximumHeight(1000)
+        self.setVisible(False)
+
+    @staticmethod
+    def _section_target_height(section_widget):
+        return max(0, int(section_widget.sizeHint().height()))
+
+    def _window_target_height(self, total_expand_delta):
+        target_height = self.conf_dia.maximumHeight()
+        return min(target_height, self.conf_dia.maximumHeight())
 
 
 class SupportView(FlyoutViewBase):
@@ -412,11 +473,64 @@ class TableFlyoutView(FlyoutViewBase):
             self.gui.searchinput.setText(book_name)
             cont = '已发至输入框，自行调整再点击搜索'
             if self.gui.rv_tools.ero != 1:
-                self.gui.next_btn.click()
+                # TODO[1](2026-03-05): 处理一下
+                self.gui.mpreviewBtn.click()
                 cont = f'''「{book_name}」已发至输入框进行搜索中'''
             InfoBar.info(title='', content=cont,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=2000, parent=self.gui.textBrowser)
+                duration=2000, parent=self.gui.showArea)
         QTimer.singleShot(10, do)
         self.rvInterface.table_fv.close()
         self.rvInterface.toolWin.close()
+
+
+_ICON_SIZE = 18
+_VIEW_SIZE = 24
+_PAD = (_VIEW_SIZE - _ICON_SIZE) // 2
+
+class ExpandButton(QWidget):
+    clicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.expanded = False
+
+        self._label = ImageLabel()
+        self._label.setImage(QPixmap(":/expand.svg"))
+        self._label.setFixedSize(_ICON_SIZE, _ICON_SIZE)
+
+        self._scene = QGraphicsScene(self)
+        self._view = QGraphicsView(self._scene, self)
+        self._proxy = self._scene.addWidget(self._label)
+        self._proxy.setPos(_PAD, _PAD)
+        self._proxy.setTransformOriginPoint(_ICON_SIZE / 2, _ICON_SIZE / 2)
+        self._scene.setSceneRect(0, 0, _VIEW_SIZE, _VIEW_SIZE)
+
+        self._view.setFixedSize(_VIEW_SIZE, _VIEW_SIZE)
+        self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._view.setFrameShape(QGraphicsView.NoFrame)
+        self._view.setStyleSheet("background: transparent;")
+        self._view.setBackgroundBrush(QBrush(Qt.transparent))
+        self._view.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        self._anim_ctrl = ProxyRotationController(self._proxy)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._view)
+
+        self.setFixedSize(_VIEW_SIZE, _VIEW_SIZE)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def expand(self):
+        self.expanded = not self.expanded
+        self._anim_ctrl.rotate_to(-45.0 if self.expanded else 0.0)
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(e)
+
+    def click(self):
+        self.clicked.emit()

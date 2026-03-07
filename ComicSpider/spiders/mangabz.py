@@ -44,7 +44,6 @@ class MangabzSpider(FormReqBaseComicSpider):
         frame_results = {}
         say_fm = self.body.say_fm
         render_keys = self.body.print_head[1:]
-        self.say(say_fm.format('序号', *render_keys) + '<br>')
         targets = response.json() if isinstance(self.body, SearchBody) \
             else response.json().get('UpdateComicItems')
         rendering_map = self.body.rendering_map()
@@ -57,7 +56,6 @@ class MangabzSpider(FormReqBaseComicSpider):
     def frame_section(self, response):
         book = response.meta.get("book")
         say_ep_fm = ' -{}、【{}】'
-        self.say(say_ep_fm.format('序号', '章节') + '<br>')
         episodes = MangabzUtils.parse_episodes(response, book, domain)
         frame_results = {ep.idx: ep for ep in episodes}
         return self.say.frame_section_print(frame_results, fm=say_ep_fm)

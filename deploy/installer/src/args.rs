@@ -23,4 +23,7 @@ pub struct CliArgs {
 
     #[arg(long = "no-gui")]
     pub no_gui: bool,
+
+    #[arg(long)]
+    pub script: bool,
 }

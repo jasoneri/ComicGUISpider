@@ -73,7 +73,7 @@ class SpiderGuiOps:
         self.gui.chooseBox.setCurrentIndex(site_index)
 
     def submit_search(self, keyword: str, site_index: int | None = None):
-        self.gui.next_schedule(keyword=keyword, site_index=site_index)
+        self.gui.start_and_search(keyword=keyword, site_index=site_index)
 
     def select_books(self, indexes, page_turn: str = ""):
         self.gui.submit_decision("BOOK", indexes, page_turn=page_turn)

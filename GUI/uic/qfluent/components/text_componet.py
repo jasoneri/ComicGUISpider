@@ -3,6 +3,26 @@ from PyQt5.QtGui import QPixmap, QDesktopServices
 from qfluentwidgets import ImageLabel, TextBrowser, TextEdit
 
 
+class TextBrowserLite(TextBrowser):
+    def __init__(self, parent=None):
+        self.gui = parent
+        super().__init__(self.gui.tbWidget)
+        self.image_label = None
+        self.setStyleSheet("""
+            QTextBrowser {
+                background-color: transparent;
+            }
+        """)
+
+    def setSource(self, url):
+        if url.isEmpty():
+            return
+        if self.gui.chooseBox.currentIndex() == 2:
+            QDesktopServices.openUrl(url)
+        else:
+            self.gui.open_url_by_browser(url.toString())
+
+
 class TextBrowserWithBg(TextBrowser):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -51,14 +71,6 @@ class TextBrowserWithBg(TextBrowser):
         super().resizeEvent(event)
         if self.image_label:
             QTimer.singleShot(0, self.position_image)
-
-    def setSource(self, url):
-        if url.isEmpty():
-            return
-        if self.gui.chooseBox.currentIndex() == 2:
-            QDesktopServices.openUrl(url)
-        else:
-            self.gui.open_url_by_browser(url.toString())
 
 
 class TextEditWithBg(TextEdit):

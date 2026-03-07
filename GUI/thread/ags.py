@@ -86,7 +86,7 @@ class AggrSearchThread(QThread):
         if not total:
             self.total_signal.emit({})
             self.gui.say(font_color(res.GUI.Clip.all_fail, cls='theme-err'), ignore_http=True)
-            self.gui.say(font_color(rf"<br>{res.GUI.Clip.view_log} [{conf.log_path}\GUI.log]", cls='theme-err', size=5))
+            self.gui.say(font_color(rf"<br>{res.GUI.Clip.view_log} [{conf.log_path}\GUI.log]", cls='theme-err', size=3))
         else:
             self.msleep(1200 if len(self.total) == 1 else 350)
             self.check_condition_and_run_js()

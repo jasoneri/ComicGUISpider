@@ -1,7 +1,6 @@
 import os
 import json
 import importlib
-import subprocess
 
 import psutil
 import httpx
@@ -9,10 +8,11 @@ from PyQt5.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER, AGGR_SEARCH_IDXES, CLIP_IDXES, CGS_DOC
+from variables import PYPI_SOURCE, VER, Spider, CGS_DOC
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
+from GUI.manager import _UpdateLauncher
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import CustomInfoBar
 from GUI.core.theme import setupTheme, theme_mgr
@@ -43,9 +43,9 @@ class PreprocessManager(QObject):
         elif hasattr(self.gui.spiderUtils, 'test_index'):
             self._preprocess_test_index()
 
-        if index in AGGR_SEARCH_IDXES:
+        if index in Spider.aggr():
             self._add_aggr_search()
-        if index in CLIP_IDXES:
+        if index in Spider.clip():
             self.gui.clipBtn.setEnabled(1)
 
     def _cache_hit(self) -> bool:
@@ -121,10 +121,10 @@ class PreprocessManager(QObject):
                 InfoBar.error(
                     title='', content=res.EHentai.COOKIES_NOT_SET,
                     orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                    duration=-1, parent=self.gui.textBrowser
+                    duration=-1, parent=self.gui.showArea
                 )
             elif "access_fail" in error_msg:
-                CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, self.gui.textBrowser,
+                CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, self.gui.showArea,
                     eh_kits.index, eh_kits.name)
 
         self.task_manager.execute_simple_task(
@@ -146,7 +146,7 @@ class PreprocessManager(QObject):
 
         def on_error(_):
             self.gui.disable_start()
-            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
+            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.showArea,
                     index, name)
 
         self.task_manager.execute_simple_task(
@@ -159,6 +159,7 @@ class PreprocessManager(QObject):
     def _add_aggr_search(self):
         if not hasattr(self.gui.toolWin, 'asInterface'):
             self.gui.toolWin.addAggrSearchView()
+        self.gui.aggrBtn.setVisible(True)
 
     def _preprocess_wnacg(self):
         if conf.proxies:
@@ -174,7 +175,7 @@ class PreprocessManager(QObject):
             return True
 
         def on_error(_):
-            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.textBrowser,
+            CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.showArea,
                     self.gui.spiderUtils.index, self.gui.spiderUtils.name)
 
         self.task_manager.execute_simple_task(
@@ -235,10 +236,20 @@ class PreprocessManager(QObject):
                 setupTheme(scriptWin.kemonoInterface)
                 setTheme(theme_mgr.theme.c)
                 scriptWin.show()
-            if k == "dependencies" and v:
-                _data_check()
             kemono_flag[k] = v
-            if len(kemono_flag) == 3 and all(kemono_flag.values()):
+            if "services" in kemono_flag and "dependencies" in kemono_flag:
+                services_result = kemono_flag["services"]
+                dependencies_result = kemono_flag["dependencies"]
+
+                if dependencies_result is not True:
+                    _UpdateLauncher(VER, script=True).run()
+                    self.gui.close()
+                    return
+                if services_result is not True:
+                    return
+                if "data" not in kemono_flag:
+                    _data_check()
+            if len(kemono_flag) == 3 and all(v is True for v in kemono_flag.values()):
                 run_scriptWin()
 
         def _services_check():
@@ -262,10 +273,11 @@ class PreprocessManager(QObject):
                 self.gui.say("❌ 后台服务检测")
                 CustomInfoBar.show(
                     title="服务检测失败",
-                    content="Redis 或 Motrix 服务未运行，点击指南查看`前置须知`，安装并运行相关服务",
-                    parent=self.gui.textBrowser,
+                    content="Redis 或 Motrix 服务未运行，<br>点击指南查看`前置须知`，安装并运行相关服务",
+                    parent=self.gui.showArea,
                     url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
+                triggle_or_not("services", False)
 
             self.task_manager.execute_simple_task(
                 task_func=services_check,
@@ -276,37 +288,16 @@ class PreprocessManager(QObject):
 
         def _dependencies_check():
             def dependencies_check(progress_callback=None):
-                def emit_progress(msg):
-                    if progress_callback:
-                        progress_callback(msg)
                 pkgs = ("redis", "pandas")
-                missing_packages = []
+                missing = []
                 for pkg in pkgs:
                     try:
                         importlib.import_module(pkg)
                     except ImportError:
-                        missing_packages.append(pkg)
-
-                if missing_packages:
-                    # 使用pyproject.toml安装脚本依赖
-                    cmd = [uv_exc, "tool", "install", "--force", f"ComicGUISpider[script]=={VER}"]
-                    cmd.extend(["--index-url", PYPI_SOURCE[conf.pypi_source]])
-                    process = subprocess.Popen(
-                        cmd, cwd=exc_p, env=env,
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                        text=True, bufsize=1, universal_newlines=True
-                    )
-                    while True:
-                        line = process.stdout.readline()
-                        if not line:
-                            if process.poll() is not None:
-                                break
-                            continue
-                        emit_progress(f"{line.strip()}")
-                    exit_code = process.wait()
-                    for pkg in pkgs:
-                        importlib.import_module(pkg)
-                return True
+                        missing.append(pkg)
+                if not missing:
+                    return True
+                return missing
 
             def on_dependencies_check_process(progress_msg):
                 self.gui.say(progress_msg)
@@ -316,12 +307,13 @@ class PreprocessManager(QObject):
                 CustomInfoBar.show(
                     title="依赖安装失败",
                     content="点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）",
-                    parent=self.gui.textBrowser,
+                    parent=self.gui.showArea,
                     url=f"{CGS_DOC}/feat/script", url_name="脚本集指南"
                 )
+                triggle_or_not("dependencies", False)
 
             def on_dependencies_success(_):
-                if isinstance(_, bool) and _:
+                if _ is True:
                     self.gui.say("✅ 额外依赖检测")
                 triggle_or_not("dependencies", _)
 
