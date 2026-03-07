@@ -131,7 +131,7 @@ class Updater:
                 self.gui.updaterStateTooltip = None
             ver = recv.update_info.get("tag_name")
             CustomInfoBar.show("", self.res.to_update,
-                self.gui.textBrowser, self.proj.update_info.get("html_url"),
+                self.gui.showArea, self.proj.update_info.get("html_url"),
                 f"""<{ver}>""", _type="SUCCESS")
             _close_thread()
             self.gui.update_notifier.on_updated_or_dismissed()
@@ -143,7 +143,7 @@ class Updater:
                 self.stateTooltip = None
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
-                CustomInfoBar.show("", self.res.ver_check_fail, self.gui.textBrowser,
+                CustomInfoBar.show("", self.res.ver_check_fail, self.gui.showArea,
                                    f"{Proj.url}/releases", "access releases", _type="ERROR")
                 _close_thread()
                 return

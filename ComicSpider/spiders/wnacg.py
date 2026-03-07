@@ -32,7 +32,6 @@ class WnacgSpider(BaseComicSpider2):
 
     def frame_book(self, response):
         frame_results = {}
-        self.say(self.say_fm.format('序号', '漫画名') + '<br>')
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
         with ThreadPoolExecutor() as executor:
             books = list(executor.map(WnacgUtils.parse_search_item, targets))

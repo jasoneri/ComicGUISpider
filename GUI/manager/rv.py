@@ -28,14 +28,14 @@ class RVManager(QObject):
         self.scan_thread.start()
 
     def _show_scan_progress(self, message: str, **show_kws):
-        parent = show_kws.get("parent_widget", self.gui.textBrowser)
+        parent = show_kws.get("parent_widget", self.gui.showArea)
         InfoBar.info(title='', content=message,
             position=show_kws['pos'], duration=2000, parent=parent)
 
     def _on_scan_completed(self, total: int, **show_kws):
         self.gui.log.info(f"Scanned: {total} episodes")
         self.gui.bsm = None
-        parent = show_kws.get("parent_widget", self.gui.textBrowser)
+        parent = show_kws.get("parent_widget", self.gui.showArea)
         info_what = InfoBar.success if total else InfoBar.warning
         info_what(title='', content=f'Scanned: {total} books/episodes',
             position=show_kws['pos'], duration=3000, parent=parent)

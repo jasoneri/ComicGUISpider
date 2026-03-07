@@ -18,7 +18,7 @@ GUI:
   ACCESS_FAIL: "Current proxy configuration/global proxy environment cannot access<br>Please verify site accessibility (direct CN access unsupported)"
   cookies_copy_err: "Format error - review latest GIF instructions and retry"
   copied_tip: "Background will copy [%s] items to clipboard"
-  textbrowser_load_if_http: "<b><font size=\"5\" color=\"black\">Click `Preview` button</font></b><font color=\"black\"> or </font><a href=\"%s\" ><b style=\"font-size:20px;\">View in Browser</b></a>"
+  textbrowser_load_if_http: "<font color=\"black\"> or </font><a href=\"%s\" ><b style=\"font-size:20px;\">View in Browser</b></a>"
   WorkThread_finish_flag: "Backend downloaded"
   WorkThread_empty_flag: "Backend exited normally without"
   copymaga_tips: "Copy unlocked chapters (e.g. Frieren)"
@@ -84,7 +84,7 @@ GUI:
     chooseBoxDefault: "Select Website"
     searchinputPlaceholderText: "Input Keyword"
     chooseBoxToolTip: "Check status bar for input hints after selecting a website"
-    previewBtnStatusTip: "Click to open preview window (available after book list appears)"
+    previewBtnStatusTip: "Click to search and open previewWin"
     progressBarStatusTip: " >>> Ⅰ. Green filled = Complete Ⅱ. When some pages missing. Use Copy Unfinished and Clip-function to fill gaps"
     sv_path_desc: "Save path"
     sv_path_desc_tip: "Select directory"
@@ -132,10 +132,10 @@ EHentai:
 
 SPIDER:
   SayToGui:
-    exp_txt: "Enter Selected Serials in `Input Serials` field"
-    exp_turn_page: "Use pagination buttons (prev/next/jump) on right of search field"
-    exp_preview: "Multi-select via cover clicks in preview-window. Confirm selection combines with manual input"
-    exp_replace_keyword: "Enter Selected Serials in "
+    exp_txt: "Enter Selected in `Preview Win`"
+    exp_turn_page: "Use pagination buttons (prev/next/jump) on right of site chooseBox"
+    exp_preview: "Multi-select via cover clicks in preview-window."
+    exp_replace_keyword: "Enter Selected in "
     TextBrowser_error: "Selection error at {1} step: {0}<br> {2}"
     frame_book_print_extra: " →_→ Hover over number field for input rules"
     frame_book_print_retry_tip: "No results found. Possible causes:<br>1. Server blocking 2. End of results 3. Verify URL in browser"

@@ -52,12 +52,30 @@ class TaskProgress:
 
 
 class ProgressClass:
+    MAX_TITLE_LENGTH = 70
+
     def __init__(self, taskid:str, tasks_count: int, parent: QWidget, task_name: str=None):
         self.taskid = taskid
         self.tasks_count = tasks_count
         self.is_completed = False
         self._last_percent = 0
         self._make_task_widget(task_name or taskid, parent)
+
+    @classmethod
+    def _clip_task_name(cls, task_name: str) -> str:
+        if len(task_name) <= cls.MAX_TITLE_LENGTH:
+            return task_name
+
+        split_mark = ' - '
+        if split_mark not in task_name:
+            return f"{task_name[:cls.MAX_TITLE_LENGTH - 3]}..."
+
+        title, episode_name = task_name.rsplit(split_mark, 1)
+        suffix = f"{split_mark}{episode_name}"
+        remain = cls.MAX_TITLE_LENGTH - len(suffix) - 3
+        if remain > 0:
+            return f"{title[:remain]}...{suffix}"
+        return f"{title[:15]}...{suffix[:cls.MAX_TITLE_LENGTH - 18]}..."
 
     def _make_task_widget(self, task_name: str, parent: QWidget):
         w = QWidget(parent)
@@ -66,10 +84,15 @@ class ProgressClass:
         layout = VBoxLayout(w)
         layout.setContentsMargins(8, 4, 8, 4)
         row = QHBoxLayout()
-        self.title_label = QLabel(task_name, w)
+        display_name = self._clip_task_name(task_name)
+        self.title_label = QLabel(display_name, w)
+        if display_name != task_name:
+            self.title_label.setToolTip(task_name)
+        self.cnt_label = QLabel(f"pages:{self.tasks_count}", w)
         self.progress_bar = ProgressBar(w)
         row.addWidget(self.title_label)
         row.addStretch()
+        row.addWidget(self.cnt_label)
         layout.addLayout(row)
         layout.addWidget(self.progress_bar)
         self.widget = w
@@ -156,6 +179,8 @@ class TaskProgressManager:
         return {'task_ids': list(self._entries.keys())}
 
     def rebind_native_panel(self, snapshot: dict = None):
+        self._init_lock = False
+        self._pending_tasks.clear()
         task_ids = snapshot.get('task_ids') if snapshot else None
         self._dispose_native_runtime_only()
 
@@ -284,32 +309,32 @@ class TaskProgressManager:
     def handle(self, task: t.Union[TasksObj, TaskObj]):
         if not getattr(self.gui, "BrowserWindow"):
             self.init()
-        if self.gui.tf and not getattr(self.gui.tf, "tasks_progress_panel_flag"):
-            if not self._init_lock:
-                self._init_lock = True
-                self.gui.BrowserWindow.init_tasks_progress_panel(
-                    callback=self._process_pending_tasks
-                )
-            if isinstance(task, TasksObj):
-                self._pending_tasks.append(task)
-                self._add_task_native(task)
-            return
+
+        browser_ready = bool(
+            self.gui.tf and getattr(self.gui.tf, "tasks_progress_panel_flag", False)
+        )
+        if not browser_ready and not self._init_lock:
+            self._init_lock = True
+            self.gui.BrowserWindow.init_tasks_progress_panel(
+                callback=self._process_pending_tasks
+            )
+
         if isinstance(task, TasksObj):
-            self.add_task(task)
+            self._add_task_native(task)
+            if browser_ready:
+                self.gui.BrowserWindow.add_task(task)
+            else:
+                self._pending_tasks.append(task)
         elif isinstance(task, TaskObj):
             if task.taskid not in self._entries:
                 print(f"{task.taskid}: {task.page}")
             else:
-                self.update_progress(task)
+                self.update_progress(task, browser_ready)
 
     def _process_pending_tasks(self):
         for task in self._pending_tasks:
             self.gui.BrowserWindow.add_task(task)
         self._pending_tasks.clear()
-
-    def add_task(self, tasks_obj):
-        self.gui.BrowserWindow.add_task(tasks_obj)
-        self._add_task_native(tasks_obj)
 
     def _add_task_native(self, tasks_obj):
         if tasks_obj.taskid in self._entries:
@@ -319,21 +344,26 @@ class TaskProgressManager:
         pc = ProgressClass(progress.taskid, progress.tasks_count, self.gui.scroll_content, progress.name)
         self.gui.task_list_layout.addWidget(pc.widget)
         self._entries[tasks_obj.taskid] = TaskProgressEntry(progress=progress, view=pc)
+        if progress.last_percent > 0:
+            pc.set_progress(progress.last_percent)
+        if progress.completed:
+            pc.mark_completed()
         if len(self._entries) == 1:
             self.expandBtn.setVisible(True)
             self.clearBtn.setVisible(True)
         self._refresh_dl_status_badge()
 
-    def update_progress(self, task_obj: TaskObj):
+    def update_progress(self, task_obj: TaskObj, browser_ready: bool = True):
         taskid = task_obj.taskid
         entry = self._entries[taskid]
         was_completed = entry.progress.completed
         curr_progress = entry.progress.apply(task_obj)
         progress_completed = conf.isDeduplicate and (not was_completed and entry.progress.completed)
         self._update_progress_native(taskid, curr_progress)
-        self.gui.BrowserWindow.update_progress(taskid, curr_progress,
-            lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
-        )
+        if browser_ready:
+            self.gui.BrowserWindow.update_progress(taskid, curr_progress,
+                lambda: self.gui.BrowserWindow.tmp_sv_local() if progress_completed else lambda: None
+            )
 
     def _update_progress_native(self, taskid: str, percent: int):
         entry = self._entries.get(taskid)

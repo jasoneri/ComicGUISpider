@@ -12,6 +12,7 @@ from PyQt5.QtCore import (
     pyqtSignal
 )
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
+from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
@@ -210,6 +211,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.update_notifier = UpdateNotifier(self)
         self.update_notifier.check_on_startup()
         self.is_setup_finished = True
+        self.searchReady = False
+        self.searchRunning = False
         self.setup_finished.emit()
 
     def chooseBox_changed_tips(self, index):
@@ -233,6 +236,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.nextPageShort = QShortcut(QKeySequence("Ctrl+."), self)
         self.nextPageShort.setContext(Qt.ApplicationShortcut)
         self.nextPageShort.activated.connect(self.nextPageBtn.click)
+
+    def showAggrWin(self):
+        self.rvBtn.click()
+        def _jump():
+            self.toolWin.stackedWidget.setCurrentWidget(self.toolWin.asInterface)
+        QTimer.singleShot(10, _jump)
 
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
@@ -262,14 +271,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def btn_logic_bind(self):
         def _search_troggle(text):
-            # TODO[0](2026-03-02):  # 处理 previewBtn Enable
-            ...
+            self.previewBtn.setEnabled(True)
         self.searchinput.textChanged.connect(_search_troggle)
-        self.previewBtn.setDisabled(True)
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
+        self.aggrBtn.clicked.connect(self.showAggrWin)
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
 
         with contextlib.suppress(TypeError):
@@ -328,11 +336,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.previewSecondInit = True
             self.pageFrameClickCnt += 1
             self.clean_temp_file()
-            if self.BrowserWindow and self.BrowserWindow.output:
-                idxes = f"[combine]{str(self.BrowserWindow.output)}"
-                self.BrowserWindow.output = []
-            else:
-                idxes = ""
+            idxes = f"{str(self.BrowserWindow.output)}"
             __ = select(idxes, self.books)
             self.keep_books.extend(__)
             self.books = {}
@@ -357,7 +361,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def show_keep_books(self):
         if self.keep_books:
             elected_titles = tuple(x.name for x in self.keep_books)
-            self.say(font_color(f"<br>{res.SPIDER.choice_list_before_turn_page}<br>"
+            self.say(font_color(f"{res.SPIDER.choice_list_before_turn_page}<br>"
                     f"{'<br>'.join(elected_titles)}", cls='theme-success'))
 
     def preprocess_preview(self, url_str):
@@ -370,6 +374,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.preview = PreviewHtml(url, books)
         self.preview.duel_contents()
         self.tf = self.preview.created_temp_html
+        if self.searchReady and self.searchRunning:
+            # TODO[2](2026-03-06): CGSMid不需要，但spider传进来强制进入了，处理一下分流
+            self.searchRunning = False
+            self.show_preview()
 
     def set_preview(self, rect=None):
         sb = self.BrowserWindow = BrowserWindowCls(self)
@@ -377,12 +385,21 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if rect:
             self.BrowserWindow.setGeometry(rect)
         else:
-            self.BrowserWindow.move(self.x(), preview_y if preview_y > 0 else 200) 
+            self.BrowserWindow.move(self.x()+100, preview_y if preview_y > 0 else 200) 
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
 
     def show_preview(self):
+        if not self.searchReady:
+            self.start_and_search()
+        elif self.searchRunning:
+            InfoBar.info(title='', content='searching', isClosable=True,
+                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
+        else:
+            return self._show_preview()
+
+    def _show_preview(self):
         """prevent PreviewWindow is None when init"""
         if self.previewInit:
             self.set_preview()
@@ -525,37 +542,30 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             if stage := stage_map.get(lane):
                 mgr.dispatch_stage(stage, EventSource.UI, {"lane": lane})
 
-    def next_schedule(self, keyword=None, site_index=None):
-        # TODO[0](2026-03-02): 删掉了next_btn 重做
-        def start_and_search():
-            self.log.info('===--→ -*- searching')
-
-            self.input_state.keyword = keyword if keyword is not None else self.searchinput.text().strip()
-            self.input_state.bookSelected = site_index if site_index is not None else self.chooseBox.currentIndex()
-
-            if self.nextclickCnt == 0:          # 从section步 回parse步 的话以免重开
-                self.ensure_work_thread()
-
-            # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
-            self.q_InputFieldQueue_send(self.input_state)
-
-            self.log.debug(
-                f'website_index:[{self.input_state.bookSelected}], keyword [{self.input_state.keyword}] success ')
-
-        if self.next_btn.text() != self.res.Uic.next_btnDefaultText:
-            self._next()
-        else:
-            start_and_search()
-
+    def start_and_search(self, keyword=None, site_index=None):
+        # TODO[2](2026-03-02): 改逻辑后 重做
+        self.log.info('===--→ -*- searching')
+        self.input_state.keyword = keyword if keyword is not None else self.searchinput.text().strip()
+        if not self.input_state.keyword:
+            InfoBar.info(title='', content='先输入搜索词吧', isClosable=True,
+                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
+            return
+        self.input_state.bookSelected = site_index if site_index is not None else self.chooseBox.currentIndex()
+        self.ensure_work_thread()
+        # 将GUI的网站序号结合搜索关键字 →→ 开多线程or进程后台处理scrapy，线程检测spider发送的信号
+        self.q_InputFieldQueue_send(self.input_state)
+        self.log.debug(
+            f'website_index:[{self.input_state.bookSelected}], keyword [{self.input_state.keyword}] success ')
         self.nextclickCnt += 1
         self.searchinput.setEnabled(False)
         self.pageFrame.setEnabled(True)
-
         refresh_state(self, 'process_state', 'ProcessQueue')
-        self.log.info(f"===--→ next_schedule end (now step: {self.process_state.process})\n")
+        self.searchReady = True
+        self.searchRunning = True
+        self.log.info(f"===--→ start_and_search end (now step: {self.process_state.process})\n")
 
     def _next(self):
-        # TODO[0](2026-03-02): 删掉了next_btn 重做
+        # TODO[2](2026-03-02): 删掉了next_btn 优化
         self.log.info('===--→ nexting')
         self.pageFrame.setEnabled(False)
         if self.BrowserWindow:
@@ -567,7 +577,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         elif hasattr(self, "ags_mgr") and self.ags_mgr.is_triggered:
             mgr = self.ags_mgr
 
-        if mgr:
+        if mgr:  # 通过 BrowserWindow.ensureBtn 进行选择
             selected_list = mgr.create_selected_list(self.BrowserWindow.output)
             if selected_list and len(selected_list) > 20 and int(conf.concurr_num) > 10:
                 conf.update(concurr_num=8)
@@ -577,17 +587,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.input_state.indexes = selected_list
             self.input_state.pageTurn = ""
             self.q_InputFieldQueue_send(self.input_state)
-            refresh_state(self, 'process_state', 'ProcessQueue')
+            # refresh_state(self, 'process_state', 'ProcessQueue')
             self.clipBtn.setDisabled(True)
             return
-        if self.BrowserWindow and self.BrowserWindow.output:
-            idxes = f"[combine]{str(self.BrowserWindow.output)}"
+        idxes = f"{str(self.BrowserWindow.output)}"
         __ = select(idxes, self.books)
         self.books = {}
         self.submit_decision("BOOK", __)
 
     def crawl(self, episodes=None):
-        # TODO[0](2026-03-02): 删掉了 crawl_btn 重做
+        # TODO[2](2026-03-02): 删掉了 crawl_btn 重做
         if episodes is None:
             episodes = select("123456465465464", self.eps)
         if not episodes:
