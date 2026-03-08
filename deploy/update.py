@@ -13,7 +13,7 @@ from packaging.version import parse
 
 from assets import res as ori_res
 from variables import VER
-from utils import conf
+from utils import conf, get_httpx_verify
 from utils.config import conf_dir
 
 
@@ -58,7 +58,7 @@ class GitHandler:
     api_prefix = "https://api.github.com"
 
     def __init__(self, owner, proj_name, branch):
-        self.sess = httpx.Client()
+        self.sess = httpx.Client(verify=get_httpx_verify())
         self.tags_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/tags"
         self.releases_api = f"{self.api_prefix}/repos/{owner}/{proj_name}/releases"
         self.branch_commit_api = f" {owner}/{proj_name}/commits?sha={branch}"
