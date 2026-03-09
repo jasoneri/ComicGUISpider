@@ -77,6 +77,7 @@ class ComicPipeline(ImagesPipeline):
         tasks_obj = spider.tasks.get(uuid_md5)
         if tasks_obj and getattr(tasks_obj, 'meta_info', None):
             tasks_obj.meta_info.sv_meta_in(path)
+        tasks_obj.local_path = str(path)
         # cache file_folder
         spider.tasks_path[uuid_md5] = path
         return path

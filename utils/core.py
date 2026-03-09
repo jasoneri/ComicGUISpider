@@ -81,6 +81,7 @@ class TasksObj:
         self.episode_name = episode_name
         self.downloaded = []
         self.meta_info = meta_info
+        self.local_path = None
 
     @property
     def display_title(self) -> str:
