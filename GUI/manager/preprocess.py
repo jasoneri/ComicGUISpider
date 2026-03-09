@@ -181,7 +181,7 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=hitomi_check,
             success_callback=lambda _: self.gui.say("<br>✅ hitomi 访问检测通过"),
-            error_callback=on_error,
+            error_callback=on_error, show_error_info=self.show_err, 
             tooltip_title="hitomi 访问检测", task_id="hitomi_preprocess"
         )
         
@@ -218,7 +218,7 @@ class PreprocessManager(QObject):
 
             self.task_manager.execute_simple_task(
                 task_func=lambda: _download_hitomi_db(hitomi_db_path),
-                success_callback=on_db_download_success,
+                success_callback=on_db_download_success, show_error_info=self.show_err, 
                 error_callback=lambda _: self.gui.say("<br>❌ hitomi-db download failed"),
                 tooltip_title="hitomi-db downloading", task_id="hitomi_db"
             )

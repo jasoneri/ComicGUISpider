@@ -4,7 +4,7 @@
 """
 import traceback
 import time
-from typing import Callable, Optional, Any, Dict
+from typing import Callable, Optional, Any, Dict, List
 from PyQt5.QtCore import QThread, pyqtSignal, QObject
 from qfluentwidgets import StateToolTip, InfoBar, InfoBarPosition
 from PyQt5.QtCore import Qt
@@ -90,7 +90,9 @@ class AsyncTaskManager(QObject):
         self.gui = gui
         self.current_tasks: Dict[str, AsyncTaskThread] = {}
         self.current_tooltips: Dict[str, StateToolTip] = {}
+        self.current_infobars: List[InfoBar] = []
         self._tooltip_offset_counter = 0  # 用于计算tooltip位置偏移
+        self._active = True
     
     def execute_task(self, 
                     task_id: str,
@@ -209,6 +211,9 @@ class AsyncTaskManager(QObject):
                 if thread.isRunning()]
     
     def _handle_success(self, task_id: str, result: Any, config: TaskConfig):
+        if not self._active:
+            self._cleanup_task(task_id)
+            return
         # 隐藏状态提示
         if config.auto_hide_tooltip:
             self._hide_tooltip(task_id)
@@ -227,6 +232,9 @@ class AsyncTaskManager(QObject):
         self._cleanup_task(task_id)
     
     def _handle_error(self, task_id: str, error: str, config: TaskConfig):
+        if not self._active:
+            self._cleanup_task(task_id)
+            return
         # 隐藏状态提示
         self._hide_tooltip(task_id)
         # 显示错误信息
@@ -243,6 +251,8 @@ class AsyncTaskManager(QObject):
         self._cleanup_task(task_id)
     
     def _handle_progress(self, task_id: str, progress: str, config: TaskConfig):
+        if not self._active:
+            return
         # 更新状态提示
         self._update_tooltip(task_id, config.tooltip_title, progress)
         # 执行进度回调
@@ -255,6 +265,8 @@ class AsyncTaskManager(QObject):
     def _show_tooltip(self, task_id: str, title: str, content: str,
                      position: Optional[tuple] = None, parent: Optional[QObject] = None):
         """显示状态提示"""
+        if not self._active:
+            return
         # 确定父组件
         tooltip_parent = parent or self.gui
         if not tooltip_parent:
@@ -318,41 +330,56 @@ class AsyncTaskManager(QObject):
     
     def _show_success(self, message: str):
         ...
+
+    def _track_infobar(self, infobar: Optional[InfoBar]) -> Optional[InfoBar]:
+        if infobar is None:
+            return None
+        self.current_infobars.append(infobar)
+        infobar.closedSignal.connect(lambda bar=infobar: self._cleanup_infobar(bar))
+        return infobar
+
+    def _cleanup_infobar(self, infobar: InfoBar):
+        if infobar in self.current_infobars:
+            self.current_infobars.remove(infobar)
     
     def _show_error(self, message: str):
-        if self.gui:
+        if self._active:
             if len(message) > 300:
                 message = message[:70] + "...\n...\n..." + message[-200:]
-            InfoBar.error(
+            self._track_infobar(InfoBar.error(
                 title='错误', content=message,
                 orient=Qt.Horizontal, isClosable=True,
                 position=InfoBarPosition.TOP,
                 duration=-1, parent=self.gui
-            )
+            ))
             self.gui.log.error(message)
     
     def _show_warning(self, message: str):
-        if self.gui:
-            InfoBar.warning(
+        if self._active:
+            self._track_infobar(InfoBar.warning(
                 title='警告', content=message,
                 orient=Qt.Horizontal, isClosable=True,
                 position=InfoBarPosition.TOP,
                 duration=6000, parent=self.gui
-            )
+            ))
     
     def _show_info(self, message: str):
-        if self.gui:
-            InfoBar.info(
+        if self._active:
+            self._track_infobar(InfoBar.info(
                 title='', content=message,
                 orient=Qt.Horizontal, isClosable=True,
                 position=InfoBarPosition.TOP,
                 duration=2000, parent=self.gui
-            )
+            ))
     
     def cleanup(self):
+        self._active = False
         self.cancel_all_tasks()
-        for tooltip in self.current_tooltips.values():
+        for tooltip in list(self.current_tooltips.values()):
             tooltip.close()
+        for infobar in list(self.current_infobars):
+            infobar.close()
         self.current_tooltips.clear()
+        self.current_infobars.clear()
         self.current_tasks.clear()
         self._tooltip_offset_counter = 0  # 重置偏移计数器
