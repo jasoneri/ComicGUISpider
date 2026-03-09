@@ -150,6 +150,8 @@ SPIDER:
   parse_sec_selected: "所选章节"
   parse_sec_now_start_crawl_desc: "现在开始爬取《%s》章节"
   page_less_than_one: "当前页数少于1，避免出错设置回第一页"
+  skip_running_tip: "跳过 %s 个下载中"
+  skip_downloaded_tip: "跳过 %s 个已下载"
   finished_success: "~~~后台已下载[%s]张图片 ヾ(￣▽￣ )Bye~Bye~"
   finished_err: "~~~…(￣┰￣*)………后台异常退出，最后捕捉的异常信息为<br>%s"
   finished_empty: "~~~…(￣┰￣*)………后台正常退出没有产生图片任务，请自行检查输入"

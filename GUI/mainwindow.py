@@ -4,7 +4,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
 from qfluentwidgets import (
-    FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea
+    FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea, FlowLayout
 )
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
@@ -53,7 +53,7 @@ class MitmMainWindow(Ui_MainWindow):
 
     # === bg and bubble.svg
 
-    def _mk_overlay(self, parent, name, image, refresh_cb, *, init=None, lower=False):
+    def _mk_overlay(self, parent, name, image, *, init=None, lower=False):
         label = ImageLabel(parent)
         label.setObjectName(name)
         label.setImage(image)
@@ -63,7 +63,6 @@ class MitmMainWindow(Ui_MainWindow):
         label.show()
         if lower:
             label.lower()
-        QTimer.singleShot(0, refresh_cb)
         return label, pixmap
 
     def setup_bubble_widget(self):
@@ -100,15 +99,23 @@ class MitmMainWindow(Ui_MainWindow):
 
     def setup_sleep_widget(self, _img=None):
         self.sleepLabel, self.sleepBasePixmap = self._mk_overlay(
-            self.sleepWidget, "sleepLabel", _img or "docs/public/cgs_sleep.png", self._refresh_sleep_label_size,
+            self.sleepWidget, "sleepLabel", _img or "docs/public/cgs_sleep.png",
             init=lambda l: (l.setAlignment(Qt.AlignLeft | Qt.AlignBottom), l.setScaledContents(True)),
         )
+        QTimer.singleShot(0, self._sync_sleep_widget_geometry)
 
     def resizeEvent(self, event):
         QtWidgets.QMainWindow.resizeEvent(self, event)
         self._refresh_sleep_label_size()
 
+    def _sync_sleep_widget_geometry(self):
+        self._refresh_sleep_label_size()
+        h = self.height() + self.sleepLabel.height() - self.sleepWidget.height()
+        self.resize(self.width(), min(h, self.maximumHeight()))
+
     def _refresh_sleep_label_size(self):
+        if not getattr(self, "sleepLabel", None) or not getattr(self, "sleepBasePixmap", None):
+            return
         sw = self.sleepWidget.width()
         act_h = int(sw * (self.sleepBasePixmap.height() / self.sleepBasePixmap.width()))
         self.sleepLabel.setFixedSize(sw, act_h)
@@ -146,11 +153,12 @@ class MitmMainWindow(Ui_MainWindow):
     def task_init(self):
         self.expandBtn = ExpandButton(self)
         self.clearBtn = TransparentToolButton(FIF.BROOM)
-        
+
         self.scroll_content = QWidget()
-        self.task_list_layout = QVBoxLayout(self.scroll_content)
-        self.task_list_layout.setContentsMargins(4, 4, 4, 4)
-        self.task_list_layout.setSpacing(2)
+        self.flow_layout = FlowLayout(self.scroll_content)
+        self.flow_layout.setContentsMargins(4, 4, 4, 4)
+        self.flow_layout.setHorizontalSpacing(8)
+        self.flow_layout.setVerticalSpacing(8)
 
         self.scroll_area = ScrollArea()
         self.scroll_area.setWidget(self.scroll_content)
@@ -159,7 +167,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.barHLayout.insertWidget(0, self.expandBtn)
         self.barHLayout.addWidget(self.clearBtn)
         self.barVLayout.addWidget(self.scroll_area)
-        
+
         self.expandBtn.setVisible(False)
         self.clearBtn.setVisible(False)
         self.scroll_area.setVisible(False)
