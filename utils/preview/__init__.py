@@ -5,12 +5,7 @@ from utils.preview.el import El
 
 class TF(str):
     def __new__(cls, string):
-        instance = super().__new__(cls, string)
-        instance.tasks_progress_panel_flag = False
-        return instance
-
-    def set_tasks_progress_panel(self):
-        self.tasks_progress_panel_flag = True
+        return super().__new__(cls, string)
 
 
 format_path = ori_path.joinpath("GUI/src/preview_format")

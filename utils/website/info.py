@@ -106,7 +106,7 @@ class Ero(BookInfo):
     def to_tasks_obj(self):
         assert self.pages is not None
         return TasksObj(
-            self.u_md5, self.name, int(self.pages), self.preview_url, None
+            self.u_md5, self.name, int(self.pages), self.preview_url, None, self.img_preview
         )
 
 
@@ -135,7 +135,8 @@ class Episode(InfoMinix):
         _, u_md5 = self.id_and_md5()
         assert self.pages is not None
         return TasksObj(
-            u_md5, self.from_book.name, int(self.pages), self.from_book.preview_url, self.name
+            u_md5, self.from_book.name, int(self.pages), self.from_book.preview_url, self.name,
+            self.from_book.img_preview
         )
 # ---
 
