@@ -24,7 +24,6 @@ class EHentaiSpider(BaseComicSpider3):
         res.EHentai.MAPPINGS_INDEX: f'https://{domain}',
         res.EHentai.MAPPINGS_POPULAR: f'https://{domain}/popular'
     }
-    say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
     frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)
     book_id_url = f'https://{domain}/g/%s'

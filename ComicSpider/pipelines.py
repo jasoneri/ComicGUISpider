@@ -15,6 +15,7 @@ from utils.core import sanitize_for_path
 from utils.website import JmUtils, MangabzUtils, set_author_ahead
 from utils.config.rule import CgsRuleMgr
 from assets import res
+from utils.protocol import BarProgressEvent, TasksObjEvent
 
 
 class PageNamingMgr:
@@ -78,7 +79,7 @@ class ComicPipeline(ImagesPipeline):
         if tasks_obj and getattr(tasks_obj, 'meta_info', None):
             tasks_obj.meta_info.sv_meta_in(path)
         tasks_obj.local_path = str(path)
-        spider.Q('TasksQueue').send(tasks_obj, wait=True)
+        spider.emit(TasksObjEvent(job_id=getattr(spider, '_job_id', None), task_obj=tasks_obj, is_new=True))
         # cache file_folder
         spider.tasks_path[uuid_md5] = path
         return path
@@ -89,7 +90,7 @@ class ComicPipeline(ImagesPipeline):
             super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
             stats = spider.crawler.stats
             percent = int((stats.get_value('file_status_count/downloaded', default=0) / spider.total) * 100)
-            spider.Q('BarQueue').send(int(percent))  # 后台打印百分比进度扔回GUI界面
+            spider.emit(BarProgressEvent(job_id=getattr(spider, '_job_id', None), percent=int(percent)))
             task_obj = TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0])
             self.handle_task(spider, stats, task_obj)
         except Exception as e:
@@ -108,7 +109,11 @@ class ComicPipeline(ImagesPipeline):
                 spider.record_sql.add(task_obj.taskid)
             spider.rv_sql.write_episode(tasks_obj.title, tasks_obj.episode_name)
             
-        spider.Q('TasksQueue').send(task_obj, wait=True)
+        spider.emit(TasksObjEvent(
+            job_id=getattr(spider, '_job_id', None),
+            task_obj=task_obj,
+            is_new=(curr_progress >= 100),
+        ))
         stats.inc_value('image/downloaded')
 
     def item_completed(self, results, item, info):

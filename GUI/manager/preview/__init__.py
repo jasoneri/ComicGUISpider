@@ -11,6 +11,7 @@ from PyQt5.QtWebChannel import QWebChannel
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.core.font import font_color
+from GUI.types import GUIFlowStage
 from GUI.thread.manga_preview import MangaPreviewWorker
 from assets import res as ori_res
 from variables import SPIDERS
@@ -406,15 +407,63 @@ class MangaPreviewManager:
             self._current_keyword, self.site_index, page=new_page
         )
 
+    def navigate_to_page(self, page: int):
+        if self._searching or not self._current_keyword or self._is_local_mode:
+            return
+        target_page = int(page)
+        if target_page < 1 or target_page == self._current_page:
+            return
+        self.gui.clean_temp_file()
+        self._searching = True
+        self._current_page = target_page
+        self._session_id += 1
+        self.books_cache.clear()
+        self.episodes_cache.clear()
+        self._inflight_books.clear()
+        self._ensure_worker().enqueue_search(
+            self._current_keyword, self.site_index, page=target_page
+        )
+
     def _on_search_done(self, _keyword, site_index, books):
         self._searching = False
         if site_index != self.site_index:
             return
         self._is_local_mode = False
-        self._publish_books(books)
+        self._session_id += 1
+        sid = self._session_id
+        self._page_ready = False
+        self._pending_js.clear()
+        self._inflight_books.clear()
+        self.books_cache = {str(book.idx): book for book in books}
+        self.episodes_cache.clear()
+        self.gui.clean_temp_file()
+        self.gui._flow_stage = GUIFlowStage.SEARCHED
+        body = self._build_cards_html(books)
+        self.gui.tf = self._create_html_file(body)
+        self._show_preview_window()
+        self._start_dl_scan(sid)
+
+    def _on_preview_window_closed(self, browser, event):
+        if self._page_load_page is not None:
+            self._page_load_page.loadFinished.disconnect(self._on_page_load_finished)
+            self._page_load_page = None
+        self._page_ready = False
+        self._pending_js.clear()
+        self._channel = None
+        self._channel_page = None
+        event.ignore()
+
+        def _save_and_close(html):
+            if html and self.gui.tf:
+                with open(self.gui.tf, 'w', encoding='utf-8') as f:
+                    f.write(html)
+            browser.close()
+
+        browser.js_execute("get_curr_hml();", _save_and_close)
 
     def _on_search_error(self, error):
         self._searching = False
+        self.gui._flow_stage = GUIFlowStage.ERROR
         self.gui.log.error(error)
         self.gui.say(
             font_color(
@@ -613,5 +662,4 @@ class MangaPreviewManager:
                 continue
             assert all(ep.from_book is book for ep in selected_eps)
             book.episodes = selected_eps
-            self.gui.ensure_work_thread()
-            self.gui.submit_decision("EP", book)
+            self.gui.crawl(selected_eps)

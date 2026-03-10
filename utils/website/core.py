@@ -151,6 +151,9 @@ class Utils:
     def get_uuid(cls, info):
         return f"{cls.name}-{info}"
 
+    @classmethod
+    def display_meta(cls, *args, **kw) -> dict:
+        return {}
 
 class MangaPreview:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
@@ -162,7 +165,6 @@ class MangaPreview:
     @classmethod
     async def preview_fetch_episodes(cls, book, client, **kw) -> list:
         raise NotImplementedError(f"{cls.__name__}.preview_fetch_episodes")
-
 
 class EroUtils(Utils):
     uuid_regex = None

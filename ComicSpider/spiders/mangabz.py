@@ -28,8 +28,7 @@ class MangabzSpider(FormReqBaseComicSpider):
 
     @property
     def search(self):
-        self.process_state.process = 'search'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('search')
         keyword = self.input_state.keyword.strip()
         if keyword in self.mappings.keys():
             search_start_path, body_sort = self.mappings[keyword]  # TODO[5](2024-09-30): 后续支持状态：全部/连载中/完结，排序：上架时间
@@ -42,7 +41,6 @@ class MangabzSpider(FormReqBaseComicSpider):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = self.body.say_fm
         render_keys = self.body.print_head[1:]
         targets = response.json() if isinstance(self.body, SearchBody) \
             else response.json().get('UpdateComicItems')
@@ -51,14 +49,13 @@ class MangabzSpider(FormReqBaseComicSpider):
             book = MangabzUtils.parse_book_item(
                 target, rendering_map, render_keys, x + 1, self.domain)
             frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, fm=say_fm, url=response.url)
+        return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        say_ep_fm = ' -{}、【{}】'
         episodes = MangabzUtils.parse_episodes(response, book, domain)
         frame_results = {ep.idx: ep for ep in episodes}
-        return self.say.frame_section_print(frame_results, fm=say_ep_fm)
+        return self.say.frame_section_print(frame_results)
 
     def parse_fin_page(self, response):
         ep = response.meta['ep']
@@ -83,5 +80,4 @@ class MangabzSpider(FormReqBaseComicSpider):
             item['image_urls'] = [img_url]
             self.total += 1
             yield item
-        self.process_state.process = 'fin'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('fin')

@@ -4,6 +4,8 @@ import typing as t
 from urllib.parse import urlencode, urlparse
 from concurrent.futures import ThreadPoolExecutor
 
+from ComicSpider.runtime.job_models import iter_download_items
+
 from utils import convert_punctuation, conf
 from utils.website import JmUtils, correct_domain, JmBookInfo
 from utils.processed_class import Url
@@ -51,6 +53,12 @@ class JmSpider(BaseComicSpider2):
 
     def start_requests(self):
         self.preready()
+        if self._runtime_mode():
+            if not self.current_job:
+                self.logger.warning("No job assigned, spider will idle")
+                return
+            yield from self.iter_download_requests(self.current_job)
+            return
         self.refresh_state('input_state', 'InputFieldQueue')
         keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
         if ',' in keyword or keyword.isdecimal():
@@ -72,8 +80,7 @@ class JmSpider(BaseComicSpider2):
             return _bid
         meta = response.meta
         bid = _get_bid()
-        self.process_state.process = 'parse section'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('parse section')
         if response.url.endswith('album_missing'):
             yield self.say(font_color(f'➖ 无效车号：{bid}', cls='theme-err'))
         elif response.url.endswith('login'):
@@ -88,6 +95,24 @@ class JmSpider(BaseComicSpider2):
                     url=response.url,
                 ).get_id(response.url)
             yield from super(JmSpider, self).parse_section(response)
+
+    def iter_download_requests(self, job):
+        self._emit_process('start_requests')
+        for item in iter_download_items(job):
+            if getattr(item, 'url', None):
+                yield from self._process_episode(item)
+                continue
+            book = getattr(item, 'from_book', None)
+            if book and getattr(book, 'url', None):
+                yield scrapy.Request(
+                    url=self.transfer_url(book.url),
+                    callback=self.parse_section,
+                    headers={**self.ua, 'Referer': self.domain},
+                    meta={'book': book},
+                    dont_filter=True,
+                )
+                continue
+            raise ValueError(f"jm runtime item is missing download url: {item!r}")
 
     @property
     def search(self):

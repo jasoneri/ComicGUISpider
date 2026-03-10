@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import contextlib
 import typing as t
 from enum import Enum
 from uuid import uuid4
-from PyQt5.QtCore import QObject, pyqtSignal, Qt
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from utils.middleware.core import CGSMidManager, ExecutionContext
 from utils.middleware.executor import Action
-from utils.middleware.timeline import Event, EventSource, TimelineStage, LaneStage
+from utils.middleware.timeline import Event, EventSource, TimelineStage, LaneStage, stage_from_process_name
 from utils.middleware.lane_router import LaneActionRouter
 from utils.middleware.lane_handlers import DEFAULT_LANE_HANDLERS
 
@@ -79,8 +78,10 @@ class SpiderGuiOps:
         self.gui.submit_decision("BOOK", indexes, page_turn=page_turn)
 
     def select_eps(self, episodes):
+        if not episodes:
+            return
         book = episodes[0].from_book
-        book.episodes = episodes
+        book.episodes = list(episodes)
         self.gui.submit_decision("EP", book)
 
     def run_postprocess(self, **kwargs):
@@ -103,7 +104,7 @@ class CGSMidManagerGUI(QObject):
         super().__init__(gui)
         self.gui = gui
         self.thread = None
-        self._worker = None
+        self._process_stage = ""
 
         self.backend_mgr = CGSMidManager.get_instance()
         self.session = None
@@ -143,8 +144,8 @@ class CGSMidManagerGUI(QObject):
     def _sync_ctx_from_gui(self):
         if not self.session:
             return
-        self.session.ctx.input_state = getattr(self.gui, "input_state", None)
-        self.session.ctx.process_state = getattr(self.gui, "process_state", None)
+        self.session.ctx.input_state = None
+        self.session.ctx.process_state = self._process_stage
         self.session.ctx.books = getattr(self.gui, "books", {}) or {}
         self.session.ctx.eps = getattr(self.gui, "eps", {}) or {}
 
@@ -193,9 +194,8 @@ class CGSMidManagerGUI(QObject):
         self.enabled = False
         self._workflow_session.reset()
         self.state_changed.emit(WorkflowState.IDLE, None)
+        self._process_stage = ""
 
-        if self._worker is not None:
-            self.detach_worker(self._worker)
         if self.thread and self.thread.isRunning():
             self.thread.stop()
             self.thread.quit()
@@ -203,23 +203,23 @@ class CGSMidManagerGUI(QObject):
         self.thread = None
         self.session = None
 
-    def _on_event(self, evt):
-        self.dispatch_event(evt)
+    def rebind(self, gui):
+        self.gui = gui
+        self._ops.gui = gui
+        if self.session:
+            self.session.ctx.flow_type = getattr(self.gui, "webs_status", None)
+            self._sync_ctx_from_gui()
 
-    def attach_worker(self, worker):
-        if self._worker is worker:
-            return
-        if self._worker is not None:
-            self.detach_worker(self._worker)
-        self._worker = worker
-        worker.mid_event_signal.connect(self._on_event, Qt.QueuedConnection)
-
-    def detach_worker(self, worker):
-        if self._worker is not worker:
-            return
-        with contextlib.suppress(TypeError, RuntimeError):
-            worker.mid_event_signal.disconnect(self._on_event)
-        self._worker = None
+    def on_process_stage(self, stage_str: str):
+        self._process_stage = stage_str or ""
+        stage = stage_from_process_name(self._process_stage)
+        if stage is None:
+            return []
+        return self.dispatch_stage(
+            stage,
+            EventSource.PROCESS_QUEUE,
+            {"process_state": self._process_stage},
+        )
 
     def _handle_stage_transition(self, stage: TimelineStage):
         wait_stages = {

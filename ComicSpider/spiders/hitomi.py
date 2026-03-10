@@ -4,6 +4,8 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import scrapy
 
+from ComicSpider.runtime.job_models import iter_download_items
+
 from utils import PresetHtmlEl, conf
 from utils.website import HitomiUtils, get_loop
 from utils.processed_class import PreviewHtml
@@ -24,7 +26,6 @@ class HitomiSpider(BaseComicSpider):
     domain = domain
     ua = HitomiUtils.headers
     backend_domain = "ltn.gold-usergeneratedcontent.net"
-    say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
     frame_book_format = ["lang", "title", "preview_url", "pics"]
     ut = None
     deferred_list = []
@@ -59,9 +60,14 @@ class HitomiSpider(BaseComicSpider):
             return loop.run_until_complete(_async_get())
 
     def start_requests(self):
+        if self._runtime_mode():
+            if not self.current_job:
+                self.logger.warning("No job assigned, spider will idle")
+                return
+            yield from self.iter_download_requests(self.current_job)
+            return
         self.refresh_state('input_state', 'InputFieldQueue')
-        self.process_state.process = 'start_requests'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('start_requests')
 
         keyword = self.input_state.keyword
         self.search_start = f"{self.domain}{keyword}.html"
@@ -73,8 +79,7 @@ class HitomiSpider(BaseComicSpider):
     
     # ==============================================
     def parse(self, response, meta):
-        self.process_state.process = 'parse'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('parse')
         result = HitomiUtils.parse_nozomi(response.content)
         
         meta = meta or {}
@@ -136,8 +141,7 @@ class HitomiSpider(BaseComicSpider):
             yield from self.defer_parse(meta['results'])
 
     def defer_parse(self, rets):
-        self.process_state.process = 'defer_parse'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('defer_parse')
         if not rets:
             self.logger.error("No results to process")
             return
@@ -154,30 +158,36 @@ class HitomiSpider(BaseComicSpider):
                 yield from self.parse_section(meta)
 
     def parse_section(self, meta):
-        self.process_state.process = 'parse section'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('parse section')
 
         book = meta.get('book')
         this_uuid, this_md5 = book.id_and_md5()
         if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):
             self.set_task(book)
-            for pic_info in book.pics:
+            for index, pic_info in enumerate(book.pics, 1):
                 item = ComicspiderItem()
                 item['title'] = book.name
-                item['page'] = str(pic_info['name'])
+                item['page'] = str(index)
                 item['section'] = None
                 img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
                 item['image_urls'] = [img_url]
                 item['uuid'] = this_uuid
                 item['uuid_md5'] = this_md5
+                if self.job_context:
+                    self.job_context.total += 1
                 self.total += 1
-                # 使用一个空的请求来触发item处理
                 yield scrapy.Request(
-                    url=f'https://fakefakefa.com/{img_url}',callback=self.process_item,meta={'item': item},
+                    url=f'https://fakefakefa.com/{img_url}', callback=self.process_item, meta={'item': item},
                     dont_filter=True
                 )
-        self.process_state.process = 'fin'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('fin')
+
+    def iter_download_requests(self, job):
+        self._emit_process('start_requests')
+        for book in iter_download_items(job):
+            if not getattr(book, 'pics', None):
+                raise ValueError(f"hitomi runtime item is missing pics payload: {book!r}")
+            yield from self.parse_section({'book': book})
 
     # ==============================================
     def frame_book(self, rets, meta):

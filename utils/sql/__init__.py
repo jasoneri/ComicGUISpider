@@ -15,6 +15,8 @@ class SqlRecorder:
             self.init_flag = True
         self.conn = sqlite3.connect(self.db)
         self.cursor = self.conn.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL")
+        self.cursor.execute("PRAGMA busy_timeout=5000")
         self.table = "identity_md5_table"
         if self.init_flag or not self.table_exists():
             self.create()
@@ -73,6 +75,8 @@ class SqlrV:
     def __enter__(self):
         self.conn = sqlite3.connect(self.db)
         self.cursor = self.conn.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL")
+        self.cursor.execute("PRAGMA busy_timeout=5000")
         if self.init_flag or not self.table_exists():
             self.create()
         return self

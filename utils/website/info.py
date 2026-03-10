@@ -59,10 +59,6 @@ class Manga(BookInfo):
     img_preview: str = None  
     latest_sec: str = None
     render_keys: list = []
-    
-    @property
-    def frame_result(self):
-        return self.url, self.name, self.preview_url
 
     @property
     def say(self):
@@ -76,10 +72,6 @@ class Ero(BookInfo):
     @property
     def say(self):
         return str(self.idx), self.name, chr(12288)
-
-    @property
-    def frame_result(self):
-        return self.url, self.name, self.preview_url
 
     @property
     def preview_args(self):
@@ -174,7 +166,6 @@ class HitomiBookInfo(Ero):
     source = "hitomi"
     lang: str = None
     pics: list = []
-    say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
     
     @property
     def say(self):

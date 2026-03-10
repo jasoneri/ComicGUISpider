@@ -38,7 +38,6 @@ class KaobeiSpider(BaseComicSpider):
 
     def frame_book(self, response):
         frame_results = {}
-        say_fm = self.preset_book_frame.say_fm
         render_keys = self.preset_book_frame.print_head[1:]
         targets = response.json().get('results', {}).get('list', [])
         rendering_map = self.preset_book_frame.rendering_map()
@@ -46,16 +45,15 @@ class KaobeiSpider(BaseComicSpider):
             book = KaobeiUtils.parse_book_item(target, rendering_map, render_keys, x + 1)
             frame_results[book.idx] = book
         return self.say.frame_book_print(
-            frame_results, fm=say_fm, url=response.url,
+            frame_results, url=response.url,
             extra=" →_→ 拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算")
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        say_ep_fm = ' -{}、【{}】'
         episodes = KaobeiUtils.parse_episodes(
             response.json()['results'], book, url=response.url, show_dhb=conf.kbShowDhb)
         frame_results = {ep.idx: ep for ep in episodes}
-        self.say.frame_section_print(frame_results, fm=say_ep_fm)
+        self.say.frame_section_print(frame_results)
 
     def mk_page_tasks(self, **kw):
         return [kw['url']]
@@ -79,5 +77,4 @@ class KaobeiSpider(BaseComicSpider):
             item['image_urls'] = [url_item['url']]
             self.total += 1
             yield item
-        self.process_state.process = 'fin'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('fin')
