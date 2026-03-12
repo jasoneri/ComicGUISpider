@@ -391,27 +391,9 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
         self.js_execute("get_curr_hml();", refresh_tf)
 
-    # ---子任务模块
-    def init_tasks_progress_panel(self, callback=None):
-        def on_init_complete(_):
-            self.gui.tf.set_tasks_progress_panel()
-            if callback:
-                callback()
-        self.js_execute("initTaskPanel();", on_init_complete)
-
-    def add_task(self, tasks_obj):
-        _js_code = f"""addTask('{tasks_obj.taskid}', `{tasks_obj.display_title}`, `{tasks_obj.tasks_count}`, `{tasks_obj.title_url}`);"""
-        js_code = """if (typeof addTask === 'function') {
-                %s;
-            } else { false; }""" % _js_code
+    def show_task_added_toast(self, title: str):
+        js_code = f"window.showTaskAddedToast && window.showTaskAddedToast({json.dumps(title)});"
         self.js_execute(js_code, lambda _: None)
-
-    def update_progress(self, taskid, progress, callback):
-        _js_code = f"""updateTaskProgress(`{taskid}`, {progress});"""
-        js_code = """if (typeof updateTaskProgress === 'function') {
-                %s;
-            } else { false; }""" % _js_code
-        self.js_execute(js_code, lambda _: callback())
 
     def closeEvent(self, event):
         if hasattr(self, 'view'):

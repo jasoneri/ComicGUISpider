@@ -6,6 +6,9 @@ import time
 import html
 import hashlib
 import asyncio
+import platform
+import ssl
+from functools import lru_cache
 import pathlib as p
 import typing as t
 from dataclasses import asdict
@@ -18,6 +21,14 @@ temp_p = ori_path.joinpath("__temp")
 temp_p.mkdir(exist_ok=True)
 
 conf = Conf()
+
+
+@lru_cache(maxsize=1)
+def get_httpx_verify():
+    if platform.system() == "Windows":
+        return ssl.create_default_context()
+    return True
+
 
 def bs_theme():
     return "dark" if conf.darkTheme else "light"

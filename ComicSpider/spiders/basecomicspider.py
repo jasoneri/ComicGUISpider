@@ -275,15 +275,17 @@ class BaseComicSpider(scrapy.Spider):
         return [kw['url']]
 
     def set_task(self, task_info: t.Union[BookInfo, Episode]):
-        tasks_obj = task_info.to_tasks_obj()
-        tasks_obj.meta_info = self.mr.toMetaInfo(task_info)
-        self.tasks[tasks_obj.taskid] = tasks_obj
-        self.Q('TasksQueue').send(tasks_obj, wait=True)
-        
         book = task_info.from_book if isinstance(task_info, Episode) else task_info
         if book.preview_url and not book.preview_url.startswith("http"):
             prefix = "" if book.preview_url.startswith("/") else "/"
             book.preview_url = f"https://{self.domain}{prefix}{book.preview_url}"
+        if getattr(book, "img_preview", None) and not book.img_preview.startswith("http"):
+            prefix = "" if book.img_preview.startswith("/") else "/"
+            book.img_preview = f"https://{self.domain}{prefix}{book.img_preview}"
+        tasks_obj = task_info.to_tasks_obj()
+        tasks_obj.meta_info = self.mr.toMetaInfo(task_info)
+        self.tasks[tasks_obj.taskid] = tasks_obj
+        # self.Q('TasksQueue').send(tasks_obj, wait=True)
         self.rv_sql.write_meta(**book.to_sql())
 
     def makesure_tasks_status(self):

@@ -22,7 +22,7 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(MainWindow.sizePolicy().hasHeightForWidth())
         MainWindow.setSizePolicy(sizePolicy)
         MainWindow.setMinimumSize(QtCore.QSize(800, 350))
-        MainWindow.setMaximumSize(QtCore.QSize(1200, 635))
+        MainWindow.setMaximumSize(QtCore.QSize(1200, 655))
         font = QtGui.QFont()
         font.setFamily("微软雅黑")
         MainWindow.setFont(font)

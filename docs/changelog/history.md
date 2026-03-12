@@ -1,17 +1,19 @@
 # 🕑 更新历史
 
-## `v2.9.9`
+## `v2.9.10`
 
 ### 🎁 Features
 
-+ ui 大改，加入几个动画，去掉搜索键/序号输入框，统一预览键调度
-+ 发布页交互优化，预览选择交互增强
++ 任务板视觉操作增强
 
 ### 🐞 Fix
 
-+ 常规漫预览 OOM
-+ 缓存放宽到一周
-+ 此版本 CGSMid 暂时关闭
++ 修复 bg_path 问题 / 加强此类 slot 兜底捕捉 > cgs_fatal.log  
++ 修复预处理背板关闭问题
++ bg_path 高度自动调节
++ wn发
+
+> CGSMid 暂时关闭
 
 ::: tip 备用更新方法  
 win绿色包(exe): 先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  

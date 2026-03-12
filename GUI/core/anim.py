@@ -30,7 +30,7 @@ class BreathingEffect(QObject):
         self._anim = None
         self._running = False
         if widget is not None:
-            widget.destroyed.connect(self._cleanup)
+            widget.destroyed.connect(self.cleanup)
 
     def _ensure_effect_and_anim(self):
         if self._widget is None:
@@ -71,7 +71,7 @@ class BreathingEffect(QObject):
     def is_running(self) -> bool:
         return self._running and self._anim is not None and self._anim.state() == QAbstractAnimation.Running
 
-    def _cleanup(self):
+    def cleanup(self):
         self._running = False
         if self._anim is not None:
             if self._anim.state() == QAbstractAnimation.Running:
@@ -89,7 +89,7 @@ class ProxyRotationController(QObject):
         self._anim = QPropertyAnimation(proxy, b"rotation", proxy)
         self._anim.setDuration(duration_ms)
         self._anim.setEasingCurve(easing)
-        proxy.destroyed.connect(self._cleanup)
+        proxy.destroyed.connect(self.cleanup)
 
     def rotate_to(self, angle: float):
         if self._proxy is None or self._anim is None:
@@ -110,9 +110,6 @@ class ProxyRotationController(QObject):
             self._anim.stop()
 
     def cleanup(self):
-        self._cleanup()
-
-    def _cleanup(self):
         if self._anim is not None:
             if self._anim.state() == QAbstractAnimation.Running:
                 self._anim.stop()
@@ -127,7 +124,7 @@ class WindowHeightAnimator(QObject):
         self._window = window
         self._duration_ms = duration_ms
         self._easing = easing
-        window.destroyed.connect(self._cleanup)
+        window.destroyed.connect(self.cleanup)
 
     @pyqtProperty(int)
     def animatedHeight(self):
@@ -149,11 +146,8 @@ class WindowHeightAnimator(QObject):
         anim.setEndValue(max(0, int(target_h)))
         return anim
 
-    def _cleanup(self):
-        self._window = None
-
     def cleanup(self):
-        self._cleanup()
+        self._window = None
 
 
 class PanelHeightAnimator(QObject):
@@ -162,7 +156,7 @@ class PanelHeightAnimator(QObject):
         self._panel = panel
         self._duration_ms = duration_ms
         self._easing = easing
-        panel.destroyed.connect(self._cleanup)
+        panel.destroyed.connect(self.cleanup)
 
     def create_group(self, start: int, target: int) -> Optional[QParallelAnimationGroup]:
         if self._panel is None:
@@ -187,11 +181,8 @@ class PanelHeightAnimator(QObject):
         self._panel.setMinimumHeight(h)
         self._panel.setMaximumHeight(h)
 
-    def _cleanup(self):
-        self._panel = None
-
     def cleanup(self):
-        self._cleanup()
+        self._panel = None
 
 
 @dataclass(frozen=True)
@@ -199,6 +190,97 @@ class ContentTarget:
     widget: object
     measure_height: Optional[Callable[[object], int]] = None
     duration_weight: float = 1.0
+
+
+class ContentAnimationController:
+    def __init__(self, content_targets: Optional[Sequence[object]], duration_ms: int, easing):
+        self._targets = [self._normalize_target(target) for target in (content_targets or []) if target is not None]
+        total_weight = sum(max(0.0, target.duration_weight) for target in self._targets) or 1.0
+        self._panel_animators = {
+            target.widget: PanelHeightAnimator(
+                target.widget,
+                duration_ms=self._duration_for_target(target, duration_ms, total_weight),
+                easing=easing,
+            )
+            for target in self._targets
+        }
+
+    @staticmethod
+    def _normalize_target(target) -> ContentTarget:
+        if isinstance(target, ContentTarget):
+            return target
+        return ContentTarget(widget=target)
+
+    def _duration_for_target(self, target: ContentTarget, total_duration_ms: int, total_weight: float) -> int:
+        if len(self._targets) <= 1:
+            return total_duration_ms
+        weight = max(0.0, target.duration_weight)
+        return max(16, int(total_duration_ms * weight / total_weight))
+
+    @staticmethod
+    def _widget_height(widget) -> int:
+        if widget is None:
+            return 0
+        max_h = int(widget.maximumHeight()) if hasattr(widget, "maximumHeight") else 0
+        if max_h and max_h < 16777215:
+            return max(0, max_h)
+        if hasattr(widget, "height"):
+            return max(0, int(widget.height()))
+        return 0
+
+    def _expand_height(self, target: ContentTarget) -> int:
+        if target.measure_height is not None:
+            return max(0, int(target.measure_height(target.widget)))
+        if hasattr(target.widget, "sizeHint"):
+            return max(0, int(target.widget.sizeHint().height()))
+        return self._widget_height(target.widget)
+
+    def total_expand_delta(self) -> int:
+        return sum(
+            max(0, self._expand_height(target) - self._widget_height(target.widget))
+            for target in self._targets
+        )
+
+    def build_sequence(self, collapse: bool) -> Optional[QSequentialAnimationGroup]:
+        targets = list(reversed(self._targets)) if collapse else list(self._targets)
+        if not collapse:
+            for target in targets:
+                target.widget.setVisible(True)
+
+        sequence = QSequentialAnimationGroup()
+        for target in targets:
+            animator = self._panel_animators.get(target.widget)
+            if animator is None:
+                continue
+
+            start_height = self._widget_height(target.widget)
+            target_height = 0 if collapse else self._expand_height(target)
+            if start_height == target_height:
+                animator.set_height(target_height)
+                if collapse:
+                    target.widget.setVisible(False)
+                continue
+
+            group = animator.create_group(start_height, target_height)
+            if group is None:
+                continue
+            if collapse:
+                widget = target.widget
+                group.finished.connect(lambda widget_=widget: widget_.setVisible(False))
+            sequence.addAnimation(group)
+
+        return sequence if sequence.animationCount() > 0 else None
+
+    def set_height(self, target_widget, height: int):
+        animator = self._panel_animators.get(target_widget)
+        if animator is not None:
+            animator.set_height(height)
+
+    def cleanup(self):
+        for animator in self._panel_animators.values():
+            animator.cleanup()
+        self._panel_animators.clear()
+        self._targets = []
 
 
 class ExpandCollapseOrchestrator(QObject):
@@ -228,14 +310,7 @@ class ExpandCollapseOrchestrator(QObject):
         self._after_collapse = after_collapse
         self._window_anim = WindowHeightAnimator(window_target, duration_ms, easing) if window_target is not None else None
         self._window_restore_height: Optional[int] = None
-        self._content_targets = [self._normalize_target(t) for t in (content_targets or []) if t is not None]
-        self._panel_animators: dict = {}
-        for target in self._content_targets:
-            self._panel_animators[target.widget] = PanelHeightAnimator(
-                target.widget,
-                duration_ms=self._duration_for_target(target, duration_ms),
-                easing=easing,
-            )
+        self._content_controller = ContentAnimationController(content_targets, duration_ms, easing)
         self._anim_group: Optional[QParallelAnimationGroup] = None
         if owner is not None:
             owner.destroyed.connect(self.cleanup)
@@ -243,39 +318,6 @@ class ExpandCollapseOrchestrator(QObject):
     @property
     def is_transitioning(self) -> bool:
         return self._anim_group is not None and self._anim_group.state() == QAbstractAnimation.Running
-
-    def _normalize_target(self, target) -> ContentTarget:
-        if isinstance(target, ContentTarget):
-            return target
-        return ContentTarget(widget=target)
-
-    def _duration_for_target(self, target: ContentTarget, total_duration_ms: int) -> int:
-        if len(self._content_targets) <= 1:
-            return total_duration_ms
-        total_weight = sum(max(0.0, item.duration_weight) for item in self._content_targets) or 1.0
-        weight = max(0.0, target.duration_weight)
-        return max(16, int(total_duration_ms * weight / total_weight))
-
-    def _call(self, callback):
-        if callback:
-            callback()
-
-    def _widget_height(self, widget) -> int:
-        if widget is None:
-            return 0
-        max_h = int(widget.maximumHeight()) if hasattr(widget, "maximumHeight") else 0
-        if max_h and max_h < 16777215:
-            return max(0, max_h)
-        if hasattr(widget, "height"):
-            return max(0, int(widget.height()))
-        return 0
-
-    def _resolve_expand_height(self, target: ContentTarget) -> int:
-        if target.measure_height is not None:
-            return max(0, int(target.measure_height(target.widget)))
-        if hasattr(target.widget, "sizeHint"):
-            return max(0, int(target.widget.sizeHint().height()))
-        return self._widget_height(target.widget)
 
     def _resolve_window_target(self, total_expand_delta: int) -> int:
         if self._window_target_height_getter is not None:
@@ -291,49 +333,16 @@ class ExpandCollapseOrchestrator(QObject):
             return True
         return bool(self._can_expand_window(total_expand_delta))
 
-    def _total_expand_delta(self) -> int:
-        return sum(
-            max(0, self._resolve_expand_height(t) - self._widget_height(t.widget))
-            for t in self._content_targets
-        )
-
-    def _build_content_seq(self, collapse: bool) -> Optional[QSequentialAnimationGroup]:
-        targets = list(self._content_targets)
-        if collapse:
-            targets.reverse()
-        if not collapse:
-            for target in targets:
-                target.widget.setVisible(True)
-        seq = QSequentialAnimationGroup()
-        for target in targets:
-            animator = self._panel_animators.get(target.widget)
-            if animator is None:
-                continue
-            start_h = self._widget_height(target.widget)
-            target_h = 0 if collapse else self._resolve_expand_height(target)
-            if start_h == target_h:
-                animator.set_height(target_h)
-                if collapse:
-                    target.widget.setVisible(False)
-                continue
-            group = animator.create_group(start_h, target_h)
-            if group is None:
-                continue
-            if collapse:
-                w = target.widget
-                group.finished.connect(lambda w_=w: w_.setVisible(False))
-            seq.addAnimation(group)
-        return seq if seq.animationCount() > 0 else None
-
     def expand(self, on_finished=None) -> bool:
         if self.is_transitioning:
             return False
-        self._call(self._before_expand)
+        if self._before_expand is not None:
+            self._before_expand()
         top = QParallelAnimationGroup(self)
-        seq = self._build_content_seq(collapse=False)
+        seq = self._content_controller.build_sequence(collapse=False)
         if seq is not None:
             top.addAnimation(seq)
-        total_delta = self._total_expand_delta()
+        total_delta = self._content_controller.total_expand_delta()
         if self._window_anim is not None and self._can_window_expand(total_delta):
             current_h = self._window_target.height()
             if self._window_restore_height is None:
@@ -345,8 +354,10 @@ class ExpandCollapseOrchestrator(QObject):
         def _done():
             grp = self._anim_group
             self._anim_group = None
-            self._call(self._after_expand)
-            self._call(on_finished)
+            if self._after_expand is not None:
+                self._after_expand()
+            if on_finished is not None:
+                on_finished()
             if grp is not None:
                 grp.deleteLater()
 
@@ -358,9 +369,10 @@ class ExpandCollapseOrchestrator(QObject):
     def collapse(self, on_finished=None) -> bool:
         if self.is_transitioning:
             return False
-        self._call(self._before_collapse)
+        if self._before_collapse is not None:
+            self._before_collapse()
         top = QParallelAnimationGroup(self)
-        seq = self._build_content_seq(collapse=True)
+        seq = self._content_controller.build_sequence(collapse=True)
         if seq is not None:
             top.addAnimation(seq)
         if self._window_anim is not None and self._window_restore_height is not None:
@@ -375,8 +387,10 @@ class ExpandCollapseOrchestrator(QObject):
             grp = self._anim_group
             self._anim_group = None
             self._window_restore_height = None
-            self._call(self._after_collapse)
-            self._call(on_finished)
+            if self._after_collapse is not None:
+                self._after_collapse()
+            if on_finished is not None:
+                on_finished()
             if grp is not None:
                 grp.deleteLater()
 
@@ -386,9 +400,7 @@ class ExpandCollapseOrchestrator(QObject):
         return True
 
     def set_content_height(self, target_widget, height: int):
-        animator = self._panel_animators.get(target_widget)
-        if animator is not None:
-            animator.set_height(height)
+        self._content_controller.set_height(target_widget, height)
 
     def stop(self):
         if self._anim_group is not None:
@@ -402,10 +414,7 @@ class ExpandCollapseOrchestrator(QObject):
         if self._window_anim is not None:
             self._window_anim.cleanup()
             self._window_anim = None
-        for animator in self._panel_animators.values():
-            animator.cleanup()
-        self._panel_animators.clear()
-        self._content_targets = []
+        self._content_controller.cleanup()
         self._window_restore_height = None
         self._before_expand = None
         self._after_expand = None
