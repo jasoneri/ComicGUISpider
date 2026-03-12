@@ -6,7 +6,7 @@ import contextlib
 from collections import defaultdict
 from pathlib import Path
 
-from PyQt5.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot, QUrl, QRect
+from PyQt5.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot, QUrl
 from PyQt5.QtWebChannel import QWebChannel
 from qfluentwidgets import InfoBar, InfoBarPosition
 
@@ -63,6 +63,189 @@ class _ScanRunnable(QRunnable):
             self.signals.scan_error.emit(self._sid, traceback.format_exc())
 
 
+class _FavoriteStore:
+    def __init__(self, favorites_dir):
+        self._favorites_dir = favorites_dir
+        self._favorites_dir.mkdir(parents=True, exist_ok=True)
+
+    def load(self, site_index):
+        pkl_path = self._favorites_pkl_path(site_index)
+        if pkl_path is None or not pkl_path.exists():
+            return []
+        with open(pkl_path, "rb") as f:
+            data = pickle.load(f)
+        deduped, seen = [], set()
+        for book in data:
+            key = self.book_unique_url(book)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            deduped.append(book)
+        return deduped
+
+    def save(self, site_index, books):
+        pkl_path = self._favorites_pkl_path(site_index)
+        if pkl_path is None:
+            return False
+        self._favorites_dir.mkdir(parents=True, exist_ok=True)
+        tmp_path = pkl_path.with_name(f"{pkl_path.name}.tmp")
+        try:
+            with open(tmp_path, "wb") as f:
+                pickle.dump(books, f, protocol=pickle.HIGHEST_PROTOCOL)
+            tmp_path.replace(pkl_path)
+        except Exception:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
+            raise
+        return True
+
+    def urls(self, site_index):
+        return {
+            url for book in self.load(site_index)
+            if (url := self.book_unique_url(book))
+        }
+
+    def toggle(self, site_index, book):
+        book_url = self.book_unique_url(book)
+        if not book_url:
+            return None
+        favorites = self.load(site_index)
+        existed_index = next(
+            (i for i, fav in enumerate(favorites) if self.book_unique_url(fav) == book_url),
+            None
+        )
+        if existed_index is None:
+            favorites.append(book)
+            final_state = True
+        else:
+            favorites.pop(existed_index)
+            final_state = False
+        return final_state if self.save(site_index, favorites) else None
+
+    @staticmethod
+    def book_unique_url(book):
+        return (getattr(book, "url", None) or getattr(book, "preview_url", "") or "").strip()
+
+    def _favorites_pkl_path(self, site_index):
+        spider_name = SPIDERS.get(site_index)
+        if not spider_name:
+            return None
+        return self._favorites_dir.joinpath(f"{spider_name}_local.pkl")
+
+
+class _PreviewPageController:
+    def __init__(self, gui, bridge, get_session_id, on_page_ready):
+        self._gui = gui
+        self._bridge = bridge
+        self._get_session_id = get_session_id
+        self._on_page_ready = on_page_ready
+        self._channel = None
+        self._channel_page = None
+        self._page_ready = False
+        self._pending_js = []
+        self._page_load_page = None
+
+    def shutdown(self):
+        self._disconnect_page_load()
+        self._page_ready = False
+        self._pending_js.clear()
+        self._channel = None
+        self._channel_page = None
+
+    def reset_session(self):
+        self._page_ready = False
+        self._pending_js.clear()
+
+    def show(self, ensure_handler):
+        browser = self._show_browser()
+        page = browser.view.page()
+        self._ensure_web_channel(page)
+        self._page_ready = False
+        self._bind_page_load(page)
+        browser.set_ensure_handler(ensure_handler)
+        browser.set_close_handler(self._on_preview_window_closed)
+        browser.show()
+
+    def run_js(self, js, session_id):
+        if session_id != self._get_session_id():
+            return
+        if not self._page_ready:
+            self._pending_js.append((session_id, js))
+            return
+        if browser := self._gui.BrowserWindow:
+            browser.js_execute(js, lambda _: None)
+
+    def _show_browser(self):
+        if self._gui.previewInit or not self._gui.BrowserWindow:
+            self._gui.previewInit = False
+            self._gui.set_preview()
+            browser = self._gui.BrowserWindow
+            browser.setMinimumWidth(browser.minimumWidth() + 30)
+            browser.setMinimumHeight(browser.minimumHeight() + 30)
+            self._channel = None
+            self._channel_page = None
+            return browser
+        browser = self._gui.BrowserWindow
+        if self._gui.previewSecondInit:
+            browser.second_init()
+            self._gui.previewSecondInit = False
+        else:
+            browser.home_url = QUrl.fromLocalFile(self._gui.tf)
+            browser.load_home()
+        return browser
+
+    def _ensure_web_channel(self, page):
+        if self._channel and self._channel_page is page:
+            return
+        self._channel = QWebChannel(page)
+        self._channel.registerObject("bridge", self._bridge)
+        page.setWebChannel(self._channel)
+        self._channel_page = page
+
+    def _bind_page_load(self, page):
+        if self._page_load_page is page:
+            return
+        self._disconnect_page_load()
+        page.loadFinished.connect(self._on_page_load_finished)
+        self._page_load_page = page
+
+    def _disconnect_page_load(self):
+        if self._page_load_page is not None:
+            self._page_load_page.loadFinished.disconnect(self._on_page_load_finished)
+            self._page_load_page = None
+
+    def _on_page_load_finished(self, ok):
+        if not ok:
+            return
+        browser = self._gui.BrowserWindow
+        if not browser:
+            return
+        self._page_ready = True
+        sid = self._get_session_id()
+        pending = self._pending_js
+        self._pending_js = []
+        for saved_sid, js in pending:
+            if saved_sid == sid:
+                browser.js_execute(js, lambda _: None)
+        self._on_page_ready(sid)
+
+    def _on_preview_window_closed(self, browser, event):
+        self._disconnect_page_load()
+        self._page_ready = False
+        self._pending_js.clear()
+        self._channel = None
+        self._channel_page = None
+        event.ignore()
+
+        def _save_and_close(html):
+            if html and self._gui.tf:
+                with open(self._gui.tf, "w", encoding="utf-8") as f:
+                    f.write(html)
+            browser.close()
+
+        browser.js_execute("get_curr_hml();", _save_and_close)
+
+
 class MangaPreviewManager:
     def __init__(self, gui):
         self.gui = gui
@@ -70,32 +253,28 @@ class MangaPreviewManager:
         self.books_cache = {}
         self.episodes_cache = {}
         self.bridge = MangaPreviewBridge(self)
-        self._channel = None
-        self._channel_page = None
+        self._favorites = _FavoriteStore(conf_dir.joinpath("manga"))
         self._searching = False
         self._worker = None
         self._session_id = 0
         self._current_page = 1
         self._current_keyword = ""
-        self._page_ready = False
-        self._pending_js = []
         self._inflight_books = set()
-        self._page_load_page = None
         self._is_local_mode = False
-        self._favorites_dir = conf_dir.joinpath("manga")
-        self._favorites_dir.mkdir(parents=True, exist_ok=True)
+        self._page = _PreviewPageController(
+            gui,
+            self.bridge,
+            lambda: self._session_id,
+            self._sync_page_favorites,
+        )
         self._fav_completer_exists = False
         self._check_lc_completer_exists()
         self.gui.destroyed.connect(self._stop_worker)
 
     def shutdown(self):
         self._searching = False
-        self._pending_js.clear()
         self._inflight_books.clear()
-        self._page_ready = False
-        self._channel = None
-        self._channel_page = None
-        self._page_load_page = None
+        self._page.shutdown()
         self._stop_worker()
 
     def _check_lc_completer_exists(self):
@@ -123,72 +302,14 @@ class MangaPreviewManager:
         self._worker.start()
         return self._worker
 
-    def _favorites_pkl_path(self):
-        spider_name = SPIDERS.get(self.site_index)
-        if not spider_name:
-            return None
-        return self._favorites_dir.joinpath(f"{spider_name}_local.pkl")
-
-    @staticmethod
-    def _book_unique_url(book):
-        return (getattr(book, "url", None) or getattr(book, "preview_url", "") or "").strip()
-
-    def _load_favorites(self):
-        pkl_path = self._favorites_pkl_path()
-        if not pkl_path or not pkl_path.exists():
-            return []
-        with open(pkl_path, "rb") as f:
-            data = pickle.load(f)
-        deduped, seen = [], set()
-        for book in data:
-            key = self._book_unique_url(book)
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            deduped.append(book)
-        return deduped
-
-    def _save_favorites(self, books):
-        pkl_path = self._favorites_pkl_path()
-        if not pkl_path:
-            return False
-        self._favorites_dir.mkdir(parents=True, exist_ok=True)
-        tmp_path = pkl_path.with_name(f"{pkl_path.name}.tmp")
-        ok = False
-        try:
-            with open(tmp_path, "wb") as f:
-                pickle.dump(books, f, protocol=pickle.HIGHEST_PROTOCOL)
-            tmp_path.replace(pkl_path)
-            ok = True
-        finally:
-            if not ok and tmp_path.exists():
-                with contextlib.suppress(Exception):
-                    tmp_path.unlink()
-        return ok
-
-    def _get_favorite_urls(self):
-        return {self._book_unique_url(book) for book in self._load_favorites()}
-
     def toggle_favorite(self, book_key):
-        if book_key not in self.books_cache:
+        book = self.books_cache.get(book_key)
+        if book is None:
             return
-        book = self.books_cache[book_key]
-        book_url = self._book_unique_url(book)
-        if not book_url:
+        final_state = self._favorites.toggle(self.site_index, book)
+        if final_state is None:
             return
-        favorites = self._load_favorites()
-        existed_index = next(
-            (i for i, fav in enumerate(favorites) if self._book_unique_url(fav) == book_url),
-            None
-        )
-        was_favorited = existed_index is not None
-        if existed_index is not None:
-            favorites.pop(existed_index)
-        else:
-            favorites.append(book)
-        saved = self._save_favorites(favorites)
-        final_state = (not was_favorited) if saved else was_favorited
-        if saved and final_state and not self._fav_completer_exists:
+        if final_state and not self._fav_completer_exists:
             self._ensure_local_fav_completer()
             self._fav_completer_exists = True
         js = (
@@ -211,25 +332,14 @@ class MangaPreviewManager:
             self.gui.set_completer()
 
     def _show_local_fav(self):
-        books = self._load_favorites()
+        books = self._favorites.load(self.site_index)
         for idx, book in enumerate(books):
             book.idx = idx
         self._is_local_mode = True
         self._searching = False
         self._current_page = 1
         self._current_keyword = ori_res.GUI.local_fav
-        self._session_id += 1
-        sid = self._session_id
-        self._page_ready = False
-        self._pending_js.clear()
-        self._inflight_books.clear()
-        self.books_cache = {str(book.idx): book for book in books}
-        self.episodes_cache.clear()
-        self.gui.clean_temp_file()
-        body = self._build_cards_html(books)
-        self.gui.tf = self._create_html_file(body)
-        self._show_preview_window()
-        self._start_dl_scan(sid)
+        self._publish_books(books)
 
     def handle_choosebox_changed(self, index):
         self.site_index = index
@@ -239,6 +349,7 @@ class MangaPreviewManager:
         self._current_keyword = ""
         self.books_cache.clear()
         self.episodes_cache.clear()
+        self._inflight_books.clear()
         self._searching = False
         browser = getattr(self.gui, "BrowserWindow", None)
         if browser:
@@ -267,7 +378,7 @@ class MangaPreviewManager:
                 self.gui.BrowserWindow.show()
                 self.gui.BrowserWindow.activateWindow()
             else:
-                self._show_preview_window()
+                self._page.show(self._handle_ensure_result)
             return
         self._searching = True
         self._current_page = 1
@@ -300,36 +411,7 @@ class MangaPreviewManager:
         if site_index != self.site_index:
             return
         self._is_local_mode = False
-        self._session_id += 1
-        sid = self._session_id
-        self._page_ready = False
-        self._pending_js.clear()
-        self._inflight_books.clear()
-        self.books_cache = {str(book.idx): book for book in books}
-        self.episodes_cache.clear()
-        self.gui.clean_temp_file()
-        body = self._build_cards_html(books)
-        self.gui.tf = self._create_html_file(body)
-        self._show_preview_window()
-        self._start_dl_scan(sid)
-
-    def _on_preview_window_closed(self, browser, event):
-        if self._page_load_page is not None:
-            self._page_load_page.loadFinished.disconnect(self._on_page_load_finished)
-            self._page_load_page = None
-        self._page_ready = False
-        self._pending_js.clear()
-        self._channel = None
-        self._channel_page = None
-        event.ignore()
-
-        def _save_and_close(html):
-            if html and self.gui.tf:
-                with open(self.gui.tf, 'w', encoding='utf-8') as f:
-                    f.write(html)
-            browser.close()
-
-        browser.js_execute("get_curr_hml();", _save_and_close)
+        self._publish_books(books)
 
     def _on_search_error(self, error):
         self._searching = False
@@ -365,7 +447,19 @@ class MangaPreviewManager:
             cards.append(manga_el.create(book.idx, img_src, title, url, meta=meta or None))
         return "\n".join(cards)
 
-    def _create_html_file(self, body):
+    def _publish_books(self, books):
+        self._session_id += 1
+        sid = self._session_id
+        self._page.reset_session()
+        self._inflight_books.clear()
+        self.books_cache = {str(book.idx): book for book in books}
+        self.episodes_cache.clear()
+        self.gui.clean_temp_file()
+        self.gui.tf = self._write_cards_html(self._build_cards_html(books))
+        self._page.show(self._handle_ensure_result)
+        self._start_dl_scan(sid)
+
+    def _write_cards_html(self, body):
         with open(format_path.joinpath("manga.html"), encoding="utf-8") as f:
             template = f.read()
         html = template.replace("{bs_theme}", bs_theme()).replace("{body}", body)
@@ -375,83 +469,25 @@ class MangaPreviewManager:
         tf.close()
         return TF(file_path)
 
-    def _set_preview(self):
-        self.gui.previewInit = False
-        self.gui.set_preview()
-        self.gui.BrowserWindow.setMinimumWidth(self.gui.BrowserWindow.minimumWidth()+30)
-        self.gui.BrowserWindow.setMinimumHeight(self.gui.BrowserWindow.minimumHeight()+30)
-        self._channel = None
-        self._channel_page = None
-
-    def _show_preview_window(self):
-        if self.gui.previewInit or not self.gui.BrowserWindow:
-            self._set_preview()
-        elif self.gui.previewSecondInit:
-            self.gui.BrowserWindow.second_init()
-            self.gui.previewSecondInit = False
-        else:
-            # 翻页时：重新加载 HTML 文件
-            self.gui.BrowserWindow.home_url = QUrl.fromLocalFile(self.gui.tf)
-            self.gui.BrowserWindow.load_home()
-        
-        page = self.gui.BrowserWindow.view.page()
-        self._ensure_web_channel(page)
-        self._page_ready = False
-        if self._page_load_page is not page:
-            if self._page_load_page is not None:
-                self._page_load_page.loadFinished.disconnect(self._on_page_load_finished)
-            page.loadFinished.connect(self._on_page_load_finished)
-            self._page_load_page = page
-        self.gui.BrowserWindow.set_ensure_handler(self._handle_ensure_result)
-        self.gui.BrowserWindow.set_close_handler(self._on_preview_window_closed)
-        self.gui.BrowserWindow.show()
-
-    def _ensure_web_channel(self, page):
-        if self._channel and self._channel_page is page:
-            return
-        self._channel = QWebChannel(page)
-        self._channel.registerObject("bridge", self.bridge)
-        page.setWebChannel(self._channel)
-        self._channel_page = page
-
-    def _on_page_load_finished(self, ok):
-        if not ok:
-            return
-        self._page_ready = True
-        browser = self.gui.BrowserWindow
-        if not browser:
-            return
-        sid = self._session_id
-        pending = self._pending_js
-        self._pending_js = []
-        for saved_sid, js in pending:
-            if saved_sid == sid:
-                browser.js_execute(js, lambda _: None)
-
+    def _sync_page_favorites(self, session_id):
         if self.books_cache:
             if self._is_local_mode:
                 fav_keys = list(self.books_cache.keys())
             else:
-                favorite_urls = self._get_favorite_urls()
+                favorite_urls = self._favorites.urls(self.site_index)
                 fav_keys = [
                     key for key, book in self.books_cache.items()
-                    if self._book_unique_url(book) in favorite_urls
+                    if self._favorites.book_unique_url(book) in favorite_urls
                 ]
             keys_json = json.dumps(fav_keys)
             js = (
                 f"if (typeof initFavoriteStates === 'function') initFavoriteStates({keys_json});"
             )
-            self._js_guarded(js, sid)
+            self._js_guarded(js, session_id)
 
     def _js_guarded(self, js, session_id=None):
         sid = self._session_id if session_id is None else session_id
-        if sid != self._session_id:
-            return
-        if not self._page_ready:
-            self._pending_js.append((sid, js))
-            return
-        if browser:= self.gui.BrowserWindow:
-            browser.js_execute(js, lambda _: None)
+        self._page.run_js(js, sid)
 
     def _start_dl_scan(self, session_id):
         if not self.books_cache:
