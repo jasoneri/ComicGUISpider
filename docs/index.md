@@ -61,7 +61,7 @@ hero:
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json"></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json"></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json"></td>
+    <td></td>
     <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json"></td>
   </tr>
 </tbody></table>

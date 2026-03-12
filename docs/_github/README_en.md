@@ -47,7 +47,7 @@ Comic-Downloader
 | [18comic](https://18comic.vip/)         |  :cn:  |           🔞            |      ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json)      |
 | [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
 | [ExHentai](https://exhentai.org/)       |   🌏   |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
-| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_hitomi.json) |
+| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     |  |
 | [Kemono](https://kemono.cr)     | 🌏 |     🔞/[📒Usage](https://cgs.101114105.xyz/feat/script)    |  |
 
 ---
