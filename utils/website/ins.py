@@ -250,8 +250,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies):
 
 class WnacgUtils(EroUtils, DomainUtils, Req):
     name = "wnacg"
-    publish_domain = "wn01.link"
-    publish_domain_old = ["wnacg.date"]
+    publish_domain = "wnacg01.link"
+    publish_domain_old = ["wnacg.date","wn01.link"]
     publish_url = f"https://{publish_domain}"
     status_publish = True
     publish_headers = {

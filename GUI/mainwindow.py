@@ -11,6 +11,7 @@ from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
 from assets import res as ori_res
 from variables import VER
+from utils import ori_path
 
 res = ori_res.GUI.Uic
 
@@ -99,7 +100,7 @@ class MitmMainWindow(Ui_MainWindow):
 
     def setup_sleep_widget(self, _img=None):
         self.sleepLabel, self.sleepBasePixmap = self._mk_overlay(
-            self.sleepWidget, "sleepLabel", _img or "docs/public/cgs_sleep.png",
+            self.sleepWidget, "sleepLabel", _img or str(ori_path.joinpath("docs/public/cgs_sleep.png")),
             init=lambda l: (l.setAlignment(Qt.AlignLeft | Qt.AlignBottom), l.setScaledContents(True)),
         )
         QTimer.singleShot(0, self._sync_sleep_widget_geometry)
