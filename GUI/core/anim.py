@@ -2,18 +2,13 @@ from dataclasses import dataclass
 from typing import Callable, Literal, Optional, Sequence
 
 from PyQt5.QtCore import (
-    QObject,
-    QAbstractAnimation,
-    QPropertyAnimation,
-    QEasingCurve,
-    QParallelAnimationGroup,
-    QSequentialAnimationGroup,
-    QRect,
-    QPoint,
-    QTimer,
+    QObject, QAbstractAnimation, QPropertyAnimation, QEasingCurve,
+    QParallelAnimationGroup, QSequentialAnimationGroup, QRect, QPoint,
     pyqtProperty,
 )
 from PyQt5.QtWidgets import QGraphicsOpacityEffect
+
+from GUI.core.timer import safe_single_shot
 
 
 PopupDirection = Literal["right", "up", "down"]
@@ -491,4 +486,4 @@ class PopupAnimator:
                 widget.setWindowOpacity(1.0)
             group.start()
 
-        QTimer.singleShot(0, _start_anim)
+        safe_single_shot(0, _start_anim)

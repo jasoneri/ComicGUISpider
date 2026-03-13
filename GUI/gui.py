@@ -8,9 +8,10 @@ from multiprocessing import Process
 import multiprocessing.managers as m
 from PyQt5.QtGui import QKeySequence, QGuiApplication
 from PyQt5.QtCore import (
-    QThread, Qt, QCoreApplication, QUrl, QRect, QTimer,
+    QThread, Qt, QCoreApplication, QUrl, QRect,
     pyqtSignal
 )
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
 from qfluentwidgets import InfoBar, InfoBarPosition
 
@@ -99,7 +100,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.task_mgr = TaskProgressManager(self)
             self.task_mgr.init_native_panel()
             setupTheme(self)
-            QTimer.singleShot(10, self.setupUi_)
+            safe_single_shot(10, self.setupUi_)
             self.first_init = False
         else:
             self.apply_translations()
@@ -243,7 +244,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.rvBtn.click()
         def _jump():
             self.toolWin.stackedWidget.setCurrentWidget(self.toolWin.asInterface)
-        QTimer.singleShot(10, _jump)
+        safe_single_shot(10, _jump)
 
     def set_tool_win(self):
         self.toolWin = ToolWindow(self)
@@ -410,6 +411,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.second_init()
             self.previewSecondInit = False
         self.BrowserWindow.set_ensure_handler()
+        self.pageFrame.setEnabled(True)
+        self.pageFrame.setStyleSheet("QToolButton { background-color: rgb(255, 255, 255); }")
         final_rect = self.BrowserWindow.geometry()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
@@ -450,14 +453,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow = None
             def safe_setup():
                 if hasattr(self, 'p_crawler') and self.p_crawler and self.p_crawler.is_alive():
-                    QTimer.singleShot(70, safe_setup)
+                    safe_single_shot(70, safe_setup)
                 else:
                     self.Q('InputFieldQueue').clear()
                     self.setupUi(self)
-            QTimer.singleShot(10, safe_setup)
+            safe_single_shot(10, safe_setup)
 
         self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
-        QTimer.singleShot(50, retry_all)
+        safe_single_shot(50, retry_all)
         self.retrybtn.setDisabled(True)
         self.log.info('===--→ retry_schedule end\n')
 

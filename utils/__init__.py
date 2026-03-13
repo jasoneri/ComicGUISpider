@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 import re
 import ast
+import ssl
 import time
 import html
 import hashlib
 import asyncio
 import platform
-import ssl
+import contextlib
 from functools import lru_cache
 import pathlib as p
 import typing as t
@@ -26,7 +27,10 @@ conf = Conf()
 @lru_cache(maxsize=1)
 def get_httpx_verify():
     if platform.system() == "Windows":
-        return ssl.create_default_context()
+        with contextlib.suppress(ssl.SSLError):
+            ctx = ssl.create_default_context()
+            if ctx.get_ca_certs():
+                return ctx
     return True
 
 

@@ -407,4 +407,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             self.gui.BrowserWindow = None
             self.gui.previewInit = True
             self.gui.previewSecondInit = False
+            self.gui.pageFrame.setEnabled(False)
+            self.gui.pageFrame.setStyleSheet("QToolButton { background-color: rgb(127, 127, 127); }")
         super().closeEvent(event)

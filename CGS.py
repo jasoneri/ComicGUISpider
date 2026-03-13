@@ -1,16 +1,13 @@
 ﻿# -*- coding: utf-8 -*-
 import os
 import sys
-import functools
 import traceback
 from datetime import datetime
 from multiprocessing import freeze_support
 from pathlib import Path
 
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMessageBox
-
-_CGS_PATCHED_QTIMER = False
 
 
 class ExceptionRouter:
@@ -22,7 +19,6 @@ class ExceptionRouter:
 
     def install(self):
         sys.excepthook = self.excepthook
-        self._install_qtimer_single_shot_guard()
 
     def raise_fatal(self, exc, phase):
         trace_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
@@ -113,31 +109,6 @@ class ExceptionRouter:
         except OSError:
             pass
         return log_path
-
-    def _install_qtimer_single_shot_guard(self):
-        global _CGS_PATCHED_QTIMER
-        if _CGS_PATCHED_QTIMER:
-            return
-        original_single_shot = QTimer.singleShot
-
-        @functools.wraps(original_single_shot)
-        def patched_single_shot(*args, **kwargs):
-            if args and callable(args[-1]):
-                callback = args[-1]
-
-                @functools.wraps(callback)
-                def guarded_callback(*cb_args, **cb_kwargs):
-                    try:
-                        return callback(*cb_args, **cb_kwargs)
-                    except Exception:
-                        self.handle_current_exception("QTimer.singleShot")
-                        return None
-
-                args = (*args[:-1], guarded_callback)
-            return original_single_shot(*args, **kwargs)
-
-        QTimer.singleShot = patched_single_shot
-        _CGS_PATCHED_QTIMER = True
 
     @staticmethod
     def _write_stderr(message):

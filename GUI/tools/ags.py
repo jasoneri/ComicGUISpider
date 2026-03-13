@@ -3,8 +3,9 @@ import pathlib
 from dataclasses import dataclass
 from typing import Optional
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QUrl, Qt, QTimer, QSize
-from PyQt5.QtGui import QPixmap, QDesktopServices
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QPixmap
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtWidgets import QApplication, QHBoxLayout, QWidget, QFileDialog
 from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, PushButton, PrimaryToolButton,
@@ -80,7 +81,7 @@ class PicMgr:
             return
 
         self.image_label = self._create_image_label(parent, pixmap)
-        QTimer.singleShot(0, self._apply_layout)
+        safe_single_shot(0, self._apply_layout)
 
     def _get_or_create_scroll_widget(self) -> QWidget:
         scroll_widget = self.view.selectScrollingRegion.widget()

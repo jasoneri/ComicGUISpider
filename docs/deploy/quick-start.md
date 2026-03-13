@@ -35,7 +35,7 @@ uv python install 3.13 --mirror https://mirror.nju.edu.cn/github-release/astral-
 [System.Environment]::SetEnvironmentVariable("UV_TOOL_BIN_DIR", "D:\uv\bin", "User")
 uv tool update-shell
 ```
-  
+
 4. uv 安装 CGS  
 ``` bash
 uvx ComicGUISpider --index-url https://pypi.tuna.tsinghua.edu.cn/simple
@@ -87,7 +87,7 @@ cgs-cli --help
 + 或 uv tool 管理的指定版本，例如 `2.9.0`
 
 ```zsh
-uv tool install ComicGUISpider==2.9.0 --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+uv tool install ComicGUISpider==2.9.0 --force --reinstall --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 + 或 win-绿色包 安装指定版本，例如 `2.9.0`  

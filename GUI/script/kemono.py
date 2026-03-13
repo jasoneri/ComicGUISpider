@@ -9,6 +9,7 @@ import httpx
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
 from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer, QByteArray, QBuffer, QIODevice
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtGui import QFont, QGuiApplication, QDesktopServices, QPixmap, QColor
 from qfluentwidgets import (
     LineEdit, PrimaryPushButton,
@@ -379,7 +380,7 @@ class KemonoTableView(FramelessWindow):
         if self._avatar_sync_scheduled:
             return
         self._avatar_sync_scheduled = True
-        QTimer.singleShot(0, self._sync_avatar_widgets)
+        safe_single_shot(0, self._sync_avatar_widgets)
 
     def _sync_avatar_widgets(self):
         self._avatar_sync_scheduled = False
