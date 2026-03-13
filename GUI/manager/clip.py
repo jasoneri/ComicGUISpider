@@ -1,6 +1,7 @@
 import re
 import pathlib
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt
+from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
@@ -120,7 +121,7 @@ class ClipGUIManager:
                                     dled_eidxes.append(key)  
                         js_code = f'''tryMarkDownload({dled_bidxes},{dled_eidxes});'''
                         self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
-                    QTimer.singleShot(300, delayed_mark)
+                    safe_single_shot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
                 if self.gui.BrowserWindow.topHintBox.isChecked():
                     self.gui.BrowserWindow.topHintBox.click()

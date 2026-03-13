@@ -2,7 +2,8 @@ import typing as t
 from enum import Enum
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QTimer, QSize
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QSize
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene
 
@@ -273,7 +274,7 @@ class ExpandSettings(QtWidgets.QWidget):
                         self.setVisible(False)
                         self.conf_dia.setWindowOpacity(1.0)
                         raise
-                QTimer.singleShot(0, _begin_expand)
+                safe_single_shot(0, _begin_expand)
             else:
                 self._driver.collapse()
 
@@ -334,7 +335,7 @@ class SupportView(FlyoutViewBase):
             copyBtn.clicked.connect(_copied)
             CustomInfoBar.show_custom(title='', content='点按钮复制邀请码', parent=self.conf_dia, _type="INFORMATION",
                 ib_pos=InfoBarPosition.TOP, widgets=[copyBtn])
-            QTimer.singleShot(4000, lambda: QDesktopServices.openUrl(QUrl("https://www.yuque.com")))
+            safe_single_shot(4000, lambda: QDesktopServices.openUrl(QUrl("https://www.yuque.com")))
         self.yuqueBtn.clicked.connect(_yuque)
         self.affLayout.addWidget(self.riesBtn)
         self.affLayout.addWidget(self.siliconBtn)
@@ -479,7 +480,7 @@ class TableFlyoutView(FlyoutViewBase):
             InfoBar.info(title='', content=cont,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
                 duration=2000, parent=self.gui.showArea)
-        QTimer.singleShot(10, do)
+        safe_single_shot(10, do)
         self.rvInterface.table_fv.close()
         self.rvInterface.toolWin.close()
 

@@ -3,7 +3,8 @@ import pathlib
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog
-from PyQt5.QtCore import Qt, QCoreApplication, QTimer
+from PyQt5.QtCore import Qt, QCoreApplication
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtGui import QIcon
 
 from qfluentwidgets import (
@@ -220,7 +221,7 @@ class ScriptWindow(FluentWindow):
         
     def closeEvent(self, event):
         event.accept()
-        QTimer.singleShot(10, self.gui.close)
+        safe_single_shot(10, self.gui.close)
         
 
 if __name__ == '__main__':

@@ -7,7 +7,8 @@ import time
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from PyQt5.QtCore import QObject, Qt, QThread, QTimer, pyqtSignal
+from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal
+from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition, StateToolTip
 
 
@@ -124,7 +125,7 @@ class TaskTooltipStack:
             return
         if auto_hide:
             tooltip.setState(True)
-            QTimer.singleShot(self.CLOSE_DELAY_MS, lambda tid=task_id: self.close(tid))
+            safe_single_shot(self.CLOSE_DELAY_MS, lambda tid=task_id: self.close(tid))
             return
         tooltip.setContent("任务已完成")
 

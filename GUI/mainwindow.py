@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
 from qfluentwidgets import (
     FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea, FlowLayout
@@ -103,7 +104,7 @@ class MitmMainWindow(Ui_MainWindow):
             self.sleepWidget, "sleepLabel", _img or str(ori_path.joinpath("docs/public/cgs_sleep.png")),
             init=lambda l: (l.setAlignment(Qt.AlignLeft | Qt.AlignBottom), l.setScaledContents(True)),
         )
-        QTimer.singleShot(0, self._sync_sleep_widget_geometry)
+        safe_single_shot(0, self._sync_sleep_widget_geometry)
 
     def resizeEvent(self, event):
         QtWidgets.QMainWindow.resizeEvent(self, event)

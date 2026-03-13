@@ -129,6 +129,7 @@ class Ui_MainWindow(object):
         self.chooseBox.setObjectName("chooseBox")
         self.horizontalLayout_input.addWidget(self.chooseBox)
         self.pageFrame = QtWidgets.QFrame(self.frame)
+        self.pageFrame.setStyleSheet("QToolButton { background-color: rgb(127, 127, 127); }")
         self.pageFrame.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
@@ -146,9 +147,6 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.previousPageBtn.sizePolicy().hasHeightForWidth())
         self.previousPageBtn.setSizePolicy(sizePolicy)
-        self.previousPageBtn.setStyleSheet("QToolButton {\n"
-"background-color: rgb(255, 255, 255);\n"
-"}")
         icon1 = QtGui.QIcon()
         icon1.addPixmap(QtGui.QPixmap(":/page/previous_page.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.previousPageBtn.setIcon(icon1)
@@ -162,9 +160,6 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.nextPageBtn.sizePolicy().hasHeightForWidth())
         self.nextPageBtn.setSizePolicy(sizePolicy)
-        self.nextPageBtn.setStyleSheet("QToolButton {\n"
-"background-color: rgb(255, 255, 255);\n"
-"}")
         icon2 = QtGui.QIcon()
         icon2.addPixmap(QtGui.QPixmap(":/page/next_page.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.nextPageBtn.setIcon(icon2)
@@ -198,9 +193,6 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.pageJumpBtn.sizePolicy().hasHeightForWidth())
         self.pageJumpBtn.setSizePolicy(sizePolicy)
         self.pageJumpBtn.setMaximumSize(QtCore.QSize(16777215, 20))
-        self.pageJumpBtn.setStyleSheet("QToolButton {\n"
-"background-color: rgb(255, 255, 255);\n"
-"}")
         icon3 = QtGui.QIcon()
         icon3.addPixmap(QtGui.QPixmap(":/page/jump_page.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.pageJumpBtn.setIcon(icon3)

@@ -1,4 +1,5 @@
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtWidgets import QHBoxLayout
 from qfluentwidgets import (
     VBoxLayout, FlyoutViewBase, FlyoutAnimationType,
@@ -69,7 +70,7 @@ class DomainToolView(FlyoutViewBase):
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
                 duration=sc*1000, parent=self.browser
             )
-            QTimer.singleShot(sc*1000, self.close_later)
+            safe_single_shot(sc*1000, self.close_later)
         else:
             InfoBar.error(
                 title='', content=tools_res.doamin_error_tip,

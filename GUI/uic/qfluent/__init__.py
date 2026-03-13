@@ -1,7 +1,7 @@
 import types
 import contextlib
 from PyQt5.QtWidgets import QWidget, QHBoxLayout
-from PyQt5.QtCore import QTimer
+from GUI.core.timer import safe_single_shot
 from qfluentwidgets import (
     Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType,
     LineEdit, ToolButton
@@ -139,13 +139,13 @@ class MonkeyPatch:
             if not text:
                 return
             gui.searchinput.setText(text)
-            QTimer.singleShot(10, gui.previewBtn.click)
+            safe_single_shot(10, gui.previewBtn.click)
             def close():
                 browserWindow.close()
                 gui.BrowserWindow = None
                 if gui.toolWin.isVisible():
                     gui.toolWin.close()
-            QTimer.singleShot(20, close)
+            safe_single_shot(20, close)
 
         def custom_context_menu(self, event):
             page = self.page()
