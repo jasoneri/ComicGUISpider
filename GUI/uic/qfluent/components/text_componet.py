@@ -1,4 +1,5 @@
-from PyQt5.QtCore import QTimer, QSize
+from PyQt5.QtCore import QSize
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtGui import QPixmap, QDesktopServices
 from qfluentwidgets import ImageLabel, TextBrowser, TextEdit
 
@@ -70,7 +71,7 @@ class TextBrowserWithBg(TextBrowser):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.image_label:
-            QTimer.singleShot(0, self.position_image)
+            safe_single_shot(0, self.position_image)
 
 
 class TextEditWithBg(TextEdit):
@@ -86,7 +87,7 @@ class TextEditWithBg(TextEdit):
         if self.image_label:
             self.image_label.setParent(None)
             self.image_label.deleteLater()
-            QTimer.singleShot(20, lambda: self.set_fixed_image(image_path, height, margin))
+            safe_single_shot(20, lambda: self.set_fixed_image(image_path, height, margin))
         else:
             self.image_label = ImageLabel(self)
             self.image_label.hide()  
@@ -119,4 +120,4 @@ class TextEditWithBg(TextEdit):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.image_label:
-            QTimer.singleShot(0, self.img_resize_and_repos)
+            safe_single_shot(0, self.img_resize_and_repos)

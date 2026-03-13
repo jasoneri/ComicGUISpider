@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from PyQt5.QtCore import QTimer
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtWidgets import QApplication
 
 from assets import res
@@ -19,7 +19,7 @@ class CopyUnfinished:
         def copy_to_clipboard(text):
             QApplication.clipboard().setText(text)
         for i, task in enumerate(self.tasks):
-            QTimer.singleShot(self.copy_delay * (i + 1), 
+            safe_single_shot(self.copy_delay * (i + 1), 
                 lambda t=task.title_url: copy_to_clipboard(t))
 
 

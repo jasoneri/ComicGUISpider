@@ -1,5 +1,6 @@
 import json
 from PyQt5.QtCore import QTimer
+from GUI.core.timer import safe_single_shot
 
 from utils.website.info import BookInfo
 from utils import conf
@@ -72,7 +73,7 @@ class AggrSearchManager:
                                     dled_bidxes.append(key)
                         js_code = f'''tryMarkDownload({dled_bidxes},[]);'''
                         self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
-                    QTimer.singleShot(300, delayed_mark)
+                    safe_single_shot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
                 if self.gui.BrowserWindow.topHintBox.isChecked():
                     self.gui.BrowserWindow.topHintBox.click()

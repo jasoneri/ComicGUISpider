@@ -2,7 +2,7 @@ import os
 import contextlib
 import subprocess
 
-from PyQt5.QtCore import QTimer
+from GUI.core.timer import safe_single_shot
 from qfluentwidgets import (
     InfoBarPosition, StateToolTip
 )
@@ -135,7 +135,7 @@ class Updater:
                 f"""<{ver}>""", _type="SUCCESS")
             _close_thread()
             self.gui.update_notifier.on_updated_or_dismissed()
-            QTimer.singleShot(4000, lambda: self.to_update(ver))
+            safe_single_shot(4000, lambda: self.to_update(ver))
 
         def checked(recv):
             with contextlib.suppress(RuntimeError):
@@ -175,7 +175,7 @@ class Updater:
     def rerun(self):
         cmd = ["cgs"]
         subprocess.Popen(cmd, cwd=exc_p, env=env)
-        QTimer.singleShot(1000, self.gui.close)
+        safe_single_shot(1000, self.gui.close)
 
     def to_update(self, ver):
         _UpdateLauncher(ver).run()

@@ -1,7 +1,8 @@
 import sqlite3
 from contextlib import closing
 import urllib.parse as up
-from PyQt5.QtCore import Qt, QUrl, QTimer
+from PyQt5.QtCore import Qt, QUrl
+from GUI.core.timer import safe_single_shot
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
 from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QComboBox, QFrame, QWidget
 from qfluentwidgets import (
@@ -235,7 +236,7 @@ class HitomiTools(QWidget):
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
             duration=4000, parent=self.gui.showArea
         )
-        QTimer.singleShot(100, self.gui.toolWin.close)
+        safe_single_shot(100, self.gui.toolWin.close)
 
     def copy_path(self):
         clipboard = QApplication.clipboard()
