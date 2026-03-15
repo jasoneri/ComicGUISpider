@@ -26,19 +26,6 @@ class MangabzSpider(FormReqBaseComicSpider):
     body = Body()
     _enable_episode_dispatch = True
 
-    @property
-    def search(self):
-        self._emit_process('search')
-        keyword = self.input_state.keyword.strip()
-        if keyword in self.mappings.keys():
-            search_start_path, body_sort = self.mappings[keyword]  # TODO[5](2024-09-30): 后续支持状态：全部/连载中/完结，排序：上架时间
-            search_start = f"https://{domain}/{search_start_path}/mangabz.ashx?d={curr_time_format()}"
-            self.body.update(sort=body_sort)
-        else:
-            search_start = f"{self.search_url_head}?d={curr_time_format()}"
-            self.body = SearchBody(title=keyword)
-        return search_start
-
     def frame_book(self, response):
         frame_results = {}
         render_keys = self.body.print_head[1:]

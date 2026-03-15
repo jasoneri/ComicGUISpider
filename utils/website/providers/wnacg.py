@@ -95,6 +95,12 @@ class WnacgUtils(EroUtils, DomainUtils, Req, MangaPreview):
         return books
 
     @classmethod
+    def preview_client_config(cls):
+        return {
+            'headers': cls.headers,
+        }
+
+    @classmethod
     async def preview_search(cls, keyword, client, **kw):
         page = int(kw.pop("page", 1) or 1)
         if page < 1:

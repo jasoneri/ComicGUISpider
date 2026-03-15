@@ -40,20 +40,7 @@ class EHentaiSpider(BaseComicSpider3):
         for x, book in enumerate(books):
             book.idx = x + 1
             frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}", url=response.url,
-                                         make_preview=True)
-
-    def page_turn(self, response):
-        if 'next' in self.input_state.pageTurn:
-            find_prevurl = re.search(r"""var nexturl="(.*?)";""", response.text)
-            url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield from self.page_turn_(url)
-        elif 'previous' in self.input_state.pageTurn:
-            find_prevurl = re.search(r"""var prevurl="(.*?)";""", response.text)
-            url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield from self.page_turn_(url)
-        else:
-            yield Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
+        return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}", url=response.url)
 
     def parse_section(self, response):
         if not response.meta.get('sec_page'):

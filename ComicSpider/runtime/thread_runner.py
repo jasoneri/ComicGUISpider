@@ -5,7 +5,7 @@ import logging
 
 from ComicSpider.runtime.protocol import (
     SpiderDownloadJob, SubmitJobCommand, CancelJobCommand, ShutdownCommand,
-    JobAcceptedEvent, JobFinishedEvent, LogEvent, ErrorEvent, RuntimeState,
+    JobAcceptedEvent, JobFinishedEvent, ErrorEvent, RuntimeState,
 )
 from variables import SPIDERS
 
@@ -59,6 +59,7 @@ class SpiderRuntimeThread(threading.Thread):
     def run(self):
         # 延迟导入 Scrapy/Twisted 避免阻塞主线程
         from scrapy.crawler import CrawlerRunner
+        from scrapy.utils.log import configure_logging
         from scrapy.utils.project import get_project_settings
         from twisted.internet import reactor
         self._reactor = reactor
@@ -67,6 +68,7 @@ class SpiderRuntimeThread(threading.Thread):
         s.setmodule("ComicSpider.settings")
         installed_reactor = f"{reactor.__class__.__module__}.{reactor.__class__.__name__}"
         s.set("TWISTED_REACTOR", installed_reactor, priority="cmdline")
+        configure_logging(s)
         self._runner = CrawlerRunner(s)
         self._settings = s
         self._ready.set()

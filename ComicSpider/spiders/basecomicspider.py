@@ -13,8 +13,8 @@ from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from ComicSpider.runtime.job_models import create_job_context, iter_download_items
 from GUI.core.font import font_color
-from utils import QueuesManager, Queues, PresetHtmlEl, temp_p, conf
-from utils.processed_class import TextBrowserState, ProcessState, QueueHandler, Url, refresh_state
+from utils import PresetHtmlEl, temp_p, conf
+from utils.processed_class import TextBrowserState, ProcessState, Url
         
 from utils.protocol import SpiderDownloadJob, JobContext, LogEvent, ProcessStateEvent, TasksObjEvent
 from utils.website import (
@@ -33,18 +33,17 @@ class SayToGui:
     exp_preview = font_color(res.exp_preview, color='chocolate')
     exp_extra = f"{exp_turn_page}<br>{exp_preview}<br>{res.exp_replace_keyword}"
 
-    def __init__(self, spider, queue=None, state=None, *, event_q=None, job_id=None):
+    def __init__(self, spider, state=None, *, event_q, job_id=None):
         self.spider = spider
         if spider.name in {s.spider_name for s in Spider.specials()}:
             self.exp_txt = self.exp_txt.replace(self.res.exp_replace_keyword, self.exp_extra)
-        self.text_browser = self.TextBrowser(queue, state or spider.text_browser_state, event_q=event_q, job_id=job_id)
+        self.text_browser = self.TextBrowser(state or spider.text_browser_state, event_q=event_q, job_id=job_id)
 
     def __call__(self, *args, **kwargs):
         self.text_browser.send(*args, **kwargs)
 
     class TextBrowser:
-        def __init__(self, queue, state, *, event_q=None, job_id=None):
-            self.queue = queue
+        def __init__(self, state, *, event_q, job_id=None):
             self.state = state
             self.event_q = event_q
             self.job_id = job_id
@@ -55,22 +54,16 @@ class SayToGui:
 
         def send(self, _text):
             self.state.text = _text
-            if self.event_q is not None:
-                self.event_q.put_nowait(LogEvent(job_id=self.job_id, level="info", message=_text))
-            elif self.queue is not None:
-                Queues.send(self.queue, self.state, wait=True)
+            self.event_q.put_nowait(LogEvent(job_id=self.job_id, level="info", message=_text))
 
-    def frame_book_print(self, rets, url=None, extra=None, make_preview=False):
+    def frame_book_print(self, rets, url=None, extra=None):
         extra = extra or ""
         self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
         if len(rets):
-            self(rets)  
-            # 向gui传送rets并赋值需要比exp_txt(crawl_only的flag) 和 PreviewBookInfoEnd 早才行
-            if make_preview:
-                self(f"[PreviewBookInfoEnd]{url}")
+            self(rets)
+            # 向gui传送rets并赋值需要比exp_txt(crawl_only的flag) 早才行
             self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}<br>
                 {font_color(extra, cls='theme-tip')}</p><br>""")
-            self("[ShowKeepBooks]")  # 由于 keep_books 现放在 gui 上，所以最后用 flag 形式触发
         else:
             self(f"<br>{'✈' * 15}<br>"
                 f"{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=4)}")
@@ -87,12 +80,8 @@ class BaseComicSpider(scrapy.Spider):
     """ComicSpider基类"""
 
     res = ori_res.SPIDER
-    input_state = None
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
-    queue_port: int = None
-    manager: QueuesManager = None
-    Q: QueueHandler = None
     say: SayToGui = None
     ut = None
     record_sql: SqlRecorder = None
@@ -130,11 +119,6 @@ class BaseComicSpider(scrapy.Spider):
         job_id = self.current_job.job_id if self.current_job else None
         if self._runtime_thread:
             self.emit(ProcessStateEvent(job_id=job_id, process=process))
-        elif self.Q:
-            self.Q('ProcessQueue').send(self.process_state)
-
-    def _runtime_mode(self) -> bool:
-        return self.current_job is not None and self._runtime_thread is not None
 
     def _task_store(self):
         return self.job_context if self.job_context else self
@@ -187,77 +171,7 @@ class BaseComicSpider(scrapy.Spider):
 
     def start_requests(self):
         self.preready()
-        if self._runtime_mode():
-            if not self.current_job:
-                self.logger.warning("No job assigned, spider will idle")
-                return
-            yield from self.iter_download_requests(self.current_job)
-            return
-
-        self.refresh_state('input_state', 'InputFieldQueue')
-        self._emit_process('start_requests')
-        indexes = self.input_state.indexes
-        if (self._enable_episode_dispatch
-                and isinstance(indexes, BookInfo) and indexes.episodes):
-            yield from self._dispatch_episodes(indexes)
-        elif isinstance(indexes, list) and all(isinstance(s, InfoMinix) for s in indexes):
-            self._emit_process('parse')
-            self.refresh_state('input_state', 'InputFieldQueue')
-            for info in indexes:
-                url = info.url if info.url and info.url.startswith("http") else self.book_id_url % info.id
-                yield scrapy.Request(
-                    url=self.transfer_url(url), callback=self.parse_section,
-                    headers={**self.ua, 'Referer': self.domain},
-                    meta={'book': info} if isinstance(info, BookInfo) else {'episode': info},
-                    dont_filter=True)
-        else:
-            search_start = self.search
-            if self.domain not in search_start:
-                search_start = Url(correct_domain(self.domain, search_start)).set_next(*search_start.info)
-            self.search_start = deepcopy(search_start)
-            meta = {"Url": self.search_start}
-            yield scrapy.Request(self.search_start, dont_filter=True, meta=meta)
-
-    @property
-    def search(self) -> t.Union[Url, tuple]:
-        self._emit_process('search')
-        keyword = self.input_state.keyword
-        # kind = re.search(rf"(({')|('.join(self.kind)}))(.*)", keyword) if bool(self.kind) else None
-        if keyword in self.mappings.keys():
-            url = self.mappings[keyword]
-            search_start = Url(f"https://{self.domain}{urlparse(url).path}").set_next(*self.turn_page_info)
-        # elif bool(kind):    # 应对get请求非QueryParams形式，例子如`BaseComicSpider.kind`下面注释的e.g.
-        #     search_start = f"{self.kind[kind.group(1)]}{kind.group(len(self.kind) + 2)}/"
-        else:
-            __next_info = (self.turn_page_search,) if self.turn_page_search else self.turn_page_info
-            search_start = Url(self.search_url_head + keyword).set_next(*__next_info)
-        return search_start
-
-    def parse(self, response):
-        self._emit_process('parse')
-        self.frame_book(response)
-
-        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        if self.input_state.pageTurn:
-            yield from self.page_turn(response)
-        else:
-            for book in self.input_state.indexes:
-                yield scrapy.Request(url=book.url, callback=self.parse_section, meta={"book": book}, dont_filter=True)
-
-    def page_turn(self, response):
-        if not self.input_state.pageTurn:
-            yield scrapy.Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
-        elif 'next' in self.input_state.pageTurn:
-            yield from self.page_turn_(response.meta['Url'].next)
-        elif 'previous' in self.input_state.pageTurn:
-            yield from self.page_turn_(response.meta['Url'].prev)
-        elif self.input_state.pageTurn:
-            url = response.meta['Url'].jump(int(self.input_state.pageTurn))
-            yield from self.page_turn_(url)
-
-    def page_turn_(self, url, **kw):
-        yield scrapy.Request(url=url, callback=self.parse, meta={"Url": url},
-                             dont_filter=True, **kw)
+        yield from self.iter_download_requests(self.current_job)
 
     @abstractmethod
     def frame_book(self, response) -> dict:
@@ -272,48 +186,22 @@ class BaseComicSpider(scrapy.Spider):
             return
 
         book = response.meta.get('book')
-
-        if self._runtime_mode():
-            if book:
-                self.say(f'📜 《{book.name}》')
-            frame_eps_result = self.frame_section(response)
-            if not frame_eps_result:
-                self.logger.warning("frame_section returned empty results")
-                return
-            for page, url_or_ep in frame_eps_result.items():
-                if isinstance(url_or_ep, Episode):
-                    yield from self._process_episode(url_or_ep)
-                elif isinstance(url_or_ep, str):
-                    yield scrapy.Request(
-                        url=url_or_ep,
-                        callback=self.parse_fin_page,
-                        meta={'book': book, 'page': page},
-                        dont_filter=True,
-                    )
+        if book:
+            self.say(f'📜 《{book.name}》')
+        frame_eps_result = self.frame_section(response)
+        if not frame_eps_result:
+            self.logger.warning("frame_section returned empty results")
             return
-
-        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        book = self.input_state.indexes
-        if not book.episodes:
-            self.say(font_color(f'{self.res.parse_sec_not_match}<br>', cls='theme-err'))
-            self.logger.info('no result return, choose_input is wrong')
-            return
-        choose = ','.join(map(str, book.episodes))
-        self.say(f'📜《{book.name}》 {self.res.parse_sec_selected}: {choose}')
-        if book.episodes and len(book.episodes) > 20 and int(conf.concurr_num) > 10:
-            concurr_num = 8
-            for slot in self.crawler.engine.downloader.slots.values():
-                slot.concurrency = concurr_num
-            if hasattr(self.crawler.engine.scraper, 'slot') and self.crawler.engine.scraper.slot:
-                self.crawler.engine.scraper.slot.max_active_size = concurr_num
-            conf.update(concurr_num=concurr_num)
-            self.say(res.SPIDER.reduce_concurrency_tip % concurr_num)
-        for ep in book.episodes:
-            url_list = self.mk_page_tasks(url=ep.url)
-            now_start_crawl_desc = self.res.parse_sec_now_start_crawl_desc % book.name
-            self.say(font_color(f"📢\t{now_start_crawl_desc}：{ep}", cls='theme-tip', size=4))
-            for url in url_list:
-                yield scrapy.Request(url=url, callback=self.parse_fin_page, meta={'ep': ep})
+        for page, url_or_ep in frame_eps_result.items():
+            if isinstance(url_or_ep, Episode):
+                yield from self._process_episode(url_or_ep)
+            elif isinstance(url_or_ep, str):
+                yield scrapy.Request(
+                    url=url_or_ep,
+                    callback=self.parse_fin_page,
+                    meta={'book': book, 'page': page},
+                    dont_filter=True,
+                )
 
     def need_sec_next_page(self, resp):
         pass
@@ -356,11 +244,6 @@ class BaseComicSpider(scrapy.Spider):
                 elif ctx.tasks_path.get(taskid) and len(tuple(ctx.tasks_path.get(taskid).iterdir())) >= ctx.tasks[taskid].tasks_count:
                     self.record_sql.add(taskid)
 
-    def refresh_state(self, state_name, queue_name, monitor_change=False):
-        if self._runtime_mode():
-            raise RuntimeError(f"refresh_state is unavailable in runtime job mode: {state_name}/{queue_name}")
-        refresh_state(self, state_name, queue_name, monitor_change)
-
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = cls(*args, **kwargs)
@@ -370,22 +253,13 @@ class BaseComicSpider(scrapy.Spider):
         runtime_thread = kwargs.get('runtime_thread') or spider.settings.get('_RUNTIME_THREAD')
         job = kwargs.get('job') or spider.settings.get('_CURRENT_JOB')
 
-        if runtime_thread:
-            spider._runtime_thread = runtime_thread
-            job_id = job.job_id if job else None
-            spider.emit(ProcessStateEvent(job_id=job_id, process='spider_init'))
-            spider.say = SayToGui(spider, state=spider.text_browser_state, event_q=runtime_thread.event_q, job_id=job_id)
-        else:
-            spider.manager = QueuesManager.create_manager(
-                'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
-                address=('127.0.0.1', spider.queue_port), authkey=b'abracadabra'
-            )
-            spider.manager.connect()
-            q = getattr(spider.manager, 'TextBrowserQueue')()
-            spider.Q = QueueHandler(spider.manager)
-            spider.process_state.process = 'spider_init'
-            spider.Q('ProcessQueue').send(spider.process_state)
-            spider.say = SayToGui(spider, q, spider.text_browser_state)
+        if not runtime_thread:
+            raise RuntimeError(f"{cls.__name__} requires runtime_thread")
+
+        spider._runtime_thread = runtime_thread
+        job_id = job.job_id if job else None
+        spider.emit(ProcessStateEvent(job_id=job_id, process='spider_init'))
+        spider.say = SayToGui(spider, state=spider.text_browser_state, event_q=runtime_thread.event_q, job_id=job_id)
 
         spider.record_sql = SqlRecorder()
         spider.rv_sql = SqlrV(1 if spider.name in spider.settings.get('SPECIAL') else 0).connect()
@@ -408,11 +282,7 @@ class BaseComicSpider(scrapy.Spider):
 
     def close(self, reason):
         stats = self.crawler.stats
-        resources_to_close = (('manager', lambda: delattr(self, 'manager')),)
         try:
-            for attr_name, close_func in resources_to_close:
-                if hasattr(self, attr_name):
-                    close_func()
             self.makesure_tasks_status()
         except Exception as e:
             self.logger.error(f"Error closing resources: {e}")
@@ -532,50 +402,4 @@ class FormReqBaseComicSpider(BaseComicSpider):
 
     def start_requests(self):
         self.preready()
-        if self._runtime_mode():
-            if not self.current_job:
-                self.logger.warning("No job assigned, spider will idle")
-                return
-            yield from self.iter_download_requests(self.current_job)
-            return
-
-        self.refresh_state('input_state', 'InputFieldQueue')
-        try:
-            self._emit_process('start_requests')
-            indexes = self.input_state.indexes
-            if (self._enable_episode_dispatch
-                    and isinstance(indexes, BookInfo) and indexes.episodes):
-                yield from self._dispatch_episodes(indexes)
-                return
-            search_start = self.search
-            if self.domain not in search_start:
-                search_start = correct_domain(self.domain, search_start)
-        except Exception as e:
-            raise e
-        else:
-            self.search_start = deepcopy(search_start)
-            yield scrapy.FormRequest(self.search_start, formdata=self.body.dic,
-                                     dont_filter=True, meta={"Body": self.body})
-
-    def page_turn(self, response):
-        _ = int(response.meta['Body'].dic[self.body.page_index_field])
-        if not self.input_state.pageTurn:
-            yield scrapy.FormRequest(url=self.search, callback=self.parse, formdata=response.meta['Body'].dic,
-                                     meta=response.meta, dont_filter=True)
-        elif 'next' in self.input_state.pageTurn:
-            response.meta['Body'].dic[self.body.page_index_field] = f"{_ + 1}"
-            yield from self.page_turn_(response)
-        elif 'previous' in self.input_state.pageTurn:
-            if _ - 1 <= 0:
-                response.meta['Body'].dic[self.body.page_index_field] = 1
-                self.say(self.res.page_less_than_one)
-            else:
-                response.meta['Body'].dic[self.body.page_index_field] = f"{_ - 1}"
-            yield from self.page_turn_(response)
-        elif self.input_state.pageTurn:
-            response.meta['Body'].dic[self.body.page_index_field] = str(self.input_state.pageTurn)
-            yield from self.page_turn_(response)
-
-    def page_turn_(self, resp, **kw):
-        yield scrapy.FormRequest(url=resp.request.url, callback=self.parse, formdata=resp.meta['Body'].dic,
-                                 meta={"Body": resp.meta['Body']}, dont_filter=True, **kw)
+        yield from self.iter_download_requests(self.current_job)

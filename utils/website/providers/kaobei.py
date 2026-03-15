@@ -92,6 +92,12 @@ class KaobeiUtils(Utils, MangaPreview):
                      "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算",}
 
     @classmethod
+    def preview_client_config(cls):
+        return {
+            'headers': cls.ua_mapi,
+        }
+
+    @classmethod
     async def preview_search(cls, keyword, client, **kw):
         url, frame = cls.build_search_spec(keyword)
         page = int(kw.pop("page", 1) or 1)

@@ -30,12 +30,6 @@ class KaobeiSpider(BaseComicSpider):
         KaobeiUtils.get_aes_key()
         return super().from_crawler(crawler, *args, **kwargs)
 
-    @property
-    def search(self):
-        keyword = self.input_state.keyword
-        url, self.preset_book_frame = KaobeiUtils.build_search_spec(keyword, self.domain)
-        return Url(url).set_next(*self.turn_page_info)
-
     def frame_book(self, response):
         frame_results = {}
         render_keys = self.preset_book_frame.print_head[1:]

@@ -60,23 +60,9 @@ class HitomiSpider(BaseComicSpider):
             return loop.run_until_complete(_async_get())
 
     def start_requests(self):
-        if self._runtime_mode():
-            if not self.current_job:
-                self.logger.warning("No job assigned, spider will idle")
-                return
-            yield from self.iter_download_requests(self.current_job)
-            return
-        self.refresh_state('input_state', 'InputFieldQueue')
-        self._emit_process('start_requests')
+        self.preready()
+        yield from self.iter_download_requests(self.current_job)
 
-        keyword = self.input_state.keyword
-        self.search_start = f"{self.domain}{keyword}.html"
-        page = 1
-        nozomi = f"https://{self.backend_domain}/{keyword}.nozomi"
-        meta = {"Url": self.search_start, "nozomi": nozomi, "page": page}
-        resp = self._get_nozomi_sync(nozomi, page)
-        yield from self.parse(response=resp, meta=meta)
-    
     # ==============================================
     def parse(self, response, meta):
         self._emit_process('parse')
@@ -111,51 +97,11 @@ class HitomiSpider(BaseComicSpider):
             })
         yield from self.defer_parse(meta['results'])
 
-    def page_turn(self, meta):
-        if not self.input_state.pageTurn:
-            resp = self._get_nozomi_sync(meta.get("nozomi"), meta.get("page"))
-            yield from self.parse(response=resp, meta=meta)
-            # yield scrapy.Request(url=meta.get("nozomi"), callback=self.parse, meta=meta, dont_filter=True)
-        elif 'next' in self.input_state.pageTurn:
-            yield from self.page_turn_(meta['page']+1, meta)
-        elif 'previous' in self.input_state.pageTurn:
-            yield from self.page_turn_(meta['page']-1, meta)
-        elif self.input_state.pageTurn:
-            yield from self.page_turn_(int(self.input_state.pageTurn), meta)
-
-    def page_turn_(self, page, meta, **kw):
-        meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), "page": page}
-        resp = self._get_nozomi_sync(meta.get("nozomi"), page)
-        yield from self.parse(response=resp, meta=meta)
-
-    def actual_parse(self, response):
-        self.logger.info("actual_parse called")
-        meta = response.meta
-        meta['results'].append({
-            "text": response.text,
-            "meta": {k: v for k, v in meta.items() if k != 'results'}
-        })
-        self.say(self.ut.get_uuid(response.request.url))
-        if len(meta['results']) == meta['total_requests']:
-            self.logger.info("All requests completed, processing results")
-            yield from self.defer_parse(meta['results'])
-
     def defer_parse(self, rets):
         self._emit_process('defer_parse')
         if not rets:
             self.logger.error("No results to process")
             return
-        meta = json.loads(
-            {json.dumps(ret.pop('meta')) for ret in rets}.pop()
-        )
-        frame_book_results = self.frame_book(rets, meta)
-        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        if self.input_state.pageTurn:
-            yield from self.page_turn(meta)
-        else:
-            for book in self.input_state.indexes:
-                meta = {'book': book}
-                yield from self.parse_section(meta)
 
     def parse_section(self, meta):
         self._emit_process('parse section')
@@ -199,7 +145,7 @@ class HitomiSpider(BaseComicSpider):
             book.idx = x + 1
             book.preview_url = f"{self.domain}{book.preview_url}"
             frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, url=meta.get("Url"), make_preview=True)
+        return self.say.frame_book_print(frame_results, url=meta.get("Url"))
 
     def process_item(self, response):
         item = response.meta['item']

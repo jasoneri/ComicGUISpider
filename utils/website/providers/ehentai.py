@@ -94,6 +94,13 @@ class EHentaiKits(EroUtils, Req, Cookies, MangaPreview):
         return {'extra': f"<br>{res.EHentai.JUMP_TIP}",}
 
     @classmethod
+    def preview_client_config(cls):
+        cookie_str = cls.to_str_(conf.cookies.get(cls.name) or {})
+        return {
+            'headers': {**cls.book_hea, 'Cookie': cookie_str},
+        }
+
+    @classmethod
     async def preview_search(cls, keyword, client, **kw):
         page = int(kw.pop("page", 1) or 1)
         if page < 1:

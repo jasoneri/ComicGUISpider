@@ -202,6 +202,13 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
         return books
 
     @classmethod
+    def preview_client_config(cls):
+        domain = cls.get_domain()
+        return {
+            'headers': {**cls.headers, 'Referer': f'https://{domain}'},
+        }
+
+    @classmethod
     async def preview_search(cls, keyword, client, **kw):
         page = int(kw.pop("page", 1) or 1)
         if page < 1:

@@ -159,6 +159,10 @@ class MangaPreview:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
 
     @classmethod
+    def preview_client_config(cls) -> dict:
+        return {}
+
+    @classmethod
     async def preview_search(cls, keyword: str, client, **kw) -> list:
         raise NotImplementedError(f"{cls.__name__}.preview_search")
 
@@ -237,11 +241,34 @@ class DomainUtils(Utils):
         return cls.cachef.run(_, 168, write_in=True)
 
     @classmethod
+    def _fallback_domain(cls):
+        if getattr(cls, "domain", None):
+            return cls.domain
+        for attr in ("book_id_url", "search_url_head", "publish_url", "forever_url"):
+            raw = getattr(cls, attr, "") or ""
+            matched = re.search(r"https?://([^/]+)", raw)
+            if matched:
+                return matched.group(1)
+        return None
+
+    @classmethod
     def _get_domain_thread(cls):
         loop = get_loop()
+        fallback_domain = cls._fallback_domain()
         try:
-            domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever()) or None
-            if not cls.status_forever and not cls.status_publish:
+            try:
+                domain = (
+                    loop.run_until_complete(cls.by_publish())
+                    or loop.run_until_complete(cls.by_forever())
+                    or fallback_domain
+                )
+            except Exception:
+                if fallback_domain:
+                    return fallback_domain
+                raise
+            if not domain and fallback_domain:
+                return fallback_domain
+            if not cls.status_forever and not cls.status_publish and not fallback_domain:
                 raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
             return domain
         finally:
