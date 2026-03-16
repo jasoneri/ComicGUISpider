@@ -25,7 +25,7 @@ from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.tools import ToolWindow, TextUtils
 from GUI.manager import (
     TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager,
-    CGSMidManagerGUI, MangaPreviewManager, UpdateNotifier, PublishDomainManager,
+    CGSMidManagerGUI, PreviewMgr, UpdateNotifier, PublishDomainManager,
     SelectionFlowManager, DownloadRuntimeManager
 )
 from GUI.manager.preprocess import PreprocessManager
@@ -41,6 +41,8 @@ from utils.redViewer_tools import Handler as rVtools
 from utils.website import spider_utils_map, InfoMinix, WnacgUtils
 from utils.sql import SqlRecorder
 
+_UNSET = object()
+
 
 class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
@@ -51,7 +53,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     spiderUtils = None
     sut = None
     bsm: dict = None  # books show max
-    _flow_stage: GUIFlowStage = GUIFlowStage.IDLE
+    flow_stage: GUIFlowStage = GUIFlowStage.IDLE
     sv_path = None
     rv_tools: rVtools = None
 
@@ -112,10 +114,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.splashScreen.finish()
 
     def generation_bind(self):
-        active_download = bool(getattr(getattr(self, "dl_mgr", None), "has_active_download", lambda: False)())
-        self._flow_stage = GUIFlowStage.DOWNLOADING if active_download else GUIFlowStage.IDLE
-        self.books = {}
-        self.eps = []
+        self.flow_stage = GUIFlowStage.IDLE
         self.pageFrameClickCnt = 0
         self.conf_dia = ConfDialog(self)
         self.textBrowser.append(TextUtils.description())
@@ -131,18 +130,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.clip_mgr = ClipGUIManager(self)
         self.ags_mgr = AggrSearchManager(self)
-        self.manga_mgr = MangaPreviewManager(self)
+        self.preview_mgr = PreviewMgr(self)
         self.publish_mgr = PublishDomainManager(self)
         if not getattr(self, 'dl_mgr', None):
             self.dl_mgr = DownloadRuntimeManager(self)
         else:
-            self.dl_mgr.flush_pending_rebind()
             self.dl_mgr.rebind(self)
         self.sel_mgr = SelectionFlowManager(self)
         if not getattr(self, 'mid_mgr', None):
             self.mid_mgr = CGSMidManagerGUI(self)
         else:
-            self.mid_mgr.stop()
             self.mid_mgr.rebind(self)
         self.dl_mgr.process_stage_changed.connect(self.mid_mgr.on_process_stage)
         if self.dl_mgr.process_stage:
@@ -155,15 +152,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.set_shortcut()
         self.set_tool_win()
         self.tf = None
+        self.searchReady = False
+        self.searchRunning = False
         self.previewInit = True
         self.previewSecondInit = False
         self.BrowserWindow = None
         self.bsm = None
         self.chooseBox.setEnabled(True)
-        self.previewBtn.setVisible(False)
+        self.previewBtn.setVisible(True)
         self.mpreviewBtn.setVisible(False)
 
-        self.first_tmp_sv_flag = True
         self.preprocess_mgr = PreprocessManager(self)
         with contextlib.suppress(TypeError):
             self.chooseBox.currentIndexChanged.disconnect(self._chooseBox_changed_handle)
@@ -177,14 +175,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.mpreviewBtn.setVisible(False)
             self.previewBtn.setVisible(False)
             self.retrybtn.setEnabled(True)
-            self._flow_stage = GUIFlowStage.IDLE
-            self.manga_mgr.handle_choosebox_changed(index)
+            self.flow_stage = GUIFlowStage.IDLE
+            self.preview_mgr.handle_choosebox_changed(index)
             self.preprocess_mgr.handle_choosebox_changed(index)
             return
         self.spiderUtils = spider_utils_map[index]
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
-        self.mpreviewBtn.setVisible(index in SPIDERS)
+        self.mpreviewBtn.setVisible(index in SPIDERS and not self.web_is_r18)
         self.previewBtn.setVisible(self.web_is_r18)
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
@@ -194,6 +192,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
         self.searchinput.setEnabled(True)
         FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
+        self.searchReady = False
+        self.searchRunning = False
         if index and not self.dl_mgr.spider_runtime:
             self.chooseBox.setDisabled(True)
             try:
@@ -207,8 +207,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         else:
             self.sv_path = conf.sv_path
         self.set_completer()
-        self._flow_stage = GUIFlowStage.IDLE
-        self.manga_mgr.handle_choosebox_changed(index)
+        self.flow_stage = GUIFlowStage.IDLE
+        self.preview_mgr.handle_choosebox_changed(index)
         self.preprocess_mgr.handle_choosebox_changed(index)
 
     def chooseBox_changed_tips(self, index):
@@ -250,8 +250,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         safe_single_shot(10, _jump)
 
     def set_tool_win(self):
-        if getattr(self, "toolWin", None):
-            self.toolWin.close()
+        # if getattr(self, "toolWin", None):
+        #     self.toolWin.close()
         self.toolWin = ToolWindow(self)
         # self.toolWin.addMidTool()  # TODO[2](2026-03-07): 下个稳定版本恢复
 
@@ -290,7 +290,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         with contextlib.suppress(TypeError):
             self.mpreviewBtn.clicked.disconnect()
-        self.mpreviewBtn.clicked.connect(self.manga_mgr.on_spreview_clicked)
+        self.mpreviewBtn.clicked.connect(self.show_preview)
 
         self.page_turn_frame()
 
@@ -318,14 +318,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def page_turn_frame(self):
         def page_turn(_p):
+            if self.BrowserWindow and hasattr(self, 'preview_mgr'):
+                self.preview_mgr.on_before_page_turn()
+
             if _p.startswith("next"):
                 self.pageEdit.setValue(int(self.pageEdit.value()) + 1)
-                self.manga_mgr.navigate_page("next")
+                self.preview_mgr.navigate_to(int(self.pageEdit.value()))
             elif _p.startswith("previous"):
-                self.pageEdit.setValue(int(self.pageEdit.value()) - 1)
-                self.manga_mgr.navigate_page("prev")
+                self.pageEdit.setValue(max(1, int(self.pageEdit.value()) - 1))
+                self.preview_mgr.navigate_to(int(self.pageEdit.value()))
             else:
-                self.manga_mgr.navigate_to_page(int(self.pageEdit.value()))
+                self.preview_mgr.navigate_to(int(self.pageEdit.value()))
 
         _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg)) if self.BrowserWindow else page_turn(arg)
         self.nextPageBtn.clicked.connect(lambda: _(f"next{self.pageFrameClickCnt}"))
@@ -337,28 +340,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.pageEdit.valueChanged.connect(page_edit)
     
-    def show_keep_books(self):
-        keep_books = getattr(getattr(self, "sel_mgr", None), "keep_books", [])
-        if keep_books:
-            elected_titles = tuple(x.name for x in keep_books)
-            self.say(font_color(f"{res.SPIDER.choice_list_before_turn_page}<br>"
-                    f"{'<br>'.join(elected_titles)}", cls='theme-success'))
-
-    def preprocess_preview(self, url_str):
-        url = url_str.replace("[PreviewBookInfoEnd]", "")
-        
-        if not self.web_is_r18:
-            return
-        self.previewBtn.setEnabled(True)
-        books = self.mark_tip(self.books)
-        self.preview = PreviewHtml(url, books)
-        self.preview.duel_contents()
-        self.tf = self.preview.created_temp_html
-        if self.searchReady and self.searchRunning:
-            # TODO[2](2026-03-06): CGSMid不需要，但spider传进来强制进入了，处理一下分流
-            self.searchRunning = False
-            self.show_preview()
-
     def set_preview(self, rect=None):
         sb = self.BrowserWindow = BrowserWindowCls(self)
         preview_y = self.y() + self.funcGroupBox.y() - sb.height() + 25
@@ -366,26 +347,50 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.setGeometry(rect)
         else:
             self.BrowserWindow.move(self.x()+100, preview_y if preview_y > 0 else 200)
+        self.BrowserWindow.setMinimumWidth(self.BrowserWindow.minimumWidth() + 30)
+        self.BrowserWindow.setMinimumHeight(self.BrowserWindow.minimumHeight() + 30)
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
 
-    def show_preview(self):
-        self.start_and_search()
-
-    def _show_preview(self):
-        """prevent PreviewWindow is None when init"""
-        if self.previewInit:
-            self.set_preview()
+    def present_browser(
+        self, *,
+        ensure_handler=_UNSET,
+        close_handler=None,
+        enable_page_frame=False,
+        reload_tf=False,
+        rect=None,
+    ):
+        """Unified BrowserWindow init ceremony + animated presentation."""
+        if self.previewInit or not self.BrowserWindow:
+            self.set_preview(rect)
             self.previewInit = False
         elif self.previewSecondInit:
             self.BrowserWindow.second_init()
             self.previewSecondInit = False
-        self.BrowserWindow.set_ensure_handler()
-        self.pageFrame.setEnabled(True)
-        self.pageFrame.setStyleSheet("QToolButton { background-color: rgb(255, 255, 255); }")
+        elif reload_tf:
+            self.BrowserWindow.home_url = QUrl.fromLocalFile(self.tf)
+            self.BrowserWindow.load_home()
+
+        if ensure_handler is not _UNSET:
+            self.BrowserWindow.set_ensure_handler(ensure_handler)
+        if close_handler:
+            self.BrowserWindow.set_close_handler(close_handler)
+        if enable_page_frame:
+            self.pageFrame.setEnabled(True)
+            self.pageFrame.setStyleSheet("QToolButton { background-color: rgb(255, 255, 255); }")
         final_rect = self.BrowserWindow.geometry()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
+        return self.BrowserWindow
+
+    def show_preview(self):
+        if not self.searchReady:
+            self.start_and_search()
+        elif self.searchRunning:
+            InfoBar.info(title='', content='searching', isClosable=True,
+                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
+        else:
+            return self.preview_mgr._active.show_cached()
 
     def clean_preview(self):
         self.clean_temp_file()
@@ -403,13 +408,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         def retry_all():
             try:
-                if getattr(self, "manga_mgr", None):
-                    self.manga_mgr.shutdown()
+                if getattr(self, "preview_mgr", None):
+                    self.preview_mgr.shutdown()
             except Exception:
                 self.log.error(str(traceback.format_exc()))
-            if getattr(self, "mid_mgr", None):
-                self.mid_mgr.stop()
             self.log = conf.cLog(name="GUI")
+            self.clean_preview()
             self.BrowserWindow = None
             self.setupUi(self)
 
@@ -422,30 +426,32 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.searchinput.setDisabled(True)
         self.clipBtn.setDisabled(True)
 
-    def _on_worker_finished(self, job_id: str | None, imgs_path: str, success: bool):
-        if not getattr(self, 'dl_mgr', None) or job_id != self.dl_mgr.active_job_id:
-            return
-        self._flow_stage = GUIFlowStage.FINISHED if success else GUIFlowStage.ERROR
-        self.crawl_end(imgs_path)
-
-    def submit_decision(self, lane: str, indexes, *, page_turn: str = ""):
-        return self.sel_mgr.submit_decision(
-            lane, indexes, page_turn=page_turn, flow_stage=self._flow_stage
-        )
+    def _on_worker_finished(self, imgs_path: str, success: bool):
+        pass
 
     def start_and_search(self, keyword=None, site_index=None):
-        if site_index is not None and self.chooseBox.currentIndex() != site_index:
+        self.log.info('===--→ -*- searching')
+        if site_index is not None:
             self.chooseBox.setCurrentIndex(site_index)
-        if keyword is not None:
+        if keyword:
             self.searchinput.setText(keyword)
-        self.manga_mgr.on_spreview_clicked()
+        kw = self.searchinput.text().strip()
+        if not kw:
+            InfoBar.info(
+                title='', content='先输入搜索词吧', isClosable=True,
+                position=InfoBarPosition.BOTTOM, duration=2000,
+                parent=self.textBrowser
+            )
+            return
+        self.searchReady = True
+        self.searchRunning = True
+        self.searchinput.setEnabled(False)
+        site = self.chooseBox.currentIndex()
+        self.log.debug(f'[search] site :[{site}], keyword [{kw}] ')
+        self.preview_mgr.on_spreview_clicked(keyword=kw)
 
-    def _next(self):
-        # TODO[2](2026-03-02): 删掉了next_btn 优化
+    def next(self):
         self.log.info('===--→ nexting')
-        self.pageFrame.setEnabled(False)
-        if self.BrowserWindow:
-            self.BrowserWindow.ensureBtn.setDisabled(True)
 
         mgr = None
         if self.clip_mgr.is_triggered:
@@ -453,23 +459,32 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         elif hasattr(self, "ags_mgr") and self.ags_mgr.is_triggered:
             mgr = self.ags_mgr
 
-        if mgr:  # 通过 BrowserWindow.ensureBtn 进行选择
+        if mgr:
             selected_list = mgr.create_selected_list(self.BrowserWindow.output)
             if selected_list and len(selected_list) > 20 and int(conf.concurr_num) > 10:
                 conf.update(concurr_num=8)
                 self.say(res.SPIDER.reduce_concurrency_tip % 8)
-            self.submit_decision("BOOK", selected_list)
-            self.clipBtn.setDisabled(True)
+            self.sel_mgr.submit_decision(
+                "BOOK",
+                selected_list,
+                flow_stage=self.flow_stage,
+            )
             return
         idxes = f"{str(self.BrowserWindow.output)}"
-        __ = select(idxes, self.books)
-        self.books = {}
-        self.submit_decision("BOOK", __)
+        cache = getattr(self.preview_mgr, "books_cache", {})
+        selected_books = select(idxes, {int(k): v for k, v in cache.items()})
+        self.sel_mgr.submit_decision(
+            "BOOK", selected_books,
+            flow_stage=self.flow_stage,
+        )
 
     def crawl(self, episodes=None):
-        # TODO[2](2026-03-02): 删掉了 crawl_btn 重做
         if episodes is None:
-            episodes = select("123456465465464", self.eps)
+            all_eps = {}
+            for book_key, book_eps in getattr(self.preview_mgr, "episodes_cache", {}).items():
+                for ep in book_eps or []:
+                    all_eps[f"{book_key}-{getattr(ep, 'idx', len(all_eps))}"] = ep
+            episodes = select("123456465465464", all_eps)
         if not episodes:
             self.say(font_color(r'selected idxes error!!!', cls='theme-err', size=5))
             return
@@ -477,24 +492,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         book.episodes = episodes
 
         QThread.msleep(10)
-        selected = self.submit_decision("EP", book)
-        if selected:
-            self._flow_stage = GUIFlowStage.DOWNLOADING
+        self.sel_mgr.submit_decision("EP", book)
 
-        self.eps = []  # 在复数本选择下，清空 eps 确保 eps 不会同序号不同book
         self.log.debug(f'book_num remain: {self.sel_mgr.book_num}')
         self.log.info("===--→ crawl finish\n")
 
     def crawl_end(self, imgs_path):
         self.progressBar.setCustomBarColor(light="#00ff00", dark="#00cc00")
         self.retrybtn.setEnabled(True)
-
-        if self.BrowserWindow:
-            if self.BrowserWindow.topHintBox.isChecked():
-                self.BrowserWindow.topHintBox.click()
-            self.BrowserWindow.hide()
-            self.show()
-
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 
@@ -515,9 +520,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def processbar_load(self, i):
         self.progressBar.setValue(i)
-        if self.first_tmp_sv_flag and self.BrowserWindow:
-            self.first_tmp_sv_flag = False
-            self.BrowserWindow.tmp_sv_local()
 
     def closeEvent(self, event):
         if hasattr(self, 'rv_mgr'):
@@ -526,12 +528,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.task_mgr.close()
         if hasattr(self, 'preprocess_mgr'):
             self.preprocess_mgr.cleanup()
-        if getattr(self, "manga_mgr", None):
-            self.manga_mgr.shutdown()
-        if getattr(self, "dl_mgr", None):
-            self.dl_mgr.close_runtime()
+        if getattr(self, "preview_mgr", None):
+            self.preview_mgr.shutdown()
         event.accept()
         self.destroy()  # 窗口关闭销毁
+        if getattr(self, "dl_mgr", None):
+            self.dl_mgr.close_runtime()
         sys.exit(0)
 
     def hook_exception(self, exc_type, exc_value, exc_traceback):
@@ -558,7 +560,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         final_rect = self.BrowserWindow.geometry()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
-
     def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
         rect = QRect(self.x(), int(screen_height*0.05),
@@ -574,19 +575,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             callback()
 
     def say_show_max(self):
-        self.bsm = self.bsm or self.rv_tools.show_max()
-        if not getattr(self, "sel_mgr", None) or not self.sel_mgr.book_choose:
-            return
-        bc_name = self.sel_mgr.book_choose[0].name
-        bookShow = self.bsm.get(bc_name) or self.bsm.get(self.searchinput.text().strip())
-        if bookShow:
-            self.say(font_color(bookShow.show, cls='theme-tip', size=4), ignore_http=True)
+        """.discard()"""
 
     def _on_decision_made(self, lane: str, indexes: list):
-        if lane == "BOOK":
-            self.show_keep_books()
-        elif lane == "EP" and indexes:
-            self._flow_stage = GUIFlowStage.DOWNLOADING
         mgr = getattr(self, "mid_mgr", None)
         if mgr and mgr.enabled:
             stage_map = {"BOOK": TimelineStage.BOOK_SENT, "EP": TimelineStage.EP_SENT}

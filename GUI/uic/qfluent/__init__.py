@@ -81,10 +81,6 @@ class MonkeyPatch:
 
         def custom_menu():
             def route_turn(direction: str):
-                manga_mgr = getattr(browserWindow.gui, "manga_mgr", None)
-                if manga_mgr and getattr(manga_mgr, "_current_keyword", ""):
-                    manga_mgr.navigate_page(direction)
-                    return
                 if direction == "next":
                     browserWindow.gui.nextPageBtn.click()
                 else:

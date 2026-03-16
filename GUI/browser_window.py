@@ -7,7 +7,7 @@ from PyQt5 import QtNetwork
 from PyQt5.QtCore import Qt, QUrl, QEvent, QSize
 from PyQt5.QtGui import QIcon
 from PyQt5.QtNetwork import QNetworkCookie
-from PyQt5.QtWebEngineWidgets import QWebEnginePage
+from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineSettings
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
 from qframelesswindow import FramelessMainWindow
@@ -165,22 +165,36 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.eh_kits = None
         self._set_referer_nterceptor = False
         self._first_show = True
-        self._ensure_callback = gui._next
+        self._ensure_callback = gui.next
         self._on_close = None
         self.interceptor = RefererInterceptor()
         if proxies:
             self.set_proxies(proxies)
         self.gui = gui
         self.view = CustomFramelessWebEngineView(self)
+        self._configure_web_settings()
         self.profile = self.view.page().profile()
-        self.profile.setHttpUserAgent(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36")
+        # self.profile.setHttpUserAgent(
+        #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
         self.home_url = QUrl.fromLocalFile(self.gui.tf)
         self.set_env_mode()
         self.output = []
         self.setupUi(self)
         self.zoom_mgr = ZoomManager(self)
+
+    def _configure_web_settings(self):
+        settings = self.view.settings()
+        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, True)
+        settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
+        settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
+        settings.setAttribute(QWebEngineSettings.PlaybackRequiresUserGesture, False)
+        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+        settings.setAttribute(QWebEngineSettings.AutoLoadImages, True)
+        settings.setAttribute(QWebEngineSettings.AllowRunningInsecureContent, True)
 
     def set_env_mode(self):
         index = self.gui.chooseBox.currentIndex()
@@ -278,7 +292,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.copyBtn.clicked.connect(copyUnfinishedTasks)
 
     def set_ensure_handler(self, callback=None):
-        self._ensure_callback = callback or self.gui._next
+        self._ensure_callback = callback or self.gui.next
 
     def set_close_handler(self, callback=None):
         self._on_close = callback

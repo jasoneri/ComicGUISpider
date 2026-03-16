@@ -102,9 +102,7 @@ class EHentaiKits(EroUtils, Req, Cookies, MangaPreview):
 
     @classmethod
     async def preview_search(cls, keyword, client, **kw):
-        page = int(kw.pop("page", 1) or 1)
-        if page < 1:
-            page = 1
+        page = max(1, int(kw.pop("page", 1) or 1))
         url = f'https://exhentai.org/?f_search={keyword}&page={page - 1}'
         cookie_str = cls.to_str_(conf.cookies.get(cls.name) or {})
         headers = {**cls.book_hea, "Cookie": cookie_str}

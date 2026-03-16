@@ -10,7 +10,26 @@ import asyncio
 import aiofiles
 
 from assets import res
-from utils import temp_p, get_loop, ori_path
+from utils import temp_p, get_loop, ori_path, conf
+
+
+def build_proxy_transport(proxy_policy, proxies, is_async=True, **transport_kw):
+    """根据站点 proxy_policy 构建 httpx transport。
+
+    Args:
+        proxy_policy: "direct" | "proxy"
+        proxies: conf.proxies 列表
+        is_async: True→AsyncHTTPTransport, False→HTTPTransport
+        **transport_kw: 透传给 transport 构造（如 http2=True）
+
+    Returns:
+        (transport, trust_env) 元组
+    """
+    cls = httpx.AsyncHTTPTransport if is_async else httpx.HTTPTransport
+    retries = transport_kw.pop("retries", 0)
+    if proxy_policy == "direct" or not proxies:
+        return cls(retries=retries, **transport_kw), False
+    return cls(proxy=f"http://{proxies[0]}", retries=retries + 1, **transport_kw), False
 
 class Cache:
     def __init__(self, cache_f):
@@ -115,6 +134,8 @@ class Cookies:
 class Req:
     book_hea = {}
     book_url_regex = ""
+    proxy_policy= None
+    _TRANSPORT_PARAMS = frozenset(('http2', 'verify', 'cert', 'limits'))
 
     def __init__(self, _conf):
         ...
@@ -122,14 +143,15 @@ class Req:
     @classmethod
     def get_cli(cls, _conf, is_async=False, **kwargs):
         client_class = httpx.AsyncClient if is_async else httpx.Client
-        transport_class = httpx.AsyncHTTPTransport if is_async else httpx.HTTPTransport
-        if _conf.proxies:
-            base_kwargs = {
-                'headers': cls.book_hea,
-                'transport': transport_class(proxy=f"http://{_conf.proxies[0]}", retries=3)
-            }
-        else:
-            base_kwargs = {'headers': cls.book_hea, 'trust_env': True}
+        transport_kw = {k: kwargs.pop(k) for k in cls._TRANSPORT_PARAMS if k in kwargs}
+        transport, trust_env = build_proxy_transport(
+            cls.proxy_policy, _conf.proxies, is_async=is_async, **transport_kw
+        )
+        base_kwargs = {
+            'headers': cls.book_hea,
+            'transport': transport,
+            'trust_env': trust_env,
+        }
         base_kwargs.update(kwargs)
         return client_class(**base_kwargs)
 
@@ -146,6 +168,7 @@ class Req:
 class Utils:
     name = ""
     headers = {}
+    proxy_policy = "proxy"
 
     @classmethod
     def get_uuid(cls, info):
@@ -168,7 +191,7 @@ class MangaPreview:
 
     @classmethod
     async def preview_fetch_episodes(cls, book, client, **kw) -> list:
-        raise NotImplementedError(f"{cls.__name__}.preview_fetch_episodes")
+        ...
 
 class EroUtils(Utils):
     uuid_regex = None
@@ -199,7 +222,13 @@ class DomainUtils(Utils):
         if not cls.forever_url:
             return None
         try:
-            async with httpx.AsyncClient(headers=cls.headers, follow_redirects=True) as cli:
+            transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies)
+            async with httpx.AsyncClient(
+                headers=cls.headers,
+                follow_redirects=True,
+                transport=transport,
+                trust_env=trust_env,
+            ) as cli:
                 resp = await cli.head(cls.forever_url)
                 return re.search(r"https?://(.*)/?", str(resp.request.url)).group(1)
         except httpx.ConnectError:
@@ -212,8 +241,14 @@ class DomainUtils(Utils):
         e = None
         if not cls.publish_url:
             return None
-        async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, 
-                transport=httpx.AsyncHTTPTransport(http2=True, retries=5)) as cli:
+        transport, trust_env = build_proxy_transport(
+            cls.proxy_policy, conf.proxies, http2=True, retries=5
+        )
+        async with httpx.AsyncClient(
+            headers=cls.publish_headers or cls.headers,
+            transport=transport,
+            trust_env=trust_env,
+        ) as cli:
             try:
                 resp = await cli.get(cls.publish_url)
                 resp.raise_for_status()
@@ -278,7 +313,14 @@ class DomainUtils(Utils):
     async def test_aviable_domain(cls, domain):
         url = f"https://{domain}"
         try:
-            async with httpx.AsyncClient(headers={**cls.headers, 'Referer': url},transport=httpx.AsyncHTTPTransport(retries=1),verify=False) as cli:
+            transport, trust_env = build_proxy_transport(
+                cls.proxy_policy, conf.proxies, retries=1, verify=False
+            )
+            async with httpx.AsyncClient(
+                headers={**cls.headers, 'Referer': url},
+                transport=transport,
+                trust_env=trust_env,
+            ) as cli:
                 resp = await cli.head(url, follow_redirects=True, timeout=4)
                 if resp and str(resp.status_code).startswith('2'):
                     return resp.url.host

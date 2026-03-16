@@ -11,7 +11,7 @@ from utils.sql import SqlRecorder
 class SelectionFlowManager(QObject):
     """Manage BOOK/EP selection flow and idempotent filtering.
 
-    Domain State: keep_books, book_choose, _current_indexes
+    Domain State: book_choose, _current_indexes
     Signals: decision_made, skip_notified
     """
 
@@ -21,7 +21,6 @@ class SelectionFlowManager(QObject):
     def __init__(self, gui):
         super().__init__(gui)
         self.gui = gui
-        self.keep_books: list = []
         self.book_choose: list = []
         self._current_indexes: list = []
 
@@ -34,13 +33,26 @@ class SelectionFlowManager(QObject):
         return self._current_indexes
 
     def reset(self):
-        self.keep_books = []
         self.book_choose = []
         self._current_indexes = []
 
-    def accumulate_page_turn(self, selected_items: list):
-        if selected_items:
-            self.keep_books.extend(selected_items)
+    @staticmethod
+    def _dedupe_items(items: list) -> list:
+        deduped = []
+        seen = set()
+        for item in items:
+            if hasattr(item, "id_and_md5"):
+                key = item.id_and_md5()[1]
+            else:
+                key = id(item)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(item)
+        return deduped
+
+    def _clear_keep_state(self):
+        self.book_choose = []
 
     def submit_decision(self, lane: str, indexes, *, page_turn: str = "", flow_stage=None):
         if lane == "EP":
@@ -56,13 +68,13 @@ class SelectionFlowManager(QObject):
 
             book.episodes = list(self._current_indexes)
             self.gui.dl_mgr.submit_download(book)
+            self._clear_keep_state()
             self.decision_made.emit(lane, list(self._current_indexes))
             return list(self._current_indexes)
 
         if lane == "BOOK":
-            if isinstance(indexes, list):
-                self.keep_books.extend(indexes)
-            self._current_indexes = list(self.keep_books)
+            selected_books = indexes if isinstance(indexes, list) else ([indexes] if indexes else [])
+            self._current_indexes = self._dedupe_items(selected_books)
         else:
             self._current_indexes = indexes if isinstance(indexes, list) else ([indexes] if indexes else [])
 
@@ -75,10 +87,12 @@ class SelectionFlowManager(QObject):
             return []
 
         if lane == "BOOK":
-            self.keep_books = list(self._current_indexes)
-            stage = flow_stage if flow_stage is not None else getattr(self.gui, "_flow_stage", None)
+            stage = flow_stage if flow_stage is not None else getattr(self.gui, "flow_stage", None)
             if stage == GUIFlowStage.SEARCHED:
-                self.book_choose = list(self.keep_books)
+                self.book_choose = list(self._current_indexes)
+            for book in self._current_indexes:
+                self.gui.dl_mgr.submit_download(book)
+            self._clear_keep_state()
 
         self.decision_made.emit(lane, list(self._current_indexes))
         return list(self._current_indexes)

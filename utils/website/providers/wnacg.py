@@ -14,8 +14,8 @@ from utils.website.info import WnacgBookInfo, Episode
 
 class WnacgUtils(EroUtils, DomainUtils, Req, MangaPreview):
     name = "wnacg"
-    publish_domain = "wn01.link"
-    publish_domain_old = ["wnacg.date"]
+    publish_domain = "wnacg01.link"
+    publish_domain_old = ["wnacg.date","wn01.link"]
     publish_url = f"https://{publish_domain}"
     status_publish = True
     publish_headers = {
@@ -24,12 +24,12 @@ class WnacgUtils(EroUtils, DomainUtils, Req, MangaPreview):
         'Accept-Language': 'zh-CN,zh;q=0.9,zh-TW;q=0.8,zh-HK;q=0.7,en-US;q=0.6,en;q=0.5',
     }
     headers = {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
-        "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36 Edg/133.0.0.0"
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,zh-TW;q=0.8,zh-HK;q=0.7,en-US;q=0.6,en;q=0.5',
     }
     book_hea = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
         'Upgrade-Insecure-Requests': '1',
@@ -82,6 +82,7 @@ class WnacgUtils(EroUtils, DomainUtils, Req, MangaPreview):
             public_date=public_date,
         ).get_id(pre_url)
         return book
+
     def parse_search(self, resp_text):
         """parse search-page"""
         self.domain = self.domain or self.get_domain()
@@ -96,18 +97,16 @@ class WnacgUtils(EroUtils, DomainUtils, Req, MangaPreview):
 
     @classmethod
     def preview_client_config(cls):
-        return {
-            'headers': cls.headers,
-        }
+        return {'headers': cls.headers, 'verify': False}
 
     @classmethod
-    async def preview_search(cls, keyword, client, **kw):
-        page = int(kw.pop("page", 1) or 1)
-        if page < 1:
-            page = 1
-        domain = cls.get_domain()
+    async def preview_search(cls, keyword, cli, **kw):
+        page = max(1, int(kw.pop("page", 1) or 1))
+        domain = cls.domain or cls.get_domain()
         url = f'https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q={keyword}&p={page}'
-        resp = await client.get(url, headers=cls.headers, follow_redirects=True, timeout=12, **kw)
+        hea = {**cls.headers, 'Referer': f'https://{domain}'}
+        cli.headers=hea
+        resp = await cli.get(url, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()
 
         def _parse(text, _domain):

@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import contextlib
-from uuid import uuid4
+# from uuid import uuid4
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from ComicSpider.runtime import SpiderRuntimeThread
 from GUI.thread import WorkThread
+from utils.sql import SqlRecorder
 from utils.protocol import SpiderDownloadJob
 from variables import SPIDERS
 
@@ -16,6 +17,7 @@ class DownloadRuntimeManager(QObject):
     """Manage SpiderRuntime + WorkThread lifecycle and process stage state."""
 
     process_stage_changed = pyqtSignal(str)
+    all_jobs_finished = pyqtSignal()
 
     def __init__(self, gui):
         super().__init__(gui)
@@ -23,11 +25,12 @@ class DownloadRuntimeManager(QObject):
         self.spider_runtime = None
         self.b_thread: WorkThread | None = None
         self.process_stage: str = ""
-        self.active_job_id: str | None = None
-        self.active_task_ids: set[str] = set()
-        self.pending_job_id: str | None = None
-        self.pending_task_ids: set[str] = set()
+        self.running_job_ids: set[str] = set()
         self.binding_generation = 0
+        self.session_job_ids: set[str] = set()
+        self.session_job_task_ids: set[str] = set()
+        self.pending_job_ids: set[str] = set()
+        self._job_task_ids: dict[str, set[str]] = {}
 
     def start_runtime(self, site_index: int):
         if self.spider_runtime and self.spider_runtime.is_alive():
@@ -40,40 +43,45 @@ class DownloadRuntimeManager(QObject):
     def submit_download(self, book):
         if not self.spider_runtime:
             self.start_runtime(self.gui.chooseBox.currentIndex())
-        if self.active_job_id or self.pending_job_id:
-            return
+
         site_index = self.gui.chooseBox.currentIndex()
+        job_id = book.u_md5
+
+        # Idempotent deduplication
+        episode_md5s = self._collect_task_ids(book)
+        running_ids = self.get_running_task_ids()
+        sql_downloaded = set()
+        with contextlib.suppress(Exception):
+            sql_downloaded = set(SqlRecorder().batch_check_dupe(episode_md5s))
+
+        unique_md5s = episode_md5s - running_ids - sql_downloaded
+        if not unique_md5s:
+            return
+
+        payload = self._filter_payload(book, unique_md5s)
+        if payload is None:
+            return
+
         job = SpiderDownloadJob(
-            job_id=uuid4().hex,
+            job_id=job_id,
             spider_name=SPIDERS[site_index],
             site_index=site_index,
-            payload=book,
+            payload=payload,
             options={},
         )
-        self.queue_job(job)
+
+        self.session_job_ids.add(job_id)
+        self.pending_job_ids.add(job_id)
+        self._job_task_ids[job_id] = set(unique_md5s)
+        self.session_job_task_ids.update(unique_md5s)
         self.ensure_work_thread()
         self.spider_runtime.submit_job(job)
 
-    def flush_pending_rebind(self):
-        self.binding_generation += 1
-        if self.b_thread:
-            self.b_thread.authority = self
-            self.b_thread.suspend_dispatch()
-            self._disconnect_worker_signals(self.b_thread)
-            self.b_thread.rebind(self.gui)
-            self._connect_worker_signals(self.b_thread)
-            self.b_thread.resume_dispatch()
-
     def ensure_work_thread(self) -> WorkThread:
         if self.b_thread and self.b_thread.isRunning():
-            self.b_thread.authority = self
-            self.b_thread.suspend_dispatch()
-            self._disconnect_worker_signals(self.b_thread)
-            self.b_thread.rebind(self.gui)
-            self._connect_worker_signals(self.b_thread)
-            self.b_thread.resume_dispatch()
             return self.b_thread
         self.b_thread = WorkThread(self.gui, event_q=self.spider_runtime.event_q, authority=self)
+        self.b_thread._bind_generation = self.binding_generation
         self._connect_worker_signals(self.b_thread)
         self.b_thread.start()
         if log := getattr(self.gui, "log", None):
@@ -89,48 +97,39 @@ class DownloadRuntimeManager(QObject):
         worker.wait(wait_ms)
         self.b_thread = None
 
-    def queue_job(self, job: SpiderDownloadJob):
-        self.pending_job_id = job.job_id
-        self.pending_task_ids = self._collect_task_ids(job.payload)
+    def is_job_pending(self, job_id: str | None) -> bool:
+        return bool(job_id) and job_id in self.pending_job_ids
 
     def accept_job(self, job_id: str | None):
-        if not job_id or job_id != self.pending_job_id:
+        if not job_id or job_id not in self.pending_job_ids:
             return
-        self.active_job_id = job_id
-        self.active_task_ids = set(self.pending_task_ids)
-        self.pending_job_id = None
-        self.pending_task_ids.clear()
+        self.running_job_ids.add(job_id)
+        self.pending_job_ids.discard(job_id)
 
     def reject_job(self, job_id: str | None):
-        if not job_id or job_id != self.pending_job_id:
+        if not job_id or job_id not in self.pending_job_ids:
             return
-        self.pending_job_id = None
-        self.pending_task_ids.clear()
+        self.pending_job_ids.discard(job_id)
+        self.session_job_ids.discard(job_id)
+        if job_id in self._job_task_ids:
+            del self._job_task_ids[job_id]
+            self._rebuild_session_task_ids()
 
     def track_task(self, job_id: str | None, task_obj):
-        if not job_id or job_id != self.active_job_id:
-            return
-        task_id = getattr(task_obj, "taskid", None)
-        if task_id:
-            self.active_task_ids.add(task_id)
+        pass
 
     def finish_job(self, job_id: str | None):
-        if not job_id or job_id != self.active_job_id:
+        if not job_id:
             return
-        self.active_job_id = None
-        self.active_task_ids.clear()
-        self.pending_job_id = None
-        self.pending_task_ids.clear()
-        self.process_stage = ""
-        self.process_stage_changed.emit("")
+        self.running_job_ids.discard(job_id)
+        if not self.running_job_ids and not self.pending_job_ids:
+            self.all_jobs_finished.emit()
 
     def has_active_download(self) -> bool:
-        return bool(self.active_job_id or self.pending_job_id)
+        return bool(self.running_job_ids or self.pending_job_ids)
 
     def get_running_task_ids(self) -> set[str]:
-        if self.active_task_ids:
-            return set(self.active_task_ids)
-        return set(self.pending_task_ids)
+        return set(self.session_job_task_ids)
 
     @staticmethod
     def _collect_task_ids(book) -> set[str]:
@@ -171,28 +170,21 @@ class DownloadRuntimeManager(QObject):
     def on_worker_log(self, generation: int, job_id: str | None, message: str):
         if generation != self.binding_generation:
             return
-        if job_id and job_id != self.active_job_id:
+        if isinstance(message, str) and message.startswith("[PreviewBookInfoEnd]"):
             return
         self.gui.say(message)
 
     def on_progress_changed(self, generation: int, job_id: str | None, percent: int):
         if generation != self.binding_generation:
             return
-        if not job_id or job_id != self.active_job_id:
-            return
-        self.gui.processbar_load(percent)
 
     def on_task_emitted(self, generation: int, job_id: str | None, task_obj):
         if generation != self.binding_generation:
-            return
-        if not job_id or job_id != self.active_job_id:
             return
         self.gui.task_mgr.handle(task_obj)
 
     def on_process_stage_changed(self, generation: int, job_id: str | None, stage: str):
         if generation != self.binding_generation:
-            return
-        if not job_id or job_id != self.active_job_id:
             return
         self.process_stage = stage or ""
         self.process_stage_changed.emit(self.process_stage)
@@ -200,21 +192,35 @@ class DownloadRuntimeManager(QObject):
     def on_worker_finished(self, generation: int, job_id: str | None, imgs_path: str, success: bool):
         if generation != self.binding_generation:
             return
-        if not job_id or job_id != self.active_job_id:
-            return
-        self.gui._on_worker_finished(job_id, imgs_path, success)
         self.finish_job(job_id)
 
     def rebind(self, gui):
         self.gui = gui
         self.binding_generation += 1
-        if self.b_thread:
-            self.b_thread.authority = self
-            self.b_thread.suspend_dispatch()
-            self._disconnect_worker_signals(self.b_thread)
-            self.b_thread.rebind(gui)
-            self._connect_worker_signals(self.b_thread)
-            self.b_thread.resume_dispatch()
+
+        if self.has_active_download():
+            # Preserve active session state, only rewire signals
+            if self.b_thread:
+                self.b_thread.authority = self
+                self.b_thread.suspend_dispatch()
+                self._disconnect_worker_signals(self.b_thread)
+                self.b_thread.rebind(gui)
+                self._connect_worker_signals(self.b_thread)
+                self.b_thread.resume_dispatch()
+        else:
+            # No active download: reset all session state
+            self.process_stage = ""
+            self.session_job_ids.clear()
+            self.session_job_task_ids.clear()
+            self.pending_job_ids.clear()
+            self._job_task_ids.clear()
+            if self.b_thread:
+                self.b_thread.authority = self
+                self.b_thread.suspend_dispatch()
+                self._disconnect_worker_signals(self.b_thread)
+                self.b_thread.rebind(gui)
+                self._connect_worker_signals(self.b_thread)
+                self.b_thread.resume_dispatch()
 
     def close_runtime(self, stop_mgr=True, really_close=True):
         self.gui.clean_preview()
@@ -224,8 +230,36 @@ class DownloadRuntimeManager(QObject):
             self.spider_runtime.shutdown()
             self.spider_runtime.join(timeout=3)
             self.spider_runtime = None
-            self.active_job_id = None
-            self.active_task_ids.clear()
+            self.running_job_ids.clear()
             self.process_stage = ""
+            self.session_job_ids.clear()
+            self.session_job_task_ids.clear()
+            self.pending_job_ids.clear()
+            self._job_task_ids.clear()
         if stop_mgr and getattr(self.gui, "mid_mgr", None):
             self.gui.mid_mgr.stop()
+
+    @staticmethod
+    def _filter_payload(book, unique_md5s: set[str]):
+        episodes = list(getattr(book, "episodes", None) or [])
+        if not episodes:
+            return book
+        filtered = []
+        for ep in episodes:
+            if not hasattr(ep, "id_and_md5"):
+                filtered.append(ep)
+                continue
+            _, ep_md5 = ep.id_and_md5()
+            if ep_md5 in unique_md5s:
+                filtered.append(ep)
+        if not filtered:
+            return None
+        if filtered != episodes:
+            book.episodes = filtered
+        return book
+
+    def _rebuild_session_task_ids(self):
+        merged = set()
+        for task_ids in self._job_task_ids.values():
+            merged.update(task_ids)
+        self.session_job_task_ids = merged

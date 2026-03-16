@@ -1,231 +1,244 @@
 # -*- coding: utf-8 -*-
-"""cli,no gui,no wait for Interaction"""
-import os
-import time
-import re
-import sys
+"""CLI download entry using SpiderRuntimeThread + event_q."""
 import argparse
-from copy import deepcopy
-from multiprocessing import Process, set_start_method, Queue
-from threading import Thread
+import asyncio
+import os
+import queue
+import sys
+from uuid import uuid4
 
+import httpx
 from loguru import logger
 
-from assets import res
-from utils import transfer_input, select
-from utils.processed_class import (
-    GuiQueuesManger, crawl_what, QueuesManager, QueueHandler, InputFieldState, refresh_state, ProcessState
+from ComicSpider.runtime import SpiderRuntimeThread
+from utils import conf, select
+from utils.protocol import (
+    SpiderDownloadJob,
+    JobAcceptedEvent,
+    LogEvent,
+    ErrorEvent,
+    JobFinishedEvent,
+    BarProgressEvent,
+    ProcessStateEvent,
+    TasksObjEvent,
 )
-from utils.website.info import Episode, BookInfo
+from utils.website import spider_utils_map
+from utils.website.core import MangaPreview, build_proxy_transport
 from variables import Spider, SPIDERS
 
-is_debugging = os.getenv('CGS_DEBUG') == '1'
+is_debugging = os.getenv("CGS_DEBUG") == "1"
 
-# 全局变量声明
-gui = None
-spider_choice = None
+
+class PreviewRuntime:
+    def __init__(self, site_index: int):
+        preview_cls = spider_utils_map.get(site_index)
+        if preview_cls is None:
+            raise ValueError(f"unsupported site index: {site_index}")
+        if not issubclass(preview_cls, MangaPreview):
+            raise TypeError(f"{preview_cls.__name__} does not support preview search")
+        self.preview_cls = preview_cls
+        self.site_index = site_index
+        self.client: httpx.AsyncClient | None = None
+
+    async def __aenter__(self):
+        policy = getattr(self.preview_cls, "proxy_policy", "proxy")
+        transport, trust_env = build_proxy_transport(policy, conf.proxies, verify=False)
+        self.client = httpx.AsyncClient(
+            transport=transport,
+            follow_redirects=True,
+            trust_env=trust_env,
+        )
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        if self.client is not None:
+            await self.client.aclose()
+            self.client = None
+
+    async def search(self, keyword: str, page: int = 1):
+        return await self.preview_cls.preview_search(keyword, self.client, page=page)
+
+    async def fetch_episodes(self, book):
+        return await self.preview_cls.preview_fetch_episodes(book, self.client)
+
+
+def _build_parser():
+    parser = argparse.ArgumentParser(
+        description=f"CGS CLI runtime downloader. 网站序号: {SPIDERS}",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("-w", "--website", type=int, default=1, help="选择网站序号")
+    parser.add_argument("-k", "--keyword", required=True, help="关键字（作品名）")
+    parser.add_argument("-i", "--indexes", required=True, help="选书序号")
+    parser.add_argument("-i2", "--indexes2", default=None, help="选话序号，非 specials 站点必填")
+    parser.add_argument("-l", "--log_level", default="DEBUG", help="log level")
+    parser.add_argument("-tw", "--time_wait", default=None, help="保留兼容参数，当前未使用")
+    parser.add_argument("-tp", "--turn_page", action="store_true", help="保留兼容参数，当前未使用")
+    parser.add_argument("-dt", "--daily_test", action="store_true", help="保留兼容参数，当前未使用")
+    return parser
+
+
+def _validate_args(parser, args):
+    if args.website not in Spider.specials() and not args.indexes2:
+        parser.error(
+            "the following argument is required when website is not in Spider.specials(): -i2/--indexes2"
+        )
+    if args.website in Spider.specials() and args.indexes2:
+        parser.error("the argument -i2/--indexes2 is not allowed when website is in Spider.specials()")
+
+
+def _render_books(books_map: dict):
+    for idx, book in sorted(books_map.items()):
+        title = getattr(book, "name", "") or getattr(book, "title", "") or "-"
+        logger.info(f"[book:{idx}] {title}")
+
+
+def _render_episodes(episodes_map: dict):
+    for idx, ep in sorted(episodes_map.items()):
+        title = getattr(ep, "name", "") or getattr(ep, "title", "") or "-"
+        logger.info(f"[ep:{idx}] {title}")
+
+
+async def _search_books(site_index: int, keyword: str) -> dict:
+    async with PreviewRuntime(site_index) as preview:
+        books = await preview.search(keyword, page=1)
+    books_map = {}
+    for idx, book in enumerate(books, start=1):
+        if getattr(book, "idx", None) is None:
+            book.idx = idx
+        books_map[int(book.idx)] = book
+    return books_map
+
+
+async def _fetch_episode_choices(site_index: int, books: list) -> dict:
+    episode_choices = {}
+    async with PreviewRuntime(site_index) as preview:
+        next_idx = 1
+        for book in books:
+            episodes = await preview.fetch_episodes(book)
+            for ep in episodes or []:
+                episode_choices[next_idx] = ep
+                next_idx += 1
+    return episode_choices
+
+
+def _build_download_payload(site_index: int, selected_books: list, selected_eps: list | None):
+    if site_index in Spider.specials():
+        return selected_books[0] if len(selected_books) == 1 else selected_books
+
+    books_by_key = {}
+    for ep in selected_eps or []:
+        book = getattr(ep, "from_book", None)
+        if book is None:
+            continue
+        key = id(book)
+        if key not in books_by_key:
+            book.episodes = []
+            books_by_key[key] = book
+        books_by_key[key].episodes.append(ep)
+    payload = list(books_by_key.values())
+    if not payload:
+        raise ValueError("no episodes selected for download")
+    return payload[0] if len(payload) == 1 else payload
+
+
+def _submit_and_wait(site_index: int, payload) -> bool:
+    runtime = SpiderRuntimeThread()
+    runtime.daemon = True
+    runtime.start()
+    runtime.wait_ready(timeout=30)
+
+    job = SpiderDownloadJob(
+        job_id=uuid4().hex,
+        spider_name=SPIDERS[site_index],
+        site_index=site_index,
+        payload=payload,
+        options={},
+    )
+    logger.info(f"[submit] spider={job.spider_name} job={job.job_id}")
+    runtime.submit_job(job)
+
+    last_percent = None
+    success = False
+    try:
+        while True:
+            try:
+                event = runtime.event_q.get(timeout=0.2)
+            except queue.Empty:
+                continue
+
+            event_job_id = getattr(event, "job_id", None)
+            if event_job_id and event_job_id != job.job_id:
+                continue
+
+            if isinstance(event, JobAcceptedEvent):
+                logger.info(f"[accepted] {event.job_id}")
+            elif isinstance(event, LogEvent):
+                logger.info(str(event.message))
+            elif isinstance(event, ProcessStateEvent):
+                logger.debug(f"[stage] {event.process}")
+            elif isinstance(event, BarProgressEvent):
+                if event.percent != last_percent:
+                    last_percent = event.percent
+                    logger.info(f"[progress] {event.percent}%")
+            elif isinstance(event, TasksObjEvent):
+                task = event.task_obj
+                if event.is_new:
+                    title = getattr(task, "display_title", None) or getattr(task, "taskid", "")
+                    logger.info(f"[task] {title}")
+            elif isinstance(event, ErrorEvent):
+                logger.error(event.error)
+            elif isinstance(event, JobFinishedEvent):
+                success = bool(event.success)
+                logger.info(f"[finished] success={success}")
+                return success
+    finally:
+        runtime.shutdown()
+        runtime.join(timeout=5)
 
 
 def main():
-    """CLI入口函数"""
-    global gui, spider_choice  # 声明全局变量
-    set_start_method('spawn', force=True)
-    parser = argparse.ArgumentParser(
-        description=f"""
-    ▄████▄    ▄████   ██████
-   ▒██▀ ▀█   ██▒ ▀█▒▒██    ▒
-   ▒▓█    ▄ ▒██░▄▄▄░░ ▓██▄
-   ▒▓▓▄ ▄██▒░▓█  ██▓  ▒   ██▒
-   ▒ ▓███▀ ░░▒▓███▀▒▒██████▒▒
-   ░ ░▒ ▒  ░ ░▒   ▒ ▒ ▒▓▒ ▒ ░
-     ░  ▒     ░   ░ ░ ░▒  ░ ░
-            ░ ░   ░ ░  ░  ░
-                  ░       ░
-
-CGS命令行脚本，目前支持简单下载/调试功能
-网站对应序号: {SPIDERS}""",
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument('-w', '--website', type=int, help='选择网站序号')
-    parser.add_argument('-k', '--keyword', help='关键字（作品名）')
-    parser.add_argument('-i', '--indexes', type=str, nargs='?',
-                        help=str(res.GUI.Uic.chooseBoxToolTip))
-    parser.add_argument('-i2', '--indexes2', type=str, nargs='?', default=None, help=f'同-i，当网站序号非{list(Spider.specials())}时，必须设置用于选择章节')
-    parser.add_argument('-l', '--log_level', type=str, nargs='?', default='DEBUG', help='log level')
-    parser.add_argument('-tw', '--time_wait',
-                        help='设置主进程最大等待的退出时间，可按使用习惯的平均完成时间设值，不设置时默认300')
-    parser.add_argument('-tp', '--turn_page', action='store_true', help='Run turn_page_test')
-    parser.add_argument('-dt', '--daily_test', action='store_true', help='Run daily_test')
-    parser.add_argument('-sp', '--start_port', type=int, nargs='?', default=50000, help='bind start port')
+    parser = _build_parser()
     args = parser.parse_args()
     logger.remove()
     logger.add(sys.stderr, level=args.log_level.upper())
-
-    if not args.keyword or not args.indexes:
-        parser.error("the following arguments are required: -k/--keyword and -i/--indexes")
-
-    if args.website not in Spider.specials():
-        if not args.indexes2:
-            parser.error(
-                "the following argument is required when website is not in Spider.specials(): -i2/--indexes2")
-    else:
-        if args.indexes2:
-            parser.error("the argument -i2/--indexes2 is not allowed when website is in Spider.specials()")
-
-    spider_choice = args.website if args.website else 1  # 选网站/爬虫，转crawl_what方法一目了然
-
-    FlagQueue = Queue()
-    guiQueuesManger = GuiQueuesManger()
-    queue_port = guiQueuesManger.find_free_port(start_port=args.start_port)
-    p_qm = Process(target=guiQueuesManger.create_server_manager, kwargs={"FlagQueue": FlagQueue})
-    p_qm.start()
-
-    try:
-        gui = Gui(queue_port)
-    except Exception as e:
-        if p_qm.is_alive():
-            p_qm.terminate()
-        raise e
-    p_crawler_kwargs = {"LOG_LEVEL": args.log_level, "LOG_FILE": None}
-    if args.daily_test:
-        p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 20,"CLOSESPIDER_ITEMCOUNT": 13,})
-        if spider_choice == 6:
-            p_crawler_kwargs.update({"CLOSESPIDER_PAGECOUNT": 60, "CLOSESPIDER_ITEMCOUNT": 60})
-    p_crawler = Process(target=crawl_what, args=(spider_choice, queue_port), kwargs=p_crawler_kwargs)
-    p_crawler.start()
-
-    p_bThread = Thread(target=say_to_textBrowser, args=(gui, gui.Q('TextBrowserQueue'), gui.Q('TasksQueue'), gui.Q('FlagQueue'), args.daily_test))
-    p_bThread.start()
+    _validate_args(parser, args)
 
     if args.turn_page:
-        test_turn_page()
-    else:
-        test_normal_process(gui, args.keyword, args.indexes, args.indexes2)
+        logger.warning("--turn_page is no longer supported in runtime CLI; ignoring")
+    if args.daily_test or is_debugging:
+        logger.info("runtime CLI uses the same event_q flow in daily/debug mode")
 
     try:
-        p_bThread.join(timeout=args.time_wait or 300)
-        gui.Q('TextBrowserQueue').send(None)
-        for p in [p_crawler, p_qm]:
-            if p.is_alive():
-                p.terminate()
-        for p in [p_crawler, p_qm]:
-            p.join(timeout=3)
-        if p_bThread.is_alive():
-            p_bThread.join(timeout=3)
-    finally:
-        for p in [p_crawler, p_qm]:
-            if p.is_alive():
-                p.kill()
-            p.close()
+        books_map = asyncio.run(_search_books(args.website, args.keyword))
+        if not books_map:
+            logger.error("search returned no books")
+            return 1
+        _render_books(books_map)
+
+        selected_books = select(args.indexes, books_map)
+        if not selected_books:
+            logger.error("selected book indexes resolved to empty set")
+            return 1
+
+        selected_eps = None
+        if args.website not in Spider.specials():
+            episode_choices = asyncio.run(_fetch_episode_choices(args.website, selected_books))
+            if not episode_choices:
+                logger.error("episode fetch returned no episodes")
+                return 1
+            _render_episodes(episode_choices)
+            selected_eps = select(args.indexes2, episode_choices)
+            if not selected_eps:
+                logger.error("selected episode indexes resolved to empty set")
+                return 1
+
+        payload = _build_download_payload(args.website, selected_books, selected_eps)
+        return 0 if _submit_and_wait(args.website, payload) else 1
+    except Exception as exc:
+        logger.exception(exc)
+        return 1
 
 
-def say_to_textBrowser(_gui, textBrowserQueue, TasksQueue, flagQueue, daily_test_flag=False):
-    text_browser_q = textBrowserQueue.queue
-    task_q = TasksQueue.queue
-    flag_q = flagQueue.queue
-    break_flag = re.compile(f"{res.GUI.WorkThread_finish_flag}|{res.GUI.WorkThread_empty_flag}")
-    flag_patterns = (
-        res.SPIDER.chooseInput_flag, res.SPIDER.sectionInput_flag
-    )
-    while 1:
-        if not text_browser_q.empty():
-            _state = text_browser_q.get()
-            if _state is None:
-                break
-            _ = _state.text
-            if isinstance(_, dict) and all(tuple(isinstance(v, BookInfo) for v in _.values())):
-                _gui.books = deepcopy(_)
-            elif isinstance(_, dict) and all(tuple(isinstance(v, Episode) for v in _.values())):
-                _gui.eps = deepcopy(_)
-            elif not daily_test_flag:
-                logger.debug(_)
-            if isinstance(_, str) and any(filter(lambda flag: flag in _, flag_patterns)):
-                flag_q.put('go')
-            if isinstance(_, str) and bool(break_flag.search(_)):
-                break
-        if not task_q.empty():
-            _task_state = task_q.get()
-    textBrowserQueue.queue.put(None)
-
-
-class Gui:
-    process_state = ProcessState(process='init')
-
-    def __init__(self, port):
-        logger.debug(f"{port=}")
-        manager = QueuesManager.create_manager(
-            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue', 'FlagQueue',
-            address=('localhost', port), authkey=b'abracadabra'
-        )
-        manager.connect()
-        self.Q = QueueHandler(manager)
-        self.books = {}
-        self.keep_book_infos = []
-        self.eps = []
-
-
-def wait_for_flag(flagQueue, timeout=30):
-    flag_q = flagQueue.queue
-    start_time = time.time()
-    while (time.time() - start_time) < timeout:
-        if not flag_q.empty():
-            flag = flag_q.get()
-            return True
-        time.sleep(0.1)
-    raise RuntimeError("[wait timeout] for get_flag")
-
-
-def test_turn_page():
-    keyword = '排名月'  # 输入关键词
-    input_1 = ""  # 选书
-    input_2 = ""  # 选章节
-    state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='', pageTurn='')
-    state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2),
-                              pageTurn='next26')
-    state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2),
-                              pageTurn='120')
-    state_4 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2),
-                              pageTurn='previous3')
-    state_5 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=transfer_input(input_2),
-                              pageTurn='300')
-
-    gui.Q('InputFieldQueue').send(state_1)
-    refresh_state(gui, 'process_state', 'ProcessQueue', monitor_change=True)
-    time.sleep(4)
-    gui.Q('InputFieldQueue').send(state_2)
-    time.sleep(2)
-    gui.Q('InputFieldQueue').send(state_3)
-    time.sleep(2)
-    gui.Q('InputFieldQueue').send(state_4)
-    time.sleep(2)
-    gui.Q('InputFieldQueue').send(state_5)
-
-
-def test_normal_process(_gui, keyword, input_2, input_3):
-    """
-    input_2: 选书
-    input_3: 选章节
-    """
-    wait_flag_ts = 600 if is_debugging else 30
-    # TODO[8](2024-08-19): debug 拷贝漫画轻小说book请求
-    flag_queue = _gui.Q('FlagQueue')
-    state_1 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes='', pageTurn='')
-    _gui.Q('InputFieldQueue').send(state_1)
-    refresh_state(_gui, 'process_state', 'ProcessQueue', monitor_change=True)
-    wait_for_flag(flag_queue, wait_flag_ts)
-    __ = select(input_2, _gui.books)
-    state_2 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=__, pageTurn='')
-    _gui.Q('InputFieldQueue').send(state_2)
-    refresh_state(_gui, 'process_state', 'ProcessQueue', monitor_change=input_3 or False)
-    #  上面这行 refresh_state，当测试三步跳转时要加 monitor_change=True
-    if input_3:
-        wait_for_flag(flag_queue, wait_flag_ts)
-        __ = select(input_3, _gui.eps)
-        book = __[0].from_book
-        book.episodes = __
-        state_3 = InputFieldState(keyword=keyword, bookSelected=spider_choice, indexes=book, pageTurn='')
-        _gui.Q('InputFieldQueue').send(state_3)
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    sys.exit(main())

@@ -13,7 +13,6 @@ from functools import lru_cache
 import pathlib as p
 import typing as t
 from dataclasses import asdict
-import multiprocessing.managers as m
 
 from utils.config import *
 from utils.core import *
@@ -125,29 +124,6 @@ def convert_punctuation(text):
 
 def clean_escape_chars(text):
     return text.replace('\\\\', '\\').replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-
-
-
-
-class QueuesManager(m.BaseManager):
-    @staticmethod
-    def create_manager(*register_fields, **cls_kwargs):
-        for field in register_fields:
-            QueuesManager.register(field)
-        m = QueuesManager(**cls_kwargs)
-        return m
-
-    def connect(self):
-        loop = 0
-        while loop < 25:
-            try:
-                super(QueuesManager, self).connect()
-            except ConnectionRefusedError:
-                time.sleep(0.2)
-                loop += 1
-            else:
-                return
-        raise ConnectionRefusedError("Failed to connect to manager")
 
 
 def md5(_str):

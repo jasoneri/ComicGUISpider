@@ -110,12 +110,14 @@ class BaseConf:
             return self.__class__._loggers[name]
         self.log_path.mkdir(parents=True, exist_ok=True)
         log_file = self.log_path.joinpath(f'{name}.log')
-        handlers = [h for h in lg._core.handlers.values()
-                   if hasattr(h, 'file_path') and h.file_path == str(log_file)]
-        if not handlers:
-            lg.remove(handler_id=None)
+        log_file_str = str(log_file)
+        already_exists = any(
+            hasattr(h._sink, '_file_path') and str(h._sink._file_path) == log_file_str
+            for h in lg._core.handlers.values()
+        )
+        if not already_exists:
             lg.add(log_file,
-                filter=lambda record: name in record["extra"],
+                filter=lambda record, _n=name: _n in record["extra"],
                 format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}",
                 level=level or getattr(self, 'log_level', 'WARNING'), retention='5 days', encoding='utf-8')
         logger = lg.bind(**{name: True})

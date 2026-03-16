@@ -12,13 +12,14 @@ from scrapy import Selector
 
 from assets import res
 from variables import COOKIES_SUPPORT
-from utils import ori_path
-from utils.website.core import EroUtils, DomainUtils, Req, Cookies, MangaPreview
+from utils import ori_path, conf
+from utils.website.core import EroUtils, DomainUtils, Req, Cookies, MangaPreview, build_proxy_transport
 from utils.website.info import JmBookInfo, Episode
 
 
 class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
     name = "jm"
+    proxy_policy = "direct"
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     publish_url2 = "https://jm-3x.cc/mJ8rWd"
@@ -115,12 +116,28 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
     def get_cli(cls, _conf, is_async=False, **kwargs):
         client_class = httpx.AsyncClient if is_async else httpx.Client
         headers = {**cls.book_hea, 'Referer': f"https://{cls.get_domain()}"}
-        cli = client_class(headers=headers, **kwargs)
-        return cli
+        transport_kw = {k: kwargs.pop(k) for k in Req._TRANSPORT_PARAMS if k in kwargs}
+        transport, trust_env = build_proxy_transport(
+            cls.proxy_policy, _conf.proxies, is_async=is_async, **transport_kw
+        )
+        base_kwargs = {
+            'headers': headers,
+            'transport': transport,
+            'trust_env': trust_env,
+        }
+        base_kwargs.update(kwargs)
+        return client_class(**base_kwargs)
 
     @classmethod
     async def by_publish(cls):
-        async with httpx.AsyncClient(headers=cls.publish_headers,transport=httpx.AsyncHTTPTransport(retries=2),http2=True) as sess:
+        transport, trust_env = build_proxy_transport(
+            cls.proxy_policy, conf.proxies, http2=True, retries=2
+        )
+        async with httpx.AsyncClient(
+            headers=cls.publish_headers,
+            transport=transport,
+            trust_env=trust_env,
+        ) as sess:
             resp = await sess.get(cls.publish_url2)
             e = None
             while True:
@@ -203,19 +220,18 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
 
     @classmethod
     def preview_client_config(cls):
-        domain = cls.get_domain()
+        domain = cls.domain or cls.get_domain()
         return {
-            'headers': {**cls.headers, 'Referer': f'https://{domain}'},
+            'headers': {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'},
+            'verify': False,
         }
 
     @classmethod
     async def preview_search(cls, keyword, client, **kw):
-        page = int(kw.pop("page", 1) or 1)
-        if page < 1:
-            page = 1
-        domain = cls.get_domain()
+        page = max(1, int(kw.pop("page", 1) or 1))
+        domain = cls.domain or cls.get_domain()
         url = f'https://{domain}/search/photos?main_tag=0&search_query={keyword}&page={page}'
-        headers = {**cls.headers, 'Referer': f'https://{domain}'}
+        headers = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
         resp = await client.get(url, headers=headers, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()
 
@@ -234,8 +250,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
 
     @classmethod
     async def preview_fetch_episodes(cls, book, client, **kw):
-        domain = cls.get_domain()
-        headers = {**cls.headers, 'Referer': f'https://{domain}'}
+        domain = cls.domain or cls.get_domain()
+        headers = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
         resp = await client.get(book.preview_url, headers=headers, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()
         return await asyncio.to_thread(cls._parse_book_episodes, resp.text, book, domain)

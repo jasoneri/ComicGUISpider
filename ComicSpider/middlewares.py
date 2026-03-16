@@ -10,6 +10,7 @@ import traceback
 from scrapy import signals
 from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
 from scrapy.http import HtmlResponse
+from utils import conf
 
 
 class ComicspiderDownloaderMiddleware(object):
@@ -19,7 +20,7 @@ class ComicspiderDownloaderMiddleware(object):
 
     @classmethod
     def from_crawler(cls, crawler):
-        USER_AGENTS, PROXIES = crawler.settings.get('UA'), crawler.settings.get('PROXY_CUST')
+        USER_AGENTS, PROXIES = crawler.settings.get('UA'), conf.proxies
         s = cls(USER_AGENTS, PROXIES)
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
@@ -28,13 +29,6 @@ class ComicspiderDownloaderMiddleware(object):
         return None
 
     def process_response(self, request, response, spider):
-        # Called with the response returned from the downloader.
-        if response.status != 200:
-            request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
-            if self.PROXIES:
-                proxy = random.choice(self.PROXIES)
-                request.meta['proxy'] = f"{request.url.split(':')[0]}://{proxy}"
-            return request
         return response
 
     def process_exception(self, request, exception, spider):
@@ -86,11 +80,11 @@ class UAMiddleware(ComicspiderDownloaderMiddleware):
 class UAKaobeiMiddleware(ComicspiderDownloaderMiddleware):
     def process_request(self, request, spider):
         if request.url.find(spider.pc_domain) != -1:
-            ua = getattr(spider, 'ua', {})
+            ua = {**getattr(spider, 'ua', {})}
             if request.url.endswith('/chapters'):
-                ua.update({'Referer': f'https://{spider.pc_domain}/comic/{request.url.split("/")[-2]}'})
+                ua['Referer'] = f'https://{spider.pc_domain}/comic/{request.url.split("/")[-2]}'
             else:
-                ua.update({'Referer': "/".join(request.url.split("/")[:-2])})
+                ua['Referer'] = "/".join(request.url.split("/")[:-2])
             request.headers.update(ua)
         else:
             request.headers.update(getattr(spider, 'ua_mapi', {}))

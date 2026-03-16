@@ -112,7 +112,7 @@ class ComicPipeline(ImagesPipeline):
         spider.emit(TasksObjEvent(
             job_id=getattr(spider, '_job_id', None),
             task_obj=task_obj,
-            is_new=(curr_progress >= 100),
+            is_new=False,
         ))
         stats.inc_value('image/downloaded')
 

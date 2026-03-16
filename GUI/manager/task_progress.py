@@ -3,7 +3,7 @@ import httpx
 import os
 import typing as t
 
-from PyQt5.QtCore import Qt, QSize, QUrl
+from PyQt5.QtCore import Qt, QEvent, QObject, QSize, QUrl
 from PyQt5.QtWidgets import QWidget, QLabel, QFrame
 from PyQt5.QtGui import QGuiApplication, QPixmap, QDesktopServices
 from qfluentwidgets import (
@@ -12,6 +12,7 @@ from qfluentwidgets import (
 )
 
 from GUI.core.anim import ExpandCollapseOrchestrator, ContentTarget
+from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
 from utils import conf, TaskObj, TasksObj, curr_os, get_httpx_verify
@@ -43,10 +44,12 @@ class TaskProgress:
     def name(self) -> int:
         return self.tasks_obj.display_title
 
+    @property
+    def downloaded(self) -> int:
+        return self._downloaded_count
 
     def apply(self, event: TaskObj) -> int:
         """接收一个下载事件，更新进度，返回百分比"""
-        self.tasks_obj.downloaded.append(event)
         self._downloaded_count += 1
         self.last_percent = int(self._downloaded_count / self.tasks_obj.tasks_count * 100)
         if self.last_percent >= 100:
@@ -218,13 +221,15 @@ class TaskProgressEntry:
         self.view = view
 
 
-class ExpandPanelController:
+class ExpandPanelController(QObject):
     def __init__(self, gui, panel_min_height: int):
+        super().__init__()
         self.gui = gui
         self.panel_min_height = panel_min_height
         self.expand_btn = None
         self.orchestrator = None
         self._transitioning = False
+        self._sync_pending = False
 
     def bind(self, expand_btn):
         self.expand_btn = expand_btn
@@ -241,14 +246,45 @@ class ExpandPanelController:
             after_collapse=self._sync_scroll_visibility,
         )
         self._transitioning = False
+        self.gui.scroll_area.viewport().installEventFilter(self)
 
     def cleanup(self):
+        try:
+            self.gui.scroll_area.viewport().removeEventFilter(self)
+        except (RuntimeError, AttributeError):
+            pass
         if self.orchestrator is not None:
             self.orchestrator.cleanup()
             self.orchestrator = None
         self._transitioning = False
+        self._sync_pending = False
 
-    def reset_content_height(self):
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Resize:
+            self._request_scroll_sync()
+        return False
+
+    def _request_scroll_sync(self):
+        if self._sync_pending:
+            return
+        self._sync_pending = True
+        safe_single_shot(0, self._do_scroll_sync)
+
+    def _do_scroll_sync(self):
+        self._sync_pending = False
+        sa = self.gui.scroll_area
+        if not sa.isVisible():
+            return
+        viewport_w = sa.viewport().width()
+        if viewport_w <= 0:
+            viewport_w = sa.width() - 2
+        content_h = self.gui.flow_layout.heightForWidth(viewport_w)
+        self.gui.scroll_content.setMinimumHeight(content_h)
+        vbar = sa.scrollDelagate.vScrollBar
+        vbar.scrollTo(vbar.maximum())
+
+    def _reset_scroll_content_height(self):
+        self.gui.scroll_content.setMinimumHeight(0)
         if self.orchestrator is not None:
             self.orchestrator.set_content_height(self.gui.scroll_area, 0)
 
@@ -516,13 +552,14 @@ class TaskProgressManager:
         self.init_flag = True
         self.record_sql = SqlRecorder()
         transport = dict(proxy=f"http://{conf.proxies[0]}", retries=2) if conf.proxies else dict(retries=2)
+        transport["verify"] = get_httpx_verify()
         self._cover_http_cli = httpx.Client(
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0",
                 "Accept": "image/*",
             },
             transport=httpx.HTTPTransport(**transport),
-            verify=get_httpx_verify(), follow_redirects=True, timeout=15,
+            follow_redirects=True, timeout=15,
         )
         self._cover_task_mgr = AsyncTaskManager(gui)
         self._entry_ctrl = TaskEntryController(gui, self._entries, self._cover_http_cli, self._cover_task_mgr)
@@ -571,7 +608,7 @@ class TaskProgressManager:
 
         self._rebuild_native_views(task_ids)
         self.gui.scroll_area.setVisible(False)
-        self._panel_ctrl.reset_content_height()
+        self._panel_ctrl._reset_scroll_content_height()
         self._refresh_dl_status_badge()
 
     def _dispose_native_runtime_only(self):
@@ -603,6 +640,7 @@ class TaskProgressManager:
                     self.expandBtn.setVisible(True)
                     self.clearBtn.setVisible(True)
                 self._refresh_dl_status_badge()
+                self._panel_ctrl._request_scroll_sync()
             return
 
         if isinstance(task, TaskObj):
@@ -614,9 +652,22 @@ class TaskProgressManager:
     def update_progress(self, task_obj: TaskObj):
         self._entry_ctrl.update_progress(task_obj)
         self._refresh_dl_status_badge()
+
+        aggregate = self.aggregate_percent()
+        self.gui.processbar_load(aggregate)
+
         completed = sum(1 for e in self._entries.values() if e.progress.completed)
-        if completed == len(self._entries):
-            ...
+        if completed == len(self._entries) and len(self._entries) > 0:
+            self.gui.crawl_end(str(getattr(self.gui, "sv_path", "")))
+
+    def aggregate_percent(self) -> int:
+        if not self._entries:
+            return 0
+        total_downloaded = sum(e.progress.downloaded for e in self._entries.values())
+        total_tasks = sum(e.progress.tasks_count for e in self._entries.values())
+        if total_tasks == 0:
+            return 0
+        return int(total_downloaded * 100 / total_tasks)
 
     def _refresh_dl_status_badge(self):
         if self._dl_status_badge is None:
@@ -637,6 +688,7 @@ class TaskProgressManager:
         if self._dl_status_badge is not None:
             self._dl_status_badge.hide()
         self._panel_ctrl.stop_and_reset()
+        self._panel_ctrl._reset_scroll_content_height()
         self.gui.scroll_area.setVisible(False)
         if self.expandBtn.expanded:
             self.expandBtn.expanded = False

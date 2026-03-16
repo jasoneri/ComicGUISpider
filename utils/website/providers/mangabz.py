@@ -88,9 +88,7 @@ class MangabzUtils(Utils, Req, MangaPreview):
 
     @classmethod
     async def preview_search(cls, keyword, client, **kw):
-        page = int(kw.pop("page", 1) or 1)
-        if page < 1:
-            page = 1
+        page = max(1, int(kw.pop("page", 1) or 1))
         body = MbSearchBody(title=keyword)
         body.dic["pageindex"] = str(page)
         url = f"https://{cls.domain}/pager.ashx?d={mb_curr_time_format()}"

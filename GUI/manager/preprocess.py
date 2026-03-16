@@ -28,8 +28,12 @@ class PreprocessManager(QObject):
         self.gui = gui
         self.show_err = conf.log_level.lower() == "debug"
         self.task_manager = AsyncTaskManager(gui)
+        self._switch_generation = 0
 
     def handle_choosebox_changed(self, index: int):
+        self._switch_generation += 1
+        generation = self._switch_generation
+        self.task_manager.cancel_all_tasks()
         special = {
             1: self._preprocess_manga_copy,
             2: self._preprocess_jm,
@@ -39,14 +43,17 @@ class PreprocessManager(QObject):
             7: self._preprocess_kemono,
         }
         if handler:= special.get(index):
-            handler()
+            handler(index, generation)
         elif hasattr(self.gui.spiderUtils, 'test_index'):
-            self._preprocess_test_index()
+            self._preprocess_test_index(index, generation)
 
         if index in Spider.aggr():
             self._add_aggr_search()
         if index in Spider.clip():
             self.gui.clipBtn.setEnabled(1)
+
+    def _is_current_site(self, index: int, generation: int) -> bool:
+        return generation == self._switch_generation and self.gui.chooseBox.currentIndex() == index
 
     def _cache_hit(self) -> bool:
         cache = getattr(self.gui.spiderUtils, "cachef", None)
@@ -62,16 +69,22 @@ class PreprocessManager(QObject):
         if hasattr(self.gui, 'toolWin'):
             self.gui.toolWin.addHitomiTool()
 
-    def _preprocess_manga_copy(self):
+    def _preprocess_manga_copy(self, index: int, generation: int):
+        provider = self.gui.spiderUtils
+
         def manga_copy_task():
             # 1. 更新加密缓存
-            key = self.gui.spiderUtils.get_aes_key()
+            provider.get_aes_key()
             return True
         
         def on_success(_):
+            if not self._is_current_site(index, generation):
+                return
             self._say_cache_or("<br>✅ 拷贝预处理完成")
 
         def on_error(_):
+            if not self._is_current_site(index, generation):
+                return
             self.gui.disable_start()
             self.gui.say("<br>❌ 解密获取失败，内置重启再试下")
 
@@ -79,21 +92,27 @@ class PreprocessManager(QObject):
             task_func=manga_copy_task,
             success_callback=on_success,
             show_error_info=self.show_err, error_callback=on_error,
-            tooltip_title="更新copy2相关缓存", task_id="manga_copy_preprocess"
+            tooltip_title="更新copy2相关缓存", task_id=f"manga_copy_preprocess_{generation}"
         )
 
-    def _preprocess_jm(self):
+    def _preprocess_jm(self, index: int, generation: int):
+        provider = self.gui.spiderUtils
+
         def task():
             # 1. 更新域名缓存
-            domain = self.gui.spiderUtils.get_domain()
+            provider.get_domain()
             # 2. cookies处理？
             return True
 
         def on_success(_):
+            if not self._is_current_site(index, generation):
+                return
             self._say_cache_or("<br>✅ 已设置有效域名")
 
 
         def on_error(_):
+            if not self._is_current_site(index, generation):
+                return
             self.gui.disable_start()
             self.gui.say("<br>❌ 域名获取/测试失效，按内置浏览器引导操作")
             self.gui.do_publish()
@@ -101,10 +120,10 @@ class PreprocessManager(QObject):
         self.task_manager.execute_simple_task(
             task_func=task,
             success_callback=on_success, show_error_info=self.show_err, error_callback=on_error,
-            tooltip_title="更新域名缓存", task_id="domain_preprocess"
+            tooltip_title="更新域名缓存", task_id=f"domain_preprocess_{index}_{generation}"
         )
 
-    def _preprocess_ehentai(self):
+    def _preprocess_ehentai(self, index: int, generation: int):
         eh_kits = EHentaiKits(conf)
         def ehentai_task():
             if not conf.cookies.get("ehentai"):
@@ -115,6 +134,8 @@ class PreprocessManager(QObject):
             return True
 
         def on_error(error):
+            if not self._is_current_site(index, generation):
+                return
             self.gui.disable_start()
             error_msg = str(error)
             if "cookies_not_set" in error_msg:
@@ -129,31 +150,34 @@ class PreprocessManager(QObject):
 
         self.task_manager.execute_simple_task(
             task_func=ehentai_task,
-            success_callback=lambda _: self.gui.say("<br>✅ exhentai 访问检测通过"),
+            success_callback=lambda _: self._is_current_site(index, generation) and self.gui.say("<br>✅ exhentai 访问检测通过"),
             show_error_info=self.show_err, error_callback=on_error,
-            tooltip_title="exhentai 访问检测", task_id="ehentai_preprocess"
+            tooltip_title="exhentai 访问检测", task_id=f"ehentai_preprocess_{generation}"
         )
 
-    def _preprocess_test_index(self):
-        name = self.gui.spiderUtils.name
-        index = self.gui.spiderUtils.index
+    def _preprocess_test_index(self, index: int, generation: int):
+        provider = self.gui.spiderUtils
+        name = provider.name
+        site_index = provider.index
 
         def task():
-            self.gui.sut = self.gui.spiderUtils(conf)
+            self.gui.sut = provider(conf)
             if not self.gui.sut.test_index():
-                raise RuntimeError(f"access_fail:{name}:{index}")
+                raise RuntimeError(f"access_fail:{name}:{site_index}")
             return True
 
         def on_error(_):
+            if not self._is_current_site(index, generation):
+                return
             self.gui.disable_start()
             CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.showArea,
-                    index, name)
+                    site_index, name)
 
         self.task_manager.execute_simple_task(
             task_func=task,
-            success_callback=lambda _: self.gui.say(f"<br>✅ {name} 访问检测通过"),
+            success_callback=lambda _: self._is_current_site(index, generation) and self.gui.say(f"<br>✅ {name} 访问检测通过"),
             show_error_info=self.show_err, error_callback=on_error,
-            tooltip_title=f"{name} 访问检测", task_id=f"{name}_preprocess"
+            tooltip_title=f"{name} 访问检测", task_id=f"{name}_preprocess_{generation}"
         )
 
     def _add_aggr_search(self):
@@ -161,28 +185,33 @@ class PreprocessManager(QObject):
             self.gui.toolWin.addAggrSearchView()
         self.gui.aggrBtn.setVisible(True)
 
-    def _preprocess_wnacg(self):
+    def _preprocess_wnacg(self, index: int, generation: int):
         if conf.proxies:
-            self.gui.say("🔔 已设置代理，跳过域名缓存处理")
+            if self._is_current_site(index, generation):
+                self.gui.say("🔔 已设置代理，跳过域名缓存处理")
         else:
-            self._preprocess_jm()
+            self._preprocess_jm(index, generation)
 
-    def _preprocess_hitomi(self):
+    def _preprocess_hitomi(self, index: int, generation: int):
+        provider = self.gui.spiderUtils
+
         def hitomi_check():
-            self.gui.sut = self.gui.spiderUtils(conf)
+            self.gui.sut = provider(conf)
             if not self.gui.sut.test_index():
-                raise RuntimeError(f"test-nozomi fail:{self.gui.spiderUtils.name}: {self.gui.spiderUtils.test_nozomi}")
+                raise RuntimeError(f"test-nozomi fail:{provider.name}: {provider.test_nozomi}")
             return True
 
         def on_error(_):
+            if not self._is_current_site(index, generation):
+                return
             CustomInfoBar.show('', self.gui.res.ACCESS_FAIL, self.gui.showArea,
-                    self.gui.spiderUtils.index, self.gui.spiderUtils.name)
+                    provider.index, provider.name)
 
         self.task_manager.execute_simple_task(
             task_func=hitomi_check,
-            success_callback=lambda _: self.gui.say("<br>✅ hitomi 访问检测通过"),
+            success_callback=lambda _: self._is_current_site(index, generation) and self.gui.say("<br>✅ hitomi 访问检测通过"),
             error_callback=on_error, show_error_info=self.show_err, 
-            tooltip_title="hitomi 访问检测", task_id="hitomi_preprocess"
+            tooltip_title="hitomi 访问检测", task_id=f"hitomi_preprocess_{generation}"
         )
         
         HITOMI_DB_URLS = [
@@ -213,19 +242,21 @@ class PreprocessManager(QObject):
             self.gui.say("⚠️ hitomi db not found, downloading...")
 
             def on_db_download_success(_):
+                if not self._is_current_site(index, generation):
+                    return
                 self.gui.say("<br>✅ hitomi db downloaded")
                 self._try_add_hitomi_tool()
 
             self.task_manager.execute_simple_task(
                 task_func=lambda: _download_hitomi_db(hitomi_db_path),
                 success_callback=on_db_download_success, show_error_info=self.show_err, 
-                error_callback=lambda _: self.gui.say("<br>❌ hitomi-db download failed"),
-                tooltip_title="hitomi-db downloading", task_id="hitomi_db"
+                error_callback=lambda _: self._is_current_site(index, generation) and self.gui.say("<br>❌ hitomi-db download failed"),
+                tooltip_title="hitomi-db downloading", task_id=f"hitomi_db_{generation}"
             )
         else:
             self._try_add_hitomi_tool()
 
-    def _preprocess_kemono(self):
+    def _preprocess_kemono(self, index: int, generation: int):
         kemono_flag = {}
         
         def triggle_or_not(k, v):

@@ -3,6 +3,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 from utils.website import WnacgUtils, correct_domain
+from utils import conf
 from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "wnacg.com"
@@ -26,7 +27,7 @@ class WnacgSpider(BaseComicSpider2):
     transfer_url = staticmethod(lambda url: url.replace('index', 'gallery'))
 
     def preready(self):
-        if self.settings.get("PROXY_CUST") is None:
+        if not conf.proxies:
             self.domain = self.ut.get_domain()
             self.book_id_url = correct_domain(self.domain, self.book_id_url)
 

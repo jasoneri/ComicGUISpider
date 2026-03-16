@@ -75,14 +75,19 @@ class SpiderGuiOps:
         self.gui.start_and_search(keyword=keyword, site_index=site_index)
 
     def select_books(self, indexes, page_turn: str = ""):
-        self.gui.submit_decision("BOOK", indexes, page_turn=page_turn)
+        self.gui.sel_mgr.submit_decision(
+            "BOOK",
+            indexes,
+            page_turn=page_turn,
+            flow_stage=self.gui.flow_stage,
+        )
 
     def select_eps(self, episodes):
         if not episodes:
             return
         book = episodes[0].from_book
         book.episodes = list(episodes)
-        self.gui.submit_decision("EP", book)
+        self.gui.sel_mgr.submit_decision("EP", book)
 
     def run_postprocess(self, **kwargs):
         if log := getattr(self.gui, "log", None):
@@ -144,10 +149,17 @@ class CGSMidManagerGUI(QObject):
     def _sync_ctx_from_gui(self):
         if not self.session:
             return
+        preview_mgr = getattr(self.gui, "preview_mgr", None)
+        books = getattr(preview_mgr, "books_cache", {}) or {}
+        episodes_cache = getattr(preview_mgr, "episodes_cache", {}) or {}
+        episodes = {}
+        for book_key, items in episodes_cache.items():
+            for ep in items or []:
+                episodes[f"{book_key}:{getattr(ep, 'idx', len(episodes))}"] = ep
         self.session.ctx.input_state = None
         self.session.ctx.process_state = self._process_stage
-        self.session.ctx.books = getattr(self.gui, "books", {}) or {}
-        self.session.ctx.eps = getattr(self.gui, "eps", {}) or {}
+        self.session.ctx.books = books
+        self.session.ctx.eps = episodes
 
     def ensure_session(self, session_id: str | None = None, workflow=None, force_restart: bool = False):
         if workflow is not None:
@@ -195,12 +207,6 @@ class CGSMidManagerGUI(QObject):
         self._workflow_session.reset()
         self.state_changed.emit(WorkflowState.IDLE, None)
         self._process_stage = ""
-
-        if self.thread and self.thread.isRunning():
-            self.thread.stop()
-            self.thread.quit()
-            self.thread.wait(500)
-        self.thread = None
         self.session = None
 
     def rebind(self, gui):

@@ -230,8 +230,7 @@ class BaseComicSpider(scrapy.Spider):
         tasks_obj.meta_info = self.mr.toMetaInfo(task_info)
         ctx = self._task_store()
         ctx.tasks[tasks_obj.taskid] = tasks_obj
-        job_id = self.current_job.job_id if self.current_job else None
-        self.emit(TasksObjEvent(job_id=job_id, task_obj=tasks_obj, is_new=True))
+        # self.emit(TasksObjEvent(job_id=job_id, task_obj=tasks_obj, is_new=True))
 
         self.rv_sql.write_meta(**book.to_sql())
 

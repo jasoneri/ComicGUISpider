@@ -5,14 +5,15 @@ from urllib.parse import urlencode
 
 import httpx
 from lxml import html
-
-from assets import res
-from utils import conf, get_loop
-from utils.website.core import Utils, MangaPreview, Cache
-from utils.website.info import KbBookInfo, Episode
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
+
+from assets import res
+from utils import conf, get_loop
+from utils.website.core import Utils, MangaPreview, Cache, build_proxy_transport
+from utils.website.info import KbBookInfo, Episode
+from utils.processed_class import Url
 
 
 class KaobeiUtils(Utils, MangaPreview):
@@ -100,11 +101,8 @@ class KaobeiUtils(Utils, MangaPreview):
     @classmethod
     async def preview_search(cls, keyword, client, **kw):
         url, frame = cls.build_search_spec(keyword)
-        page = int(kw.pop("page", 1) or 1)
-        if page < 1:
-            page = 1
+        page = max(1, int(kw.pop("page", 1) or 1))
         if page > 1:
-            from utils.processed_class import Url
             paged_url = Url(url).set_next(*cls.turn_page_info)
             for _ in range(page - 1):
                 paged_url = paged_url.next
@@ -140,11 +138,15 @@ class KaobeiUtils(Utils, MangaPreview):
         if cached := _load_cached():
             return cached
 
-        async with httpx.AsyncClient(headers=cls.headers) as cli:
+        transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies)
+        async with httpx.AsyncClient(
+            headers=cls.headers, transport=transport, trust_env=trust_env
+        ) as cli:
             key = await _fetch_key(cli)
             cls.cachef = getattr(cls, "cachef", Cache("kaobei_aeskey.txt"))
             cls.cachef.val = key
             return key
+
     @classmethod
     async def preview_fetch_episodes(cls, book, client, **kw):
         await cls._ensure_aes_key()
@@ -223,7 +225,10 @@ class KaobeiUtils(Utils, MangaPreview):
         """获取AES密钥，使用缓存装饰器优化"""
         def _fetch():
             async def fetch():
-                async with httpx.AsyncClient(headers=cls.headers) as cli:
+                transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies)
+                async with httpx.AsyncClient(
+                    headers=cls.headers, transport=transport, trust_env=trust_env
+                ) as cli:
                     resp = await cli.get(f"https://{cls.pc_domain}/comic/yiquanchaoren")
                     return resp.text
             try:

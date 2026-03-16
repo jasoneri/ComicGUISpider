@@ -1,18 +1,42 @@
 import asyncio
 import traceback
+from dataclasses import dataclass
 from queue import Empty, Queue
+from typing import Union
 
 import httpx
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from utils import conf
-from utils.website.core import MangaPreview
+from utils.website.core import MangaPreview, build_proxy_transport
 from utils.website.registry import spider_utils_map
 
 
-class MangaPreviewWorker(QThread):
+@dataclass(frozen=True, slots=True)
+class SearchTask:
+    keyword: str
+    site_index: int
+    page: int = 1
+
+
+@dataclass(frozen=True, slots=True)
+class EpisodesTask:
+    book_key: str
+    book: object
+    site_index: int
+
+
+@dataclass(frozen=True, slots=True)
+class EpisodesBatchTask:
+    items: list
+
+
+PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask]
+
+
+class PreviewWorker(QThread):
     search_done = pyqtSignal(str, int, object)
-    search_error = pyqtSignal(str)
+    search_error = pyqtSignal(str, int, str)
     episodes_done = pyqtSignal(str, object)
     episodes_error = pyqtSignal(str, str)
 
@@ -28,30 +52,30 @@ class MangaPreviewWorker(QThread):
         self._task_queue.put(None)
 
     def enqueue_search(self, keyword, site_index, page=1):
-        self._task_queue.put(("search", keyword, site_index, page))
+        self._task_queue.put(SearchTask(keyword, site_index, page))
 
     def enqueue_episodes(self, book_key, book, site_index):
-        self._task_queue.put(("episodes", book_key, book, site_index))
+        self._task_queue.put(EpisodesTask(book_key, book, site_index))
 
     def enqueue_episodes_batch(self, items):
         if items:
-            self._task_queue.put(("episodes_batch", items))
-
-    @staticmethod
-    def _build_transport():
-        if conf.proxies:
-            return httpx.AsyncHTTPTransport(proxy=f"http://{conf.proxies[0]}", retries=3)
-        return httpx.AsyncHTTPTransport(retries=2)
+            self._task_queue.put(EpisodesBatchTask(items))
 
     def _get_client(self, site_index):
         if cli := self._site_clients.get(site_index):
             return cli
-        transport = self._build_transport()
-        cli = httpx.AsyncClient(
+        preview_cls = self._get_preview_cls(site_index)
+        site_kw = preview_cls.preview_client_config()
+        policy = getattr(preview_cls, "proxy_policy", "proxy")
+        verify = site_kw.pop("verify", True)
+        transport, trust_env = build_proxy_transport(policy, conf.proxies, verify=verify)
+        base_kw = dict(
             transport=transport,
             follow_redirects=True,
-            trust_env=not bool(conf.proxies),
+            trust_env=trust_env, headers=None
         )
+        base_kw.update(site_kw)
+        cli = httpx.AsyncClient(**base_kw)
         self._site_clients[site_index] = cli
         return cli
 
@@ -66,7 +90,8 @@ class MangaPreviewWorker(QThread):
 
     async def _do_search(self, keyword, site_index, page=1):
         preview_cls = self._get_preview_cls(site_index)
-        return await preview_cls.preview_search(keyword, self._get_client(site_index), page=page)
+        cli = self._get_client(site_index)
+        return await preview_cls.preview_search(keyword, cli, page=page)
 
     async def _do_fetch_episodes(self, book, site_index):
         preview_cls = self._get_preview_cls(site_index)
@@ -103,31 +128,31 @@ class MangaPreviewWorker(QThread):
                     continue
                 if task is None:
                     continue
-                task_type = task[0]
                 try:
-                    if task_type == "search":
-                        _, keyword, site_index, page = task
-                        books = self._loop.run_until_complete(
-                            self._do_search(keyword, site_index, page=page)
-                        )
-                        self.search_done.emit(keyword, site_index, books)
-                    elif task_type == "episodes":
-                        _, book_key, book, site_index = task
-                        episodes = self._loop.run_until_complete(
-                            self._do_fetch_episodes(book, site_index)
-                        )
-                        self.episodes_done.emit(book_key, episodes)
-                    elif task_type == "episodes_batch":
-                        _, items = task
-                        self._loop.run_until_complete(
-                            self._do_fetch_episodes_batch(items)
-                        )
+                    match task:
+                        case SearchTask(keyword=kw, site_index=si, page=pg):
+                            books = self._loop.run_until_complete(
+                                self._do_search(kw, si, page=pg)
+                            )
+                            self.search_done.emit(kw, si, books)
+                        case EpisodesTask(book_key=bk, book=b, site_index=si):
+                            episodes = self._loop.run_until_complete(
+                                self._do_fetch_episodes(b, si)
+                            )
+                            self.episodes_done.emit(bk, episodes)
+                        case EpisodesBatchTask(items=its):
+                            self._loop.run_until_complete(
+                                self._do_fetch_episodes_batch(its)
+                            )
                 except Exception:
                     err = traceback.format_exc()
-                    if task_type == "episodes":
-                        self.episodes_error.emit(task[1], err)
-                    else:
-                        self.search_error.emit(err)
+                    match task:
+                        case SearchTask(keyword=kw, site_index=si):
+                            self.search_error.emit(kw, si, err)
+                        case EpisodesTask(book_key=bk):
+                            self.episodes_error.emit(bk, err)
+                        case _:
+                            self.search_error.emit("", -1, err)
         finally:
             try:
                 self._loop.run_until_complete(self._close_clients())

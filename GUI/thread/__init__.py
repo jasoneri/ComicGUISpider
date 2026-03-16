@@ -124,11 +124,6 @@ class WorkThread(QThread):
         with self._bind_lock:
             self._dispatch_enabled = True
 
-    def _current_active_job_id(self):
-        if self.authority is None:
-            return None
-        return getattr(self.authority, "active_job_id", None)
-
     def _capture_binding(self):
         with self._bind_lock:
             return self._bind_generation, self.gui
@@ -141,32 +136,19 @@ class WorkThread(QThread):
         with self._bind_lock:
             return self._dispatch_enabled
 
-    def _is_active_event(self, event, active_job_id=None) -> bool:
-        if self.authority is None:
-            return True
-        event_job_id = getattr(event, "job_id", None)
-        active_job_id = active_job_id if active_job_id is not None else self._current_active_job_id()
-        if not active_job_id:
-            return False
-        return bool(event_job_id) and event_job_id == active_job_id
-
-    def _can_dispatch_event(self, event, generation: int) -> bool:
-        return self._is_dispatch_enabled() and self._is_current_binding(generation) and self._is_active_event(event)
-
     def _begin_dispatch(self, event, generation: int) -> bool:
         with self._bind_lock:
             if not self._dispatch_enabled:
                 return False
             if generation != self._bind_generation:
                 return False
-            active_job_id = None if self.authority is None else getattr(self.authority, "active_job_id", None)
-            pending_job_id = None if self.authority is None else getattr(self.authority, "pending_job_id", None)
-            event_job_id = getattr(event, "job_id", None)
             if isinstance(event, JobAcceptedEvent):
-                if not pending_job_id or event_job_id != pending_job_id:
-                    return False
-            elif self.authority is not None and (not active_job_id or not event_job_id or event_job_id != active_job_id):
-                return False
+                if self.authority is not None:
+                    event_job_id = getattr(event, "job_id", None)
+                    is_pending = getattr(self.authority, "is_job_pending", None)
+                    if callable(is_pending):
+                        if not is_pending(event_job_id):
+                            return False
             event_seq = getattr(event, "_event_seq", 0)
             if self._rebind_cutoff_seq and event_seq and event_seq <= self._rebind_cutoff_seq:
                 return False
@@ -185,9 +167,6 @@ class WorkThread(QThread):
                 continue
 
             generation, gui = self._capture_binding()
-            active_job_id = self._current_active_job_id()
-            if not isinstance(event, JobAcceptedEvent) and not self._is_active_event(event, active_job_id=active_job_id):
-                continue
 
             if not self._begin_dispatch(event, generation):
                 continue
@@ -210,7 +189,7 @@ class WorkThread(QThread):
                     imgs_path = str(getattr(gui, "sv_path", conf.sv_path))
                     self.worker_finished_signal.emit(generation, event.job_id, imgs_path, event.success)
                 elif isinstance(event, ErrorEvent):
-                    if self.authority is not None and not self._current_active_job_id():
+                    if self.authority is not None:
                         self.authority.reject_job(event.job_id)
                     self.print_signal.emit(generation, event.job_id, font_color(f"[Error] {event.error}", cls='theme-err'))
             finally:

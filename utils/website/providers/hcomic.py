@@ -48,6 +48,7 @@ class HComicUtils(EroUtils, Req, MangaPreview):
     @classmethod
     def build_search_url(cls, key):
         return f"{cls.index}/?q={key}"
+
     @classmethod
     def _format_public_date(cls, unix_ts):
         try:
@@ -159,13 +160,12 @@ class HComicUtils(EroUtils, Req, MangaPreview):
     def preview_client_config(cls):
         return {
             'headers': cls.headers,
+            'verify': False,
         }
 
     @classmethod
     async def preview_search(cls, keyword, client, **kw):
-        page = int(kw.pop("page", 1) or 1)
-        if page < 1:
-            page = 1
+        page = max(1, int(kw.pop("page", 1) or 1))
         url = f"{cls.index}/?q={keyword}&page={page}"
         resp = await client.get(url, headers=cls.headers, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()
