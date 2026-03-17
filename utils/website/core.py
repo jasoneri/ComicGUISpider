@@ -178,7 +178,7 @@ class Utils:
     def display_meta(cls, *args, **kw) -> dict:
         return {}
 
-class MangaPreview:
+class Previewer:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
 
     @classmethod

@@ -1,16 +1,16 @@
-import time
 import re
 import json
 import struct
+import asyncio
 
 import httpx
 
 from assets import res
-from utils.website.core import EroUtils, Req
+from utils.website.core import EroUtils, Req, Previewer
 from utils.website.info import HitomiBookInfo
 
 
-class HitomiUtils(EroUtils, Req):
+class HitomiUtils(EroUtils, Req, Previewer):
     name = "hitomi"
     index = "https://hitomi.la/"
     domain = r"ltn.gold-usergeneratedcontent.net"
@@ -108,6 +108,68 @@ class HitomiUtils(EroUtils, Req):
     @classmethod
     def get_cli(cls, conf, is_async=False, **kwargs):
         return super().get_cli(conf, is_async=is_async, http2=True, **kwargs)
+
+    @classmethod
+    def preview_client_config(cls) -> dict:
+        return {'headers': cls.headers, 'http2': True}
+
+    @classmethod
+    async def preview_search(cls, keyword: str, client, **kw) -> list:
+        page = max(1, int(kw.pop('page', 1) or 1))
+        nozomi_path = keyword if keyword.endswith('.nozomi') else f'{keyword}.nozomi'
+        nozomi_url = f'https://{cls.domain}/{nozomi_path}'
+        range_header = f'bytes={cls.galleries_per_page * (page - 1)}-{cls.galleries_per_page * page - 1}'
+        resp, gg_resp = await asyncio.gather(
+            client.get(nozomi_url, headers={**cls.headers, 'Range': range_header}, timeout=15),
+            client.get(f'https://ltn.{cls.domain2}/gg.js', headers=cls.headers, timeout=15),
+        )
+        resp.raise_for_status()
+        gg_resp.raise_for_status()
+        gallery_ids = cls.parse_nozomi(resp.content)
+        _gg = gg(js_code=gg_resp.text)
+        _dec = cls.Decrypt(_gg)
+
+        sem = asyncio.Semaphore(10)
+        async def _fetch_one(gallery_id):
+            async with sem:
+                url = f'https://{cls.domain}/galleries/{gallery_id}.js'
+                r = await client.get(url, headers=cls.headers, timeout=10)
+                r.raise_for_status()
+                return r.text
+
+        texts = await asyncio.gather(*[_fetch_one(gid) for gid in gallery_ids], return_exceptions=True)
+
+        books = []
+        for idx, text in enumerate(texts):
+            if isinstance(text, Exception):
+                continue
+            try:
+                datum = cls.parse_galleries(text)
+                gallery_id = datum['id']
+                pics = datum['files']
+                first_pic = pics[0]
+                img_hash = first_pic['hash']
+                gg_s = _gg.s(img_hash)
+                img_type = 'avif' if first_pic.get('hasavif') else 'webp'
+                img_path = _dec.real_full_path_from_hash(img_hash, img_type, preview=True)
+                subdomain = _dec.subdomain_from_url('tn', img_type, gg_s)
+                img_preview = f'https://{subdomain}.{cls.domain2}/{img_path}.{img_type}'
+                _title = datum['title']
+                book = HitomiBookInfo(
+                    id=gallery_id,
+                    name=_title.split(' | ')[-1] if ' | ' in _title else _title,
+                    preview_url=f"{cls.index}{datum['type']}/{gallery_id}.html",
+                    pages=len(pics),
+                    pics=pics,
+                    btype=datum['type'],
+                    img_preview=img_preview,
+                    lang=datum.get('language_localname', ''),
+                )
+                book.idx = idx + 1
+                books.append(book)
+            except Exception:
+                continue
+        return books
 
     def test_index(self):
         try:

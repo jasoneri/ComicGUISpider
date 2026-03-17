@@ -93,7 +93,7 @@ class ToolWindow(FramelessWindow):
             self.htInterface = HitomiTools(self.gui)
             self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
         if widget.objectName() == "asInterface":
-            new_height = int(self.gui.height() * 0.85)
+            new_height = min(int(self.gui.height() * 0.85),300)
             self.resize(self.gui.width(), new_height)
         elif widget.objectName() == "midInterface":
             self.resize(self.gui.width(), min(370, self.gui.height()))

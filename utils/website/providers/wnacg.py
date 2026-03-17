@@ -2,17 +2,16 @@ import re
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-import httpx
 from lxml import etree
 from scrapy import Selector
 
 from assets import res
 from utils import ori_path
-from utils.website.core import EroUtils, DomainUtils, Req, MangaPreview
-from utils.website.info import WnacgBookInfo, Episode
+from utils.website.core import EroUtils, DomainUtils, Req, Previewer
+from utils.website.info import WnacgBookInfo
 
 
-class WnacgUtils(EroUtils, DomainUtils, Req, MangaPreview):
+class WnacgUtils(EroUtils, DomainUtils, Req, Previewer):
     name = "wnacg"
     publish_domain = "wnacg01.link"
     publish_domain_old = ["wnacg.date","wn01.link"]

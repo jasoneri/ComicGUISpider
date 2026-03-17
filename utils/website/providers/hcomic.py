@@ -6,15 +6,15 @@ from urllib.parse import quote
 
 import httpx
 
-from utils.website.core import EroUtils, Req, MangaPreview
-from utils.website.info import HComicBookInfo, Episode
+from utils.website.core import EroUtils, Req, Previewer
+from utils.website.info import HComicBookInfo
 
 
 class HComicParseError(ValueError):
     """h-comic 解析异常，直接抛出给上层做统一错误展示。"""
 
 
-class HComicUtils(EroUtils, Req, MangaPreview):
+class HComicUtils(EroUtils, Req, Previewer):
     name = "h_comic"
     index = "https://h-comic.com"
     image_server = "https://h-comic.link/api"

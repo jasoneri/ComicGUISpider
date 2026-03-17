@@ -8,7 +8,7 @@ import httpx
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from utils import conf
-from utils.website.core import MangaPreview, build_proxy_transport
+from utils.website.core import Previewer, build_proxy_transport
 from utils.website.registry import spider_utils_map
 
 
@@ -84,8 +84,8 @@ class PreviewWorker(QThread):
         cls = spider_utils_map.get(site_index)
         if cls is None:
             raise ValueError(f"unsupported site index: {site_index}")
-        if not issubclass(cls, MangaPreview):
-            raise TypeError(f"{cls.__name__} does not support MangaPreview")
+        if not issubclass(cls, Previewer):
+            raise TypeError(f"{cls.__name__} does not support Previewer")
         return cls
 
     async def _do_search(self, keyword, site_index, page=1):

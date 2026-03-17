@@ -305,7 +305,7 @@ class BaseComicSpider(scrapy.Spider):
         exception_count = stats.get_value('process_exception/count', 0)
         total = self.job_context.total if self.job_context else self.total
         if total != 0 and downloaded_count > 0:
-            self.say(font_color(f'<br>{self.res.finished_success % downloaded_count}', cls='theme-success', size=4))
+            self.say(font_color(f'{self.res.finished_success % downloaded_count}', cls='theme-success', size=4))
         elif not downloaded_count and exception_count > 0:
             last_exception = stats.get_value("process_exception/last_exception", "")
             self.say(font_color(

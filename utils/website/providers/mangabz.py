@@ -4,12 +4,12 @@ from collections import OrderedDict
 import httpx
 from scrapy import Selector
 
-from utils.website.core import Utils, Req, MangaPreview
+from utils.website.core import Utils, Req, Previewer
 from utils.website.info import MangabzBookInfo, Episode
 from utils.website.req_schema import MbSearchBody, mb_curr_time_format
 
 
-class MangabzUtils(Utils, Req, MangaPreview):
+class MangabzUtils(Utils, Req, Previewer):
     name = "mangabz"
     domain = "www.mangabz.com"
     index = "https://www.mangabz.com"

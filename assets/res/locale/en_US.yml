@@ -152,7 +152,7 @@ SPIDER:
   page_less_than_one: "Invalid page number <1 - reset to first page"
   skip_running_tip: "Skipped %s running"
   skip_downloaded_tip: "Skipped %s downloaded"
-  finished_success: "~~~Backend downloaded [%s] images ヾ(￣▽￣ )Bye~"
+  finished_success: "~~~Backend downloaded [%s] images ヾ(￣▽￣ )~~"
   finished_err: "~~~…(￣┰￣*)………Backend exited with error:<br>%s"
   finished_empty: "~~~…(￣┰￣*)………Backend exited normally without image tasks - check inputs"
   close_backend_error: "~~~…(￣┰￣*)………Backend process crashed - troubleshooting:"

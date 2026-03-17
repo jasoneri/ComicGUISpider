@@ -13,11 +13,11 @@ from scrapy import Selector
 from assets import res
 from variables import COOKIES_SUPPORT
 from utils import ori_path, conf
-from utils.website.core import EroUtils, DomainUtils, Req, Cookies, MangaPreview, build_proxy_transport
+from utils.website.core import EroUtils, DomainUtils, Req, Cookies, Previewer, build_proxy_transport
 from utils.website.info import JmBookInfo, Episode
 
 
-class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
+class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
     name = "jm"
     proxy_policy = "direct"
     forever_url = "https://jm365.work/3YeBdF"
@@ -222,8 +222,7 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
     def preview_client_config(cls):
         domain = cls.domain or cls.get_domain()
         return {
-            'headers': {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'},
-            'verify': False,
+            'headers': {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}, 'verify': False,
         }
 
     @classmethod
@@ -232,7 +231,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, MangaPreview):
         domain = cls.domain or cls.get_domain()
         url = f'https://{domain}/search/photos?main_tag=0&search_query={keyword}&page={page}'
         headers = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
-        resp = await client.get(url, headers=headers, follow_redirects=True, timeout=12, **kw)
+        client.headers = headers
+        resp = await client.get(url, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()
 
         def _parse(text, _domain):

@@ -23,7 +23,7 @@ from utils.protocol import (
     TasksObjEvent,
 )
 from utils.website import spider_utils_map
-from utils.website.core import MangaPreview, build_proxy_transport
+from utils.website.core import Previewer, build_proxy_transport
 from variables import Spider, SPIDERS
 
 is_debugging = os.getenv("CGS_DEBUG") == "1"
@@ -34,7 +34,7 @@ class PreviewRuntime:
         preview_cls = spider_utils_map.get(site_index)
         if preview_cls is None:
             raise ValueError(f"unsupported site index: {site_index}")
-        if not issubclass(preview_cls, MangaPreview):
+        if not issubclass(preview_cls, Previewer):
             raise TypeError(f"{preview_cls.__name__} does not support preview search")
         self.preview_cls = preview_cls
         self.site_index = site_index

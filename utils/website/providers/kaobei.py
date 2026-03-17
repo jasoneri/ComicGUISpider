@@ -11,12 +11,12 @@ from cryptography.hazmat.backends import default_backend
 
 from assets import res
 from utils import conf, get_loop
-from utils.website.core import Utils, MangaPreview, Cache, build_proxy_transport
+from utils.website.core import Utils, Previewer, Cache, build_proxy_transport
 from utils.website.info import KbBookInfo, Episode
 from utils.processed_class import Url
 
 
-class KaobeiUtils(Utils, MangaPreview):
+class KaobeiUtils(Utils, Previewer):
     name = "manga_copy"
     uuid_regex = re.compile(r"(\d+)$")
     pc_domain = "www.2026copy.com"

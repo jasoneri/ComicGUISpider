@@ -8,11 +8,11 @@ from scrapy import Selector
 from assets import res
 from utils import conf
 from variables import COOKIES_SUPPORT
-from utils.website.core import EroUtils, Req, Cookies, MangaPreview
-from utils.website.info import EhBookInfo, Episode
+from utils.website.core import EroUtils, Req, Cookies, Previewer
+from utils.website.info import EhBookInfo
 
 
-class EHentaiKits(EroUtils, Req, Cookies, MangaPreview):
+class EHentaiKits(EroUtils, Req, Cookies, Previewer):
     name = "ehentai"
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"

@@ -9,11 +9,11 @@ from functools import partial
 import yaml
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QSizePolicy, QFileDialog, QCompleter, QApplication
-from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtCore import Qt, QRect, QStringListModel
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,
-    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
+    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox, qconfig
 )
 import uncurl
 
@@ -26,6 +26,7 @@ from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater
 from GUI.core.anim import PopupAnimator
 from GUI.core.theme import theme_mgr
+from utils.config.qc import cgs_cfg
 from GUI.uic.qfluent.components import (
     SupportView, CustomFlyout, CustomInfoBar, ExpandSettings, TextEditWithBg
 )
@@ -126,7 +127,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.sv_path_card = SvPathCard(self)
         self.topLayout.insertWidget(0, self.sv_path_card)
         
-        completer = QCompleter(['127.0.0.1:10809'])
+        completer = QCompleter(cgs_cfg.proxyHistory.value)
         completer.setFilterMode(QtCore.Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
@@ -306,6 +307,17 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             return
         
         self.format_cookie()
+
+        proxies_text = cp(self.proxiesEdit.text()).replace(" ", "")
+        if proxies_text:
+            history = cgs_cfg.proxyHistory.value
+            entries = [e for e in proxies_text.split(",") if e]
+            for entry in entries:
+                if entry not in history:
+                    history = [entry] + history
+            cgs_cfg.proxyHistory.value = history
+            qconfig.save()
+            self.proxiesEdit.completer().setModel(QStringListModel(history))
 
         config = {
             "sv_path": sv_path,

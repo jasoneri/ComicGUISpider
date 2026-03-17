@@ -2,6 +2,14 @@ from qfluentwidgets import QConfig, ConfigItem, qconfig
 from utils.config import conf_dir
 
 
+class CgsConfig(QConfig):
+    proxyHistory = ConfigItem("Proxy", "History", ['127.0.0.1:10809'], restart=False)
+
+
+cgs_cfg = CgsConfig()
+qconfig.load(conf_dir.joinpath("qc.json"), cgs_cfg)
+
+
 class KemonoConfig(QConfig):
     """Kemono配置管理，包含过滤和收藏功能"""
     filterText = ConfigItem("Filter", "FilterText", "", restart=False)

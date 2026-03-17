@@ -166,8 +166,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         with contextlib.suppress(TypeError):
             self.chooseBox.currentIndexChanged.disconnect(self._chooseBox_changed_handle)
         self.chooseBox.currentIndexChanged.connect(self._chooseBox_changed_handle)
-        self.searchReady = False
-        self.searchRunning = False
         self.setup_finished.emit()
 
     def _chooseBox_changed_handle(self, index):
@@ -347,8 +345,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.setGeometry(rect)
         else:
             self.BrowserWindow.move(self.x()+100, preview_y if preview_y > 0 else 200)
-        self.BrowserWindow.setMinimumWidth(self.BrowserWindow.minimumWidth() + 30)
-        self.BrowserWindow.setMinimumHeight(self.BrowserWindow.minimumHeight() + 30)
+        if self.chooseBox.currentIndex() in Spider.mangas():
+            self.BrowserWindow.setMinimumWidth(self.BrowserWindow.minimumWidth() + 30)
+            self.BrowserWindow.setMinimumHeight(self.BrowserWindow.minimumHeight() + 30)
+            self.BrowserWindow.move(self.BrowserWindow.x(), max(0,self.BrowserWindow.y() - 20))
         # button group
         self.previewBtn.setEnabled(True)
         self.previewBtn.setFocus()
