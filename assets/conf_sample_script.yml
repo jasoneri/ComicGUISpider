@@ -12,6 +12,9 @@ danbooru:
   save_path: D:\pic\danbooru
   save_type: null
   download_concurrency: 5
+  view_ratio: 60
+  # doh_url: ""  # 预留；默认不启用 DoH，恢复支持时再取消注释
+  # motrix_aria2_conf_path: ""  # 预留；仅在重新启用 DoH 时使用
 
 proxies: null
 redis:

@@ -228,13 +228,21 @@ class ScriptConf(BaseConf):
         self.init_conf()
 
     def init_conf(self):
+        sample_file = ori_path.joinpath('assets/conf_sample_script.yml')
         if not self.file.exists():
-            with open(ori_path.joinpath('assets/conf_sample_script.yml'), 'r', encoding='utf-8') as fps:
+            with open(sample_file, 'r', encoding='utf-8') as fps:
                 with open(self.file, 'w', encoding='utf-8') as fpw:
                     fpw.write(fps.read())
+        with open(sample_file, 'r', encoding='utf-8') as fp:
+            sample_config = yaml.load(fp.read(), Loader=yaml.FullLoader) or {}
         with open(self.file, 'r', encoding='utf-8') as fp:
             cfg = fp.read()
-        yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
+        yml_config = yaml.load(cfg, Loader=yaml.FullLoader) or {}
+        danbooru_defaults = (sample_config.get("danbooru") or {}).copy()
+        danbooru_config = (yml_config.get("danbooru") or {}).copy()
+        for key, value in danbooru_defaults.items():
+            danbooru_config.setdefault(key, value)
+        yml_config["danbooru"] = danbooru_config
         for k, v in yml_config.items():
             setattr(self, k, v or getattr(self, k, None))
 

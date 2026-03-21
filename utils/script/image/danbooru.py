@@ -3,34 +3,50 @@
 from __future__ import annotations
 
 import asyncio
-import html
 import pathlib as p
 import re
-import unicodedata
+import threading
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, Optional
-from urllib.parse import quote
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from lxml import html as lxml_html
+from loguru import logger as lg
 
 from utils import get_httpx_verify
 from utils.script import conf, AioRClient, folder_sub
-from utils.script.motrix import HTTPX_USER_AGENT, MotrixRPC
+from utils.script.motrix import HTTPX_USER_AGENT, MotrixRPC, build_motrix_dns_options
 from utils.sql import SqlRecorder
-from utils.website.core import build_proxy_transport
+from .danbooru_dns import (
+    DANBOORU_DNS_STUB_HOST,
+    DANBOORU_DNS_STUB_PORT,
+    build_danbooru_async_transport,
+    ensure_danbooru_dns_stub_started_async,
+    normalize_doh_url,
+)
 
 SUPPORTED_MEDIA_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
 UNSUPPORTED_MEDIA_EXTENSIONS = {"mp4", "webm", "zip"}
 DANBOORU_SQL_TABLE = "danbooru_md5_table"
+DANBOORU_BASE_URL = "https://danbooru.donmai.us"
+AUTOCOMPLETE_PATH = "/autocomplete"
 _WHITESPACE_RE = re.compile(r"\s+")
 _ORDER_TOKEN_CAPTURE_RE = re.compile(r"(?:^|\s)(order:[^\s]+)")
 _ORDER_TOKEN_STRIP_RE = re.compile(r"(?:^|\s)order:[^\s]+")
 DEFAULT_DOWNLOAD_CONCURRENCY = 3
 MOTRIX_POLL_INTERVAL = 1.2
 DANBOORU_PAGE_SIZE = 30
+DANBOORU_AUTOCOMPLETE_LIMIT = 20
 DEFAULT_DANBOORU_SAVE_PATH = "D:/pic/danbooru"
 DANBOORU_SAVE_TYPE_SEARCH_TAG = "search_tag"
+_DANBOORU_CHALLENGE_MARKERS = (
+    "cf-mitigated",
+    "challenge-form",
+    "cf-browser-verification",
+    "just a moment",
+    "__cf_chl_",
+)
 DANBOORU_OFFICIAL_ORDER_VALUES = frozenset(
     {
         "active_child_count", "active_children", "active_children_asc", "active_comment_count", "active_comments", "active_comments_asc", 
@@ -55,14 +71,125 @@ DANBOORU_SORT_OPTIONS = (
     ("评分", "score"),
     ("最旧", "id"),
 )
-MOEGIRL_PAGE_HOST = "https://zh.moegirl.org.cn"
-_MOEGIRL_LATIN_PREFIX_RE = re.compile(
-    r"(?:(?:^|\n)\s*(?:英|英文名|English|平文式罗马字|罗马字|罗马音)[:：]\s*)([A-Za-z][A-Za-z0-9 ._'/+-]*)",
-    re.IGNORECASE,
-)
-_MOEGIRL_LATIN_PAREN_RE = re.compile(r"\(([A-Za-z][A-Za-z0-9 ._'/+-]*)\)")
-_MOEGIRL_PLAIN_LATIN_RE = re.compile(r"^[A-Za-z][A-Za-z0-9 ._'/+-]*$")
-_MOEGIRL_LABEL_PRIORITY = ("外文名", "英文名", "本名", "罗马字", "平文式罗马字")
+_danbooru_browser_session_lock = threading.Lock()
+
+
+@dataclass(frozen=True, slots=True)
+class DanbooruBrowserCookie:
+    name: str
+    value: str
+    domain: str = ""
+    path: str = "/"
+
+
+@dataclass(frozen=True, slots=True)
+class DanbooruBrowserSession:
+    cookies: tuple[DanbooruBrowserCookie, ...] = ()
+    user_agent: str = ""
+
+
+_danbooru_browser_session = DanbooruBrowserSession()
+
+
+class DanbooruChallengeRequired(Exception):
+    def __init__(self, *, verify_url: str, status_code: int, detail: str = ""):
+        message = detail or "Danbooru request requires browser verification"
+        super().__init__(message)
+        self.verify_url = str(verify_url or DANBOORU_BASE_URL)
+        self.status_code = int(status_code)
+
+
+def _normalize_browser_cookie(cookie: object) -> DanbooruBrowserCookie:
+    if isinstance(cookie, DanbooruBrowserCookie):
+        return cookie
+    if not isinstance(cookie, dict):
+        raise TypeError("Danbooru browser cookie payload must be a mapping")
+    name = str(cookie.get("name") or "").strip()
+    if not name:
+        raise ValueError("Danbooru browser cookie name is required")
+    return DanbooruBrowserCookie(
+        name=name,
+        value=str(cookie.get("value") or ""),
+        domain=str(cookie.get("domain") or "").strip(),
+        path=str(cookie.get("path") or "/").strip() or "/",
+    )
+
+
+def _verification_url_from_response(response: httpx.Response) -> str:
+    request = getattr(response, "request", None)
+    if request is None or getattr(request, "url", None) is None:
+        return DANBOORU_BASE_URL
+    parsed = urlsplit(str(request.url))
+    return urlunsplit((parsed.scheme, parsed.netloc, "/", "", ""))
+
+
+def get_danbooru_browser_session() -> DanbooruBrowserSession:
+    with _danbooru_browser_session_lock:
+        return _danbooru_browser_session
+
+
+def clear_danbooru_browser_session() -> None:
+    global _danbooru_browser_session
+    with _danbooru_browser_session_lock:
+        _danbooru_browser_session = DanbooruBrowserSession()
+
+
+def set_danbooru_browser_session(
+    *,
+    cookies: Iterable[object] = (),
+    user_agent: object = "",
+) -> DanbooruBrowserSession:
+    global _danbooru_browser_session
+    normalized_cookies = tuple(_normalize_browser_cookie(cookie) for cookie in cookies)
+    session = DanbooruBrowserSession(
+        cookies=normalized_cookies,
+        user_agent=str(user_agent or "").strip(),
+    )
+    with _danbooru_browser_session_lock:
+        _danbooru_browser_session = session
+    return session
+
+
+def apply_danbooru_browser_session(client: httpx.AsyncClient) -> DanbooruBrowserSession:
+    session = get_danbooru_browser_session()
+    if session.user_agent:
+        client.headers["User-Agent"] = session.user_agent
+    for cookie in session.cookies:
+        client.cookies.set(
+            cookie.name,
+            cookie.value,
+            domain=cookie.domain or None,
+            path=cookie.path or "/",
+        )
+    return session
+
+
+def is_danbooru_challenge_response(response: httpx.Response) -> bool:
+    status_code = getattr(response, "status_code", None)
+    if status_code not in {403, 429, 503}:
+        return False
+    headers = getattr(response, "headers", {}) or {}
+    mitigated = str(headers.get("cf-mitigated", "")).strip().casefold()
+    if mitigated == "challenge":
+        return True
+    content_type = str(headers.get("content-type", "")).casefold()
+    if "html" not in content_type and status_code != 403:
+        return False
+    try:
+        text = str(getattr(response, "text", "") or "")[:4096].casefold()
+    except Exception:
+        return False
+    return any(marker in text for marker in _DANBOORU_CHALLENGE_MARKERS)
+
+
+def raise_for_danbooru_response(response: httpx.Response) -> None:
+    if is_danbooru_challenge_response(response):
+        raise DanbooruChallengeRequired(
+            verify_url=_verification_url_from_response(response),
+            status_code=response.status_code,
+            detail=f"Danbooru request blocked by browser verification ({response.status_code})",
+        )
+    response.raise_for_status()
 
 
 def create_async_http_client(
@@ -73,16 +200,18 @@ def create_async_http_client(
     follow_redirects: bool = False,
     proxy_policy: str = "proxy",
     retries: int = 2,
+    runtime_config: Optional["DanbooruRuntimeConfig"] = None,
     **kwargs,
 ) -> httpx.AsyncClient:
-    transport, trust_env = build_proxy_transport(
+    config = runtime_config or DanbooruRuntimeConfig.from_conf()
+    transport, trust_env = build_danbooru_async_transport(
         proxy_policy,
         getattr(conf, "proxies", None) or [],
-        is_async=True,
+        doh_url=config.doh_url,
         retries=retries,
         verify=get_httpx_verify(),
     )
-    return httpx.AsyncClient(
+    client = httpx.AsyncClient(
         base_url=base_url,
         headers=headers,
         timeout=timeout,
@@ -91,6 +220,8 @@ def create_async_http_client(
         trust_env=trust_env,
         **kwargs,
     )
+    apply_danbooru_browser_session(client)
+    return client
 
 
 def canonicalize_search_term(term: str) -> str:
@@ -134,107 +265,6 @@ def build_danbooru_search_params(
 def is_official_danbooru_order_value(order: str) -> bool:
     normalized = canonicalize_search_term(order).removeprefix("order:")
     return normalized in DANBOORU_OFFICIAL_ORDER_VALUES
-
-
-def _dedupe_keep_order(values: Iterable[str]) -> list[str]:
-    return list(dict.fromkeys(filter(None, values)))
-
-
-def _normalize_moegirl_ascii_name(value: str) -> str:
-    text = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode("ascii")
-    text = text.strip().strip("()[]{}")
-    text = text.replace("&", " and ")
-    text = text.replace("’", "'")
-    text = re.sub(r"[']", "", text)
-    text = re.sub(r"\s+", "_", text.lower())
-    text = re.sub(r"[^a-z0-9_:/+-]", "", text)
-    text = re.sub(r"_+", "_", text).strip("_")
-    return text
-
-
-def _html_fragment_text(node) -> str:
-    fragment = lxml_html.tostring(node, encoding="unicode")
-    fragment = re.sub(r"<br\s*/?>", "\n", fragment, flags=re.IGNORECASE)
-    text = lxml_html.fromstring(fragment).text_content()
-    text = html.unescape(text).replace("\xa0", " ")
-    text = re.sub(r"[ \t\r\f\v]+", " ", text)
-    text = re.sub(r"\n+", "\n", text)
-    return text.strip()
-
-
-def _extract_moegirl_ascii_candidates(text: str) -> list[str]:
-    candidates: list[str] = []
-    for match in _MOEGIRL_LATIN_PREFIX_RE.findall(text):
-        candidates.append(match.strip())
-    for match in _MOEGIRL_LATIN_PAREN_RE.findall(text):
-        candidates.append(match.strip())
-    for line in (item.strip() for item in text.splitlines()):
-        if _MOEGIRL_PLAIN_LATIN_RE.fullmatch(line):
-            candidates.append(line)
-    return _dedupe_keep_order(candidates)
-
-
-def _iter_moegirl_label_texts(page_html: str, label: str) -> Iterable[str]:
-    document = lxml_html.fromstring(page_html)
-    for span in document.xpath(f"//span[normalize-space()='{label}']"):
-        label_div = span.getparent()
-        while label_div is not None and label_div.tag != "div":
-            label_div = label_div.getparent()
-        if label_div is None:
-            continue
-        value_div = label_div.getnext()
-        if value_div is None or value_div.tag != "div":
-            continue
-        text = _html_fragment_text(value_div)
-        if text:
-            yield text
-
-
-def extract_moegirl_danbooru_tag(page_html: str) -> Optional[str]:
-    for label in _MOEGIRL_LABEL_PRIORITY:
-        for label_text in _iter_moegirl_label_texts(page_html, label):
-            for candidate in _extract_moegirl_ascii_candidates(label_text):
-                normalized = _normalize_moegirl_ascii_name(candidate)
-                if normalized:
-                    return normalized
-    page_text = lxml_html.fromstring(page_html).text_content()
-    for candidate in _MOEGIRL_LATIN_PREFIX_RE.findall(page_text):
-        normalized = _normalize_moegirl_ascii_name(candidate)
-        if normalized:
-            return normalized
-    return None
-
-
-def _build_moegirl_page_url(title: str) -> str:
-    return f"{MOEGIRL_PAGE_HOST}/{quote(title, safe='/:()')}"
-
-
-def extract_moegirl_page_candidates(payload: object) -> list[tuple[str, str]]:
-    if not isinstance(payload, list) or len(payload) < 2 or not isinstance(payload[1], list):
-        return []
-    urls = payload[3] if len(payload) >= 4 and isinstance(payload[3], list) else []
-    candidates: list[tuple[str, str]] = []
-    seen: set[str] = set()
-    for index, item in enumerate(payload[1]):
-        title = canonicalize_search_term(item) if isinstance(item, str) else ""
-        if not title or title in seen:
-            continue
-        page_url = urls[index] if index < len(urls) and isinstance(urls[index], str) and urls[index] else _build_moegirl_page_url(title)
-        candidates.append((title, page_url))
-        seen.add(title)
-    return candidates
-
-
-def select_moegirl_page_candidate(canonical_term: str, candidates: Iterable[tuple[str, str]]) -> Optional[tuple[str, str]]:
-    candidate_list = list(candidates)
-    if not candidate_list:
-        return None
-    exact_matches = [item for item in candidate_list if item[0].casefold() == canonical_term.casefold()]
-    if len(exact_matches) == 1:
-        return exact_matches[0]
-    if len(candidate_list) == 1:
-        return candidate_list[0]
-    return None
 
 
 def normalize_file_ext(file_ext: Optional[str]) -> str:
@@ -314,7 +344,7 @@ async def fetch_remote_image_size(
         proxy_policy=proxy_policy,
     ) as client:
         response = await client.get(url)
-        response.raise_for_status()
+        raise_for_danbooru_response(response)
         return probe_image_size_from_bytes(response.content)
 
 
@@ -387,27 +417,103 @@ class DanbooruRuntimeConfig:
     save_path: str
     save_type: Optional[str] = None
     download_concurrency: int = DEFAULT_DOWNLOAD_CONCURRENCY
+    doh_url: str = ""
+    motrix_aria2_conf_path: str = ""
+
+    def __post_init__(self):
+        if self.save_type not in {None, DANBOORU_SAVE_TYPE_SEARCH_TAG}:
+            raise ValueError(f"Unsupported Danbooru save_type: {self.save_type}")
+        object.__setattr__(self, "save_path", str(self.save_path or DEFAULT_DANBOORU_SAVE_PATH))
+        object.__setattr__(self, "download_concurrency", int(self.download_concurrency or DEFAULT_DOWNLOAD_CONCURRENCY))
+        raw_doh_url = str(self.doh_url or "").strip()
+        object.__setattr__(self, "doh_url", normalize_doh_url(raw_doh_url) if raw_doh_url else "")
+        object.__setattr__(self, "motrix_aria2_conf_path", str(self.motrix_aria2_conf_path or "").strip())
+
+    @classmethod
+    def from_mapping(cls, raw: Optional[dict]) -> "DanbooruRuntimeConfig":
+        data = raw or {}
+        return cls(
+            save_path=data.get("save_path", DEFAULT_DANBOORU_SAVE_PATH),
+            save_type=data.get("save_type"),
+            download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY),
+            doh_url=data.get("doh_url", ""),
+            motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""),
+        )
 
     @classmethod
     def from_conf(cls) -> "DanbooruRuntimeConfig":
-        raw = getattr(conf, "danbooru", {}) or {}
-        save_type = raw.get("save_type")
-        if save_type not in {None, DANBOORU_SAVE_TYPE_SEARCH_TAG}:
-            raise ValueError(f"Unsupported Danbooru save_type: {save_type}")
-        return cls(
-            save_path=raw.get("save_path", DEFAULT_DANBOORU_SAVE_PATH),
-            save_type=save_type,
-            download_concurrency=int(raw.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY)),
-        )
+        return cls.from_mapping(getattr(conf, "danbooru", {}) or {})
+
+    def is_doh_enabled(self) -> bool:
+        return bool(self.doh_url)
+
+    def motrix_add_uri_options(self) -> dict[str, str]:
+        return build_motrix_dns_options(dns_server=self.stub_dns_server())
+
+    def stub_dns_server(self) -> str:
+        return DANBOORU_DNS_STUB_HOST if self.is_doh_enabled() else ""
+
+    def stub_dns_endpoint(self) -> str:
+        return f"{DANBOORU_DNS_STUB_HOST}:{DANBOORU_DNS_STUB_PORT}" if self.is_doh_enabled() else ""
+
+    def request_dns_summary(self) -> str:
+        return f"DoH -> {self.doh_url}" if self.is_doh_enabled() else "系统 DNS"
+
+    def motrix_dns_summary(self) -> str:
+        return f"Motrix: async-dns-server={self.stub_dns_server()}" if self.is_doh_enabled() else "Motrix: 默认 DNS"
+
+    def network_label(self) -> str:
+        return f"请求 {self.request_dns_summary()} | {self.motrix_dns_summary()}"
+
+    def network_tooltip(self) -> str:
+        if self.is_doh_enabled():
+            request_text = f"Danbooru 请求通过 dnspython DoH resolver 解析，当前端点为 {self.doh_url}。"
+            motrix_text = f"Danbooru 会启动本地 DNS stub {self.stub_dns_endpoint()}，Motrix 通过 async-dns-server={self.stub_dns_server()} 使用同一上游。"
+            if self.motrix_aria2_conf_path:
+                motrix_text += " 设置页保存时还会同步 aria2.conf。"
+            return f"{request_text}\n{motrix_text}"
+        request_text = "Danbooru 请求使用系统或代理链路的默认 DNS 解析。"
+        motrix_text = "Motrix 不启用 Danbooru 本地 DNS stub。"
+        if self.motrix_aria2_conf_path:
+            motrix_text += " 设置页保存时会清空 aria2.conf 里的 Danbooru DNS 覆写。"
+        return f"{request_text}\n{motrix_text}"
+
+@dataclass(frozen=True, slots=True)
+class DanbooruAutocompleteCandidate:
+    value: str
+    antecedent: str = ""
+    autocomplete_type: str = ""
+    category: Optional[int] = None
+    proper_name: str = ""
+    post_count_text: str = ""
+
+    @property
+    def menu_text(self) -> str:
+        display = self.antecedent or self.proper_name or self.value
+        if display.casefold() != self.value.casefold():
+            display = f"{display} -> {self.value}"
+        if self.post_count_text:
+            display = f"{display} ({self.post_count_text})"
+        return display
 
 
 @dataclass(slots=True)
-class MoegirlConversionResult:
-    success: bool
+class DanbooruAutocompleteResult:
     canonical_term: str
-    converted_term: Optional[str] = None
+    matches: list[DanbooruAutocompleteCandidate] = field(default_factory=list)
     reason: Optional[str] = None
-    candidates: list[str] = field(default_factory=list)
+
+    @property
+    def is_single_match(self) -> bool:
+        return len(self.matches) == 1
+
+    @property
+    def has_matches(self) -> bool:
+        return bool(self.matches)
+
+    @property
+    def selected_term(self) -> Optional[str]:
+        return self.matches[0].value if self.is_single_match else None
 
 
 @dataclass(slots=True)
@@ -419,7 +525,7 @@ class DownloadPlan:
 
 
 class DanbooruClient:
-    base_url = "https://danbooru.donmai.us"
+    base_url = DANBOORU_BASE_URL
 
     def __init__(self, *, timeout: float = 30.0, runtime_config: Optional[DanbooruRuntimeConfig] = None):
         self.runtime_config = runtime_config or DanbooruRuntimeConfig.from_conf()
@@ -431,6 +537,7 @@ class DanbooruClient:
             },
             timeout=timeout,
             follow_redirects=True,
+            runtime_config=self.runtime_config,
         )
         self.page_size = DANBOORU_PAGE_SIZE
 
@@ -445,7 +552,7 @@ class DanbooruClient:
 
     async def _get_json(self, path: str, *, params: Optional[dict] = None):
         response = await self.session.get(path, params=params)
-        response.raise_for_status()
+        raise_for_danbooru_response(response)
         return response.json()
 
     async def search_posts(
@@ -475,68 +582,75 @@ class DanbooruClient:
         return DanbooruPost.from_api_payload(payload)
 
 
-class MoegirlConverter:
-    endpoint = "https://moegirl.org.cn/api.php"
+def _parse_danbooru_autocomplete_category(value: Optional[str]) -> Optional[int]:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
 
-    def __init__(self, *, timeout: float = 20.0):
-        self.session = create_async_http_client(
-            headers={"User-Agent": HTTPX_USER_AGENT},
-            timeout=timeout,
-            follow_redirects=True,
+
+def extract_danbooru_autocomplete_candidates(payload: str) -> list[DanbooruAutocompleteCandidate]:
+    if not (payload or "").strip():
+        return []
+    document = lxml_html.fromstring(payload)
+    candidates: list[DanbooruAutocompleteCandidate] = []
+    seen_values: set[str] = set()
+    for item in document.xpath("//li[contains(@class, 'ui-menu-item')][@data-autocomplete-value]"):
+        value = canonicalize_search_term(item.get("data-autocomplete-value") or "")
+        if not value or value in seen_values:
+            continue
+        antecedent = canonicalize_search_term(
+            "".join(item.xpath(".//span[contains(@class, 'autocomplete-antecedent')]//text()"))
         )
+        post_count_text = canonicalize_search_term(
+            "".join(item.xpath(".//span[contains(@class, 'post-count')]//text()"))
+        )
+        candidates.append(
+            DanbooruAutocompleteCandidate(
+                value=value,
+                antecedent=antecedent,
+                autocomplete_type=canonicalize_search_term(item.get("data-autocomplete-type") or ""),
+                category=_parse_danbooru_autocomplete_category(item.get("data-autocomplete-category")),
+                proper_name=canonicalize_search_term(item.get("data-autocomplete-proper-name") or ""),
+                post_count_text=post_count_text,
+            )
+        )
+        seen_values.add(value)
+    return candidates
 
-    async def __aenter__(self):
-        return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.aclose()
-
-    async def aclose(self):
-        await self.session.aclose()
-
-    async def convert(self, term: str) -> MoegirlConversionResult:
-        canonical_term = canonicalize_search_term(term)
-        if not canonical_term:
-            return MoegirlConversionResult(False, canonical_term, reason="empty_term")
-        response = await self.session.get(
-            self.endpoint,
+async def autocomplete_danbooru_tags(
+    term: str,
+    *,
+    timeout: float = 15.0,
+    limit: int = DANBOORU_AUTOCOMPLETE_LIMIT,
+) -> DanbooruAutocompleteResult:
+    canonical_term = canonicalize_search_term(term)
+    if not canonical_term:
+        return DanbooruAutocompleteResult(canonical_term=canonical_term, reason="empty_term")
+    async with create_async_http_client(
+        base_url=DANBOORU_BASE_URL,
+        headers={"User-Agent": HTTPX_USER_AGENT, "Accept": "text/html, */*;q=0.9"},
+        timeout=timeout,
+        follow_redirects=True,
+        runtime_config=DanbooruRuntimeConfig.from_conf(),
+    ) as client:
+        response = await client.get(
+            AUTOCOMPLETE_PATH,
             params={
-                "action": "opensearch",
-                "search": canonical_term,
-                "limit": 10,
-                "namespace": 0,
-                "format": "json",
+                "search[query]": canonical_term,
+                "search[type]": "tag",
+                "version": 3,
+                "limit": limit,
             },
         )
-        response.raise_for_status()
-        page_candidates = extract_moegirl_page_candidates(response.json())
-        if not page_candidates:
-            return MoegirlConversionResult(False, canonical_term, reason="no_result")
-        selected_page = select_moegirl_page_candidate(canonical_term, page_candidates)
-        if selected_page is None:
-            return MoegirlConversionResult(
-                False,
-                canonical_term,
-                reason="ambiguous",
-                candidates=[title for title, _ in page_candidates],
-            )
-        _page_title, page_url = selected_page
-        page_response = await self.session.get(page_url)
-        page_response.raise_for_status()
-        converted_term = extract_moegirl_danbooru_tag(page_response.text)
-        if not converted_term:
-            return MoegirlConversionResult(
-                False,
-                canonical_term,
-                reason="no_convertible_term",
-                candidates=[title for title, _ in page_candidates],
-            )
-        return MoegirlConversionResult(
-            True,
-            canonical_term=canonical_term,
-            converted_term=converted_term,
-            candidates=[converted_term],
-        )
+        raise_for_danbooru_response(response)
+    matches = extract_danbooru_autocomplete_candidates(response.text)
+    return DanbooruAutocompleteResult(
+        canonical_term=canonical_term,
+        matches=matches,
+        reason=None if matches else "no_match",
+    )
 
 
 async def search_danbooru_posts(
@@ -551,11 +665,6 @@ async def search_danbooru_posts(
         return await client.search_posts(tags, order=order, page=page, limit=limit)
 
 
-async def convert_moegirl_term(term: str, *, timeout: float = 20.0) -> MoegirlConversionResult:
-    async with MoegirlConverter(timeout=timeout) as converter:
-        return await converter.convert(term)
-
-
 async def fetch_remote_bytes(
     url: str,
     *,
@@ -568,9 +677,10 @@ async def fetch_remote_bytes(
         timeout=timeout,
         follow_redirects=True,
         proxy_policy=proxy_policy,
+        runtime_config=DanbooruRuntimeConfig.from_conf(),
     ) as client:
         response = await client.get(url)
-        response.raise_for_status()
+        raise_for_danbooru_response(response)
         return response.content
 
 
@@ -625,6 +735,14 @@ class DanbooruDownloadSubmitter:
         rpc = self.motrix_client or MotrixRPC()
         own_rpc = self.motrix_client is None
         sem = asyncio.Semaphore(self.runtime_config.download_concurrency)
+        motrix_options = self.runtime_config.motrix_add_uri_options()
+        if self.runtime_config.is_doh_enabled():
+            await ensure_danbooru_dns_stub_started_async(self.runtime_config.doh_url)
+            lg.info(
+                f"[DanbooruDNS] runtime doh={self.runtime_config.doh_url} stub={self.runtime_config.stub_dns_endpoint()} motrix={self.runtime_config.stub_dns_server()}"
+            )
+        else:
+            lg.info("[DanbooruDNS] runtime doh=disabled motrix=system")
 
         async def run_rpc_task(post: DanbooruPost) -> tuple[DanbooruPost, Optional[str]]:
             async with sem:
@@ -636,6 +754,7 @@ class DanbooruDownloadSubmitter:
                         target_dir=target_path.parent,
                         out=post.filename,
                         task_id=f"danbooru-{post.post_id}",
+                        options=motrix_options,
                     )
                     while True:
                         status_payload = await rpc.tell_status(gid)

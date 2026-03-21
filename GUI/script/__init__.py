@@ -5,14 +5,13 @@ import os
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog, QVBoxLayout, QStackedWidget
 from PyQt5.QtCore import Qt, QCoreApplication
-from GUI.core.timer import safe_single_shot
 from PyQt5.QtGui import QIcon
 
 from qfluentwidgets import (
     NavigationItemPosition, FluentWindow,
     LineEdit, PrimaryPushButton,
     VBoxLayout, FluentIcon as FIF, StrongBodyLabel, InfoBar, InfoBarPosition,
-    GroupHeaderCardWidget, PushButton, SpinBox, ComboBox
+    GroupHeaderCardWidget, PushButton, SpinBox, ComboBox, RangeSettingCard
 )
 
 from utils import yaml, ori_path
@@ -159,6 +158,13 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.pathCard = self.addGroup(FIF.DOWNLOAD, "存储路径", self.current_path, self.pathButton)
         self.addGroup(FIF.FOLDER, "存储方式", "默认存入根目录，可选按搜索标签建子目录", self.saveTypeBox)
         self.addGroup(FIF.SPEED_HIGH, "下载并发", "Danbooru Motrix 轮询并发数", self.downloadConcurrencyEdit)
+        self.viewRatioCard = RangeSettingCard(
+            danbooru_cfg.view_ratio, FIF.ZOOM, "图片展示缩放",
+            "控制 图片viewer 的展示面积", self,
+        )
+        if self.groupWidgets:
+            self.groupWidgets[-1].setSeparatorVisible(True)
+        self.groupLayout.addWidget(self.viewRatioCard)
 
     def _onSelectFolder(self):
         folder = QFileDialog.getExistingDirectory(self, "选择Danbooru存储目录")

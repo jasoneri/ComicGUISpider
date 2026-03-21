@@ -12,10 +12,12 @@ from qfluentwidgets import InfoBar
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru import (
     DANBOORU_PAGE_SIZE,
+    DanbooruAutocompleteCandidate,
+    DanbooruChallengeRequired,
     DanbooruPost,
+    autocomplete_danbooru_tags,
     build_danbooru_search_params,
     canonicalize_search_term,
-    convert_moegirl_term,
     fetch_remote_bytes,
     search_danbooru_posts,
     submit_downloads,
