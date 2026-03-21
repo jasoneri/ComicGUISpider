@@ -32,6 +32,8 @@ except (OSError, ValueError):
     pass
 conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
 conf_dir.mkdir(parents=True, exist_ok=True)
+qconfig_dir = conf_dir.joinpath("qconfig")
+qconfig_dir.mkdir(parents=True, exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
 
 
@@ -218,7 +220,7 @@ class Conf(BaseConf):
 @dataclass
 class ScriptConf(BaseConf):
     kemono: dict = field(default_factory=dict)
-    nekohouse: dict = field(default_factory=dict)
+    danbooru: dict = field(default_factory=dict)
     proxies: list = field(default_factory=list)
     redis: dict = field(default_factory=dict)
 

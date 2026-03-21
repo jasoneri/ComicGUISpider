@@ -9,7 +9,7 @@ from utils.website.chore import set_author_ahead
 class SqlRecorder:
     init_flag = False
 
-    def __init__(self):
+    def __init__(self, table: str = "identity_md5_table"):
         self.db = conf_dir.joinpath("record.db")
         if not self.db.exists():
             self.init_flag = True
@@ -17,7 +17,7 @@ class SqlRecorder:
         self.cursor = self.conn.cursor()
         self.cursor.execute("PRAGMA journal_mode=WAL")
         self.cursor.execute("PRAGMA busy_timeout=5000")
-        self.table = "identity_md5_table"
+        self.table = table
         if self.init_flag or not self.table_exists():
             self.create()
 
@@ -40,6 +40,8 @@ class SqlRecorder:
         return identity_md5
 
     def batch_check_dupe(self, identity_md5s):
+        if not identity_md5s:
+            return set()
         placeholders = ','.join('?' * len(identity_md5s))
         sql = f'''SELECT identity_md5 FROM {self.table} WHERE identity_md5 IN ({placeholders});'''
         self.cursor.execute(sql, identity_md5s)

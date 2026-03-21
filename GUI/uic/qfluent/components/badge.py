@@ -72,6 +72,31 @@ class CustomBadge:
         return dot
 
 
+class CountBadge:
+    COLOR_BG = "#409EFF"
+
+    def __init__(self, parent, target, pos=InfoBadgePosition.TOP_LEFT, division=3):
+        self.badge = InfoBadge.custom("", self.COLOR_BG, self.COLOR_BG, parent, target=None, position=pos)
+        self._anchor = _BadgeAnchor(target, self.badge, parent, pos, division=division)
+        self.badge.move(self._anchor.calc_position())
+        self.badge._anchor = self._anchor
+
+    def set_count(self, count: int):
+        text = str(max(0, count))
+        metrics = self.badge.fontMetrics()
+        width = max(18, metrics.horizontalAdvance(text) + 6)
+        height = max(16, metrics.height() + 4)
+        self.badge.setText(text)
+        self.badge.setFixedSize(width, height)
+        self.badge.move(self._anchor.calc_position())
+
+    def show(self):
+        self.badge.show()
+
+    def hide(self):
+        self.badge.hide()
+
+
 class DlStatusBadge:
     COLOR_PROGRESS = "#409EFF"
     COLOR_COMPLETE = "#67C23A"
@@ -89,6 +114,7 @@ class DlStatusBadge:
         text = f"{downloaded}/{total}"
         self.badge.setText(text)
         self.badge.setFixedSize(int(8.5*len(text)),15)
+        self.badge.move(self._anchor.calc_position())
         if total > 0 and downloaded >= total:
             self._breathing.stop()
             self._set_color(self.COLOR_COMPLETE)

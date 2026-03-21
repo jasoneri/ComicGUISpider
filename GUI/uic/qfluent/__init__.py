@@ -20,7 +20,7 @@ res = ori_res.GUI.Uic
 
 class MonkeyPatch:
     @staticmethod
-    def rbutton_menu_lineEdit(line_edit):
+    def rbutton_menu_lineEdit(line_edit, extra_actions=None):
         def new_context_menu(self, event):
             def _showCompleterMenu():
                 if not self.text().strip():
@@ -33,7 +33,10 @@ class MonkeyPatch:
             select_all_action = Action(self.tr("Select all"), triggered=self.selectAll)
             show_completer = Action(FluentIcon.ALIGNMENT, text=self.tr(res.menu_show_completer),
                                     triggered=_showCompleterMenu)
-            menu.addAction(show_completer)
+            if not extra_actions:
+                menu.addAction(show_completer)
+            for action in extra_actions or []:
+                menu.addAction(action)
             menu.addSeparator()
             menu.addAction(paste_action)
             menu.addAction(undo_action)

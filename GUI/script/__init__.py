@@ -1,8 +1,9 @@
 import sys
 import pathlib
+import os
 
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog
+from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog, QVBoxLayout, QStackedWidget
 from PyQt5.QtCore import Qt, QCoreApplication
 from GUI.core.timer import safe_single_shot
 from PyQt5.QtGui import QIcon
@@ -11,12 +12,51 @@ from qfluentwidgets import (
     NavigationItemPosition, FluentWindow,
     LineEdit, PrimaryPushButton,
     VBoxLayout, FluentIcon as FIF, StrongBodyLabel, InfoBar, InfoBarPosition,
-    GroupHeaderCardWidget, PushButton
+    GroupHeaderCardWidget, PushButton, SpinBox, ComboBox
 )
 
 from utils import yaml, ori_path
 from utils.script.image.kemono import conf
+from GUI.script.danbooru import DanbooruInterface
 from GUI.script.kemono import KemonoInterface
+
+OFFSCREEN_FLUENT_FALLBACK = os.environ.get("QT_QPA_PLATFORM") == "offscreen"
+ScriptWindowBase = QFrame if OFFSCREEN_FLUENT_FALLBACK else FluentWindow
+
+
+class _OffscreenNavigationInterface(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("OffscreenNavigationInterface")
+        self.setFixedWidth(148)
+        self.setStyleSheet(
+            """
+            QFrame#OffscreenNavigationInterface {
+                background: #111111;
+                border-right: 1px solid rgba(255, 255, 255, 0.12);
+            }
+            """
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 12, 10, 12)
+        layout.setSpacing(8)
+        self._top_layout = QVBoxLayout()
+        self._top_layout.setSpacing(8)
+        self._bottom_layout = QVBoxLayout()
+        self._bottom_layout.setSpacing(8)
+        layout.addLayout(self._top_layout)
+        layout.addStretch(1)
+        layout.addLayout(self._bottom_layout)
+
+    def add_button(self, button, bottom: bool = False):
+        target_layout = self._bottom_layout if bottom else self._top_layout
+        target_layout.addWidget(button)
+
+    def addSeparator(self):
+        separator = QFrame(self)
+        separator.setFrameShape(QFrame.HLine)
+        separator.setStyleSheet("background: rgba(255, 255, 255, 0.14); min-height: 1px; max-height: 1px; border: none;")
+        self._top_layout.addWidget(separator)
 
 
 class BaseServiceGroupCard(GroupHeaderCardWidget):
@@ -88,10 +128,75 @@ class KemonoGroupCard(BaseServiceGroupCard):
         super().__init__(parent, "Kemono", "kemono", "D:/pic/kemono")
 
 
-class NekohouseGroupCard(BaseServiceGroupCard):
-    """Nekohouse配置组卡片"""
+class DanbooruGroupCard(GroupHeaderCardWidget):
+    SAVE_TYPE_OPTIONS = (
+        ("默认", None),
+        ("按搜索标签", "search_tag"),
+    )
+
     def __init__(self, parent=None):
-        super().__init__(parent, "Nekohouse", "nekohouse", "D:/pic/nekohouse")
+        super().__init__(parent)
+        self.setting_interface = parent
+        self.setTitle("Danbooru 配置")
+        self.setBorderRadius(8)
+
+        danbooru_conf = getattr(conf, "danbooru", {}) or {}
+        self.current_path = danbooru_conf.get("save_path", "D:/pic/danbooru")
+
+        self.downloadConcurrencyEdit = SpinBox(self)
+        self.downloadConcurrencyEdit.setRange(1, 10)
+        self.downloadConcurrencyEdit.setValue(int(danbooru_conf.get("download_concurrency", 3)))
+
+        self.saveTypeBox = ComboBox(self)
+        for text, value in self.SAVE_TYPE_OPTIONS:
+            self.saveTypeBox.addItem(text, userData=value)
+        self.setSaveType(danbooru_conf.get("save_type"))
+
+        self.pathButton = PushButton("选择目录")
+        self.pathButton.setFixedWidth(120)
+        self.pathButton.clicked.connect(self._onSelectFolder)
+
+        self.pathCard = self.addGroup(FIF.DOWNLOAD, "存储路径", self.current_path, self.pathButton)
+        self.addGroup(FIF.FOLDER, "存储方式", "默认存入根目录，可选按搜索标签建子目录", self.saveTypeBox)
+        self.addGroup(FIF.SPEED_HIGH, "下载并发", "Danbooru Motrix 轮询并发数", self.downloadConcurrencyEdit)
+
+    def _onSelectFolder(self):
+        folder = QFileDialog.getExistingDirectory(self, "选择Danbooru存储目录")
+        if folder:
+            wanted_p = pathlib.Path(folder)
+            cgs_path = ori_path.parent if ori_path.parent.joinpath("scripts/CGS.py").exists() else ori_path
+            cgs_flag = str(wanted_p).startswith(str(cgs_path))
+            drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
+            if cgs_flag or drive_flag:
+                InfoBar.error(
+                    title='', content="路径设置无效：不能设在盘符根或CGS相关目录内",
+                    orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+                    duration=5000, parent=self.setting_interface
+                )
+                return
+            self.current_path = folder
+            self.pathCard.setContent(self.current_path)
+            self.setting_interface.saveBtn.click()
+
+    def getCurrentPath(self):
+        return self.current_path
+
+    def setCurrentPath(self, path):
+        self.current_path = path
+        self.pathCard.setContent(path)
+
+    def getDownloadConcurrency(self):
+        return self.downloadConcurrencyEdit.value()
+
+    def setDownloadConcurrency(self, concurrency):
+        self.downloadConcurrencyEdit.setValue(int(concurrency or 3))
+
+    def getSaveType(self):
+        return self.saveTypeBox.currentData()
+
+    def setSaveType(self, save_type):
+        index = self.saveTypeBox.findData(save_type)
+        self.saveTypeBox.setCurrentIndex(index if index >= 0 else 0)
 
 
 class SettingInterface(QFrame):
@@ -120,7 +225,7 @@ class SettingInterface(QFrame):
         first_row.addWidget(self.imgProxiesEdit)
         
         self.kemono_group_card = KemonoGroupCard(self)
-        self.nekohouse_group_card = NekohouseGroupCard(self)
+        self.danbooru_group_card = DanbooruGroupCard(self)
 
         # 第四行：保存按钮
         forth_row = QHBoxLayout()
@@ -131,7 +236,7 @@ class SettingInterface(QFrame):
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addWidget(self.kemono_group_card)
-        self.main_layout.addWidget(self.nekohouse_group_card)
+        self.main_layout.addWidget(self.danbooru_group_card)
         self.main_layout.addItem(spacerItem)
         self.main_layout.addLayout(forth_row)
 
@@ -144,9 +249,10 @@ class SettingInterface(QFrame):
         kemono_config = config_data.get('kemono', {})
         self.kemono_group_card.setCookieText(kemono_config.get('cookie', ''))
         self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))
-        nekohouse_config = config_data.get('nekohouse', {})
-        self.nekohouse_group_card.setCookieText(nekohouse_config.get('cookie', ''))
-        self.nekohouse_group_card.setCurrentPath(nekohouse_config.get('sv_path', ''))
+        danbooru_config = config_data.get('danbooru', {})
+        self.danbooru_group_card.setCurrentPath(danbooru_config.get('save_path', 'D:/pic/danbooru'))
+        self.danbooru_group_card.setSaveType(danbooru_config.get('save_type'))
+        self.danbooru_group_card.setDownloadConcurrency(danbooru_config.get('download_concurrency', 3))
 
 
     def save_conf(self):
@@ -170,12 +276,13 @@ class SettingInterface(QFrame):
             config_data['kemono']['sv_path'] = self.kemono_group_card.getCurrentPath()
             config_data['kemono']['redis_key'] = 'kemono'  # 固定值
 
-            # 更新nekohouse配置
-            if 'nekohouse' not in config_data:
-                config_data['nekohouse'] = {}
-            config_data['nekohouse']['cookie'] = self.nekohouse_group_card.getCookieText()
-            config_data['nekohouse']['sv_path'] = self.nekohouse_group_card.getCurrentPath()
-            config_data['nekohouse']['redis_key'] = 'nekohouse'  # 固定值
+            if 'danbooru' not in config_data:
+                config_data['danbooru'] = {}
+            config_data['danbooru']['save_path'] = self.danbooru_group_card.getCurrentPath()
+            config_data['danbooru']['save_type'] = self.danbooru_group_card.getSaveType()
+            config_data['danbooru']['download_concurrency'] = self.danbooru_group_card.getDownloadConcurrency()
+            config_data['danbooru'].pop('redis_key', None)
+            config_data['danbooru'].pop('page_size', None)
 
             # 更新conf对象属性，参考GUI\conf_dialog.py的save_conf方法
             conf.update(**config_data)
@@ -193,20 +300,79 @@ class SettingInterface(QFrame):
             )
 
 
-class ScriptWindow(FluentWindow):
+class ScriptWindow(ScriptWindowBase):
     def __init__(self, parent=None):
         super().__init__()
         self.gui = parent
+        if OFFSCREEN_FLUENT_FALLBACK:
+            self._setup_offscreen_shell()
+        self.danbooruInterface = DanbooruInterface(self)
         self.kemonoInterface = KemonoInterface(self)
         self.settingInterface = SettingInterface(self)
 
         self.initNavigation()
         self.initWindow()
 
+    def _setup_offscreen_shell(self):
+        self.setObjectName("OffscreenScriptWindow")
+        self.setStyleSheet(
+            """
+            QFrame#OffscreenScriptWindow {
+                background: #f6f6f7;
+            }
+            """
+        )
+        self._offscreen_nav_buttons = {}
+        self.main_layout = QHBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+        self.navigationInterface = _OffscreenNavigationInterface(self)
+        self.stackedWidget = QStackedWidget(self)
+        self.main_layout.addWidget(self.navigationInterface)
+        self.main_layout.addWidget(self.stackedWidget, 1)
+
+    def _add_offscreen_subinterface(self, widget, text, position=None):
+        button = PushButton(text, self.navigationInterface)
+        button.setCheckable(True)
+        button.setMinimumHeight(40)
+        button.setStyleSheet(
+            """
+            PushButton {
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 10px;
+                color: white;
+                text-align: left;
+                padding-left: 12px;
+            }
+            PushButton:checked {
+                background: rgba(255, 255, 255, 0.14);
+            }
+            """
+        )
+        self.navigationInterface.add_button(button, bottom=position == NavigationItemPosition.BOTTOM)
+        self.stackedWidget.addWidget(widget)
+        self._offscreen_nav_buttons[widget] = button
+        button.clicked.connect(lambda _=False, current_widget=widget: self._set_offscreen_current_widget(current_widget))
+        if self.stackedWidget.count() == 1:
+            self._set_offscreen_current_widget(widget)
+        return widget
+
+    def _set_offscreen_current_widget(self, widget):
+        self.stackedWidget.setCurrentWidget(widget)
+        for current_widget, button in self._offscreen_nav_buttons.items():
+            button.setChecked(current_widget is widget)
+
     def initNavigation(self):
-        self.addSubInterface(self.kemonoInterface, ':/letter/k.png', 'Kemono')
+        self.addSubInterface(self.danbooruInterface, ':/script/danbooru.svg', 'Danbooru')
+        self.addSubInterface(self.kemonoInterface, ':/script/kemono.ico', 'Kemono')
         self.navigationInterface.addSeparator()
         self.addSubInterface(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM)
+
+    def addSubInterface(self, interface, icon, text, position=NavigationItemPosition.TOP):
+        if OFFSCREEN_FLUENT_FALLBACK:
+            return self._add_offscreen_subinterface(interface, text, position)
+        return super().addSubInterface(interface, icon, text, position)
 
     def initWindow(self):
         if self.gui:
@@ -221,7 +387,9 @@ class ScriptWindow(FluentWindow):
         
     def closeEvent(self, event):
         event.accept()
-        safe_single_shot(10, self.gui.close)
+        self.danbooruInterface.image_viewer.hide()
+        if self.gui is not None:
+            safe_single_shot(10, self.gui.close)
         
 
 if __name__ == '__main__':
