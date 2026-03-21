@@ -4,7 +4,7 @@ import sys
 import json
 import contextlib
 from PyQt5 import QtNetwork
-from PyQt5.QtCore import Qt, QUrl, QEvent, QSize
+from PyQt5.QtCore import Qt, QUrl, QEvent, QSize, QObject, QTimer, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineSettings
@@ -21,6 +21,7 @@ from GUI.core.theme import theme_mgr, CustTheme
 from assets import res
 from variables import Spider
 from utils import conf
+from utils.script.image.danbooru_dns import ensure_danbooru_webengine_proxy_started
 from utils.website import EHentaiKits
 
 
@@ -159,14 +160,63 @@ class ZoomManager:
         self.browser.zoomOutBtn.setEnabled(self.can_zoom_out)
 
 
+class _CookieSnapshotCollector(QObject):
+    snapshot_ready = pyqtSignal(object)
+
+    def __init__(self, cookie_store, domain_filter: str, parent=None):
+        super().__init__(parent)
+        self._cookie_store = cookie_store
+        self._domain_filter = str(domain_filter or "").lstrip(".").casefold()
+        self._cookies = {}
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setSingleShot(True)
+        self._idle_timer.timeout.connect(self._finish)
+
+    def start(self):
+        self._cookie_store.cookieAdded.connect(self._on_cookie_added)
+        self._idle_timer.start(180)
+        self._cookie_store.loadAllCookies()
+
+    def _on_cookie_added(self, cookie):
+        try:
+            name = bytes(cookie.name()).decode("utf-8", errors="ignore").strip()
+            domain = str(cookie.domain() or "").strip()
+            path = str(cookie.path() or "/").strip() or "/"
+            value = bytes(cookie.value()).decode("utf-8", errors="ignore")
+        except Exception:
+            self._idle_timer.start(180)
+            return
+        normalized_domain = domain.lstrip(".").casefold()
+        if not name or (self._domain_filter and not normalized_domain.endswith(self._domain_filter)):
+            self._idle_timer.start(180)
+            return
+        self._cookies[(name, domain, path)] = {
+            "name": name,
+            "value": value,
+            "domain": domain,
+            "path": path,
+        }
+        self._idle_timer.start(180)
+
+    def _finish(self):
+        with contextlib.suppress(TypeError):
+            self._cookie_store.cookieAdded.disconnect(self._on_cookie_added)
+        self.snapshot_ready.emit(list(self._cookies.values()))
+        self.deleteLater()
+
+
 class BrowserWindow(FramelessMainWindow, Ui_browser):
-    def __init__(self, gui, proxies: str = None):
+    def __init__(self, gui, proxies: str = None, *, skip_env_mode: bool = False):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
         self._first_show = True
         self._ensure_callback = gui.next
         self._on_close = None
+        self._ensure_uses_page_scan = True
+        self._managed_proxy = False
+        self._previous_application_proxy = None
+        self._cookie_collector = None
         self.interceptor = RefererInterceptor()
         if proxies:
             self.set_proxies(proxies)
@@ -178,7 +228,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
         self.home_url = QUrl.fromLocalFile(self.gui.tf)
-        self.set_env_mode()
+        if not skip_env_mode:
+            self.set_env_mode()
         self.output = []
         self.setupUi(self)
         self.zoom_mgr = ZoomManager(self)
@@ -344,6 +395,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         page.runJavaScript(js_code, callback)
 
     def page(self, after_callback):
+        if not self._ensure_uses_page_scan:
+            self.output = []
+            after_callback()
+            return
         def callback(ret):
             self.output = ret or []  # 可能js还没加载好scanChecked导致返回的undefined
             after_callback()
@@ -363,6 +418,70 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         proxy.setHostName(host)
         proxy.setPort(int(port))
         QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
+
+    @staticmethod
+    def clear_proxies():
+        QtNetwork.QNetworkProxy.setApplicationProxy(QtNetwork.QNetworkProxy(QtNetwork.QNetworkProxy.NoProxy))
+
+    def _apply_managed_proxy(self, proxy_str: str):
+        if not self._managed_proxy:
+            self._previous_application_proxy = QtNetwork.QNetworkProxy.applicationProxy()
+        self._managed_proxy = True
+        if proxy_str:
+            self.set_proxies(proxy_str)
+        else:
+            self.clear_proxies()
+
+    def _restore_managed_proxy(self):
+        if not self._managed_proxy:
+            return
+        previous = self._previous_application_proxy or QtNetwork.QNetworkProxy(QtNetwork.QNetworkProxy.NoProxy)
+        QtNetwork.QNetworkProxy.setApplicationProxy(previous)
+        self._previous_application_proxy = None
+        self._managed_proxy = False
+
+    def configure_remote_mode(
+        self,
+        url: str,
+        *,
+        ensure_handler=None,
+        close_handler=None,
+        doh_url: str = "",
+        size: QSize | None = None,
+        window_title: str = "",
+    ):
+        self._ensure_uses_page_scan = False
+        self._ensure_callback = ensure_handler or (lambda: None)
+        self._on_close = close_handler
+        self.home_url = QUrl(str(url))
+        if doh_url:
+            proxy_str = ensure_danbooru_webengine_proxy_started(doh_url)
+            if proxy_str:
+                self._apply_managed_proxy(proxy_str)
+        else:
+            self._restore_managed_proxy()
+        if window_title:
+            self.setWindowTitle(window_title)
+        self.ensureBtn.setToolTip("继续请求")
+        self.copyBtn.hide()
+        if size is not None:
+            self.resize(size)
+        if self.isVisible():
+            self.load_home()
+
+    def current_user_agent(self) -> str:
+        return self.profile.httpUserAgent()
+
+    def collect_cookies(self, callback, *, domain_filter: str):
+        collector = _CookieSnapshotCollector(
+            self.view.page().profile().cookieStore(),
+            domain_filter=domain_filter,
+            parent=self,
+        )
+        self._cookie_collector = collector
+        collector.snapshot_ready.connect(callback)
+        collector.snapshot_ready.connect(lambda *_args: setattr(self, "_cookie_collector", None))
+        collector.start()
 
     def set_cookies(self, website):
         match website:
@@ -412,6 +531,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def closeEvent(self, event):
         if hasattr(self, 'view'):
             theme_mgr.unsubscribe(self.view.on_theme_changed)
+        self._restore_managed_proxy()
         if self._on_close:
             self._on_close(self, event)
             self._on_close = None

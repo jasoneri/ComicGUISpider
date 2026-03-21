@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import ipaddress
 import pathlib as p
 from typing import Optional
 
 import httpx
+from loguru import logger
 
 from utils import get_httpx_verify
 from utils.script import conf
@@ -11,6 +13,7 @@ from utils.website.core import build_proxy_transport
 
 HTTPX_USER_AGENT = "ComicGUISpider/1.0"
 MOTRIX_RPC_URL = "http://localhost:16800/jsonrpc"
+_MOTRIX_DNS_OPTION_KEYS = ("async-dns", "async-dns-server")
 
 
 def create_motrix_http_client(*, timeout: float = 15.0) -> httpx.AsyncClient:
@@ -22,6 +25,70 @@ def create_motrix_http_client(*, timeout: float = 15.0) -> httpx.AsyncClient:
         verify=get_httpx_verify(),
     )
     return httpx.AsyncClient(timeout=timeout, transport=transport, trust_env=trust_env)
+
+
+def normalize_motrix_dns_server(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        return str(ipaddress.ip_address(text))
+    except ValueError:
+        pass
+
+    candidate = text
+    if text.startswith("[") and "]:" in text:
+        host, port = text[1:].split("]:", 1)
+        if port != "53":
+            raise ValueError("aria2 async-dns-server only supports DNS service on port 53")
+        candidate = host
+    elif text.count(":") == 1:
+        host, port = text.rsplit(":", 1)
+        if port.isdigit():
+            if port != "53":
+                raise ValueError("aria2 async-dns-server only supports DNS service on port 53")
+            candidate = host
+
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError as exc:
+        raise ValueError("aria2 async-dns-server requires an IP address such as 127.0.0.1") from exc
+
+
+def build_motrix_dns_options(*, dns_server: object = "") -> dict[str, str]:
+    normalized_server = normalize_motrix_dns_server(dns_server)
+    if not normalized_server:
+        return {}
+    return {
+        "async-dns": "true",
+        "async-dns-server": normalized_server,
+    }
+
+
+def sync_motrix_dns_config(conf_path: object, *, dns_server: object = "") -> str:
+    path = p.Path(str(conf_path or "").strip()).expanduser()
+    if not str(path):
+        return ""
+    if not path.exists():
+        raise FileNotFoundError(f"Motrix aria2.conf not found: {path}")
+
+    dns_options = build_motrix_dns_options(dns_server=dns_server)
+    original_lines = path.read_text(encoding="utf-8").splitlines()
+    filtered_lines = []
+    for line in original_lines:
+        stripped = line.strip()
+        if any(stripped.startswith(f"{key}=") for key in _MOTRIX_DNS_OPTION_KEYS):
+            continue
+        filtered_lines.append(line)
+
+    if filtered_lines and filtered_lines[-1] != "":
+        filtered_lines.append("")
+    filtered_lines.extend(f"{key}={value}" for key, value in dns_options.items())
+    path.write_text("\n".join(filtered_lines).rstrip() + "\n", encoding="utf-8")
+
+    mode = f"async-dns-server={dns_options['async-dns-server']}" if dns_options else "清空 DNS 覆写"
+    logger.info(f"[DanbooruDNS] synced Motrix aria2.conf path={path} mode={mode}")
+    return f"已同步 Motrix DNS 配置（{mode}，重启 Motrix 后生效）"
 
 
 class MotrixRPC:

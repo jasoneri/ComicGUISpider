@@ -17,6 +17,7 @@ from qfluentwidgets import (
 from qframelesswindow.utils import startSystemMove
 
 from deploy import curr_os
+from GUI.browser_window import BrowserWindow
 from GUI.core.timer import safe_single_shot
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager
@@ -682,7 +683,7 @@ class DanbooruTabWidget(QFrame):
         )
         self.favorite_btn = TransparentToolButton(FIF.HEART, self)
         self.favorite_btn.setFixedSize(38, 38)
-        self.convert_btn = PushButton("转换", self)
+        self.convert_btn = PushButton("转英文tag", self)
         self.convert_btn.setMinimumHeight(38)
         self.convert_btn.clicked.connect(self.request_conversion.emit)
         self.sort_box = ComboBox(self)
@@ -968,6 +969,10 @@ class DanbooruInterface(QFrame):
         self._viewer_pixmap_cache: dict[int, QPixmap] = {}
         self._viewer_size_cache: dict[int, QtCore.QSize] = {}
         self._viewer_prefetching_post_ids: set[int] = set()
+        self._runtime_config = DanbooruRuntimeConfig.from_conf()
+        self._verification_window: t.Optional[BrowserWindow] = None
+        self._verification_retry: t.Optional[t.Callable[[], None]] = None
+        self._verification_tab_id: t.Optional[str] = None
         self.download_result_signal.connect(self.download_controller.on_download_result)
         self.image_viewer.tag_clicked.connect(self._open_tag_jump_tab)
         self.image_viewer.download_requested.connect(self.download_controller.submit_single)
@@ -996,8 +1001,11 @@ class DanbooruInterface(QFrame):
         self.tip_line = StrongBodyLabel("", self)
         self.tip_line.setTextFormat(Qt.RichText)
         self.tip_line.setObjectName("DanbooruTipLine")
+        self.network_label = BodyLabel("", self)
+        self.network_label.setObjectName("DanbooruNetworkLabel")
         title_block_layout.addWidget(self.title_label)
         title_block_layout.addWidget(self.tip_line, 1)
+        # title_block_layout.addWidget(self.network_label)  # 当前 doh 没恢复时禁止恢复注释
         zoomBtnGroup = QVBoxLayout()
         zoomBtnGroup.setContentsMargins(2,0,2,0)
         zoomBtnGroup.setSpacing(0)
@@ -1083,6 +1091,7 @@ class DanbooruInterface(QFrame):
         self.setStyleSheet(build_interface_stylesheet(palette))
         self.title_label.setStyleSheet(build_title_label_stylesheet(palette))
         self.tip_line.setStyleSheet(build_tip_line_stylesheet(palette))
+        self.network_label.setStyleSheet(f"color: {palette.muted_text};")
         self.tab_bar.setTabShadowEnabled(False)
         selected_color = qcolor_from_css(palette.pivot_selected)
         self.tab_bar.setTabSelectedBackgroundColor(selected_color, selected_color)
@@ -1091,6 +1100,7 @@ class DanbooruInterface(QFrame):
             tab.apply_theme()
         self._update_tab_chrome()
         self._sync_tip_line()
+        self.refresh_runtime_settings()
         self._update_zoom_buttons()
         self._sync_tab_bar_width()
 
@@ -1292,7 +1302,7 @@ class DanbooruInterface(QFrame):
         QtCore.QTimer.singleShot(0, self._sync_pivot_scroll_controls)
 
     def _open_save_path(self):
-        curr_os.open_folder(Path(DanbooruRuntimeConfig.from_conf().save_path))
+        curr_os.open_folder(Path(self._runtime_config.save_path))
 
     def _update_batch_button(self, tab_id: str):
         if self._active_tab_id() != tab_id:
@@ -1309,12 +1319,23 @@ class DanbooruInterface(QFrame):
     def _gui_logger(self):
         return getattr(getattr(self.parent_window, "gui", None), "log", None)
 
+    def _host_gui(self):
+        return getattr(self.parent_window, "gui", None) or self.parent_window
+
     def _log_search_request(self, tab_id: str, query: str, order: str, page: int, limit: int):
         logger = self._gui_logger()
         if logger is None:
             return
         params = build_danbooru_search_params(query, order=order, page=page, limit=limit)
-        logger.info(f"[Danbooru] GET /posts.json tab={tab_id} params={params}")
+        stub_endpoint = self._runtime_config.stub_dns_endpoint() or "disabled"
+        logger.info(
+            f"[Danbooru] GET /posts.json tab={tab_id} params={params} dns={self._runtime_config.request_dns_summary()} stub={stub_endpoint}"
+        )
+
+    def refresh_runtime_settings(self):
+        self._runtime_config = DanbooruRuntimeConfig.from_conf()
+        # self.network_label.setText(self._runtime_config.network_label())
+        # self.network_label.setToolTip(self._runtime_config.network_tooltip())
 
     def _update_favorite_button_state(self, tab: DanbooruTabWidget, term: t.Optional[str] = None):
         canonical_term = canonicalize_search_term(term if term is not None else tab.search_edit.text())
@@ -1342,6 +1363,57 @@ class DanbooruInterface(QFrame):
             duration=duration,
             parent=self,
         )
+
+    def request_danbooru_verification(
+        self,
+        tab_id: str,
+        challenge: DanbooruChallengeRequired,
+        retry_callback: t.Callable[[], None],
+    ):
+        if self._verification_window is None:
+            self._verification_window = BrowserWindow(self._host_gui(), skip_env_mode=True)
+            self._verification_window.destroyed.connect(lambda *_args: setattr(self, "_verification_window", None))
+        self._verification_retry = retry_callback
+        self._verification_tab_id = tab_id
+        self._set_tab_tip(tab_id, "Danbooru 需要网页验证，验证完成后自动重试", cls="theme-tip")
+        self._verification_window.configure_remote_mode(
+            challenge.verify_url,
+            ensure_handler=self._request_browser_verification_sync,
+            close_handler=lambda *_args: None,
+            doh_url=self._runtime_config.doh_url,
+            size=QtCore.QSize(980, 760),
+            window_title="Danbooru Verification",
+        )
+        self._verification_window.show()
+        self._verification_window.raise_()
+        self._verification_window.activateWindow()
+
+    def _request_browser_verification_sync(self):
+        if self._verification_window is None:
+            return
+        self._verification_window.collect_cookies(
+            self._handle_verification_cookies,
+            domain_filter="danbooru.donmai.us",
+        )
+
+    def _handle_verification_cookies(self, cookies):
+        user_agent = self._verification_window.current_user_agent() if self._verification_window is not None else ""
+        self._handle_verification_confirmed(cookies, user_agent, "")
+        if self._verification_window is not None:
+            self._verification_window.close()
+
+    def _handle_verification_confirmed(self, cookies, user_agent: str, current_url: str):
+        session = set_danbooru_browser_session(cookies=cookies or [], user_agent=user_agent)
+        tab_id = self._verification_tab_id
+        if tab_id:
+            cookie_text = f"{len(session.cookies)} 个 Cookie" if session.cookies else "0 个 Cookie"
+            self._set_tab_tip(tab_id, f"已同步浏览器验证态({cookie_text})，正在重试", cls="theme-success")
+        self._show_info(InfoBar.success, "Danbooru 浏览器验证态已同步，正在重试请求", 4000)
+        retry_callback = self._verification_retry
+        self._verification_retry = None
+        self._verification_tab_id = None
+        if retry_callback is not None:
+            retry_callback()
 
     def _toggle_favorite(self, tab_id: str):
         tab = self.tabs.get(tab_id)

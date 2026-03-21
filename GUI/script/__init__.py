@@ -15,7 +15,11 @@ from qfluentwidgets import (
 )
 
 from utils import yaml, ori_path
+from utils.config.qc import danbooru_cfg
+from utils.script.image.danbooru import DanbooruRuntimeConfig
 from utils.script.image.kemono import conf
+from GUI.core.timer import safe_single_shot
+from GUI.manager.async_task import summarize_error_message
 from GUI.script.danbooru import DanbooruInterface
 from GUI.script.kemono import KemonoInterface
 
@@ -221,7 +225,8 @@ class SettingInterface(QFrame):
         proxies_label = StrongBodyLabel("代理", self)
         self.imgProxiesEdit = LineEdit(self)
         self.imgProxiesEdit.setToolTip(_translate("SettingInterface", "proxies"))
-        self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", "example-of-v2rayN 127.0.0.1:10809"))
+        self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", 
+                                                          "example-of-v2rayN 127.0.0.1:10809"))
         completer = QCompleter(['127.0.0.1:10809'])
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
@@ -249,17 +254,29 @@ class SettingInterface(QFrame):
     def show_self(self):
         """加载配置文件内容到各个编辑框"""
         with open(conf.file, 'r', encoding='utf-8') as f:
-            config_data = yaml.safe_load(f.read())
+            config_data = yaml.safe_load(f.read()) or {}
 
         self.imgProxiesEdit.setText(','.join(config_data.get('proxies') or []))
         kemono_config = config_data.get('kemono', {})
         self.kemono_group_card.setCookieText(kemono_config.get('cookie', ''))
         self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))
-        danbooru_config = config_data.get('danbooru', {})
-        self.danbooru_group_card.setCurrentPath(danbooru_config.get('save_path', 'D:/pic/danbooru'))
-        self.danbooru_group_card.setSaveType(danbooru_config.get('save_type'))
-        self.danbooru_group_card.setDownloadConcurrency(danbooru_config.get('download_concurrency', 3))
+        runtime_config = DanbooruRuntimeConfig.from_mapping(config_data.get('danbooru', {}))
+        self.danbooru_group_card.setCurrentPath(runtime_config.save_path)
+        self.danbooru_group_card.setSaveType(runtime_config.save_type)
+        self.danbooru_group_card.setDownloadConcurrency(runtime_config.download_concurrency)
 
+    def _gui_logger(self):
+        return getattr(getattr(self.parent_window, "gui", None), "log", None)
+
+    def _show_save_error(self, prefix: str, error: BaseException):
+        logger = self._gui_logger()
+        if logger is not None:
+            logger.exception(f"[ScriptSettings] {prefix}")
+        InfoBar.error(
+            title='', content=f"{prefix}: {summarize_error_message(error)}",
+            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
+            duration=8000, parent=self
+        )
 
     def save_conf(self):
         """保存配置到文件"""
@@ -289,9 +306,14 @@ class SettingInterface(QFrame):
             config_data['danbooru']['download_concurrency'] = self.danbooru_group_card.getDownloadConcurrency()
             config_data['danbooru'].pop('redis_key', None)
             config_data['danbooru'].pop('page_size', None)
+            config_data['danbooru'].pop('doh_url', None)
+            config_data['danbooru'].pop('motrix_aria2_conf_path', None)
+            runtime_config = DanbooruRuntimeConfig.from_mapping(config_data['danbooru'])
 
             # 更新conf对象属性，参考GUI\conf_dialog.py的save_conf方法
             conf.update(**config_data)
+            if hasattr(self.parent_window, "danbooruInterface"):
+                self.parent_window.danbooruInterface.refresh_runtime_settings()
 
             InfoBar.success(
                 title='', content="配置保存成功",
@@ -299,11 +321,7 @@ class SettingInterface(QFrame):
                 duration=2500, parent=self
             )
         except Exception as e:
-            InfoBar.error(
-                title='', content=f"配置保存失败: {str(e)}",
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=8000, parent=self
-            )
+            self._show_save_error("配置保存失败", e)
 
 
 class ScriptWindow(ScriptWindowBase):

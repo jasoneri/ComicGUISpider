@@ -31,6 +31,25 @@ def run_async(coro):
     return asyncio.run(coro)
 
 
+@dataclass(slots=True)
+class DanbooruSearchTaskResult:
+    posts: list[DanbooruPost] = field(default_factory=list)
+    challenge: t.Optional[DanbooruChallengeRequired] = None
+
+
+def perform_danbooru_search_request(
+    query: str,
+    *,
+    order: str = "",
+    page: int = 1,
+) -> DanbooruSearchTaskResult:
+    try:
+        posts = run_async(search_danbooru_posts(query, order=order, page=page))
+    except DanbooruChallengeRequired as exc:
+        return DanbooruSearchTaskResult(challenge=exc)
+    return DanbooruSearchTaskResult(posts=posts)
+
+
 @dataclass(frozen=True, slots=True)
 class DanbooruViewerFitResult:
     available_bounds: QtCore.QSize
@@ -145,8 +164,8 @@ class DanbooruSearchController:
         self.interface._set_tab_tip(tab_id, "加载中...", cls="theme-tip")
         self.interface._log_search_request(tab_id, canonical_term, state.sort_mode, 1, DANBOORU_PAGE_SIZE)
         self.interface.task_mgr.execute_simple_task(
-            lambda: run_async(search_danbooru_posts(canonical_term, order=state.sort_mode, page=1)),
-            success_callback=lambda posts, tid=tab_id, tkn=token: self.handle_search_success(tid, tkn, posts, 1, True),
+            lambda: perform_danbooru_search_request(canonical_term, order=state.sort_mode, page=1),
+            success_callback=lambda result, tid=tab_id, tkn=token: self.handle_search_result(tid, tkn, result, 1, True),
             error_callback=lambda err, tid=tab_id, tkn=token: self.handle_search_error(tid, tkn, err),
             show_success_info=False,
             show_error_info=False,
@@ -166,14 +185,23 @@ class DanbooruSearchController:
         self.interface._set_tab_tip(tab_id, "加载中...", cls="theme-tip")
         self.interface._log_search_request(tab_id, state.query, state.sort_mode, next_page, DANBOORU_PAGE_SIZE)
         self.interface.task_mgr.execute_simple_task(
-            lambda: run_async(search_danbooru_posts(state.query, order=state.sort_mode, page=next_page)),
-            success_callback=lambda posts, tid=tab_id, tkn=token, pg=next_page: self.handle_search_success(tid, tkn, posts, pg, False),
+            lambda: perform_danbooru_search_request(state.query, order=state.sort_mode, page=next_page),
+            success_callback=lambda result, tid=tab_id, tkn=token, pg=next_page: self.handle_search_result(tid, tkn, result, pg, False),
             error_callback=lambda err, tid=tab_id, tkn=token: self.handle_search_error(tid, tkn, err),
             show_success_info=False,
             show_error_info=False,
             show_tooltip=False,
             task_id=f"danbooru-page-{tab_id}-{token}",
         )
+
+    def handle_search_result(
+        self, tab_id: str, token: int,
+        result: DanbooruSearchTaskResult, page: int, replace: bool,
+    ):
+        if result.challenge is not None:
+            self.handle_search_challenge(tab_id, token, result.challenge, page=page, replace=replace)
+            return
+        self.handle_search_success(tab_id, token, result.posts, page, replace)
 
     def handle_search_success(self, tab_id: str, token: int, posts: list[DanbooruPost], page: int, replace: bool):
         tab = self.interface.tabs.get(tab_id)
@@ -200,6 +228,24 @@ class DanbooruSearchController:
             self.load_card_preview(tab, card)
         if not state.has_more_results:
             self.interface._set_tab_tip(tab_id, "没有更多结果", cls="theme-tip")
+
+    def handle_search_challenge(
+        self, tab_id: str, token: int, challenge: DanbooruChallengeRequired,
+        *, page: int, replace: bool,
+    ):
+        tab = self.interface.tabs.get(tab_id)
+        state = self.interface.tab_states.get(tab_id)
+        if tab is None or state is None or token != state.request_token:
+            return
+        tab.set_loading(False)
+        self.interface._set_tab_tip(tab_id, "Danbooru 需要网页验证，完成后会自动重试", cls="theme-tip")
+        self.interface._show_info(InfoBar.warning, "Danbooru 需要网页验证，完成后点继续请求将自动重试", 7000)
+        retry_callback = (
+            (lambda tid=tab_id, query=state.query: self.start_search(tid, query))
+            if replace or page <= 1
+            else (lambda tid=tab_id: self.load_next_page(tid))
+        )
+        self.interface.request_danbooru_verification(tab_id, challenge, retry_callback)
 
     def handle_search_error(self, tab_id: str, token: int, error: str):
         tab = self.interface.tabs.get(tab_id)
@@ -240,7 +286,7 @@ class DanbooruSearchController:
         if not term:
             return
         self.interface.task_mgr.execute_simple_task(
-            lambda: run_async(convert_moegirl_term(term)),
+            lambda: run_async(autocomplete_danbooru_tags(term)),
             success_callback=lambda result, tid=tab_id: self.handle_conversion_result(tid, result),
             error_callback=lambda err: self.interface._show_info(InfoBar.error, f"转换失败: {err.splitlines()[0]}", 6000),
             show_success_info=False,
@@ -249,14 +295,22 @@ class DanbooruSearchController:
             task_id=f"danbooru-convert-{tab_id}",
         )
 
+    def _search_converted_candidate(self, tab_id: str, candidate: DanbooruAutocompleteCandidate):
+        self.start_search(tab_id, candidate.value)
+
     def handle_conversion_result(self, tab_id: str, result):
         tab = self.interface.tabs.get(tab_id)
         if tab is None:
             return
-        if result.success and result.converted_term:
-            tab.search_edit.setText(result.converted_term)
-            self.interface._update_tab_title(tab_id, result.converted_term)
-            self.interface._set_tab_tip(tab_id, f"已转换为: {result.converted_term}", cls="theme-success")
+        if result.is_single_match:
+            self._search_converted_candidate(tab_id, result.matches[0])
+            return
+        if result.has_matches:
+            self.interface._set_tab_tip(tab_id, f"找到 {len(result.matches)} 个候选，请选择", cls="theme-tip")
+            tab.show_conversion_candidates(
+                result.matches,
+                on_selected=lambda candidate, tid=tab_id: self._search_converted_candidate(tid, candidate),
+            )
             return
         reason = result.reason or "unknown"
         self.interface._set_tab_tip(tab_id, f"转换失败: {reason}", cls="theme-err")
