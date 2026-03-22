@@ -2,7 +2,7 @@
 """Mid 工具流程节点配色方案"""
 
 from dataclasses import dataclass
-from PyQt5.QtGui import QColor
+from PySide6.QtGui import QColor
 
 
 @dataclass

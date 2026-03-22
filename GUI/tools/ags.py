@@ -2,11 +2,11 @@ import importlib
 import pathlib
 from dataclasses import dataclass
 from typing import Optional
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPixmap
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QPixmap
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtWidgets import QApplication, QHBoxLayout, QWidget, QFileDialog
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QWidget, QFileDialog
 from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, PushButton, PrimaryToolButton,
     SmoothScrollArea,TeachingTip,TeachingTipTailPosition,

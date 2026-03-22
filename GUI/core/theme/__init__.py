@@ -1,8 +1,8 @@
 # core/theme_manager.py
 from enum import Enum
 from typing import Callable, Dict, List
-from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtGui import QPalette, QColor
+from PySide6.QtWidgets import QApplication
 from qfluentwidgets import setTheme, Theme
 from utils import conf
 from .mid import create_light_mid_colors, create_dark_mid_colors, MidNodeColors

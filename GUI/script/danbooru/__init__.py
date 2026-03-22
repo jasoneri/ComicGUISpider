@@ -2,10 +2,10 @@ import sys
 import typing as t
 from pathlib import Path
 
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import (
+from PySide6 import QtCore, QtGui
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtWidgets import (
     QApplication, QCompleter, QFrame, QHBoxLayout, QLabel, QPushButton, QRubberBand, QStackedWidget, QVBoxLayout, QWidget,
 )
 from qfluentwidgets import (
@@ -54,8 +54,8 @@ def _iter_tag_groups(post: DanbooruPost) -> list[tuple[str, list[str]]]:
     return [(label, tags) for label, tags in groups if tags]
 
 class DanbooruCardWidget(QFrame):
-    open_detail_requested = pyqtSignal(object)
-    selection_changed = pyqtSignal(str, bool)
+    open_detail_requested = Signal(object)
+    selection_changed = Signal(str, bool)
 
     def __init__(
         self,
@@ -185,11 +185,11 @@ class DanbooruCardWidget(QFrame):
 
 
 class DanbooruImageViewer(QWidget):
-    tag_clicked = pyqtSignal(str)
-    download_requested = pyqtSignal(object)
-    previous_requested = pyqtSignal()
-    next_requested = pyqtSignal()
-    closed = pyqtSignal()
+    tag_clicked = Signal(str)
+    download_requested = Signal(object)
+    previous_requested = Signal()
+    next_requested = Signal()
+    closed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(None)
@@ -308,7 +308,7 @@ class DanbooruImageViewer(QWidget):
     def eventFilter(self, obj, event):
         if obj is self.top_bar and event.type() == QtCore.QEvent.MouseButtonPress:
             if event.button() == Qt.LeftButton and obj.childAt(event.pos()) is None:
-                startSystemMove(self, event.globalPos())
+                startSystemMove(self, event.globalPosition().toPoint())
                 return True
         return super().eventFilter(obj, event)
 
@@ -628,13 +628,13 @@ class DanbooruImageViewer(QWidget):
 
 
 class DanbooruTabWidget(QFrame):
-    selection_count_changed = pyqtSignal(int)
-    request_search = pyqtSignal(str, bool)
-    request_conversion = pyqtSignal()
-    request_single_download = pyqtSignal(object)
-    request_tag_jump = pyqtSignal(str)
-    request_next_page = pyqtSignal()
-    detail_opened = pyqtSignal(object)
+    selection_count_changed = Signal(int)
+    request_search = Signal(str, bool)
+    request_conversion = Signal()
+    request_single_download = Signal(object)
+    request_tag_jump = Signal(str)
+    request_next_page = Signal()
+    detail_opened = Signal(object)
 
     SORT_OPTIONS = list(DANBOORU_SORT_OPTIONS)
 
@@ -745,7 +745,7 @@ class DanbooruTabWidget(QFrame):
             else:
                 for value in values:
                     menu.addAction(Action(text=value, triggered=lambda _=False, current=value: self._set_search_edit_value(current)))
-            menu.exec_(self.search_edit.mapToGlobal(self.search_edit.rect().bottomLeft()))
+            menu.exec(self.search_edit.mapToGlobal(self.search_edit.rect().bottomLeft()))
 
         return Action(icon, text=text, triggered=open_menu)
 
@@ -763,7 +763,7 @@ class DanbooruTabWidget(QFrame):
                 menu.addAction(
                     Action(text=candidate.menu_text,
                         triggered=lambda _=False, current=candidate: on_selected(current),))
-        menu.exec_(self.search_edit.mapToGlobal(self.search_edit.rect().bottomLeft()))
+        menu.exec(self.search_edit.mapToGlobal(self.search_edit.rect().bottomLeft()))
 
     def apply_theme(self):
         palette = DanbooruUiPalette.current()
@@ -921,19 +921,19 @@ class DanbooruTabWidget(QFrame):
         if event_type == QtCore.QEvent.MouseButtonPress:
             if event.button() != Qt.LeftButton:
                 return super().eventFilter(obj, event)
-            self._drag_select_origin = self._viewport_point_from_global(event.globalPos())
+            self._drag_select_origin = self._viewport_point_from_global(event.globalPosition().toPoint())
             self._drag_select_active = False
             self._drag_select_source = obj
             return False
         if event_type == QtCore.QEvent.MouseMove:
             if self._drag_select_origin is None:
                 return super().eventFilter(obj, event)
-            current_point = self._viewport_point_from_global(event.globalPos())
+            current_point = self._viewport_point_from_global(event.globalPosition().toPoint())
             if not self._drag_select_active:
                 if (current_point - self._drag_select_origin).manhattanLength() < QApplication.startDragDistance():
                     return False
                 self._begin_drag_select()
-            self._update_drag_select_band(event.globalPos())
+            self._update_drag_select_band(event.globalPosition().toPoint())
             return True
         if event_type == QtCore.QEvent.MouseButtonRelease:
             if self._drag_select_origin is None:
@@ -949,7 +949,7 @@ class DanbooruTabWidget(QFrame):
 
 
 class DanbooruInterface(QFrame):
-    download_result_signal = pyqtSignal(str, bool)
+    download_result_signal = Signal(str, bool)
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)

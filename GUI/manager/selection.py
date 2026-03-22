@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from PyQt5.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from GUI.types import GUIFlowStage
 from utils import conf
@@ -15,8 +15,8 @@ class SelectionFlowManager(QObject):
     Signals: decision_made, skip_notified
     """
 
-    decision_made = pyqtSignal(str, list)  # (lane, filtered_indexes)
-    skip_notified = pyqtSignal(dict)       # skip_info for UI display
+    decision_made = Signal(str, list)  # (lane, filtered_indexes)
+    skip_notified = Signal(dict)       # skip_info for UI display
 
     def __init__(self, gui):
         super().__init__(gui)

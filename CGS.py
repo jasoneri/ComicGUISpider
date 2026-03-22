@@ -6,8 +6,8 @@ from datetime import datetime
 from multiprocessing import freeze_support
 from pathlib import Path
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 
 class ExceptionRouter:
@@ -36,7 +36,7 @@ class ExceptionRouter:
         box.setIcon(QMessageBox.Critical)
         box.setWindowTitle("CGS Fatal Error")
         box.setText(msg)
-        box.exec_()
+        box.exec()
         raise
 
     def excepthook(self, exc_type, exc_value, exc_traceback):
@@ -137,15 +137,13 @@ def start():
 
     try:
         QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
         app.setPalette(app.style().standardPalette())
         ui = SpiderGUI()
         EXCEPTION_ROUTER.bind_ui(ui)
         QApplication.processEvents()
-        app.exec_()
+        app.exec()
     except Exception as exc:
         EXCEPTION_ROUTER.raise_fatal(exc, "initialize QApplication")
 

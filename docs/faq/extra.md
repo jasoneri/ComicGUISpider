@@ -34,7 +34,7 @@ mac: `~/Library/Application Support/CGS`
 ::: tip 如果没找到，执行如下命令查看
 
 ```shell
-uv run python -c "from pathlib import Path;from PyQt5.QtCore import QStandardPaths;print(Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath('CGS'))"
+uv run python -c "from pathlib import Path;from PySide6.QtCore import QStandardPaths;print(Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppConfigLocation)).joinpath('CGS'))"
 ```
 
 :::

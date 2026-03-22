@@ -7,7 +7,7 @@ import time
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal
+from PySide6.QtCore import QObject, Qt, QThread, Signal
 from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition, StateToolTip
 

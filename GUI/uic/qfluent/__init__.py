@@ -1,6 +1,6 @@
 import types
 import contextlib
-from PyQt5.QtWidgets import QWidget, QHBoxLayout
+from PySide6.QtWidgets import QWidget, QHBoxLayout
 from GUI.core.timer import safe_single_shot
 from qfluentwidgets import (
     Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType,
@@ -42,7 +42,7 @@ class MonkeyPatch:
             menu.addAction(undo_action)
             menu.addAction(select_all_action)
 
-            menu.exec_(event.globalPos())
+            menu.exec(event.globalPos())
             event.accept()
         line_edit.contextMenuEvent = types.MethodType(new_context_menu, line_edit)
 

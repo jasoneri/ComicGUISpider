@@ -2,10 +2,10 @@ import sys
 import pathlib
 import os
 
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog, QVBoxLayout, QStackedWidget
-from PyQt5.QtCore import Qt, QCoreApplication
-from PyQt5.QtGui import QIcon
+from PySide6 import QtWidgets
+from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog, QVBoxLayout, QStackedWidget
+from PySide6.QtCore import Qt, QCoreApplication
+from PySide6.QtGui import QIcon
 
 from qfluentwidgets import (
     NavigationItemPosition, FluentWindow,

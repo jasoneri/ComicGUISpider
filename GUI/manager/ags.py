@@ -1,5 +1,5 @@
 import json
-from PyQt5.QtCore import QTimer
+from PySide6.QtCore import QTimer
 from GUI.core.timer import safe_single_shot
 
 from utils.website.info import BookInfo

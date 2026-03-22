@@ -4,7 +4,7 @@ from __future__ import annotations
 import typing as t
 from enum import Enum
 from uuid import uuid4
-from PyQt5.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from utils.middleware.core import CGSMidManager, ExecutionContext
 from utils.middleware.executor import Action
@@ -99,11 +99,11 @@ class SpiderGuiOps:
 # ---------------------------------------------------------------------------
 
 class CGSMidManagerGUI(QObject):
-    state_changed = pyqtSignal(object, object)
-    lane_execution_requested = pyqtSignal(str, object)
-    lane_visibility_changed = pyqtSignal(str, bool)
-    transition_rejected = pyqtSignal(object, object, object)
-    action_requested = pyqtSignal(object)
+    state_changed = Signal(object, object)
+    lane_execution_requested = Signal(str, object)
+    lane_visibility_changed = Signal(str, bool)
+    transition_rejected = Signal(object, object, object)
+    action_requested = Signal(object)
 
     def __init__(self, gui):
         super().__init__(gui)

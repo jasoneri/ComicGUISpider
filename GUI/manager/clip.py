@@ -1,6 +1,6 @@
 import re
 import pathlib
-from PyQt5.QtCore import Qt
+from PySide6.QtCore import Qt
 from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition
 

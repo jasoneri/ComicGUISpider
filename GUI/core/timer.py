@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtCore import QTimer
+from PySide6.QtCore import QTimer
 
 
 def safe_single_shot(msec, callback):

@@ -1,11 +1,11 @@
 import typing as t
 from enum import Enum
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QSize
+from PySide6 import QtWidgets, QtCore
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt, QUrl, Signal, QSize
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene
 
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
@@ -297,7 +297,7 @@ class ExpandSettings(QtWidgets.QWidget):
 
 
 class SupportView(FlyoutViewBase):
-    closed = pyqtSignal()  # 添加closed信号
+    closed = Signal()  # 添加closed信号
     res = res.GUI.Uic
     
     def __init__(self, conf_dia=None):
@@ -367,7 +367,7 @@ class IndeterminateBarFView(FlyoutViewBase):
 
 
 class TableFlyoutView(FlyoutViewBase):
-    closed = pyqtSignal()
+    closed = Signal()
 
     def __init__(self, data, parent=None):
         super().__init__(parent)
@@ -490,7 +490,7 @@ _VIEW_SIZE = 24
 _PAD = (_VIEW_SIZE - _ICON_SIZE) // 2
 
 class ExpandButton(QWidget):
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -1,5 +1,5 @@
 import asyncio
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 from utils import conf, get_loop, PresetHtmlEl
 from utils.ags import SearchKey
 from assets import res
@@ -7,8 +7,8 @@ from GUI.core.font import font_color
 
 
 class AggrSearchThread(QThread):
-    total_signal = pyqtSignal(dict)
-    group_signal = pyqtSignal(int, list)  # 用于通知完成一组搜索: (group_idx, books_list)
+    total_signal = Signal(dict)
+    group_signal = Signal(int, list)  # 用于通知完成一组搜索: (group_idx, books_list)
 
     def __init__(self, gui, tasks):
         super(AggrSearchThread, self).__init__(gui)

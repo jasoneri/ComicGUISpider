@@ -5,7 +5,7 @@ from queue import Empty, Queue
 from typing import Union
 
 import httpx
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from GUI.types import SearchContextSnapshot
 from utils.website.core import Previewer, build_proxy_transport
@@ -36,10 +36,10 @@ PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask]
 
 
 class PreviewWorker(QThread):
-    search_done = pyqtSignal(int, str, int, object)
-    search_error = pyqtSignal(int, str, int, str)
-    episodes_done = pyqtSignal(int, int, str, object)
-    episodes_error = pyqtSignal(int, int, str, str)
+    search_done = Signal(int, str, int, object)
+    search_error = Signal(int, str, int, str)
+    episodes_done = Signal(int, int, str, object)
+    episodes_error = Signal(int, int, str, str)
 
     def __init__(self, parent=None, *, snapshot: SearchContextSnapshot, generation: int):
         super().__init__(parent)

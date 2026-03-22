@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QLabel, QApplication
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QGuiApplication
+from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QLabel, QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 from qfluentwidgets import Pivot
 from qframelesswindow import FramelessWindow
 from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
@@ -104,13 +104,11 @@ class ToolWindow(FramelessWindow):
 
 def main():
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication([])
     window = ToolWindow()
     # window.addMidTool()
     window.show()
-    app.exec_()
+    app.exec()
 
 
 if __name__ == '__main__':

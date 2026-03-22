@@ -4,7 +4,7 @@ import importlib
 
 import psutil
 import httpx
-from PyQt5.QtCore import Qt, QObject
+from PySide6.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res

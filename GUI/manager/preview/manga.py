@@ -4,8 +4,8 @@ import tempfile
 import traceback
 from collections import defaultdict
 
-from PyQt5.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
-from PyQt5.QtWebChannel import QWebChannel
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtWebChannel import QWebChannel
 
 from assets import res as ori_res
 from variables import SPIDERS
@@ -19,18 +19,18 @@ class MangaPreviewBridge(QObject):
         super().__init__()
         self._mgr = manager
 
-    @pyqtSlot(str)
+    @Slot(str)
     def fetchEpisodes(self, bookKey):
         self._mgr.start_fetch_episodes(bookKey)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def toggleFavorite(self, bookKey):
         self._mgr.toggle_favorite(bookKey)
 
 
 class _ScanSignals(QObject):
-    scan_done = pyqtSignal(int, dict)
-    scan_error = pyqtSignal(int, str)
+    scan_done = Signal(int, dict)
+    scan_error = Signal(int, str)
 
 
 class _ScanRunnable(QRunnable):

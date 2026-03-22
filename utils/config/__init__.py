@@ -8,7 +8,7 @@ from dataclasses import dataclass, asdict, field
 
 import yaml
 from loguru import logger as lg
-from PyQt5.QtCore import QStandardPaths
+from PySide6.QtCore import QStandardPaths
 
 from assets import res
 from variables import DEFAULT_COMPLETER, COOKIES_SUPPORT
@@ -30,7 +30,7 @@ try:
         uv_exc = str(exc_p.joinpath("runtime/uv.exe"))
 except (OSError, ValueError):
     pass
-conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
+conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppConfigLocation)).joinpath("CGS")
 conf_dir.mkdir(parents=True, exist_ok=True)
 qconfig_dir = conf_dir.joinpath("qconfig")
 qconfig_dir.mkdir(parents=True, exist_ok=True)

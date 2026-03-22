@@ -2,7 +2,7 @@ import html
 import re
 from dataclasses import dataclass
 
-from PyQt5 import QtGui
+from PySide6 import QtGui
 
 from GUI.core.font import font_color
 from GUI.core.theme import CustTheme, theme_mgr

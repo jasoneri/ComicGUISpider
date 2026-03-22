@@ -2,7 +2,7 @@ import traceback
 import asyncio
 import queue
 import threading
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 from utils import conf, get_loop, code_env
 from utils.website.info import InfoMinix
 from assets import res
@@ -14,8 +14,8 @@ from .ags import AggrSearchThread
 
 
 class ClipTasksThread(QThread):
-    info_signal = pyqtSignal(InfoMinix)
-    total_signal = pyqtSignal(dict)
+    info_signal = Signal(InfoMinix)
+    total_signal = Signal(dict)
 
     def __init__(self, gui, tasks):
         super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
@@ -87,11 +87,11 @@ class ClipTasksThread(QThread):
 
 class WorkThread(QThread):
     """Consume runtime events and forward only the active job to current GUI bindings."""
-    item_count_signal = pyqtSignal(int, object, int)
-    print_signal = pyqtSignal(int, object, str)
-    tasks_signal = pyqtSignal(int, object, object)
-    process_state_signal = pyqtSignal(int, object, str)
-    worker_finished_signal = pyqtSignal(int, object, str, bool)
+    item_count_signal = Signal(int, object, int)
+    print_signal = Signal(int, object, str)
+    tasks_signal = Signal(int, object, object)
+    process_state_signal = Signal(int, object, str)
+    worker_finished_signal = Signal(int, object, str, bool)
 
     def __init__(self, gui, event_q: queue.Queue, authority=None):
         super(WorkThread, self).__init__(gui)
@@ -200,10 +200,10 @@ class WorkThread(QThread):
 
 
 class ProjUpdateThread(QThread):
-    checked_signal = pyqtSignal(object)
-    update_signal = pyqtSignal()
-    toupdate_signal = pyqtSignal(object)
-    debug_signal = pyqtSignal(str)
+    checked_signal = Signal(object)
+    update_signal = Signal()
+    toupdate_signal = Signal(object)
+    debug_signal = Signal(str)
 
     def __init__(self, conf_dia):
         self.proj = None
@@ -234,8 +234,8 @@ class ProjUpdateThread(QThread):
 
 
 class RvThread(QThread):
-    scan_completed = pyqtSignal(int)
-    scan_progress = pyqtSignal(str)
+    scan_completed = Signal(int)
+    scan_progress = Signal(str)
     
     def __init__(self, gui, show_progress: bool = False):
         super().__init__(gui)

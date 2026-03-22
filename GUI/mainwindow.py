@@ -1,9 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import Qt
+from PySide6 import QtCore, QtWidgets
+from PySide6.QtCore import Qt
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
+from PySide6.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
 from qfluentwidgets import (
     FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea, FlowLayout
 )

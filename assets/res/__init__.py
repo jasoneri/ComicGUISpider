@@ -5,7 +5,7 @@ import pathlib
 import hashlib
 import types
 
-from PyQt5.QtCore import QLocale
+from PySide6.QtCore import QLocale
 
 from assets.res.transfer import main as translation_compile
 

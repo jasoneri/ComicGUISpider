@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QObject, QEvent
+from PySide6.QtCore import Qt, Signal, QPoint, QObject, QEvent
 from qfluentwidgets import (
     InfoBadgeManager, InfoBadgePosition, DotInfoBadge, IconInfoBadge, InfoBadge
 )
@@ -6,7 +6,7 @@ from GUI.core.anim import BreathingEffect
 
 
 class ClickableIconInfoBadge(IconInfoBadge):
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

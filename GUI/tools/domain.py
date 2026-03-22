@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt
+from PySide6.QtCore import Qt
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QHBoxLayout
 from qfluentwidgets import (
     VBoxLayout, FlyoutViewBase, FlyoutAnimationType,
     InfoBadge, InfoBar, InfoBarPosition, StateToolTip

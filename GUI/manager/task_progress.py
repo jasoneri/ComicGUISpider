@@ -3,9 +3,9 @@ import httpx
 import os
 import typing as t
 
-from PyQt5.QtCore import Qt, QEvent, QObject, QSize, QUrl
-from PyQt5.QtWidgets import QWidget, QLabel, QFrame
-from PyQt5.QtGui import QGuiApplication, QPixmap, QDesktopServices
+from PySide6.QtCore import Qt, QEvent, QObject, QSize, QUrl
+from PySide6.QtWidgets import QWidget, QLabel, QFrame
+from PySide6.QtGui import QGuiApplication, QPixmap, QDesktopServices
 from qfluentwidgets import (
     ProgressBar, VBoxLayout, PrimaryToolButton, TransparentToolButton,
     FluentIcon as FIF, TeachingTipTailPosition, ImageLabel

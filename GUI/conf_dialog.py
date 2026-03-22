@@ -7,9 +7,9 @@ import codecs
 from functools import partial
 
 import yaml
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QSizePolicy, QFileDialog, QCompleter, QApplication
-from PyQt5.QtCore import Qt, QRect, QStringListModel
+from PySide6 import QtCore
+from PySide6.QtWidgets import QSizePolicy, QFileDialog, QCompleter, QApplication
+from PySide6.QtCore import Qt, QRect, QStringListModel
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,

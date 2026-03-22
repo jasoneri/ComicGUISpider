@@ -1,6 +1,6 @@
 import asyncio
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QThread
-from PyQt5.QtWebChannel import QWebChannel
+from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
+from PySide6.QtWebChannel import QWebChannel
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res as ori_res
@@ -9,8 +9,8 @@ from GUI.tools.domain import DomainToolView
 
 
 class DomainTestThread(QThread):
-    results_ready = pyqtSignal(set, set)
-    error_occurred = pyqtSignal(str)
+    results_ready = Signal(set, set)
+    error_occurred = Signal(str)
 
     def __init__(self, domains, spider_utils):
         super().__init__()
@@ -47,7 +47,7 @@ class PublishBridge(QObject):
         super().__init__()
         self._mgr = manager
 
-    @pyqtSlot(str)
+    @Slot(str)
     def tpd(self, texts):
         self._mgr.start_domain_test(texts)
 

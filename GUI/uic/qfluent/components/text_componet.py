@@ -1,6 +1,6 @@
-from PyQt5.QtCore import QSize
+from PySide6.QtCore import QSize
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtGui import QPixmap, QDesktopServices
+from PySide6.QtGui import QPixmap, QDesktopServices
 from qfluentwidgets import ImageLabel, TextBrowser, TextEdit
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import contextlib
 # from uuid import uuid4
 
-from PyQt5.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from ComicSpider.runtime import SpiderRuntimeThread
 from GUI.thread import WorkThread
@@ -15,8 +15,8 @@ from variables import SPIDERS
 class DownloadRuntimeManager(QObject):
     """Manage SpiderRuntime + WorkThread lifecycle and process stage state."""
 
-    process_stage_changed = pyqtSignal(str)
-    all_jobs_finished = pyqtSignal()
+    process_stage_changed = Signal(str)
+    all_jobs_finished = Signal()
 
     def __init__(self, gui):
         super().__init__(gui)

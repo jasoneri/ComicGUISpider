@@ -1,10 +1,10 @@
 import sqlite3
 from contextlib import closing
 import urllib.parse as up
-from PyQt5.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
-from PyQt5.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QComboBox, QFrame, QWidget
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
+from PySide6.QtWidgets import QApplication, QSpacerItem, QSizePolicy, QHBoxLayout, QComboBox, QFrame, QWidget
 from qfluentwidgets import (
     ComboBox, VBoxLayout, RoundMenu, Action,
     PrimaryToolButton, ToolButton, DropDownToolButton, 
