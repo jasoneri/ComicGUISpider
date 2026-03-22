@@ -87,4 +87,4 @@ class DomainToolView(FlyoutViewBase):
     def close_later(self):
         self.browser.domain_v.close()
         self.browser.close()
-        self.gui.retry_schedule()
+        self.gui.reset_search_context()

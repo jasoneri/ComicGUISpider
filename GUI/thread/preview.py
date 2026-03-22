@@ -7,7 +7,7 @@ from typing import Union
 import httpx
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from utils import conf
+from GUI.types import SearchContextSnapshot
 from utils.website.core import Previewer, build_proxy_transport
 from utils.website.registry import spider_utils_map
 
@@ -21,6 +21,7 @@ class SearchTask:
 
 @dataclass(frozen=True, slots=True)
 class EpisodesTask:
+    session_id: int
     book_key: str
     book: object
     site_index: int
@@ -35,16 +36,20 @@ PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask]
 
 
 class PreviewWorker(QThread):
-    search_done = pyqtSignal(str, int, object)
-    search_error = pyqtSignal(str, int, str)
-    episodes_done = pyqtSignal(str, object)
-    episodes_error = pyqtSignal(str, str)
+    search_done = pyqtSignal(int, str, int, object)
+    search_error = pyqtSignal(int, str, int, str)
+    episodes_done = pyqtSignal(int, int, str, object)
+    episodes_error = pyqtSignal(int, int, str, str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, snapshot: SearchContextSnapshot, generation: int):
         super().__init__(parent)
         self._active = True
         self._task_queue = Queue()
-        self._site_clients: dict[int, httpx.AsyncClient] = {}
+        self._generation = generation
+        self._proxies = list(snapshot.proxies)
+        self._cookies = dict(snapshot.cookies)
+        self._domains = dict(snapshot.domains)
+        self.site_clients: dict[int, httpx.AsyncClient] = {}
         self._loop = None
 
     def stop(self):
@@ -54,21 +59,29 @@ class PreviewWorker(QThread):
     def enqueue_search(self, keyword, site_index, page=1):
         self._task_queue.put(SearchTask(keyword, site_index, page))
 
-    def enqueue_episodes(self, book_key, book, site_index):
-        self._task_queue.put(EpisodesTask(book_key, book, site_index))
+    def enqueue_episodes(self, session_id, book_key, book, site_index):
+        self._task_queue.put(EpisodesTask(session_id, book_key, book, site_index))
 
     def enqueue_episodes_batch(self, items):
         if items:
             self._task_queue.put(EpisodesBatchTask(items))
 
+    def _build_site_context(self, preview_cls):
+        context = {}
+        if preview_cls.name in self._cookies:
+            context["cookies"] = self._cookies[preview_cls.name]
+        if preview_cls.name in self._domains:
+            context["domain"] = self._domains[preview_cls.name]
+        return context
+
     def _get_client(self, site_index):
-        if cli := self._site_clients.get(site_index):
+        if cli := self.site_clients.get(site_index):
             return cli
         preview_cls = self._get_preview_cls(site_index)
-        site_kw = preview_cls.preview_client_config()
+        site_kw = preview_cls.preview_client_config(**self._build_site_context(preview_cls))
         policy = getattr(preview_cls, "proxy_policy", "proxy")
         verify = site_kw.pop("verify", True)
-        transport, trust_env = build_proxy_transport(policy, conf.proxies, verify=verify)
+        transport, trust_env = build_proxy_transport(policy, self._proxies, verify=verify)
         base_kw = dict(
             transport=transport,
             follow_redirects=True,
@@ -76,7 +89,7 @@ class PreviewWorker(QThread):
         )
         base_kw.update(site_kw)
         cli = httpx.AsyncClient(**base_kw)
-        self._site_clients[site_index] = cli
+        self.site_clients[site_index] = cli
         return cli
 
     @staticmethod
@@ -91,31 +104,40 @@ class PreviewWorker(QThread):
     async def _do_search(self, keyword, site_index, page=1):
         preview_cls = self._get_preview_cls(site_index)
         cli = self._get_client(site_index)
-        return await preview_cls.preview_search(keyword, cli, page=page)
+        return await preview_cls.preview_search(
+            keyword,
+            cli,
+            page=page,
+            **self._build_site_context(preview_cls),
+        )
 
     async def _do_fetch_episodes(self, book, site_index):
         preview_cls = self._get_preview_cls(site_index)
-        return await preview_cls.preview_fetch_episodes(book, self._get_client(site_index))
+        return await preview_cls.preview_fetch_episodes(
+            book,
+            self._get_client(site_index),
+            **self._build_site_context(preview_cls),
+        )
 
     async def _do_fetch_episodes_batch(self, items):
         sem = asyncio.Semaphore(4)
 
-        async def _fetch_one(book_key, book, site_index):
+        async def _fetch_one(session_id, book_key, book, site_index):
             async with sem:
                 try:
                     episodes = await self._do_fetch_episodes(book, site_index)
-                    self.episodes_done.emit(book_key, episodes)
+                    self.episodes_done.emit(self._generation, session_id, book_key, episodes)
                 except Exception:
-                    self.episodes_error.emit(book_key, traceback.format_exc())
+                    self.episodes_error.emit(self._generation, session_id, book_key, traceback.format_exc())
 
         await asyncio.gather(
-            *[_fetch_one(bk, b, si) for bk, b, si in items]
+            *[_fetch_one(sid, bk, b, si) for sid, bk, b, si in items]
         )
 
     async def _close_clients(self):
-        for cli in self._site_clients.values():
+        for cli in self.site_clients.values():
             await cli.aclose()
-        self._site_clients.clear()
+        self.site_clients.clear()
 
     def run(self):
         self._loop = asyncio.new_event_loop()
@@ -134,12 +156,12 @@ class PreviewWorker(QThread):
                             books = self._loop.run_until_complete(
                                 self._do_search(kw, si, page=pg)
                             )
-                            self.search_done.emit(kw, si, books)
-                        case EpisodesTask(book_key=bk, book=b, site_index=si):
+                            self.search_done.emit(self._generation, kw, si, books)
+                        case EpisodesTask(session_id=sid, book_key=bk, book=b, site_index=si):
                             episodes = self._loop.run_until_complete(
                                 self._do_fetch_episodes(b, si)
                             )
-                            self.episodes_done.emit(bk, episodes)
+                            self.episodes_done.emit(self._generation, sid, bk, episodes)
                         case EpisodesBatchTask(items=its):
                             self._loop.run_until_complete(
                                 self._do_fetch_episodes_batch(its)
@@ -148,11 +170,11 @@ class PreviewWorker(QThread):
                     err = traceback.format_exc()
                     match task:
                         case SearchTask(keyword=kw, site_index=si):
-                            self.search_error.emit(kw, si, err)
-                        case EpisodesTask(book_key=bk):
-                            self.episodes_error.emit(bk, err)
+                            self.search_error.emit(self._generation, kw, si, err)
+                        case EpisodesTask(session_id=sid, book_key=bk):
+                            self.episodes_error.emit(self._generation, sid, bk, err)
                         case _:
-                            self.search_error.emit("", -1, err)
+                            self.search_error.emit(self._generation, "", -1, err)
         finally:
             try:
                 self._loop.run_until_complete(self._close_clients())

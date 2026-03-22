@@ -48,6 +48,8 @@ class JmSpider(BaseComicSpider2):
         return _ua
 
     def preready(self):
+        if self._runtime_origin:
+            return
         self.domain = JmUtils.get_domain()
         self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
@@ -95,7 +97,7 @@ class JmSpider(BaseComicSpider2):
                 yield scrapy.Request(
                     url=self.transfer_url(item.url),
                     callback=self.parse_section,
-                    headers={**self.ua, 'Referer': self.domain},
+                    headers={**self.ua, 'Referer': self.request_referer(item.url)},
                     meta={'book': item},
                     dont_filter=True,
                 )

@@ -22,7 +22,6 @@ class AggrSearchManager:
 
     def run(self, search_keywords):
         self.gui.searchinput.setDisabled(True)
-        self.gui.previewInit = False
         self.is_triggered = True
 
         self.gui.tf = PreviewByAgsHtml.created_temp_html()

@@ -108,24 +108,24 @@ class HitomiSpider(BaseComicSpider):
 
         book = meta.get('book')
         this_uuid, this_md5 = book.id_and_md5()
-        if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):
-            self.set_task(book)
-            for index, pic_info in enumerate(book.pics, 1):
-                item = ComicspiderItem()
-                item['title'] = book.name
-                item['page'] = str(index)
-                item['section'] = None
-                img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
-                item['image_urls'] = [img_url]
-                item['uuid'] = this_uuid
-                item['uuid_md5'] = this_md5
-                if self.job_context:
-                    self.job_context.total += 1
-                self.total += 1
-                yield scrapy.Request(
-                    url=f'https://fakefakefa.com/{img_url}', callback=self.process_item, meta={'item': item},
-                    dont_filter=True
-                )
+        self._assert_task_not_downloaded(book)
+        self.set_task(book)
+        for index, pic_info in enumerate(book.pics, 1):
+            item = ComicspiderItem()
+            item['title'] = book.name
+            item['page'] = str(index)
+            item['section'] = None
+            img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
+            item['image_urls'] = [img_url]
+            item['uuid'] = this_uuid
+            item['uuid_md5'] = this_md5
+            if self.job_context:
+                self.job_context.total += 1
+            self.total += 1
+            yield scrapy.Request(
+                url=f'https://fakefakefa.com/{img_url}', callback=self.process_item, meta={'item': item},
+                dont_filter=True
+            )
         self._emit_process('fin')
 
     def iter_download_requests(self, job):

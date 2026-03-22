@@ -11,7 +11,7 @@ from PyQt5.QtCore import (
 )
 from GUI.core.timer import safe_single_shot
 from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import InfoBar, InfoBarPosition, MessageBox
 
 from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
@@ -29,7 +29,7 @@ from GUI.manager import (
     SelectionFlowManager, DownloadRuntimeManager
 )
 from GUI.manager.preprocess import PreprocessManager
-from GUI.types import GUIFlowStage
+from GUI.types import GUIFlowStage, SearchContextSnapshot, SearchLifecycleState
 from utils.middleware.timeline import EventSource, TimelineStage
 from variables import *
 from assets import res
@@ -152,53 +152,126 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.set_shortcut()
         self.set_tool_win()
         self.tf = None
-        self.searchReady = False
-        self.searchRunning = False
-        self.previewInit = True
-        self.previewSecondInit = False
+        self._search_context = None
+        self._search_blocked = False
         self.BrowserWindow = None
         self.bsm = None
-        self.chooseBox.setEnabled(True)
-        self.previewBtn.setVisible(True)
-        self.mpreviewBtn.setVisible(False)
+        self._lifecycle_state = SearchLifecycleState.Unlocked
 
         self.preprocess_mgr = PreprocessManager(self)
         with contextlib.suppress(TypeError):
             self.chooseBox.currentIndexChanged.disconnect(self._chooseBox_changed_handle)
         self.chooseBox.currentIndexChanged.connect(self._chooseBox_changed_handle)
+        self.lifecycle_state = SearchLifecycleState.Unlocked
         self.setup_finished.emit()
 
-    def _chooseBox_changed_handle(self, index):
-        if index not in SPIDERS.keys() and index != 0:
-            self.mpreviewBtn.setVisible(False)
-            self.previewBtn.setVisible(False)
-            self.retrybtn.setEnabled(True)
-            self.flow_stage = GUIFlowStage.IDLE
-            self.preview_mgr.handle_choosebox_changed(index)
-            self.preprocess_mgr.handle_choosebox_changed(index)
+    @property
+    def lifecycle_state(self):
+        return self._lifecycle_state
+
+    @lifecycle_state.setter
+    def lifecycle_state(self, state: SearchLifecycleState):
+        self._lifecycle_state = state
+        self._apply_lifecycle_state()
+
+    def refresh_lifecycle_state(self):
+        self._apply_lifecycle_state()
+
+    def _apply_lifecycle_state(self):
+        state = self._lifecycle_state
+        has_selected_site = self.chooseBox.currentIndex() > 0
+        has_search_site = self.chooseBox.currentIndex() in SPIDERS
+        choose_enabled = state is SearchLifecycleState.Unlocked
+        search_enabled = state is SearchLifecycleState.LockedIdle and has_search_site and not self._search_blocked
+        preview_enabled = state is SearchLifecycleState.LockedIdle and has_search_site and not self._search_blocked
+        retry_enabled = state is not SearchLifecycleState.Unlocked and has_selected_site
+        if state is SearchLifecycleState.Unlocked or not has_search_site:
+            show_ero = False
+            show_manga = False
+        else:
+            show_ero = self.web_is_r18
+            show_manga = not self.web_is_r18
+        page_enabled = (
+            state is SearchLifecycleState.LockedIdle
+            and has_search_site
+            and self.flow_stage is GUIFlowStage.SEARCHED
+            and getattr(self, "preview_mgr", None)
+            and self.preview_mgr.is_pageable
+        )
+
+        self.chooseBox.setEnabled(choose_enabled)
+        self.searchinput.setEnabled(search_enabled)
+        self.previewBtn.setVisible(show_ero)
+        self.previewBtn.setEnabled(preview_enabled and show_ero)
+        self.mpreviewBtn.setVisible(show_manga)
+        self.mpreviewBtn.setEnabled(preview_enabled and show_manga)
+        self.retrybtn.setEnabled(retry_enabled)
+        self.confBtn.setEnabled(True)
+        self._set_page_frame_enabled(bool(page_enabled))
+
+    def _set_page_frame_enabled(self, enabled: bool):
+        self.pageFrame.setEnabled(enabled)
+        color = "rgb(255, 255, 255)" if enabled else "rgb(127, 127, 127)"
+        self.pageFrame.setStyleSheet(f"QToolButton {{ background-color: {color}; }}")
+
+    def _snapshot_cookies(self, site_index: int) -> dict[str, dict]:
+        cookies = {}
+        if site_index == Spider.JM and conf.cookies.get("jm"):
+            cookies["jm"] = dict(conf.cookies["jm"])
+        elif site_index == Spider.EHENTAI and conf.cookies.get("ehentai"):
+            cookies["ehentai"] = dict(conf.cookies["ehentai"])
+        return cookies
+
+    def _build_search_context_snapshot(self, site_index: int) -> SearchContextSnapshot:
+        domains = {}
+        site_utils = spider_utils_map.get(site_index)
+        if site_index == Spider.JM and site_utils is not None:
+            domains["jm"] = site_utils.get_domain()
+        elif site_index == Spider.EHENTAI and site_utils is not None:
+            domains["ehentai"] = site_utils.domain
+        return SearchContextSnapshot(
+            site_index=site_index,
+            proxies=list(conf.proxies or []),
+            cookies=self._snapshot_cookies(site_index),
+            domains=domains,
+        )
+
+    def _destroy_browser_window(self):
+        browser = self.BrowserWindow
+        if not browser:
             return
+        browser.set_close_handler(None)
+        browser.close()
+        browser.deleteLater()
+        self.BrowserWindow = None
+
+    def _chooseBox_changed_handle(self, index):
+        if index <= 0:
+            self._search_context = None
+            self._search_blocked = False
+            self.web_is_r18 = False
+            self.spiderUtils = None
+            self.sut = None
+            self.flow_stage = GUIFlowStage.IDLE
+            self.preview_mgr.handle_choosebox_changed(index, None)
+            self.lifecycle_state = SearchLifecycleState.Unlocked
+            return
+
+        self._search_context = self._build_search_context_snapshot(index)
+        self._search_blocked = False
+        self.lifecycle_state = SearchLifecycleState.LockedIdle
         self.spiderUtils = spider_utils_map[index]
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
-        self.mpreviewBtn.setVisible(index in SPIDERS and not self.web_is_r18)
-        self.previewBtn.setVisible(self.web_is_r18)
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
         if self.web_is_r18:
             self.sut = self.spiderUtils(conf)
             self.rv_tools.ero = 1
-        self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP[index]))
-        self.searchinput.setEnabled(True)
+        self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
         FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
-        self.searchReady = False
-        self.searchRunning = False
-        if index and not self.dl_mgr.spider_runtime:
-            self.chooseBox.setDisabled(True)
-            try:
-                self.dl_mgr.start_runtime(index)
-            finally:
-                self.chooseBox.setEnabled(True)
-        self.retrybtn.setEnabled(True)
+        if index in SPIDERS and not self.dl_mgr.spider_runtime:
+            self.dl_mgr.start_runtime(index)
         self.chooseBox_changed_tips(index)
         if self.web_is_r18:
             self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
@@ -206,10 +279,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.sv_path = conf.sv_path
         self.set_completer()
         self.flow_stage = GUIFlowStage.IDLE
-        self.preview_mgr.handle_choosebox_changed(index)
-        self.preprocess_mgr.handle_choosebox_changed(index)
+        self.preview_mgr.handle_choosebox_changed(index, self._search_context)
+        self.preprocess_mgr.handle_choosebox_changed(index, self._search_context)
+        self.refresh_lifecycle_state()
 
     def chooseBox_changed_tips(self, index):
+        self.pageEdit.setEnabled(index != Spider.EHENTAI)
         match index:
             case 1:
                 self.pageEdit.setStatusTip(self.pageEdit.statusTip() + f"  {self.res.copymaga_page_status_tip}")
@@ -218,7 +293,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 if not conf.proxies:
                     self.say(font_color(self.res.wnacg_desc, cls='theme-highlight'), ignore_http=True)
             case 4:
-                self.pageEdit.setDisabled(True)
                 self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
                 self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
@@ -276,9 +350,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.searchinput.setCursorPosition(len(self.searchinput.text())))
 
     def btn_logic_bind(self):
-        def _search_troggle(text):
-            self.previewBtn.setEnabled(True)
-        self.searchinput.textChanged.connect(_search_troggle)
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
@@ -316,17 +387,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def page_turn_frame(self):
         def page_turn(_p):
-            if self.BrowserWindow and hasattr(self, 'preview_mgr'):
-                self.preview_mgr.on_before_page_turn()
-
+            if not hasattr(self, "preview_mgr"):
+                return
+            current = self.preview_mgr._current_page
             if _p.startswith("next"):
-                self.pageEdit.setValue(int(self.pageEdit.value()) + 1)
-                self.preview_mgr.navigate_to(int(self.pageEdit.value()))
+                target = current + 1
             elif _p.startswith("previous"):
-                self.pageEdit.setValue(max(1, int(self.pageEdit.value()) - 1))
-                self.preview_mgr.navigate_to(int(self.pageEdit.value()))
+                target = max(1, current - 1)
             else:
-                self.preview_mgr.navigate_to(int(self.pageEdit.value()))
+                target = int(self.pageEdit.value())
+            self.preview_mgr.navigate_to(target)
 
         _ = lambda arg: self.BrowserWindow.page(lambda: page_turn(arg)) if self.BrowserWindow else page_turn(arg)
         self.nextPageBtn.clicked.connect(lambda: _(f"next{self.pageFrameClickCnt}"))
@@ -339,7 +409,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
     
     def set_preview(self, rect=None):
-        sb = self.BrowserWindow = BrowserWindowCls(self)
+        sb = self.BrowserWindow = BrowserWindowCls(self, snapshot=self._search_context)
         preview_y = self.y() + self.funcGroupBox.y() - sb.height() + 25
         if rect:
             self.BrowserWindow.setGeometry(rect)
@@ -349,9 +419,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.setMinimumWidth(self.BrowserWindow.minimumWidth() + 30)
             self.BrowserWindow.setMinimumHeight(self.BrowserWindow.minimumHeight() + 30)
             self.BrowserWindow.move(self.BrowserWindow.x(), max(0,self.BrowserWindow.y() - 20))
-        # button group
-        self.previewBtn.setEnabled(True)
-        self.previewBtn.setFocus()
+        self.refresh_lifecycle_state()
 
     def present_browser(
         self, *,
@@ -362,12 +430,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         rect=None,
     ):
         """Unified BrowserWindow init ceremony + animated presentation."""
-        if self.previewInit or not self.BrowserWindow:
+        if not self.BrowserWindow:
             self.set_preview(rect)
-            self.previewInit = False
-        elif self.previewSecondInit:
-            self.BrowserWindow.second_init()
-            self.previewSecondInit = False
         elif reload_tf:
             self.BrowserWindow.home_url = QUrl.fromLocalFile(self.tf)
             self.BrowserWindow.load_home()
@@ -376,26 +440,25 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.set_ensure_handler(ensure_handler)
         if close_handler:
             self.BrowserWindow.set_close_handler(close_handler)
-        if enable_page_frame:
-            self.pageFrame.setEnabled(True)
-            self.pageFrame.setStyleSheet("QToolButton { background-color: rgb(255, 255, 255); }")
         final_rect = self.BrowserWindow.geometry()
+        if enable_page_frame:
+            self.refresh_lifecycle_state()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
         return self.BrowserWindow
 
     def show_preview(self):
-        if not self.searchReady:
-            self.start_and_search()
-        elif self.searchRunning:
+        if self.lifecycle_state is SearchLifecycleState.LockedSearching:
             InfoBar.info(title='', content='searching', isClosable=True,
                 position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
-        else:
-            return self.preview_mgr._active.show_cached()
+            return
+        if self.flow_stage is not GUIFlowStage.SEARCHED:
+            self.start_and_search()
+            return
+        return self.preview_mgr._active.show_cached()
 
     def clean_preview(self):
         self.clean_temp_file()
-        if self.BrowserWindow:
-            self.BrowserWindow.destroy()
+        self._destroy_browser_window()
 
     def clean_temp_file(self):
         """when: 1. preview BrowserWindow destroy; 2. pageTurn btn group clicked"""
@@ -403,27 +466,47 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             os.remove(self.tf)
 
     def retry_schedule(self):
+        self.reset_search_context()
+
+    def reset_search_context(self):
+        if getattr(self, "dl_mgr", None) and self.dl_mgr.has_active_download():
+            w = MessageBox("重置当前搜索上下文", "将重置当前搜索上下文，不影响后台下载与任务列表", self)
+            if not w.exec():
+                return
+        self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
         if hasattr(self, 'preprocess_mgr'):
             self.preprocess_mgr.cleanup()
-
-        def retry_all():
-            try:
-                if getattr(self, "preview_mgr", None):
-                    self.preview_mgr.shutdown()
-            except Exception:
-                self.log.error(str(traceback.format_exc()))
-            self.log = conf.cLog(name="GUI")
-            self.clean_preview()
-            self.BrowserWindow = None
-            self.setupUi(self)
-
-        self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
-        safe_single_shot(50, retry_all)
-        self.retrybtn.setDisabled(True)
-        self.log.info('===--→ retry_schedule end\n')
+        if getattr(self, "preview_mgr", None):
+            self.preview_mgr.shutdown()
+            self.preview_mgr.handle_choosebox_changed(0, None)
+        self.clean_temp_file()
+        self._destroy_browser_window()
+        BrowserWindowCls.clear_proxies()
+        self.clip_mgr.reset()
+        self.ags_mgr.reset()
+        self.tf = None
+        self.sut = None
+        self.spiderUtils = None
+        self.web_is_r18 = False
+        self.rv_tools.ero = 0
+        self.bsm = None
+        self.sv_path = conf.sv_path
+        self.flow_stage = GUIFlowStage.IDLE
+        self._search_context = None
+        self._search_blocked = False
+        self.searchinput.clear()
+        self.searchinput.setStatusTip("")
+        self.pageEdit.setEnabled(True)
+        self.pageEdit.setValue(1)
+        self.chooseBox.blockSignals(True)
+        self.chooseBox.setCurrentIndex(0)
+        self.chooseBox.blockSignals(False)
+        self.lifecycle_state = SearchLifecycleState.Unlocked
+        self.log.info('===--→ reset_search_context end\n')
 
     def disable_start(self):
-        self.searchinput.setDisabled(True)
+        self._search_blocked = True
+        self.refresh_lifecycle_state()
         self.clipBtn.setDisabled(True)
 
     def _on_worker_finished(self, imgs_path: str, success: bool):
@@ -431,6 +514,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def start_and_search(self, keyword=None, site_index=None):
         self.log.info('===--→ -*- searching')
+        if self.lifecycle_state is SearchLifecycleState.LockedSearching:
+            InfoBar.info(title='', content='searching', isClosable=True,
+                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
+            return
         if site_index is not None:
             self.chooseBox.setCurrentIndex(site_index)
         if keyword:
@@ -443,10 +530,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 parent=self.textBrowser
             )
             return
-        self.searchReady = True
-        self.searchRunning = True
-        self.searchinput.setEnabled(False)
         site = self.chooseBox.currentIndex()
+        if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
+            self.refresh_lifecycle_state()
+            return
+        self.lifecycle_state = SearchLifecycleState.LockedSearching
         self.log.debug(f'[search] site :[{site}], keyword [{kw}] ')
         self.preview_mgr.on_spreview_clicked(keyword=kw)
 
@@ -499,7 +587,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def crawl_end(self, imgs_path):
         self.progressBar.setCustomBarColor(light="#00ff00", dark="#00cc00")
-        self.retrybtn.setEnabled(True)
+        self.refresh_lifecycle_state()
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")
 

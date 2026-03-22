@@ -27,9 +27,10 @@ class WnacgSpider(BaseComicSpider2):
     transfer_url = staticmethod(lambda url: url.replace('index', 'gallery'))
 
     def preready(self):
-        if not conf.proxies:
-            self.domain = self.ut.get_domain()
-            self.book_id_url = correct_domain(self.domain, self.book_id_url)
+        if self._runtime_origin:
+            return
+        self.domain = self.ut.get_domain()
+        self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def frame_book(self, response):
         frame_results = {}

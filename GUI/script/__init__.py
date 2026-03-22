@@ -400,9 +400,9 @@ class ScriptWindow(ScriptWindowBase):
 
     def initWindow(self):
         if self.gui:
-            self.resize(self.gui.width(), self.gui.height())
+            self.resize(max(850, self.gui.width()), self.gui.height())
         else:
-            self.resize(750, 600)
+            self.resize(850, 600)
         self.setWindowIcon(QIcon(':/CGS-logo.png'))
         self.setWindowTitle('CGS - ScriptTool')
 

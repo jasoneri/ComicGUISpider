@@ -16,10 +16,10 @@ from GUI.manager import _UpdateLauncher
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import CustomInfoBar
 from GUI.core.theme import setupTheme, theme_mgr
+from GUI.types import SearchContextSnapshot
 
 
-transport=dict(proxy=f"http://{conf.proxies[0]}",retries=2) if conf.proxies else dict(retries=2)
-data_cli = httpx.Client(transport=httpx.HTTPTransport(**transport))
+data_cli = None
 
 
 class PreprocessManager(QObject):
@@ -30,10 +30,21 @@ class PreprocessManager(QObject):
         self.task_manager = AsyncTaskManager(gui)
         self._switch_generation = 0
 
-    def handle_choosebox_changed(self, index: int):
+    def _next_generation(self):
         self._switch_generation += 1
-        generation = self._switch_generation
         self.task_manager.cancel_all_tasks()
+        return self._switch_generation
+
+    def _reset_data_cli(self, proxies: list[str]):
+        global data_cli
+        if data_cli is not None:
+            data_cli.close()
+        transport = dict(proxy=f"http://{proxies[0]}", retries=2) if proxies else dict(retries=2)
+        data_cli = httpx.Client(transport=httpx.HTTPTransport(**transport))
+
+    def handle_choosebox_changed(self, index: int, snapshot: SearchContextSnapshot | None):
+        generation = self._next_generation()
+        self._reset_data_cli(list(snapshot.proxies) if snapshot else [])
         special = {
             1: self._preprocess_manga_copy,
             2: self._preprocess_jm,
@@ -86,7 +97,7 @@ class PreprocessManager(QObject):
             if not self._is_current_site(index, generation):
                 return
             self.gui.disable_start()
-            self.gui.say("<br>❌ 解密获取失败，内置重启再试下")
+            self.gui.say("<br>❌ 解密获取失败，请重置当前搜索上下文后再试")
 
         self.task_manager.execute_simple_task(
             task_func=manga_copy_task,
@@ -411,4 +422,9 @@ class PreprocessManager(QObject):
         _dependencies_check()
 
     def cleanup(self):
+        global data_cli
+        self._next_generation()
         self.task_manager.cleanup()
+        if data_cli is not None:
+            data_cli.close()
+            data_cli = None

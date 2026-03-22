@@ -26,8 +26,8 @@ GUI:
   copymaga_page_status_tip: "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
   global_err_hook: "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
   input_format_err: "输入格式错误，请鼠标移到输入框查看规则提示"
-  reboot_tip: "♻️ 内置重启中: 正在清除残留后台进程.."
-  reboot_tip2: "⛺️ 内置重启中: 正在重建ui与后台通讯管道.."
+  reboot_tip: "♻️ 正在重置当前搜索上下文..."
+  reboot_tip2: "⛺️ 正在重置搜索生命周期状态..."
   ui_lang_need_reboot: "⚠️ui语言设置需保存配置并关闭程序后重启才生效"
   local_fav: "本地收藏"
   SearchInputStatusTip:
@@ -39,7 +39,7 @@ GUI:
     hitomi: '暂时仅支持使用预设 或 `hitomi-tools`生成的词'
     h_comic: '直接输入关键词搜索，例如 NTR / 中文 / 作者名'
   Clip:
-    process_warning: "当前已进入搜索流程，使用此功能需重启并在搜索之前进行"
+    process_warning: "当前已进入搜索流程，使用此功能需重置当前搜索上下文并在搜索之前进行"
     db_not_found_guide: "剪贴板 db 不存在，请先查看相关指引"
     match_none: "无匹配任务，先进行复制再运行此功能，当前匹配规则：%s"
     get_info_error: "获取信息失败"
@@ -67,7 +67,7 @@ GUI:
     doamin_error_tip: "域名全无效，请你自行检查，再次声明CGS并不能突破现网络环境去访问"
     search_by_pic: "以图搜索"
     search_by_pic_guide: "1) 选择图片后点击搜索，等 saucenao 出结果。\n2) （隐藏可点击展开）选择(标题)文本，然后右键点击菜单项`Search by saucenao`。\n3) 文本将自动发送回主界面搜索框并进行搜索。\n注：saucenao 转如图的 ascii2d 有奇效"
-    reboot_tip: "CGS将在%s秒后重启以确保后台进程应用有效更改"
+    reboot_tip: "CGS将在%s秒后重置当前搜索上下文以应用有效更改"
   Ags:
     empty_search: "搜索为空"
     empty_input2select: "杂鱼~ 八嘎www 你真有看说明搞懂了吗~ (≧▽≦*)o☝"

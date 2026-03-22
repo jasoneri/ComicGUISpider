@@ -1,4 +1,5 @@
 """Spider Job 模型相关实现"""
+from copy import deepcopy
 from typing import Any, Dict, Iterator, List, Union
 from dataclasses import dataclass, field
 
@@ -18,9 +19,19 @@ class DownloadRequest:
 
 def create_job_context(job: SpiderDownloadJob, record_sql, rv_sql, mr) -> JobContext:
     """从 SpiderDownloadJob 创建 JobContext"""
+    tasks = {}
+    precompiled_task = getattr(job, "tasks_obj", None)
+    if precompiled_task is not None:
+        if isinstance(precompiled_task, list):
+            for task in precompiled_task:
+                task_copy = deepcopy(task)
+                tasks[task_copy.taskid] = task_copy
+        else:
+            task_copy = deepcopy(precompiled_task)
+            tasks[task_copy.taskid] = task_copy
     return JobContext(
         job_id=job.job_id,
-        tasks={},
+        tasks=tasks,
         tasks_path={},
         total=0,
         record_sql=record_sql,

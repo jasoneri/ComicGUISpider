@@ -219,8 +219,10 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
         return books
 
     @classmethod
-    def preview_client_config(cls):
-        domain = cls.domain or cls.get_domain()
+    def preview_client_config(cls, **context):
+        domain = context.get("domain")
+        if not domain:
+            raise ValueError("preview domain is required for jm")
         return {
             'headers': {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}, 'verify': False,
         }
@@ -228,7 +230,10 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
     @classmethod
     async def preview_search(cls, keyword, client, **kw):
         page = max(1, int(kw.pop("page", 1) or 1))
-        domain = cls.domain or cls.get_domain()
+        kw.pop("cookies", None)
+        domain = kw.pop("domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for jm")
         url = f'https://{domain}/search/photos?main_tag=0&search_query={keyword}&page={page}'
         headers = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
         client.headers = headers
@@ -250,7 +255,10 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
 
     @classmethod
     async def preview_fetch_episodes(cls, book, client, **kw):
-        domain = cls.domain or cls.get_domain()
+        kw.pop("cookies", None)
+        domain = kw.pop("domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for jm")
         headers = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
         resp = await client.get(book.preview_url, headers=headers, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()

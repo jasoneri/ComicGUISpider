@@ -182,7 +182,7 @@ class Previewer:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
 
     @classmethod
-    def preview_client_config(cls) -> dict:
+    def preview_client_config(cls, **context) -> dict:
         return {}
 
     @classmethod

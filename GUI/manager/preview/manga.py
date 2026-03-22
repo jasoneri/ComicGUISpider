@@ -311,7 +311,6 @@ class MangaPreviewFeature:
         for idx, book in enumerate(books):
             book.idx = idx
         self._mgr._is_local_mode = True
-        self._mgr._searching = False
         self._mgr._current_page = 1
         self.publish(books)
 
@@ -405,10 +404,11 @@ class MangaPreviewFeature:
             token = (session_id, book_key)
             if token in self._inflight_books:
                 continue
-            self._inflight_books.add(token)
-            batch_items.append((book_key, self._mgr.books_cache[book_key], self._mgr.site_index))
-        if batch_items:
-            self._mgr._ensure_worker().enqueue_episodes_batch(batch_items)
+            batch_items.append((session_id, book_key, self._mgr.books_cache[book_key], self._mgr.site_index))
+        if batch_items and self._mgr.worker:
+            for _, book_key, _, _ in batch_items:
+                self._inflight_books.add((session_id, book_key))
+            self._mgr.worker.enqueue_episodes_batch(batch_items)
 
     def _on_dl_scan_error(self, session_id, error):
         if session_id != self._mgr._session_id:
@@ -424,32 +424,37 @@ class MangaPreviewFeature:
         if book_key not in self._mgr.books_cache:
             return
         if book_key in self.episodes_cache:
-            self.on_episodes_done(book_key, self.episodes_cache[book_key])
+            self.on_episodes_done(self._mgr._generation, self._mgr._session_id, book_key, self.episodes_cache[book_key])
+            return
+        worker = self._mgr.worker
+        if not worker:
             return
         token = (self._mgr._session_id, book_key)
         if token in self._inflight_books:
             return
         self._inflight_books.add(token)
-        self._mgr._ensure_worker().enqueue_episodes(
-            book_key, self._mgr.books_cache[book_key], self._mgr.site_index
+        worker.enqueue_episodes(
+            self._mgr._session_id, book_key, self._mgr.books_cache[book_key], self._mgr.site_index
         )
 
-    def on_episodes_done(self, book_key, episodes):
+    def on_episodes_done(self, generation, session_id, book_key, episodes):
+        self._inflight_books.discard((session_id, book_key))
+        if generation != self._mgr._generation or session_id != self._mgr._session_id:
+            return
         if book_key not in self._mgr.books_cache:
             return
-        self._inflight_books.discard((self._mgr._session_id, book_key))
         self.episodes_cache[book_key] = episodes
         ep_data = [{"idx": ep.idx, "name": ep.name} for ep in episodes]
         js_arg = json.dumps(json.dumps(ep_data, ensure_ascii=False))
-        self._js_guarded(f"updateEpisodes('{book_key}', {js_arg})", self._mgr._session_id)
+        self._js_guarded(f"updateEpisodes('{book_key}', {js_arg})", session_id)
         if dled_ids := self._mark_downloaded_episodes(book_key, episodes):
             dled_json = json.dumps(dled_ids)
-            self._js_guarded(f"markDownloadedEpisodes({dled_json})", self._mgr._session_id)
+            self._js_guarded(f"markDownloadedEpisodes({dled_json})", session_id)
         if episodes:
             with_idx = [ep for ep in episodes if isinstance(getattr(ep, "idx", None), (int, float))]
             latest_ep = max(with_idx, key=lambda ep: ep.idx) if with_idx else episodes[-1]
             latest_name = json.dumps(str(getattr(latest_ep, "name", "") or ""), ensure_ascii=False)
-            self._js_guarded(f"renderCardBadgeLatest('{book_key}', {latest_name})", self._mgr._session_id)
+            self._js_guarded(f"renderCardBadgeLatest('{book_key}', {latest_name})", session_id)
 
     def _mark_downloaded_episodes(self, book_key, episodes):
         if not episodes:
@@ -472,12 +477,14 @@ class MangaPreviewFeature:
             for m in downloaded_md5 if m in md5_to_ep
         ]
 
-    def on_episodes_error(self, book_key, error):
-        self._inflight_books.discard((self._mgr._session_id, book_key))
+    def on_episodes_error(self, generation, session_id, book_key, error):
+        self._inflight_books.discard((session_id, book_key))
+        if generation != self._mgr._generation or session_id != self._mgr._session_id:
+            return
         self.gui.log.error(error)
         key_js = json.dumps(str(book_key))
         code_js = json.dumps("fetch_failed")
-        self._js_guarded(f"showEpisodeFetchError({key_js}, {code_js})", self._mgr._session_id)
+        self._js_guarded(f"showEpisodeFetchError({key_js}, {code_js})", session_id)
 
     # ------------------------------------------------------------------
     # Selection / ensure

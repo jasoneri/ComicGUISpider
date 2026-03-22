@@ -1,4 +1,19 @@
+from dataclasses import dataclass, field
 from enum import Enum
+
+
+class SearchLifecycleState(Enum):
+    Unlocked = "unlocked"
+    LockedIdle = "locked_idle"
+    LockedSearching = "locked_searching"
+
+
+@dataclass(frozen=True, slots=True)
+class SearchContextSnapshot:
+    site_index: int
+    proxies: list[str]
+    cookies: dict[str, dict]
+    domains: dict[str, str] = field(default_factory=dict)
 
 
 class GUIFlowStage(Enum):

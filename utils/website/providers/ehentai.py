@@ -94,8 +94,8 @@ class EHentaiKits(EroUtils, Req, Cookies, Previewer):
         return {'extra': f"<br>{res.EHentai.JUMP_TIP}",}
 
     @classmethod
-    def preview_client_config(cls):
-        cookie_str = cls.to_str_(conf.cookies.get(cls.name) or {})
+    def preview_client_config(cls, **context):
+        cookie_str = cls.to_str_(context.get("cookies") or {})
         return {
             'headers': {**cls.book_hea, 'Cookie': cookie_str},
         }
@@ -103,8 +103,10 @@ class EHentaiKits(EroUtils, Req, Cookies, Previewer):
     @classmethod
     async def preview_search(cls, keyword, client, **kw):
         page = max(1, int(kw.pop("page", 1) or 1))
+        kw.pop("domain", None)
+        cookies = kw.pop("cookies", {})
         url = f'https://exhentai.org/?f_search={keyword}&page={page - 1}'
-        cookie_str = cls.to_str_(conf.cookies.get(cls.name) or {})
+        cookie_str = cls.to_str_(cookies or {})
         headers = {**cls.book_hea, "Cookie": cookie_str}
         resp = await client.get(url, headers=headers, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()

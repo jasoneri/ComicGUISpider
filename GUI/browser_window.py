@@ -14,6 +14,7 @@ from qframelesswindow import FramelessMainWindow
 from qframelesswindow.webengine import FramelessWebEngineView
 from qframelesswindow.utils import startSystemMove
 
+from GUI.types import SearchContextSnapshot
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
@@ -22,7 +23,7 @@ from assets import res
 from variables import Spider
 from utils import conf
 from utils.script.image.danbooru_dns import ensure_danbooru_webengine_proxy_started
-from utils.website import EHentaiKits
+from utils.website import EHentaiKits, spider_utils_map
 
 
 class RefererInterceptor(QWebEngineUrlRequestInterceptor):
@@ -206,7 +207,7 @@ class _CookieSnapshotCollector(QObject):
 
 
 class BrowserWindow(FramelessMainWindow, Ui_browser):
-    def __init__(self, gui, proxies: str = None, *, skip_env_mode: bool = False):
+    def __init__(self, gui, *, skip_env_mode: bool = False, snapshot: SearchContextSnapshot | None = None):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
@@ -218,9 +219,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self._previous_application_proxy = None
         self._cookie_collector = None
         self.interceptor = RefererInterceptor()
-        if proxies:
-            self.set_proxies(proxies)
         self.gui = gui
+        self.search_context = snapshot
         self.view = CustomFramelessWebEngineView(self)
         self._configure_web_settings()
         self.profile = self.view.page().profile()
@@ -247,22 +247,60 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         settings.setAttribute(QWebEngineSettings.AutoLoadImages, True)
         settings.setAttribute(QWebEngineSettings.AllowRunningInsecureContent, True)
 
+    def _current_site_index(self):
+        return self.search_context.site_index if self.search_context else self.gui.chooseBox.currentIndex()
+
+    def _resolve_site_context(self, website):
+        index = self._current_site_index()
+        site_cls = spider_utils_map.get(index)
+        match website:
+            case "ehentai":
+                cookies = (
+                    self.search_context.cookies.get("ehentai", {})
+                    if self.search_context else conf.cookies.get("ehentai", {})
+                )
+                domain = (self.search_context.domains.get("ehentai") if self.search_context else None) or EHentaiKits.domain
+                return cookies, domain, f"https://{domain}/"
+            case "jm":
+                cookies = (
+                    self.search_context.cookies.get("jm", {})
+                    if self.search_context else conf.cookies.get("jm", {})
+                )
+                domain = self.search_context.domains.get("jm") if self.search_context else None
+                if not domain:
+                    if self.search_context:
+                        raise ValueError("search context missing jm domain")
+                    if site_cls is None:
+                        raise ValueError("jm site utils unavailable")
+                    domain = site_cls.get_domain()
+                return cookies, domain, f"https://{domain}"
+            case "hitomi":
+                if site_cls is None or not getattr(site_cls, "index", None):
+                    raise ValueError("hitomi site index unavailable")
+                return {}, None, site_cls.index
+        raise ValueError(f"unsupported website context: {website}")
+
     def set_env_mode(self):
-        index = self.gui.chooseBox.currentIndex()
-        conf_proxy = (conf.proxies or [None])[0]
+        index = self._current_site_index()
+        conf_proxy = (
+            (self.search_context.proxies or [None])[0]
+            if self.search_context else (conf.proxies or [None])[0]
+        )
+        jm_cookies, _, _ = self._resolve_site_context("jm") if index == Spider.JM else ({}, None, None)
+        eh_cookies, _, _ = self._resolve_site_context("ehentai") if index == Spider.EHENTAI else ({}, None, None)
         if res.lang == 'zh-CN':  # 中文圈环境
-            proxies = None if index not in Spider.cn_proxy() else \
-                conf_proxy
+            proxies = None if index not in Spider.cn_proxy() else conf_proxy
             if proxies:
                 BrowserWindow.set_proxies(proxies)
         elif conf_proxy:   # set proxy to browser if proxy exist on conf.yml
             BrowserWindow.set_proxies(conf_proxy)
-        if index == 2 and conf.cookies.get("jm"):  # jm
+        if index == Spider.JM and jm_cookies:
             self.set_cookies("jm")
-        elif index == 4:  # e-hentai
+        elif index == Spider.EHENTAI and eh_cookies:
             self.set_cookies("ehentai")
-        elif index == 6:  # hitomi
-            self.set_referer_nterceptor(self.gui.spiderUtils.index)
+        elif index == Spider.HITOMI:
+            _, _, referer_url = self._resolve_site_context("hitomi")
+            self.set_referer_nterceptor(referer_url)
 
     def _set_dev_tools(self):
         from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
@@ -363,11 +401,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
 
-    def second_init(self):
-        """翻页时，页面变更tf文件，需要刷新"""
-        self.home_url = QUrl.fromLocalFile(self.gui.tf)
-        self.load_home()
-
     def keep_top_hint(self, _flag: bool = None):
         flag = _flag if _flag is not None else self.topHintBox.isChecked()
         self.topHintBox.setChecked(flag)
@@ -421,7 +454,9 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     @staticmethod
     def clear_proxies():
-        QtNetwork.QNetworkProxy.setApplicationProxy(QtNetwork.QNetworkProxy(QtNetwork.QNetworkProxy.NoProxy))
+        proxy = QtNetwork.QNetworkProxy()
+        proxy.setType(QtNetwork.QNetworkProxy.NoProxy)
+        QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
 
     def _apply_managed_proxy(self, proxy_str: str):
         if not self._managed_proxy:
@@ -484,16 +519,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         collector.start()
 
     def set_cookies(self, website):
-        match website:
-            case "ehentai":
-                cookies_item = conf.cookies.get("ehentai").items()
-                domain = self.gui.spiderUtils.domain
-                url = self.gui.spiderUtils.index
-            case "jm":
-                cookies_item = conf.cookies.get("jm").items()
-                domain = self.gui.spiderUtils.get_domain()
-                url = f"https://{domain}"
-        for key, values in cookies_item:
+        cookies, domain, url = self._resolve_site_context(website)
+        for key, values in cookies.items():
             my_cookie = QNetworkCookie()
             my_cookie.setName(key.encode())
             my_cookie.setValue(str(values).encode())
@@ -539,8 +566,4 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             return
         if getattr(self.gui, "BrowserWindow", None) is self:
             self.gui.BrowserWindow = None
-            self.gui.previewInit = True
-            self.gui.previewSecondInit = False
-            self.gui.pageFrame.setEnabled(False)
-            self.gui.pageFrame.setStyleSheet("QToolButton { background-color: rgb(127, 127, 127); }")
         super().closeEvent(event)

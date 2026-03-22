@@ -126,18 +126,9 @@ class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
     """使用情况是"通常页需要over wall访问"，"图源cn就能访问"... 因此domain的都使用代理
     Spider 可定义 proxy_domains 列表指定需要代理的域名，未定义则回退到 domain
     """
-    domain_regex: re.Pattern = None
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        _ = super(ComicDlProxyMiddleware, cls).from_crawler(crawler)
-        spider = crawler.spider
-        domains = getattr(spider, 'proxy_domains', None) or [spider.domain]
-        _.domain_regex = re.compile('|'.join(re.escape(d) for d in domains))
-        return _
-
     def process_request(self, request, spider):
-        if bool(self.domain_regex.search(request.url)) and self.PROXIES:
+        domains = [d for d in (getattr(spider, 'proxy_domains', None) or [getattr(spider, 'domain', '')]) if d]
+        if domains and bool(re.compile('|'.join(re.escape(d) for d in domains)).search(request.url)) and self.PROXIES:
             proxy = random.choice(self.PROXIES)
             request.meta['proxy'] = f"http://{proxy}"
 
@@ -149,7 +140,12 @@ class DisableSystemProxyMiddleware(HttpProxyMiddleware):
 
 class RefererMiddleware(ComicspiderDownloaderMiddleware):
     def process_request(self, request, spider):
-        request.headers['Referer'] = spider.domain
+        referer_resolver = getattr(spider, 'request_referer', None)
+        if callable(referer_resolver):
+            request.headers['Referer'] = referer_resolver(request.url)
+        else:
+            domain = getattr(spider, 'domain', '')
+            request.headers['Referer'] = domain if str(domain).startswith('http') else f"https://{domain}"
         return None
 
 

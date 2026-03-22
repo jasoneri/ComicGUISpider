@@ -56,7 +56,6 @@ class ClipGUIManager:
         """初始化剪贴板处理"""
 
         self.gui.searchinput.setDisabled(True)
-        self.gui.previewInit = False
         self.is_triggered = True
         # 统一使用GUI的tf
         self.gui.tf = tf

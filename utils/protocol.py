@@ -13,6 +13,7 @@ class SpiderDownloadJob:
     site_index: int
     payload: Any
     options: dict
+    tasks_obj: Any = None
     created_at: float = field(default_factory=time.time)
 
 

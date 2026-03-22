@@ -8,7 +8,6 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 from ComicSpider.runtime import SpiderRuntimeThread
 from GUI.thread import WorkThread
-from utils.sql import SqlRecorder
 from utils.protocol import SpiderDownloadJob
 from variables import SPIDERS
 
@@ -40,40 +39,30 @@ class DownloadRuntimeManager(QObject):
         self.spider_runtime.start()
         self.spider_runtime.wait_ready()
 
-    def submit_download(self, book):
+    def submit_download(self, task_info, tasks_obj=None):
         if not self.spider_runtime:
             self.start_runtime(self.gui.chooseBox.currentIndex())
 
         site_index = self.gui.chooseBox.currentIndex()
-        job_id = book.u_md5
-
-        # Idempotent deduplication
-        episode_md5s = self._collect_task_ids(book)
-        running_ids = self.get_running_task_ids()
-        sql_downloaded = set()
-        with contextlib.suppress(Exception):
-            sql_downloaded = set(SqlRecorder().batch_check_dupe(episode_md5s))
-
-        unique_md5s = episode_md5s - running_ids - sql_downloaded
-        if not unique_md5s:
-            return
-
-        payload = self._filter_payload(book, unique_md5s)
-        if payload is None:
-            return
+        tasks_obj = tasks_obj or task_info.to_tasks_obj()
+        job_id = tasks_obj.taskid
+        if job_id in self.pending_job_ids or job_id in self.running_job_ids:
+            raise ValueError(f"duplicate runtime submission detected for task {job_id}")
 
         job = SpiderDownloadJob(
             job_id=job_id,
             spider_name=SPIDERS[site_index],
             site_index=site_index,
-            payload=payload,
+            payload=task_info,
             options={},
+            tasks_obj=tasks_obj,
         )
 
         self.session_job_ids.add(job_id)
         self.pending_job_ids.add(job_id)
-        self._job_task_ids[job_id] = set(unique_md5s)
-        self.session_job_task_ids.update(unique_md5s)
+        self._job_task_ids[job_id] = {tasks_obj.taskid}
+        self.session_job_task_ids.add(tasks_obj.taskid)
+        self.gui.task_mgr.handle(tasks_obj)
         self.ensure_work_thread()
         self.spider_runtime.submit_job(job)
 
@@ -116,12 +105,28 @@ class DownloadRuntimeManager(QObject):
             self._rebuild_session_task_ids()
 
     def track_task(self, job_id: str | None, task_obj):
-        pass
+        if not job_id:
+            return
+        expected_task_ids = self._job_task_ids.get(job_id)
+        if expected_task_ids is None:
+            self._job_task_ids[job_id] = {task_obj.taskid}
+            self.session_job_task_ids.add(task_obj.taskid)
+            return
+        if task_obj.taskid not in expected_task_ids:
+            raise ValueError(
+                f"runtime emitted unexpected task {task_obj.taskid} for job {job_id}, "
+                f"expected one of {sorted(expected_task_ids)}"
+            )
 
     def finish_job(self, job_id: str | None):
         if not job_id:
             return
         self.running_job_ids.discard(job_id)
+        self.pending_job_ids.discard(job_id)
+        self.session_job_ids.discard(job_id)
+        if job_id in self._job_task_ids:
+            del self._job_task_ids[job_id]
+            self._rebuild_session_task_ids()
         if not self.running_job_ids and not self.pending_job_ids:
             self.all_jobs_finished.emit()
 
@@ -130,19 +135,6 @@ class DownloadRuntimeManager(QObject):
 
     def get_running_task_ids(self) -> set[str]:
         return set(self.session_job_task_ids)
-
-    @staticmethod
-    def _collect_task_ids(book) -> set[str]:
-        running_ids = set()
-        episodes = list(getattr(book, "episodes", None) or [])
-        if episodes:
-            for episode in episodes:
-                if hasattr(episode, "id_and_md5"):
-                    running_ids.add(episode.id_and_md5()[1])
-            return running_ids
-        if hasattr(book, "id_and_md5"):
-            running_ids.add(book.id_and_md5()[1])
-        return running_ids
 
     @staticmethod
     def _disconnect_worker_signals(worker: WorkThread):
@@ -238,25 +230,6 @@ class DownloadRuntimeManager(QObject):
             self._job_task_ids.clear()
         if stop_mgr and getattr(self.gui, "mid_mgr", None):
             self.gui.mid_mgr.stop()
-
-    @staticmethod
-    def _filter_payload(book, unique_md5s: set[str]):
-        episodes = list(getattr(book, "episodes", None) or [])
-        if not episodes:
-            return book
-        filtered = []
-        for ep in episodes:
-            if not hasattr(ep, "id_and_md5"):
-                filtered.append(ep)
-                continue
-            _, ep_md5 = ep.id_and_md5()
-            if ep_md5 in unique_md5s:
-                filtered.append(ep)
-        if not filtered:
-            return None
-        if filtered != episodes:
-            book.episodes = filtered
-        return book
 
     def _rebuild_session_task_ids(self):
         merged = set()
