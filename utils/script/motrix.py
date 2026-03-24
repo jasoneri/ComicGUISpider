@@ -87,7 +87,7 @@ def sync_motrix_dns_config(conf_path: object, *, dns_server: object = "") -> str
     path.write_text("\n".join(filtered_lines).rstrip() + "\n", encoding="utf-8")
 
     mode = f"async-dns-server={dns_options['async-dns-server']}" if dns_options else "清空 DNS 覆写"
-    logger.info(f"[DanbooruDNS] synced Motrix aria2.conf path={path} mode={mode}")
+    logger.info(f"[ScriptDoH] synced Motrix aria2.conf path={path} mode={mode}")
     return f"已同步 Motrix DNS 配置（{mode}，重启 Motrix 后生效）"
 
 

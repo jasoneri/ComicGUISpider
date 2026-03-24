@@ -13,10 +13,9 @@ danbooru:
   save_type: null
   download_concurrency: 5
   view_ratio: 60
-  # doh_url: ""  # 预留；默认不启用 DoH，恢复支持时再取消注释
-  # motrix_aria2_conf_path: ""  # 预留；仅在重新启用 DoH 时使用
 
 proxies: null
+doh_url: ""  # 可选；启用后脚本侧请求与 Motrix DNS 统一使用该 DoH 端点
 redis:
   host: 127.0.0.1
   port: 6379

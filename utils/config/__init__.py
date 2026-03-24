@@ -222,6 +222,7 @@ class ScriptConf(BaseConf):
     kemono: dict = field(default_factory=dict)
     danbooru: dict = field(default_factory=dict)
     proxies: list = field(default_factory=list)
+    doh_url: str = ""
     redis: dict = field(default_factory=dict)
 
     def __init__(self, path=None, iname=None):
@@ -242,6 +243,12 @@ class ScriptConf(BaseConf):
         danbooru_config = (yml_config.get("danbooru") or {}).copy()
         for key, value in danbooru_defaults.items():
             danbooru_config.setdefault(key, value)
+        yml_config["doh_url"] = str(
+            yml_config.get("doh_url")
+            or danbooru_config.get("doh_url")
+            or getattr(self, "doh_url", "")
+        ).strip()
+        danbooru_config.pop("doh_url", None)
         yml_config["danbooru"] = danbooru_config
         for k, v in yml_config.items():
             setattr(self, k, v or getattr(self, k, None))

@@ -6,8 +6,8 @@ import httpx
 from scrapy import Selector
 
 from assets import res
-from utils import conf
 from variables import COOKIES_SUPPORT
+from utils import conf
 from utils.website.core import EroUtils, Req, Cookies, Previewer
 from utils.website.info import EhBookInfo
 

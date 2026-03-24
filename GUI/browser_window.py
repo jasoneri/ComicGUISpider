@@ -2,42 +2,33 @@
 # -*- coding: utf-8 -*-
 import sys
 import json
+import time
 import contextlib
-from PyQt5 import QtNetwork
-from PyQt5.QtCore import Qt, QUrl, QEvent, QSize, QObject, QTimer, pyqtSignal
-from PyQt5.QtGui import QIcon
-from PyQt5.QtNetwork import QNetworkCookie
-from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineSettings
-from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
+from PySide6 import QtNetwork
+from PySide6.QtCore import Qt, QUrl, QEvent, QSize, Signal
+from PySide6.QtGui import QIcon
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
 from qframelesswindow import FramelessMainWindow
 from qframelesswindow.webengine import FramelessWebEngineView
 from qframelesswindow.utils import startSystemMove
 
+from GUI.core.browser.runtime import (
+    BrowserRequestInterceptor,
+    apply_cookie_sets,
+)
+from GUI.core.browser.page_runtime import BrowserPageRuntime
+from GUI.core.browser.site_runtime import build_browser_environment
+from GUI.core.browser.types import BrowserChallengeSpec, BrowserEnvironmentConfig
+from GUI.core.browser.window_mode import BrowserWindowModeController
 from GUI.types import SearchContextSnapshot
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
 from GUI.core.theme import theme_mgr, CustTheme
 from assets import res
-from variables import Spider
 from utils import conf
-from utils.script.image.danbooru_dns import ensure_danbooru_webengine_proxy_started
-from utils.website import EHentaiKits, spider_utils_map
-
-
-class RefererInterceptor(QWebEngineUrlRequestInterceptor):
-    def __init__(self):
-        super().__init__()
-        self.referer_url = None
-
-    def set_referer_url(self, referer_url):
-        self.referer_url = referer_url
-
-    def interceptRequest(self, info):
-        if self.referer_url and info.requestUrl().toString().endswith(('png', 'jpg', 'jpeg', 'webp', 'avif')):
-            # print(f"[{self.referer_url}]{info.requestUrl().toString()}")
-            info.setHttpHeader(b"referer", self.referer_url.encode())
+from utils.website import EHentaiKits
 
 
 class CustomWebEnginePage(QWebEnginePage):
@@ -73,34 +64,59 @@ class CustomFramelessWebEngineView(FramelessWebEngineView):
         super().__init__(parent)
         self.browser = parent
         self._injected = False
+        self._last_injected_css = None
         self.setPage(self.createPage())
-        self.loadFinished.connect(self._inject_scrollbar_css)
-        self.loadProgress.connect(self._on_load_progress)
         theme_mgr.subscribe(self.on_theme_changed)
-    
-    def _on_load_progress(self, progress):
-        if progress >= 10 and not self._injected:
-            self._inject_scrollbar_css()
+
+    def on_page_ready(self):
+        self._inject_scrollbar_css(reason="page-ready")
     
     def on_theme_changed(self, _):
-        self._inject_scrollbar_css()
-    
-    def _inject_scrollbar_css(self, _ok=True):
+        runtime = getattr(self.browser, "page_runtime", None)
+        if runtime is None or not runtime.page_ready:
+            return
+        self._inject_scrollbar_css(reason="theme-changed")
+
+    def _inject_scrollbar_css(self, _ok=True, *, reason="manual"):
+        runtime = getattr(self.browser, "page_runtime", None)
+        if runtime is None or not runtime.page_ready:
+            if runtime is not None:
+                runtime.log_web_perf(f"scrollbar_css skipped reason={reason} page_ready=False")
+            return
         self._injected = True
         css = self._get_scrollbar_css()
+        if self._last_injected_css == css:
+            runtime.log_web_perf(f"scrollbar_css skipped reason={reason} unchanged=True")
+            return
         js = f"""(function(){{
-var id='__cgs_scrollbar__',old=document.getElementById(id);
-if(old)old.remove();
-var s=document.createElement('style');
-s.id=id;s.textContent={json.dumps(css)};
-(document.head||document.documentElement).appendChild(s);
+var id='__cgs_scrollbar__';
+var root=document.head||document.documentElement;
+if(!root) return false;
+var s=document.getElementById(id);
+if(!s){{
+  s=document.createElement('style');s.id=id;root.appendChild(s);
+}}
+if(s.textContent==={json.dumps(css)}) return false;
+s.textContent={json.dumps(css)};
+return true;
 }})();"""
-        self.page().runJavaScript(js)
-        self.browser.keep_top_hint(self.browser.topHintBox.isChecked())
-        self.browser.updateFrameless()
+        started_at = time.perf_counter()
+
+        def _log_result(changed):
+            elapsed_ms = (time.perf_counter() - started_at) * 1000
+            if changed:
+                self._last_injected_css = css
+                runtime.record_scrollbar_css_injection(reason=reason, elapsed_ms=elapsed_ms)
+                return
+            runtime.log_web_perf(
+                f"scrollbar_css skipped reason={reason} unchanged=True elapsed_ms={elapsed_ms:.1f}"
+            )
+
+        self.browser.run_js(js, _log_result, page=self.page())
     
     def _reset_injected(self):
         self._injected = False
+        self._last_injected_css = None
 
 
 class ZoomManager:
@@ -161,153 +177,69 @@ class ZoomManager:
         self.browser.zoomOutBtn.setEnabled(self.can_zoom_out)
 
 
-class _CookieSnapshotCollector(QObject):
-    snapshot_ready = pyqtSignal(object)
-
-    def __init__(self, cookie_store, domain_filter: str, parent=None):
-        super().__init__(parent)
-        self._cookie_store = cookie_store
-        self._domain_filter = str(domain_filter or "").lstrip(".").casefold()
-        self._cookies = {}
-        self._idle_timer = QTimer(self)
-        self._idle_timer.setSingleShot(True)
-        self._idle_timer.timeout.connect(self._finish)
-
-    def start(self):
-        self._cookie_store.cookieAdded.connect(self._on_cookie_added)
-        self._idle_timer.start(180)
-        self._cookie_store.loadAllCookies()
-
-    def _on_cookie_added(self, cookie):
-        try:
-            name = bytes(cookie.name()).decode("utf-8", errors="ignore").strip()
-            domain = str(cookie.domain() or "").strip()
-            path = str(cookie.path() or "/").strip() or "/"
-            value = bytes(cookie.value()).decode("utf-8", errors="ignore")
-        except Exception:
-            self._idle_timer.start(180)
-            return
-        normalized_domain = domain.lstrip(".").casefold()
-        if not name or (self._domain_filter and not normalized_domain.endswith(self._domain_filter)):
-            self._idle_timer.start(180)
-            return
-        self._cookies[(name, domain, path)] = {
-            "name": name,
-            "value": value,
-            "domain": domain,
-            "path": path,
-        }
-        self._idle_timer.start(180)
-
-    def _finish(self):
-        with contextlib.suppress(TypeError):
-            self._cookie_store.cookieAdded.disconnect(self._on_cookie_added)
-        self.snapshot_ready.emit(list(self._cookies.values()))
-        self.deleteLater()
-
-
 class BrowserWindow(FramelessMainWindow, Ui_browser):
+    pageInteractive = Signal(str, float)
+    pageLoadFinishedDetailed = Signal(bool, float)
+
     def __init__(self, gui, *, skip_env_mode: bool = False, snapshot: SearchContextSnapshot | None = None):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
         self._first_show = True
-        self._ensure_callback = gui.next
-        self._on_close = None
-        self._ensure_uses_page_scan = True
-        self._managed_proxy = False
-        self._previous_application_proxy = None
-        self._cookie_collector = None
-        self.interceptor = RefererInterceptor()
         self.gui = gui
         self.search_context = snapshot
+        self.interceptor = BrowserRequestInterceptor(self)
         self.view = CustomFramelessWebEngineView(self)
+        self.page_runtime = BrowserPageRuntime(self)
         self._configure_web_settings()
         self.profile = self.view.page().profile()
         # self.profile.setHttpUserAgent(
         #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
-        self.home_url = QUrl.fromLocalFile(self.gui.tf)
+        self.window_mode = BrowserWindowModeController(self, self.interceptor)
+        preview_file = getattr(self.gui, "tf", None)
+        self.home_url = QUrl.fromLocalFile(str(preview_file)) if preview_file else QUrl("about:blank")
         if not skip_env_mode:
-            self.set_env_mode()
+            self.apply_standard_environment()
         self.output = []
         self.setupUi(self)
         self.zoom_mgr = ZoomManager(self)
 
     def _configure_web_settings(self):
         settings = self.view.settings()
-        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
-        settings.setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, True)
-        settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
-        settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
-        settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
-        settings.setAttribute(QWebEngineSettings.PlaybackRequiresUserGesture, False)
-        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
-        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-        settings.setAttribute(QWebEngineSettings.AutoLoadImages, True)
-        settings.setAttribute(QWebEngineSettings.AllowRunningInsecureContent, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
 
-    def _current_site_index(self):
-        return self.search_context.site_index if self.search_context else self.gui.chooseBox.currentIndex()
+    def updateFrameless(self):
+        runtime = getattr(self, "page_runtime", None)
+        if runtime is None:
+            return super().updateFrameless()
+        return runtime.update_frameless(super().updateFrameless)
 
-    def _resolve_site_context(self, website):
-        index = self._current_site_index()
-        site_cls = spider_utils_map.get(index)
-        match website:
-            case "ehentai":
-                cookies = (
-                    self.search_context.cookies.get("ehentai", {})
-                    if self.search_context else conf.cookies.get("ehentai", {})
-                )
-                domain = (self.search_context.domains.get("ehentai") if self.search_context else None) or EHentaiKits.domain
-                return cookies, domain, f"https://{domain}/"
-            case "jm":
-                cookies = (
-                    self.search_context.cookies.get("jm", {})
-                    if self.search_context else conf.cookies.get("jm", {})
-                )
-                domain = self.search_context.domains.get("jm") if self.search_context else None
-                if not domain:
-                    if self.search_context:
-                        raise ValueError("search context missing jm domain")
-                    if site_cls is None:
-                        raise ValueError("jm site utils unavailable")
-                    domain = site_cls.get_domain()
-                return cookies, domain, f"https://{domain}"
-            case "hitomi":
-                if site_cls is None or not getattr(site_cls, "index", None):
-                    raise ValueError("hitomi site index unavailable")
-                return {}, None, site_cls.index
-        raise ValueError(f"unsupported website context: {website}")
+    def apply_environment(self, config: BrowserEnvironmentConfig):
+        if config.proxy:
+            BrowserWindow.set_proxies(config.proxy)
+        self._set_referer_nterceptor = bool(config.referer_url)
+        self.interceptor.set_referer_url(config.referer_url or None)
+        apply_cookie_sets(self.view.page().profile().cookieStore(), config.cookie_sets)
 
-    def set_env_mode(self):
-        index = self._current_site_index()
-        conf_proxy = (
-            (self.search_context.proxies or [None])[0]
-            if self.search_context else (conf.proxies or [None])[0]
-        )
-        jm_cookies, _, _ = self._resolve_site_context("jm") if index == Spider.JM else ({}, None, None)
-        eh_cookies, _, _ = self._resolve_site_context("ehentai") if index == Spider.EHENTAI else ({}, None, None)
-        if res.lang == 'zh-CN':  # 中文圈环境
-            proxies = None if index not in Spider.cn_proxy() else conf_proxy
-            if proxies:
-                BrowserWindow.set_proxies(proxies)
-        elif conf_proxy:   # set proxy to browser if proxy exist on conf.yml
-            BrowserWindow.set_proxies(conf_proxy)
-        if index == Spider.JM and jm_cookies:
-            self.set_cookies("jm")
-        elif index == Spider.EHENTAI and eh_cookies:
-            self.set_cookies("ehentai")
-        elif index == Spider.HITOMI:
-            _, _, referer_url = self._resolve_site_context("hitomi")
-            self.set_referer_nterceptor(referer_url)
+    def apply_standard_environment(self):
+        self.apply_environment(build_browser_environment(self.gui, self.search_context))
+
+    def update_search_context(self, snapshot: SearchContextSnapshot | None):
+        self.search_context = snapshot
+        self.apply_standard_environment()
 
     def _set_dev_tools(self):
-        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
-        settings = self.view.settings()
-        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
-        settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
-        settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        from PySide6.QtWebEngineWidgets import QWebEngineView
         self.dev_tools = QWebEngineView()
         self.dev_tools.setWindowTitle("DevTools")
         self.dev_tools.page().setInspectedPage(self.view.page())
@@ -315,6 +247,9 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     def showEvent(self, event):
         super(BrowserWindow, self).showEvent(event)
+        self.page_runtime.log_web_perf(
+            f"showEvent first_show={self._first_show} visible={self.isVisible()}"
+        )
         if self._first_show:
             self._first_show = False
             self.load_home()
@@ -327,6 +262,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.set_html()
         self.patch_tip()
         self.set_rbtn_menu()
+        self._default_window_title = self.windowTitle()
+        self._default_ensure_tooltip = self.ensureBtn.toolTip()
 
     def set_rbtn_menu(self):
         if hasattr(self.gui, 'tf') and self.gui.tf:
@@ -339,9 +276,16 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.groupBox.installEventFilter(self)
 
     def eventFilter(self, obj, event):
-        if obj is getattr(self, "groupBox", None) and event.type() == QEvent.MouseButtonPress \
-            and (event.button() == Qt.LeftButton and obj.childAt(event.pos()) is None):
-                startSystemMove(self, event.globalPos())
+        if obj is getattr(self, "groupBox", None) and event.type() == QEvent.MouseButtonPress:
+            child = obj.childAt(event.pos())
+            if event.button() == Qt.LeftButton and child is None:
+                global_point = event.globalPosition().toPoint()
+                self.page_runtime.log_web_perf(
+                    f"startSystemMove local=({event.pos().x()},{event.pos().y()}) "
+                    f"global=({global_point.x()},{global_point.y()}) child=<none> "
+                    f"page_ready={self.page_runtime.page_ready} url={self.view.url().toString()!r}"
+                )
+                startSystemMove(self, global_point)
                 return True
         return super().eventFilter(obj, event)
 
@@ -368,7 +312,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.backBtn.clicked.connect(self.view.back)
         self.forwardBtn.clicked.connect(self.view.forward)
         self.refreshBtn.clicked.connect(self.view.reload)
-        self.ensureBtn.clicked.connect(lambda: self.ensure(self._ensure_callback))
+        self.ensureBtn.clicked.connect(lambda: self.ensure(self.window_mode.ensure_callback))
         self.closeBtn.clicked.connect(self.close)
         def copyUnfinishedTasks():
             _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)
@@ -381,16 +325,17 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.copyBtn.clicked.connect(copyUnfinishedTasks)
 
     def set_ensure_handler(self, callback=None):
-        self._ensure_callback = callback or self.gui.next
+        self.window_mode.reset_standard_mode(
+            window_title=self._default_window_title,
+            ensure_tooltip=self._default_ensure_tooltip,
+        )
+        self.window_mode.set_ensure_handler(callback)
 
     def set_close_handler(self, callback=None):
-        self._on_close = callback
-
-    def set_referer_nterceptor(self, url):
-        self._set_referer_nterceptor = True
-        self.interceptor.set_referer_url(url)
+        self.window_mode.set_close_handler(callback)
 
     def load_home(self):
+        self.page_runtime.prepare_navigation()
         self.view._reset_injected()
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
@@ -404,6 +349,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def keep_top_hint(self, _flag: bool = None):
         flag = _flag if _flag is not None else self.topHintBox.isChecked()
         self.topHintBox.setChecked(flag)
+        started_at = time.perf_counter()
         if sys.platform == "win32" and self.isVisible():
             with contextlib.suppress(Exception):
                 import win32con
@@ -414,29 +360,55 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                     hwnd, insert_after, 0, 0, 0, 0,
                     win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE
                 )
+                self.page_runtime.record_top_hint(
+                    flag=flag,
+                    elapsed_ms=(time.perf_counter() - started_at) * 1000,
+                )
                 return
         self.setWindowFlag(Qt.WindowStaysOnTopHint, flag)
         if self.isVisible():
             self.show()
+        self.page_runtime.record_top_hint(
+            flag=flag,
+            elapsed_ms=(time.perf_counter() - started_at) * 1000,
+        )
+
+    def current_context_selected_text(self) -> str:
+        request_getter = getattr(self.view, "lastContextMenuRequest", None)
+        request = request_getter() if callable(request_getter) else None
+        if request is None:
+            return ""
+        return (request.selectedText() or "").strip()
+
+    def log_js_metrics(self, scope: str, **extra):
+        self.page_runtime.log_js_metrics(scope, **extra)
+
+    def run_js(self, js_code, callback=None, *, page=None):
+        self.page_runtime.run_js(js_code, callback, page=page)
 
     def js_execute(self, js_code, callback):
-        page = self.view.page()
-        page.runJavaScript(js_code, callback)
+        self.run_js(js_code, callback)
 
     @staticmethod
     def js_execute_by_page(page, js_code, callback):
-        page.runJavaScript(js_code, callback)
+        BrowserPageRuntime.js_execute_by_page(page, js_code, callback)
+
+    def run_js_result(
+        self, js_body, callback,
+        *,
+        expected_kind, description, page=None, error_callback=None,
+    ):
+        self.page_runtime.run_js_result(
+            js_body, callback, expected_kind=expected_kind, description=description, page=page, error_callback=error_callback,
+        )
+
+    def page_to_html(self, callback, *, page=None, description="page.toHtml()", error_callback=None):
+        self.page_runtime.page_to_html(
+            callback, page=page, description=description, error_callback=error_callback,
+        )
 
     def page(self, after_callback):
-        if not self._ensure_uses_page_scan:
-            self.output = []
-            after_callback()
-            return
-        def callback(ret):
-            self.output = ret or []  # 可能js还没加载好scanChecked导致返回的undefined
-            after_callback()
-
-        self.js_execute("scanChecked()", callback)
+        self.page_runtime.run_page_scan(after_callback, uses_page_scan=self.window_mode.uses_page_scan, )
 
     ensure = page
 
@@ -458,74 +430,23 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         proxy.setType(QtNetwork.QNetworkProxy.NoProxy)
         QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
 
-    def _apply_managed_proxy(self, proxy_str: str):
-        if not self._managed_proxy:
-            self._previous_application_proxy = QtNetwork.QNetworkProxy.applicationProxy()
-        self._managed_proxy = True
-        if proxy_str:
-            self.set_proxies(proxy_str)
-        else:
-            self.clear_proxies()
-
-    def _restore_managed_proxy(self):
-        if not self._managed_proxy:
-            return
-        previous = self._previous_application_proxy or QtNetwork.QNetworkProxy(QtNetwork.QNetworkProxy.NoProxy)
-        QtNetwork.QNetworkProxy.setApplicationProxy(previous)
-        self._previous_application_proxy = None
-        self._managed_proxy = False
-
-    def configure_remote_mode(
-        self,
-        url: str,
+    def enter_challenge_mode(
+        self, spec: BrowserChallengeSpec,
         *,
-        ensure_handler=None,
-        close_handler=None,
-        doh_url: str = "",
-        size: QSize | None = None,
-        window_title: str = "",
+        ensure_handler=None, close_handler=None,
     ):
-        self._ensure_uses_page_scan = False
-        self._ensure_callback = ensure_handler or (lambda: None)
-        self._on_close = close_handler
-        self.home_url = QUrl(str(url))
-        if doh_url:
-            proxy_str = ensure_danbooru_webengine_proxy_started(doh_url)
-            if proxy_str:
-                self._apply_managed_proxy(proxy_str)
-        else:
-            self._restore_managed_proxy()
-        if window_title:
-            self.setWindowTitle(window_title)
-        self.ensureBtn.setToolTip("继续请求")
-        self.copyBtn.hide()
-        if size is not None:
-            self.resize(size)
-        if self.isVisible():
-            self.load_home()
-
-    def current_user_agent(self) -> str:
-        return self.profile.httpUserAgent()
-
-    def collect_cookies(self, callback, *, domain_filter: str):
-        collector = _CookieSnapshotCollector(
-            self.view.page().profile().cookieStore(),
-            domain_filter=domain_filter,
-            parent=self,
+        self.window_mode.enter_challenge_mode(
+            spec, ensure_handler=ensure_handler, close_handler=close_handler,
         )
-        self._cookie_collector = collector
-        collector.snapshot_ready.connect(callback)
-        collector.snapshot_ready.connect(lambda *_args: setattr(self, "_cookie_collector", None))
-        collector.start()
 
-    def set_cookies(self, website):
-        cookies, domain, url = self._resolve_site_context(website)
-        for key, values in cookies.items():
-            my_cookie = QNetworkCookie()
-            my_cookie.setName(key.encode())
-            my_cookie.setValue(str(values).encode())
-            my_cookie.setDomain(domain)
-            self.view.page().profile().cookieStore().setCookie(my_cookie, QUrl(url))
+    def collect_challenge_result(
+        self, spec: BrowserChallengeSpec, callback,
+        *,
+        current_url: str = "", trigger: str = "manual",
+    ):
+        self.window_mode.collect_challenge_result(
+            spec, callback, current_url=current_url, trigger=trigger,
+        )
 
     @classmethod
     def check_ehentai(cls, gui):
@@ -549,19 +470,20 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                 with open(self.gui.tf, 'w', encoding='utf-8') as f:
                     f.write(html)
 
-        self.js_execute("get_curr_hml();", refresh_tf)
+        self.page_to_html(refresh_tf,description="browser tmp_sv_local HTML snapshot",)
 
     def show_task_added_toast(self, title: str):
         js_code = f"window.showTaskAddedToast && window.showTaskAddedToast({json.dumps(title)});"
-        self.js_execute(js_code, lambda _: None)
+        self.run_js(js_code)
 
     def closeEvent(self, event):
         if hasattr(self, 'view'):
             theme_mgr.unsubscribe(self.view.on_theme_changed)
-        self._restore_managed_proxy()
-        if self._on_close:
-            self._on_close(self, event)
-            self._on_close = None
+        self.page_runtime.shutdown()
+        self.window_mode.shutdown()
+        if self.page_runtime.has_activity:
+            self.log_js_metrics("closeEvent")
+        self.window_mode.invoke_close_handler(event)
         if not event.isAccepted():
             return
         if getattr(self.gui, "BrowserWindow", None) is self:
