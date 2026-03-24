@@ -1,3 +1,4 @@
+import json
 import re
 import pathlib
 from PySide6.QtCore import Qt
@@ -86,14 +87,12 @@ class ClipGUIManager:
             # 无episodes时，使用任务idx作为键存储单个Selected
             self.infos[str(book.idx)] = book
 
-        def js_param(val):
-            if isinstance(val, str):
-                return '"' + val.replace('"', '\\"') + '"'
-            else:
-                return str(val)
-        params = ','.join(map(js_param, book.clip_info()))
+        params = ','.join(
+            json.dumps(val, ensure_ascii=False)
+            for val in book.clip_info()
+        )
         js_code = f'addEL({params})'
-        self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
+        self.gui.BrowserWindow.run_js(js_code)
 
     def all_clip_tasks_data(self, total_data):
         """处理所有剪贴板任务完成后的操作"""
@@ -119,7 +118,7 @@ class ClipGUIManager:
                                 elif isinstance(obj, Episode):
                                     dled_eidxes.append(key)  
                         js_code = f'''tryMarkDownload({dled_bidxes},{dled_eidxes});'''
-                        self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
+                        self.gui.BrowserWindow.run_js(js_code)
                     safe_single_shot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
                 if self.gui.BrowserWindow.topHintBox.isChecked():
@@ -132,7 +131,13 @@ class ClipGUIManager:
         if not total_data:
             self.gui.BrowserWindow.hide()
         else:
-            self.gui.BrowserWindow.js_execute("finishTasks();", refresh_tf)
+            self.gui.BrowserWindow.run_js_result(
+                "return finishTasks();",
+                refresh_tf,
+                expected_kind="string",
+                description="clip finishTasks()",
+                error_callback=lambda _exc: refresh_tf(""),
+            )
 
     def create_selected_list(self, browser_output):
         """根据用户选择创建Selected列表"""

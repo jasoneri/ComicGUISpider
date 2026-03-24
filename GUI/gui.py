@@ -21,6 +21,7 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
 from GUI.core.anim import PopupAnimator
+from GUI.core.browser.site_runtime import peek_snapshot_domain
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.tools import ToolWindow, TextUtils
@@ -117,6 +118,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if not getattr(self, "_startup_completed", False):
             self.startup_only()
             self._startup_completed = True
+
+    def _restore_feedback_panel(self):
+        self.textBrowser.clear()
+        self.textBrowser.append(TextUtils.description())
+        self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
 
     def startup_only(self):
         self.update_notifier = UpdateNotifier(self)
@@ -229,30 +235,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             cookies["ehentai"] = dict(conf.cookies["ehentai"])
         return cookies
 
-    @staticmethod
-    def _peek_snapshot_domain(site_utils) -> str | None:
-        cachef = getattr(site_utils, "cachef", None)
-        cached = getattr(cachef, "val", None) if cachef else None
-        if isinstance(cached, str) and cached.strip():
-            return cached.strip()
-
-        cache_name = getattr(site_utils, "name", "")
-        if cache_name:
-            cache_path = temp_p.joinpath(f"{cache_name}_domain.txt")
-            if cache_path.exists():
-                if cached:= cache_path.read_text(encoding="utf-8").strip():
-                    return cached
-
-        fallback = site_utils._fallback_domain() if hasattr(site_utils, "_fallback_domain") else getattr(site_utils, "domain", None)
-        if isinstance(fallback, str) and fallback.strip():
-            return fallback.strip()
-        return None
-
     def _build_search_context_snapshot(self, site_index: int) -> SearchContextSnapshot:
         domains = {}
         site_utils = spider_utils_map.get(site_index)
         if site_index == Spider.JM and site_utils is not None:
-            if domain := self._peek_snapshot_domain(site_utils):
+            if domain := peek_snapshot_domain(site_utils):
                 domains["jm"] = domain
         elif site_index == Spider.EHENTAI and site_utils is not None:
             domains["ehentai"] = site_utils.domain
@@ -270,7 +257,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if getattr(self, "preview_mgr", None):
             self.preview_mgr.update_search_context(snapshot)
         if getattr(self, "BrowserWindow", None):
-            self.BrowserWindow.search_context = snapshot
+            self.BrowserWindow.update_search_context(snapshot)
 
     def _destroy_browser_window(self):
         browser = self.BrowserWindow
@@ -287,7 +274,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self._search_blocked = False
             self.web_is_r18 = False
             self.spiderUtils = None
-            self.sut = None
             self.flow_stage = GUIFlowStage.IDLE
             self.preview_mgr.handle_choosebox_changed(index, None)
             self.lifecycle_state = SearchLifecycleState.Unlocked
@@ -517,10 +503,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         BrowserWindowCls.clear_proxies()
         self.clip_mgr.reset()
         self.ags_mgr.reset()
-        self.tf = None
-        self.sut = None
-        self.spiderUtils = None
-        self.web_is_r18 = False
+        # self.tf = None
+        # self.sut = None
+        # self.spiderUtils = None
+        # self.web_is_r18 = False
         self.rv_tools.ero = 0
         self.bsm = None
         self.sv_path = conf.sv_path
@@ -535,6 +521,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.setCurrentIndex(0)
         self.chooseBox.blockSignals(False)
         self.lifecycle_state = SearchLifecycleState.Unlocked
+        self._restore_feedback_panel()
         self.log.info('===--→ reset_search_context end\n')
 
     def disable_start(self):

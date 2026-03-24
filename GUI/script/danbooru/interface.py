@@ -12,6 +12,7 @@ from qfluentwidgets import (
 
 from deploy import curr_os
 from GUI.browser_window import BrowserWindow
+from GUI.core.browser import BrowserChallengeCoordinator, BrowserChallengeSpec, BrowserRequestCaptureConfig
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager
 from GUI.uic.qfluent.components import CountBadge
@@ -26,7 +27,8 @@ from .core import DanbooruDownloadController, DanbooruSearchController, Danbooru
 from .detail_preview import DanbooruDetailPreviewController
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_CARD_ZOOM_INDEX, DEFAULT_TAB_STATUS_CLASS, DEFAULT_TAB_STATUS_TEXT, DanbooruCardMetrics, DanbooruUiPalette, 
-    build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet, format_tip_rich_text as _format_tip_rich_text, qcolor_from_css,
+    build_interface_stylesheet, build_network_label_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
+    format_tip_rich_text as _format_tip_rich_text, qcolor_from_css, reload_danbooru_qss,
 )
 from .tab import DanbooruTabWidget
 from .viewer import DanbooruImageViewer
@@ -50,10 +52,12 @@ class DanbooruInterface(QFrame):
         self.download_controller = DanbooruDownloadController(self)
         self._card_zoom_index = DEFAULT_CARD_ZOOM_INDEX
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
-        self._verification_window: t.Optional[BrowserWindow] = None
-        self._verification_retries: dict[str, t.Callable[[], None]] = {}
-        self._verification_tab_ids: set[str] = set()
-        self._verification_sync_inflight = False
+        self._browser_challenge = BrowserChallengeCoordinator(
+            window_factory=lambda: BrowserWindow(self._host_gui(), skip_env_mode=True),
+            on_success=self._handle_verification_confirmed,
+            on_missing=self._handle_verification_missing,
+            parent=self,
+        )
         self.download_result_signal.connect(self.download_controller.on_download_result)
         self.image_viewer.tag_clicked.connect(self._open_tag_jump_tab)
         self.image_viewer.download_requested.connect(self.download_controller.submit_single)
@@ -172,7 +176,7 @@ class DanbooruInterface(QFrame):
         self.setStyleSheet(build_interface_stylesheet(palette))
         self.title_label.setStyleSheet(build_title_label_stylesheet(palette))
         self.tip_line.setStyleSheet(build_tip_line_stylesheet(palette))
-        self.network_label.setStyleSheet(f"color: {palette.muted_text};")
+        self.network_label.setStyleSheet(build_network_label_stylesheet(palette))
         self.tab_bar.setTabShadowEnabled(False)
         selected_color = qcolor_from_css(palette.pivot_selected)
         self.tab_bar.setTabSelectedBackgroundColor(selected_color, selected_color)
@@ -470,143 +474,68 @@ class DanbooruInterface(QFrame):
     ):
         normalized_reason = str(reason or "请求").strip() or "请求"
         self._set_tab_tip(tab_id, f"Danbooru {normalized_reason}需要网页验证，完成后会自动重试", cls="theme-tip")
-        self.request_danbooru_verification(
-            tab_id,
-            challenge,
-            retry_callback,
-            reason=normalized_reason,
-            retry_key=retry_key,
+        self._browser_challenge.submit(
+            self._build_verification_spec(challenge),
+            tab_id=tab_id,
+            retry_key=str(retry_key or f"{tab_id}:{normalized_reason}"),
+            retry_callback=retry_callback,
         )
 
-    def request_danbooru_verification(
-        self,
-        tab_id: str,
-        challenge: DanbooruChallengeRequired,
-        retry_callback: t.Callable[[], None],
-        *,
-        reason: str = "请求",
-        retry_key: str = "",
-    ):
-        if self._verification_window is None:
-            self._verification_window = BrowserWindow(self._host_gui(), skip_env_mode=True)
-            self._verification_window.destroyed.connect(lambda *_args: setattr(self, "_verification_window", None))
-            self._verification_window.pageLoadFinishedDetailed.connect(self._on_verification_window_load_finished)
-        normalized_reason = str(reason or "请求").strip() or "请求"
-        key = str(retry_key or f"{tab_id}:{normalized_reason}:{len(self._verification_retries)}")
-        self._verification_retries[key] = retry_callback
-        self._verification_tab_ids.add(tab_id)
-        self._verification_sync_inflight = False
-        self._verification_window.watch_cookies(
+    def _build_verification_spec(self, challenge: DanbooruChallengeRequired) -> BrowserChallengeSpec:
+        return BrowserChallengeSpec(
+            challenge.verify_url,
             domain_filter="danbooru.donmai.us",
             source_url=challenge.verify_url,
-        )
-        self._set_tab_tip(tab_id, f"Danbooru {normalized_reason}需要网页验证，验证完成后自动重试", cls="theme-tip")
-        self._verification_window.configure_remote_mode(
-            challenge.verify_url,
-            ensure_handler=self._request_browser_verification_sync,
-            close_handler=lambda *_args: None,
             doh_url=self._runtime_config.doh_url,
-            size=QtCore.QSize(980, 760),
+            window_size=QtCore.QSize(980, 760),
             window_title="Danbooru Verification",
-        )
-        self._verification_window.show()
-        self._verification_window.raise_()
-        self._verification_window.activateWindow()
-
-    def _on_verification_window_load_finished(self, ok: bool, _elapsed_ms: float):
-        if not ok or self._verification_window is None or not self._verification_retries:
-            return
-        if self._verification_sync_inflight:
-            return
-        current_url = self._verification_window.view.url().toString()
-        if not DanbooruResponseInspector.is_verification_completion_url(current_url):
-            return
-        self._request_browser_verification_sync(trigger="auto", current_url=current_url)
-
-    def _request_browser_verification_sync(self, *, trigger: str = "manual", current_url: str = ""):
-        if self._verification_window is None or not self._verification_retries or self._verification_sync_inflight:
-            return
-        self._verification_sync_inflight = True
-        active_url = current_url or self._verification_window.view.url().toString()
-        self._verification_window.collect_cookies(
-            lambda cookies, url=active_url, sync_trigger=trigger: self._handle_verification_cookies(
-                cookies,
-                current_url=url,
-                trigger=sync_trigger,
-            ),
-            domain_filter="danbooru.donmai.us",
-            source_url=active_url,
+            completion_detector=DanbooruResponseInspector.is_verification_completion_url,
+            request_capture=BrowserRequestCaptureConfig(host_filter="danbooru.donmai.us"),
         )
 
-    def _handle_verification_cookies(
-        self,
-        cookies,
-        *,
-        current_url: str = "",
-        trigger: str = "manual",
-        headers: dict[str, str] | None = None,
-        source_url: str = "",
-    ):
-        self._verification_sync_inflight = False
-        user_agent = self._verification_window.current_user_agent() if self._verification_window is not None else ""
-        live_cookies = self._verification_window.live_cookies() if self._verification_window is not None else []
-        merged_cookies = DanbooruBrowserSession.merge_cookies(live_cookies, cookies or [])
-        captured_headers = dict(headers or {})
-        effective_source_url = source_url or current_url or DANBOORU_BASE_URL
+    def _handle_verification_missing(self, result, tab_ids: list[str]):
         logger = self._gui_logger()
-        if not merged_cookies and not captured_headers:
-            if logger is not None:
-                logger.warning(
-                    f"[Danbooru] browser verification transfer missing trigger={trigger} "
-                    f"current_url={current_url or '<unknown>'}"
-                )
-            for tab_id in self._verification_tab_ids:
-                self._set_tab_tip(tab_id, "验证页已返回，但没有采集到可回灌的请求头或 Cookie", cls="theme-err")
-            self._show_info(InfoBar.warning, "Danbooru 验证页已返回，但没有采集到可回灌的请求头或 Cookie", 5000)
-            return
-        if effective_source_url and "referer" not in {name.casefold() for name in captured_headers}:
-            captured_headers["Referer"] = effective_source_url
-        self._handle_verification_confirmed(
-            merged_cookies,
-            user_agent,
-            current_url,
-            headers=captured_headers,
-            source_url=effective_source_url,
-        )
-        if self._verification_window is not None:
-            self._verification_window.close()
+        if logger is not None:
+            logger.warning(
+                f"[Danbooru] browser verification transfer missing trigger={result.trigger} "
+                f"current_url={result.current_url or '<unknown>'}"
+            )
+        for tab_id in tab_ids:
+            self._set_tab_tip(tab_id, "验证页已返回，但没有采集到可回灌的请求头或 Cookie", cls="theme-err")
+        self._show_info(InfoBar.warning, "Danbooru 验证页已返回，但没有采集到可回灌的请求头或 Cookie", 5000)
 
     def _handle_verification_confirmed(
         self,
-        cookies,
-        user_agent: str,
-        current_url: str,
-        *,
-        headers=None,
-        source_url: str = "",
+        result,
+        retry_callbacks: list[t.Callable[[], None]],
+        tab_ids: list[str],
     ):
-        session = danbooru_browser_session_store.update(
-            cookies=cookies or [],
-            user_agent=user_agent,
-            headers=headers or {},
-            source_url=source_url,
+        merged_cookies = DanbooruBrowserSession.merge_cookies(
+            list(result.live_cookies),
+            list(result.snapshot_cookies),
         )
-        retry_callbacks = list(self._verification_retries.values())
-        tab_ids = list(self._verification_tab_ids)
+        headers = dict(result.headers or {})
+        effective_source_url = result.source_url or result.current_url or DANBOORU_BASE_URL
+        if effective_source_url and "referer" not in {name.casefold() for name in headers}:
+            headers["Referer"] = effective_source_url
+        session = danbooru_browser_session_store.update(
+            cookies=merged_cookies,
+            user_agent=result.user_agent,
+            headers=headers,
+            source_url=effective_source_url,
+        )
         logger = self._gui_logger()
         if logger is not None:
             logger.info(
                 f"[Danbooru] browser verification session synced cookies={len(session.cookies)} "
                 f"headers={len(session.headers)} retries={len(retry_callbacks)} "
-                f"current_url={current_url or '<unknown>'}"
+                f"current_url={result.current_url or '<unknown>'}"
             )
         for tab_id in tab_ids:
             cookie_text = f"{len(session.cookies)} 个 Cookie" if session.cookies else "0 个 Cookie"
             header_text = f"{len(session.headers)} 个 Header"
             self._set_tab_tip(tab_id, f"已同步浏览器验证态({cookie_text}, {header_text})，正在重试", cls="theme-success")
         self._show_info(InfoBar.success, "Danbooru 浏览器验证态已同步，正在重试请求", 4000)
-        self._verification_retries.clear()
-        self._verification_tab_ids.clear()
         for retry_callback in retry_callbacks:
             retry_callback()
 

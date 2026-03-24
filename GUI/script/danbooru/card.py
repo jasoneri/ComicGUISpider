@@ -46,6 +46,7 @@ class DanbooruCardWidget(QFrame):
 
         self.preview_button = QPushButton(self.preview_frame)
         self.preview_button.setObjectName("DanbooruCardPreview")
+        self.preview_button.setProperty("unsupported", DanbooruPost.is_unsupported_file_ext(self.post.file_ext))
         self.preview_button.setCursor(Qt.PointingHandCursor)
         self.preview_button.clicked.connect(lambda: self.open_detail_requested.emit(self.post))
         self.preview_button.setFixedHeight(self.preview_height)
@@ -61,17 +62,13 @@ class DanbooruCardWidget(QFrame):
             self.checkbox.setDisabled(True)
             self.checkbox.setChecked(False)
             self.preview_button.setText(f"Unsupported: {self.post.file_ext}")
-        elif self.already_downloaded:
-            self.checkbox.setDisabled(True)
 
+        self._apply_checkbox_availability()
         self._position_overlay_widgets()
         self._sync_selection_state(self.checkbox.isChecked())
 
     def apply_theme(self):
-        palette = DanbooruUiPalette.current()
-        text_color = "#b65239" if DanbooruPost.is_unsupported_file_ext(self.post.file_ext) else palette.text
-        self.setStyleSheet(build_card_stylesheet(palette, self.already_downloaded))
-        self.preview_button.setStyleSheet(f"color: {text_color};")
+        self.setStyleSheet(build_card_stylesheet(DanbooruUiPalette.current(), self.already_downloaded))
 
     def _derive_preview_height(self) -> int:
         preview_width = self.post.preview_width or self.post.image_width
@@ -85,7 +82,16 @@ class DanbooruCardWidget(QFrame):
         return self.metrics.preview_content_width
 
     def _position_overlay_widgets(self):
-        self.checkbox.move(12, 12)
+        tokens = get_danbooru_qss_tokens()
+        self.checkbox.move(
+            max(0, int(round(float(tokens["CARD_CHECKBOX_OFFSET_X"])))),
+            max(0, int(round(float(tokens["CARD_CHECKBOX_OFFSET_Y"])))),
+        )
+
+    def _apply_checkbox_availability(self):
+        unsupported = DanbooruPost.is_unsupported_file_ext(self.post.file_ext)
+        self.checkbox.setVisible(not self.already_downloaded)
+        self.checkbox.setDisabled(unsupported or self.already_downloaded)
 
     def _sync_selection_state(self, selected: bool):
         self.setProperty("selected", selected)
@@ -118,10 +124,32 @@ class DanbooruCardWidget(QFrame):
     def set_preview_pixmap(self, pixmap: QPixmap):
         self._preview_pixmap = QPixmap(pixmap)
         target_size = QtCore.QSize(self.metrics.preview_content_width, self.preview_height)
-        scaled = pixmap.scaled(target_size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        scaled = self._preview_pixmap.scaled(target_size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        if self.already_downloaded:
+            scaled = self._apply_partial_grayscale(scaled, self._downloaded_preview_grayscale())
         self.preview_button.setIcon(QtGui.QIcon(scaled))
         self.preview_button.setIconSize(target_size)
         self.preview_button.setText("")
+
+    @staticmethod
+    def _apply_partial_grayscale(pixmap: QPixmap, amount: float) -> QPixmap:
+        clamped = max(0.0, min(1.0, amount))
+        if clamped <= 0:
+            return QPixmap(pixmap)
+        image = pixmap.toImage().convertToFormat(QtGui.QImage.Format_ARGB32)
+        for y in range(image.height()):
+            for x in range(image.width()):
+                color = image.pixelColor(x, y)
+                gray = int(round(color.red() * 0.299 + color.green() * 0.587 + color.blue() * 0.114))
+                color.setRed(int(round(color.red() * (1.0 - clamped) + gray * clamped)))
+                color.setGreen(int(round(color.green() * (1.0 - clamped) + gray * clamped)))
+                color.setBlue(int(round(color.blue() * (1.0 - clamped) + gray * clamped)))
+                image.setPixelColor(x, y, color)
+        return QPixmap.fromImage(image)
+
+    @staticmethod
+    def _downloaded_preview_grayscale() -> float:
+        return max(0.0, min(1.0, float(get_danbooru_qss_tokens()["CARD_PREVIEW_DOWNLOADED_GRAYSCALE"])))
 
     def apply_metrics(self, metrics: DanbooruCardMetrics):
         self.metrics = metrics
@@ -130,7 +158,7 @@ class DanbooruCardWidget(QFrame):
         self.preview_frame.setFixedHeight(self.preview_height)
         self.preview_button.setFixedHeight(self.preview_height)
         if not self._preview_pixmap.isNull():
-            self.set_preview_pixmap(self._preview_pixmap)
+            self._apply_preview_icon()
         self._position_overlay_widgets()
         self.updateGeometry()
 

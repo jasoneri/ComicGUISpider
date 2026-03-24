@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import sys
+import re
 import json
 import time
 import contextlib
@@ -29,6 +30,8 @@ from GUI.core.theme import theme_mgr, CustTheme
 from assets import res
 from utils import conf
 from utils.website import EHentaiKits
+
+_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
 class CustomWebEnginePage(QWebEnginePage):
@@ -259,6 +262,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self._setup_frameless_chrome()
         self.topHintBox.clicked.connect(self.keep_top_hint)
         self.set_btn()
+        self._setup_address_edit()
         self.set_html()
         self.patch_tip()
         self.set_rbtn_menu()
@@ -334,6 +338,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def set_close_handler(self, callback=None):
         self.window_mode.set_close_handler(callback)
 
+    def _setup_address_edit(self):
+        self.addressEdit.setPlaceholderText("输入链接后回车")
+        self.addressEdit.linkSignal.connect(self._handle_address_submit)
+
     def load_home(self):
         self.page_runtime.prepare_navigation()
         self.view._reset_injected()
@@ -345,6 +353,18 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def set_html(self):
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
+
+    def _handle_address_submit(self, text: str):
+        text = str(text or "").strip()
+        if not text:
+            return
+        if text.casefold() == "dev":
+            self._set_dev_tools()
+            return
+        target = text if _SCHEME_RE.match(text) else f"https://{text}"
+        url = QUrl.fromUserInput(target)
+        if url.isValid() and not url.isEmpty():
+            self.view.load(url)
 
     def keep_top_hint(self, _flag: bool = None):
         flag = _flag if _flag is not None else self.topHintBox.isChecked()

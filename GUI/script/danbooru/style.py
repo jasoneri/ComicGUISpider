@@ -1,5 +1,8 @@
 import html
+from functools import lru_cache
+from pathlib import Path
 import re
+from string import Template
 from dataclasses import dataclass
 
 from PySide6 import QtGui
@@ -23,6 +26,15 @@ _RGB_COLOR_RE = re.compile(
     r"(?:\s*,\s*(?P<a>[\d.]+))?\s*\)$",
     re.IGNORECASE,
 )
+_QSS_SECTION_RE = re.compile(
+    r"/\*\s*@section\s+(?P<name>[\w.-]+)\s*\*/(?P<body>.*?)/\*\s*@endsection\s*\*/",
+    re.DOTALL,
+)
+_QSS_TOKEN_RE = re.compile(
+    r"/\*\s*@tokens\s+(?P<name>[\w.-]+)\s*\*/(?P<body>.*?)/\*\s*@endtokens\s*\*/",
+    re.DOTALL,
+)
+_DANBOORU_QSS_PATH = Path(__file__).with_name("theme.qss")
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +61,64 @@ def _build_card_metrics(width: int) -> DanbooruCardMetrics:
 
 CARD_ZOOM_METRICS = tuple(_build_card_metrics(width) for width in CARD_ZOOM_WIDTHS)
 DEFAULT_CARD_METRICS = CARD_ZOOM_METRICS[DEFAULT_CARD_ZOOM_INDEX]
+
+
+def _current_theme_name() -> str:
+    return "dark" if theme_mgr.get_theme() == CustTheme.DARK else "light"
+
+
+def _parse_qss_tokens(body: str) -> dict[str, str]:
+    tokens: dict[str, str] = {}
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            raise ValueError(f"Invalid Danbooru QSS token line: {raw_line!r}")
+        tokens[key.strip()] = value.strip().rstrip(";")
+    return tokens
+
+
+@lru_cache(maxsize=1)
+def _load_qss_document() -> tuple[dict[str, Template], dict[str, dict[str, str]]]:
+    raw = _DANBOORU_QSS_PATH.read_text(encoding="utf-8")
+    sections = {
+        match.group("name"): Template(match.group("body").strip())
+        for match in _QSS_SECTION_RE.finditer(raw)
+    }
+    token_sets = {
+        match.group("name"): _parse_qss_tokens(match.group("body"))
+        for match in _QSS_TOKEN_RE.finditer(raw)
+    }
+    if not sections:
+        raise RuntimeError(f"No Danbooru QSS sections found in {_DANBOORU_QSS_PATH}")
+    if not token_sets:
+        raise RuntimeError(f"No Danbooru QSS token sets found in {_DANBOORU_QSS_PATH}")
+    return sections, token_sets
+
+
+def get_danbooru_qss_tokens() -> dict[str, str]:
+    _, token_sets = _load_qss_document()
+    theme_name = _current_theme_name()
+    tokens = token_sets.get(theme_name)
+    if tokens is None:
+        raise KeyError(f"Danbooru QSS token set is missing theme {theme_name!r}")
+    return dict(tokens)
+
+
+def reload_danbooru_qss() -> None:
+    _load_qss_document.cache_clear()
+
+
+def _render_qss_section(name: str, **overrides: str) -> str:
+    sections, _ = _load_qss_document()
+    template = sections.get(name)
+    if template is None:
+        raise KeyError(f"Danbooru QSS section is missing {name!r}")
+    tokens = get_danbooru_qss_tokens()
+    tokens.update({key: str(value) for key, value in overrides.items()})
+    return template.substitute(tokens).strip()
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,58 +150,32 @@ class DanbooruUiPalette:
 
     @classmethod
     def current(cls) -> "DanbooruUiPalette":
-        if theme_mgr.get_theme() == CustTheme.DARK:
-            return cls(
-                canvas="#09090b",
-                shell="rgba(18, 18, 20, 0.98)",
-                shell_border="rgba(244, 244, 245, 0.10)",
-                card="rgba(24, 24, 27, 0.98)",
-                card_hover="rgba(228, 228, 231, 0.44)",
-                downloaded_card="rgba(59, 47, 35, 0.90)",
-                downloaded_hover="rgba(213, 182, 140, 0.82)",
-                preview="rgba(244, 244, 245, 0.06)",
-                preview_hover="rgba(244, 244, 245, 0.12)",
-                section="rgba(28, 28, 31, 0.96)",
-                section_border="rgba(244, 244, 245, 0.08)",
-                text="rgba(250, 250, 250, 0.97)",
-                muted_text="rgba(212, 212, 216, 0.72)",
-                status_text="rgba(228, 228, 231, 0.82)",
-                viewer_frame="rgba(15, 15, 17, 0.75)",
-                viewer_border="rgba(244, 244, 245, 0.10)",
-                viewer_image="rgba(244, 244, 245, 0.05)",
-                viewer_tag="rgba(255, 255, 255, 0.04)",
-                viewer_tag_hover="rgba(255, 255, 255, 0.08)",
-                selection_border="rgba(226, 232, 240, 0.92)",
-                title_accent="#f4f4f5",
-                pivot_selected="rgba(46, 46, 51, 0.98)",
-                pivot_button_hover="rgba(244, 244, 245, 0.10)",
-                pivot_button_pressed="rgba(244, 244, 245, 0.14)",
-            )
+        tokens = get_danbooru_qss_tokens()
         return cls(
-            canvas="#f5f5f4",
-            shell="rgba(250, 250, 249, 0.98)",
-            shell_border="rgba(39, 39, 42, 0.10)",
-            card="rgba(255, 255, 255, 0.99)",
-            card_hover="rgba(39, 39, 42, 0.26)",
-            downloaded_card="rgba(236, 229, 220, 0.98)",
-            downloaded_hover="rgba(131, 104, 74, 0.62)",
-            preview="rgba(39, 39, 42, 0.05)",
-            preview_hover="rgba(39, 39, 42, 0.09)",
-            section="rgba(245, 245, 244, 0.97)",
-            section_border="rgba(39, 39, 42, 0.08)",
-            text="rgba(9, 9, 11, 0.97)",
-            muted_text="rgba(63, 63, 70, 0.74)",
-            status_text="rgba(39, 39, 42, 0.80)",
-            viewer_frame="rgba(255, 255, 255, 0.75)",
-            viewer_border="rgba(39, 39, 42, 0.10)",
-            viewer_image="rgba(39, 39, 42, 0.04)",
-            viewer_tag="rgba(255, 255, 255, 0.92)",
-            viewer_tag_hover="rgba(244, 244, 245, 0.98)",
-            selection_border="rgba(24, 24, 27, 0.88)",
-            title_accent="#18181b",
-            pivot_selected="rgba(255, 255, 255, 0.98)",
-            pivot_button_hover="rgba(39, 39, 42, 0.07)",
-            pivot_button_pressed="rgba(39, 39, 42, 0.11)",
+            canvas=tokens["CANVAS"],
+            shell=tokens["SHELL"],
+            shell_border=tokens["SHELL_BORDER"],
+            card=tokens["CARD_BACKGROUND_IDLE"],
+            card_hover=tokens["CARD_HOVER_BORDER_IDLE"],
+            downloaded_card=tokens["CARD_BACKGROUND_DOWNLOADED"],
+            downloaded_hover=tokens["CARD_HOVER_BORDER_DOWNLOADED"],
+            preview=tokens["CARD_PREVIEW_BACKGROUND"],
+            preview_hover=tokens["CARD_PREVIEW_BACKGROUND_HOVER"],
+            section=tokens["SECTION_BACKGROUND"],
+            section_border=tokens["SECTION_BORDER"],
+            text=tokens["TEXT"],
+            muted_text=tokens["MUTED_TEXT"],
+            status_text=tokens["STATUS_TEXT"],
+            viewer_frame=tokens["VIEWER_FRAME"],
+            viewer_border=tokens["VIEWER_BORDER"],
+            viewer_image=tokens["VIEWER_IMAGE"],
+            viewer_tag=tokens["VIEWER_TAG"],
+            viewer_tag_hover=tokens["VIEWER_TAG_HOVER"],
+            selection_border=tokens["SELECTION_BORDER"],
+            title_accent=tokens["TITLE_ACCENT"],
+            pivot_selected=tokens["PIVOT_SELECTED"],
+            pivot_button_hover=tokens["PIVOT_BUTTON_HOVER"],
+            pivot_button_pressed=tokens["PIVOT_BUTTON_PRESSED"],
         )
 
 
@@ -173,153 +217,43 @@ def format_tip_rich_text(text: str, cls: str = DEFAULT_TAB_STATUS_CLASS) -> str:
 
 
 def build_card_stylesheet(palette: DanbooruUiPalette, already_downloaded: bool) -> str:
-    return f"""
-        DanbooruCardWidget {{
-            background: {palette.downloaded_card if already_downloaded else palette.card};
-            border: 1px solid {palette.downloaded_hover if already_downloaded else palette.shell_border};
-            border-radius: 20px;
-        }}
-        DanbooruCardWidget:hover {{
-            border-color: {palette.downloaded_hover if already_downloaded else palette.card_hover};
-        }}
-        DanbooruCardWidget[selected="true"] {{
-            border: 2px solid {palette.selection_border};
-        }}
-        QPushButton#DanbooruCardPreview {{
-            border: none;
-            border-radius: 16px;
-            background: {palette.preview};
-            color: {palette.muted_text};
-            text-align: center;
-        }}
-        QPushButton#DanbooruCardPreview:hover {{
-            background: {palette.preview_hover};
-        }}
-    """
+    _ = palette
+    tokens = get_danbooru_qss_tokens()
+    return _render_qss_section(
+        "card",
+        CARD_BACKGROUND=tokens["CARD_BACKGROUND_DOWNLOADED"] if already_downloaded else tokens["CARD_BACKGROUND_IDLE"],
+        CARD_BORDER=tokens["CARD_BORDER_DOWNLOADED"] if already_downloaded else tokens["CARD_BORDER_IDLE"],
+        CARD_HOVER_BORDER=(
+            tokens["CARD_HOVER_BORDER_DOWNLOADED"] if already_downloaded else tokens["CARD_HOVER_BORDER_IDLE"]
+        ),
+    )
 
 
 def build_viewer_stylesheet(palette: DanbooruUiPalette) -> str:
-    return f"""
-        QFrame#DanbooruImageViewerFrame {{
-            background: {palette.viewer_frame};
-            border: 1px solid {palette.viewer_border};
-            border-radius: 20px;
-        }}
-        QLabel#DanbooruImageLabel {{
-            color: {palette.muted_text};
-            background: {palette.viewer_image};
-            border-radius: 16px;
-        }}
-        QLabel#DanbooruImageHint {{
-            color: {palette.muted_text};
-            background: transparent;
-            padding: 0 18px;
-        }}
-        QWidget#DanbooruTagsContainer {{
-            background: transparent;
-        }}
-        QLabel#DanbooruTagSectionTitle {{
-            color: {palette.muted_text};
-            font-weight: 600;
-            padding: 8px 2px 2px 2px;
-        }}
-        PushButton#DanbooruTagButton {{
-            color: {palette.text};
-            background: {palette.viewer_tag};
-            border: 1px solid {palette.viewer_border};
-            border-radius: 12px;
-            min-height: 16px;
-            padding: 0 6px;
-            text-align: left;
-        }}
-        PushButton#DanbooruTagButton:hover {{
-            background: {palette.viewer_tag_hover};
-        }}
-    """
+    _ = palette
+    return _render_qss_section("viewer")
 
 
 def build_tab_stylesheet(palette: DanbooruUiPalette) -> str:
-    return f"""
-        QFrame#DanbooruSearchQueryGroup {{
-            background: {palette.section};
-            border: 1px solid {palette.section_border};
-            border-radius: 18px;
-        }}
-        QWidget#DanbooruGridContent {{
-            background: transparent;
-        }}
-        QAbstractScrollArea#DanbooruGridScrollArea {{
-            background: transparent;
-            border: none;
-        }}
-    """
+    _ = palette
+    return _render_qss_section("tab")
 
 
 def build_interface_stylesheet(palette: DanbooruUiPalette) -> str:
-    return f"""
-        DanbooruInterface {{
-            background: {palette.canvas};
-        }}
-        QFrame#DanbooruContentShell,
-        QWidget#DanbooruTitleBlock {{
-            background: {palette.shell};
-            border: 1px solid {palette.shell_border};
-            border-radius: 12px;
-        }}
-        QFrame#DanbooruPivotShell {{
-            background: {palette.shell};
-            border: 1px solid {palette.shell_border};
-            border-radius: 12px;
-        }}
-        QLabel#DanbooruSubtitle {{
-            color: {palette.muted_text};
-        }}
-        QLabel#DanbooruTabCaption {{
-            color: {palette.muted_text};
-            padding: 0 6px 0 2px;
-        }}
-        QWidget#DanbooruPivotTabBarView {{
-            background: transparent;
-        }}
-        QAbstractScrollArea#DanbooruPivotScrollArea {{
-            background: transparent;
-            border: none;
-        }}
-        TransparentToolButton#DanbooruPivotScrollButton {{
-            color: {palette.status_text};
-            background: transparent;
-            border: none;
-            border-radius: 18px;
-        }}
-        TransparentToolButton#DanbooruPivotScrollButton:hover {{
-            background: {palette.pivot_button_hover};
-        }}
-        TransparentToolButton#DanbooruPivotScrollButton:pressed {{
-            background: {palette.pivot_button_pressed};
-        }}
-        TransparentToolButton#DanbooruPivotScrollButton:disabled {{
-            color: {palette.muted_text};
-            background: transparent;
-            border: none;
-        }}
-        QAbstractScrollArea#DanbooruPivotScrollArea TabToolButton {{
-            color: {palette.status_text};
-            background: transparent;
-            border: none;
-            border-radius: 10px;
-        }}
-        QAbstractScrollArea#DanbooruPivotScrollArea TabToolButton:hover {{
-            background: {palette.pivot_button_hover};
-        }}
-        QAbstractScrollArea#DanbooruPivotScrollArea TabToolButton:pressed {{
-            background: {palette.pivot_button_pressed};
-        }}
-    """
+    _ = palette
+    return _render_qss_section("interface")
 
 
 def build_title_label_stylesheet(palette: DanbooruUiPalette) -> str:
-    return f"color: {palette.title_accent}; letter-spacing: 0.5px;"
+    _ = palette
+    return _render_qss_section("title_label_inline")
 
 
 def build_tip_line_stylesheet(palette: DanbooruUiPalette) -> str:
-    return f"padding-left: 8px; color: {palette.muted_text};"
+    _ = palette
+    return _render_qss_section("tip_line_inline")
+
+
+def build_network_label_stylesheet(palette: DanbooruUiPalette) -> str:
+    _ = palette
+    return _render_qss_section("network_label_inline")

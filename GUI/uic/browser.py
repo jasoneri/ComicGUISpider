@@ -10,6 +10,7 @@
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from qfluentwidgets import CheckBox, ComboBox, CompactSpinBox, LineEdit, PrimaryToolButton, TextBrowser, TextEdit, TransparentToggleToolButton, TransparentToolButton
+from GUI.uic.qfluent.components import LinkEdit
 
 
 class Ui_browser(object):
@@ -86,7 +87,7 @@ class Ui_browser(object):
         self.refreshBtn.setMaximumSize(QtCore.QSize(25, 16777215))
         self.refreshBtn.setObjectName("refreshBtn")
         self.horizontalLayout_2.addWidget(self.refreshBtn)
-        self.addressEdit = LineEdit(self.groupBox)
+        self.addressEdit = LinkEdit(self.groupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)

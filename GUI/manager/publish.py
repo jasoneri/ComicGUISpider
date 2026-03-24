@@ -57,14 +57,19 @@ class PublishDomainManager(QObject):
         super().__init__(gui)
         self.gui = gui
         self._bridge = PublishBridge(self)
+        self._channel = None
+        self._channel_page = None
         self._current_thread = None
         self._current_view = None
         self._task_id = 0
 
     def setup_channel(self, page):
-        channel = QWebChannel(page)
-        channel.registerObject("bridge", self._bridge)
-        page.setWebChannel(channel)
+        if self._channel and self._channel_page is page:
+            return
+        self._channel = QWebChannel(page)
+        self._channel.registerObject("bridge", self._bridge)
+        page.setWebChannel(self._channel)
+        self._channel_page = page
 
     def start_domain_test(self, texts):
         self._task_id += 1

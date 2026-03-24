@@ -75,8 +75,10 @@ if __name__ == '__main__':
             cb = ConvertBase('browser.py', 'browser.py', custom_sub={
                 "topHintBox = QtWidgets.QToolButton": "topHintBox = TransparentToggleToolButton",
                 "ensureBtn = QtWidgets.QToolButton": "ensureBtn = PrimaryToolButton",
+                "self.addressEdit = LineEdit(self.groupBox)": "self.addressEdit = LinkEdit(self.groupBox)",
                 "QtWidgets.QToolButton": "TransparentToolButton",
-            }, custom_fluent_widgets=['TransparentToolButton', 'PrimaryToolButton', 'TransparentToggleToolButton'])
+            }, custom_fluent_widgets=['TransparentToolButton', 'PrimaryToolButton', 'TransparentToggleToolButton'],
+            extra_import='\nfrom GUI.uic.qfluent.components import LinkEdit')
         case _:
             cb = ConvertBase(file, file)
     cb.run()

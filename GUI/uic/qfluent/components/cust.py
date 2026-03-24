@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScen
 
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
-    FluentIcon, FluentIconBase, Theme,
+    FluentIcon, FluentIconBase, Theme, LineEdit, LineEditButton,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, ImageLabel, TeachingTipView,
@@ -19,6 +19,35 @@ from qfluentwidgets import (
 from assets import res
 from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, ContentTarget
 from utils.redViewer_tools import BookShow
+
+
+class LinkEdit(LineEdit):
+    """ Search line edit """
+
+    linkSignal = Signal(str)
+    clearSignal = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.linkButton = LineEditButton(FluentIcon.LINK, self)
+
+        self.hBoxLayout.addWidget(self.linkButton, 0, Qt.AlignRight)
+        self.setClearButtonEnabled(True)
+        self.setTextMargins(0, 0, 59, 0)
+
+        self.linkButton.clicked.connect(self.link)
+        self.clearButton.clicked.connect(self.clearSignal)
+
+    def link(self):
+        text = self.text().strip()
+        if text:
+            self.linkSignal.emit(text)
+        else:
+            self.clearSignal.emit()
+
+    def setClearButtonEnabled(self, enable: bool):
+        self._isClearButtonEnabled = enable
+        self.setTextMargins(0, 0, 28*enable+30, 0)
 
 
 class FlexImageLabel(ImageLabel):

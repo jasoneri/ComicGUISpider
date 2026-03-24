@@ -1,5 +1,4 @@
 import json
-from PySide6.QtCore import QTimer
 from GUI.core.timer import safe_single_shot
 
 from utils.website.info import BookInfo
@@ -34,7 +33,13 @@ class AggrSearchManager:
         self.aggrSearchThread = AggrSearchThread(self.gui, search_keywords)
         self.aggrSearchThread.group_signal.connect(self.handle_group_data)
         self.aggrSearchThread.total_signal.connect(self.all_aggr_search_data)
-        self.aggrSearchThread.start()
+
+        def start_aggr_thread_once(ok):
+            if ok:
+                self.aggrSearchThread.start()
+                self.gui.BrowserWindow.view.loadFinished.disconnect(start_aggr_thread_once)
+
+        self.gui.BrowserWindow.view.loadFinished.connect(start_aggr_thread_once)
 
     def handle_group_data(self, group_idx, books_list):
         # preview_args格式: (idx, img_preview, name, preview_url)
@@ -55,7 +60,7 @@ class AggrSearchManager:
 
         books_json = json.dumps(books_data, ensure_ascii=False)
         js_code = f'addAgsGroup({group_idx}, {books_json});'
-        self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
+        self.gui.BrowserWindow.run_js(js_code)
 
     def all_aggr_search_data(self, total_data):
         def refresh_tf(html):
@@ -71,7 +76,7 @@ class AggrSearchManager:
                                 if isinstance(obj, BookInfo):
                                     dled_bidxes.append(key)
                         js_code = f'''tryMarkDownload({dled_bidxes},[]);'''
-                        self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
+                        self.gui.BrowserWindow.run_js(js_code)
                     safe_single_shot(300, delayed_mark)
                     self.gui.BrowserWindow.refreshBtn.click()
                 if self.gui.BrowserWindow.topHintBox.isChecked():
@@ -84,7 +89,13 @@ class AggrSearchManager:
         if not total_data:
             self.gui.BrowserWindow.hide()
         else:
-            self.gui.BrowserWindow.js_execute("finishTasks();", refresh_tf)
+            self.gui.BrowserWindow.run_js_result(
+                "return finishTasks();",
+                refresh_tf,
+                expected_kind="string",
+                description="ags finishTasks()",
+                error_callback=lambda _exc: refresh_tf(""),
+            )
 
     def create_selected_list(self, browser_output):
         selected_list = [

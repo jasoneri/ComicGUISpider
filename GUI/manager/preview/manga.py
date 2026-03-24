@@ -1,6 +1,7 @@
 import json
 import pickle
 import tempfile
+import time
 import traceback
 from collections import defaultdict
 
@@ -138,6 +139,9 @@ class _PreviewPageController:
         self._page_ready = False
         self._pending_js = []
         self._page_load_page = None
+        self._show_started_at = None
+        self._queued_js_count = 0
+        self._dispatched_js_count = 0
 
     def shutdown(self):
         self._disconnect_page_load()
@@ -149,8 +153,16 @@ class _PreviewPageController:
     def reset_session(self):
         self._page_ready = False
         self._pending_js.clear()
+        self._queued_js_count = 0
+        self._dispatched_js_count = 0
+
+    def _log_debug(self, message: str):
+        logger = getattr(self._gui, "log", None)
+        if logger:
+            logger.debug(f"[preview.js] {message}")
 
     def show(self, ensure_handler, reload_tf=True):
+        self._show_started_at = time.perf_counter()
         browser = self._gui.present_browser(
             ensure_handler=ensure_handler,
             close_handler=self._on_preview_window_closed,
@@ -166,10 +178,12 @@ class _PreviewPageController:
         if session_id != self._get_session_id():
             return
         if not self._page_ready:
+            self._queued_js_count += 1
             self._pending_js.append((session_id, js))
             return
         if browser := self._gui.BrowserWindow:
-            browser.js_execute(js, lambda _: None)
+            self._dispatched_js_count += 1
+            browser.run_js(js)
 
     def _ensure_web_channel(self, page):
         if self._channel and self._channel_page is page:
@@ -178,6 +192,7 @@ class _PreviewPageController:
         self._channel.registerObject("bridge", self._bridge)
         page.setWebChannel(self._channel)
         self._channel_page = page
+        self._log_debug("installed QWebChannel on preview page")
 
     def _bind_page_load(self, page):
         if self._page_load_page is page:
@@ -203,8 +218,20 @@ class _PreviewPageController:
         self._pending_js = []
         for saved_sid, js in pending:
             if saved_sid == sid:
-                browser.js_execute(js, lambda _: None)
+                self._dispatched_js_count += 1
+                browser.run_js(js)
         self._on_page_ready(sid)
+        elapsed_ms = None
+        if self._show_started_at is not None:
+            elapsed_ms = (time.perf_counter() - self._show_started_at) * 1000
+        self._log_debug(
+            "page ready "
+            f"session={sid} elapsed_ms={elapsed_ms:.1f} pending_flush={len(pending)} "
+            f"queued={self._queued_js_count} dispatched={self._dispatched_js_count}"
+            if elapsed_ms is not None else
+            f"page ready session={sid} pending_flush={len(pending)} "
+            f"queued={self._queued_js_count} dispatched={self._dispatched_js_count}"
+        )
 
     def _on_preview_window_closed(self, browser, event):
         self._disconnect_page_load()
@@ -220,7 +247,11 @@ class _PreviewPageController:
                     f.write(html)
             browser.close()
 
-        browser.js_execute("get_curr_hml();", _save_and_close)
+        browser.page_to_html(
+            _save_and_close,
+            description="preview close HTML snapshot",
+            error_callback=lambda _exc: _save_and_close(""),
+        )
 
 
 class MangaPreviewFeature:
@@ -409,6 +440,13 @@ class MangaPreviewFeature:
             for _, book_key, _, _ in batch_items:
                 self._inflight_books.add((session_id, book_key))
             self._mgr.worker.enqueue_episodes_batch(batch_items)
+        if browser := getattr(self.gui, "BrowserWindow", None):
+            browser.log_js_metrics(
+                "manga-dl-scan",
+                session=session_id,
+                matched=len(matched),
+                batch=len(batch_items),
+            )
 
     def _on_dl_scan_error(self, session_id, error):
         if session_id != self._mgr._session_id:
@@ -521,16 +559,16 @@ class MangaPreviewFeature:
             result[book_key] = selected_eps
         return result
 
-    def submit_page_selections(self):
-        parsed = self._parse_checked_output()
+    def _submit_checked_output(self, parsed: dict):
         for book_key, selected_eps in parsed.items():
-            book = self._mgr.books_cache[book_key]
-            book.episodes = selected_eps
-            self.gui.crawl(selected_eps)
+            book = self._mgr.books_cache.get(book_key)
+            if book is None or not selected_eps:
+                continue
+            book.episodes = list(selected_eps)
+            self.gui.sel_mgr.submit_decision("EP", book)
+
+    def submit_page_selections(self):
+        self._submit_checked_output(self._parse_checked_output())
 
     def _handle_ensure_result(self):
-        parsed = self._parse_checked_output()
-        for book_key, selected_eps in parsed.items():
-            book = self._mgr.books_cache[book_key]
-            book.episodes = selected_eps
-            self.gui.crawl(selected_eps)
+        self._submit_checked_output(self._parse_checked_output())

@@ -29,7 +29,7 @@ class Env:
         subprocess.run(["start", "", f"{_f}"], shell=True, check=True)
 
 
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu-compositing"
+# os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu-compositing"
 proj_path = pathlib.Path(__file__).parent.parent
 curr_os_module = Env
 if platform.system().startswith("Darwin"):
