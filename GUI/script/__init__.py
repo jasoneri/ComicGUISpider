@@ -306,8 +306,6 @@ class SettingInterface(QFrame):
             config_data['danbooru']['download_concurrency'] = self.danbooru_group_card.getDownloadConcurrency()
             config_data['danbooru'].pop('redis_key', None)
             config_data['danbooru'].pop('page_size', None)
-            config_data['danbooru'].pop('doh_url', None)
-            config_data['danbooru'].pop('motrix_aria2_conf_path', None)
             runtime_config = DanbooruRuntimeConfig.from_mapping(config_data['danbooru'])
 
             # 更新conf对象属性，参考GUI\conf_dialog.py的save_conf方法

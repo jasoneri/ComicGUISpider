@@ -33,9 +33,9 @@ def summarize_error_message(message: object, *, max_length: int = 180) -> str:
 
 
 class AsyncTaskThread(QThread):
-    success_signal = pyqtSignal(object)
-    error_signal = pyqtSignal(str)
-    progress_signal = pyqtSignal(str)
+    success_signal = Signal(object)
+    error_signal = Signal(str)
+    progress_signal = Signal(str)
 
     def __init__(self, task_func: Callable, *args, **kwargs):
         super().__init__()
@@ -365,6 +365,13 @@ class AsyncTaskManager(QObject):
         self._tooltip_stack.cleanup()
         self._infobar_center.cleanup()
         self.current_tasks.clear()
+
+    def reset(self):
+        self.cancel_all_tasks()
+        self._tooltip_stack.cleanup()
+        self._infobar_center.cleanup()
+        self.current_tasks.clear()
+        self._active = True
 
     def _handle_success(self, task_id: str, result: Any, config: TaskConfig):
         if not self._active:

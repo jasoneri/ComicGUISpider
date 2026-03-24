@@ -4,13 +4,14 @@ import sys
 import random
 import traceback
 import contextlib
-from PyQt5.QtGui import QKeySequence, QGuiApplication
-from PyQt5.QtCore import (
+import warnings
+from PySide6.QtGui import QKeySequence, QGuiApplication, QShortcut, QTextCursor
+from PySide6.QtCore import (
     QThread, Qt, QCoreApplication, QUrl, QRect,
-    pyqtSignal
+    Signal,
 )
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtWidgets import QMainWindow, QCompleter, QShortcut
+from PySide6.QtWidgets import QMainWindow, QCompleter
 from qfluentwidgets import InfoBar, InfoBarPosition, MessageBox
 
 from GUI.uic.qfluent import (
@@ -44,9 +45,19 @@ from utils.sql import SqlRecorder
 _UNSET = object()
 
 
+def _safe_disconnect(signal, slot=None):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        with contextlib.suppress(TypeError, RuntimeError):
+            if slot is None:
+                signal.disconnect()
+            else:
+                signal.disconnect(slot)
+
+
 class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
-    setup_finished = pyqtSignal()
+    setup_finished = Signal()
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
     web_is_r18 = False
@@ -120,13 +131,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.textBrowser.append(TextUtils.description())
 
         if getattr(self, 'sel_mgr', None):
-            with contextlib.suppress(TypeError):
-                self.sel_mgr.decision_made.disconnect()
-            with contextlib.suppress(TypeError):
-                self.sel_mgr.skip_notified.disconnect()
+            _safe_disconnect(self.sel_mgr.decision_made)
+            _safe_disconnect(self.sel_mgr.skip_notified)
         if getattr(self, 'dl_mgr', None):
-            with contextlib.suppress(TypeError):
-                self.dl_mgr.process_stage_changed.disconnect()
+            _safe_disconnect(self.dl_mgr.process_stage_changed)
 
         self.clip_mgr = ClipGUIManager(self)
         self.ags_mgr = AggrSearchManager(self)
@@ -159,8 +167,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._lifecycle_state = SearchLifecycleState.Unlocked
 
         self.preprocess_mgr = PreprocessManager(self)
-        with contextlib.suppress(TypeError):
-            self.chooseBox.currentIndexChanged.disconnect(self._chooseBox_changed_handle)
+        _safe_disconnect(self.chooseBox.currentIndexChanged, self._chooseBox_changed_handle)
         self.chooseBox.currentIndexChanged.connect(self._chooseBox_changed_handle)
         self.lifecycle_state = SearchLifecycleState.Unlocked
         self.setup_finished.emit()
@@ -222,11 +229,31 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             cookies["ehentai"] = dict(conf.cookies["ehentai"])
         return cookies
 
+    @staticmethod
+    def _peek_snapshot_domain(site_utils) -> str | None:
+        cachef = getattr(site_utils, "cachef", None)
+        cached = getattr(cachef, "val", None) if cachef else None
+        if isinstance(cached, str) and cached.strip():
+            return cached.strip()
+
+        cache_name = getattr(site_utils, "name", "")
+        if cache_name:
+            cache_path = temp_p.joinpath(f"{cache_name}_domain.txt")
+            if cache_path.exists():
+                if cached:= cache_path.read_text(encoding="utf-8").strip():
+                    return cached
+
+        fallback = site_utils._fallback_domain() if hasattr(site_utils, "_fallback_domain") else getattr(site_utils, "domain", None)
+        if isinstance(fallback, str) and fallback.strip():
+            return fallback.strip()
+        return None
+
     def _build_search_context_snapshot(self, site_index: int) -> SearchContextSnapshot:
         domains = {}
         site_utils = spider_utils_map.get(site_index)
         if site_index == Spider.JM and site_utils is not None:
-            domains["jm"] = site_utils.get_domain()
+            if domain := self._peek_snapshot_domain(site_utils):
+                domains["jm"] = domain
         elif site_index == Spider.EHENTAI and site_utils is not None:
             domains["ehentai"] = site_utils.domain
         return SearchContextSnapshot(
@@ -235,6 +262,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             cookies=self._snapshot_cookies(site_index),
             domains=domains,
         )
+
+    def update_search_context(self, snapshot: SearchContextSnapshot):
+        if snapshot.site_index != self.chooseBox.currentIndex():
+            return
+        self._search_context = snapshot
+        if getattr(self, "preview_mgr", None):
+            self.preview_mgr.update_search_context(snapshot)
+        if getattr(self, "BrowserWindow", None):
+            self.BrowserWindow.search_context = snapshot
 
     def _destroy_browser_window(self):
         browser = self.BrowserWindow
@@ -260,12 +296,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._search_context = self._build_search_context_snapshot(index)
         self._search_blocked = False
         self.lifecycle_state = SearchLifecycleState.LockedIdle
-        self.spiderUtils = spider_utils_map[index]
+        self.spiderUtils = spider_utils_map.get(index)
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
-        if self.web_is_r18:
+        self.sut = None
+        if self.web_is_r18 and self.spiderUtils is not None:
             self.sut = self.spiderUtils(conf)
             self.rv_tools.ero = 1
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
@@ -295,7 +332,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             case 4:
                 self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
-                self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
+                if self.spiderUtils:
+                    self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
         if index in Spider.mangas():
             self.say(font_color(self.res.manga_fav_tip, cls='theme-tip'))
 
@@ -311,8 +349,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 shortcut.setContext(Qt.ApplicationShortcut)
                 setattr(self, attr_name, shortcut)
             else:
-                with contextlib.suppress(TypeError):
-                    shortcut.activated.disconnect()
+                _safe_disconnect(shortcut.activated)
             shortcut.activated.connect(slot)
 
     def showAggrWin(self):
@@ -357,8 +394,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.aggrBtn.clicked.connect(self.showAggrWin)
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
 
-        with contextlib.suppress(TypeError):
-            self.mpreviewBtn.clicked.disconnect()
+        _safe_disconnect(self.mpreviewBtn.clicked)
         self.mpreviewBtn.clicked.connect(self.show_preview)
 
         self.page_turn_frame()
@@ -433,7 +469,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if not self.BrowserWindow:
             self.set_preview(rect)
         elif reload_tf:
-            self.BrowserWindow.home_url = QUrl.fromLocalFile(self.tf)
+            self.BrowserWindow.home_url = QUrl.fromLocalFile(str(self.tf)) if self.tf else QUrl("about:blank")
             self.BrowserWindow.load_home()
 
         if ensure_handler is not _UNSET:
@@ -469,11 +505,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.reset_search_context()
 
     def reset_search_context(self):
-        if getattr(self, "dl_mgr", None) and self.dl_mgr.has_active_download():
-            w = MessageBox("重置当前搜索上下文", "将重置当前搜索上下文，不影响后台下载与任务列表", self)
-            if not w.exec():
-                return
-        self.say(font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4))
+        reset_tip = font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4)
+        self.textBrowser.append(reset_tip)
         if hasattr(self, 'preprocess_mgr'):
             self.preprocess_mgr.cleanup()
         if getattr(self, "preview_mgr", None):
@@ -603,8 +636,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             fin_s = string
         if fin_s:
             self.textBrowser.append(fin_s)
-        cursor = self.textBrowser.textCursor()
-        self.textBrowser.moveCursor(cursor.End)  # move cursor to the end for show dynamicly
+        self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
 
     def processbar_load(self, i):
         self.progressBar.setValue(i)

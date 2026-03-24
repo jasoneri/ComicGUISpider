@@ -702,4 +702,13 @@ class TaskProgressManager:
         return [self._entries[taskid].progress.tasks_obj for taskid in un_taskids]
 
     def close(self):
+        self._cover_task_mgr.cleanup()
+        self._cover_http_cli.close()
+        self._panel_ctrl.cleanup()
+        self._entry_ctrl.dispose_views(reset_view_ref=True)
+        self._entries.clear()
+        if self._dl_status_badge is not None:
+            self._dl_status_badge.hide()
+            self._dl_status_badge.badge.deleteLater()
+            self._dl_status_badge = None
         self.record_sql.close()

@@ -75,6 +75,11 @@ class PreviewMgr:
             self._stop_worker()
         self.gui.refresh_lifecycle_state()
 
+    def update_search_context(self, snapshot: SearchContextSnapshot):
+        self.search_context = snapshot
+        if self._worker:
+            self._worker.update_snapshot(snapshot)
+
     def on_spreview_clicked(self, keyword=None):
         keyword = keyword or self.gui.searchinput.text().strip()
         if not keyword:

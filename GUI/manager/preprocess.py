@@ -1,6 +1,7 @@
 import os
 import json
 import importlib
+from dataclasses import replace
 
 import psutil
 import httpx
@@ -111,13 +112,13 @@ class PreprocessManager(QObject):
 
         def task():
             # 1. 更新域名缓存
-            provider.get_domain()
+            return provider.get_domain()
             # 2. cookies处理？
-            return True
 
-        def on_success(_):
+        def on_success(domain):
             if not self._is_current_site(index, generation):
                 return
+            self._refresh_snapshot_domain(index, "jm", domain)
             self._say_cache_or("<br>✅ 已设置有效域名")
 
 
@@ -424,7 +425,17 @@ class PreprocessManager(QObject):
     def cleanup(self):
         global data_cli
         self._next_generation()
-        self.task_manager.cleanup()
+        self.task_manager.reset()
         if data_cli is not None:
             data_cli.close()
             data_cli = None
+
+    def _refresh_snapshot_domain(self, index: int, name: str, domain: str | None):
+        if not domain:
+            return
+        snapshot = getattr(self.gui, "_search_context", None)
+        if snapshot is None or snapshot.site_index != index:
+            return
+        domains = {**snapshot.domains, name: domain}
+        updated = replace(snapshot, domains=domains)
+        self.gui.update_search_context(updated)

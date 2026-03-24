@@ -56,6 +56,11 @@ class PreviewWorker(QThread):
         self._active = False
         self._task_queue.put(None)
 
+    def update_snapshot(self, snapshot: SearchContextSnapshot):
+        self._proxies = list(snapshot.proxies)
+        self._cookies = dict(snapshot.cookies)
+        self._domains = dict(snapshot.domains)
+
     def enqueue_search(self, keyword, site_index, page=1):
         self._task_queue.put(SearchTask(keyword, site_index, page))
 

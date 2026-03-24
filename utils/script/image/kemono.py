@@ -20,8 +20,10 @@ import tqdm
 
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
+from utils import get_httpx_verify
 from utils.script import conf, AioRClient, BlackList, folder_sub
-from utils.script.motrix import MotrixRPC
+from utils.script.doh import build_doh_async_transport, dns_stub_server
+from utils.script.motrix import MotrixRPC, build_motrix_dns_options
 from utils.script.image.expander import FilterMgr, format_naming
 from utils.config.qc import kemono_cfg
 temp_p = proj_p.joinpath("__temp")
@@ -115,13 +117,15 @@ class Api:
     creators_txt = base + "/creators"
 
     def __init__(self, conf):
-        if conf.proxies:
-            self.sess = httpx.AsyncClient(
-                transport=httpx.AsyncHTTPTransport(http2=True,
-                    proxy=f"http://{conf.proxies[0]}", retries=3)
-            )
-        else:
-            self.sess = httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(http2=True, retries=2))
+        transport, trust_env = build_doh_async_transport(
+            "proxy",
+            getattr(conf, "proxies", None) or [],
+            doh_url=getattr(conf, "doh_url", ""),
+            retries=2,
+            verify=get_httpx_verify(),
+            http2=True,
+        )
+        self.sess = httpx.AsyncClient(transport=transport, trust_env=trust_env)
         self.conf = conf.kemono
 
     async def req(self, url, method="GET", **kw):
@@ -190,6 +194,12 @@ class Kemono:
         self.sorted_record = self.sv_path.joinpath('__sorted_record')
         self.blacklist_obj = BlackList(self.sv_path / 'blacklist.json')
         self.blacklist = self.blacklist_obj.read()
+
+    @staticmethod
+    def motrix_add_uri_options() -> dict[str, str]:
+        return build_motrix_dns_options(
+            dns_server=dns_stub_server(getattr(conf, "doh_url", "")),
+        )
 
     class Creator:
         cache_path = temp_p.joinpath("kemono_data.pkl")
@@ -351,7 +361,7 @@ class Kemono:
             """下载kemono创作者数据并转换为KemonoAuthor映射字典"""
             creators_txt = temp_p.joinpath("creators.txt")
             if not creators_txt.exists():
-                _data = [[Api.creators_txt], {"dir": str(temp_p)}]
+                _data = [[Api.creators_txt], {"dir": str(temp_p), **self.k.motrix_add_uri_options()}]
                 resp = await self.k.rpc.sess.request(
                     "POST", self.k.rpc.url, headers={"Content-Type": "application/json"},
                     json=MotrixRPC.format_data(_data, _id="creators.txt"))
@@ -440,7 +450,7 @@ class Kemono:
             async with _sem:
                 gids = {}
                 for task in _tasks:
-                    _data = [[task["url"]], {"dir": str(_path)}]
+                    _data = [[task["url"]], {"dir": str(_path), **self.motrix_add_uri_options()}]
                     resp = await self.rpc.sess.request(
                         "POST", self.rpc.url, headers={"Content-Type": "application/json"},
                         json=MotrixRPC.format_data(_data, _id=f"{_id}/{task['file_name']}"))

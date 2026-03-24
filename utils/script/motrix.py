@@ -119,6 +119,23 @@ class MotrixRPC:
     async def aclose(self):
         await self.session.aclose()
 
+    @staticmethod
+    def _normalize_header_option(raw_headers) -> list[str]:
+        if raw_headers is None:
+            normalized = []
+        elif isinstance(raw_headers, (list, tuple, set)):
+            normalized = [str(item).strip() for item in raw_headers if str(item).strip()]
+        else:
+            text = str(raw_headers).strip()
+            normalized = [text] if text else []
+        if not any(
+            header.split(":", 1)[0].strip().casefold() == "user-agent"
+            for header in normalized
+            if ":" in header
+        ):
+            normalized.append(f"User-Agent: {HTTPX_USER_AGENT}")
+        return normalized
+
     async def add_uri(
         self,
         url: str,
@@ -132,7 +149,7 @@ class MotrixRPC:
         payload_options.setdefault("dir", str(target_dir))
         if out:
             payload_options.setdefault("out", out)
-        payload_options.setdefault("header", [f"User-Agent: {HTTPX_USER_AGENT}"])
+        payload_options["header"] = self._normalize_header_option(payload_options.get("header"))
         response = await self.request(
             "POST",
             json=self.format_data(

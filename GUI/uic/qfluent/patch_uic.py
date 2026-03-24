@@ -38,9 +38,11 @@ class ConvertBase:
             sorted(set(REPLACE_MAP.values()) | set(self.custom_fluent_widgets))
         )
         content = deepcopy(self.content)
-        content = content.replace(
-            r'from PyQt5 import QtCore, QtGui, QtWidgets',
-            f'from PyQt5 import QtCore, QtGui, QtWidgets\n{import_part}{self.extra_import}'
+        content = re.sub(
+            r'from Py(?:Qt5|Side6) import QtCore, QtGui, QtWidgets',
+            f'from PySide6 import QtCore, QtGui, QtWidgets\n{import_part}{self.extra_import}',
+            content,
+            count=1,
         )
         # 替换控件实例化代码 ------------------------------------------------------------
         for origin, new in REPLACE_MAP.items():

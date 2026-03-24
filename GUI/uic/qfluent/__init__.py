@@ -18,6 +18,33 @@ __all__ = [
 res = ori_res.GUI.Uic
 
 
+def _exec_menu(menu, event):
+    menu.exec(event.globalPos())
+
+
+def _create_web_context_menu(web_view):
+    with contextlib.suppress(AttributeError, RuntimeError):
+        return web_view.createStandardContextMenu()
+    return None
+
+
+def _selected_web_text(web_view):
+    request_getter = getattr(web_view, "lastContextMenuRequest", None)
+    if callable(request_getter):
+        with contextlib.suppress(RuntimeError):
+            request = request_getter()
+            if request is not None:
+                if text := (request.selectedText() or "").strip():
+                    return text
+    with contextlib.suppress(AttributeError, RuntimeError):
+        if text := (web_view.selectedText() or "").strip():
+            return text
+    with contextlib.suppress(AttributeError, RuntimeError):
+        if text := (web_view.page().selectedText() or "").strip():
+            return text
+    return ""
+
+
 class MonkeyPatch:
     @staticmethod
     def rbutton_menu_lineEdit(line_edit, extra_actions=None):
@@ -42,7 +69,7 @@ class MonkeyPatch:
             menu.addAction(undo_action)
             menu.addAction(select_all_action)
 
-            menu.exec(event.globalPos())
+            _exec_menu(menu, event)
             event.accept()
         line_edit.contextMenuEvent = types.MethodType(new_context_menu, line_edit)
 
@@ -64,7 +91,7 @@ class MonkeyPatch:
                 custom_action = Action(text="将选中文本加进预设", 
                     triggered=lambda: set_to_completer(selected_text))
                 fluent_menu.addAction(custom_action)
-            fluent_menu.exec(event.globalPos())
+            _exec_menu(fluent_menu, event)
             event.accept()
         def set_to_completer(text):
             conf.completer[cb_idx].insert(0, text)
@@ -75,12 +102,12 @@ class MonkeyPatch:
     @staticmethod
     def rbutton_menu_WebEngine(browserWindow):
         def custom_context_menu(self, event):
-            page = self.page()
-            native_menu = page.createStandardContextMenu()
-            menu = _convert_menu(native_menu)
-            menu.exec(event.globalPos())
+            native_menu = _create_web_context_menu(self)
+            menu = _convert_menu(native_menu) if native_menu is not None else custom_menu()
+            _exec_menu(menu, event)
             event.accept()
-            native_menu.deleteLater()
+            if native_menu is not None:
+                native_menu.deleteLater()
 
         def custom_menu():
             def route_turn(direction: str):
@@ -104,11 +131,19 @@ class MonkeyPatch:
             fluent_menu = custom_menu()
             for action in native_menu.actions():
                 # 过滤不需要的默认动作
+                if not action.isVisible():
+                    continue
                 if action.isSeparator():
                     fluent_menu.addSeparator()
                     continue
-                action_text = action.text()
+                action_text = str(action.text() or "").replace("&", "").strip()
+                if not action_text:
+                    continue
                 fluent_action = Action(text=action_text, shortcut=action.shortcut(), triggered=action.trigger)
+                fluent_action.setEnabled(action.isEnabled())
+                if action.isCheckable():
+                    fluent_action.setCheckable(True)
+                    fluent_action.setChecked(action.isChecked())
                 match action_text:  # icon mapping
                     case 'Copy' | 'Copy link address':
                         fluent_action.setIcon(FluentIcon.COPY.icon())
@@ -147,19 +182,15 @@ class MonkeyPatch:
             safe_single_shot(20, close)
 
         def custom_context_menu(self, event):
-            page = self.page()
-            native_menu = page.createStandardContextMenu()
-            selected_text = page.selectedText().strip()
+            selected_text = _selected_web_text(self)
             if selected_text:
                 fluent_menu = RoundMenu(parent=web_view)
                 sauce_action = Action(FluentIcon.SEARCH, text='Search by saucenao', triggered=lambda: send_to_search(selected_text))
                 fluent_menu.addAction(sauce_action)
-                fluent_menu.exec(event.globalPos())
+                _exec_menu(fluent_menu, event)
                 event.accept()
-                native_menu.deleteLater()
             else:
                 event.accept()
-                native_menu.deleteLater()
 
         web_view = browserWindow.view
         gui = browserWindow.gui
@@ -176,18 +207,14 @@ class MonkeyPatch:
                 ib_pos=InfoBarPosition.BOTTOM, widgets=[lineEdit, ensureBtn])
 
         def custom_context_menu(self, event):
-            selected_text = ""
-            with contextlib.suppress(Exception):
-                def get_selected_text(result):
-                    nonlocal selected_text
-                    selected_text = result or ""
-                self.page().runJavaScript("window.getSelection().toString();", get_selected_text)
+            selected_text = _selected_web_text(self)
             fluent_menu = RoundMenu(parent=self)
             manual_action = Action(FluentIcon.PENCIL_INK, text="手输域名", triggered=manual_input)
             test_action = Action(FluentIcon.COMMAND_PROMPT, text="选中内地域名进行检测", triggered=lambda: gui.publish_mgr.start_domain_test(selected_text))
+            test_action.setEnabled(bool(selected_text))
             fluent_menu.addAction(manual_action)
             fluent_menu.addAction(test_action)
-            fluent_menu.exec(event.globalPos())
+            _exec_menu(fluent_menu, event)
             event.accept()
 
         web_view = browserWindow.view
