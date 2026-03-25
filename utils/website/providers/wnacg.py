@@ -7,7 +7,7 @@ from scrapy import Selector
 
 from assets import res
 from utils import ori_path
-from utils.website.core import EroUtils, DomainUtils, Req, Previewer
+from utils.website.core import EroUtils, DomainUtils, Req, Previewer, ProviderContext
 from utils.website.info import WnacgBookInfo
 
 
@@ -36,6 +36,13 @@ class WnacgUtils(EroUtils, DomainUtils, Req, Previewer):
     }
     uuid_regex = re.compile(r"-(\d+)\.html$")
     cate_mappings = {"cate-5": "同人誌","cate-1": "同人誌 / 漢化","cate-12": "同人誌 / 日語","cate-16": "同人誌 / English","cate-2": "同人誌 / CG畫集","cate-37": "同人誌 / AI圖集","cate-22": "同人誌 / 3D漫畫","cate-3": "同人誌 / Cosplay","cate-6": "單行本","cate-9": "單行本 / 漢化","cate-13": "單行本 / 日語","cate-17": "單行本 / English","cate-7": "雜誌&短篇","cate-10": "雜誌&短篇 / 漢化","cate-14": "雜誌&短篇 / 日語","cate-18": "雜誌&短篇 / English","cate-19": "韓漫","cate-20": "韓漫 / 漢化","cate-21": "韓漫 / 其他",}
+    search_url_head = "https://wnacg.com/search/?f=_all&s=create_time_DESC&syn=yes&q="
+    mappings = {
+        "更新": "https://wnacg.com/albums-index.html",
+        "汉化": "https://wnacg.com/albums-index-cate-1.html",
+    }
+    turn_page_search = r"p=\d+"
+    turn_page_info = (r"-page-\d+", "albums-index%s")
 
     @classmethod
     async def parse_publish_(cls, html_text):
@@ -95,34 +102,67 @@ class WnacgUtils(EroUtils, DomainUtils, Req, Previewer):
         return books
 
     @classmethod
-    def preview_client_config(cls):
-        return {'headers': cls.headers, 'verify': False}
+    def preview_client_config(cls, context: ProviderContext):
+        domain = cls._domain_from(context)
+        hea = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
+        return {'headers': hea, 'verify': False}
 
     @classmethod
-    async def preview_search(cls, keyword, cli, **kw):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        domain = cls.domain or cls.get_domain()
-        url = f'https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q={keyword}&p={page}'
-        hea = {**cls.headers, 'Referer': f'https://{domain}'}
-        cli.headers=hea
-        resp = await cli.get(url, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
-
-        def _parse(text, _domain):
-            _html = Selector(text=text)
-            targets = _html.xpath('//li[contains(@class, "gallary_item")]')
-            with ThreadPoolExecutor() as executor:
-                books = list(executor.map(cls.parse_search_item, targets))
-            for idx, book in enumerate(books):
-                book.idx = idx
-                book.preview_url = f'https://{_domain}{book.preview_url}'
-                book.url = f'https://{_domain}{book.url}'
-            return books
-
-        return await asyncio.to_thread(_parse, resp.text, domain)
+    def _domain_from(cls, context: ProviderContext | None) -> str:
+        if context and context.domain:
+            return context.domain
+        return cls.get_domain()
 
     @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):  
+    def _build_preview_search_request(
+        cls,
+        keyword: str,
+        *,
+        page: int = 1,
+        context: ProviderContext,
+    ):
+        domain = cls._domain_from(context)
+        headers = {"Host": domain, **cls.headers, "Referer": f"https://{domain}"}
+        return cls.build_basic_search_request(
+            keyword,
+            page=page,
+            domain=domain,
+            search_url_head=f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=",
+            turn_page_info=cls.turn_page_info,
+            turn_page_search=cls.turn_page_search,
+            mappings=cls.mappings,
+            custom_map=context.custom_map,
+            headers=headers,
+            state={"domain": domain},
+        )
+
+    @classmethod
+    def _parse_preview_books(cls, text, domain):
+        _html = Selector(text=text)
+        targets = _html.xpath('//li[contains(@class, "gallary_item")]')
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(cls.parse_search_item, targets))
+        for idx, book in enumerate(books, start=1):
+            book.idx = idx
+            book.preview_url = f'https://{domain}{book.preview_url}'
+            book.url = f'https://{domain}{book.url}'
+        return books
+
+    @classmethod
+    async def preview_search(
+        cls,
+        keyword,
+        cli,
+        *,
+        page=1,
+        context: ProviderContext,
+    ):
+        spec = cls._build_preview_search_request(keyword, page=page, context=context)
+        resp = await cls.perform_preview_request(cli, spec)
+        return await asyncio.to_thread(cls._parse_preview_books, resp.text, spec.state["domain"])
+
+    @classmethod
+    async def preview_fetch_episodes(cls, book, client, *, context: ProviderContext):  
         # FIXME fuck,谁让你转Episode的，追溯上下文的狗屎！wnacg,ehentai,hcomic都没有这狗屎需要转的
         # return [Episode(from_book=book, idx=1, name=book.name or "全本")]
         return [book]

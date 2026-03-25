@@ -16,8 +16,11 @@ def build_browser_environment(gui, snapshot: SearchContextSnapshot | None) -> Br
     referer_url = ""
 
     if site_index == Spider.JM:
+        referer_url = _resolve_site_root_url(site_index, "jm", snapshot)
         if cookie_set := _resolve_jm_cookie_set(site_index, snapshot):
             cookie_sets.append(cookie_set)
+    elif site_index == Spider.WNACG:
+        referer_url = _resolve_site_root_url(site_index, "wnacg", snapshot)
     elif site_index == Spider.EHENTAI:
         if cookie_set := _resolve_ehentai_cookie_set(snapshot):
             cookie_sets.append(cookie_set)
@@ -73,6 +76,22 @@ def _resolve_hitomi_referer(site_index: int) -> str:
     if site_cls is None or not getattr(site_cls, "index", None):
         raise ValueError("hitomi site index unavailable")
     return str(site_cls.index)
+
+
+def _resolve_site_root_url(site_index: int, snapshot_key: str, snapshot: SearchContextSnapshot | None) -> str:
+    domain = snapshot.domains.get(snapshot_key) if snapshot is not None else None
+    if not domain:
+        site_cls = spider_utils_map.get(site_index)
+        if site_cls is None:
+            raise ValueError(f"site utils unavailable for {snapshot_key}")
+        domain = peek_snapshot_domain(site_cls)
+        if not domain and hasattr(site_cls, "get_domain"):
+            domain = site_cls.get_domain()
+        if not domain:
+            domain = getattr(site_cls, "domain", None)
+    if not domain:
+        raise ValueError(f"{snapshot_key} site domain unavailable")
+    return f"https://{str(domain).strip().rstrip('/')}"
 
 
 def peek_snapshot_domain(site_utils) -> str | None:

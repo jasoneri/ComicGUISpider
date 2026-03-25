@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
 
-from utils.processed_class import execute_js
 from utils.website import MangabzUtils
 from utils.website.req_schema import MbBody as Body, MbSearchBody as SearchBody, mb_curr_time_format as curr_time_format
 from .basecomicspider import FormReqBaseComicSpider, ComicspiderItem
@@ -48,14 +47,7 @@ class MangabzSpider(FormReqBaseComicSpider):
         ep = response.meta['ep']
         book = ep.from_book
         uid, u_md5 = ep.id_and_md5()
-        js = response.xpath('//script[@type="text/javascript"]/text()').getall()
-        target_js = next(filter(lambda t: t.strip().startswith('eval'), js), None)
-        real_js = execute_js(
-            r"""function run(code){var ret="";eval('ret = '+code.replace(/^;*?\s*(window(\.|\[(["'])))?eval(\3\])?/, 
-            function ($0) {return 'String';}));   return ret }""",
-            "run", target_js)
-        img_list_ = re.search(r'\[(.*?)]', real_js).group(1)
-        img_list = [re.sub(r"""['"]""", '', _) for _ in re.split(', ?', img_list_)]
+        img_list = MangabzUtils.parse_page_urls_from_html(response.text)
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
         ep.pages = len(img_list)
         self.set_task(ep)

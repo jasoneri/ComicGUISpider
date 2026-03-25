@@ -15,7 +15,7 @@ from .ags import AggrSearchThread
 
 class ClipTasksThread(QThread):
     info_signal = Signal(InfoMinix)
-    total_signal = Signal(dict)
+    total_signal = Signal(object)
 
     def __init__(self, gui, tasks):
         super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
@@ -62,7 +62,7 @@ class ClipTasksThread(QThread):
             self.total_signal.emit(self.total)
             return
         self.iterations += 1
-        self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
+        self.gui.BrowserWindow.page_runtime.run_js("checkDoneTasks();", self.handle_js_result)
 
     def handle_js_result(self, num):
         if num and num >= len(self.total):

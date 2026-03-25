@@ -8,7 +8,7 @@ import httpx
 from PySide6.QtCore import QThread, Signal
 
 from GUI.types import SearchContextSnapshot
-from utils.website.core import Previewer, build_proxy_transport
+from utils.website.core import Previewer, ProviderContext, build_proxy_transport
 from utils.website.registry import spider_utils_map
 
 
@@ -32,7 +32,12 @@ class EpisodesBatchTask:
     items: list
 
 
-PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask]
+@dataclass(frozen=True, slots=True)
+class PagesBatchTask:
+    items: list
+
+
+PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask, PagesBatchTask]
 
 
 class PreviewWorker(QThread):
@@ -40,6 +45,8 @@ class PreviewWorker(QThread):
     search_error = Signal(int, str, int, str)
     episodes_done = Signal(int, int, str, object)
     episodes_error = Signal(int, int, str, str)
+    pages_done = Signal(int, str, object)
+    pages_error = Signal(int, str, str)
 
     def __init__(self, parent=None, *, snapshot: SearchContextSnapshot, generation: int):
         super().__init__(parent)
@@ -49,6 +56,7 @@ class PreviewWorker(QThread):
         self._proxies = list(snapshot.proxies)
         self._cookies = dict(snapshot.cookies)
         self._domains = dict(snapshot.domains)
+        self._custom_map = dict(snapshot.custom_map)
         self.site_clients: dict[int, httpx.AsyncClient] = {}
         self._loop = None
 
@@ -60,6 +68,7 @@ class PreviewWorker(QThread):
         self._proxies = list(snapshot.proxies)
         self._cookies = dict(snapshot.cookies)
         self._domains = dict(snapshot.domains)
+        self._custom_map = dict(snapshot.custom_map)
 
     def enqueue_search(self, keyword, site_index, page=1):
         self._task_queue.put(SearchTask(keyword, site_index, page))
@@ -71,19 +80,23 @@ class PreviewWorker(QThread):
         if items:
             self._task_queue.put(EpisodesBatchTask(items))
 
+    def enqueue_pages_batch(self, items):
+        if items:
+            self._task_queue.put(PagesBatchTask(items))
+
     def _build_site_context(self, preview_cls):
-        context = {}
-        if preview_cls.name in self._cookies:
-            context["cookies"] = self._cookies[preview_cls.name]
-        if preview_cls.name in self._domains:
-            context["domain"] = self._domains[preview_cls.name]
-        return context
+        return ProviderContext.create(
+            proxies=self._proxies,
+            cookies=self._cookies.get(preview_cls.name),
+            domain=self._domains.get(preview_cls.name),
+            custom_map=self._custom_map,
+        )
 
     def _get_client(self, site_index):
         if cli := self.site_clients.get(site_index):
             return cli
         preview_cls = self._get_preview_cls(site_index)
-        site_kw = preview_cls.preview_client_config(**self._build_site_context(preview_cls))
+        site_kw = preview_cls.preview_client_config(self._build_site_context(preview_cls))
         policy = getattr(preview_cls, "proxy_policy", "proxy")
         verify = site_kw.pop("verify", True)
         transport, trust_env = build_proxy_transport(policy, self._proxies, verify=verify)
@@ -109,19 +122,16 @@ class PreviewWorker(QThread):
     async def _do_search(self, keyword, site_index, page=1):
         preview_cls = self._get_preview_cls(site_index)
         cli = self._get_client(site_index)
-        return await preview_cls.preview_search(
-            keyword,
-            cli,
-            page=page,
-            **self._build_site_context(preview_cls),
-        )
+        context = self._build_site_context(preview_cls)
+        return await preview_cls.preview_search(keyword, cli, page=page, context=context)
 
     async def _do_fetch_episodes(self, book, site_index):
         preview_cls = self._get_preview_cls(site_index)
+        context = self._build_site_context(preview_cls)
         return await preview_cls.preview_fetch_episodes(
             book,
             self._get_client(site_index),
-            **self._build_site_context(preview_cls),
+            context=context,
         )
 
     async def _do_fetch_episodes_batch(self, items):
@@ -137,6 +147,38 @@ class PreviewWorker(QThread):
 
         await asyncio.gather(
             *[_fetch_one(sid, bk, b, si) for sid, bk, b, si in items]
+        )
+
+    async def _do_fetch_pages_batch(self, items):
+        sem = asyncio.Semaphore(2)
+
+        async def _fetch_one(book_key, episode, site_index):
+            async with sem:
+                preview_cls = self._get_preview_cls(site_index)
+                cli = self._get_client(site_index)
+                context = self._build_site_context(preview_cls)
+                await preview_cls.preview_fetch_pages(
+                    episode,
+                    cli,
+                    context=context,
+                )
+
+        grouped = {}
+        for book_key, episode, site_index in items:
+            grouped.setdefault(book_key, []).append((episode, site_index))
+
+        async def _fetch_book(book_key, ep_list):
+            try:
+                await asyncio.gather(
+                    *[_fetch_one(book_key, ep, si) for ep, si in ep_list]
+                )
+                episodes = [ep for ep, _ in ep_list]
+                self.pages_done.emit(self._generation, book_key, episodes)
+            except Exception:
+                self.pages_error.emit(self._generation, book_key, traceback.format_exc())
+
+        await asyncio.gather(
+            *[_fetch_book(bk, eps) for bk, eps in grouped.items()]
         )
 
     async def _close_clients(self):
@@ -170,6 +212,10 @@ class PreviewWorker(QThread):
                         case EpisodesBatchTask(items=its):
                             self._loop.run_until_complete(
                                 self._do_fetch_episodes_batch(its)
+                            )
+                        case PagesBatchTask(items=its):
+                            self._loop.run_until_complete(
+                                self._do_fetch_pages_batch(its)
                             )
                 except Exception:
                     err = traceback.format_exc()

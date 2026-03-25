@@ -25,13 +25,13 @@ class HComicSpider(BaseComicSpider2):
     def ua(self):
         return HComicUtils.headers
 
-    def frame_book(self, response):
-        frame_results = {}
-        books = self.ut.parse_search(response.text)
-        for idx, book in enumerate(books, 1):
-            book.idx = idx
-            frame_results[idx] = book
-        return self.say.frame_book_print(frame_results, url=response.url, make_preview=True)
+    # def frame_book(self, response):
+    #     frame_results = {}
+    #     books = self.ut.parse_search(response.text)
+    #     for idx, book in enumerate(books, 1):
+    #         book.idx = idx
+    #         frame_results[idx] = book
+    #     return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
         book = self.ut.parse_book(response.text)

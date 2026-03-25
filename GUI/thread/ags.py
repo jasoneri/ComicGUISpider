@@ -7,7 +7,7 @@ from GUI.core.font import font_color
 
 
 class AggrSearchThread(QThread):
-    total_signal = Signal(dict)
+    total_signal = Signal(object)
     group_signal = Signal(int, list)  # 用于通知完成一组搜索: (group_idx, books_list)
 
     def __init__(self, gui, tasks):
@@ -69,7 +69,7 @@ class AggrSearchThread(QThread):
             self.total_signal.emit(self.total)
             return
         self.iterations += 1
-        self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
+        self.gui.BrowserWindow.page_runtime.run_js("checkDoneTasks();", self.handle_js_result)
 
     def handle_js_result(self, num):
         if num and num >= len(self.total):

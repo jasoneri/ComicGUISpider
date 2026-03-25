@@ -1,6 +1,7 @@
 import re
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 import httpx
 from scrapy import Selector
@@ -8,7 +9,7 @@ from scrapy import Selector
 from assets import res
 from variables import COOKIES_SUPPORT
 from utils import conf
-from utils.website.core import EroUtils, Req, Cookies, Previewer
+from utils.website.core import EroUtils, Req, Cookies, Previewer, PreviewRequestSpec, ProviderContext
 from utils.website.info import EhBookInfo
 
 
@@ -27,6 +28,10 @@ class EHentaiKits(EroUtils, Req, Cookies, Previewer):
     book_hea = headers
     uuid_regex = re.compile(r"/g/(\d+)/")
     cookies_field = COOKIES_SUPPORT[name]
+    mappings = {
+        res.EHentai.MAPPINGS_INDEX: f"https://{domain}",
+        res.EHentai.MAPPINGS_POPULAR: f"https://{domain}/popular",
+    }
 
     def __init__(self, _conf):
         super().__init__(_conf)
@@ -94,33 +99,59 @@ class EHentaiKits(EroUtils, Req, Cookies, Previewer):
         return {'extra': f"<br>{res.EHentai.JUMP_TIP}",}
 
     @classmethod
-    def preview_client_config(cls, **context):
-        cookie_str = cls.to_str_(context.get("cookies") or {})
+    def preview_client_config(cls, context: ProviderContext):
+        if not context.cookies:
+            raise ValueError("preview cookies are required for ehentai")
+        cookie_str = cls.to_str_(context.cookies)
         return {
             'headers': {**cls.book_hea, 'Cookie': cookie_str},
         }
 
     @classmethod
-    async def preview_search(cls, keyword, client, **kw):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        kw.pop("domain", None)
-        cookies = kw.pop("cookies", {})
-        url = f'https://exhentai.org/?f_search={keyword}&page={page - 1}'
-        cookie_str = cls.to_str_(cookies or {})
-        headers = {**cls.book_hea, "Cookie": cookie_str}
-        resp = await client.get(url, headers=headers, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
+    def _build_preview_search_request(
+        cls,
+        keyword: str,
+        *,
+        page: int = 1,
+        context: ProviderContext,
+    ) -> PreviewRequestSpec:
+        if not context.cookies:
+            raise ValueError("preview cookies are required for ehentai")
+        domain = context.domain or cls.domain
+        mappings = cls.merge_search_mappings(cls.mappings, context.custom_map)
+        if keyword in mappings:
+            url = cls.normalize_mapping_url(domain, mappings[keyword])
+        else:
+            url = f"https://{domain}/?f_search={keyword}"
+        page = max(1, int(page or 1))
+        if page > 1:
+            sep = "&" if urlparse(url).query else "?"
+            url = f"{url}{sep}page={page - 1}"
+        headers = {**cls.book_hea, "Cookie": cls.to_str_(context.cookies)}
+        return PreviewRequestSpec(url=url, headers=headers)
 
-        def _parse(text):
-            _html = Selector(text=text)
-            targets = _html.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
-            with ThreadPoolExecutor() as executor:
-                books = list(executor.map(cls.parse_search_item, targets))
-            for idx, book in enumerate(books):
-                book.idx = idx
-            return books
+    @classmethod
+    def _parse_preview_books(cls, text):
+        _html = Selector(text=text)
+        targets = _html.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(cls.parse_search_item, targets))
+        for idx, book in enumerate(books, start=1):
+            book.idx = idx
+        return books
 
-        return await asyncio.to_thread(_parse, resp.text)
+    @classmethod
+    async def preview_search(
+        cls,
+        keyword,
+        client,
+        *,
+        page=1,
+        context: ProviderContext,
+    ):
+        spec = cls._build_preview_search_request(keyword, page=page, context=context)
+        resp = await cls.perform_preview_request(client, spec)
+        return await asyncio.to_thread(cls._parse_preview_books, resp.text)
 
     @staticmethod
     def parse_book(resp_text):

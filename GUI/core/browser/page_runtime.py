@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import time
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from .runtime import append_browser_debug_event
@@ -13,9 +13,22 @@ class PageNotReadyError(RuntimeError):
     pass
 
 
+class _JsCallDispatcher(QObject):
+    dispatch_requested = Signal(object, object, object)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.dispatch_requested.connect(self._dispatch, Qt.ConnectionType.QueuedConnection)
+
+    @Slot(object, object, object)
+    def _dispatch(self, page, js_code, callback):
+        BrowserPageRuntime._run_js_now(page, js_code, callback)
+
+
 class BrowserPageRuntime:
     def __init__(self, browser):
         self._browser = browser
+        self._js_dispatcher = _JsCallDispatcher(browser)
         self._page_ready = False
         self._page_ready_announced = False
         self._page_ready_probe_inflight = False
@@ -338,7 +351,14 @@ class BrowserPageRuntime:
             self._js_callback_count += 1
         if structured:
             self._js_structured_count += 1
-        self._run_js_now(target_page, js_code, callback)
+        if QThread.currentThread() is target_page.thread():
+            self._run_js_now(target_page, js_code, callback)
+            return
+        self.log_js_debug(
+            f"queue runJavaScript from thread={type(QThread.currentThread()).__name__} "
+            f"to page_thread={type(target_page.thread()).__name__}"
+        )
+        self._js_dispatcher.dispatch_requested.emit(target_page, js_code, callback)
 
     @staticmethod
     def _wrap_structured_js(js_body: str) -> str:

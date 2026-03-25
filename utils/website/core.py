@@ -3,7 +3,10 @@ import os
 import functools
 import typing as t
 import pickle
+import copy
 from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 import httpx
 import asyncio
@@ -165,6 +168,30 @@ class Req:
         """parse book-page"""
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderContext:
+    proxies: tuple[str, ...] = ()
+    cookies: dict[str, str] = field(default_factory=dict)
+    domain: str | None = None
+    custom_map: dict[str, t.Any] = field(default_factory=dict)
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        proxies: t.Iterable[str] | None = None,
+        cookies: dict[str, str] | None = None,
+        domain: str | None = None,
+        custom_map: dict[str, t.Any] | None = None,
+    ) -> "ProviderContext":
+        return cls(
+            proxies=tuple(proxies or ()),
+            cookies=dict(cookies or {}),
+            domain=domain,
+            custom_map=dict(custom_map or {}),
+        )
+
+
 class Utils:
     name = ""
     headers = {}
@@ -178,20 +205,111 @@ class Utils:
     def display_meta(cls, *args, **kw) -> dict:
         return {}
 
+
+@dataclass(slots=True)
+class PreviewRequestSpec:
+    url: str
+    method: str = "GET"
+    headers: dict[str, str] = field(default_factory=dict)
+    data: t.Optional[dict[str, t.Any]] = None
+    state: dict[str, t.Any] = field(default_factory=dict)
+    timeout: float = 12.0
+
 class Previewer:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
 
     @classmethod
-    def preview_client_config(cls, **context) -> dict:
+    def preview_client_config(cls, context: ProviderContext) -> dict:
         return {}
 
+    @staticmethod
+    def preview_origin(domain: str | None) -> str | None:
+        if not domain:
+            return None
+        parsed = urlparse(domain)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+        return f"https://{domain}"
+
+    @staticmethod
+    def merge_search_mappings(base: dict | None, custom: dict | None) -> dict:
+        merged = copy.deepcopy(base or {})
+        merged.update(copy.deepcopy(custom or {}))
+        return merged
+
     @classmethod
-    async def preview_search(cls, keyword: str, client, **kw) -> list:
+    def normalize_mapping_url(cls, domain: str, mapping_value) -> str:
+        parsed = urlparse(str(mapping_value))
+        origin = cls.preview_origin(domain)
+        if origin is None:
+            raise ValueError(f"{cls.__name__} requires domain for mapping search")
+        return f"{origin}{parsed.path}"
+
+    @classmethod
+    def build_page_url(cls, url: str, page: int, page_info: t.Optional[tuple]) -> str:
+        page = max(1, int(page or 1))
+        if page <= 1 or not page_info:
+            return str(url)
+        from utils.processed_class import Url
+        return str(Url(str(url)).set_next(*page_info).jump(page))
+
+    @classmethod
+    def build_basic_search_request(
+        cls,
+        keyword: str,
+        *,
+        page: int = 1, domain: str, search_url_head: str, turn_page_info: t.Optional[tuple], 
+        turn_page_search: t.Optional[str] = None, mappings: dict | None = None, 
+        custom_map: dict | None = None, headers: dict | None = None, state: dict | None = None,
+    ) -> PreviewRequestSpec:
+        merged = cls.merge_search_mappings(mappings, custom_map)
+        if keyword in merged:
+            base_url = cls.normalize_mapping_url(domain, merged[keyword])
+            page_info = turn_page_info
+        else:
+            base_url = f"{search_url_head}{keyword}"
+            page_info = (turn_page_search,) if turn_page_search else turn_page_info
+        return PreviewRequestSpec(
+            url=cls.build_page_url(base_url, page, page_info),
+            headers=dict(headers or {}),
+            state=dict(state or {}),
+        )
+
+    @classmethod
+    async def perform_preview_request(cls, client, spec: PreviewRequestSpec, **kw):
+        request_kw = dict(kw)
+        if spec.headers:
+            request_kw["headers"] = spec.headers
+        if spec.data is not None:
+            request_kw["data"] = spec.data
+        resp = await client.request(
+            spec.method,
+            spec.url,
+            follow_redirects=True,
+            timeout=spec.timeout,
+            **request_kw,
+        )
+        resp.raise_for_status()
+        return resp
+
+    @classmethod
+    async def preview_search(
+        cls,
+        keyword: str,
+        client,
+        *,
+        page: int = 1,
+        context: ProviderContext,
+    ) -> list:
         raise NotImplementedError(f"{cls.__name__}.preview_search")
 
     @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw) -> list:
+    async def preview_fetch_episodes(cls, book, client, *, context: ProviderContext) -> list:
         ...
+
+    @classmethod
+    async def preview_fetch_pages(cls, episode, client, *, context: ProviderContext) -> list:
+        raise NotImplementedError(f"{cls.__name__}.preview_fetch_pages")
 
 class EroUtils(Utils):
     uuid_regex = None

@@ -42,7 +42,7 @@ class WnacgSpider(BaseComicSpider2):
             book.preview_url = f'https://{self.domain}{book.preview_url}'
             book.url = f'https://{self.domain}{book.url}'
             frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, url=response.url, make_preview=True)
+        return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
         doc_wlns = re.split(r';[\n\s]+?document\.writeln', response.text)

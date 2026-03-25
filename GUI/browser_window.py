@@ -1,12 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
 import sys
 import re
 import json
 import time
-import contextlib
 from PySide6 import QtNetwork
-from PySide6.QtCore import Qt, QUrl, QEvent, QSize, Signal
+from PySide6.QtCore import Qt, QUrl, QEvent, QSize, Signal, QLoggingCategory
 from PySide6.QtGui import QIcon
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
@@ -115,9 +115,9 @@ return true;
                 f"scrollbar_css skipped reason={reason} unchanged=True elapsed_ms={elapsed_ms:.1f}"
             )
 
-        self.browser.run_js(js, _log_result, page=self.page())
+        self.browser.page_runtime.run_js(js, _log_result, page=self.page())
     
-    def _reset_injected(self):
+    def prepare_navigation(self):
         self._injected = False
         self._last_injected_css = None
 
@@ -153,9 +153,10 @@ class ZoomManager:
         self._current = factor
         if hasattr(self.gui, 'browser_zoom_factor'):
             self.gui.browser_zoom_factor = factor
-        try:
-            self.view.setZoomFactor(factor)
-        except Exception:
+        zoom_view = getattr(self.view, "setZoomFactor", None)
+        if callable(zoom_view):
+            zoom_view(factor)
+        else:
             self.view.page().setZoomFactor(factor)
     
     def reset(self):
@@ -194,7 +195,17 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.interceptor = BrowserRequestInterceptor(self)
         self.view = CustomFramelessWebEngineView(self)
         self.page_runtime = BrowserPageRuntime(self)
-        self._configure_web_settings()
+        settings = self.view.settings()
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
         self.profile = self.view.page().profile()
         # self.profile.setHttpUserAgent(
         #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
@@ -207,19 +218,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.output = []
         self.setupUi(self)
         self.zoom_mgr = ZoomManager(self)
-
-    def _configure_web_settings(self):
-        settings = self.view.settings()
-        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
 
     def updateFrameless(self):
         runtime = getattr(self, "page_runtime", None)
@@ -253,31 +251,62 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.page_runtime.log_web_perf(
             f"showEvent first_show={self._first_show} visible={self.isVisible()}"
         )
+        if not self.window_mode.uses_page_scan:
+            CustomInfoBar.show_custom('', 'cf盾需要人工点击，请耐心等待\n等待出现首页后会自动退回界面，全程不要主动关闭内置浏览器',
+                parent=self, _type="INFORMATION", ib_pos=InfoBarPosition.BOTTOM_LEFT)
         if self._first_show:
             self._first_show = False
             self.load_home()
 
     def setupUi(self, _window):
         super(BrowserWindow, self).setupUi(_window)
-        self._setup_frameless_chrome()
-        self.topHintBox.clicked.connect(self.keep_top_hint)
-        self.set_btn()
-        self._setup_address_edit()
-        self.set_html()
-        self.patch_tip()
-        self.set_rbtn_menu()
-        self._default_window_title = self.windowTitle()
-        self._default_ensure_tooltip = self.ensureBtn.toolTip()
-
-    def set_rbtn_menu(self):
-        if hasattr(self.gui, 'tf') and self.gui.tf:
-            if 'publish' in str(self.gui.tf).lower():
-                return FluentMonkeyPatch.rbutton_menu_PulishPage(self)
-        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
-
-    def _setup_frameless_chrome(self):
         self.titleBar.hide()
         self.groupBox.installEventFilter(self)
+        self.topHintBox.clicked.connect(self.keep_top_hint)
+        self.topHintBox.setIcon(FIF.PIN)
+        self.topHintBox.setChecked(True)
+        self.homeBtn.setIcon(FIF.HOME)
+        self.backBtn.setIcon(FIF.LEFT_ARROW)
+        self.forwardBtn.setIcon(FIF.RIGHT_ARROW)
+        self.refreshBtn.setIcon(FIF.SYNC)
+        self.copyBtn.setIcon(FIF.COPY)
+        self.ensureBtn.setIcon(FIF.DOWNLOAD)
+        self.zoomInBtn.setIcon(FIF.ZOOM_IN)
+        self.zoomOutBtn.setIcon(FIF.ZOOM_OUT)
+        self.closeBtn.setIconSize(QSize(20, 20))
+        self.closeBtn.setIcon(QIcon(':/close.svg'))
+
+        self.homeBtn.clicked.connect(self.load_home)
+        self.backBtn.clicked.connect(self.view.back)
+        self.forwardBtn.clicked.connect(self.view.forward)
+        self.refreshBtn.clicked.connect(self.reload_current_view)
+        self.ensureBtn.clicked.connect(lambda: self.ensure(self.window_mode.ensure_callback))
+        self.closeBtn.clicked.connect(self.close)
+
+        def copy_unfinished_tasks():
+            _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)
+            _.to_clip()
+            InfoBar.success(
+                title='Copied Tip', content=self.gui.res.copied_tip % _.length,
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+                duration=2500, parent=self.view
+            )
+
+        self.copyBtn.clicked.connect(copy_unfinished_tasks)
+        self.addressEdit.setPlaceholderText("输入链接后回车")
+        self.addressEdit.linkSignal.connect(self._handle_address_submit)
+        self.horizontalLayout.addWidget(self.view)
+        self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
+        for button in (
+            self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn,
+        ):
+            button.installEventFilter(ToolTipFilter(button, showDelay=300, position=ToolTipPosition.TOP))
+        if hasattr(self.gui, 'tf') and self.gui.tf and 'publish' in str(self.gui.tf).lower():
+            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
+        else:
+            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+        self._default_window_title = self.windowTitle()
+        self._default_ensure_tooltip = self.ensureBtn.toolTip()
 
     def eventFilter(self, obj, event):
         if obj is getattr(self, "groupBox", None) and event.type() == QEvent.MouseButtonPress:
@@ -293,41 +322,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                 return True
         return super().eventFilter(obj, event)
 
-    def patch_tip(self):
-        for button in (self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn):
-            button.installEventFilter(ToolTipFilter(button, showDelay=300, position=ToolTipPosition.TOP))
-
-    def set_btn(self):
-        # ui
-        self.topHintBox.setIcon(FIF.PIN)
-        self.topHintBox.setChecked(True)
-        self.homeBtn.setIcon(FIF.HOME)
-        self.backBtn.setIcon(FIF.LEFT_ARROW)
-        self.forwardBtn.setIcon(FIF.RIGHT_ARROW)
-        self.refreshBtn.setIcon(FIF.SYNC)
-        self.copyBtn.setIcon(FIF.COPY)
-        self.ensureBtn.setIcon(FIF.DOWNLOAD)
-        self.zoomInBtn.setIcon(FIF.ZOOM_IN)
-        self.zoomOutBtn.setIcon(FIF.ZOOM_OUT)
-        self.closeBtn.setIconSize(QSize(20, 20))
-        self.closeBtn.setIcon(QIcon(':/close.svg'))
-        # logic
-        self.homeBtn.clicked.connect(self.load_home)
-        self.backBtn.clicked.connect(self.view.back)
-        self.forwardBtn.clicked.connect(self.view.forward)
-        self.refreshBtn.clicked.connect(self.view.reload)
-        self.ensureBtn.clicked.connect(lambda: self.ensure(self.window_mode.ensure_callback))
-        self.closeBtn.clicked.connect(self.close)
-        def copyUnfinishedTasks():
-            _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)
-            _.to_clip()
-            InfoBar.success(
-                title='Copied Tip', content=self.gui.res.copied_tip % _.length,
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-                duration=2500, parent=self.view
-            )
-        self.copyBtn.clicked.connect(copyUnfinishedTasks)
-
     def set_ensure_handler(self, callback=None):
         self.window_mode.reset_standard_mode(
             window_title=self._default_window_title,
@@ -338,28 +332,77 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def set_close_handler(self, callback=None):
         self.window_mode.set_close_handler(callback)
 
-    def _setup_address_edit(self):
-        self.addressEdit.setPlaceholderText("输入链接后回车")
-        self.addressEdit.linkSignal.connect(self._handle_address_submit)
+    def log_webengine_diagnostics(self, *, trigger: str):
+        merged_rules = []
+        seen_rules = set()
+        for chunk in (
+            os.environ.get("QT_LOGGING_RULES", ""),
+            "qt.webenginecontext.debug=true",
+            "qt.webengine.compositor.debug=true",
+        ):
+            for line in str(chunk or "").splitlines():
+                normalized = line.strip()
+                if normalized and normalized not in seen_rules:
+                    seen_rules.add(normalized)
+                    merged_rules.append(normalized)
+        rules = "\n".join(merged_rules)
+        QLoggingCategory.setFilterRules(rules)
+        self.page_runtime.log_web_perf(f"webdiag logging_enabled rules={rules!r}")
+        env_snapshot = {
+            "trigger": trigger,
+            "current_url": self.view.url().toString(),
+            "home_url": self.home_url.toString(),
+            "QSG_RHI_BACKEND": os.environ.get("QSG_RHI_BACKEND", ""),
+            "QTWEBENGINE_CHROMIUM_FLAGS": os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", ""),
+            "QT_LOGGING_RULES": os.environ.get("QT_LOGGING_RULES", ""),
+        }
+        payload = ", ".join(f"{key}={value!r}" for key, value in env_snapshot.items())
+        self.page_runtime.log_web_perf(f"webdiag snapshot {payload}")
 
     def load_home(self):
         self.page_runtime.prepare_navigation()
-        self.view._reset_injected()
+        self.view.prepare_navigation()
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
             self.profile = self.view.page().profile()
             self.profile.setUrlRequestInterceptor(self.interceptor)
 
-    def set_html(self):
-        self.horizontalLayout.addWidget(self.view)
-        self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
+    def reload_current_view(self):
+        current_url = self.view.url()
+        if not (
+            getattr(self.gui, "tf", None)
+            and current_url.isLocalFile()
+            and current_url.toLocalFile() == str(self.gui.tf)
+        ):
+            self.view.reload()
+            return
+
+        def _write_snapshot_and_reload(html):
+            if html and getattr(self.gui, "tf", None):
+                with open(self.gui.tf, "w", encoding="utf-8") as f:
+                    f.write(html)
+            self.view.reload()
+
+        self.page_runtime.page_to_html(
+            _write_snapshot_and_reload,
+            description="browser refresh HTML snapshot",
+            error_callback=lambda _exc: self.view.reload(),
+        )
 
     def _handle_address_submit(self, text: str):
         text = str(text or "").strip()
         if not text:
             return
-        if text.casefold() == "dev":
+        lowered = text.casefold()
+        if lowered == "dev":
             self._set_dev_tools()
+            return
+        if lowered == "gpu":
+            self.view.load(QUrl("chrome://gpu"))
+            return
+        if lowered in {"diag", "webdiag"}:
+            self.log_webengine_diagnostics(trigger="address-bar")
+            self.view.load(QUrl("chrome://gpu"))
             return
         target = text if _SCHEME_RE.match(text) else f"https://{text}"
         url = QUrl.fromUserInput(target)
@@ -371,9 +414,12 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.topHintBox.setChecked(flag)
         started_at = time.perf_counter()
         if sys.platform == "win32" and self.isVisible():
-            with contextlib.suppress(Exception):
+            try:
                 import win32con
                 import win32gui
+            except ImportError:
+                pass
+            else:
                 hwnd = int(self.winId())
                 insert_after = win32con.HWND_TOPMOST if flag else win32con.HWND_NOTOPMOST
                 win32gui.SetWindowPos(
@@ -399,33 +445,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         if request is None:
             return ""
         return (request.selectedText() or "").strip()
-
-    def log_js_metrics(self, scope: str, **extra):
-        self.page_runtime.log_js_metrics(scope, **extra)
-
-    def run_js(self, js_code, callback=None, *, page=None):
-        self.page_runtime.run_js(js_code, callback, page=page)
-
-    def js_execute(self, js_code, callback):
-        self.run_js(js_code, callback)
-
-    @staticmethod
-    def js_execute_by_page(page, js_code, callback):
-        BrowserPageRuntime.js_execute_by_page(page, js_code, callback)
-
-    def run_js_result(
-        self, js_body, callback,
-        *,
-        expected_kind, description, page=None, error_callback=None,
-    ):
-        self.page_runtime.run_js_result(
-            js_body, callback, expected_kind=expected_kind, description=description, page=page, error_callback=error_callback,
-        )
-
-    def page_to_html(self, callback, *, page=None, description="page.toHtml()", error_callback=None):
-        self.page_runtime.page_to_html(
-            callback, page=page, description=description, error_callback=error_callback,
-        )
 
     def page(self, after_callback):
         self.page_runtime.run_page_scan(after_callback, uses_page_scan=self.window_mode.uses_page_scan, )
@@ -490,11 +509,13 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                 with open(self.gui.tf, 'w', encoding='utf-8') as f:
                     f.write(html)
 
-        self.page_to_html(refresh_tf,description="browser tmp_sv_local HTML snapshot",)
+        self.page_runtime.page_to_html(
+            refresh_tf, description="browser tmp_sv_local HTML snapshot",
+        )
 
     def show_task_added_toast(self, title: str):
         js_code = f"window.showTaskAddedToast && window.showTaskAddedToast({json.dumps(title)});"
-        self.run_js(js_code)
+        self.page_runtime.run_js(js_code)
 
     def closeEvent(self, event):
         if hasattr(self, 'view'):
@@ -502,7 +523,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.page_runtime.shutdown()
         self.window_mode.shutdown()
         if self.page_runtime.has_activity:
-            self.log_js_metrics("closeEvent")
+            self.page_runtime.log_js_metrics("closeEvent")
         self.window_mode.invoke_close_handler(event)
         if not event.isAccepted():
             return

@@ -8,6 +8,10 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
+from utils import install_qfluentwidgets_notice_filter
+
+
+install_qfluentwidgets_notice_filter()
 
 
 class ExceptionRouter:

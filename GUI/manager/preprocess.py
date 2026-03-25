@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
 
 from assets import res
-from variables import PYPI_SOURCE, VER, Spider, CGS_DOC
+from variables import PYPI_SOURCE, VER, Spider, SPIDERS, CGS_DOC
 from utils import conf, ori_path, exc_p, uv_exc, env
 from utils.website import EHentaiKits, Cache
 from GUI.browser_window import BrowserWindow
@@ -118,9 +118,8 @@ class PreprocessManager(QObject):
         def on_success(domain):
             if not self._is_current_site(index, generation):
                 return
-            self._refresh_snapshot_domain(index, "jm", domain)
+            self._refresh_snapshot_domain(index, SPIDERS[index], domain)
             self._say_cache_or("<br>✅ 已设置有效域名")
-
 
         def on_error(_):
             if not self._is_current_site(index, generation):
@@ -201,6 +200,8 @@ class PreprocessManager(QObject):
         if conf.proxies:
             if self._is_current_site(index, generation):
                 self.gui.say("🔔 已设置代理，跳过域名缓存处理")
+                if domain := getattr(self.gui.spiderUtils, "domain", None):
+                    self._refresh_snapshot_domain(index, "wnacg", domain)
         else:
             self._preprocess_jm(index, generation)
 

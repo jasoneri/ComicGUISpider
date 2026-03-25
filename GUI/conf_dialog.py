@@ -13,7 +13,7 @@ from PySide6.QtCore import Qt, QRect, QStringListModel
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,
-    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox, qconfig
+    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
 )
 import uncurl
 
@@ -25,6 +25,7 @@ from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater
 from GUI.core.anim import PopupAnimator
+from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.theme import theme_mgr
 from utils.config.qc import cgs_cfg
 from GUI.uic.qfluent.components import (
@@ -132,6 +133,10 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
+        self.dohBtn = PrimaryPushButton("DoH", self)
+        self.dohBtn.setMaximumSize(QtCore.QSize(80, 16777215))
+        self.horizontalLayout_log_level.addWidget(self.dohBtn)
+        self.dohController = DoHButtonController(self.dohBtn, parent=self)
 
     def insert_btn(self):
         self.clipDbBtn = PrimaryPushButton(FIF.FOLDER_ADD, res.GUI.Uic.confDia_labelClipDb)
@@ -316,7 +321,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
                 if entry not in history:
                     history = [entry] + history
             cgs_cfg.proxyHistory.value = history
-            qconfig.save()
+            cgs_cfg.save()
             self.proxiesEdit.completer().setModel(QStringListModel(history))
 
         config = {

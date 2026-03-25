@@ -14,6 +14,8 @@ class SearchContextSnapshot:
     proxies: list[str]
     cookies: dict[str, dict]
     domains: dict[str, str] = field(default_factory=dict)
+    custom_map: dict[str, object] = field(default_factory=dict)
+    doh_url: str = ""
 
 
 class GUIFlowStage(Enum):

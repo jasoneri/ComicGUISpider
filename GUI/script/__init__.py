@@ -2,11 +2,13 @@ import sys
 import pathlib
 import os
 
-from loguru import logger
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog, QVBoxLayout, QStackedWidget
-from PySide6.QtCore import Qt, QCoreApplication
+from PySide6.QtCore import Qt, QCoreApplication, QSize
 from PySide6.QtGui import QIcon
+from utils import install_qfluentwidgets_notice_filter
+
+install_qfluentwidgets_notice_filter()
 
 from qfluentwidgets import (
     NavigationItemPosition, FluentWindow,
@@ -16,10 +18,11 @@ from qfluentwidgets import (
 )
 
 from utils import yaml, ori_path
-from utils.config.qc import danbooru_cfg
-from utils.script.doh import DEFAULT_DOH_URL, ensure_doh_dns_stub_started, normalize_doh_url
+from utils.config.qc import danbooru_cfg, cgs_cfg
+from utils.script import conf as script_conf
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig
-from utils.script.image.kemono import conf
+from GUI.core.doh_runtime import ScriptDoHStubRuntime
+from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import summarize_error_message
 from GUI.script.danbooru import DanbooruInterface
@@ -84,7 +87,7 @@ class BaseServiceGroupCard(GroupHeaderCardWidget):
         self.pathButton.clicked.connect(self._onSelectFolder)
 
         # 当前选择的路径
-        config_data = getattr(conf, config_key, {}) if hasattr(conf, config_key) else {}
+        config_data = getattr(script_conf, config_key, {}) if hasattr(script_conf, config_key) else {}
         self.current_path = config_data.get("sv_path", default_path)
 
         # 添加组件到分组中
@@ -144,7 +147,7 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.setTitle("Danbooru 配置")
         self.setBorderRadius(8)
 
-        danbooru_conf = getattr(conf, "danbooru", {}) or {}
+        danbooru_conf = getattr(script_conf, "danbooru", {}) or {}
         self.current_path = danbooru_conf.get("save_path", "D:/pic/danbooru")
 
         self.downloadConcurrencyEdit = SpinBox(self)
@@ -237,13 +240,14 @@ class SettingInterface(QFrame):
         first_row.addWidget(self.imgProxiesEdit)
 
         second_row = QHBoxLayout()
-        doh_label = StrongBodyLabel("DoH", self)
-        self.dohUrlEdit = LineEdit(self)
-        self.dohUrlEdit.setToolTip(_translate("SettingInterface", "doh_url"))
-        self.dohUrlEdit.setPlaceholderText(_translate("SettingInterface", DEFAULT_DOH_URL))
-        self.dohUrlEdit.setClearButtonEnabled(True)
-        second_row.addWidget(doh_label)
-        second_row.addWidget(self.dohUrlEdit)
+        self.dohBtn = PushButton("DoH", self)
+        
+        self.dohBtn.setMaximumSize(QSize(80, 16777215))
+        second_row.addStretch()
+        second_row.addWidget(self.dohBtn)
+        self.dohController = DoHButtonController(
+            self.dohBtn, parent=self, on_saved=self._save_doh_config,
+        )
         
         self.kemono_group_card = KemonoGroupCard(self)
         self.danbooru_group_card = DanbooruGroupCard(self)
@@ -264,21 +268,16 @@ class SettingInterface(QFrame):
 
     def show_self(self):
         """加载配置文件内容到各个编辑框"""
-        with open(conf.file, 'r', encoding='utf-8') as f:
+        with open(script_conf.file, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f.read()) or {}
 
         self.imgProxiesEdit.setText(','.join(config_data.get('proxies') or []))
-        self.dohUrlEdit.setText(
-            str(config_data.get('doh_url')
-                or (config_data.get('danbooru', {}) or {}).get('doh_url') or ''
-            ).strip()
-        )
         kemono_config = config_data.get('kemono', {})
         self.kemono_group_card.setCookieText(kemono_config.get('cookie', ''))
         self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))
         runtime_config = DanbooruRuntimeConfig.from_mapping(
             config_data.get('danbooru', {}),
-            doh_url=config_data.get('doh_url') or (config_data.get('danbooru', {}) or {}).get('doh_url', ''),
+            doh_url=cgs_cfg.get_doh_url(),
         )
         self.danbooru_group_card.setCurrentPath(runtime_config.save_path)
         self.danbooru_group_card.setSaveType(runtime_config.save_type)
@@ -297,11 +296,17 @@ class SettingInterface(QFrame):
             duration=8000, parent=self
         )
 
+    def _save_doh_config(self, doh_url: str):
+        if hasattr(self.parent_window, "danbooruInterface"):
+            self.parent_window.danbooruInterface.refresh_runtime_settings()
+        if hasattr(self.parent_window, "doh_stub_runtime"):
+            self.parent_window.doh_stub_runtime.ensure(doh_url)
+
     def save_conf(self):
         """保存配置到文件"""
         try:
             # 读取现有配置
-            with open(conf.file, 'r', encoding='utf-8') as f:
+            with open(script_conf.file, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f.read()) or {}
 
             # 更新代理设置
@@ -310,14 +315,6 @@ class SettingInterface(QFrame):
                 config_data['proxies'] = [p.strip() for p in proxies_text.split(',') if p.strip()]
             else:
                 config_data['proxies'] = None
-
-            previous_doh_url = normalize_doh_url(
-                config_data.get('doh_url') or (config_data.get('danbooru', {}) or {}).get('doh_url', '')
-            ) if (
-                config_data.get('doh_url') or (config_data.get('danbooru', {}) or {}).get('doh_url', '')
-            ) else ""
-            current_doh_url = normalize_doh_url(self.dohUrlEdit.text()) if self.dohUrlEdit.text().strip() else ""
-            config_data['doh_url'] = current_doh_url
 
             # 更新kemono配置
             if 'kemono' not in config_data:
@@ -334,12 +331,8 @@ class SettingInterface(QFrame):
             config_data['danbooru'].pop('doh_url', None)
             config_data['danbooru'].pop('redis_key', None)
             config_data['danbooru'].pop('page_size', None)
-            runtime_config = DanbooruRuntimeConfig.from_mapping(config_data['danbooru'], doh_url=current_doh_url)
-            if runtime_config.is_doh_enabled() and runtime_config.doh_url != previous_doh_url:
-                ensure_doh_dns_stub_started(runtime_config.doh_url)
 
-            # 更新conf对象属性，参考GUI\conf_dialog.py的save_conf方法
-            conf.update(**config_data)
+            script_conf.update(**config_data)
             if hasattr(self.parent_window, "danbooruInterface"):
                 self.parent_window.danbooruInterface.refresh_runtime_settings()
 
@@ -356,40 +349,17 @@ class ScriptWindow(ScriptWindowBase):
     def __init__(self, parent=None):
         super().__init__()
         self.gui = parent
-        self._show_doh_disabled_warning = False
         if OFFSCREEN_FLUENT_FALLBACK:
             self._setup_offscreen_shell()
+        self.doh_stub_runtime = ScriptDoHStubRuntime(self)
         self.danbooruInterface = DanbooruInterface(self)
         self.kemonoInterface = KemonoInterface(self)
         self.settingInterface = SettingInterface(self)
-        if getattr(conf, "doh_url", ""):
-            try:
-                ensure_doh_dns_stub_started(conf.doh_url)
-            except Exception:
-                gui_logger = self._gui_logger()
-                if gui_logger is not None:
-                    gui_logger.exception("[ScriptWindow] DoH DNS stub startup failed during window initialization")
-                else:
-                    logger.exception("[ScriptWindow] DoH DNS stub startup failed during window initialization")
-                conf.doh_url = ""
-                self.danbooruInterface.refresh_runtime_settings()
-                self._show_doh_disabled_warning = True
+        self.doh_stub_runtime.ensure_from_config()
 
         self.initNavigation()
         self.initWindow()
-        if self._show_doh_disabled_warning:
-            safe_single_shot(0, self._show_doh_startup_warning)
-
-    def _gui_logger(self):
-        return getattr(getattr(self, "gui", None), "log", None)
-
-    def _show_doh_startup_warning(self):
-        InfoBar.warning(
-            title='',
-            content="已配置 DoH，但本地 DNS stub 启动失败，已自动禁用本次 DoH 设置。",
-            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-            duration=8000, parent=self
-        )
+        safe_single_shot(0, self.doh_stub_runtime.flush_warning)
 
     def _setup_offscreen_shell(self):
         self.setObjectName("OffscreenScriptWindow")

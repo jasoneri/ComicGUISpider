@@ -5,6 +5,7 @@ from GUI.types import GUIFlowStage, SearchContextSnapshot, SearchLifecycleState
 from GUI.thread.preview import PreviewWorker
 from GUI.manager.preview.manga import MangaPreviewFeature
 from GUI.manager.preview.ero import EroPreviewFeature
+from GUI.manager.preview.fix import FixPreviewFeature
 from assets import res as ori_res
 from utils import select
 from variables import SPIDERS, Spider
@@ -25,11 +26,16 @@ class PreviewMgr:
         self._is_local_mode = False
         self._manga = MangaPreviewFeature(self)
         self._ero = EroPreviewFeature(self)
+        self._fix = FixPreviewFeature(self)
         self.gui.destroyed.connect(self._stop_worker)
 
     @property
     def is_manga(self):
         return self.site_index in Spider.mangas()
+
+    @property
+    def is_fix(self):
+        return self.site_index == Spider.JM
 
     @property
     def is_pageable(self):
@@ -41,10 +47,16 @@ class PreviewMgr:
 
     @property
     def _active(self):
-        return self._manga if self.is_manga else self._ero
+        if self.is_manga:
+            return self._manga
+        if self.is_fix:
+            return self._fix
+        return self._ero
 
     @property
     def episodes_cache(self):
+        if self.is_fix:
+            return self._fix.episodes_cache
         return self._manga.episodes_cache
 
     def shutdown(self):
@@ -52,6 +64,7 @@ class PreviewMgr:
         self.search_context = None
         self._active_keyword = ""
         self._manga.shutdown()
+        self._fix.shutdown()
         self._stop_worker()
 
     def handle_choosebox_changed(self, index, snapshot: SearchContextSnapshot | None):
@@ -61,12 +74,15 @@ class PreviewMgr:
         self._session_id = 0
         self._active_keyword = ""
         self._manga.check_lc_completer()
+        self._fix.check_lc_completer()
         self._is_local_mode = False
         self._current_page = 1
         self._target_page = None
         self.books_cache.clear()
         self._manga.episodes_cache.clear()
         self._manga._inflight_books.clear()
+        self._fix.episodes_cache.clear()
+        self._fix._inflight_books.clear()
         self.gui.pageEdit.setValue(1)
         self._active.reset()
         if index in SPIDERS and snapshot is not None:
@@ -87,8 +103,8 @@ class PreviewMgr:
 
         self._active_keyword = keyword
         self._target_page = 1
-        if keyword == ori_res.GUI.local_fav and self.is_manga:
-            self._manga._show_local_fav()
+        if keyword == ori_res.GUI.local_fav and (self.is_manga or self.is_fix):
+            self._active._show_local_fav()
             self.gui.flow_stage = GUIFlowStage.SEARCHED
             self.gui.lifecycle_state = SearchLifecycleState.LockedIdle
             return
@@ -97,6 +113,8 @@ class PreviewMgr:
         self.books_cache.clear()
         if self.is_manga:
             self._manga.episodes_cache.clear()
+        elif self.is_fix:
+            self._fix.episodes_cache.clear()
         if self._worker:
             self._worker.enqueue_search(keyword, self.site_index, page=1)
 
@@ -125,8 +143,8 @@ class PreviewMgr:
         )
 
     def on_before_page_turn(self):
-        if self.is_manga:
-            self._manga.submit_page_selections()
+        if self.is_manga or self.is_fix:
+            self._active.submit_page_selections()
         else:
             self._save_preview_selections()
 
@@ -166,8 +184,11 @@ class PreviewMgr:
         self._worker = PreviewWorker(self.gui, snapshot=snapshot, generation=self._generation)
         self._worker.search_done.connect(self._on_search_done)
         self._worker.search_error.connect(self._on_search_error)
-        self._worker.episodes_done.connect(self._manga.on_episodes_done)
-        self._worker.episodes_error.connect(self._manga.on_episodes_error)
+        ep_handler = self._fix if self.is_fix else self._manga
+        self._worker.episodes_done.connect(ep_handler.on_episodes_done)
+        self._worker.episodes_error.connect(ep_handler.on_episodes_error)
+        self._worker.pages_done.connect(ep_handler.on_pages_done)
+        self._worker.pages_error.connect(ep_handler.on_pages_error)
         self._worker.start()
         return self._worker
 
@@ -178,6 +199,8 @@ class PreviewMgr:
             worker.search_error,
             worker.episodes_done,
             worker.episodes_error,
+            worker.pages_done,
+            worker.pages_error,
         ):
             with contextlib.suppress(TypeError):
                 signal.disconnect()

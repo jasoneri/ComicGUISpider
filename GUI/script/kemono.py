@@ -15,7 +15,7 @@ from qfluentwidgets import (
     LineEdit, PrimaryPushButton,
     VBoxLayout, FluentIcon as FIF, ZhDatePicker, StrongBodyLabel,
     TransparentToolButton, HyperlinkButton, PushButton, PrimaryToolButton, TransparentTogglePushButton,
-    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, qconfig, ImageLabel,
+    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, ImageLabel,
     Flyout, CommandBarView, Action, InfoBar, InfoBarPosition
 )
 from qframelesswindow import FramelessWindow
@@ -68,7 +68,7 @@ class FilterView(FlyoutViewBase):
 
     def save(self):
         kemono_cfg.filterText.value = self.textEdit.toPlainText()
-        qconfig.save()
+        kemono_cfg.save()
         self.closeBtn.click()
 
 
@@ -616,7 +616,7 @@ class KemonoInterface(QFrame):
         endDateLabel = StrongBodyLabel("结束", self)
         self.endDateEdit = ZhDatePicker(self)
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.startDateEdit.setDate(QDate(2025, 1, 1))
+        self.startDateEdit.setDate(QDate(2026, 1, 1))
         self.endDateEdit.setDate(QDate(2045, 1, 1))
         self.extraFilterBtn = PushButton(FIF.FILTER, "过滤规则", self)
         self.extraFilterBtn.clicked.connect(self.show_extra_filter)

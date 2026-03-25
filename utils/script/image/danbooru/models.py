@@ -4,8 +4,9 @@ import pathlib as p
 from dataclasses import dataclass, field
 from typing import Optional
 
-from utils.script import conf, folder_sub
-from utils.script.doh import dns_stub_endpoint, dns_stub_server, normalize_doh_url
+from utils.config.qc import cgs_cfg
+from utils.network.doh import dns_stub_endpoint, dns_stub_server, normalize_doh_url
+from utils.script import conf as script_conf, folder_sub
 from utils.script.motrix import build_motrix_dns_options
 
 from .constants import (
@@ -180,13 +181,16 @@ class DanbooruRuntimeConfig:
             save_path=data.get("save_path", DEFAULT_DANBOORU_SAVE_PATH),
             save_type=data.get("save_type"),
             download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY),
-            doh_url=getattr(conf, "doh_url", "") if doh_url is None else doh_url,
+            doh_url=cgs_cfg.get_doh_url() if doh_url is None else doh_url,
             motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""),
         )
 
     @classmethod
     def from_conf(cls) -> "DanbooruRuntimeConfig":
-        return cls.from_mapping(getattr(conf, "danbooru", {}) or {}, doh_url=getattr(conf, "doh_url", ""))
+        return cls.from_mapping(
+            getattr(script_conf, "danbooru", {}) or {},
+            doh_url=cgs_cfg.get_doh_url(),
+        )
 
     def is_doh_enabled(self) -> bool:
         return bool(self.doh_url)
@@ -226,9 +230,8 @@ class DanbooruRuntimeConfig:
         root = p.Path(base_path or self.save_path)
         if self.save_type == DANBOORU_SAVE_TYPE_SEARCH_TAG:
             canonical_term = DanbooruSearchQuery.normalize(post.canonical_term)
-            if not canonical_term:
-                raise ValueError("canonical_term is required when Danbooru save_type is 'search_tag'")
-            root = root.joinpath(folder_sub.sub("-", canonical_term))
+            if canonical_term:
+                root = root.joinpath(folder_sub.sub("-", canonical_term))
         return root.joinpath(post.filename)
 
 

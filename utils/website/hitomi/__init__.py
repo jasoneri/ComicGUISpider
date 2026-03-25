@@ -6,7 +6,7 @@ import asyncio
 import httpx
 
 from assets import res
-from utils.website.core import EroUtils, Req, Previewer
+from utils.website.core import EroUtils, Req, Previewer, ProviderContext
 from utils.website.info import HitomiBookInfo
 
 
@@ -110,12 +110,19 @@ class HitomiUtils(EroUtils, Req, Previewer):
         return super().get_cli(conf, is_async=is_async, http2=True, **kwargs)
 
     @classmethod
-    def preview_client_config(cls) -> dict:
+    def preview_client_config(cls, context: ProviderContext) -> dict:
         return {'headers': cls.headers, 'http2': True}
 
     @classmethod
-    async def preview_search(cls, keyword: str, client, **kw) -> list:
-        page = max(1, int(kw.pop('page', 1) or 1))
+    async def preview_search(
+        cls,
+        keyword: str,
+        client,
+        *,
+        page: int = 1,
+        context: ProviderContext,
+    ) -> list:
+        page = max(1, int(page or 1))
         nozomi_path = keyword if keyword.endswith('.nozomi') else f'{keyword}.nozomi'
         nozomi_url = f'https://{cls.domain}/{nozomi_path}'
         range_header = f'bytes={cls.galleries_per_page * (page - 1)}-{cls.galleries_per_page * page - 1}'

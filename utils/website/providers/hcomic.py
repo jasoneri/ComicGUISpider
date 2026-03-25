@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 import httpx
 
-from utils.website.core import EroUtils, Req, Previewer
+from utils.website.core import EroUtils, Req, Previewer, ProviderContext
 from utils.website.info import HComicBookInfo
 
 
@@ -16,8 +16,12 @@ class HComicParseError(ValueError):
 
 class HComicUtils(EroUtils, Req, Previewer):
     name = "h_comic"
+    domain = "h-comic.com"
     index = "https://h-comic.com"
     image_server = "https://h-comic.link/api"
+    search_url_head = f"https://{domain}/?q="
+    mappings = {}
+    turn_page_info = (r"page=\d+",)
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -157,34 +161,63 @@ class HComicUtils(EroUtils, Req, Previewer):
         return cls.parse_search_item(comic)
 
     @classmethod
-    def preview_client_config(cls):
+    def preview_client_config(cls, context: ProviderContext):
         return {
             'headers': cls.headers,
             'verify': False,
         }
 
     @classmethod
-    async def preview_search(cls, keyword, client, **kw):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        url = f"{cls.index}/?q={keyword}&page={page}"
-        resp = await client.get(url, headers=cls.headers, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
+    def _domain_from(cls, context: ProviderContext | None) -> str:
+        return context.domain if context and context.domain else cls.domain
 
-        def _parse(text):
-            data = cls._extract_payload_data(text)
-            targets = data.get("comics")
-            if not isinstance(targets, list):
-                return []
-            books = []
-            for idx, target in enumerate(targets):
-                if not isinstance(target, dict):
-                    continue
-                try:
-                    book = cls.parse_search_item(target)
-                    book.idx = idx
-                    books.append(book)
-                except (KeyError, TypeError, ValueError):
-                    continue
-            return books
+    @classmethod
+    def _build_preview_search_request(
+        cls,
+        keyword: str,
+        *,
+        page: int = 1,
+        context: ProviderContext,
+    ):
+        domain = cls._domain_from(context)
+        return cls.build_basic_search_request(
+            keyword,
+            page=page,
+            domain=domain,
+            search_url_head=f"https://{domain}/?q=",
+            turn_page_info=cls.turn_page_info,
+            mappings=cls.mappings,
+            custom_map=context.custom_map,
+            headers=cls.headers,
+        )
 
-        return await asyncio.to_thread(_parse, resp.text)
+    @classmethod
+    def _parse_preview_books(cls, text):
+        data = cls._extract_payload_data(text)
+        targets = data.get("comics")
+        if not isinstance(targets, list):
+            return []
+        books = []
+        for idx, target in enumerate(targets, start=1):
+            if not isinstance(target, dict):
+                continue
+            try:
+                book = cls.parse_search_item(target)
+                book.idx = idx
+                books.append(book)
+            except (KeyError, TypeError, ValueError):
+                continue
+        return books
+
+    @classmethod
+    async def preview_search(
+        cls,
+        keyword,
+        client,
+        *,
+        page=1,
+        context: ProviderContext,
+    ):
+        spec = cls._build_preview_search_request(keyword, page=page, context=context)
+        resp = await cls.perform_preview_request(client, spec)
+        return await asyncio.to_thread(cls._parse_preview_books, resp.text)

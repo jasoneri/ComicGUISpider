@@ -140,9 +140,14 @@ class DisableSystemProxyMiddleware(HttpProxyMiddleware):
 
 class RefererMiddleware(ComicspiderDownloaderMiddleware):
     def process_request(self, request, spider):
+        if request.headers.get('Referer'):
+            return None
+        if referer := request.meta.get('referer'):
+            request.headers['Referer'] = referer
+            return None
         referer_resolver = getattr(spider, 'request_referer', None)
         if callable(referer_resolver):
-            request.headers['Referer'] = referer_resolver(request.url)
+            request.headers['Referer'] = referer_resolver()
         else:
             domain = getattr(spider, 'domain', '')
             request.headers['Referer'] = domain if str(domain).startswith('http') else f"https://{domain}"

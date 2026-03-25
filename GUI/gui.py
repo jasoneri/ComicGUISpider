@@ -215,9 +215,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.setEnabled(choose_enabled)
         self.searchinput.setEnabled(search_enabled)
         self.previewBtn.setVisible(show_ero)
-        self.previewBtn.setEnabled(preview_enabled and show_ero)
+        self.previewBtn.setEnabled(True)
         self.mpreviewBtn.setVisible(show_manga)
-        self.mpreviewBtn.setEnabled(preview_enabled and show_manga)
+        # self.mpreviewBtn.setEnabled(preview_enabled and show_manga)
         self.retrybtn.setEnabled(retry_enabled)
         self.confBtn.setEnabled(True)
         self._set_page_frame_enabled(bool(page_enabled))
@@ -241,6 +241,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if site_index == Spider.JM and site_utils is not None:
             if domain := peek_snapshot_domain(site_utils):
                 domains["jm"] = domain
+        elif site_index == Spider.WNACG and site_utils is not None:
+            if domain := peek_snapshot_domain(site_utils):
+                domains["wnacg"] = domain
         elif site_index == Spider.EHENTAI and site_utils is not None:
             domains["ehentai"] = site_utils.domain
         return SearchContextSnapshot(
@@ -248,6 +251,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             proxies=list(conf.proxies or []),
             cookies=self._snapshot_cookies(site_index),
             domains=domains,
+            custom_map=dict(conf.custom_map or {}),
         )
 
     def update_search_context(self, snapshot: SearchContextSnapshot):
@@ -453,8 +457,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         rect=None,
     ):
         """Unified BrowserWindow init ceremony + animated presentation."""
+        browser_created = False
         if not self.BrowserWindow:
             self.set_preview(rect)
+            browser_created = True
         elif reload_tf:
             self.BrowserWindow.home_url = QUrl.fromLocalFile(str(self.tf)) if self.tf else QUrl("about:blank")
             self.BrowserWindow.load_home()
@@ -466,15 +472,24 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         final_rect = self.BrowserWindow.geometry()
         if enable_page_frame:
             self.refresh_lifecycle_state()
-        PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
+        if browser_created or not reload_tf:
+            PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
         return self.BrowserWindow
 
     def show_preview(self):
+        def _has_cached_preview():
+            if self.flow_stage is GUIFlowStage.SEARCHED:
+                return True
+            preview_file = getattr(self, "tf", None)
+            if not preview_file or not p.Path(preview_file).exists():
+                return False
+            return any(bool(mgr.is_triggered and mgr.infos) for mgr in (self.clip_mgr, self.ags_mgr))
+    
         if self.lifecycle_state is SearchLifecycleState.LockedSearching:
             InfoBar.info(title='', content='searching', isClosable=True,
                 position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
             return
-        if self.flow_stage is not GUIFlowStage.SEARCHED:
+        if not _has_cached_preview():
             self.start_and_search()
             return
         return self.preview_mgr._active.show_cached()

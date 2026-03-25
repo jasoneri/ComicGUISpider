@@ -3,6 +3,7 @@ import shutil
 from qfluentwidgets import QConfig, ConfigItem, RangeConfigItem, RangeValidator, qconfig
 
 from utils.config import ScriptConf, conf_dir, qconfig_dir
+from utils.network.doh import normalize_doh_url
 
 
 def _qconfig_path(name: str):
@@ -20,7 +21,36 @@ def _default_danbooru_view_ratio() -> int:
 
 
 class CgsConfig(QConfig):
-    proxyHistory = ConfigItem("Proxy", "History", ['127.0.0.1:10809'], restart=False)
+    proxyHistory = ConfigItem("Proxy", "History", ["127.0.0.1:10809"], restart=False)
+    dohUrl = ConfigItem("DoH", "Url", "", restart=False)
+    dohHistory = ConfigItem("DoH", "History", [], restart=False)
+
+    def get_doh_url(self) -> str:
+        raw_value = str(self.dohUrl.value or "").strip()
+        return normalize_doh_url(raw_value) if raw_value else ""
+
+    def get_doh_history(self) -> list[str]:
+        history = []
+        for item in list(self.dohHistory.value or []):
+            try:
+                text = str(item or "").strip()
+                normalized = normalize_doh_url(text)
+            except ValueError:
+                continue
+            if normalized not in history:
+                history.append(normalized)
+        return history
+
+    def set_doh_url(self, value: object) -> str:
+        raw_value = str(value or "").strip()
+        normalized = normalize_doh_url(raw_value) if raw_value else ""
+        self.dohUrl.value = normalized
+        if normalized:
+            history = [item for item in self.get_doh_history() if item != normalized]
+            history.insert(0, normalized)
+            self.dohHistory.value = history[:20]
+        self.save()
+        return normalized
 
 
 cgs_cfg = CgsConfig()

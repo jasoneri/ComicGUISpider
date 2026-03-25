@@ -37,24 +37,23 @@
 
 ## 🚨可用监控
 
-| 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
-|:--------------------------------------|:----:|:----------:|:----:|
-| [拷贝漫画](https://www.2025copy.com/)    | :cn: | | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
-| [Māngabz](https://mangabz.com)        | :cn: | | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
-| [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
-| [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
-| [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
-| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     |  |
-| [Kemono](https://kemono.cr)     | 🌏 |     🔞     |  |
-| [HComic](https://kemono.cr)     | 🌏 |     🔞/代理     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
+| 网站                                    | 适用区域 |    补充说明    |
+|:--------------------------------------|:----:|:----------:|
+| [拷贝漫画](https://www.2026copy.com/)    | :cn: | |
+| [Māngabz](https://mangabz.com)        | :cn: | |
+| [禁漫天堂](https://18comic.vip/)          | :cn: |
+| [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
+| [ExHentai](https://exhentai.org/)     | 🌏 |     代理     |
+| [Hitomi](https://hitomi.la/)     | 🌏 |          |
+| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)     |
+| [HComic](https://kemono.cr)     | 🌏 |     代理     |
 
+点进网站前先判断 NSFW , 不了解就勿点  
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
 ---
 
 ## 📢更新
-
-[![Sparkline](https://stars.medv.io/jasoneri/ComicGUISpider.svg)](https://stars.medv.io/jasoneri/ComicGUISpider)
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 

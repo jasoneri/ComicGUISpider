@@ -1,0 +1,280 @@
+.fix-preview-header,
+.fix-preview-shell {
+  width: min(100%, 1520px);
+}
+
+.fix-preview-header:empty {
+  display: none;
+}
+
+.fix-preview-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.preview-clip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--preview-border);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(var(--preview-accent-rgb), 0.1), transparent 38%),
+    linear-gradient(180deg, rgba(var(--preview-surface-rgb), 0.94), rgba(var(--preview-surface-strong-rgb), 0.92));
+  box-shadow: var(--preview-shadow-soft);
+}
+
+.preview-clip-copy,
+.preview-clip-status {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.preview-clip-copy {
+  flex: 1 1 24rem;
+  min-width: min(100%, 18rem);
+}
+
+.preview-clip-label {
+  margin: 0;
+  color: var(--preview-text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-clip-title,
+.preview-clip-count {
+  margin: 0;
+  color: var(--preview-text);
+}
+
+.preview-clip-title {
+  font-size: 1.05rem;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.preview-clip-status {
+  flex: 1 1 18rem;
+  min-width: min(100%, 16rem);
+}
+
+.preview-clip-count span {
+  color: var(--preview-accent-strong);
+  font-weight: 800;
+}
+
+.preview-clip-progress {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 0.92rem;
+  border-radius: 999px;
+  background: rgba(var(--preview-accent-rgb), 0.08);
+  box-shadow: inset 0 0 0 1px rgba(var(--preview-accent-rgb), 0.08);
+}
+
+@keyframes preview-progress-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.preview-clip-progress__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0.92rem;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--preview-accent-rgb), 0.6) 0%,
+    rgba(var(--preview-accent-rgb), 0.9) 40%,
+    rgba(16, 185, 129, 0.84) 60%,
+    rgba(var(--preview-accent-rgb), 0.6) 100%
+  );
+  background-size: 200% 100%;
+  animation: preview-progress-shimmer 1.6s linear infinite;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: width 0.18s ease;
+}
+
+.preview-clip-progress__bar.is-complete {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.88), rgba(16, 185, 129, 0.88));
+  animation: none;
+}
+
+.fix-preview-fragments,
+.fix-group-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.fix-group-stack[hidden] {
+  display: none !important;
+}
+
+.fix-preview-fragment {
+  --fix-fragment-accent: var(--preview-accent);
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--preview-border);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at top right, rgba(var(--preview-accent-rgb), 0.1), transparent 38%),
+    linear-gradient(180deg, rgba(var(--preview-surface-rgb), 0.94), rgba(var(--preview-surface-strong-rgb), 0.92));
+  box-shadow: var(--preview-shadow-soft);
+  overflow: hidden;
+}
+
+.fix-preview-fragment[data-fragment="lower"] {
+  --fix-fragment-accent: #14b8a6;
+}
+
+.fix-preview-fragment::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--fix-fragment-accent), transparent 78%);
+}
+
+.fix-preview-fragment-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fix-preview-fragment-copy {
+  display: grid;
+  gap: 0.45rem;
+  flex: 1 1 22rem;
+  min-width: min(100%, 18rem);
+}
+
+.fix-preview-fragment-marker,
+.fix-preview-fragment-tail {
+  display: inline-flex;
+  align-items: center;
+  max-width: max-content;
+  padding: 0.36rem 0.82rem;
+  border: 1px solid var(--preview-border-strong);
+  border-radius: 999px;
+  background: rgba(var(--preview-surface-strong-rgb), 0.88);
+  color: var(--preview-text-faint);
+  font-family: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+}
+
+.fix-preview-fragment-title {
+  margin: 0;
+  color: var(--preview-text);
+  font-size: 1.04rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.fix-preview-fragment-desc {
+  margin: 0.22rem 0 0;
+  color: var(--preview-text-soft);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.fix-preview-toolbar-host {
+  display: flex;
+  justify-content: flex-end;
+  flex: 1 1 24rem;
+  min-width: min(100%, 20rem);
+}
+
+.fix-preview-toolbar-host:empty {
+  display: none;
+}
+
+.fix-preview-grid {
+  align-content: flex-start;
+  min-height: 5rem;
+}
+
+.fix-preview-grid:empty::before,
+.fix-group-upper:empty::before,
+.fix-group-lower:empty::before {
+  content: attr(data-empty-label);
+  flex: 1 1 100%;
+  display: grid;
+  place-items: center;
+  min-height: 5rem;
+  padding: 1.25rem 1rem;
+  border: 1px dashed var(--preview-border-strong);
+  border-radius: 18px;
+  background: rgba(var(--preview-accent-rgb), 0.05);
+  color: var(--preview-text-faint);
+  text-align: center;
+}
+
+.fix-group-upper,
+.fix-group-lower {
+  min-height: 5rem;
+}
+
+.fix-group-upper {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px dashed var(--preview-border);
+}
+
+@media (max-width: 767.98px) {
+  .fix-preview-fragment {
+    padding: 0.85rem;
+    border-radius: 22px;
+  }
+
+  .fix-preview-toolbar-host {
+    flex-basis: 100%;
+    min-width: 100%;
+  }
+
+  .fix-preview-fragment-marker,
+  .fix-preview-fragment-tail {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .preview-clip-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .preview-clip-copy,
+  .preview-clip-status {
+    flex: none;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-clip-progress__bar {
+    animation: none !important;
+  }
+}
+
+.preview-clip-header :focus-visible {
+  outline: 2px solid rgba(var(--preview-accent-rgb), 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

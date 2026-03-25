@@ -1,5 +1,4 @@
 import json
-from GUI.core.timer import safe_single_shot
 
 from utils.website.info import BookInfo
 from utils import conf
@@ -42,25 +41,49 @@ class AggrSearchManager:
         self.gui.BrowserWindow.view.loadFinished.connect(start_aggr_thread_once)
 
     def handle_group_data(self, group_idx, books_list):
-        # preview_args格式: (idx, img_preview, name, preview_url)
-        books_data = []
+        if not books_list:
+            return
+        keyword = getattr(books_list[0], 'search_keyword', f'Group {group_idx}')
+        js_parts = [f'addFixGroup({json.dumps(group_idx)},{json.dumps(keyword, ensure_ascii=False)})']
+
         for book in books_list:
             self.infos[str(book.idx)] = book
-            idx, img_src, title, url = book.preview_args
-            book_dict = {
-                'idx': idx, 'img_src': img_src, 'title': title,
-                'url': url, 'search_keyword': getattr(book, 'search_keyword', ''),
-            }
-            for _ in ('pages', 'likes', 'lang', 'btype'):
-                if hasattr(book, _) and getattr(book, _):
-                    book_dict[_] = getattr(book, _)
-            if hasattr(book, 'mark_tip') and book.mark_tip:
-                book_dict['flag'] = book.mark_tip
-            books_data.append(book_dict)
+            options = {}
+            for attr in ('pages', 'likes', 'lang', 'btype'):
+                val = getattr(book, attr, None)
+                if val:
+                    options[attr] = val
+            if getattr(book, 'mark_tip', None):
+                options['flag'] = book.mark_tip
 
-        books_json = json.dumps(books_data, ensure_ascii=False)
-        js_code = f'addAgsGroup({group_idx}, {books_json});'
-        self.gui.BrowserWindow.run_js(js_code)
+            if book.episodes:
+                meta = []
+                if book.artist:
+                    meta.append(book.artist)
+                if book.pages:
+                    meta.append(f'{book.pages}pages')
+                ep_options = {}
+                if meta:
+                    ep_options['meta'] = meta
+                if book.tags:
+                    ep_options['meta_badges'] = book.tags[:20]
+                js_parts.append(
+                    f'addBookWithEpsCard({json.dumps(book.idx)},'
+                    f'{json.dumps(book.img_preview, ensure_ascii=False)},'
+                    f'{json.dumps(book.name, ensure_ascii=False)},'
+                    f'{json.dumps(book.url, ensure_ascii=False)},'
+                    f'{json.dumps(ep_options, ensure_ascii=False)})'
+                )
+            else:
+                js_parts.append(
+                    f'addBookCard({json.dumps(book.idx)},'
+                    f'{json.dumps(book.img_preview, ensure_ascii=False)},'
+                    f'{json.dumps(book.name, ensure_ascii=False)},'
+                    f'{json.dumps(book.url, ensure_ascii=False)},'
+                    f'{json.dumps(options, ensure_ascii=False)})'
+                )
+
+        self.gui.BrowserWindow.page_runtime.run_js(';'.join(js_parts))
 
     def all_aggr_search_data(self, total_data):
         def refresh_tf(html):
@@ -68,17 +91,15 @@ class AggrSearchManager:
                 with open(self.gui.tf, 'w', encoding='utf-8') as f:
                     f.write(html)
                 if conf.isDeduplicate:
-                    def delayed_mark():
-                        books_and_eps = self.gui.mark_tip(self.infos)
-                        dled_bidxes = []
-                        for key, obj in self.infos.items():
-                            if getattr(obj, 'mark_tip', None) == 'downloaded':
-                                if isinstance(obj, BookInfo):
-                                    dled_bidxes.append(key)
-                        js_code = f'''tryMarkDownload({dled_bidxes},[]);'''
-                        self.gui.BrowserWindow.run_js(js_code)
-                    safe_single_shot(300, delayed_mark)
-                    self.gui.BrowserWindow.refreshBtn.click()
+                    self.gui.mark_tip(self.infos)
+                    dled_bidxes = [
+                        key for key, obj in self.infos.items()
+                        if getattr(obj, 'mark_tip', None) == 'downloaded' and isinstance(obj, BookInfo)
+                    ]
+                    if dled_bidxes:
+                        self.gui.BrowserWindow.page_runtime.run_js(
+                            f'previewRuntime.markDownloaded({json.dumps(dled_bidxes)},[])'
+                        )
                 if self.gui.BrowserWindow.topHintBox.isChecked():
                     self.gui.BrowserWindow.topHintBox.click()
                 if len(total_data) < len(self.tasks):
@@ -89,11 +110,9 @@ class AggrSearchManager:
         if not total_data:
             self.gui.BrowserWindow.hide()
         else:
-            self.gui.BrowserWindow.run_js_result(
-                "return finishTasks();",
+            self.gui.BrowserWindow.page_runtime.page_to_html(
                 refresh_tf,
-                expected_kind="string",
-                description="ags finishTasks()",
+                description="ags HTML snapshot",
                 error_callback=lambda _exc: refresh_tf(""),
             )
 

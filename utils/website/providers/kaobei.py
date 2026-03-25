@@ -11,7 +11,9 @@ from cryptography.hazmat.backends import default_backend
 
 from assets import res
 from utils import conf, get_loop
-from utils.website.core import Utils, Previewer, Cache, build_proxy_transport
+from utils.website.core import (
+    Utils, Previewer, PreviewRequestSpec, ProviderContext, Cache, build_proxy_transport
+)
 from utils.website.info import KbBookInfo, Episode
 from utils.processed_class import Url
 
@@ -93,30 +95,46 @@ class KaobeiUtils(Utils, Previewer):
                      "拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算",}
 
     @classmethod
-    def preview_client_config(cls):
+    def preview_client_config(cls, context: ProviderContext):
         return {
             'headers': cls.ua_mapi,
         }
 
     @classmethod
-    async def preview_search(cls, keyword, client, **kw):
+    def _build_preview_search_request(
+        cls,
+        keyword: str,
+        *,
+        page: int = 1,
+    ) -> PreviewRequestSpec:
         url, frame = cls.build_search_spec(keyword)
-        page = max(1, int(kw.pop("page", 1) or 1))
+        page = max(1, int(page or 1))
         if page > 1:
             paged_url = Url(url).set_next(*cls.turn_page_info)
             for _ in range(page - 1):
                 paged_url = paged_url.next
             url = str(paged_url)
-        resp = await client.get(url, headers=cls.ua_mapi, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
-        targets = resp.json().get("results", {}).get("list", [])
-        return await asyncio.to_thread(cls._parse_search_targets, targets, frame)
+        return PreviewRequestSpec(url=url, headers=cls.ua_mapi, state={"frame": frame})
 
     @classmethod
-    async def _ensure_aes_key(cls):
+    async def preview_search(
+        cls,
+        keyword,
+        client,
+        *,
+        page=1,
+        context: ProviderContext,
+    ):
+        spec = cls._build_preview_search_request(keyword, page=page)
+        resp = await cls.perform_preview_request(client, spec)
+        targets = resp.json().get("results", {}).get("list", [])
+        return await asyncio.to_thread(cls._parse_search_targets, targets, spec.state["frame"])
+
+    @classmethod
+    async def _ensure_aes_key(cls, client=None):
         """Async version for preview - uses shared client from worker"""
-        async def _fetch_key(client):
-            resp = await client.get(f"https://{cls.pc_domain}/comic/yiquanchaoren", timeout=12)
+        async def _fetch_key(cli):
+            resp = await cli.get(f"https://{cls.pc_domain}/comic/yiquanchaoren", timeout=12)
             html_doc = html.fromstring(resp.text)
             dio = list(map(lambda x: x.strip().replace(" ", ""), html_doc.xpath('//script/text()')))
             real_dio = next(filter(lambda x: x.startswith("var"), dio))
@@ -138,6 +156,12 @@ class KaobeiUtils(Utils, Previewer):
         if cached := _load_cached():
             return cached
 
+        if client is not None:
+            key = await _fetch_key(client)
+            cls.cachef = getattr(cls, "cachef", Cache("kaobei_aeskey.txt"))
+            cls.cachef.val = key
+            return key
+
         transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies)
         async with httpx.AsyncClient(
             headers=cls.headers, transport=transport, trust_env=trust_env
@@ -148,15 +172,15 @@ class KaobeiUtils(Utils, Previewer):
             return key
 
     @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        await cls._ensure_aes_key()
+    async def preview_fetch_episodes(cls, book, client, *, context: ProviderContext):
+        await cls._ensure_aes_key(client)
         path_word = book.url.rstrip("/").split("/")[-2]
         headers = {**cls.ua, 'Referer': f'https://{cls.pc_domain}/comic/{path_word}'}
         resp = await client.get(book.url, headers=headers, follow_redirects=True, timeout=12)
         resp.raise_for_status()
         return await asyncio.to_thread(
             cls.parse_episodes, resp.json()["results"], book,
-            url=book.url, show_dhb=kw.get("show_dhb", conf.kbShowDhb)
+            url=book.url, show_dhb=conf.kbShowDhb
         )
 
     @staticmethod
@@ -221,6 +245,25 @@ class KaobeiUtils(Utils, Previewer):
         return _decrypt()
 
     @classmethod
+    def parse_page_urls_from_html(cls, html_text: str, *, url: str) -> list[dict]:
+        doc = html.fromstring(html_text)
+        scripts = doc.xpath('//script[contains(text(), "var contentKey =")]/text()')
+        contentKey_script = next(iter(scripts), None)
+        if not contentKey_script:
+            raise ValueError("拷贝更改了contentKey xpath")
+        contentKey = re.search(r"""var contentKey = ["']([^']*)["']""", contentKey_script).group(1)
+        return cls.decrypt_chapter_data(contentKey, url=url)
+
+    @classmethod
+    async def preview_fetch_pages(cls, episode, client, *, context: ProviderContext) -> list[str]:
+        await cls._ensure_aes_key(client)
+        resp = await client.get(episode.url, headers=cls.headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        imageData = await asyncio.to_thread(cls.parse_page_urls_from_html, resp.text, url=str(resp.url))
+        episode.pages = len(imageData)
+        return [item['url'] for item in imageData]
+
+    @classmethod
     def get_aes_key(cls):
         """获取AES密钥，使用缓存装饰器优化"""
         def _fetch():
@@ -230,6 +273,8 @@ class KaobeiUtils(Utils, Previewer):
                     headers=cls.headers, transport=transport, trust_env=trust_env
                 ) as cli:
                     resp = await cli.get(f"https://{cls.pc_domain}/comic/yiquanchaoren")
+                    if resp.text == "error":
+                        raise ValueError(f"get aes err: {resp.text}")
                     return resp.text
             try:
                 loop = get_loop()

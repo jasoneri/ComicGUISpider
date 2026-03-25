@@ -57,11 +57,7 @@ class KaobeiSpider(BaseComicSpider):
         book = ep.from_book
         uid, u_md5 = ep.id_and_md5()
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
-        contentKey_script = response.xpath('//script[contains(text(), "var contentKey =")]/text()').get()
-        if not contentKey_script:
-            raise ValueError("拷贝更改了contentKey xpath")
-        contentKey = re.search(r"""var contentKey = ["']([^']*)["']""", contentKey_script).group(1)
-        imageData = KaobeiUtils.decrypt_chapter_data(contentKey, url=response.url, group_infos=group_infos)
+        imageData = KaobeiUtils.parse_page_urls_from_html(response.text, url=response.url)
         ep.pages = len(imageData)
         self.set_task(ep)
         for page, url_item in enumerate(imageData):

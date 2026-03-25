@@ -3,8 +3,10 @@
 import re
 import ast
 import ssl
+import sys
 import time
 import html
+import builtins
 import hashlib
 import asyncio
 import platform
@@ -137,3 +139,32 @@ def get_loop():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop
+
+
+_QFLUENT_PRO_MARKERS = (
+    "QFluentWidgets Pro is now released",
+    "qfluentwidgets.com/pages/pro",
+)
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def install_qfluentwidgets_notice_filter():
+    """Drop the import-time QFluentWidgets Pro notice without muting other prints."""
+    current_print = builtins.print
+    if getattr(current_print, "_cgs_qfluent_notice_filter", False):
+        return
+
+    def filtered_print(*args, **kwargs):
+        output = kwargs.get("file")
+        if output is None or output is sys.stdout:
+            sep = kwargs.get("sep")
+            if sep is None:
+                sep = " "
+            text = sep.join(str(arg) for arg in args)
+            normalized = _ANSI_ESCAPE_RE.sub("", text)
+            if all(marker in normalized for marker in _QFLUENT_PRO_MARKERS):
+                return
+        return current_print(*args, **kwargs)
+
+    filtered_print._cgs_qfluent_notice_filter = True
+    builtins.print = filtered_print

@@ -1,8 +1,6 @@
 import json
-import re
 import pathlib
 from PySide6.QtCore import Qt
-from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
@@ -76,51 +74,74 @@ class ClipGUIManager:
         self.gui.BrowserWindow.view.loadFinished.connect(start_clip_thread_once)
 
     def single_clip_tasks_data(self, book):
-        # clip_info格式: (idx, url, img_src, title, author, pages, tags, episodes)
         if book.episodes:
-            # 有episodes时，每个episode用f"{idx}-{ep_idx}"作为键存储
             for ep in book.episodes:
                 ep.name = ep.name or f'Episode-{ep.id}'
-                unique_key = f"{book.idx}-{ep.idx}"
-                self.infos[unique_key] = ep
-        else:
-            # 无episodes时，使用任务idx作为键存储单个Selected
+                self.infos[f"ep{book.idx}-{ep.idx}"] = ep
             self.infos[str(book.idx)] = book
 
-        params = ','.join(
-            json.dumps(val, ensure_ascii=False)
-            for val in book.clip_info()
-        )
-        js_code = f'addEL({params})'
-        self.gui.BrowserWindow.run_js(js_code)
+            options = {}
+            meta = []
+            if book.artist:
+                meta.append(book.artist)
+            if book.pages:
+                meta.append(f'{book.pages}pages')
+            if meta:
+                options['meta'] = meta
+            if book.tags:
+                options['meta_badges'] = book.tags[:20]
+
+            book_key = json.dumps(str(book.idx))
+            episodes_data = [{"name": ep.name, "idx": ep.idx} for ep in book.episodes]
+            js_code = (
+                f'addBookWithEpsCard({json.dumps(book.idx)},'
+                f'{json.dumps(book.img_preview, ensure_ascii=False)},'
+                f'{json.dumps(book.name, ensure_ascii=False)},'
+                f'{json.dumps(book.url, ensure_ascii=False)},'
+                f'{json.dumps(options, ensure_ascii=False)});'
+                f'updateEpisodes({book_key},{json.dumps(episodes_data, ensure_ascii=False)});'
+                f'selectAllEpisodes({book_key})'
+            )
+            self.gui.BrowserWindow.page_runtime.run_js(js_code)
+        else:
+            self.infos[str(book.idx)] = book
+
+            options = {}
+            if book.pages:
+                options['pages'] = book.pages
+
+            js_code = (
+                f'addBookCard({json.dumps(book.idx)},'
+                f'{json.dumps(book.img_preview, ensure_ascii=False)},'
+                f'{json.dumps(book.name, ensure_ascii=False)},'
+                f'{json.dumps(book.url, ensure_ascii=False)},'
+                f'{json.dumps(options, ensure_ascii=False)})'
+            )
+            self.gui.BrowserWindow.page_runtime.run_js(js_code)
 
     def all_clip_tasks_data(self, total_data):
         """处理所有剪贴板任务完成后的操作"""
         def refresh_tf(html):
             if html:
                 with open(self.gui.tf, 'w', encoding='utf-8') as f:
-                    # 实在搞不懂怎么跨端正常关掉已经打开的模态框，只能硬改标签属性了
-                    html = re.sub(r"<body.*?>", "<body>", html)
-                    html = re.sub(r"""aria-labelledby="exampleModalLabel".*?>""",
-                                  """aria-labelledby="exampleModalLabel">""", html)
-                    html = html.replace(r"""<div class="modal-backdrop fade show"></div>""", "")
                     f.write(html)
                 if conf.isDeduplicate:
-                    # 延迟一点确保页面刷新完成
-                    def delayed_mark():
-                        books_and_eps = self.gui.mark_tip(self.infos)
-                        dled_bidxes = []
-                        dled_eidxes = []
-                        for key, obj in self.infos.items():
-                            if getattr(obj, 'mark_tip', None) == 'downloaded':
-                                if isinstance(obj, BookInfo):
-                                    dled_bidxes.append(key)  
-                                elif isinstance(obj, Episode):
-                                    dled_eidxes.append(key)  
-                        js_code = f'''tryMarkDownload({dled_bidxes},{dled_eidxes});'''
-                        self.gui.BrowserWindow.run_js(js_code)
-                    safe_single_shot(300, delayed_mark)
-                    self.gui.BrowserWindow.refreshBtn.click()
+                    self.gui.mark_tip(self.infos)
+                    dled_bidxes = []
+                    dled_eidxes = []
+                    for key, obj in self.infos.items():
+                        if getattr(obj, 'mark_tip', None) == 'downloaded':
+                            if isinstance(obj, BookInfo):
+                                dled_bidxes.append(key)
+                            elif isinstance(obj, Episode):
+                                dled_eidxes.append(key)
+                    if dled_bidxes or dled_eidxes:
+                        js_parts = []
+                        if dled_bidxes:
+                            js_parts.append(f'previewRuntime.markDownloaded({json.dumps(dled_bidxes)},[])')
+                        if dled_eidxes:
+                            js_parts.append(f'markDownloadedEpisodes({json.dumps(dled_eidxes)})')
+                        self.gui.BrowserWindow.page_runtime.run_js(';'.join(js_parts))
                 if self.gui.BrowserWindow.topHintBox.isChecked():
                     self.gui.BrowserWindow.topHintBox.click()
                 if len(total_data) < len(self.tasks):
@@ -131,11 +152,9 @@ class ClipGUIManager:
         if not total_data:
             self.gui.BrowserWindow.hide()
         else:
-            self.gui.BrowserWindow.run_js_result(
-                "return finishTasks();",
+            self.gui.BrowserWindow.page_runtime.page_to_html(
                 refresh_tf,
-                expected_kind="string",
-                description="clip finishTasks()",
+                description="clip HTML snapshot",
                 error_callback=lambda _exc: refresh_tf(""),
             )
 

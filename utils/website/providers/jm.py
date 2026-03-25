@@ -3,7 +3,9 @@ import re
 import math
 from io import BytesIO
 import asyncio
+import typing as t
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlencode
 
 import httpx
 from PIL import Image
@@ -12,8 +14,11 @@ from scrapy import Selector
 
 from assets import res
 from variables import COOKIES_SUPPORT
-from utils import ori_path, conf
-from utils.website.core import EroUtils, DomainUtils, Req, Cookies, Previewer, build_proxy_transport
+from utils import ori_path, conf, convert_punctuation
+from utils.website.core import (
+    EroUtils, DomainUtils, Req, Cookies, Previewer,
+    PreviewRequestSpec, ProviderContext, build_proxy_transport,
+)
 from utils.website.info import JmBookInfo, Episode
 
 
@@ -52,6 +57,15 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
         "Accept-Encoding": "gzip, deflate, br",
     }
     uuid_regex = re.compile(r"[^/]+/(\d+)")
+    search_url_head = "https://18comic-zzz.xyz/search/photos?main_tag=0&search_query="
+    mappings = {}
+    time_regex = re.compile(r".*?([日周月总])")
+    kind_regex = re.compile(r".*?(更新|点击|评分|评论|收藏)")
+    expand_map: t.Dict[str, dict] = {
+        "日": {"t": "t"}, "周": {"t": "w"}, "月": {"t": "m"}, "总": {"t": "a"},
+        "更新": {"o": "mr"}, "点击": {"o": "mv"}, "评分": {"o": "tr"}, "评论": {"o": "md"}, "收藏": {"o": "tf"},
+    }
+    turn_page_info = (r"page=\d+",)
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")
@@ -130,8 +144,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
 
     @classmethod
     async def by_publish(cls):
-        transport, trust_env = build_proxy_transport(
-            cls.proxy_policy, conf.proxies, http2=True, retries=2
+        transport, trust_env = build_http_transport(
+            cls.proxy_policy, conf.proxies, doh_url=cgs_cfg.get_doh_url(), is_async=True, http2=True, retries=2
         )
         async with httpx.AsyncClient(
             headers=cls.publish_headers,
@@ -187,8 +201,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
         self.domain = self.domain or self.get_domain()
         return f'https://{self.domain}/search/photos?main_tag=0&search_query={key}'
 
-    @staticmethod
-    def parse_search_item(target):
+    @classmethod
+    def parse_search_item(cls, target):
         _parent_div = target.xpath('./parent::*/parent::div')
         pre_url = '/'.join(target.xpath('../@href | ./a/@href').get().split('/')[:-1])
         img_preview = target.xpath('./a/img/@src | ./img/@src').get()
@@ -219,61 +233,150 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
         return books
 
     @classmethod
-    def preview_client_config(cls, **context):
-        domain = context.get("domain")
-        if not domain:
-            raise ValueError("preview domain is required for jm")
-        return {
-            'headers': {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}, 'verify': False,
-        }
+    def preview_client_config(cls, context: ProviderContext):
+        domain = cls._domain_from(context)
+        headers = cls._preview_headers(domain, context.cookies)
+        return {"headers": headers,"verify": False,}
 
     @classmethod
-    async def preview_search(cls, keyword, client, **kw):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        kw.pop("cookies", None)
-        domain = kw.pop("domain", None)
-        if not domain:
-            raise ValueError("preview domain is required for jm")
-        url = f'https://{domain}/search/photos?main_tag=0&search_query={keyword}&page={page}'
-        headers = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
-        client.headers = headers
-        resp = await client.get(url, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
-
-        def _parse(text, _domain):
-            _html = Selector(text=text)
-            targets = _html.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
-            with ThreadPoolExecutor() as executor:
-                books = list(executor.map(cls.parse_search_item, targets))
-            for idx, book in enumerate(books):
-                book.idx = idx
-                book.preview_url = f'https://{_domain}{book.preview_url}'
-                book.url = f'https://{_domain}{book.url}'
-            return books
-
-        return await asyncio.to_thread(_parse, resp.text, domain)
+    def _preview_headers(cls, domain: str, cookies: dict | None = None) -> dict[str, str]:
+        headers = {"Host": domain, **cls.headers, "Referer": f"https://{domain}"}
+        cookie_str = cls.to_str_(cookies or {})
+        if cookie_str:
+            headers["cookie"] = cookie_str
+        return headers
 
     @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        kw.pop("cookies", None)
-        domain = kw.pop("domain", None)
-        if not domain:
-            raise ValueError("preview domain is required for jm")
-        headers = {'Host': domain, **cls.headers, 'Referer': f'https://{domain}'}
-        resp = await client.get(book.preview_url, headers=headers, follow_redirects=True, timeout=12, **kw)
+    def _domain_from(cls, context: ProviderContext | None) -> str:
+        if context and context.domain:
+            return context.domain
+        if domain := cls.get_domain():
+            return domain
+        raise ValueError("preview domain is required for jm")
+
+    @classmethod
+    def _build_preview_search_request(
+        cls,
+        keyword: str,
+        *,
+        page: int = 1,
+        context: ProviderContext,
+    ) -> PreviewRequestSpec:
+        domain = cls._domain_from(context)
+        keyword = convert_punctuation(keyword).replace(" ", "")
+        mappings = cls.merge_search_mappings(cls.mappings, context.custom_map)
+        if keyword in mappings:
+            url = cls.normalize_mapping_url(domain, mappings[keyword])
+        else:
+            time_match = cls.time_regex.search(keyword)
+            kind_match = cls.kind_regex.search(keyword)
+            if not kind_match:
+                url = f"https://{domain}/search/photos?main_tag=0&search_query={keyword}"
+            else:
+                _t = time_match.group(1) if time_match else "周"
+                _k = kind_match.group(1) if kind_match else "点击"
+                params = {**cls.expand_map[_t], **cls.expand_map[_k]}
+                url = f"https://{domain}/albums?{urlencode(params)}"
+                if len(keyword) > 4:
+                    url += keyword[4:]
+        url = cls.build_page_url(url, page, cls.turn_page_info)
+        return PreviewRequestSpec(
+            url=url,
+            headers=cls._preview_headers(domain, context.cookies),
+            state={"domain": domain},
+        )
+
+    @classmethod
+    def _parse_preview_books(cls, text, domain):
+        _html = Selector(text=text)
+        targets = _html.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
+        with ThreadPoolExecutor() as executor:
+            books = list(executor.map(cls.parse_search_item, targets))
+        for idx, book in enumerate(books, start=1):
+            book.idx = idx
+            book.preview_url = f"https://{domain}{book.preview_url}"
+            book.url = f"https://{domain}{book.url}"
+        return books
+
+    @classmethod
+    async def preview_search(
+        cls,
+        keyword,
+        client,
+        *,
+        page=1,
+        context: ProviderContext,
+    ):
+        spec = cls._build_preview_search_request(keyword, page=page, context=context)
+        resp = await cls.perform_preview_request(client, spec)
+        return await asyncio.to_thread(cls._parse_preview_books, resp.text, spec.state["domain"])
+
+    @classmethod
+    async def preview_fetch_episodes(cls, book, client, *, context: ProviderContext):
+        domain = cls._domain_from(context)
+        headers = cls._preview_headers(domain, context.cookies)
+        resp = await client.get(book.preview_url, headers=headers, follow_redirects=True, timeout=12)
         resp.raise_for_status()
         return await asyncio.to_thread(cls._parse_book_episodes, resp.text, book, domain)
 
     @classmethod
     def _parse_book_episodes(cls, resp_text, book, domain):
         parsed = cls.parse_book(resp_text)
+        cls._merge_book_detail(book, parsed, domain)
         if parsed.episodes:
             for ep in parsed.episodes:
                 ep.from_book = book
+                ep.url = ep.url or f"/photo/{ep.id}" if ep.id else ep.url
                 if ep.url and not ep.url.startswith('http'):
                     ep.url = f'https://{domain}{ep.url}'
             return parsed.episodes
-        return [Episode(from_book=book, idx=1, id=parsed.id, name=parsed.name or "全本")]
+        return []
+
+    @staticmethod
+    def _merge_book_detail(book, parsed, domain):
+        for attr in ("name", "artist", "public_date", "pages", "btype", "likes"):
+            value = getattr(parsed, attr, None)
+            if value is not None:
+                setattr(book, attr, value)
+        if parsed.tags:
+            book.tags = parsed.tags
+        if parsed.img_preview:
+            book.img_preview = parsed.img_preview
+        if parsed.preview_url and not getattr(book, "preview_url", None):
+            book.preview_url = parsed.preview_url
+        if parsed.url and not getattr(book, "url", None):
+            book.url = parsed.url
+        if getattr(book, "preview_url", None) and not book.preview_url.startswith("http"):
+            book.preview_url = f"https://{domain}{book.preview_url}"
+        if getattr(book, "url", None) and not book.url.startswith("http"):
+            book.url = f"https://{domain}{book.url}"
+
+    @classmethod
+    def parse_page_urls_from_html(cls, resp_text):
+        _html = Selector(text=resp_text)
+        urls = []
+        for target in _html.xpath(".//img[contains(@id,'album_photo_')]"):
+            img_url = target.xpath('./@data-original').get() or target.xpath('./@src').get()
+            if not img_url or img_url.endswith("blank.jpg"):
+                continue
+            urls.append(img_url)
+        return urls
+
+    @classmethod
+    async def preview_fetch_pages(cls, item, client, *, context: ProviderContext):
+        if isinstance(item, JmBookInfo):
+            return await item.preview_fetch_pages(client, context=context)
+        domain = cls._domain_from(context)
+        headers = cls._preview_headers(domain, context.cookies)
+        target_url = item.url or (f"https://{domain}/photo/{item.id}" if item.id else None)
+        if not target_url:
+            raise ValueError("jm episode url is required for preview_fetch_pages")
+        resp = await client.get(target_url, headers=headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        urls = await asyncio.to_thread(cls.parse_page_urls_from_html, resp.text)
+        item.url = str(resp.url)
+        item.pages = len(urls)
+        return urls
 
     @classmethod
     def parse_book(cls, resp_text):
@@ -290,6 +393,8 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
             name=_html.xpath('//h1/text()').get(),
             artist=(info_el.xpath('.//span[@data-type="author"]/a/text()').getall() or [None])[-1],
             id=jm_id,
+            preview_url=f"/album/{jm_id}",
+            url=f"/photo/{jm_id}",
             tags=info_el.xpath('.//span[@data-type="tags"]/a/text()').getall(),
             img_preview=cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src').get(),
             pages=re.search(r'\d+', pages_text).group(0), public_date=public_date, episodes=[]
@@ -302,7 +407,27 @@ class JmUtils(EroUtils, DomainUtils, Req, Cookies, Previewer):
                 from_book=book,
                 id=epa_el.xpath('./@data-album').get(),
                 idx=int(epa_el.xpath('./@data-index').get()) + 1,
+                url=f"/photo/{epa_el.xpath('./@data-album').get()}",
                 name=re.split(r"\s+", _ep_title)[0]
             )
             book.episodes.append(episode)
         return book
+
+
+async def _jm_book_preview_fetch_pages(self, client, *, context: ProviderContext):
+    domain = JmUtils._domain_from(context)
+    headers = JmUtils._preview_headers(domain, context.cookies)
+    target_url = self.url or self.preview_url
+    if not target_url:
+        raise ValueError("jm book url is required for preview_fetch_pages")
+    if not target_url.startswith("http"):
+        target_url = f"https://{domain}{target_url}"
+    resp = await client.get(target_url, headers=headers, follow_redirects=True, timeout=12)
+    resp.raise_for_status()
+    urls = await asyncio.to_thread(JmUtils.parse_page_urls_from_html, resp.text)
+    self.url = str(resp.url)
+    self.pages = len(urls)
+    return urls
+
+
+JmBookInfo.preview_fetch_pages = _jm_book_preview_fetch_pages

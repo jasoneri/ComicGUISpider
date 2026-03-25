@@ -3,19 +3,72 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Normal Preview</title>
+    <title>Fix Preview</title>
     <link rel="stylesheet" href="../GUI/src/preview_format/public.css">
-    <link rel="stylesheet" href="../GUI/src/preview_format/preview_checkbox.css">
     <link rel="stylesheet" href="../GUI/src/preview_format/badge.css">
     <link rel="stylesheet" href="../GUI/src/preview_format/manga.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/fix.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/preview_checkbox.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/preview_bulk_select.css">
     <link rel="stylesheet" href="../GUI/src/preview_format/task_toast.css">
 </head>
 <body>
-<main class="preview-shell">
-    <section class="book-grid" id="bookCards">
-        {body}
-    </section>
+<div id="fixHeader" class="fix-preview-header"></div>
+<main id="fixContent" class="fix-preview-shell">
+    <div id="fixFragmentSections" class="fix-preview-fragments">
+        <section class="fix-preview-fragment" data-fragment="upper" aria-labelledby="fixUpperTitle">
+            <div class="fix-preview-fragment-head">
+                <div class="fix-preview-fragment-copy">
+                    <span class="fix-preview-fragment-marker">&lt;!-- upper_html:start --&gt;</span>
+                    <div>
+                        <h2 id="fixUpperTitle" class="fix-preview-fragment-title">上半 HTML 片段</h2>
+                        <p class="fix-preview-fragment-desc">普通书卡与批量选择工具条都在这一段内布局。</p>
+                    </div>
+                </div>
+                <div id="previewBulkSelectHost" class="fix-preview-toolbar-host" aria-label="Bulk select toolbar host"></div>
+            </div>
+            <div class="fix-preview-fragment-frame">
+                <section id="bookCardsUpper" class="book-grid fix-preview-grid" data-empty-label="上半片段暂无内容">{upper_body}</section>
+            </div>
+            <span class="fix-preview-fragment-tail">&lt;!-- upper_html:end --&gt;</span>
+        </section>
+        <section class="fix-preview-fragment" data-fragment="lower" aria-labelledby="fixLowerTitle">
+            <div class="fix-preview-fragment-head">
+                <div class="fix-preview-fragment-copy">
+                    <span class="fix-preview-fragment-marker">&lt;!-- lower_html:start --&gt;</span>
+                    <div>
+                        <h2 id="fixLowerTitle" class="fix-preview-fragment-title">下半 HTML 片段</h2>
+                        <p class="fix-preview-fragment-desc">带章节的书卡在这里渲染，点击后进入章节选择。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="fix-preview-fragment-frame">
+                <section id="bookCardsLower" class="book-grid fix-preview-grid" data-empty-label="下半片段暂无内容">{lower_body}</section>
+            </div>
+            <span class="fix-preview-fragment-tail">&lt;!-- lower_html:end --&gt;</span>
+        </section>
+    </div>
+    <section id="fixGroupStack" class="fix-group-stack" hidden></section>
 </main>
+<div id="previewBulkSelectBar" class="preview-bulk-select preview-bulk-select--floating" role="toolbar" aria-label="Bulk select books">
+    <div class="bulk-toolbar-inner">
+        <div class="bulk-toolbar-controls">
+            <button id="bulkClearBtn" type="button" class="bulk-toolbar-button bulk-toolbar-button--icon" title="Clear selection" aria-label="Clear selection">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 1024 1024">
+                    <path fill="currentColor" d="m899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-.3 1.5-.4 3-.4 4.4c0 14.4 11.6 26 26 26h723c1.5 0 3-.1 4.4-.4c14.2-2.4 23.7-15.9 21.2-30M204 390h272V182h72v208h272v104H204zm468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260z" />
+                </svg>
+            </button>
+            <button id="bulkToggleAllBtn" type="button" class="bulk-toolbar-button">All</button>
+            <button id="bulkFirstBtn" type="button" class="bulk-toolbar-button">First~</button>
+            <label class="bulk-toolbar-input" for="bulkSelectCountInput">
+                <span class="visually-hidden">Number of books to select</span>
+                <input type="number" id="bulkSelectCountInput" value="1" min="1" step="1" inputmode="numeric" aria-label="Number of books to select">
+            </label>
+            <button id="bulkLastBtn" type="button" class="bulk-toolbar-button">~Last</button>
+        </div>
+        <span class="bulk-toolbar-badge" id="bulkSelectedCount">0/0 selected</span>
+    </div>
+</div>
 
 <div class="preview-dialog" id="episodeModal" role="dialog" aria-modal="true" aria-hidden="true" data-preview-static hidden>
     <div class="preview-dialog__panel preview-dialog__panel--wide">
@@ -74,7 +127,10 @@
 <script src="../GUI/src/preview_format/tailwind.js"></script>
 <script src="../GUI/src/preview_format/public.js"></script>
 <script src="../GUI/src/preview_format/preview_episode.js"></script>
+<script src="../GUI/src/preview_format/preview_runtime.js"></script>
 <script src="../GUI/src/preview_format/task_toast.js"></script>
-<script src="../GUI/src/preview_format/manga.js"></script>
+<script src="../GUI/src/preview_format/preview_bulk_select.js"></script>
+<script src="../GUI/src/preview_format/fix.js"></script>
+<script src="../GUI/src/preview_format/tips.js"></script>
 </body>
 </html>

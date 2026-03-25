@@ -1,6 +1,10 @@
 from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QLabel, QApplication
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
+from utils import install_qfluentwidgets_notice_filter
+
+install_qfluentwidgets_notice_filter()
+
 from qfluentwidgets import Pivot
 from qframelesswindow import FramelessWindow
 from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout

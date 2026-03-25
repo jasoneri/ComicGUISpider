@@ -35,18 +35,12 @@ class PreviewHtml:
         self.binfos = binfos or []
         self.url = url
 
-    def add(self, book, flag=None):
-        """book's extra property(badges_key) support: pages, likes, lang, btype"""
-        badges_kw = {}
-        supported_badges = ['pages', 'likes', 'lang', 'btype']
-        for key in supported_badges:
-            if hasattr(book, key) and getattr(book, key):
-                badges_kw[key] = getattr(book, key)
-        self.contents.append(self.el.create(*book.preview_args, flag=flag, **badges_kw))
+    def add(self, book):
+        self.contents.append(self.el.create_from_book(book))
 
     def duel_contents(self):
         for book in self.binfos:
-            self.add(book, flag=getattr(book, 'mark_tip', None))
+            self.add(book)
 
     @property
     def created_temp_html(self):
@@ -64,29 +58,45 @@ class PreviewHtml:
         return TF(f)
 
 
-class PreviewByClipHtml:
+class PreviewByFixHtml:
     @classmethod
-    def created_temp_html(cls, url_regex, match_num):
-        with open(format_path.joinpath("index_by_clip.html"), 'r', encoding='utf-8') as f:
+    def created_temp_html(cls, header_html="", upper_html="", lower_html=""):
+        temp_p.mkdir(exist_ok=True)
+        with open(format_path.joinpath("fix.html"), 'r', encoding='utf-8') as f:
             format_text = f.read()
-        html = format_text.replace("{bs_theme}", bs_theme()) \
-                .replace("{_url_regex}", url_regex) \
-                .replace("{_match_num}", str(match_num))
+        html = format_text.replace("{bs_theme}", bs_theme())
+        if header_html:
+            html = html.replace('<div id="fixHeader"></div>',
+                                f'<div id="fixHeader">{header_html}</div>')
+        html = html.replace("{upper_body}", upper_html)
+        html = html.replace("{lower_body}", lower_html)
         tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
         tf.write(bytes(html, 'utf-8'))
         f = str(tf.name)
         tf.close()
         return TF(f)
+
+
+class PreviewByClipHtml:
+    @classmethod
+    def created_temp_html(cls, url_regex, match_num):
+        import html as html_mod
+        safe_regex = html_mod.escape(url_regex)
+        header = (
+            f'<script>window.CLIP_MAX_TASKS={int(match_num)};</script>'
+            f'<div class="container-fluid py-2">'
+            f'<div class="row"><div class="col-auto me-auto"><h5>Current Regex：{safe_regex}</h5></div></div>'
+            f'<div class="row"><div class="col-ms"><h5>Match Tasks-num '
+            f'<span style="font-size:larger;color:#00aa00">{int(match_num)}</span></h5></div>'
+            f'<div class="col-ms-auto"><div class="progress">'
+            f'<div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" '
+            f'role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0"></div>'
+            f'</div></div></div></div>'
+        )
+        return PreviewByFixHtml.created_temp_html(header_html=header)
 
 
 class PreviewByAgsHtml:
     @classmethod
     def created_temp_html(cls):
-        with open(format_path.joinpath("index_ags.html"), 'r', encoding='utf-8') as f:
-            format_text = f.read()
-        html = format_text.replace("{bs_theme}", bs_theme())
-        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
-        tf.write(bytes(html, 'utf-8'))
-        f = str(tf.name)
-        tf.close()
-        return TF(f)
+        return PreviewByFixHtml.created_temp_html()

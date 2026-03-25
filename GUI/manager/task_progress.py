@@ -17,6 +17,7 @@ from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
 from utils import conf, TaskObj, TasksObj, curr_os, get_httpx_verify
 from utils.sql import SqlRecorder
+from utils.website.core import Previewer
 
 
 class TaskProgress:
@@ -507,7 +508,7 @@ class TaskEntryController:
         if self.cover_task_mgr.is_task_running(task_id):
             return
         config = TaskConfig(
-            task_func=lambda _url=tasks_obj.cover_url: self.download_cover_bytes(_url),
+            task_func=lambda _tasks_obj=tasks_obj: self.download_cover_bytes(_tasks_obj),
             success_callback=lambda data, _taskid=tasks_obj.taskid: self.on_cover_preload_success(_taskid, data),
             error_callback=self.gui.log.error,
             tooltip_title="",
@@ -518,8 +519,13 @@ class TaskEntryController:
         )
         self.cover_task_mgr.execute_task(task_id, config)
 
-    def download_cover_bytes(self, url: str) -> bytes:
-        resp = self.cover_http_cli.get(url)
+    def download_cover_bytes(self, tasks_obj: TasksObj) -> bytes:
+        referer_url = Previewer.build_referer_url(
+            getattr(tasks_obj, "title_url", None),
+            request_url=getattr(tasks_obj, "cover_url", None),
+        )
+        headers = {"Referer": referer_url} if referer_url else None
+        resp = self.cover_http_cli.get(tasks_obj.cover_url, headers=headers)
         resp.raise_for_status()
         return resp.content
 

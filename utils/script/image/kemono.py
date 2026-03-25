@@ -21,11 +21,13 @@ import tqdm
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils import get_httpx_verify
-from utils.script import conf, AioRClient, BlackList, folder_sub
-from utils.script.doh import build_doh_async_transport, dns_stub_server
+from utils.config.qc import cgs_cfg, kemono_cfg
+from utils.network.doh import build_http_transport, dns_stub_server
+from utils.script import conf as script_conf, AioRClient, BlackList, folder_sub
 from utils.script.motrix import MotrixRPC, build_motrix_dns_options
 from utils.script.image.expander import FilterMgr, format_naming
-from utils.config.qc import kemono_cfg
+
+conf = script_conf
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
 
@@ -117,10 +119,11 @@ class Api:
     creators_txt = base + "/creators"
 
     def __init__(self, conf):
-        transport, trust_env = build_doh_async_transport(
+        transport, trust_env = build_http_transport(
             "proxy",
             getattr(conf, "proxies", None) or [],
-            doh_url=getattr(conf, "doh_url", ""),
+            doh_url=cgs_cfg.get_doh_url(),
+            is_async=True,
             retries=2,
             verify=get_httpx_verify(),
             http2=True,
@@ -179,8 +182,8 @@ class Kemono:
     suffixes = ['jpg', 'jpeg', 'png', 'gif', 'mp4']
 
     def __init__(self, redis_cli: AioRClient):
-        self.conf = conf.kemono
-        self.api = Api(conf)
+        self.conf = script_conf.kemono
+        self.api = Api(script_conf)
         self.rpc = MotrixRPC()
         qconfig_text = kemono_cfg.filterText.value
         if qconfig_text.strip():
@@ -198,7 +201,7 @@ class Kemono:
     @staticmethod
     def motrix_add_uri_options() -> dict[str, str]:
         return build_motrix_dns_options(
-            dns_server=dns_stub_server(getattr(conf, "doh_url", "")),
+            dns_server=dns_stub_server(cgs_cfg.get_doh_url()),
         )
 
     class Creator:

@@ -56,18 +56,18 @@ class SayToGui:
             self.state.text = _text
             self.event_q.put_nowait(LogEvent(job_id=self.job_id, level="info", message=_text))
 
-    def frame_book_print(self, rets, url=None, extra=None):
-        extra = extra or ""
-        self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
-        if len(rets):
-            self(rets)
-            # 向gui传送rets并赋值需要比exp_txt(crawl_only的flag) 早才行
-            self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}<br>
-                {font_color(extra, cls='theme-tip')}</p><br>""")
-        else:
-            self(f"<br>{'✈' * 15}<br>"
-                f"{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=4)}")
-        return rets
+    # def frame_book_print(self, rets, url=None, extra=None):
+    #     extra = extra or ""
+    #     self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
+    #     if len(rets):
+    #         self(rets)
+    #         # 向gui传送rets并赋值需要比exp_txt(crawl_only的flag) 早才行
+    #         self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}<br>
+    #             {font_color(extra, cls='theme-tip')}</p><br>""")
+    #     else:
+    #         self(f"<br>{'✈' * 15}<br>"
+    #             f"{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=4)}")
+    #     return rets
 
     def frame_section_print(self, rets, extra=None):
         extra = extra or self.res.frame_section_print_extra
@@ -223,11 +223,7 @@ class BaseComicSpider(scrapy.Spider):
             raise TypeError("episode dispatch requires list[Episode]")
         self._emit_process('parse section')
         for ep in episodes:
-            if not ep.url:
-                raise ValueError(f"episode dispatch: url is required, got {ep!r}")
-            for url in self.mk_page_tasks(url=ep.url):
-                yield scrapy.Request(
-                    url=url, callback=self.parse_fin_page, meta={'ep': ep})
+            yield from self._process_episode(ep)
 
     def iter_download_requests(self, job: SpiderDownloadJob):
         self._emit_process('start_requests')
@@ -244,7 +240,16 @@ class BaseComicSpider(scrapy.Spider):
         if not ep.url:
             raise ValueError(f"episode dispatch: url is required, got {ep!r}")
         for url in self.mk_page_tasks(url=ep.url):
-            yield scrapy.Request(url=url, callback=self.parse_fin_page, meta={'ep': ep})
+            final_url = url if self._enable_episode_dispatch else self.transfer_url(url)
+            meta = {'ep': ep} if self._enable_episode_dispatch else {'episode': ep}
+            callback = self.parse_fin_page if self._enable_episode_dispatch else self.parse_section
+            yield scrapy.Request(
+                url=final_url,
+                callback=callback,
+                headers={**self.ua, 'Referer': self.request_referer(final_url)},
+                meta=meta,
+                dont_filter=True,
+            )
 
     def _process_book(self, book: BookInfo):
         url = book.url if book.url and book.url.startswith("http") else self.book_id_url % book.id

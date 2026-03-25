@@ -7,8 +7,8 @@ import httpx
 from loguru import logger as lg
 
 from utils import get_httpx_verify
-from utils.script import conf
-from utils.script.doh import build_doh_async_transport
+from utils.network.doh import build_http_transport
+from utils.script import conf as script_conf
 
 from .constants import DANBOORU_BASE_URL, DANBOORU_CHALLENGE_MARKERS
 from .debug import append_danbooru_debug_event, debug_shrink_text
@@ -144,10 +144,11 @@ def create_async_http_client(
     from .models import DanbooruRuntimeConfig
 
     config = runtime_config or DanbooruRuntimeConfig.from_conf()
-    transport, trust_env = build_doh_async_transport(
+    transport, trust_env = build_http_transport(
         proxy_policy,
-        getattr(conf, "proxies", None) or [],
+        getattr(script_conf, "proxies", None) or [],
         doh_url=config.doh_url,
+        is_async=True,
         retries=retries,
         verify=get_httpx_verify(),
     )

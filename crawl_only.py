@@ -23,7 +23,7 @@ from utils.protocol import (
     TasksObjEvent,
 )
 from utils.website import spider_utils_map
-from utils.website.core import Previewer, build_proxy_transport
+from utils.website.core import Previewer, ProviderContext, build_proxy_transport
 from variables import Spider, SPIDERS
 
 is_debugging = os.getenv("CGS_DEBUG") == "1"
@@ -39,15 +39,25 @@ class PreviewRuntime:
         self.preview_cls = preview_cls
         self.site_index = site_index
         self.client: httpx.AsyncClient | None = None
+        self.context = ProviderContext.create(
+            proxies=conf.proxies,
+            cookies=conf.cookies.get(preview_cls.name),
+            custom_map=conf.custom_map,
+        )
 
     async def __aenter__(self):
+        site_kw = self.preview_cls.preview_client_config(self.context)
         policy = getattr(self.preview_cls, "proxy_policy", "proxy")
-        transport, trust_env = build_proxy_transport(policy, conf.proxies, verify=False)
-        self.client = httpx.AsyncClient(
+        verify = site_kw.pop("verify", True)
+        transport, trust_env = build_proxy_transport(policy, conf.proxies, verify=verify)
+        base_kw = dict(
             transport=transport,
             follow_redirects=True,
             trust_env=trust_env,
+            headers=None,
         )
+        base_kw.update(site_kw)
+        self.client = httpx.AsyncClient(**base_kw)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -56,10 +66,19 @@ class PreviewRuntime:
             self.client = None
 
     async def search(self, keyword: str, page: int = 1):
-        return await self.preview_cls.preview_search(keyword, self.client, page=page)
+        return await self.preview_cls.preview_search(
+            keyword,
+            self.client,
+            page=page,
+            context=self.context,
+        )
 
     async def fetch_episodes(self, book):
-        return await self.preview_cls.preview_fetch_episodes(book, self.client)
+        return await self.preview_cls.preview_fetch_episodes(
+            book,
+            self.client,
+            context=self.context,
+        )
 
 
 def _build_parser():

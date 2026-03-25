@@ -16,7 +16,7 @@ from GUI.core.browser import BrowserChallengeCoordinator, BrowserChallengeSpec, 
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager
 from GUI.uic.qfluent.components import CountBadge
-from utils.config.qc import danbooru_cfg
+from utils.config.qc import danbooru_cfg, cgs_cfg
 from utils.script.image.danbooru.constants import DANBOORU_BASE_URL, DANBOORU_SQL_TABLE
 from utils.script.image.danbooru.http import DanbooruChallengeRequired, DanbooruResponseInspector
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig, DanbooruSearchQuery
@@ -487,7 +487,7 @@ class DanbooruInterface(QFrame):
             challenge.verify_url,
             domain_filter="danbooru.donmai.us",
             source_url=challenge.verify_url,
-            doh_url=self._runtime_config.doh_url,
+            doh_url=cgs_cfg.get_doh_url(),
             window_size=QtCore.QSize(980, 760),
             window_title="Danbooru Verification",
             completion_detector=DanbooruResponseInspector.is_verification_completion_url,
