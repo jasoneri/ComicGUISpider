@@ -111,6 +111,7 @@ class DanbooruInterface(QFrame):
         self.batch_download_btn = PrimaryToolButton(FIF.DOWNLOAD, self)
         self.batch_download_btn.setMinimumHeight(50)
         self.batch_download_btn.setMinimumWidth(80)
+        self.batch_download_btn.setIconSize(QtCore.QSize(20, 20))
         self.batch_download_btn.setDisabled(True)
         self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
         self.batch_download_badge = CountBadge(parent=self, target=self.batch_download_btn)

@@ -52,6 +52,8 @@ class DanbooruTabWidget(QFrame):
         search_row.setSpacing(12)
 
         query_frame, query_group = self._create_group_frame("DanbooruSearchQueryGroup")
+        self.query_frame = query_frame
+        self.query_group = query_group
         self.search_edit = SearchLineEdit(self)
         self.search_edit.setClearButtonEnabled(True)
         self.search_edit.setPlaceholderText("输入标签，例如 blue_archive")
@@ -95,8 +97,7 @@ class DanbooruTabWidget(QFrame):
         self.scroll_content.setToolTip("左键拖拽框选，右键可清空选择")
         self.flow_layout = FlowLayout(self.scroll_content)
         self.flow_layout.setContentsMargins(2, 2, 2, 2)
-        self.flow_layout.setHorizontalSpacing(12)
-        self.flow_layout.setVerticalSpacing(12)
+        self.flow_layout.setSpacing(4)
         self.scroll_area.setWidget(self.scroll_content)
         self.scroll_area.viewport().setToolTip("左键拖拽框选，右键可清空选择")
         self.scroll_area.verticalScrollBar().valueChanged.connect(self._on_scroll_changed)
@@ -210,6 +211,7 @@ class DanbooruTabWidget(QFrame):
         while self.flow_layout.count():
             _delete_flow_item(self.flow_layout.takeAt(0))
         self.card_widgets.clear()
+        self._refresh_grid_layout()
 
     def append_results(self, posts: list[DanbooruPost], downloaded_md5s: set[str]) -> list[DanbooruCardWidget]:
         appended_cards: list[DanbooruCardWidget] = []
@@ -228,18 +230,35 @@ class DanbooruTabWidget(QFrame):
         self.state.result_list.extend(posts)
         self.selection_controller.sync_selection_count()
         self.apply_theme()
+        self._refresh_grid_layout()
         return appended_cards
 
     def set_card_metrics(self, metrics: DanbooruCardMetrics):
         self.card_metrics = metrics
         for card in self.card_widgets.values():
             card.apply_metrics(metrics)
-        self.flow_layout.invalidate()
-        self.scroll_content.adjustSize()
-        self.scroll_content.updateGeometry()
+        self._refresh_grid_layout()
 
     def apply_downloaded_state(self, md5_value: str):
         self.selection_controller.mark_downloaded(md5_value)
 
     def card_for_post(self, post_id: int) -> t.Optional[DanbooruCardWidget]:
         return next((card for card in self.card_widgets.values() if card.post.post_id == post_id), None)
+
+    def _refresh_grid_layout(self):
+        viewport_size = self.scroll_area.viewport().size()
+        content_width = max(1, viewport_size.width(), self.scroll_content.width())
+        target_height = max(1, self.flow_layout.heightForWidth(content_width))
+        self.scroll_content.resize(content_width, max(viewport_size.height(), target_height))
+        self.flow_layout.invalidate()
+        self.flow_layout.setGeometry(QtCore.QRect(0, 0, content_width, target_height))
+        self.scroll_content.updateGeometry()
+        self.scroll_area.viewport().update()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._refresh_grid_layout()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._refresh_grid_layout()

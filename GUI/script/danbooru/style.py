@@ -179,6 +179,48 @@ class DanbooruUiPalette:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class DanbooruCardTheme:
+    background: str
+    border: str
+    hover_border: str
+    selection_border: str
+    selection_fill_start: str
+    selection_fill_mid: str
+    selection_fill_end: str
+    preview_background: str
+    preview_background_hover: str
+    preview_selected_border: str
+    preview_selected_overlay_start: str
+    preview_selected_overlay_end: str
+    preview_unsupported_text: str
+    preview_downloaded_grayscale: float
+    preview_downloaded_opacity: float
+    glow_color: str
+
+
+def get_danbooru_card_theme(already_downloaded: bool) -> DanbooruCardTheme:
+    tokens = get_danbooru_qss_tokens()
+    return DanbooruCardTheme(
+        background=tokens["CARD_BACKGROUND_DOWNLOADED"] if already_downloaded else tokens["CARD_BACKGROUND_IDLE"],
+        border=tokens["CARD_BORDER_DOWNLOADED"] if already_downloaded else tokens["CARD_BORDER_IDLE"],
+        hover_border=tokens["CARD_HOVER_BORDER_DOWNLOADED"] if already_downloaded else tokens["CARD_HOVER_BORDER_IDLE"],
+        selection_border=tokens["CARD_SELECTION_BORDER"],
+        selection_fill_start=tokens["CARD_SELECTION_FILL_START"],
+        selection_fill_mid=tokens["CARD_SELECTION_FILL_MID"],
+        selection_fill_end=tokens["CARD_SELECTION_FILL_END"],
+        preview_background=tokens["CARD_PREVIEW_BACKGROUND"],
+        preview_background_hover=tokens["CARD_PREVIEW_BACKGROUND_HOVER"],
+        preview_selected_border=tokens["CARD_PREVIEW_SELECTED_BORDER"],
+        preview_selected_overlay_start=tokens["CARD_PREVIEW_SELECTED_OVERLAY_START"],
+        preview_selected_overlay_end=tokens["CARD_PREVIEW_SELECTED_OVERLAY_END"],
+        preview_unsupported_text=tokens["CARD_PREVIEW_UNSUPPORTED_TEXT"],
+        preview_downloaded_grayscale=max(0.0, min(1.0, float(tokens["CARD_PREVIEW_DOWNLOADED_GRAYSCALE"]))),
+        preview_downloaded_opacity=max(0.0, min(1.0, float(tokens["CARD_PREVIEW_DOWNLOADED_OPACITY"]))),
+        glow_color=tokens["CARD_GLOW_COLOR"],
+    )
+
+
 def qcolor_from_css(color: str) -> QtGui.QColor:
     qcolor = QtGui.QColor(color)
     if qcolor.isValid():
@@ -218,14 +260,12 @@ def format_tip_rich_text(text: str, cls: str = DEFAULT_TAB_STATUS_CLASS) -> str:
 
 def build_card_stylesheet(palette: DanbooruUiPalette, already_downloaded: bool) -> str:
     _ = palette
-    tokens = get_danbooru_qss_tokens()
+    card_theme = get_danbooru_card_theme(already_downloaded)
     return _render_qss_section(
         "card",
-        CARD_BACKGROUND=tokens["CARD_BACKGROUND_DOWNLOADED"] if already_downloaded else tokens["CARD_BACKGROUND_IDLE"],
-        CARD_BORDER=tokens["CARD_BORDER_DOWNLOADED"] if already_downloaded else tokens["CARD_BORDER_IDLE"],
-        CARD_HOVER_BORDER=(
-            tokens["CARD_HOVER_BORDER_DOWNLOADED"] if already_downloaded else tokens["CARD_HOVER_BORDER_IDLE"]
-        ),
+        CARD_BACKGROUND=card_theme.background,
+        CARD_BORDER=card_theme.border,
+        CARD_HOVER_BORDER=card_theme.hover_border,
     )
 
 

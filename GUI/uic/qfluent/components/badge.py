@@ -1,8 +1,10 @@
 from PySide6.QtCore import Qt, Signal, QPoint, QObject, QEvent
+from PySide6.QtGui import QFont
 from qfluentwidgets import (
     InfoBadgeManager, InfoBadgePosition, DotInfoBadge, IconInfoBadge, InfoBadge
 )
 from GUI.core.anim import BreathingEffect
+from GUI.core.theme import CustTheme, theme_mgr
 
 
 class ClickableIconInfoBadge(IconInfoBadge):
@@ -74,23 +76,111 @@ class CustomBadge:
 
 class CountBadge:
     COLOR_BG = "#409EFF"
+    COLOR_TEXT = "#F8FAFC"
+    MIN_DIGITS = 2
+    MIN_HEIGHT = 18
+    HORIZONTAL_PADDING = 7
+    VERTICAL_PADDING = 3
 
     def __init__(self, parent, target, pos=InfoBadgePosition.TOP_LEFT, division=3):
         self.badge = InfoBadge.custom("", self.COLOR_BG, self.COLOR_BG, parent, target=None, position=pos)
         self._anchor = _BadgeAnchor(target, self.badge, parent, pos, division=division)
+        self._count = 0
+        self._light_bg = self.COLOR_BG
+        self._dark_bg = self.COLOR_BG
+        self._min_digits = self.MIN_DIGITS
+        self._min_height = self.MIN_HEIGHT
+        self._horizontal_padding = self.HORIZONTAL_PADDING
+        self._vertical_padding = self.VERTICAL_PADDING
+        self._light_text_color = self.COLOR_TEXT
+        self._dark_text_color = self.COLOR_TEXT
+        self.badge.setAlignment(Qt.AlignCenter)
+        self.badge.setContentsMargins(0, 0, 0, 0)
+        self.badge.setMargin(0)
+        font = self.badge.font()
+        font.setWeight(QFont.Weight.DemiBold)
+        self.badge.setFont(font)
+        self._apply_visual_style()
         self.badge.move(self._anchor.calc_position())
         self.badge._anchor = self._anchor
 
+    @staticmethod
+    def _is_dark_theme() -> bool:
+        return theme_mgr.get_theme() == CustTheme.DARK
+
+    def _effective_text_color(self) -> str:
+        return self._dark_text_color if self._is_dark_theme() else self._light_text_color
+
+    def _effective_background_color(self) -> str:
+        return self._dark_bg if self._is_dark_theme() else self._light_bg
+
+    def _apply_visual_style(self):
+        color = self._effective_background_color()
+        self.badge.setCustomBackgroundColor(color, color)
+        self.badge.setStyleSheet(
+            f"color: {self._effective_text_color()}; padding: 0px; margin: 0px; background: transparent;"
+        )
+
+    def apply_style(
+        self,
+        *,
+        light_bg: str | None = None,
+        dark_bg: str | None = None,
+        text_color: str | None = None,
+        light_text_color: str | None = None,
+        dark_text_color: str | None = None,
+        point_size: float | None = None,
+        weight: int | None = None,
+        min_digits: int | None = None,
+        min_height: int | None = None,
+        horizontal_padding: int | None = None,
+        vertical_padding: int | None = None,
+    ):
+        if light_bg is not None or dark_bg is not None:
+            self._light_bg = str(light_bg or dark_bg or self.COLOR_BG)
+            self._dark_bg = str(dark_bg or light_bg or self.COLOR_BG)
+        if text_color is not None:
+            color = str(text_color)
+            self._light_text_color = color
+            self._dark_text_color = color
+        if light_text_color is not None:
+            self._light_text_color = str(light_text_color)
+        if dark_text_color is not None:
+            self._dark_text_color = str(dark_text_color)
+        if min_digits is not None:
+            self._min_digits = max(1, int(min_digits))
+        if min_height is not None:
+            self._min_height = max(1, int(min_height))
+        if horizontal_padding is not None:
+            self._horizontal_padding = max(0, int(horizontal_padding))
+        if vertical_padding is not None:
+            self._vertical_padding = max(0, int(vertical_padding))
+        font = self.badge.font()
+        if point_size is not None:
+            font.setPointSizeF(max(1.0, float(point_size)))
+        if weight is not None:
+            font.setWeight(QFont.Weight(int(weight)))
+        self.badge.setFont(font)
+        self._apply_visual_style()
+        self.set_count(self._count)
+
     def set_count(self, count: int):
-        text = str(max(0, count))
+        self._count = max(0, int(count))
+        text = str(self._count)
+        self._apply_visual_style()
         metrics = self.badge.fontMetrics()
-        width = max(18, metrics.horizontalAdvance(text) + 6)
-        height = max(16, metrics.height() + 4)
+        height = max(self._min_height, metrics.height() + self._vertical_padding * 2)
+        width = max(
+            height,
+            metrics.horizontalAdvance("8" * self._min_digits) + self._horizontal_padding * 2,
+            metrics.horizontalAdvance(text) + self._horizontal_padding * 2,
+        )
         self.badge.setText(text)
         self.badge.setFixedSize(width, height)
         self.badge.move(self._anchor.calc_position())
 
     def show(self):
+        self._apply_visual_style()
         self.badge.show()
 
     def hide(self):
