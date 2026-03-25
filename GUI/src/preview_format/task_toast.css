@@ -1,76 +1,15 @@
-#cgsTaskAddedToast {
-    position: fixed;
-    top: 18px;
-    right: 18px;
-    min-width: 280px;
-    max-width: min(360px, calc(100vw - 24px));
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: #ffffff;
-    color: #111827;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
-    z-index: 2147483647;
-    overflow: hidden;
-    font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
-    animation: cgsTaskToastIn 0.24s ease-out forwards, cgsTaskToastOut 0.24s ease-in 3.76s forwards;
+#cgsTaskAddedToastStack{position:fixed;top:18px;right:18px;display:flex;flex-direction:column;gap:10px;width:min(340px,calc(100vw - 24px));max-height:min(260px,calc(100vh - 24px));z-index:2147483647;pointer-events:none}
+#cgsTaskAddedToastStack .cgs-task-toast{position:relative;min-width:0;padding:11px 13px 12px;border-radius:16px;border:1px solid rgba(148,163,184,.22);background:linear-gradient(140deg,rgba(255,255,255,.94),rgba(241,245,249,.88));color:#0f172a;box-shadow:0 14px 28px rgba(15,23,42,.18),inset 0 1px 0 rgba(255,255,255,.7);backdrop-filter:blur(12px);overflow:hidden;pointer-events:auto;font-family:"Segoe UI Variable Text","Microsoft YaHei UI",sans-serif;animation:cgsTaskToastIn .24s ease-out forwards;transform-origin:top right}
+#cgsTaskAddedToastStack .cgs-task-toast::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,#38bdf8,#22c55e 55%,#f59e0b)}
+#cgsTaskAddedToastStack .cgs-task-toast.is-leaving{animation:cgsTaskToastOut .24s ease-in forwards}
+#cgsTaskAddedToastStack .cgs-task-toast-title{padding-right:2px;font-size:13px;font-weight:600;line-height:1.45;letter-spacing:.01em;word-break:break-word}
+#cgsTaskAddedToastStack .cgs-task-toast-subtitle{margin-top:4px;font-size:11px;line-height:1.45;color:#475569}
+html[data-bs-theme=dark] #cgsTaskAddedToastStack .cgs-task-toast{border-color:rgba(255,255,255,.12);background:linear-gradient(140deg,rgba(15,23,42,.92),rgba(30,41,59,.86));color:#f8fafc;box-shadow:0 16px 34px rgba(2,6,23,.46),inset 0 1px 0 rgba(255,255,255,.04)}
+html[data-bs-theme=dark] #cgsTaskAddedToastStack .cgs-task-toast::before{background:linear-gradient(90deg,#67e8f9,#34d399 55%,#fbbf24)}
+html[data-bs-theme=dark] #cgsTaskAddedToastStack .cgs-task-toast-subtitle{color:#cbd5e1}
+@keyframes cgsTaskToastIn{from{opacity:0;transform:translate3d(18px,-6px,0) scale(.97)}
+to{opacity:1;transform:translate3d(0,0,0) scale(1)}
 }
-
-#cgsTaskAddedToast::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 3px;
-    background: linear-gradient(90deg, #2563eb, #059669);
-}
-
-#cgsTaskAddedToast .cgs-task-toast-title {
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1.4;
-    word-break: break-word;
-}
-
-#cgsTaskAddedToast .cgs-task-toast-subtitle {
-    margin-top: 6px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: #4b5563;
-}
-
-html[data-bs-theme="dark"] #cgsTaskAddedToast {
-    border-color: rgba(255, 255, 255, 0.14);
-    background: #1f2937;
-    color: #f9fafb;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-}
-
-html[data-bs-theme="dark"] #cgsTaskAddedToast::before {
-    background: linear-gradient(90deg, #60a5fa, #34d399);
-}
-
-html[data-bs-theme="dark"] #cgsTaskAddedToast .cgs-task-toast-subtitle {
-    color: #d1d5db;
-}
-
-@keyframes cgsTaskToastIn {
-    from {
-        opacity: 0;
-        transform: translate3d(0, -10px, 0) scale(0.98);
-    }
-    to {
-        opacity: 1;
-        transform: translate3d(0, 0, 0) scale(1);
-    }
-}
-
-@keyframes cgsTaskToastOut {
-    from {
-        opacity: 1;
-        transform: translate3d(0, 0, 0) scale(1);
-    }
-    to {
-        opacity: 0;
-        transform: translate3d(0, -8px, 0) scale(0.98);
-    }
+@keyframes cgsTaskToastOut{from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+to{opacity:0;transform:translate3d(16px,-4px,0) scale(.98)}
 }

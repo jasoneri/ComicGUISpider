@@ -2,6 +2,8 @@
   class MangaPreviewApp {
     constructor() {
       this.bridge = null;
+      this.bridgeInitPromise = null;
+      this.qwebchannelPromise = null;
       this.modal = null;
       this.activeBookKey = "";
       this.pendingTimer = null;
@@ -14,12 +16,20 @@
       this.countEl = document.getElementById("epCount");
       this.btnGroup = document.getElementById("handleBtnGroup");
       this.epsNumInput = document.getElementById("EpsNumInput");
+      this.scrollBottomBtn = document.getElementById("scrollBottomBtn");
+      this.filterInput = document.getElementById("episodeFilterInput");
+      this.modalEl = document.getElementById("episodeModal");
+      this.modalBodyEl = this.modalEl ? this.modalEl.querySelector(".modal-body") : null;
     }
 
     init() {
       this.exposeWindowApi();
       this.bindDocumentEvents();
-      document.addEventListener("DOMContentLoaded", () => this.onDomReady());
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => this.onDomReady(), { once: true });
+        return;
+      }
+      this.onDomReady();
     }
 
     exposeWindowApi() {
@@ -43,24 +53,150 @@
     }
 
     onDomReady() {
-      this.initBridge();
+      void this.initBridge();
       this.listEl.addEventListener("change", () => this.updateCount());
+      if (this.filterInput) {
+        this.filterInput.addEventListener("input", () => this.applyEpisodeFilter());
+      }
       document.getElementById("toggleAllEpBtn").addEventListener("click", () => this.toggleAllEpisodes());
       document.getElementById("beginBtn").addEventListener("click", () => this.selectRange(false));
-      document.getElementById("lastBtn").addEventListener("click", () => this.selectRange(true));
+      document.getElementById("lastBtn").addEventListener("click", () => {
+        this.selectRange(true);
+        this.scrollEpisodesToBottom();
+      });
       const clearEpBtn = document.getElementById("clearEpBtn");
       if (clearEpBtn) {
         clearEpBtn.addEventListener("click", () => this.clearEpisodes());
       }
+      if (this.scrollBottomBtn) {
+        this.scrollBottomBtn.addEventListener("click", () => this.scrollEpisodesToBottom());
+      }
+      this.ensureModal();
+      this.ensureScanToast();
       this.initDragSelect();
     }
 
-    initBridge() {
-      if (window.qt && window.qt.webChannelTransport) {
-        new QWebChannel(window.qt.webChannelTransport, (channel) => {
-          this.bridge = channel.objects.bridge || null;
+    isQtBridgeAvailable() {
+      return Boolean(window.qt && window.qt.webChannelTransport);
+    }
+
+    isStandalonePreviewMode() {
+      return !this.isQtBridgeAvailable();
+    }
+
+    async ensureQWebChannel() {
+      if (!this.isQtBridgeAvailable()) {
+        return false;
+      }
+      if (typeof window.QWebChannel === "function") {
+        return true;
+      }
+      if (!this.qwebchannelPromise) {
+        this.qwebchannelPromise = new Promise((resolve) => {
+          const script = document.createElement("script");
+          script.src = "qrc:///qtwebchannel/qwebchannel.js";
+          script.onload = () => resolve(typeof window.QWebChannel === "function");
+          script.onerror = () => resolve(false);
+          document.head.appendChild(script);
         });
       }
+      return this.qwebchannelPromise;
+    }
+
+    async initBridge() {
+      if (this.bridge) {
+        return this.bridge;
+      }
+      if (!this.isQtBridgeAvailable()) {
+        return null;
+      }
+      if (!this.bridgeInitPromise) {
+        this.bridgeInitPromise = (async () => {
+          const loaded = await this.ensureQWebChannel();
+          if (!loaded || typeof window.QWebChannel !== "function") {
+            return null;
+          }
+          return new Promise((resolve) => {
+            new window.QWebChannel(window.qt.webChannelTransport, (channel) => {
+              this.bridge = channel.objects.bridge || null;
+              resolve(this.bridge);
+            });
+          });
+        })();
+      }
+      return this.bridgeInitPromise;
+    }
+
+    async waitForBridge() {
+      const bridge = await this.initBridge();
+      if (bridge && typeof bridge.fetchEpisodes === "function") {
+        return bridge;
+      }
+      for (let attempts = 0; attempts < 20; attempts += 1) {
+        if (this.bridge && typeof this.bridge.fetchEpisodes === "function") {
+          return this.bridge;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+      }
+      return null;
+    }
+
+    ensureModal() {
+      if (this.modal) {
+        return this.modal;
+      }
+      if (!this.modalEl) {
+        return null;
+      }
+
+      if (!(window.bootstrap && typeof window.bootstrap.Modal === "function")) {
+        return null;
+      }
+
+      const modal = new window.bootstrap.Modal(this.modalEl);
+      this.modal = {
+        show: () => modal.show(),
+        hide: () => modal.hide(),
+        isOpen: () => this.modalEl.classList.contains("show"),
+      };
+      return this.modal;
+    }
+
+    ensureScanToast() {
+      if (this.scanToastInstance) {
+        return this.scanToastInstance;
+      }
+      const toast = document.getElementById("scanToast");
+      if (!toast) {
+        return null;
+      }
+
+      if (window.bootstrap && typeof window.bootstrap.Toast === "function") {
+        const instance = new window.bootstrap.Toast(toast, { autohide: false });
+        this.scanToastInstance = {
+          show: () => {
+            toast.hidden = false;
+            instance.show();
+          },
+          hide: () => {
+            instance.hide();
+            toast.hidden = true;
+          },
+        };
+        return this.scanToastInstance;
+      }
+
+      this.scanToastInstance = {
+        show: () => {
+          toast.hidden = false;
+          window.requestAnimationFrame(() => toast.classList.add("show"));
+        },
+        hide: () => {
+          toast.classList.remove("show");
+          toast.hidden = true;
+        },
+      };
+      return this.scanToastInstance;
     }
 
     onCardClick(event) {
@@ -73,25 +209,39 @@
       this.onBookClick(bookKey, title);
     }
 
-    onFavoriteClick(event) {
-      if (!event.target || !event.target.matches(".card-favorite-btn")) {
+    getFavoriteButton(target) {
+      return target instanceof Element ? target.closest(".card-favorite-btn[data-book-key]") : null;
+    }
+
+    async toggleFavorite(button) {
+      if (!button) {
+        return;
+      }
+      const key = button.dataset.bookKey;
+      const bridge = this.bridge || await this.waitForBridge();
+      if (bridge && typeof bridge.toggleFavorite === "function") {
+        bridge.toggleFavorite(String(key));
+      }
+    }
+
+    async onFavoriteClick(event) {
+      const button = this.getFavoriteButton(event.target);
+      if (!button) {
         return;
       }
       event.stopPropagation();
       event.preventDefault();
-      const key = event.target.dataset.bookKey;
-      if (this.bridge && typeof this.bridge.toggleFavorite === "function") {
-        this.bridge.toggleFavorite(String(key));
-      }
+      await this.toggleFavorite(button);
     }
 
     onFavoriteKeydown(event) {
-      if (!event.target || !event.target.matches(".card-favorite-btn")) {
+      const button = this.getFavoriteButton(event.target);
+      if (!button) {
         return;
       }
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        event.target.click();
+        button.click();
       }
     }
 
@@ -109,13 +259,20 @@
     }
 
     setLoadingState(loading) {
-      this.btnGroup.querySelectorAll("button, input").forEach((element) => {
-        element.disabled = loading;
-      });
+      if (this.btnGroup) {
+        this.btnGroup.querySelectorAll("button, input").forEach((element) => {
+          element.disabled = loading;
+        });
+      }
+      if (this.filterInput) {
+        this.filterInput.disabled = loading;
+      }
     }
 
     showBtnGroup(visible) {
-      this.btnGroup.classList.toggle("d-none", !visible);
+      if (this.btnGroup) {
+        this.btnGroup.classList.toggle("d-none", !visible);
+      }
     }
 
     clearPendingTimer() {
@@ -131,8 +288,23 @@
       this.countEl.textContent = `${checked}/${checkboxes.length} selected`;
     }
 
+    scrollEpisodesToBottom() {
+      const scrollContainer = this.modalBodyEl || (this.listEl ? this.listEl.closest(".modal-body") : null);
+      if (!scrollContainer) {
+        return;
+      }
+      scrollContainer.scrollTo({
+        top: scrollContainer.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+
     renderLoading() {
       this.showBtnGroup(false);
+      if (this.filterInput) {
+        this.filterInput.value = "";
+        this.filterInput.disabled = true;
+      }
       this.listEl.innerHTML = `
       <div class="d-flex align-items-center gap-2 py-3">
         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
@@ -143,6 +315,10 @@
 
     renderError(message) {
       this.showBtnGroup(false);
+      if (this.filterInput) {
+        this.filterInput.value = "";
+        this.filterInput.disabled = true;
+      }
       this.listEl.innerHTML = `<div class="alert alert-danger mb-0" role="alert">${this.escapeHtml(message)}</div>`;
       this.updateCount();
     }
@@ -159,6 +335,28 @@
         case "fetch_failed":
         default:
           return `章节加载失败。${retryHint}`;
+      }
+    }
+
+    applyEpisodeFilter() {
+      if (!this.filterInput) {
+        return;
+      }
+      const keyword = this.filterInput.value.trim().toLowerCase();
+      const items = this.listEl.querySelectorAll("[data-episode-item]");
+      let visibleCount = 0;
+
+      items.forEach((item) => {
+        const matched = !keyword || (item.dataset.episodeText || "").includes(keyword);
+        item.hidden = !matched;
+        if (matched) {
+          visibleCount += 1;
+        }
+      });
+
+      const emptyState = this.listEl.querySelector("#episodeEmptyState");
+      if (emptyState) {
+        emptyState.hidden = visibleCount !== 0;
       }
     }
 
@@ -192,10 +390,8 @@
     }
 
     clearEpisodes() {
-      this.listEl.querySelectorAll('input.btn-check[type="checkbox"]').forEach((checkbox) => {
-        if (checkbox.checked) {
-          checkbox.checked = false;
-        }
+      this.listEl.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.checked = false;
       });
       this.updateCount();
     }
@@ -208,11 +404,22 @@
 
       const style = document.createElement("style");
       style.textContent = `
-      #dragSelOverlay { position:fixed; pointer-events:none; z-index:9999; display:none;
-        box-sizing:border-box; border:2px dashed #0d6efd; background:rgba(13,110,253,0.08); }
-      body.drag-selecting *, body.drag-selecting {
-        user-select:none !important; -webkit-user-select:none !important; cursor:crosshair !important; }
-    `;
+      #dragSelOverlay {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        display: none;
+        box-sizing: border-box;
+        border: 2px dashed var(--bs-primary);
+        border-radius: 18px;
+        background: rgba(var(--bs-primary-rgb), 0.12);
+      }
+      body.drag-selecting,
+      body.drag-selecting * {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        cursor: crosshair !important;
+      }`;
       document.head.appendChild(style);
 
       const overlay = document.createElement("div");
@@ -292,13 +499,13 @@
           return;
         }
 
-        this.listEl.querySelectorAll("label.btn").forEach((label) => {
+        this.listEl.querySelectorAll("label[data-episode-chip]").forEach((label) => {
           const rect = label.getBoundingClientRect();
           if (!intersects(selectRect, rect)) {
             return;
           }
           const checkbox = document.getElementById(label.htmlFor);
-          if (checkbox && checkbox.classList.contains("btn-check") && !checkbox.checked) {
+          if (checkbox && !checkbox.checked) {
             checkbox.checked = true;
           }
         });
@@ -309,72 +516,135 @@
     renderEpisodes(bookKey, episodes) {
       if (!Array.isArray(episodes) || episodes.length === 0) {
         this.showBtnGroup(false);
+        if (this.filterInput) {
+          this.filterInput.value = "";
+          this.filterInput.disabled = true;
+        }
         this.listEl.innerHTML = '<p class="text-muted mb-0">No episodes found.</p>';
         this.updateCount();
         return;
       }
 
+      if (this.filterInput) {
+        this.filterInput.value = "";
+        this.filterInput.disabled = false;
+      }
+
       let html = '<div class="episodes-grid">';
+
       for (let index = 0; index < episodes.length; index += 1) {
         const episode = episodes[index];
-        const episodeIndex = Number(episode.idx);
-        const episodeName = this.escapeHtml(episode.name || `Episode ${episodeIndex}`);
+        const episodeIndex = Number.isFinite(Number(episode.idx)) ? Number(episode.idx) : index + 1;
+        const rawName = String(episode.name || `Episode ${episodeIndex}`);
+        const episodeName = this.escapeHtml(rawName);
         const checkboxId = `ep${bookKey}-${episodeIndex}`;
+        const searchText = this.escapeHtml(`${episodeIndex} ${rawName}`.toLowerCase());
         html += `
-        <input class="btn-check" type="checkbox" id="${checkboxId}" autocomplete="off">
-        <label class="btn btn-outline-primary" for="${checkboxId}">${episodeName}</label>`;
+        <div class="episode-item-wrap" data-episode-item data-episode-text="${searchText}">
+          <input class="episode-item-input" type="checkbox" id="${checkboxId}" autocomplete="off">
+          <label data-episode-chip class="episode-item" for="${checkboxId}" title="${episodeName}">
+            <span class="episode-item-text">
+              <span class="episode-item-index">${episodeIndex}</span>${episodeName}
+            </span>
+          </label>
+        </div>`;
       }
+
       html += "</div>";
+
       this.listEl.innerHTML = html;
       this.showBtnGroup(true);
       this.updateCount();
 
-      document.querySelectorAll(`label[for^="ep${bookKey}-"]`).forEach((label) => {
+      this.listEl.querySelectorAll(`label[for^="ep${bookKey}-"]`).forEach((label) => {
         if (this.downloadedEpCache.has(label.getAttribute("for"))) {
           label.classList.add("episode-container-downloaded");
         }
       });
     }
 
-    ensureModal() {
-      if (!this.modal) {
-        this.modal = new bootstrap.Modal(document.getElementById("episodeModal"));
+    getStandaloneEpisodes(bookKey, title) {
+      if (!this.isStandalonePreviewMode()) {
+        return null;
       }
-      return this.modal;
+      const dataset = window.__MANGA_PREVIEW_BROWSER_DATA__;
+      if (dataset && Array.isArray(dataset[String(bookKey)])) {
+        return dataset[String(bookKey)];
+      }
+      return this.generateStandaloneEpisodes(bookKey, title);
     }
 
-    onBookClick(bookKey, title) {
-      this.activeBookKey = String(bookKey);
+    generateStandaloneEpisodes(bookKey, title) {
+      const seedText = `${bookKey}:${title || ""}`;
+      const seed = Array.from(seedText).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      const total = 42 + (seed % 84);
+      const topics = [
+        "序章", "相遇", "分歧", "夜色试炼", "推进线", "高压对峙", "回收节点", "隐藏支线", "后日谈", "特别篇",
+      ];
+      return Array.from({ length: total }, (_, index) => {
+        const idx = index + 1;
+        const topic = topics[(seed + index) % topics.length];
+        const arc = Math.floor(index / topics.length) + 1;
+        const suffix = arc > 1 ? ` / 篇章 ${arc}` : "";
+        return {
+          idx,
+          name: `第${idx}话 ${topic}${suffix}`,
+        };
+      });
+    }
+
+    async onBookClick(bookKey, title) {
+      const cacheKey = String(bookKey);
+      const modal = this.ensureModal();
+      if (!modal) {
+        return;
+      }
+      this.activeBookKey = cacheKey;
       this.titleEl.textContent = title || `Book ${bookKey}`;
 
-      if (this.episodesCache.has(bookKey)) {
+      if (this.episodesCache.has(cacheKey)) {
         this.setLoadingState(false);
-        this.renderEpisodes(bookKey, this.episodesCache.get(bookKey));
-        this.ensureModal().show();
+        this.renderEpisodes(cacheKey, this.episodesCache.get(cacheKey));
+        modal.show();
+        return;
+      }
+
+      const standaloneEpisodes = this.getStandaloneEpisodes(cacheKey, title);
+      if (standaloneEpisodes) {
+        this.episodesCache.set(cacheKey, standaloneEpisodes);
+        this.setLoadingState(false);
+        this.renderEpisodes(cacheKey, standaloneEpisodes);
+        modal.show();
         return;
       }
 
       this.setLoadingState(true);
       this.renderLoading();
-      this.ensureModal().show();
+      modal.show();
 
       this.clearPendingTimer();
       this.pendingTimer = setTimeout(() => {
-        if (this.activeBookKey === String(bookKey)) {
+        if (this.activeBookKey === cacheKey) {
           this.showEpisodeError(this.buildEpisodeErrorMessage("timeout"));
         }
       }, 8000);
 
-      if (!this.bridge || typeof this.bridge.fetchEpisodes !== "function") {
+      const bridge = await this.waitForBridge();
+      if (cacheKey !== this.activeBookKey) {
+        return;
+      }
+
+      if (!bridge || typeof bridge.fetchEpisodes !== "function") {
         this.showEpisodeError(this.buildEpisodeErrorMessage("bridge_not_ready"));
         return;
       }
 
-      this.bridge.fetchEpisodes(String(bookKey));
+      bridge.fetchEpisodes(cacheKey);
     }
 
     updateEpisodes(bookKey, episodesJson) {
-      if (String(bookKey) !== this.activeBookKey) {
+      const cacheKey = String(bookKey);
+      if (cacheKey !== this.activeBookKey) {
         return;
       }
 
@@ -383,8 +653,8 @@
 
       try {
         const episodes = typeof episodesJson === "string" ? JSON.parse(episodesJson) : episodesJson;
-        this.episodesCache.set(bookKey, episodes);
-        this.renderEpisodes(bookKey, episodes);
+        this.episodesCache.set(cacheKey, episodes);
+        this.renderEpisodes(cacheKey, episodes);
       } catch (error) {
         this.showEpisodeError(this.buildEpisodeErrorMessage("parse_error"));
       }
@@ -420,7 +690,7 @@
       }
       row.querySelectorAll(".badge-dl").forEach((element) => element.remove());
       const span = document.createElement("span");
-      span.className = "badge bg-secondary bg-opacity-75 badge-dl status-badge-fade";
+      span.className = "book-card-badge book-card-badge-muted badge-dl status-badge-fade";
       span.textContent = `DL: ${dlMax}`;
       row.prepend(span);
     }
@@ -436,27 +706,25 @@
       const dlText = dlBadge ? dlBadge.textContent.replace("DL: ", "") : "";
       const hasUpdate = dlText && dlText !== latestEpName;
       span.className = hasUpdate
-        ? "badge bg-danger badge-latest status-badge-fade"
-        : "badge bg-success badge-latest status-badge-fade";
+        ? "book-card-badge book-card-badge-danger badge-latest status-badge-fade"
+        : "book-card-badge book-card-badge-success badge-latest status-badge-fade";
       span.textContent = hasUpdate ? `NEW: ${latestEpName}` : "Latest \u2713";
       row.appendChild(span);
     }
 
     showScanNotification(message) {
-      const toast = document.getElementById("scanToast");
+      const toast = this.ensureScanToast();
       if (!toast) {
         return;
       }
       document.getElementById("scanToastBody").textContent = message;
-      if (!this.scanToastInstance) {
-        this.scanToastInstance = new bootstrap.Toast(toast, { autohide: false });
-      }
-      this.scanToastInstance.show();
+      toast.show();
     }
 
     hideScanNotification() {
-      if (this.scanToastInstance) {
-        this.scanToastInstance.hide();
+      const toast = this.ensureScanToast();
+      if (toast) {
+        toast.hide();
       }
     }
 
@@ -465,18 +733,26 @@
       if (!button) {
         return;
       }
-      button.textContent = isFavorited ? "★" : "☆";
+      const input = button.querySelector(".card-favorite-input");
+      if (input) {
+        input.checked = isFavorited;
+      }
       button.classList.toggle("is-favorited", isFavorited);
-      button.setAttribute("aria-pressed", isFavorited);
+      button.setAttribute("aria-pressed", String(isFavorited));
     }
 
     initFavoriteStates(keys) {
-      document.querySelectorAll(".card-favorite-btn").forEach((button) => {
+      const buttons = Array.from(document.querySelectorAll(".card-favorite-btn"));
+      buttons.forEach((button) => {
+        button.classList.add("is-syncing");
         this.updateFavoriteState(button.dataset.bookKey, false);
       });
       if (Array.isArray(keys)) {
         keys.forEach((key) => this.updateFavoriteState(key, true));
       }
+      window.requestAnimationFrame(() => {
+        buttons.forEach((button) => button.classList.remove("is-syncing"));
+      });
     }
   }
 

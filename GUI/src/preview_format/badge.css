@@ -1,0 +1,11 @@
+.demo-badge-group{display:flex;flex-direction:column;gap:3px;pointer-events:none;position:absolute;z-index:15}
+.demo-badge-group>*{pointer-events:auto}
+.demo-badge-group-bottom{align-items:flex-start;bottom:4px;left:4px}
+.demo-badge-group-top{align-items:flex-end;right:6px;top:10px}
+.demo-badge{align-items:center;backdrop-filter:blur(2px);border-radius:999px;box-shadow:var(--demo-badge-shadow);display:inline-flex;font-size:11px;font-weight:1000;gap:.1rem;letter-spacing:.04em;line-height:1;max-width:100px;padding:.2rem .3rem;transition:opacity .18s ease,transform .18s ease-out,border-color .18s ease,background-color .18s ease;white-space:nowrap}
+.demo-badge:hover{opacity:1;transform:translateY(-1px)}
+.demo-badge svg{flex:none;height:11px;width:11px}
+.demo-badge-pages{background:rgba(8,145,178,.35);border-color:rgba(103,232,249,.4);color:#ecfeff}
+.demo-badge-likes{background:rgba(251,113,133,.35);border-color:rgba(253,164,175,.4);color:#fff7ed}
+.demo-badge-light{background:hsla(0, 0%, 100%, 0.12);border-color:hsla(0, 0%, 0%, 0.9);color:rgba(142, 143, 144, 0.96)}
+.demo-badge-light:hover{background:hsla(0, 0%, 100%, 0.9);color:rgba(14rgb(0, 0, 0).96);}

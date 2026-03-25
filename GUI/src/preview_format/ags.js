@@ -1,42 +1,83 @@
 (() => {
   let bookCount = 0;
+  // todo[0] badge可不止一个，我自己手动做，ai别碰！
+  const BADGE_ICON = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M4 3.75A1.75 1.75 0 0 1 5.75 2h8.5A1.75 1.75 0 0 1 16 3.75v12.5a.75.75 0 0 1-1.18.616L10 13.607l-4.82 3.259A.75.75 0 0 1 4 16.25V3.75Z"/></svg>';
+  const ESCAPE_MAP = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ESCAPE_MAP[char]);
+  }
+
+  function buildBadgeGroups(options) {
+    const bottomBadges = [];
+    const topBadges = [];
+
+    if (options.likes) {
+      bottomBadges.push(
+        `<span class="demo-badge demo-badge-likes">${BADGE_ICON}<span class="demo-badge-label">${escapeHtml(options.likes)}</span></span>`
+      );
+    }
+    if (options.pages) {
+      bottomBadges.push(
+        `<span class="demo-badge demo-badge-pages">${BADGE_ICON}<span class="demo-badge-label">p${escapeHtml(options.pages)}</span></span>`
+      );
+    }
+    if (options.lang) {
+      const text = escapeHtml(options.lang);
+      topBadges.push(`<span class="demo-badge demo-badge-light demo-badge-lang" title="${text}">${text}</span>`);
+    }
+    if (options.btype) {
+      const text = escapeHtml(options.btype);
+      topBadges.push(`<span class="demo-badge demo-badge-light demo-badge-btype" title="${text}">${text}</span>`);
+    }
+
+    let html = '';
+    if (bottomBadges.length) {
+      html += `<div class="demo-badge-group demo-badge-group-bottom">${bottomBadges.join('')}</div>`;
+    }
+    if (topBadges.length) {
+      html += `<div class="demo-badge-group demo-badge-group-top">${topBadges.join('')}</div>`;
+    }
+    return html;
+  }
 
   window.addAgsEL = function(idx, img_src, title, url, options = {}) {
-    const { pages, likes, lang, btype, flag } = options;
+    const isDownloaded = options.flag === 'downloaded';
+    const disabledAttr = isDownloaded ? ' disabled aria-disabled="true"' : '';
+    const labelDisabledAttr = isDownloaded ? ' aria-disabled="true"' : '';
+    const cardStateClass = isDownloaded ? ' preview-card-state-downloaded' : '';
+    const mediaStateClass = isDownloaded ? ' container-downloaded' : '';
+    const imageStateClass = isDownloaded ? ' img-downloaded' : '';
+    const safeIdx = escapeHtml(idx);
+    const safeTitle = escapeHtml(title);
+    const safeUrl = escapeHtml(url);
+    const safeImgSrc = escapeHtml(img_src);
+    const badgesHtml = buildBadgeGroups(options);
 
-    const abbreviated_title = title.length > 18 ? title.substring(0, 18) + "..." : title;
-
-    let badgesHtml = '';
-    if (pages) {
-      badgesHtml += `<span class="badge bg-info badge-left-bottom">p${pages}</span><br>`;
-    }
-    if (likes) {
-      badgesHtml += `<span class="badge bg-danger badge-left-bottom">♥️${likes}</span><br>`;
-    }
-    if (lang) {
-      badgesHtml += `<span class="badge rounded-pill bg-light text-dark badge-right-top badge-lang">${lang}</span>`;
-    }
-    if (btype) {
-      badgesHtml += `<span class="badge bg-light text-dark badge-right-top badge-btype">${btype}</span>`;
-    }
-
-    const container_cls = flag ? ` container-${flag}` : "";
-    const img_cls = flag ? ` img-${flag}` : "";
-
-    const maxWidth = 170;
     return `
-      <div class="col-md-3 singal-task" style="max-width:${maxWidth}px">
-        <div class="form-check${container_cls}">
-          <input class="form-check-input" type="checkbox" name="img" id="${idx}">
-          <label class="form-check-label" for="${idx}">
-            <div style="position: relative; display: inline-block;">
-              <img src="${img_src}" title="${title}" alt="${title}" class="img-thumbnail${img_cls}"/>
+      <div class="col-md-3 singal-task preview-card-shell${cardStateClass}">
+        <div class="form-check preview-card-check">
+          <input class="form-check-input preview-checkbox-input" type="checkbox" name="img" id="${safeIdx}"${disabledAttr}>
+          <label class="form-check-label preview-checkbox-label" for="${safeIdx}"${labelDisabledAttr}>
+            <span class="preview-checkbox-toggle" aria-hidden="true"><span class="preview-checkbox-tick"></span></span>
+            <div class="preview-checkbox-media${mediaStateClass}">
+              <img src="${safeImgSrc}" title="${safeTitle}" alt="${safeTitle}" class="img-thumbnail preview-card-image${imageStateClass}"/>
               ${badgesHtml}
             </div>
           </label>
         </div>
-        <a href="${url}"><p>[${idx}]、${abbreviated_title}</p></a></div>
-`;
+        <div class="preview-title-shell">
+          <a href="${safeUrl}" title="${safeTitle}" class="preview-title-link">
+            <p class="preview-title-clamp">${safeTitle}</p>
+          </a>
+        </div>
+      </div>`;
   };
 
   window.addAgsGroup = function(groupIdx, books) {
@@ -46,6 +87,7 @@
     }
 
     const searchKeyword = books[0].search_keyword || `Group ${groupIdx}`;
+    const safeSearchKeyword = escapeHtml(searchKeyword);
 
     let booksHtml = '';
     for (let i = 0; i < books.length; i++) {
@@ -62,11 +104,11 @@
 
     // todo[0] group 需要可折叠
     const groupHtml = `
-      <div class="ags-group card mb-4" data-group-idx="${groupIdx}" data-group-keyword="${searchKeyword}">
+      <div class="ags-group card mb-4" data-group-idx="${groupIdx}" data-group-keyword="${safeSearchKeyword}">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0">
             <span class="badge bg-primary me-2">${groupIdx}</span>
-            ${searchKeyword}
+            ${safeSearchKeyword}
             <span class="badge bg-secondary ms-2">${books.length} results</span>
           </h5>
           <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleGroupSelection(${groupIdx})">
@@ -82,6 +124,9 @@
     if (mainContainer) {
       mainContainer.insertAdjacentHTML('beforeend', groupHtml);
       bookCount += books.length;
+      if (typeof window.reflowPreviewBadges === 'function') {
+        window.reflowPreviewBadges();
+      }
     }
   };
 
@@ -89,8 +134,13 @@
     const groupElement = document.querySelector(`.ags-group[data-group-idx="${groupIdx}"]`);
     if (!groupElement) return;
 
-    const checkboxes = groupElement.querySelectorAll('input[type="checkbox"][name="img"]');
-    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    const checkboxes = Array.from(
+      groupElement.querySelectorAll('input[type="checkbox"][name="img"]')
+    ).filter((checkbox) => !checkbox.disabled);
+    if (checkboxes.length === 0) {
+      return;
+    }
+    const allChecked = checkboxes.every(cb => cb.checked);
 
     checkboxes.forEach(cb => {
       cb.checked = !allChecked;

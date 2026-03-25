@@ -283,6 +283,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._search_blocked = False
         self.lifecycle_state = SearchLifecycleState.LockedIdle
         self.spiderUtils = spider_utils_map.get(index)
+        self.spiderUtils = spider_utils_map.get(index)
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)

@@ -1,0 +1,191 @@
+.singal-task .form-check {
+    position: relative;
+    display: inline-block;
+    min-height: 0;
+    padding-left: 0;
+    margin-bottom: 0.35rem;
+    line-height: 0;
+    vertical-align: top;
+}
+
+.singal-task .form-check-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.singal-task .form-check-label {
+    position: relative;
+    display: block;
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+    line-height: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.singal-task .form-check-input:disabled + .form-check-label {
+    cursor: not-allowed;
+}
+
+.singal-task .preview-checkbox-media {
+    position: relative;
+    display: block;
+    border-radius: 20px;
+    transition:
+        transform 0.22s ease,
+        background 0.22s ease,
+        box-shadow 0.22s ease;
+}
+
+.singal-task .preview-checkbox-media::after {
+    content: "";
+    position: absolute;
+    inset: 0.32rem;
+    z-index: 2;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    pointer-events: none;
+    transition: border-color 0.22s ease;
+}
+
+.singal-task .form-check-label .img-thumbnail {
+    display: block;
+    border-radius: 20px;
+    transition:
+        transform 0.22s ease,
+        filter 0.22s ease,
+        box-shadow 0.22s ease;
+}
+
+.singal-task .preview-checkbox-toggle {
+    --size: 25.33px;
+    --shadow: calc(var(--size) * 0.07) calc(var(--size) * 0.1);
+    position: absolute;
+    top: 0.47rem;
+    left: 0.47rem;
+    display: block;
+    width: var(--size);
+    height: var(--size);
+    background-color: #4158d0;
+    background-image: linear-gradient(43deg, #4158d0 0%, #c850c0 46%, #ffcc70 100%);
+    border-radius: 50%;
+    box-shadow:
+        0 var(--shadow) #ffbeb8,
+        0 8px 12px -9px rgba(2, 6, 23, 0.96);
+    overflow: hidden;
+    z-index: 14;
+    pointer-events: none;
+    opacity: 0.5;
+    transition:
+        0.2s ease transform,
+        0.2s ease opacity,
+        0.2s ease background-color,
+        0.2s ease box-shadow;
+}
+
+.singal-task .preview-checkbox-toggle::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    width: calc(var(--size) * 0.7);
+    height: calc(var(--size) * 0.7);
+    margin: 0 auto;
+    background-color: #fff;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    box-shadow: inset 0 var(--shadow) #ffbeb8;
+    transition:
+        0.2s ease width,
+        0.2s ease height,
+        0.2s ease box-shadow;
+}
+
+.singal-task .form-check-label:hover .preview-checkbox-toggle::before {
+    width: calc(var(--size) * 0.55);
+    height: calc(var(--size) * 0.55);
+    box-shadow: inset 0 var(--shadow) #ff9d96;
+}
+
+.singal-task .form-check-label:active .preview-checkbox-toggle {
+    transform: scale(0.9);
+}
+
+.singal-task .preview-checkbox-tick {
+    position: absolute;
+    top: -1px;
+    right: 0;
+    left: calc(var(--size) * -0.05);
+    width: calc(var(--size) * 0.6);
+    height: calc(var(--size) * 0.6);
+    margin: 0 auto;
+    margin-left: calc(var(--size) * 0.14);
+    transform: rotateZ(-40deg);
+}
+
+.singal-task .preview-checkbox-tick::before,
+.singal-task .preview-checkbox-tick::after {
+    content: "";
+    position: absolute;
+    background-color: #fff;
+    border-radius: 2px;
+    opacity: 0;
+    transition:
+        0.2s ease transform,
+        0.2s ease opacity;
+}
+
+.singal-task .preview-checkbox-tick::before {
+    left: 0;
+    bottom: 0;
+    width: calc(var(--size) * 0.1);
+    height: calc(var(--size) * 0.3);
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.23);
+    transform: translateY(calc(var(--size) * -0.68));
+}
+
+.singal-task .preview-checkbox-tick::after {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: calc(var(--size) * 0.1);
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.23);
+    transform: translateX(calc(var(--size) * 0.78));
+}
+
+.singal-task .form-check-input:focus-visible + .form-check-label .preview-checkbox-toggle {
+    box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.18),
+        0 var(--shadow) #ffbeb8,
+        0 8px 12px -9px rgba(2, 6, 23, 0.96);
+}
+
+.singal-task .form-check-input:checked + .form-check-label .preview-checkbox-toggle::before {
+    width: 0;
+    height: 0;
+}
+
+.singal-task .form-check-input:checked + .form-check-label .preview-checkbox-toggle {
+    opacity: 1;
+}
+
+.singal-task .form-check-input:checked + .form-check-label .preview-checkbox-tick::before,
+.singal-task .form-check-input:checked + .form-check-label .preview-checkbox-tick::after {
+    transform: translate(0);
+    opacity: 1;
+}
+
+.singal-task .form-check-input:checked + .form-check-label .preview-checkbox-media {
+    transform: translateY(-2px);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%);
+    box-shadow:
+        0 0 0 1px rgba(248, 250, 252, 0.32),
+        0 0 0 7px rgba(148, 163, 184, 0.08),
+        0 26px 42px -30px rgba(2, 6, 23, 0.96);
+}

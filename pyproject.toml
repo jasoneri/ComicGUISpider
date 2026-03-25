@@ -30,6 +30,8 @@ dependencies = [
     "h11>=0.16.0",
     "requests>=2.32.4",
     "psutil",
+    "redis",
+    "pandas",
 ]
 authors = [
     {name = "jsoneri", email = "jsoneri@outlook.com"},
