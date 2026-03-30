@@ -74,11 +74,10 @@ class SpiderGuiOps:
     def submit_search(self, keyword: str, site_index: int | None = None):
         self.gui.start_and_search(keyword=keyword, site_index=site_index)
 
-    def select_books(self, indexes, page_turn: str = ""):
+    def select_books(self, indexes):
         self.gui.sel_mgr.submit_decision(
             "BOOK",
             indexes,
-            page_turn=page_turn,
             flow_stage=self.gui.flow_stage,
         )
 

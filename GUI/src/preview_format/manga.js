@@ -1,14 +1,18 @@
 (() => {
   const EpisodePreviewBase = window.previewUi && window.previewUi.EpisodePreviewBase;
+  const previewCommandBus = window.previewCommandBus;
   if (!EpisodePreviewBase) {
     throw new Error('preview episode base is not ready');
+  }
+  if (!previewCommandBus) {
+    throw new Error('previewCommandBus is not ready');
   }
 
   class MangaPreviewApp extends EpisodePreviewBase {
     init() {
-      this.registerBaseWindowApi();
-      this.bindBaseDocumentEvents();
       this.initFavoriteFeature();
+      this.registerCommandHandlers();
+      this.bindBaseDocumentEvents();
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => this.onDomReady(), { once: true });
         return;
@@ -21,6 +25,20 @@
         this.favoriteFeature = new MangaFavoriteFeature(this.bridgeClient);
         this.favoriteFeature.init();
       }
+    }
+
+    registerCommandHandlers() {
+      super.registerCommandHandlers();
+      previewCommandBus.register('manga.favorite.state', ({ bookKey, isFavorited }) => {
+        if (this.favoriteFeature) {
+          this.favoriteFeature.updateFavoriteState(bookKey, Boolean(isFavorited));
+        }
+      });
+      previewCommandBus.register('manga.favorites.sync', ({ bookKeys }) => {
+        if (this.favoriteFeature) {
+          this.favoriteFeature.initFavoriteStates(Array.isArray(bookKeys) ? bookKeys : []);
+        }
+      });
     }
 
     onDomReady() {
@@ -37,26 +55,6 @@
       let wasDragging = false;
       let startX = 0;
       let startY = 0;
-
-      const style = document.createElement('style');
-      style.textContent = `
-      #dragSelOverlay {
-        position: fixed;
-        pointer-events: none;
-        z-index: 9999;
-        display: none;
-        box-sizing: border-box;
-        border: 2px dashed var(--preview-accent);
-        border-radius: 18px;
-        background: rgba(var(--preview-accent-rgb), 0.12);
-      }
-      body.drag-selecting,
-      body.drag-selecting * {
-        user-select: none !important;
-        -webkit-user-select: none !important;
-        cursor: crosshair !important;
-      }`;
-      document.head.appendChild(style);
 
       const overlay = document.createElement('div');
       overlay.id = 'dragSelOverlay';

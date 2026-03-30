@@ -11,7 +11,8 @@ domain = "wnacg.com"
 
 class WnacgSpider(BaseComicSpider2):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {
-        'ComicSpider.middlewares.ComicDlProxyMiddleware': 6,
+        'ComicSpider.middlewares.ComicDlAllProxyMiddleware': 6,
+        # 'ComicSpider.middlewares.ScrapyDoHProxyMiddleware': 8,
         'ComicSpider.middlewares.RefererMiddleware': 10,
     }}
     name = 'wnacg'
@@ -26,6 +27,10 @@ class WnacgSpider(BaseComicSpider2):
     book_id_url = f'https://{domain}/photos-gallery-aid-%s.html'
     transfer_url = staticmethod(lambda url: url.replace('index', 'gallery'))
 
+    @property
+    def ua(self):
+        return WnacgUtils.build_site_headers(self.domain, WnacgUtils.book_hea)
+
     def preready(self):
         if self._runtime_origin:
             return
@@ -36,11 +41,10 @@ class WnacgSpider(BaseComicSpider2):
         frame_results = {}
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(WnacgUtils.parse_search_item, targets))
+            books = list(executor.map(self.ut.parser.parse_search_item, targets))
         for x, book in enumerate(books):
             book.idx = x + 1
-            book.preview_url = f'https://{self.domain}{book.preview_url}'
-            book.url = f'https://{self.domain}{book.url}'
+            self.ut.parser.normalize_preview_fields(book, domain=self.domain)
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, url=response.url)
 

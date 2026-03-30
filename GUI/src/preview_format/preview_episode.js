@@ -3,6 +3,10 @@
   if (!previewUi) {
     throw new Error('previewUi is not ready');
   }
+  const previewCommandBus = window.previewCommandBus;
+  if (!previewCommandBus) {
+    throw new Error('previewCommandBus is not ready');
+  }
 
   const {
     escapeHtml,
@@ -43,16 +47,31 @@
       }
     }
 
-    registerBaseWindowApi() {
-      window.onBookClick = (bookKey, title) => this.onBookClick(bookKey, title);
-      window.updateEpisodes = (bookKey, episodesJson) => this.updateEpisodes(bookKey, episodesJson);
-      window.showEpisodeError = (message) => this.showEpisodeError(message);
-      window.showEpisodeFetchError = (bookKey, code) => this.showEpisodeFetchError(bookKey, code);
-      window.markDownloadedEpisodes = (epIds) => this.markDownloadedEpisodes(epIds);
-      window.renderCardBadgeDl = (bookKey, dlMax) => this.renderCardBadgeDl(bookKey, dlMax);
-      window.renderCardBadgeLatest = (bookKey, latestEpName) => this.renderCardBadgeLatest(bookKey, latestEpName);
-      window.showScanNotification = (message) => this.showScanNotification(message);
-      window.hideScanNotification = () => this.hideScanNotification();
+    registerCommandHandlers() {
+      previewCommandBus.register('manga.episodes.loaded', ({ bookKey, episodes }) => {
+        this.updateEpisodes(bookKey, episodes);
+      });
+      previewCommandBus.register('manga.episodes.downloaded', ({ episodeIds }) => {
+        this.markDownloadedEpisodes(episodeIds);
+      });
+      previewCommandBus.register('manga.episodes.error', ({ bookKey, code }) => {
+        this.showEpisodeFetchError(bookKey, code);
+      });
+      previewCommandBus.register('preview.scan.show', ({ message }) => {
+        this.showScanNotification(message);
+      });
+      previewCommandBus.register('preview.scan.hide', () => {
+        this.hideScanNotification();
+      });
+      previewCommandBus.register('manga.badge.dl', ({ bookKey, dlMax }) => {
+        this.renderCardBadgeDl(bookKey, dlMax);
+      });
+      previewCommandBus.register('manga.badge.latest', ({ bookKey, latestEpName }) => {
+        this.renderCardBadgeLatest(bookKey, latestEpName);
+      });
+      previewCommandBus.register('manga.dl_scan.result', ({ badges }) => {
+        this.applyDlScanResult(badges);
+      });
     }
 
     bindBaseDocumentEvents() {
@@ -341,10 +360,13 @@
         const episodeName = escapeHtml(rawName);
         const checkboxId = `ep${bookKey}-${episodeIndex}`;
         const searchText = escapeHtml(`${episodeIndex} ${rawName}`.toLowerCase());
+        const isDled = this.downloadedEpCache.has(checkboxId);
+        const inputCls = isDled ? 'episode-item-input episode-container-downloaded' : 'episode-item-input';
+        const labelCls = isDled ? 'episode-item episode-container-downloaded' : 'episode-item';
         html += `
         <div class="episode-item-wrap" data-episode-item data-episode-text="${searchText}">
-          <input class="episode-item-input" type="checkbox" id="${checkboxId}" autocomplete="off">
-          <label data-episode-chip class="episode-item" for="${checkboxId}" title="${episodeName}">
+          <input class="${inputCls}" type="checkbox" id="${checkboxId}" autocomplete="off">
+          <label data-episode-chip class="${labelCls}" for="${checkboxId}" title="${episodeName}">
             <span class="episode-item-text">
               <span class="episode-item-index">${episodeIndex}</span>${episodeName}
             </span>
@@ -356,17 +378,12 @@
       this.listEl.innerHTML = html;
       this.showBtnGroup(true);
       this.updateCount();
-      this.listEl.querySelectorAll(`label[for^="ep${bookKey}-"]`).forEach((label) => {
-        if (this.downloadedEpCache.has(label.getAttribute('for'))) {
-          label.classList.add('episode-container-downloaded');
-        }
-      });
       this.afterRenderEpisodes(bookKey);
     }
 
     afterRenderEpisodes(_bookKey) {}
 
-    updateEpisodes(bookKey, episodesJson) {
+    updateEpisodes(bookKey, episodes) {
       const cacheKey = String(bookKey);
       if (cacheKey !== this.activeBookKey) {
         return;
@@ -376,7 +393,9 @@
       this.setLoadingState(false);
 
       try {
-        const episodes = typeof episodesJson === 'string' ? JSON.parse(episodesJson) : episodesJson;
+        if (!Array.isArray(episodes)) {
+          throw new TypeError('episodes payload must be an array');
+        }
         this.episodesCache.set(cacheKey, episodes);
         this.renderEpisodes(cacheKey, episodes);
       } catch (_error) {
@@ -398,11 +417,33 @@
     }
 
     markDownloadedEpisodes(epIds) {
-      epIds.forEach((id) => {
+      const ids = (Array.isArray(epIds) ? epIds : [])
+        .filter((id) => id !== null && id !== undefined && id !== '')
+        .map((id) => String(id));
+      ids.forEach((id) => {
         this.downloadedEpCache.add(id);
-        const label = document.querySelector(`label[for="${id}"]`);
-        if (label) {
-          label.classList.add('episode-container-downloaded');
+        const checkbox = document.getElementById(id);
+        if (checkbox instanceof HTMLInputElement && this.listEl.contains(checkbox)) {
+          checkbox.classList.add('episode-container-downloaded');
+          const label = document.querySelector(`label[for="${id}"]`);
+          if (label) {
+            label.classList.add('episode-container-downloaded');
+          }
+        }
+      });
+    }
+
+    applyDlScanResult(badges) {
+      if (!Array.isArray(badges)) {
+        return;
+      }
+      badges.forEach((badge) => {
+        if (!badge || typeof badge !== 'object') {
+          return;
+        }
+        this.renderCardBadgeDl(badge.bookKey, badge.dlMax);
+        if (badge.latestEpName) {
+          this.renderCardBadgeLatest(badge.bookKey, badge.latestEpName);
         }
       });
     }

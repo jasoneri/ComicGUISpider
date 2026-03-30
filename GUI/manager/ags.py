@@ -14,7 +14,6 @@ class AggrSearchManager:
         self.is_triggered = False
         self.tasks = []  # 存储搜索关键词列表
         self.infos = {}  # 存储完整的book信息，由single_aggr_search_data构建
-        self.page = None
         self.aggrSearchThread = None
         self.extractor = None  # 从 AggrSearchView 传递过来的 extractor
 
@@ -26,7 +25,6 @@ class AggrSearchManager:
         self.gui.set_preview()
         self.gui.BrowserWindow.resize(self.gui.BrowserWindow.width()+20, 860)
         self.gui.BrowserWindow.show()
-        self.page = self.gui.BrowserWindow.view.page()
 
         self.tasks = search_keywords
         self.aggrSearchThread = AggrSearchThread(self.gui, search_keywords)
@@ -116,18 +114,25 @@ class AggrSearchManager:
                 error_callback=lambda _exc: refresh_tf(""),
             )
 
-    def create_selected_list(self, browser_output):
+    def submit_browser_selection(self):
+        browser = getattr(self.gui, "BrowserWindow", None)
+        if browser is None:
+            return
         selected_list = [
             self.infos[unique_id]
-            for unique_id in browser_output if unique_id in self.infos
+            for unique_id in list(browser.output or [])
+            if unique_id in self.infos
         ]
         self.extractor.remove_list(selected_list)
-        return selected_list
+        self.gui.sel_mgr.submit_decision(
+            "BOOK",
+            selected_list,
+            flow_stage=self.gui.flow_stage,
+        )
 
     def reset(self):
         self.is_triggered = False
         self.tasks = []
         self.infos = {}
-        self.page = None
         if self.aggrSearchThread:
             self.aggrSearchThread = None

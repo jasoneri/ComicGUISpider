@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import contextlib
+from collections import deque
 # from uuid import uuid4
 
 from PySide6.QtCore import QObject, Signal
 
 from ComicSpider.runtime import SpiderRuntimeThread
 from GUI.thread import WorkThread
+from utils import conf
 from utils.protocol import SpiderDownloadJob
 from variables import SPIDERS
 
@@ -30,6 +32,7 @@ class DownloadRuntimeManager(QObject):
         self.session_job_task_ids: set[str] = set()
         self.pending_job_ids: set[str] = set()
         self._job_task_ids: dict[str, set[str]] = {}
+        self._submission_queue: deque[SpiderDownloadJob] = deque()
 
     def start_runtime(self, site_index: int):
         if self.spider_runtime and self.spider_runtime.is_alive():
@@ -39,14 +42,14 @@ class DownloadRuntimeManager(QObject):
         self.spider_runtime.start()
         self.spider_runtime.wait_ready()
 
-    def submit_download(self, task_info, tasks_obj=None):
+    def submit_download(self, task_info):
         if not self.spider_runtime:
             self.start_runtime(self.gui.chooseBox.currentIndex())
 
         site_index = self.gui.chooseBox.currentIndex()
-        tasks_obj = tasks_obj or task_info.to_tasks_obj()
+        tasks_obj = task_info.to_tasks_obj()
         job_id = tasks_obj.taskid
-        if job_id in self.pending_job_ids or job_id in self.running_job_ids:
+        if job_id in self.session_job_ids:
             raise ValueError(f"duplicate runtime submission detected for task {job_id}")
 
         job = SpiderDownloadJob(
@@ -59,12 +62,12 @@ class DownloadRuntimeManager(QObject):
         )
 
         self.session_job_ids.add(job_id)
-        self.pending_job_ids.add(job_id)
         self._job_task_ids[job_id] = {tasks_obj.taskid}
         self.session_job_task_ids.add(tasks_obj.taskid)
         self.gui.task_mgr.handle(tasks_obj)
         self.ensure_work_thread()
-        self.spider_runtime.submit_job(job)
+        self._submission_queue.append(job)
+        self._submit_queued_jobs()
 
     def ensure_work_thread(self) -> WorkThread:
         if self.b_thread and self.b_thread.isRunning():
@@ -103,6 +106,9 @@ class DownloadRuntimeManager(QObject):
         if job_id in self._job_task_ids:
             del self._job_task_ids[job_id]
             self._rebuild_session_task_ids()
+        self._submit_queued_jobs()
+        if not self.has_active_download():
+            self.all_jobs_finished.emit()
 
     def track_task(self, job_id: str | None, task_obj):
         if not job_id:
@@ -127,11 +133,12 @@ class DownloadRuntimeManager(QObject):
         if job_id in self._job_task_ids:
             del self._job_task_ids[job_id]
             self._rebuild_session_task_ids()
-        if not self.running_job_ids and not self.pending_job_ids:
+        self._submit_queued_jobs()
+        if not self.has_active_download():
             self.all_jobs_finished.emit()
 
     def has_active_download(self) -> bool:
-        return bool(self.running_job_ids or self.pending_job_ids)
+        return bool(self.running_job_ids or self.pending_job_ids or self._submission_queue)
 
     def get_running_task_ids(self) -> set[str]:
         return set(self.session_job_task_ids)
@@ -206,6 +213,7 @@ class DownloadRuntimeManager(QObject):
             self.session_job_task_ids.clear()
             self.pending_job_ids.clear()
             self._job_task_ids.clear()
+            self._submission_queue.clear()
             if self.b_thread:
                 self.b_thread.authority = self
                 self.b_thread.suspend_dispatch()
@@ -228,6 +236,7 @@ class DownloadRuntimeManager(QObject):
             self.session_job_task_ids.clear()
             self.pending_job_ids.clear()
             self._job_task_ids.clear()
+            self._submission_queue.clear()
         if stop_mgr and getattr(self.gui, "mid_mgr", None):
             self.gui.mid_mgr.stop()
 
@@ -236,3 +245,13 @@ class DownloadRuntimeManager(QObject):
         for task_ids in self._job_task_ids.values():
             merged.update(task_ids)
         self.session_job_task_ids = merged
+
+    def _submit_queued_jobs(self):
+        if not self.spider_runtime:
+            return
+        available_slots = int(conf.concurr_num) - len(self.running_job_ids) - len(self.pending_job_ids)
+        while self._submission_queue and available_slots > 0:
+            job = self._submission_queue.popleft()
+            self.pending_job_ids.add(job.job_id)
+            self.spider_runtime.submit_job(job)
+            available_slots -= 1

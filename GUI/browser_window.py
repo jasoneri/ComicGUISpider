@@ -18,11 +18,10 @@ from GUI.core.browser.runtime import (
     BrowserRequestInterceptor,
     apply_cookie_sets,
 )
+from GUI.core.browser.browser_environment import build_browser_environment
 from GUI.core.browser.page_runtime import BrowserPageRuntime
-from GUI.core.browser.site_runtime import build_browser_environment
 from GUI.core.browser.types import BrowserChallengeSpec, BrowserEnvironmentConfig
 from GUI.core.browser.window_mode import BrowserWindowModeController
-from GUI.types import SearchContextSnapshot
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
@@ -66,27 +65,25 @@ class CustomFramelessWebEngineView(FramelessWebEngineView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.browser = parent
-        self._injected = False
         self._last_injected_css = None
         self.setPage(self.createPage())
         theme_mgr.subscribe(self.on_theme_changed)
 
     def on_page_ready(self):
-        self._inject_scrollbar_css(reason="page-ready")
+        self.apply_scrollbar_css(reason="page-ready")
     
     def on_theme_changed(self, _):
         runtime = getattr(self.browser, "page_runtime", None)
         if runtime is None or not runtime.page_ready:
             return
-        self._inject_scrollbar_css(reason="theme-changed")
+        self.apply_scrollbar_css(reason="theme-changed")
 
-    def _inject_scrollbar_css(self, _ok=True, *, reason="manual"):
+    def apply_scrollbar_css(self, *, reason="manual"):
         runtime = getattr(self.browser, "page_runtime", None)
         if runtime is None or not runtime.page_ready:
             if runtime is not None:
                 runtime.log_web_perf(f"scrollbar_css skipped reason={reason} page_ready=False")
             return
-        self._injected = True
         css = self._get_scrollbar_css()
         if self._last_injected_css == css:
             runtime.log_web_perf(f"scrollbar_css skipped reason={reason} unchanged=True")
@@ -115,10 +112,9 @@ return true;
                 f"scrollbar_css skipped reason={reason} unchanged=True elapsed_ms={elapsed_ms:.1f}"
             )
 
-        self.browser.page_runtime.run_js(js, _log_result, page=self.page())
-    
-    def prepare_navigation(self):
-        self._injected = False
+        runtime.run_js(js, _log_result, page=self.page())
+
+    def reset_scrollbar_css(self):
         self._last_injected_css = None
 
 
@@ -185,13 +181,12 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     pageInteractive = Signal(str, float)
     pageLoadFinishedDetailed = Signal(bool, float)
 
-    def __init__(self, gui, *, skip_env_mode: bool = False, snapshot: SearchContextSnapshot | None = None):
+    def __init__(self, gui, *, skip_env_mode: bool = False):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
         self._first_show = True
         self.gui = gui
-        self.search_context = snapshot
         self.interceptor = BrowserRequestInterceptor(self)
         self.view = CustomFramelessWebEngineView(self)
         self.page_runtime = BrowserPageRuntime(self)
@@ -233,11 +228,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         apply_cookie_sets(self.view.page().profile().cookieStore(), config.cookie_sets)
 
     def apply_standard_environment(self):
-        self.apply_environment(build_browser_environment(self.gui, self.search_context))
-
-    def update_search_context(self, snapshot: SearchContextSnapshot | None):
-        self.search_context = snapshot
-        self.apply_standard_environment()
+        self.apply_environment(build_browser_environment(self))
 
     def _set_dev_tools(self):
         from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -265,6 +256,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.topHintBox.clicked.connect(self.keep_top_hint)
         self.topHintBox.setIcon(FIF.PIN)
         self.topHintBox.setChecked(True)
+        self.keep_top_hint(self.topHintBox.isChecked())
         self.homeBtn.setIcon(FIF.HOME)
         self.backBtn.setIcon(FIF.LEFT_ARROW)
         self.forwardBtn.setIcon(FIF.RIGHT_ARROW)
@@ -361,7 +353,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     def load_home(self):
         self.page_runtime.prepare_navigation()
-        self.view.prepare_navigation()
+        self.view.reset_scrollbar_css()
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
             self.profile = self.view.page().profile()
@@ -395,15 +387,12 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             return
         lowered = text.casefold()
         if lowered == "dev":
-            self._set_dev_tools()
-            return
+            return self._set_dev_tools()
         if lowered == "gpu":
-            self.view.load(QUrl("chrome://gpu"))
-            return
+            return self.view.load(QUrl("chrome://gpu"))
         if lowered in {"diag", "webdiag"}:
             self.log_webengine_diagnostics(trigger="address-bar")
-            self.view.load(QUrl("chrome://gpu"))
-            return
+            return self.view.load(QUrl("chrome://gpu"))
         target = text if _SCHEME_RE.match(text) else f"https://{text}"
         url = QUrl.fromUserInput(target)
         if url.isValid() and not url.isEmpty():
@@ -447,7 +436,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         return (request.selectedText() or "").strip()
 
     def page(self, after_callback):
-        self.page_runtime.run_page_scan(after_callback, uses_page_scan=self.window_mode.uses_page_scan, )
+        self.page_runtime.run_page_scan(after_callback)
 
     ensure = page
 
@@ -487,6 +476,9 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             spec, callback, current_url=current_url, trigger=trigger,
         )
 
+    def latest_image_request(self, *, url: str = "", path_suffix: str = "") -> dict:
+        return self.interceptor.latest_image_request(url=url, path_suffix=path_suffix)
+
     @classmethod
     def check_ehentai(cls, gui):
         if not conf.cookies.get("ehentai"):
@@ -497,7 +489,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             )
             return
         cls.eh_kits = EHentaiKits(conf)
-        if not cls.eh_kits.test_index():
+        if not cls.eh_kits.reqer.test_index():
             CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, gui.showArea,
                 cls.eh_kits.index, cls.eh_kits.name)
             return

@@ -19,9 +19,7 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._inflight_book_pages.clear()
 
     def publish(self, books):
-        self.mgr._session_id += 1
-        sid = self.mgr._session_id
-        self._page.reset_session()
+        sid = self.mgr.begin_preview_session()
         self._inflight_books.clear()
         self._clear_fix_state()
         self.mgr.books_cache = {str(book.idx): book for book in books}
@@ -33,15 +31,18 @@ class FixPreviewFeature(MangaPreviewFeature):
         manga_el = El("manga")
         for book in books:
             if self.is_episode_card(book):
-                lower_cards.append(manga_el.create_from_book(book))
+                lower_cards.append(manga_el.create_from_book(book, with_favorite=False))
             else:
                 upper_cards.append(ero_el.create_from_book(book))
         self.gui.tf = PreviewByFixHtml.created_temp_html(
             upper_html="\n".join(upper_cards),
             lower_html="\n".join(lower_cards),
         )
-
-        self._page.show(self._handle_ensure_result)
+        self.mgr.show_preview(
+            ensure_handler=self._handle_ensure_result,
+            bridge=self.bridge,
+            on_page_ready=self._on_page_ready,
+        )
         self._start_dl_scan(sid)
 
     def shutdown(self):

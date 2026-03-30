@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
-from GUI.core.timer import safe_single_shot
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
 from qfluentwidgets import (
     FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea, FlowLayout
@@ -10,6 +10,7 @@ from qfluentwidgets import (
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
+from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
 from variables import VER
 from utils import ori_path
@@ -47,6 +48,11 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
         self.chooseBox.setCurrentIndex(0)
+        self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
+        self.domainBtn.setVisible(False)
+        self.domainBtn.setIconSize(QtCore.QSize(28, 28))
+        self.domainBtn.setStatusTip(_translate("MainWindow", "domainHandler/域名管理"))
+        self.horizontalLayout_3.insertWidget(1, self.domainBtn)
         self.searchinput.setPlaceholderText(_translate("MainWindow", res.searchinputPlaceholderText))
         self.chooseBox.setToolTip(_translate("MainWindow", res.chooseBoxToolTip))
         self.previewBtn.setStatusTip(_translate("MainWindow", res.previewBtnStatusTip))

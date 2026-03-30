@@ -1,5 +1,6 @@
 import asyncio
 import traceback
+from copy import deepcopy
 from dataclasses import dataclass
 from queue import Empty, Queue
 from typing import Union
@@ -8,8 +9,10 @@ import httpx
 from PySide6.QtCore import QThread, Signal
 
 from GUI.types import SearchContextSnapshot
-from utils.website.core import Previewer, ProviderContext, build_proxy_transport
+from utils.network.doh import build_http_transport
+from utils.website.core import Previewer
 from utils.website.registry import spider_utils_map
+from utils.website.runtime_context import PreviewSiteConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,10 +56,7 @@ class PreviewWorker(QThread):
         self._active = True
         self._task_queue = Queue()
         self._generation = generation
-        self._proxies = list(snapshot.proxies)
-        self._cookies = dict(snapshot.cookies)
-        self._domains = dict(snapshot.domains)
-        self._custom_map = dict(snapshot.custom_map)
+        self._snapshot = self._copy_snapshot(snapshot)
         self.site_clients: dict[int, httpx.AsyncClient] = {}
         self._loop = None
 
@@ -64,11 +64,19 @@ class PreviewWorker(QThread):
         self._active = False
         self._task_queue.put(None)
 
+    @staticmethod
+    def _copy_snapshot(snapshot: SearchContextSnapshot) -> SearchContextSnapshot:
+        return SearchContextSnapshot(
+            site_index=snapshot.site_index,
+            proxies=list(snapshot.proxies),
+            cookies=deepcopy(snapshot.cookies),
+            domains=dict(snapshot.domains),
+            custom_map=deepcopy(snapshot.custom_map),
+            doh_url=snapshot.doh_url,
+        )
+
     def update_snapshot(self, snapshot: SearchContextSnapshot):
-        self._proxies = list(snapshot.proxies)
-        self._cookies = dict(snapshot.cookies)
-        self._domains = dict(snapshot.domains)
-        self._custom_map = dict(snapshot.custom_map)
+        self._snapshot = self._copy_snapshot(snapshot)
 
     def enqueue_search(self, keyword, site_index, page=1):
         self._task_queue.put(SearchTask(keyword, site_index, page))
@@ -84,28 +92,34 @@ class PreviewWorker(QThread):
         if items:
             self._task_queue.put(PagesBatchTask(items))
 
-    def _build_site_context(self, preview_cls):
-        return ProviderContext.create(
-            proxies=self._proxies,
-            cookies=self._cookies.get(preview_cls.name),
-            domain=self._domains.get(preview_cls.name),
-            custom_map=self._custom_map,
+    def _build_site_config(self, preview_cls) -> PreviewSiteConfig:
+        return PreviewSiteConfig.from_snapshot(
+            preview_cls.name,
+            self._snapshot,
         )
 
     def _get_client(self, site_index):
         if cli := self.site_clients.get(site_index):
             return cli
         preview_cls = self._get_preview_cls(site_index)
-        site_kw = preview_cls.preview_client_config(self._build_site_context(preview_cls))
+        site_config = self._build_site_config(preview_cls)
+        site_kw = site_config.as_provider_kwargs()
+        client_kw = dict(preview_cls.preview_client_config(**site_kw) or {})
+        transport_kw = dict(preview_cls.preview_transport_config() or {})
         policy = getattr(preview_cls, "proxy_policy", "proxy")
-        verify = site_kw.pop("verify", True)
-        transport, trust_env = build_proxy_transport(policy, self._proxies, verify=verify)
+        transport, trust_env = build_http_transport(
+            policy,
+            list(site_config.transport.proxies),
+            doh_url=site_config.transport.doh_url,
+            is_async=True,
+            **transport_kw,
+        )
         base_kw = dict(
             transport=transport,
             follow_redirects=True,
             trust_env=trust_env, headers=None
         )
-        base_kw.update(site_kw)
+        base_kw.update(client_kw)
         cli = httpx.AsyncClient(**base_kw)
         self.site_clients[site_index] = cli
         return cli
@@ -122,16 +136,21 @@ class PreviewWorker(QThread):
     async def _do_search(self, keyword, site_index, page=1):
         preview_cls = self._get_preview_cls(site_index)
         cli = self._get_client(site_index)
-        context = self._build_site_context(preview_cls)
-        return await preview_cls.preview_search(keyword, cli, page=page, context=context)
+        site_config = self._build_site_config(preview_cls)
+        return await preview_cls.preview_search(
+            keyword,
+            cli,
+            page=page,
+            **site_config.as_provider_kwargs(),
+        )
 
     async def _do_fetch_episodes(self, book, site_index):
         preview_cls = self._get_preview_cls(site_index)
-        context = self._build_site_context(preview_cls)
+        site_config = self._build_site_config(preview_cls)
         return await preview_cls.preview_fetch_episodes(
             book,
             self._get_client(site_index),
-            context=context,
+            **site_config.as_provider_kwargs(),
         )
 
     async def _do_fetch_episodes_batch(self, items):
@@ -156,11 +175,11 @@ class PreviewWorker(QThread):
             async with sem:
                 preview_cls = self._get_preview_cls(site_index)
                 cli = self._get_client(site_index)
-                context = self._build_site_context(preview_cls)
+                site_config = self._build_site_config(preview_cls)
                 await preview_cls.preview_fetch_pages(
                     episode,
                     cli,
-                    context=context,
+                    **site_config.as_provider_kwargs(),
                 )
 
         grouped = {}

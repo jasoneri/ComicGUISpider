@@ -29,13 +29,15 @@ class ClipTasksThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        async with self.gui.spiderUtils.get_cli(conf, is_async=True) as cli:
+        reqer = getattr(getattr(self.gui, "sut", None), "reqer", None) or self.gui.spiderUtils
+        parser = getattr(getattr(self.gui, "sut", None), "parser", None) or self.gui.spiderUtils
+        async with reqer.get_cli(conf, is_async=True) as cli:
             total = {}
             async def fetch_single(idx, url):
                 _idx = idx + 1
                 try:
                     resp = await cli.get(url, follow_redirects=True, timeout=6)
-                    book = self.gui.spiderUtils.parse_book(resp.text)
+                    book = parser.parse_book(resp.text)
                     self.msleep(30)
                     book.idx = _idx
                     book.preview_url = book.url = url

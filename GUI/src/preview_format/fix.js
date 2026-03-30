@@ -6,7 +6,6 @@
   }
 
   const esc = previewUi.escapeHtml;
-  const BADGE_ICON = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M4 3.75A1.75 1.75 0 0 1 5.75 2h8.5A1.75 1.75 0 0 1 16 3.75v12.5a.75.75 0 0 1-1.18.616L10 13.607l-4.82 3.259A.75.75 0 0 1 4 16.25V3.75Z"/></svg>';
 
   function getRuntime() {
     if (!window.previewRuntime) {
@@ -53,11 +52,13 @@
   function buildBadgeGroups(options) {
     const bottom = [];
     const top = [];
+    const pagesIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m19 1l-5 5v11l5-4.5zm2 4v13.5c-1.1-.35-2.3-.5-3.5-.5c-1.7 0-4.15.65-5.5 1.5V6c-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5c.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5c1.35-.85 3.8-1.5 5.5-1.5c1.65 0 3.35.3 4.75 1.05c.1.05.15.05.25.05c.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1M10 18.41C8.75 18.09 7.5 18 6.5 18c-1.06 0-2.32.19-3.5.5V7.13c.91-.4 2.14-.63 3.5-.63s2.59.23 3.5.63z" /></svg>';
+    const likesIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><path fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M15 8C8.925 8 4 12.925 4 19c0 11 13 21 20 23.326C31 40 44 30 44 19c0-6.075-4.925-11-11-11c-3.72 0-7.01 1.847-9 4.674A10.99 10.99 0 0 0 15 8" /></svg>';
     if (options.likes) {
-      bottom.push(`<span class="demo-badge demo-badge-likes">${BADGE_ICON}<span class="demo-badge-label">${esc(options.likes)}</span></span>`);
+      bottom.push(`<span class="demo-badge demo-badge-likes">${likesIcon}<span class="demo-badge-label">${esc(options.likes)}</span></span>`);
     }
     if (options.pages) {
-      bottom.push(`<span class="demo-badge demo-badge-pages">${BADGE_ICON}<span class="demo-badge-label">p${esc(options.pages)}</span></span>`);
+      bottom.push(`<span class="demo-badge demo-badge-pages">${pagesIcon}<span class="demo-badge-label">${esc(options.pages)}</span></span>`);
     }
     if (options.lang) {
       const text = esc(options.lang);
@@ -154,7 +155,7 @@
     }
 
     init() {
-      this.registerBaseWindowApi();
+      this.registerCommandHandlers();
       this.registerWindowApi();
       getRuntime().setExtraCheckedIdsResolver(() => this.getAllSelectedEpisodeIds());
       this.bindDocumentEvents();

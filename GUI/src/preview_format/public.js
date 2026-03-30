@@ -259,6 +259,64 @@
       .filter((checkbox) => checkbox.checked && !checkbox.disabled)
       .map((checkbox) => checkbox.id);
   };
+  window.previewCommandBus = (() => {
+    const handlers = new Map();
+    const pending = [];
+    let latestSessionId = -1;
+
+    function tryDispatch(command) {
+      const { type, sid, payload } = command;
+      if (sid < latestSessionId) {
+        return true;
+      }
+      latestSessionId = sid;
+      const handler = handlers.get(type);
+      if (!handler) {
+        return false;
+      }
+      handler(payload ?? {}, command);
+      return true;
+    }
+
+    function flushPending() {
+      let i = 0;
+      while (i < pending.length) {
+        if (tryDispatch(pending[i])) {
+          pending.splice(i, 1);
+        } else {
+          i += 1;
+        }
+      }
+    }
+
+    return {
+      register(type, handler) {
+        handlers.set(type, handler);
+        if (pending.length) {
+          flushPending();
+        }
+        return () => {
+          if (handlers.get(type) === handler) {
+            handlers.delete(type);
+          }
+        };
+      },
+      dispatch(command) {
+        const { type, sid } = command;
+        if (!Number.isFinite(sid) || sid < latestSessionId) {
+          return false;
+        }
+        latestSessionId = sid;
+        const handler = handlers.get(type);
+        if (!handler) {
+          pending.push(command);
+          return false;
+        }
+        handler(command.payload ?? {}, command);
+        return true;
+      },
+    };
+  })();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', reflowPreviewBadges, { once: true });

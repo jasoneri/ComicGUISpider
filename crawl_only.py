@@ -12,6 +12,8 @@ from loguru import logger
 
 from ComicSpider.runtime import SpiderRuntimeThread
 from utils import conf, select
+from utils.config.qc import cgs_cfg
+from utils.network.doh import build_http_transport
 from utils.protocol import (
     SpiderDownloadJob,
     JobAcceptedEvent,
@@ -23,7 +25,8 @@ from utils.protocol import (
     TasksObjEvent,
 )
 from utils.website import spider_utils_map
-from utils.website.core import Previewer, ProviderContext, build_proxy_transport
+from utils.website.core import Previewer
+from utils.website.runtime_context import PreviewSiteConfig
 from variables import Spider, SPIDERS
 
 is_debugging = os.getenv("CGS_DEBUG") == "1"
@@ -39,24 +42,35 @@ class PreviewRuntime:
         self.preview_cls = preview_cls
         self.site_index = site_index
         self.client: httpx.AsyncClient | None = None
-        self.context = ProviderContext.create(
-            proxies=conf.proxies,
-            cookies=conf.cookies.get(preview_cls.name),
+        self.doh_url = cgs_cfg.get_doh_url()
+        self.site_config = PreviewSiteConfig.create(
+            preview_cls.name,
+            cookies_by_site=conf.cookies,
+            domains=getattr(conf, "domains", None),
             custom_map=conf.custom_map,
+            proxies=conf.proxies,
+            doh_url=self.doh_url,
         )
+        self.site_kw = self.site_config.as_provider_kwargs()
 
     async def __aenter__(self):
-        site_kw = self.preview_cls.preview_client_config(self.context)
+        client_kw = dict(self.preview_cls.preview_client_config(**self.site_kw) or {})
+        transport_kw = dict(self.preview_cls.preview_transport_config() or {})
         policy = getattr(self.preview_cls, "proxy_policy", "proxy")
-        verify = site_kw.pop("verify", True)
-        transport, trust_env = build_proxy_transport(policy, conf.proxies, verify=verify)
+        transport, trust_env = build_http_transport(
+            policy,
+            list(self.site_config.transport.proxies),
+            doh_url=self.site_config.transport.doh_url,
+            is_async=True,
+            **transport_kw,
+        )
         base_kw = dict(
             transport=transport,
             follow_redirects=True,
             trust_env=trust_env,
             headers=None,
         )
-        base_kw.update(site_kw)
+        base_kw.update(client_kw)
         self.client = httpx.AsyncClient(**base_kw)
         return self
 
@@ -70,14 +84,14 @@ class PreviewRuntime:
             keyword,
             self.client,
             page=page,
-            context=self.context,
+            **self.site_kw,
         )
 
     async def fetch_episodes(self, book):
         return await self.preview_cls.preview_fetch_episodes(
             book,
             self.client,
-            context=self.context,
+            **self.site_kw,
         )
 
 

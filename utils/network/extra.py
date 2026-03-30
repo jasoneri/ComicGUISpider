@@ -16,7 +16,7 @@ from loguru import logger
 from .doh import (
     DNS_STUB_HOST,
     DNS_STUB_PORT,
-    DOH_WEBENGINE_PROXY_HOST,
+    DOH_CONNECT_PROXY_HOST,
     create_async_doh_resolver,
     normalize_doh_url,
     resolve_host_via_doh,
@@ -199,7 +199,7 @@ def shutdown_doh_dns_stub() -> None:
     _doh_dns_stub_service.stop()
 
 
-class _DoHWebEngineProxyService:
+class _DoHConnectProxyService:
     def __init__(self):
         self._lock = threading.Lock()
         self._thread: Optional[threading.Thread] = None
@@ -217,7 +217,7 @@ class _DoHWebEngineProxyService:
             return ""
         with self._lock:
             if self._is_running_locked(normalized_url):
-                return f"{DOH_WEBENGINE_PROXY_HOST}:{self._proxy_port}"
+                return f"{DOH_CONNECT_PROXY_HOST}:{self._proxy_port}"
             self._stop_locked()
             self._ready = threading.Event()
             self._startup_error = None
@@ -226,15 +226,15 @@ class _DoHWebEngineProxyService:
             self._thread = threading.Thread(
                 target=self._thread_main,
                 args=(normalized_url, self._ready),
-                name="DoHWebEngineProxy",
+                name="DoHConnectProxy",
                 daemon=True,
             )
             self._thread.start()
         if not self._ready.wait(timeout):
-            raise TimeoutError("DoH WebEngine proxy startup timed out")
+            raise TimeoutError("DoH CONNECT proxy startup timed out")
         if self._startup_error is not None:
-            raise RuntimeError("DoH WebEngine proxy failed to start") from self._startup_error
-        return f"{DOH_WEBENGINE_PROXY_HOST}:{self._proxy_port}"
+            raise RuntimeError("DoH CONNECT proxy failed to start") from self._startup_error
+        return f"{DOH_CONNECT_PROXY_HOST}:{self._proxy_port}"
 
     def stop(self) -> None:
         with self._lock:
@@ -278,20 +278,20 @@ class _DoHWebEngineProxyService:
             server = loop.run_until_complete(
                 asyncio.start_server(
                     lambda reader, writer: self._handle_client(reader, writer, resolver),
-                    DOH_WEBENGINE_PROXY_HOST,
+                    DOH_CONNECT_PROXY_HOST,
                     0,
                 )
             )
             sockets = server.sockets or []
             if not sockets:
-                raise RuntimeError("DoH WebEngine proxy did not bind any sockets")
+                raise RuntimeError("DoH CONNECT proxy did not bind any sockets")
             self._proxy_port = int(sockets[0].getsockname()[1])
             with self._lock:
                 self._loop = loop
                 self._server = server
                 self._stop_future = stop_future
             logger.info(
-                f"[SharedDoH] started webengine proxy={DOH_WEBENGINE_PROXY_HOST}:{self._proxy_port} doh={doh_url}"
+                f"[SharedDoH] started connect proxy={DOH_CONNECT_PROXY_HOST}:{self._proxy_port} doh={doh_url}"
             )
             ready_event.set()
             loop.run_until_complete(stop_future)
@@ -396,12 +396,20 @@ class _DoHWebEngineProxyService:
         await writer.drain()
 
 
-_doh_webengine_proxy_service = _DoHWebEngineProxyService()
+_doh_connect_proxy_service = _DoHConnectProxyService()
+
+
+def ensure_doh_connect_proxy_started(doh_url: str, *, timeout: float = 5.0) -> str:
+    return _doh_connect_proxy_service.ensure_started(doh_url, timeout=timeout)
+
+
+def shutdown_doh_connect_proxy() -> None:
+    _doh_connect_proxy_service.stop()
 
 
 def ensure_doh_webengine_proxy_started(doh_url: str, *, timeout: float = 5.0) -> str:
-    return _doh_webengine_proxy_service.ensure_started(doh_url, timeout=timeout)
+    return ensure_doh_connect_proxy_started(doh_url, timeout=timeout)
 
 
 def shutdown_doh_webengine_proxy() -> None:
-    _doh_webengine_proxy_service.stop()
+    shutdown_doh_connect_proxy()

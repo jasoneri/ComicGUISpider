@@ -2,6 +2,7 @@
 import re
 import random
 import traceback
+from urllib.parse import urlparse
 # Define here the models for your spider middleware
 #
 # See documentation in:
@@ -11,6 +12,8 @@ from scrapy import signals
 from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
 from scrapy.http import HtmlResponse
 from utils import conf
+from utils.config.qc import cgs_cfg
+from utils.network.extra import ensure_doh_connect_proxy_started
 
 
 class ComicspiderDownloaderMiddleware(object):
@@ -136,6 +139,40 @@ class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
 class DisableSystemProxyMiddleware(HttpProxyMiddleware):
     def _get_proxy(self, scheme, *args, **kwargs):
         return None, None
+
+
+class ScrapyDoHProxyMiddleware:
+    def __init__(self, doh_url: str):
+        self._doh_url = doh_url
+        self._proxy_endpoint = ""
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        middleware = cls(cgs_cfg.get_doh_url())
+        crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
+        return middleware
+
+    def _ensure_proxy_endpoint(self, spider):
+        if not self._proxy_endpoint:
+            self._proxy_endpoint = ensure_doh_connect_proxy_started(self._doh_url)
+            spider.logger.info(
+                f"Scrapy DoH proxy enabled | doh={self._doh_url} | proxy={self._proxy_endpoint}"
+            )
+        return self._proxy_endpoint
+
+    def spider_opened(self, spider):
+        if not self._doh_url:
+            return
+        self._ensure_proxy_endpoint(spider)
+
+    def process_request(self, request, spider):
+        if not self._doh_url or request.meta.get('proxy'):
+            return None
+        parsed = urlparse(request.url)
+        if parsed.scheme != "https" or parsed.hostname == "fakefakefa.com":
+            return None
+        request.meta['proxy'] = f"http://{self._ensure_proxy_endpoint(spider)}"
+        return None
 
 
 class RefererMiddleware(ComicspiderDownloaderMiddleware):

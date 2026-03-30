@@ -21,7 +21,8 @@ class JmSpider(BaseComicSpider2):
         "DOWNLOADER_MIDDLEWARES": {
             'ComicSpider.middlewares.UAMiddleware': 5,
             'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
-            'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4,
+            'ComicSpider.middlewares.ComicDlProxyMiddleware': 4,
+            # 'ComicSpider.middlewares.ScrapyDoHProxyMiddleware': 8,
             'ComicSpider.middlewares.RefererMiddleware': 10,
         }, "COOKIES_ENABLED": not conf.cookies.get(name),
     }
@@ -108,7 +109,7 @@ class JmSpider(BaseComicSpider2):
         frame_results = {}
         targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(JmUtils.parse_search_item, targets))
+            books = list(executor.map(self.ut.parser.parse_search_item, targets))
         for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f'https://{self.domain}{book.preview_url}'

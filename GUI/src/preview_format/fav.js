@@ -16,9 +16,6 @@
 
       document.addEventListener('click', this._eventHandlers.onFavoriteClick, true);
       document.addEventListener('keydown', this._eventHandlers.onFavoriteKeydown, true);
-
-      window.initFavoriteStates = (keys) => this.initFavoriteStates(keys);
-      window.updateFavoriteState = (key, isFavorited) => this.updateFavoriteState(key, isFavorited);
     }
 
     destroy() {
@@ -28,8 +25,6 @@
       if (this._eventHandlers.onFavoriteKeydown) {
         document.removeEventListener('keydown', this._eventHandlers.onFavoriteKeydown, true);
       }
-      delete window.initFavoriteStates;
-      delete window.updateFavoriteState;
     }
 
     getFavoriteButton(target) {

@@ -31,7 +31,6 @@ class BrowserPageRuntime:
         self._js_dispatcher = _JsCallDispatcher(browser)
         self._page_ready = False
         self._page_ready_announced = False
-        self._page_ready_probe_inflight = False
         self._page_load_started_at = None
         self._js_dispatch_count = 0
         self._js_callback_count = 0
@@ -40,9 +39,6 @@ class BrowserPageRuntime:
         self._top_hint_count = 0
         self._frameless_update_count = 0
         self._last_frameless_update_started_at = None
-        self._page_ready_probe = QTimer(browser)
-        self._page_ready_probe.setInterval(120)
-        self._page_ready_probe.timeout.connect(self._probe_page_ready)
         browser.view.loadStarted.connect(self._on_view_load_started)
         browser.view.loadFinished.connect(self._on_view_load_finished)
 
@@ -69,11 +65,9 @@ class BrowserPageRuntime:
     def prepare_navigation(self) -> None:
         self._page_ready = False
         self._page_ready_announced = False
-        self._stop_page_ready_probe()
         self._reset_metrics()
 
     def shutdown(self) -> None:
-        self._stop_page_ready_probe()
         self._page_ready = False
 
     def update_frameless(self, update_frameless):
@@ -226,22 +220,11 @@ class BrowserPageRuntime:
         self._frameless_update_count = 0
         self._last_frameless_update_started_at = None
 
-    def _start_page_ready_probe(self) -> None:
-        self._page_ready_probe_inflight = False
-        if self._page_ready_probe.isActive():
-            self._page_ready_probe.stop()
-        self._page_ready_probe.start()
-
-    def _stop_page_ready_probe(self) -> None:
-        self._page_ready_probe.stop()
-        self._page_ready_probe_inflight = False
-
     def _mark_page_ready(self, *, reason: str) -> None:
         if self._page_ready_announced:
             return
         self._page_ready = True
         self._page_ready_announced = True
-        self._stop_page_ready_probe()
         self._browser.view.on_page_ready()
         elapsed_ms = None
         if self._page_load_started_at is not None:
@@ -254,30 +237,10 @@ class BrowserPageRuntime:
         )
         self._browser.pageInteractive.emit(reason, float(elapsed_ms if elapsed_ms is not None else -1.0))
 
-    def _probe_page_ready(self) -> None:
-        if self._page_ready or self._page_ready_probe_inflight:
-            return
-        page = self._browser.view.page()
-        self._page_ready_probe_inflight = True
-
-        def _handle_ready_state(ready):
-            self._page_ready_probe_inflight = False
-            if page is not self._browser.view.page():
-                return
-            if ready:
-                self._mark_page_ready(reason="dom-ready")
-
-        self._run_js_now(
-            page,
-            "(function(){try{return document.readyState !== 'loading';}catch(_e){return false;}})();",
-            _handle_ready_state,
-        )
-
     def _on_view_load_started(self) -> None:
         self._page_ready = False
         self._page_ready_announced = False
         self._page_load_started_at = time.perf_counter()
-        self._start_page_ready_probe()
         current_url = self._browser.view.url().toString()
         self.log_js_debug(f"load started url={current_url!r}")
         append_browser_debug_event(
@@ -290,7 +253,6 @@ class BrowserPageRuntime:
     def _on_view_load_finished(self, ok: bool) -> None:
         self._browser.view.setFocus()
         if not ok:
-            self._stop_page_ready_probe()
             self._page_ready = False
             current_url = self._browser.view.url().toString()
             self.log_js_debug(f"load failed url={current_url!r}")

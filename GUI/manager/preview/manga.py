@@ -426,21 +426,25 @@ class MangaPreviewFeature:
         if session_id != self.mgr._session_id:
             return
         js_parts = []
-        for book_key, book_show in matched.items():
-            if book_key not in self.mgr.books_cache:
-                continue
-            dl_max_js = json.dumps(str(book_show.dl_max), ensure_ascii=False)
-            js_parts.append(f"renderCardBadgeDl({json.dumps(str(book_key))}, {dl_max_js})")
-        js_parts.append("hideScanNotification()")
-        self._js_guarded(";".join(js_parts), session_id)
         batch_items = []
-        for book_key in matched:
-            if book_key not in self.mgr.books_cache or book_key in self.episodes_cache:
+        for book_key, book_show in matched.items():
+            book = self.mgr.books_cache.get(book_key)
+            if book is None:
+                continue
+            book_key_js = json.dumps(str(book_key))
+            dl_max_js = json.dumps(str(book_show.dl_max), ensure_ascii=False)
+            js_parts.append(f"renderCardBadgeDl({book_key_js}, {dl_max_js})")
+            if book_key in self.episodes_cache:
+                latest_js = self._latest_badge_js(book_key, self.episodes_cache[book_key])
+                if latest_js:
+                    js_parts.append(latest_js)
                 continue
             token = (session_id, book_key)
             if token in self._inflight_books:
                 continue
-            batch_items.append((session_id, book_key, self.mgr.books_cache[book_key], self.mgr.site_index))
+            batch_items.append((session_id, book_key, book, self.mgr.site_index))
+        js_parts.append("hideScanNotification()")
+        self._js_guarded(";".join(js_parts), session_id)
         if batch_items and self.mgr.worker:
             for _, book_key, _, _ in batch_items:
                 self._inflight_books.add((session_id, book_key))

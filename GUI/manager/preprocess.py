@@ -56,7 +56,7 @@ class PreprocessManager(QObject):
         }
         if handler:= special.get(index):
             handler(index, generation)
-        elif hasattr(self.gui.spiderUtils, 'test_index'):
+        elif hasattr(self.gui.spiderUtils, 'test_index') or hasattr(getattr(self.gui.spiderUtils, "reqer_cls", None), 'test_index'):
             self._preprocess_test_index(index, generation)
 
         if index in Spider.aggr():
@@ -69,6 +69,9 @@ class PreprocessManager(QObject):
 
     def _cache_hit(self) -> bool:
         cache = getattr(self.gui.spiderUtils, "cachef", None)
+        if cache is None:
+            reqer_cls = getattr(self.gui.spiderUtils, "reqer_cls", None)
+            cache = getattr(reqer_cls, "cachef", None)
         return bool(cache and cache.flag != "new")
 
     def _say_cache_or(self, success_msg: str):
@@ -86,7 +89,7 @@ class PreprocessManager(QObject):
 
         def manga_copy_task():
             # 1. 更新加密缓存
-            provider.get_aes_key()
+            provider.reqer_cls.get_aes_key()
             return True
         
         def on_success(_):
@@ -137,9 +140,10 @@ class PreprocessManager(QObject):
     def _preprocess_ehentai(self, index: int, generation: int):
         eh_kits = EHentaiKits(conf)
         def ehentai_task():
+            self.gui.sut = eh_kits
             if not conf.cookies.get("ehentai"):
                 raise ValueError("cookies_not_set")
-            if not eh_kits.test_index():
+            if not eh_kits.reqer.test_index():
                 raise RuntimeError("access_fail")
             BrowserWindow.eh_kits = eh_kits
             return True
@@ -173,7 +177,8 @@ class PreprocessManager(QObject):
 
         def task():
             self.gui.sut = provider(conf)
-            if not self.gui.sut.test_index():
+            reqer = getattr(self.gui.sut, "reqer", self.gui.sut)
+            if not reqer.test_index():
                 raise RuntimeError(f"access_fail:{name}:{site_index}")
             return True
 
@@ -210,7 +215,7 @@ class PreprocessManager(QObject):
 
         def hitomi_check():
             self.gui.sut = provider(conf)
-            if not self.gui.sut.test_index():
+            if not self.gui.sut.reqer.test_index():
                 raise RuntimeError(f"test-nozomi fail:{provider.name}: {provider.test_nozomi}")
             return True
 

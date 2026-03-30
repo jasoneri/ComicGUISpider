@@ -22,7 +22,7 @@ from httpx._transports.default import (
 
 DNS_STUB_HOST = "127.0.0.1"
 DNS_STUB_PORT = 53
-DOH_WEBENGINE_PROXY_HOST = "127.0.0.1"
+DOH_WEBENGINE_PROXY_HOST = DOH_CONNECT_PROXY_HOST = "127.0.0.1"
 DEFAULT_DOH_URL = "https://cloudflare-dns.com/dns-query"
 _DOH_CACHE_SIZE = 4096
 

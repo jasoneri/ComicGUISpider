@@ -1,7 +1,5 @@
 import json
 import pathlib
-from PySide6.QtCore import Qt
-from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
 from utils.website.info import BookInfo, Episode
@@ -25,7 +23,6 @@ class ClipGUIManager:
         self.is_triggered = False
         self.tasks = []
         self.infos = {}  # 存储完整的任务信息，由single_clip_tasks_data构建
-        self.page = None
         self.clipTasksThread = None
 
     def read_clip(self):
@@ -62,7 +59,6 @@ class ClipGUIManager:
         self.gui.set_preview()
         self.gui.BrowserWindow.resize(self.gui.BrowserWindow.width(), 860)
         self.gui.BrowserWindow.show()
-        self.page = self.gui.BrowserWindow.view.page()
         self.clipTasksThread = ClipTasksThread(self.gui, match_urls)
         self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
         self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
@@ -158,19 +154,25 @@ class ClipGUIManager:
                 error_callback=lambda _exc: refresh_tf(""),
             )
 
-    def create_selected_list(self, browser_output):
-        """根据用户选择创建Selected列表"""
+    def submit_browser_selection(self):
+        browser = getattr(self.gui, "BrowserWindow", None)
+        if browser is None:
+            return
         selected_list = [
             self.infos[unique_id]
-            for unique_id in browser_output if unique_id in self.infos
+            for unique_id in list(browser.output or [])
+            if unique_id in self.infos
         ]
-        return selected_list
+        self.gui.sel_mgr.submit_decision(
+            "BOOK",
+            selected_list,
+            flow_stage=self.gui.flow_stage,
+        )
 
     def reset(self):
         """重置剪贴板状态"""
         self.is_triggered = False
         self.tasks = []
         self.infos = {}
-        self.page = None
         if self.clipTasksThread:
             self.clipTasksThread = None

@@ -3,7 +3,7 @@ import re
 
 from utils.processed_class import Url
 from utils.website import KaobeiUtils
-from utils.website.req_schema import KbFrameBook as FrameBook
+from utils.website.schema import KbFrameBook as FrameBook
 from .basecomicspider import BaseComicSpider, ComicspiderItem, conf
 
 
@@ -27,16 +27,14 @@ class KaobeiSpider(BaseComicSpider):
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
-        KaobeiUtils.get_aes_key()
+        KaobeiUtils.reqer_cls.get_aes_key()
         return super().from_crawler(crawler, *args, **kwargs)
 
     def frame_book(self, response):
         frame_results = {}
-        render_keys = self.preset_book_frame.print_head[1:]
         targets = response.json().get('results', {}).get('list', [])
-        rendering_map = self.preset_book_frame.rendering_map()
-        for x, target in enumerate(targets):
-            book = KaobeiUtils.parse_book_item(target, rendering_map, render_keys, x + 1)
+        books = self.ut.parser.parse_search_targets(targets, self.preset_book_frame)
+        for book in books:
             frame_results[book.idx] = book
         return self.say.frame_book_print(
             frame_results, url=response.url,
@@ -44,8 +42,10 @@ class KaobeiSpider(BaseComicSpider):
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        episodes = KaobeiUtils.parse_episodes(
-            response.json()['results'], book, url=response.url, show_dhb=conf.kbShowDhb)
+        episodes = self.ut.parser.parse_episodes(
+            response.json()['results'], book, url=response.url, 
+            aes_key=self.ut.reqer_cls.get_aes_key(), show_dhb=conf.kbShowDhb,
+        )
         frame_results = {ep.idx: ep for ep in episodes}
         self.say.frame_section_print(frame_results)
 
@@ -57,7 +57,9 @@ class KaobeiSpider(BaseComicSpider):
         book = ep.from_book
         uid, u_md5 = ep.id_and_md5()
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
-        imageData = KaobeiUtils.parse_page_urls_from_html(response.text, url=response.url)
+        imageData = self.ut.parser.parse_page_urls_from_html(
+            response.text, url=response.url, aes_key=self.ut.reqer_cls.get_aes_key(),
+        )
         ep.pages = len(imageData)
         self.set_task(ep)
         for page, url_item in enumerate(imageData):

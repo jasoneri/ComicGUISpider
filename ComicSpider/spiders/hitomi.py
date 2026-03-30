@@ -19,6 +19,7 @@ domain = HitomiUtils.index
 class HitomiSpider(BaseComicSpider):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {
         'ComicSpider.middlewares.ComicDlProxyMiddleware': 5,
+        # 'ComicSpider.middlewares.ScrapyDoHProxyMiddleware': 8,
         'ComicSpider.middlewares.UAMiddleware': 10,
         'ComicSpider.middlewares.FakeMiddleware': 30,
     }}
@@ -42,7 +43,7 @@ class HitomiSpider(BaseComicSpider):
             else:
                 spider.logger.error(f"Failed to initialize HitomiUtils: {str(e)}")
                 raise e
-        spider.async_cli = spider.ut.get_cli(conf, is_async=True)
+        spider.async_cli = spider.ut.reqer.get_cli(conf, is_async=True)
         return spider
 
     def _get_nozomi_sync(self, nozomi_url, page):
@@ -140,7 +141,7 @@ class HitomiSpider(BaseComicSpider):
         frame_results = {}
         texts = [target['text'] for target in rets]
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.ut.parse_search_item, texts))
+            books = list(executor.map(self.ut.parser.parse_search_item, texts))
         for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f"{self.domain}{book.preview_url}"

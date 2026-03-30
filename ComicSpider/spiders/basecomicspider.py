@@ -21,7 +21,7 @@ from utils.website import (
     correct_domain, spider_utils_map,
     InfoMinix, BookInfo, Episode
 )
-from utils.website.req_schema import BodyFormat
+from utils.website.schema import BodyFormat
 from utils.sql import SqlRecorder, SqlrV
 from utils.meta import MetaRecorder
 

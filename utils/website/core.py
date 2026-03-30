@@ -6,13 +6,14 @@ import pickle
 import copy
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 import asyncio
 import aiofiles
 
 from assets import res
+from utils.network.doh import build_http_transport
 from utils import temp_p, get_loop, ori_path, conf
 
 
@@ -147,8 +148,9 @@ class Req:
     def get_cli(cls, _conf, is_async=False, **kwargs):
         client_class = httpx.AsyncClient if is_async else httpx.Client
         transport_kw = {k: kwargs.pop(k) for k in cls._TRANSPORT_PARAMS if k in kwargs}
-        transport, trust_env = build_proxy_transport(
-            cls.proxy_policy, _conf.proxies, is_async=is_async, **transport_kw
+        transport, trust_env = build_http_transport(
+            cls.proxy_policy, _conf.proxies,
+            doh_url=getattr(_conf, "doh_url", ""), is_async=is_async, **transport_kw,
         )
         base_kwargs = {
             'headers': cls.book_hea,
@@ -166,30 +168,6 @@ class Req:
     @classmethod
     def parse_book(cls, resp_text):
         """parse book-page"""
-
-
-@dataclass(frozen=True, slots=True)
-class ProviderContext:
-    proxies: tuple[str, ...] = ()
-    cookies: dict[str, str] = field(default_factory=dict)
-    domain: str | None = None
-    custom_map: dict[str, t.Any] = field(default_factory=dict)
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        proxies: t.Iterable[str] | None = None,
-        cookies: dict[str, str] | None = None,
-        domain: str | None = None,
-        custom_map: dict[str, t.Any] | None = None,
-    ) -> "ProviderContext":
-        return cls(
-            proxies=tuple(proxies or ()),
-            cookies=dict(cookies or {}),
-            domain=domain,
-            custom_map=dict(custom_map or {}),
-        )
 
 
 class Utils:
@@ -217,10 +195,23 @@ class PreviewRequestSpec:
 
 class Previewer:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
+    cover_preload_via_http = True
 
     @classmethod
-    def preview_client_config(cls, context: ProviderContext) -> dict:
+    def preview_client_config(cls, **context) -> dict:
         return {}
+
+    @classmethod
+    def preview_transport_config(cls) -> dict:
+        return {}
+
+    @staticmethod
+    def pop_site_kwargs(kw: dict[str, t.Any]) -> dict[str, t.Any]:
+        return {
+            "cookies": kw.pop("cookies", None),
+            "domain": kw.pop("domain", None),
+            "custom_map": kw.pop("custom_map", None),
+        }
 
     @staticmethod
     def preview_origin(domain: str | None) -> str | None:
@@ -230,6 +221,100 @@ class Previewer:
         if parsed.scheme and parsed.netloc:
             return f"{parsed.scheme}://{parsed.netloc}"
         return f"https://{domain}"
+
+    @staticmethod
+    def build_referer_url(
+        referer_url: str | None,
+        *,
+        request_url: str | None = None,
+        default_scheme: str = "https",
+    ) -> str | None:
+        raw_referer = str(referer_url or "").strip()
+        if not raw_referer:
+            return None
+        request_scheme = ""
+        if request_url:
+            request_parts = urlparse(str(request_url).strip())
+            request_scheme = str(request_parts.scheme or "").strip().casefold()
+            if request_scheme and request_scheme not in {"http", "https"}:
+                return None
+        final_default_scheme = request_scheme or default_scheme
+        referer_parts = urlparse(
+            raw_referer if "://" in raw_referer else f"{final_default_scheme}://{raw_referer}"
+        )
+        referer_host = str(referer_parts.netloc or referer_parts.path or "").strip()
+        if not referer_host:
+            return None
+        referer_scheme = str(referer_parts.scheme or "").strip().casefold()
+        final_scheme = referer_scheme if referer_scheme in {"http", "https"} else final_default_scheme
+        referer_path = str(referer_parts.path or "").strip() or "/"
+        return urlunparse((
+            final_scheme,
+            referer_host,
+            referer_path,
+            "",
+            str(referer_parts.query or "").strip(),
+            "",
+        ))
+
+    @classmethod
+    def build_site_headers(
+        cls,
+        domain: str,
+        base_headers: dict[str, str] | None = None,
+        *,
+        referer_url: str | None = None,
+        cookies: dict[str, str] | None = None,
+        cookie_serializer: t.Callable[[dict[str, str]], str] | None = None,
+    ) -> dict[str, str]:
+        headers = {"Host": domain, **(base_headers or {})}
+        referer = cls.build_referer_url(referer_url)
+        if referer:
+            headers["Referer"] = referer
+        if cookies and cookie_serializer is not None:
+            cookie_str = cookie_serializer(cookies)
+            if cookie_str:
+                headers["cookie"] = cookie_str
+        return headers
+
+    @classmethod
+    def normalize_preview_resource(
+        cls, value: str | None,
+        *,
+        domain: str | None = None, default_scheme: str = "https",
+    ) -> str | None:
+        raw_value = str(value or "").strip()
+        if not raw_value:
+            return value
+        if raw_value.startswith("///"):
+            raw_value = f"//{raw_value.lstrip('/')}"
+        parsed = urlparse(raw_value)
+        if parsed.scheme in {"http", "https"}:
+            return raw_value
+        if raw_value.startswith("//"):
+            return f"{default_scheme}:{raw_value}"
+        if parsed.scheme:
+            return raw_value
+        origin = cls.preview_origin(domain)
+        if origin is None:
+            return raw_value
+        prefix = "" if raw_value.startswith("/") else "/"
+        return f"{origin}{prefix}{raw_value}"
+
+    @classmethod
+    def normalize_preview_fields(
+        cls,
+        item,
+        *,
+        domain: str | None = None,
+        attrs: tuple[str, ...] = ("preview_url", "url", "img_preview"),
+    ):
+        for attr in attrs:
+            value = getattr(item, attr, None)
+            normalized = cls.normalize_preview_resource(value, domain=domain)
+            if normalized != value:
+                setattr(item, attr, normalized)
+        return item
 
     @staticmethod
     def merge_search_mappings(base: dict | None, custom: dict | None) -> dict:
@@ -278,6 +363,7 @@ class Previewer:
     @classmethod
     async def perform_preview_request(cls, client, spec: PreviewRequestSpec, **kw):
         request_kw = dict(kw)
+        cls.pop_site_kwargs(request_kw)
         if spec.headers:
             request_kw["headers"] = spec.headers
         if spec.data is not None:
@@ -297,18 +383,16 @@ class Previewer:
         cls,
         keyword: str,
         client,
-        *,
-        page: int = 1,
-        context: ProviderContext,
+        **kw,
     ) -> list:
         raise NotImplementedError(f"{cls.__name__}.preview_search")
 
     @classmethod
-    async def preview_fetch_episodes(cls, book, client, *, context: ProviderContext) -> list:
+    async def preview_fetch_episodes(cls, book, client, **kw) -> list:
         ...
 
     @classmethod
-    async def preview_fetch_pages(cls, episode, client, *, context: ProviderContext) -> list:
+    async def preview_fetch_pages(cls, episode, client, **kw) -> list:
         raise NotImplementedError(f"{cls.__name__}.preview_fetch_pages")
 
 class EroUtils(Utils):

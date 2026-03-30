@@ -54,10 +54,7 @@ class SelectionFlowManager(QObject):
     def _clear_keep_state(self):
         self.book_choose = []
 
-    def _submit_task(self, task_info):
-        self.gui.dl_mgr.submit_download(task_info, task_info.to_tasks_obj())
-
-    def submit_decision(self, lane: str, indexes, *, page_turn: str = "", flow_stage=None):
+    def submit_decision(self, lane: str, indexes, *, flow_stage=None):
         if lane == "EP":
             book = indexes
             episodes = list(getattr(book, "episodes", None) or [])
@@ -70,7 +67,7 @@ class SelectionFlowManager(QObject):
                 return []
 
             for episode in self._current_indexes:
-                self._submit_task(episode)
+                self.gui.dl_mgr.submit_download(episode)
             self._clear_keep_state()
             self.decision_made.emit(lane, list(self._current_indexes))
             return list(self._current_indexes)
@@ -94,7 +91,7 @@ class SelectionFlowManager(QObject):
             if stage == GUIFlowStage.SEARCHED:
                 self.book_choose = list(self._current_indexes)
             for book in self._current_indexes:
-                self._submit_task(book)
+                self.gui.dl_mgr.submit_download(book)
             self._clear_keep_state()
 
         self.decision_made.emit(lane, list(self._current_indexes))

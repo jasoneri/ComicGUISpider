@@ -22,7 +22,8 @@ After the background runs, there will be a log directory, which is the same leve
 
 ### ConcurrNum / `concurr_num`
 
-effect download speed  
+Controls how many download jobs the GUI submits to Scrapy at the same time  
+Lower values can reduce rate limits or IP bans during multi-job downloads  
 
 ### Dedup / `isDeduplicate`
 

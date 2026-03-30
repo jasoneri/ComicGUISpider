@@ -22,7 +22,7 @@ def _render_preview_template(template_name: str, replacements: dict[str, str]) -
     return html
 
 
-def _write_preview_temp_html(html: str, *, prefix: str = "") -> TF:
+def _write_preview_temp_html(html: str, *, prefix: str = "tmp") -> TF:
     temp_p.mkdir(exist_ok=True)
     with tempfile.NamedTemporaryFile(
         prefix=prefix,suffix=".html",

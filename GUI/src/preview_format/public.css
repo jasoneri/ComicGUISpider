@@ -34,15 +34,6 @@ body{min-height:100vh;padding:1rem;background:radial-gradient(circle at top,rgba
     background-color: lightsalmon;
     opacity: 0.6;
 }
-.episode-downloaded {
-    filter: grayscale(100%) ;
-    opacity: 0.6;
-    transition: all 0.3s ease;
-}
-.episode-container-downloaded {
-    background-color: lightsalmon;
-    opacity: 1;
-}
 
 /* .preview-card-state-downloaded {
     opacity: 0.4;

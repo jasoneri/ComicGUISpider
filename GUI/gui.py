@@ -21,7 +21,7 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
 from GUI.core.anim import PopupAnimator
-from GUI.core.browser.site_runtime import peek_snapshot_domain
+from GUI.core.browser.browser_environment import peek_snapshot_domain
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.tools import ToolWindow, TextUtils
@@ -30,6 +30,7 @@ from GUI.manager import (
     CGSMidManagerGUI, PreviewMgr, UpdateNotifier, PublishDomainManager,
     SelectionFlowManager, DownloadRuntimeManager
 )
+from utils.config.qc import cgs_cfg
 from GUI.manager.preprocess import PreprocessManager
 from GUI.types import GUIFlowStage, SearchContextSnapshot, SearchLifecycleState
 from utils.middleware.timeline import EventSource, TimelineStage
@@ -252,7 +253,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             cookies=self._snapshot_cookies(site_index),
             domains=domains,
             custom_map=dict(conf.custom_map or {}),
+            doh_url=cgs_cfg.get_doh_url(),
         )
+
+    @property
+    def search_context(self) -> SearchContextSnapshot | None:
+        return self._search_context
 
     def update_search_context(self, snapshot: SearchContextSnapshot):
         if snapshot.site_index != self.chooseBox.currentIndex():
@@ -261,7 +267,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if getattr(self, "preview_mgr", None):
             self.preview_mgr.update_search_context(snapshot)
         if getattr(self, "BrowserWindow", None):
-            self.BrowserWindow.update_search_context(snapshot)
+            self.BrowserWindow.apply_standard_environment()
 
     def _destroy_browser_window(self):
         browser = self.BrowserWindow
@@ -293,6 +299,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
         self.sut = None
+        if index in (2,3) and not conf.proxies:
+            self.domainBtn.setVisible(True)
         if self.web_is_r18 and self.spiderUtils is not None:
             self.sut = self.spiderUtils(conf)
             self.rv_tools.ero = 1
@@ -384,6 +392,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
         self.aggrBtn.clicked.connect(self.showAggrWin)
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
+        self.domainBtn.clicked.connect(self.do_publish)
 
         _safe_disconnect(self.mpreviewBtn.clicked)
         self.mpreviewBtn.clicked.connect(self.show_preview)
@@ -436,7 +445,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
     
     def set_preview(self, rect=None):
-        sb = self.BrowserWindow = BrowserWindowCls(self, snapshot=self._search_context)
+        sb = self.BrowserWindow = BrowserWindowCls(self)
         preview_y = self.y() + self.funcGroupBox.y() - sb.height() + 25
         if rect:
             self.BrowserWindow.setGeometry(rect)
@@ -523,6 +532,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         # self.sut = None
         # self.spiderUtils = None
         # self.web_is_r18 = False
+        self.domainBtn.setVisible(False)
         self.rv_tools.ero = 0
         self.bsm = None
         self.sv_path = conf.sv_path
@@ -576,31 +586,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def next(self):
         self.log.info('===--→ nexting')
-
-        mgr = None
         if self.clip_mgr.is_triggered:
-            mgr = self.clip_mgr
-        elif hasattr(self, "ags_mgr") and self.ags_mgr.is_triggered:
-            mgr = self.ags_mgr
-
-        if mgr:
-            selected_list = mgr.create_selected_list(self.BrowserWindow.output)
-            if selected_list and len(selected_list) > 20 and int(conf.concurr_num) > 10:
-                conf.update(concurr_num=8)
-                self.say(res.SPIDER.reduce_concurrency_tip % 8)
-            self.sel_mgr.submit_decision(
-                "BOOK",
-                selected_list,
-                flow_stage=self.flow_stage,
-            )
+            self.clip_mgr.submit_browser_selection()
             return
-        idxes = f"{str(self.BrowserWindow.output)}"
-        cache = getattr(self.preview_mgr, "books_cache", {})
-        selected_books = select(idxes, {int(k): v for k, v in cache.items()})
-        self.sel_mgr.submit_decision(
-            "BOOK", selected_books,
-            flow_stage=self.flow_stage,
-        )
+        if hasattr(self, "ags_mgr") and self.ags_mgr.is_triggered:
+            self.ags_mgr.submit_browser_selection()
+            return
+        self.preview_mgr.submit_browser_selection()
 
     def crawl(self, episodes=None):
         if episodes is None:

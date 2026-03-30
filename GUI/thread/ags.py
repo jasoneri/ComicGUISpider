@@ -23,13 +23,15 @@ class AggrSearchThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        async with self.gui.sut.get_cli(conf, is_async=True) as cli:
+        reqer = getattr(self.gui.sut, "reqer", self.gui.sut)
+        parser = getattr(self.gui.sut, "parser", self.gui.sut)
+        async with reqer.get_cli(conf, is_async=True) as cli:
             total = {}
             async def fetch_single(group_idx, search_keyword: SearchKey):
                 try:
-                    search_url = self.gui.sut.build_search_url(search_keyword)
+                    search_url = reqer.build_search_url(search_keyword)
                     resp = await cli.get(search_url, follow_redirects=True, timeout=6)
-                    books = self.gui.sut.parse_search(resp.text)
+                    books = parser.parse_search(resp.text)
                     self.msleep(50)
 
                     group_books = {}
