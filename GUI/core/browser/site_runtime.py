@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from GUI.types import SearchContextSnapshot
 from assets import res
 from utils import conf, temp_p
 from utils.website import EHentaiKits, spider_utils_map
@@ -9,89 +8,59 @@ from variables import Spider
 from .types import BrowserCookieSet, BrowserEnvironmentConfig
 
 
-def build_browser_environment(gui, snapshot: SearchContextSnapshot | None) -> BrowserEnvironmentConfig:
+def build_browser_environment(browser) -> BrowserEnvironmentConfig:
+    gui = browser.gui
+    snapshot = gui.search_context
     site_index = snapshot.site_index if snapshot is not None else gui.chooseBox.currentIndex()
-    proxy = _resolve_proxy(site_index, snapshot)
-    cookie_sets: list[BrowserCookieSet] = []
-    referer_url = ""
-
-    if site_index == Spider.JM:
-        referer_url = _resolve_site_root_url(site_index, "jm", snapshot)
-        if cookie_set := _resolve_jm_cookie_set(site_index, snapshot):
-            cookie_sets.append(cookie_set)
-    elif site_index == Spider.WNACG:
-        referer_url = _resolve_site_root_url(site_index, "wnacg", snapshot)
-    elif site_index == Spider.EHENTAI:
-        if cookie_set := _resolve_ehentai_cookie_set(snapshot):
-            cookie_sets.append(cookie_set)
-    elif site_index == Spider.HITOMI:
-        referer_url = _resolve_hitomi_referer(site_index)
-
-    return BrowserEnvironmentConfig(
-        proxy=proxy,
-        referer_url=referer_url or None,
-        cookie_sets=tuple(cookie_sets),
-    )
-
-
-def _resolve_proxy(site_index: int, snapshot: SearchContextSnapshot | None) -> str | None:
     conf_proxy = (
         (snapshot.proxies or [None])[0]
         if snapshot is not None else (conf.proxies or [None])[0]
     )
-    if res.lang == "zh-CN":
-        return conf_proxy if site_index in Spider.cn_proxy() else None
-    return conf_proxy or None
+    proxy = conf_proxy if res.lang != "zh-CN" or site_index in Spider.cn_proxy() else None
+    cookie_sets: list[BrowserCookieSet] = []
+    referer_url = None
 
-
-def _resolve_ehentai_cookie_set(snapshot: SearchContextSnapshot | None) -> BrowserCookieSet | None:
-    cookies = (
-        snapshot.cookies.get("ehentai", {})
-        if snapshot is not None else conf.cookies.get("ehentai", {})
-    )
-    if not cookies:
-        return None
-    domain = (snapshot.domains.get("ehentai") if snapshot is not None else None) or EHentaiKits.domain
-    return BrowserCookieSet(values=dict(cookies), domain=domain, url=f"https://{domain}/")
-
-
-def _resolve_jm_cookie_set(site_index: int, snapshot: SearchContextSnapshot | None) -> BrowserCookieSet | None:
-    cookies = (
-        snapshot.cookies.get("jm", {})
-        if snapshot is not None else conf.cookies.get("jm", {})
-    )
-    if not cookies:
-        return None
-    domain = snapshot.domains.get("jm") if snapshot is not None else None
-    if not domain:
+    if site_index == Spider.JM:
+        domain = _resolve_site_domain(site_index, "jm", snapshot)
+        referer_url = f"https://{domain}"
+        cookies = snapshot.cookies.get("jm", {}) if snapshot is not None else conf.cookies.get("jm", {})
+        if cookies:
+            cookie_sets.append(BrowserCookieSet(values=dict(cookies), domain=domain, url=referer_url))
+    elif site_index == Spider.WNACG:
+        referer_url = f"https://{_resolve_site_domain(site_index, 'wnacg', snapshot)}"
+    elif site_index == Spider.EHENTAI:
+        cookies = snapshot.cookies.get("ehentai", {}) if snapshot is not None else conf.cookies.get("ehentai", {})
+        if cookies:
+            domain = (snapshot.domains.get("ehentai") if snapshot is not None else None) or EHentaiKits.domain
+            cookie_sets.append(BrowserCookieSet(values=dict(cookies), domain=domain, url=f"https://{domain}/"))
+    elif site_index == Spider.HITOMI:
         site_cls = spider_utils_map.get(site_index)
-        if site_cls is None:
-            raise ValueError("jm site utils unavailable")
-        domain = site_cls.get_domain()
-    return BrowserCookieSet(values=dict(cookies), domain=domain, url=f"https://{domain}")
+        if site_cls is None or not getattr(site_cls, "index", None):
+            raise ValueError("hitomi site index unavailable")
+        referer_url = str(site_cls.index)
+
+    return BrowserEnvironmentConfig(
+        proxy=proxy,
+        referer_url=referer_url,
+        cookie_sets=tuple(cookie_sets),
+    )
 
 
-def _resolve_hitomi_referer(site_index: int) -> str:
-    site_cls = spider_utils_map.get(site_index)
-    if site_cls is None or not getattr(site_cls, "index", None):
-        raise ValueError("hitomi site index unavailable")
-    return str(site_cls.index)
-
-
-def _resolve_site_root_url(site_index: int, snapshot_key: str, snapshot: SearchContextSnapshot | None) -> str:
+def _resolve_site_domain(site_index: int, snapshot_key: str, snapshot) -> str:
     domain = snapshot.domains.get(snapshot_key) if snapshot is not None else None
+    if domain:
+        return str(domain).strip().rstrip("/")
+    site_cls = spider_utils_map.get(site_index)
+    if site_cls is None:
+        raise ValueError(f"site utils unavailable for {snapshot_key}")
+    domain = peek_snapshot_domain(site_cls)
+    if not domain and hasattr(site_cls, "get_domain"):
+        domain = site_cls.get_domain()
     if not domain:
-        site_cls = spider_utils_map.get(site_index)
-        if site_cls is None:
-            raise ValueError(f"site utils unavailable for {snapshot_key}")
-        domain = peek_snapshot_domain(site_cls)
-        if not domain and hasattr(site_cls, "get_domain"):
-            domain = site_cls.get_domain()
-        if not domain:
-            domain = getattr(site_cls, "domain", None)
+        domain = getattr(site_cls, "domain", None)
     if not domain:
         raise ValueError(f"{snapshot_key} site domain unavailable")
-    return f"https://{str(domain).strip().rstrip('/')}"
+    return str(domain).strip().rstrip("/")
 
 
 def peek_snapshot_domain(site_utils) -> str | None:

@@ -8,11 +8,19 @@
     init() {
       this.registerBaseWindowApi();
       this.bindBaseDocumentEvents();
+      this.initFavoriteFeature();
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => this.onDomReady(), { once: true });
         return;
       }
       this.onDomReady();
+    }
+
+    initFavoriteFeature() {
+      if (typeof MangaFavoriteFeature === 'function') {
+        this.favoriteFeature = new MangaFavoriteFeature(this.bridgeClient);
+        this.favoriteFeature.init();
+      }
     }
 
     onDomReady() {

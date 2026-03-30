@@ -1,12 +1,12 @@
-import re
-import json
 import asyncio
+import json
+import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 
 import httpx
 
-from utils.website.core import EroUtils, Req, Previewer, ProviderContext
+from utils.website.core import EroUtils, Previewer, Req
 from utils.website.info import HComicBookInfo
 
 
@@ -14,8 +14,9 @@ class HComicParseError(ValueError):
     """h-comic 解析异常，直接抛出给上层做统一错误展示。"""
 
 
-class HComicUtils(EroUtils, Req, Previewer):
+class _HComicContract:
     name = "h_comic"
+    proxy_policy = "proxy"
     domain = "h-comic.com"
     index = "https://h-comic.com"
     image_server = "https://h-comic.link/api"
@@ -31,28 +32,10 @@ class HComicUtils(EroUtils, Req, Previewer):
     uuid_regex = re.compile(r"[?&]id=(\d+)")
     book_url_regex = r"^https://h-comic\.com/comics/.+\?id=\d+"
     payload_regex = re.compile(r"data:\s*\[null,\s*(\{.*?\})\s*],\s*form:", re.S)
-    object_key_regex = re.compile(r'([{\[,]\s*)([A-Za-z_]\w*)\s*:')
+    object_key_regex = re.compile(r'([{\[,]\s*)([A-Za-z_]\w*)\s*:')  # JS object -> JSON
 
-    def __init__(self, _conf):
-        super().__init__(_conf)
-        self.cli = self.get_cli(_conf)
 
-    def test_index(self):
-        try:
-            resp = self.cli.head(self.index, follow_redirects=True, timeout=3.5)
-            resp.raise_for_status()
-        except httpx.HTTPError:
-            try:
-                resp = self.cli.get(self.index, follow_redirects=True, timeout=3.5)
-                resp.raise_for_status()
-            except httpx.HTTPError:
-                return False
-        return True
-
-    @classmethod
-    def build_search_url(cls, key):
-        return f"{cls.index}/?q={key}"
-
+class HComicParser(_HComicContract):
     @classmethod
     def _format_public_date(cls, unix_ts):
         try:
@@ -82,7 +65,7 @@ class HComicUtils(EroUtils, Req, Previewer):
         return data
 
     @classmethod
-    def _get_image_prefix(cls, comic_source):
+    def get_image_prefix(cls, comic_source):
         source_upper = (comic_source or "").upper()
         if source_upper == "MMCG_SHORT":
             suffix = "mms"
@@ -97,7 +80,7 @@ class HComicUtils(EroUtils, Req, Previewer):
         media_id = comic.get("media_id")
         if not media_id:
             return None
-        return f"{cls._get_image_prefix(comic.get('comic_source'))}/{media_id}"
+        return f"{cls.get_image_prefix(comic.get('comic_source'))}/{media_id}"
 
     @classmethod
     def _build_book_urls(cls, comic):
@@ -108,6 +91,7 @@ class HComicUtils(EroUtils, Req, Previewer):
         preview_url = f"{cls.index}/comics/{slug}?id={comic_id}"
         url = f"{cls.index}/comics/{slug}/1?id={comic_id}"
         return preview_url, url
+
     @classmethod
     def parse_search_item(cls, target):
         title_info = target.get("title") or {}
@@ -137,8 +121,8 @@ class HComicUtils(EroUtils, Req, Previewer):
     def parse_search(cls, resp_text):
         try:
             data = cls._extract_payload_data(resp_text)
-        except (ValueError, json.JSONDecodeError, TypeError) as e:
-            raise HComicParseError(f"h-comic 搜索页解析失败: {e}") from e
+        except (ValueError, json.JSONDecodeError, TypeError) as exc:
+            raise HComicParseError(f"h-comic 搜索页解析失败: {exc}") from exc
         targets = data.get("comics")
         if not isinstance(targets, list):
             raise HComicParseError("h-comic 搜索页解析失败: `comics` 字段不是列表")
@@ -148,8 +132,8 @@ class HComicUtils(EroUtils, Req, Previewer):
                 raise HComicParseError(f"h-comic 搜索页解析失败: 第 {idx} 项不是对象")
             try:
                 books.append(cls.parse_search_item(target))
-            except (KeyError, TypeError, ValueError) as e:
-                raise HComicParseError(f"h-comic 搜索条目解析失败(第 {idx} 项): {e}") from e
+            except (KeyError, TypeError, ValueError) as exc:
+                raise HComicParseError(f"h-comic 搜索条目解析失败(第 {idx} 项): {exc}") from exc
         return books
 
     @classmethod
@@ -161,38 +145,7 @@ class HComicUtils(EroUtils, Req, Previewer):
         return cls.parse_search_item(comic)
 
     @classmethod
-    def preview_client_config(cls, context: ProviderContext):
-        return {
-            'headers': cls.headers,
-            'verify': False,
-        }
-
-    @classmethod
-    def _domain_from(cls, context: ProviderContext | None) -> str:
-        return context.domain if context and context.domain else cls.domain
-
-    @classmethod
-    def _build_preview_search_request(
-        cls,
-        keyword: str,
-        *,
-        page: int = 1,
-        context: ProviderContext,
-    ):
-        domain = cls._domain_from(context)
-        return cls.build_basic_search_request(
-            keyword,
-            page=page,
-            domain=domain,
-            search_url_head=f"https://{domain}/?q=",
-            turn_page_info=cls.turn_page_info,
-            mappings=cls.mappings,
-            custom_map=context.custom_map,
-            headers=cls.headers,
-        )
-
-    @classmethod
-    def _parse_preview_books(cls, text):
+    def parse_preview_books(cls, text):
         data = cls._extract_payload_data(text)
         targets = data.get("comics")
         if not isinstance(targets, list):
@@ -203,21 +156,69 @@ class HComicUtils(EroUtils, Req, Previewer):
                 continue
             try:
                 book = cls.parse_search_item(target)
-                book.idx = idx
-                books.append(book)
             except (KeyError, TypeError, ValueError):
                 continue
+            book.idx = idx
+            books.append(book)
         return books
+
+
+class HComicReqer(_HComicContract, Req):
+    def __init__(self, _conf):
+        self.cli = self.get_cli(_conf)
+
+    def test_index(self):
+        try:
+            resp = self.cli.head(self.index, follow_redirects=True, timeout=3.5)
+            resp.raise_for_status()
+        except httpx.HTTPError:
+            try:
+                resp = self.cli.get(self.index, follow_redirects=True, timeout=3.5)
+                resp.raise_for_status()
+            except httpx.HTTPError:
+                return False
+        return True
+
+    def build_search_url(self, key):
+        return f"{self.index}/?q={key}"
+
+
+class HComicUtils(_HComicContract, EroUtils, Previewer):
+    parser = HComicParser
+    reqer_cls = HComicReqer
+
+    def __init__(self, _conf):
+        self.reqer = self.reqer_cls(_conf)
+        self.parser = self.__class__.parser
+
+    @classmethod
+    def preview_client_config(cls, **context):
+        return {
+            "headers": cls.headers,
+        }
+
+    @classmethod
+    def preview_transport_config(cls) -> dict:
+        return {"verify": False}
 
     @classmethod
     async def preview_search(
         cls,
         keyword,
         client,
-        *,
-        page=1,
-        context: ProviderContext,
+        **kw,
     ):
-        spec = cls._build_preview_search_request(keyword, page=page, context=context)
+        page = max(1, int(kw.pop("page", 1) or 1))
+        domain = kw.pop("domain", None) or cls.domain
+        spec = cls.build_basic_search_request(
+            keyword,
+            page=page,
+            domain=domain,
+            search_url_head=f"https://{domain}/?q=",
+            turn_page_info=cls.turn_page_info,
+            mappings=cls.mappings,
+            custom_map=kw.pop("custom_map", None),
+            headers=cls.headers,
+        )
         resp = await cls.perform_preview_request(client, spec)
-        return await asyncio.to_thread(cls._parse_preview_books, resp.text)
+        return await asyncio.to_thread(cls.parser.parse_preview_books, resp.text)

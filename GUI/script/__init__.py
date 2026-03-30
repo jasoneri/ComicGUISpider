@@ -241,7 +241,6 @@ class SettingInterface(QFrame):
 
         second_row = QHBoxLayout()
         self.dohBtn = PushButton("DoH", self)
-        
         self.dohBtn.setMaximumSize(QSize(80, 16777215))
         second_row.addStretch()
         second_row.addWidget(self.dohBtn)

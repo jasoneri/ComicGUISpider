@@ -130,7 +130,6 @@ def _apply_theme_globally(theme: CustTheme):
         setTheme(Theme.DARK)
     else:
         setTheme(Theme.LIGHT)
-    
     app = QApplication.instance()
     if app:
         app.setPalette(theme_mgr.theme.palette)

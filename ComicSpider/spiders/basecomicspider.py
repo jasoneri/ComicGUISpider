@@ -332,15 +332,6 @@ class BaseComicSpider(scrapy.Spider):
         canonical = task_info.to_tasks_obj()
         ctx = self._task_store()
         tasks_obj = ctx.tasks.get(canonical.taskid)
-        if tasks_obj is None:
-            tasks_obj = canonical
-            ctx.tasks[tasks_obj.taskid] = tasks_obj
-        else:
-            tasks_obj.title = canonical.title
-            tasks_obj.tasks_count = canonical.tasks_count
-            tasks_obj.title_url = canonical.title_url
-            tasks_obj.episode_name = canonical.episode_name
-            tasks_obj.cover_url = canonical.cover_url
         tasks_obj.meta_info = self.mr.toMetaInfo(task_info)
 
         self.rv_sql.write_meta(**book.to_sql())

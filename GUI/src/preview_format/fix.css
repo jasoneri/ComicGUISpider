@@ -150,19 +150,17 @@
 }
 
 .fix-preview-fragment-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.fix-preview-fragment-copy {
+/* .fix-preview-fragment-copy {
   display: grid;
   gap: 0.45rem;
   flex: 1 1 22rem;
   min-width: min(100%, 18rem);
-}
+} */
 
 .fix-preview-fragment-marker,
 .fix-preview-fragment-tail {

@@ -40,6 +40,8 @@ class BrowserChallengeSpec:
     request_capture: BrowserRequestCaptureConfig | None = None
     debug_pickle_path: str = ""
     auto_sync_on_load: bool = True
+    poll_interval_ms: int = 500
+    result_validator: Callable[["BrowserChallengeResult"], bool] | None = None
 
 
 @dataclass(frozen=True, slots=True)

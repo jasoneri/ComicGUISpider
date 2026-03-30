@@ -252,7 +252,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             f"showEvent first_show={self._first_show} visible={self.isVisible()}"
         )
         if not self.window_mode.uses_page_scan:
-            CustomInfoBar.show_custom('', 'cf盾需要人工点击，请耐心等待\n等待出现首页后会自动退回界面，全程不要主动关闭内置浏览器',
+            CustomInfoBar.show_custom('', 'cf验证需要人工点击，请耐心等待\n之后首页出现会自动退回界面，全程不要主动关闭内置浏览器',
                 parent=self, _type="INFORMATION", ib_pos=InfoBarPosition.BOTTOM_LEFT)
         if self._first_show:
             self._first_show = False

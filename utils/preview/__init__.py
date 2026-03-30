@@ -11,6 +11,27 @@ class TF(str):
 format_path = ori_path.joinpath("GUI/src/preview_format")
 
 
+def _load_preview_template(template_name: str) -> str:
+    return format_path.joinpath(template_name).read_text(encoding="utf-8")
+
+
+def _render_preview_template(template_name: str, replacements: dict[str, str]) -> str:
+    html = _load_preview_template(template_name)
+    for key, value in replacements.items():
+        html = html.replace(key, value)
+    return html
+
+
+def _write_preview_temp_html(html: str, *, prefix: str = "") -> TF:
+    temp_p.mkdir(exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        prefix=prefix,suffix=".html",
+        delete=False,dir=temp_p,
+    ) as tf:
+        tf.write(html.encode("utf-8"))
+        return TF(str(tf.name))
+
+
 class TmpFormatHtml:
     @classmethod
     def created_temp_html(cls, flag, **kw):
@@ -18,14 +39,11 @@ class TmpFormatHtml:
 
     @classmethod
     def to_publish(cls, **kw):
-        with open(format_path.joinpath('pubilsh_helper.html'), encoding='utf-8') as f:
-            html = f.read()
-        for k, w in kw.items():
-            html = html.replace(k, w)
-        with tempfile.NamedTemporaryFile(prefix="publish", suffix=".html", delete=False, dir=temp_p) as tf:
-            tf.write(bytes(html, 'utf-8'))
-            f = str(tf.name)
-        return TF(f)
+        html = _render_preview_template(
+            "pubilsh_helper.html",
+            {k: w for k, w in kw.items()},
+        )
+        return _write_preview_temp_html(html, prefix="publish")
 
 
 class PreviewHtml:
@@ -44,37 +62,23 @@ class PreviewHtml:
 
     @property
     def created_temp_html(self):
-        temp_p.mkdir(exist_ok=True)
-        with open(format_path.joinpath("index.html"), 'r', encoding='utf-8') as f:
-            format_text = f.read()
         _content = "\n".join(self.contents)
         if self.url:
-            _content += f'\n<div class="col-md-3"><p>for check current page</p><p>检查当前页数</p><p>{self.url}</p></div>'
-        html = format_text.replace("{bs_theme}", bs_theme()).replace("{body}", _content)
-        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
-        tf.write(bytes(html, 'utf-8'))
-        f = str(tf.name)
-        tf.close()
-        return TF(f)
+            _content += (f'\n<div class="preview-inline-note"><p>for check current page</p><p>检查当前页数</p><p>{self.url}</p></div>')
+        html = _render_preview_template("index.html",{"{bs_theme}": bs_theme(),"{body}": _content})
+        return _write_preview_temp_html(html)
 
 
 class PreviewByFixHtml:
     @classmethod
     def created_temp_html(cls, header_html="", upper_html="", lower_html=""):
-        temp_p.mkdir(exist_ok=True)
-        with open(format_path.joinpath("fix.html"), 'r', encoding='utf-8') as f:
-            format_text = f.read()
-        html = format_text.replace("{bs_theme}", bs_theme())
+        html = _render_preview_template("fix.html", {"{bs_theme}": bs_theme()})
         if header_html:
-            html = html.replace('<div id="fixHeader"></div>',
-                                f'<div id="fixHeader">{header_html}</div>')
+            html = html.replace('<div id="fixHeader" class="fix-preview-header"></div>',
+                f'<div id="fixHeader" class="fix-preview-header">{header_html}</div>')
         html = html.replace("{upper_body}", upper_html)
         html = html.replace("{lower_body}", lower_html)
-        tf = tempfile.NamedTemporaryFile(suffix=".html", delete=False, dir=temp_p)
-        tf.write(bytes(html, 'utf-8'))
-        f = str(tf.name)
-        tf.close()
-        return TF(f)
+        return _write_preview_temp_html(html, prefix="tmpFix")
 
 
 class PreviewByClipHtml:
@@ -84,14 +88,19 @@ class PreviewByClipHtml:
         safe_regex = html_mod.escape(url_regex)
         header = (
             f'<script>window.CLIP_MAX_TASKS={int(match_num)};</script>'
-            f'<div class="container-fluid py-2">'
-            f'<div class="row"><div class="col-auto me-auto"><h5>Current Regex：{safe_regex}</h5></div></div>'
-            f'<div class="row"><div class="col-ms"><h5>Match Tasks-num '
-            f'<span style="font-size:larger;color:#00aa00">{int(match_num)}</span></h5></div>'
-            f'<div class="col-ms-auto"><div class="progress">'
-            f'<div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" '
-            f'role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0"></div>'
-            f'</div></div></div></div>'
+            f'<section class="preview-clip-header">'
+            f'<div class="preview-clip-copy">'
+            f'<p class="preview-clip-label">Current Regex</p>'
+            f'<h2 class="preview-clip-title">{safe_regex}</h2>'
+            f'</div>'
+            f'<div class="preview-clip-status">'
+            f'<p class="preview-clip-count">Match Tasks-num <span>{int(match_num)}</span></p>'
+            f'<div class="preview-clip-progress" role="progressbar" aria-label="Clip task progress" '
+            f'aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">'
+            f'<div id="progress-bar" class="preview-clip-progress__bar" style="width:0"></div>'
+            f'</div>'
+            f'</div>'
+            f'</section>'
         )
         return PreviewByFixHtml.created_temp_html(header_html=header)
 

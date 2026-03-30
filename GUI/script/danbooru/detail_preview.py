@@ -243,7 +243,7 @@ class DanbooruDetailPreviewController(QtCore.QObject):
             self._prefetching_post_ids.discard(post.post_id)
         if spec.challenge_placeholder and self.matches(post_id=post.post_id):
             self.viewer.set_placeholder(spec.challenge_placeholder)
-        self.interface.handle_danbooru_challenge(
+        self.interface.challenge_controller.submit(
             tab_id,
             challenge,
             lambda current_spec=spec, current_tab_id=tab_id, current_post=post: self._retry_request(

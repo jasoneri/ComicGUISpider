@@ -486,7 +486,7 @@ class DanbooruSearchController:
             if replace or page <= 1
             else (lambda tid=tab_id: self.load_next_page(tid))
         )
-        self.interface.handle_danbooru_challenge(
+        self.interface.challenge_controller.submit(
             tab_id,
             challenge,
             retry_callback,
@@ -526,7 +526,7 @@ class DanbooruSearchController:
             return
         if payload.challenge is not None:
             card.preview_button.setText("需要验证")
-            self.interface.handle_danbooru_challenge(
+            self.interface.challenge_controller.submit(
                 tab_id,
                 payload.challenge,
                 lambda tid=tab_id, pid=post_id: self.retry_card_preview(tid, pid),
@@ -577,7 +577,7 @@ class DanbooruSearchController:
         tab = self.interface.tabs.get(tab_id)
         if tab is None:
             return
-        self.interface.handle_danbooru_challenge(
+        self.interface.challenge_controller.submit(
             tab_id,
             challenge,
             lambda tid=tab_id: self.convert_term(tid),

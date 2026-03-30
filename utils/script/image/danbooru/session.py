@@ -152,6 +152,12 @@ class DanbooruBrowserSession:
     def header_names(self) -> list[str]:
         return sorted({name for name, _value in self.headers if name})
 
+    @property
+    def has_clearance_cookie(self) -> bool:
+        cookie_names = {name.casefold() for name in self.cookie_names}
+        cookie_names.update(name.casefold() for name in self.cookie_header_names())
+        return "cf_clearance" in cookie_names
+
     def cookie_header(self) -> str:
         return "; ".join(f"{cookie.name}={cookie.value}" for cookie in self.cookies if cookie.name)
 

@@ -175,8 +175,8 @@ class BrowserPageRuntime:
 
         target_page.toHtml(lambda html: QTimer.singleShot(0, lambda html=html: handle_raw(html)))
 
-    def run_page_scan(self, after_callback, *, uses_page_scan: bool):
-        if not uses_page_scan:
+    def run_page_scan(self, after_callback):
+        if not self._browser.window_mode.uses_page_scan:
             self._browser.output = []
             after_callback()
             return

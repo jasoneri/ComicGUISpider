@@ -3,12 +3,38 @@ from __future__ import annotations
 from PySide6 import QtNetwork
 from PySide6.QtCore import QUrl
 
+from utils.network.extra import ensure_doh_webengine_proxy_started
 from .runtime import (
     BrowserCookieSnapshotCollector,
     BrowserLiveCookieTracker,
     append_browser_debug_event,
 )
 from .types import BrowserChallengeResult, BrowserChallengeSpec
+
+
+class BrowserDoHProxyRuntime:
+    def __init__(self, browser):
+        self._browser = browser
+        self._managed_proxy = False
+        self._previous_application_proxy = None
+
+    def apply(self, doh_url: str) -> None:
+        proxy_str = ensure_doh_webengine_proxy_started(doh_url)
+        if not self._managed_proxy:
+            self._previous_application_proxy = QtNetwork.QNetworkProxy.applicationProxy()
+        self._managed_proxy = True
+        if proxy_str:
+            self._browser.set_proxies(proxy_str)
+            return
+        self._browser.clear_proxies()
+
+    def restore(self) -> None:
+        if not self._managed_proxy:
+            return
+        previous = self._previous_application_proxy or QtNetwork.QNetworkProxy(QtNetwork.QNetworkProxy.NoProxy)
+        QtNetwork.QNetworkProxy.setApplicationProxy(previous)
+        self._previous_application_proxy = None
+        self._managed_proxy = False
 
 
 class BrowserWindowModeController:
@@ -18,8 +44,7 @@ class BrowserWindowModeController:
         self._ensure_callback = browser.gui.next
         self._close_handler = None
         self._uses_page_scan = True
-        self._managed_proxy = False
-        self._previous_application_proxy = None
+        self._doh_proxy_runtime = BrowserDoHProxyRuntime(browser)
         self._cookie_collector = None
         self._live_cookie_tracker = None
 
@@ -45,7 +70,7 @@ class BrowserWindowModeController:
         self._uses_page_scan = True
         self.stop_cookie_watch()
         self._interceptor.clear_request_capture()
-        self._restore_managed_proxy()
+        self._doh_proxy_runtime.restore()
         self._browser.copyBtn.show()
         self._browser.ensureBtn.setToolTip(ensure_tooltip)
         self._browser.setWindowTitle(window_title)
@@ -57,18 +82,14 @@ class BrowserWindowModeController:
         ensure_handler=None,
         close_handler=None,
     ) -> None:
-        from utils.script.doh import ensure_doh_webengine_proxy_started
-
         self._uses_page_scan = False
         self._ensure_callback = ensure_handler or (lambda: None)
         self._close_handler = close_handler
         self._browser.home_url = QUrl(str(spec.verify_url))
         if spec.doh_url:
-            proxy_str = ensure_doh_webengine_proxy_started(spec.doh_url)
-            if proxy_str:
-                self._apply_managed_proxy(proxy_str)
+            self._doh_proxy_runtime.apply(spec.doh_url)
         else:
-            self._restore_managed_proxy()
+            self._doh_proxy_runtime.restore()
         if spec.window_title:
             self._browser.setWindowTitle(spec.window_title)
         self._browser.ensureBtn.setToolTip("继续请求")
@@ -161,7 +182,7 @@ class BrowserWindowModeController:
     def shutdown(self) -> None:
         self.stop_cookie_watch()
         self._interceptor.clear_request_capture()
-        self._restore_managed_proxy()
+        self._doh_proxy_runtime.restore()
 
     def _current_user_agent(self) -> str:
         return self._browser.profile.httpUserAgent()
@@ -209,20 +230,3 @@ class BrowserWindowModeController:
         self._live_cookie_tracker.stop()
         self._live_cookie_tracker.deleteLater()
         self._live_cookie_tracker = None
-
-    def _apply_managed_proxy(self, proxy_str: str) -> None:
-        if not self._managed_proxy:
-            self._previous_application_proxy = QtNetwork.QNetworkProxy.applicationProxy()
-        self._managed_proxy = True
-        if proxy_str:
-            self._browser.set_proxies(proxy_str)
-        else:
-            self._browser.clear_proxies()
-
-    def _restore_managed_proxy(self) -> None:
-        if not self._managed_proxy:
-            return
-        previous = self._previous_application_proxy or QtNetwork.QNetworkProxy(QtNetwork.QNetworkProxy.NoProxy)
-        QtNetwork.QNetworkProxy.setApplicationProxy(previous)
-        self._previous_application_proxy = None
-        self._managed_proxy = False

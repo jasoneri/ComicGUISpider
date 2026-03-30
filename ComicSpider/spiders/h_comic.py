@@ -25,23 +25,15 @@ class HComicSpider(BaseComicSpider2):
     def ua(self):
         return HComicUtils.headers
 
-    # def frame_book(self, response):
-    #     frame_results = {}
-    #     books = self.ut.parse_search(response.text)
-    #     for idx, book in enumerate(books, 1):
-    #         book.idx = idx
-    #         frame_results[idx] = book
-    #     return self.say.frame_book_print(frame_results, url=response.url)
-
     def frame_section(self, response):
-        book = self.ut.parse_book(response.text)
+        book = self.ut.parser.parse_book(response.text)
         pages = int(book.pages or 0)
         if pages <= 0:
             self.say(font_color("未解析到页面信息，请稍后重试", cls="theme-err"))
             return {}
         media_id = getattr(book, "media_id", "")
         comic_source = getattr(book, "comic_source", "")
-        image_prefix = HComicUtils._get_image_prefix(comic_source)
+        image_prefix = self.ut.parser.get_image_prefix(comic_source)
         frame_results = {}
         for page in range(1, pages + 1):
             frame_results[page] = f"{image_prefix}/{media_id}/pages/{page}"

@@ -7,7 +7,6 @@
 
   const esc = previewUi.escapeHtml;
   const BADGE_ICON = '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M4 3.75A1.75 1.75 0 0 1 5.75 2h8.5A1.75 1.75 0 0 1 16 3.75v12.5a.75.75 0 0 1-1.18.616L10 13.607l-4.82 3.259A.75.75 0 0 1 4 16.25V3.75Z"/></svg>';
-  const BOOKMARK_SVG = '<svg viewBox="0 0 32 32"><g><path d="M27 4v27a1 1 0 0 1-1.625.781L16 24.281l-9.375 7.5A1 1 0 0 1 5 31V4a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4z"></path></g></svg>';
 
   function getRuntime() {
     if (!window.previewRuntime) {
@@ -134,10 +133,6 @@
     const extraInfo = options.extra_info ? `\n          <div class="card-extra-info">${options.extra_info}</div>` : '';
     return `<article class="preview-manga-card singal-task">
       <div class="book-card normal-book-card" data-book-key="${safeIdx}" data-book-title="${safeTitle}" role="button" aria-label="${safeTitle}">
-        <label class="card-favorite-btn ui-bookmark" data-book-key="${safeIdx}" role="button" tabindex="0" aria-pressed="false" aria-label="收藏/取消收藏" title="收藏/取消收藏">
-          <input class="card-favorite-input" type="checkbox" tabindex="-1" aria-hidden="true">
-          <div class="bookmark" aria-hidden="true">${BOOKMARK_SVG}</div>
-        </label>
         <div class="book-card-media">
           <img src="${safeImg}" class="book-card-cover" alt="${safeTitle}" title="${safeTitle}" onerror="this.onerror=null;this.src='../GUI/src/preview_format/placeholder.svg';">
           ${metaBadgesHtml}

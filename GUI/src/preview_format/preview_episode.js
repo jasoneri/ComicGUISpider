@@ -53,14 +53,10 @@
       window.renderCardBadgeLatest = (bookKey, latestEpName) => this.renderCardBadgeLatest(bookKey, latestEpName);
       window.showScanNotification = (message) => this.showScanNotification(message);
       window.hideScanNotification = () => this.hideScanNotification();
-      window.updateFavoriteState = (key, isFavorited) => this.updateFavoriteState(key, isFavorited);
-      window.initFavoriteStates = (keys) => this.initFavoriteStates(keys);
     }
 
     bindBaseDocumentEvents() {
       document.addEventListener('click', (event) => this.onCardClick(event));
-      document.addEventListener('click', (event) => this.onFavoriteClick(event), true);
-      document.addEventListener('keydown', (event) => this.onFavoriteKeydown(event), true);
     }
 
     onDomReadyBase() {
@@ -187,42 +183,6 @@
       const bookKey = card.dataset.bookKey;
       const title = card.dataset.bookTitle || `Book ${bookKey}`;
       this.onBookClick(bookKey, title);
-    }
-
-    getFavoriteButton(target) {
-      return target instanceof Element ? target.closest('.card-favorite-btn[data-book-key]') : null;
-    }
-
-    async toggleFavorite(button) {
-      if (!button) {
-        return;
-      }
-      const key = String(button.dataset.bookKey || '');
-      const bridge = this.bridgeClient.bridge || await this.waitForBridge('toggleFavorite');
-      if (bridge && typeof bridge.toggleFavorite === 'function') {
-        bridge.toggleFavorite(key);
-      }
-    }
-
-    async onFavoriteClick(event) {
-      const button = this.getFavoriteButton(event.target);
-      if (!button) {
-        return;
-      }
-      event.stopPropagation();
-      event.preventDefault();
-      await this.toggleFavorite(button);
-    }
-
-    onFavoriteKeydown(event) {
-      const button = this.getFavoriteButton(event.target);
-      if (!button) {
-        return;
-      }
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        button.click();
-      }
     }
 
     getEpisodeCheckboxes() {
@@ -466,14 +426,17 @@
         return;
       }
       row.querySelectorAll('.badge-latest').forEach((element) => element.remove());
-      const span = document.createElement('span');
       const dlBadge = row.querySelector('.badge-dl');
-      const dlText = dlBadge ? dlBadge.textContent.replace('DL: ', '') : '';
-      const hasUpdate = dlText && dlText !== latestEpName;
+      if (!dlBadge) {
+        return;
+      }
+      const span = document.createElement('span');
+      const dlText = dlBadge.textContent.replace('DL: ', '');
+      const hasUpdate = dlText !== latestEpName;
       span.className = hasUpdate
         ? 'book-card-badge book-card-badge-danger badge-latest status-badge-fade'
         : 'book-card-badge book-card-badge-success badge-latest status-badge-fade';
-      span.textContent = hasUpdate ? `NEW: ${latestEpName}` : 'Latest \u2713';
+      span.textContent = hasUpdate ? `NEW: ${latestEpName}` : '\u2713';
       span.title = span.textContent;
       row.appendChild(span);
     }
@@ -487,32 +450,6 @@
       this.ensureScanToast().hide();
     }
 
-    updateFavoriteState(key, isFavorited) {
-      const button = document.querySelector(`.card-favorite-btn[data-book-key="${key}"]`);
-      if (!button) {
-        return;
-      }
-      const input = button.querySelector('.card-favorite-input');
-      if (input) {
-        input.checked = isFavorited;
-      }
-      button.classList.toggle('is-favorited', isFavorited);
-      button.setAttribute('aria-pressed', String(isFavorited));
-    }
-
-    initFavoriteStates(keys) {
-      const buttons = Array.from(document.querySelectorAll('.card-favorite-btn'));
-      buttons.forEach((button) => {
-        button.classList.add('is-syncing');
-        this.updateFavoriteState(button.dataset.bookKey, false);
-      });
-      if (Array.isArray(keys)) {
-        keys.forEach((key) => this.updateFavoriteState(key, true));
-      }
-      window.requestAnimationFrame(() => {
-        buttons.forEach((button) => button.classList.remove('is-syncing'));
-      });
-    }
   }
 
   previewUi.EpisodePreviewBase = EpisodePreviewBase;

@@ -5,11 +5,13 @@ import threading
 import time
 from pathlib import Path
 from typing import Callable, Optional
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from PySide6.QtCore import QObject, QTimer, QUrl, Signal
 from PySide6.QtNetwork import QNetworkCookie
 from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
+
+from utils.website.core import Previewer
 
 from .types import BrowserCookieSet
 
@@ -37,7 +39,6 @@ class _BrowserDebugEventHub:
 
 _BROWSER_DEBUG_EVENTS = _BrowserDebugEventHub()
 _IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp", ".avif"})
-_WEB_SCHEMES = frozenset({"http", "https"})
 
 
 def set_browser_debug_event_sink(sink: Optional[Callable[[dict], None]]) -> None:
@@ -147,15 +148,21 @@ class _RequestCaptureStore:
             self._paths = ()
             self._debug_pickle_path = ""
 
-    def latest(self, *, path_suffix: str = "") -> dict:
+    def latest(self, *, url: str = "", path_suffix: str = "") -> dict:
+        normalized_url = str(url or "").strip()
         normalized_path = str(path_suffix or "").strip()
         with self._lock:
             records = list(self._records)
-        if not normalized_path:
+        if normalized_url:
+            for item in reversed(records):
+                if str(item.get("url", "")).strip() == normalized_url:
+                    return dict(item)
+        if normalized_path:
+            for item in reversed(records):
+                if str(item.get("path", "")) == normalized_path:
+                    return dict(item)
+        if not normalized_url and not normalized_path:
             return dict(records[-1]) if records else {}
-        for item in reversed(records):
-            if str(item.get("path", "")) == normalized_path:
-                return dict(item)
         return {}
 
     def should_capture(self, request_url: QUrl) -> bool:
@@ -316,6 +323,8 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
         super().__init__(parent)
         self.referer_url = None
         self._capture = _RequestCaptureStore()
+        self._recent_image_requests = _RequestCaptureStore()
+        self._recent_image_requests.configure(limit=16)
 
     def set_referer_url(self, referer_url):
         self.referer_url = referer_url
@@ -324,25 +333,6 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
     def _is_image_request(request_url: QUrl) -> bool:
         path = str(request_url.path() or "").strip()
         return Path(path).suffix.casefold() in _IMAGE_SUFFIXES
-
-    @staticmethod
-    def _build_referer_header_value(referer_url: str | None, request_url: QUrl) -> bytes | None:
-        raw_referer = str(referer_url or "").strip()
-        if not raw_referer:
-            return None
-        request_parts = urlsplit(request_url.toString())
-        request_scheme = str(request_parts.scheme or "").strip().casefold()
-        if request_scheme not in _WEB_SCHEMES:
-            return None
-        referer_parts = urlsplit(raw_referer if "://" in raw_referer else f"{request_scheme}://{raw_referer}")
-        referer_host = str(referer_parts.netloc or referer_parts.path or "").strip()
-        if not referer_host:
-            return None
-        referer_path = str(referer_parts.path or "").strip() or "/"
-        referer_header = urlunsplit((
-            request_scheme, referer_host, referer_path, str(referer_parts.query or "").strip(), "",
-        ))
-        return referer_header.encode()
 
     def configure_request_capture(
         self,
@@ -369,17 +359,24 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
     def clear_request_capture(self):
         self._capture.clear()
 
-    def latest_captured_request(self, *, path_suffix: str = "") -> dict:
-        return self._capture.latest(path_suffix=path_suffix)
+    def latest_captured_request(self, *, url: str = "", path_suffix: str = "") -> dict:
+        return self._capture.latest(url=url, path_suffix=path_suffix)
+
+    def latest_image_request(self, *, url: str = "", path_suffix: str = "") -> dict:
+        return self._recent_image_requests.latest(url=url, path_suffix=path_suffix)
 
     def interceptRequest(self, info):
         request_url = info.requestUrl()
-        referer_header = None
-        if self.referer_url and self._is_image_request(request_url):
-            referer_header = self._build_referer_header_value(self.referer_url, request_url)
-        if referer_header:
-            info.setHttpHeader(b"referer", referer_header)
-        if not self._capture.should_capture(request_url):
+        image_request = self._is_image_request(request_url)
+        if self.referer_url and image_request:
+            referer_url = Previewer.build_referer_url(
+                self.referer_url,
+                request_url=request_url.toString(),
+            )
+            if referer_url:
+                info.setHttpHeader(b"referer", referer_url.encode())
+        should_capture = self._capture.should_capture(request_url)
+        if not image_request and not should_capture:
             return
         headers = {
             _decode_browser_bytes(name): _decode_browser_bytes(value)
@@ -400,6 +397,10 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
                 headers.get("Cookie") or headers.get("cookie") or ""
             ),
         }
+        if image_request:
+            self._recent_image_requests.capture(record)
+        if not should_capture:
+            return
         debug_pickle_path = self._capture.capture(record)
         _log_browser_debug(
             self.parent(),
