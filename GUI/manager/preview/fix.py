@@ -1,5 +1,3 @@
-import json
-
 from utils.preview import PreviewByFixHtml, El
 from GUI.manager.preview.manga import MangaPreviewFeature
 
@@ -19,7 +17,7 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._inflight_book_pages.clear()
 
     def publish(self, books):
-        sid = self.mgr.begin_preview_session()
+        self.mgr.begin_preview_session()
         self._inflight_books.clear()
         self._clear_fix_state()
         self.mgr.books_cache = {str(book.idx): book for book in books}
@@ -41,9 +39,7 @@ class FixPreviewFeature(MangaPreviewFeature):
         self.mgr.show_preview(
             ensure_handler=self._handle_ensure_result,
             bridge=self.bridge,
-            on_page_ready=self._on_page_ready,
         )
-        self._start_dl_scan(sid)
 
     def shutdown(self):
         self._clear_fix_state()
@@ -53,9 +49,13 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._clear_fix_state()
         super().reset()
 
+    def _on_page_ready(self, session_id):
+        if self.mgr.books_cache and session_id not in self._dl_scan_runnables:
+            self._start_dl_scan(session_id)
+
     def _hide_scan_if_idle(self):
         if not self._inflight_pages and not self._inflight_book_pages:
-            self._js_guarded("hideScanNotification()")
+            self.mgr.send_command("preview.scan.hide", {})
 
     @staticmethod
     def _same_book(left, right) -> bool:
@@ -91,7 +91,7 @@ class FixPreviewFeature(MangaPreviewFeature):
             )
         if batch_items and self.mgr.worker:
             self.mgr.worker.enqueue_pages_batch(batch_items)
-            self._js_guarded('showScanNotification("正在获取页面信息...")')
+            self.mgr.send_command("preview.scan.show", {"message": "正在获取页面信息..."})
 
     def _queue_episode_submit(self, book_key, book, selected_eps):
         if not selected_eps:
@@ -107,7 +107,7 @@ class FixPreviewFeature(MangaPreviewFeature):
         batch_items = [(book_key, ep, self.mgr.site_index) for ep in needs_pages]
         if batch_items and self.mgr.worker:
             self.mgr.worker.enqueue_pages_batch(batch_items)
-            self._js_guarded('showScanNotification("正在获取页面信息...")')
+            self.mgr.send_command("preview.scan.show", {"message": "正在获取页面信息..."})
 
     def _submit_full_episode_book(self, session_id, book_key, book):
         if book_key in self.episodes_cache:
@@ -124,14 +124,17 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._release_dl_scan(session_id)
         if session_id != self.mgr._session_id:
             return
-        js_parts = []
+        badges = []
         for book_key, book_show in matched.items():
             if book_key not in self.mgr.books_cache:
                 continue
-            dl_max_js = json.dumps(str(book_show.dl_max), ensure_ascii=False)
-            js_parts.append(f"renderCardBadgeDl({json.dumps(str(book_key))}, {dl_max_js})")
-        js_parts.append("hideScanNotification()")
-        self._js_guarded(";".join(js_parts), session_id)
+            badges.append({"bookKey": str(book_key), "dlMax": str(book_show.dl_max)})
+        if badges:
+            self.mgr.send_command(
+                "manga.dl_scan.result",
+                {"badges": badges}, session_id=session_id,
+            )
+        self.mgr.send_command("preview.scan.hide", {}, session_id=session_id)
         batch_items = []
         for book_key in matched:
             if book_key not in self.mgr.books_cache or book_key in self.episodes_cache:
@@ -230,8 +233,10 @@ class FixPreviewFeature(MangaPreviewFeature):
         pending = self._inflight_pages.pop(book_key, None)
         if pending is not None and generation == self.mgr._generation:
             self.gui.log.error(error)
-            key_js = json.dumps(str(book_key))
-            self._js_guarded(f"showEpisodeFetchError({key_js}, '\"pages_fetch_failed\"')")
+            self.mgr.send_command(
+                "manga.episodes.error",
+                {"bookKey": str(book_key), "code": "pages_fetch_failed"},
+            )
         self._hide_scan_if_idle()
 
     def _handle_ensure_result(self):

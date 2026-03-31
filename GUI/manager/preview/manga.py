@@ -1,12 +1,10 @@
 import json
 import pickle
 import tempfile
-import time
 import traceback
 from collections import defaultdict
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
-from PySide6.QtWebChannel import QWebChannel
 
 from assets import res as ori_res
 from variables import SPIDERS
@@ -128,132 +126,6 @@ class _FavoriteStore:
         return self._favorites_dir.joinpath(f"{spider_name}_local.pkl")
 
 
-class _PreviewPageController:
-    def __init__(self, gui, bridge, get_session_id, on_page_ready):
-        self._gui = gui
-        self._bridge = bridge
-        self._get_session_id = get_session_id
-        self._on_page_ready = on_page_ready
-        self._channel = None
-        self._channel_page = None
-        self._page_ready = False
-        self._pending_js = []
-        self._page_load_page = None
-        self._show_started_at = None
-        self._queued_js_count = 0
-        self._dispatched_js_count = 0
-
-    def shutdown(self):
-        self._disconnect_page_load()
-        self._page_ready = False
-        self._pending_js.clear()
-        self._channel = None
-        self._channel_page = None
-
-    def reset_session(self):
-        self._page_ready = False
-        self._pending_js.clear()
-        self._queued_js_count = 0
-        self._dispatched_js_count = 0
-
-    def _log_debug(self, message: str):
-        logger = getattr(self._gui, "log", None)
-        if logger:
-            logger.debug(f"[preview.js] {message}")
-
-    def show(self, ensure_handler, reload_tf=True):
-        self._show_started_at = time.perf_counter()
-        browser = self._gui.present_browser(
-            ensure_handler=ensure_handler,
-            close_handler=self._on_preview_window_closed,
-            enable_page_frame=True,
-            reload_tf=reload_tf,
-        )
-        page = browser.view.page()
-        self._ensure_web_channel(page)
-        self._page_ready = False
-        self._bind_page_load(page)
-
-    def run_js(self, js, session_id):
-        if session_id != self._get_session_id():
-            return
-        if not self._page_ready:
-            self._queued_js_count += 1
-            self._pending_js.append((session_id, js))
-            return
-        if browser := self._gui.BrowserWindow:
-            self._dispatched_js_count += 1
-            browser.page_runtime.run_js(js)
-
-    def _ensure_web_channel(self, page):
-        if self._channel and self._channel_page is page:
-            return
-        self._channel = QWebChannel(page)
-        self._channel.registerObject("bridge", self._bridge)
-        page.setWebChannel(self._channel)
-        self._channel_page = page
-        self._log_debug("installed QWebChannel on preview page")
-
-    def _bind_page_load(self, page):
-        if self._page_load_page is page:
-            return
-        self._disconnect_page_load()
-        page.loadFinished.connect(self._on_page_load_finished)
-        self._page_load_page = page
-
-    def _disconnect_page_load(self):
-        if self._page_load_page is not None:
-            self._page_load_page.loadFinished.disconnect(self._on_page_load_finished)
-            self._page_load_page = None
-
-    def _on_page_load_finished(self, ok):
-        if not ok:
-            return
-        browser = self._gui.BrowserWindow
-        if not browser:
-            return
-        self._page_ready = True
-        sid = self._get_session_id()
-        pending = self._pending_js
-        self._pending_js = []
-        for saved_sid, js in pending:
-            if saved_sid == sid:
-                self._dispatched_js_count += 1
-                browser.page_runtime.run_js(js)
-        self._on_page_ready(sid)
-        elapsed_ms = None
-        if self._show_started_at is not None:
-            elapsed_ms = (time.perf_counter() - self._show_started_at) * 1000
-        self._log_debug(
-            "page ready "
-            f"session={sid} elapsed_ms={elapsed_ms:.1f} pending_flush={len(pending)} "
-            f"queued={self._queued_js_count} dispatched={self._dispatched_js_count}"
-            if elapsed_ms is not None else
-            f"page ready session={sid} pending_flush={len(pending)} "
-            f"queued={self._queued_js_count} dispatched={self._dispatched_js_count}"
-        )
-
-    def _on_preview_window_closed(self, browser, event):
-        self._disconnect_page_load()
-        self._page_ready = False
-        self._pending_js.clear()
-        self._channel = None
-        self._channel_page = None
-        event.ignore()
-
-        def _save_and_close(html):
-            if html and self._gui.tf:
-                with open(self._gui.tf, "w", encoding="utf-8") as f:
-                    f.write(html)
-            browser.close()
-
-        browser.page_runtime.page_to_html(
-            _save_and_close,
-            description="preview close HTML snapshot",
-            error_callback=lambda _exc: _save_and_close(""),
-        )
-
-
 class MangaPreviewFeature:
     def __init__(self, mgr):
         self.mgr = mgr
@@ -264,45 +136,39 @@ class MangaPreviewFeature:
         self._dl_scan_runnables = {}
         self.bridge = MangaPreviewBridge(self)
         self._favorites = _FavoriteStore(conf_dir.joinpath("manga"))
-        self._page = _PreviewPageController(
-            self.gui, self.bridge,
-            lambda: self.mgr._session_id,
-            self._sync_page_favorites,
-        )
         self._fav_completer_exists = False
         self._check_lc_completer_exists()
 
     def shutdown(self):
-        self._inflight_books.clear()
-        self._inflight_pages.clear()
-        self._dl_scan_runnables.clear()
-        self._page.shutdown()
+        self.reset()
 
     def reset(self):
         self.episodes_cache.clear()
         self._inflight_books.clear()
         self._inflight_pages.clear()
-        browser = getattr(self.gui, "BrowserWindow", None)
-        if browser:
-            browser.set_ensure_handler()
+        self._dl_scan_runnables.clear()
 
     def check_lc_completer(self):
         self._check_lc_completer_exists()
 
     def publish(self, books):
-        self.mgr._session_id += 1
-        sid = self.mgr._session_id
-        self._page.reset_session()
+        self.mgr.begin_preview_session()
         self._inflight_books.clear()
         self.mgr.books_cache = {str(book.idx): book for book in books}
         self.episodes_cache.clear()
         self.gui.clean_temp_file()
         self.gui.tf = self._write_cards_html(self._build_cards_html(books))
-        self._page.show(self._handle_ensure_result)
-        self._start_dl_scan(sid)
+        self.mgr.show_preview(
+            ensure_handler=self._handle_ensure_result,
+            bridge=self.bridge,
+        )
 
     def show_cached(self):
-        self._page.show(self._handle_ensure_result, reload_tf=False)
+        self.mgr.show_preview(
+            ensure_handler=self._handle_ensure_result,
+            reload_tf=False,
+            bridge=self.bridge,
+        )
 
     # ------------------------------------------------------------------
     # Favorites
@@ -318,11 +184,10 @@ class MangaPreviewFeature:
         if final_state and not self._fav_completer_exists:
             self._ensure_local_fav_completer()
             self._fav_completer_exists = True
-        js = (
-            f"if (typeof updateFavoriteState === 'function') "
-            f"updateFavoriteState('{book_key}', {'true' if final_state else 'false'});"
+        self.mgr.send_command(
+            "manga.favorite.state",
+            {"bookKey": str(book_key), "isFavorited": bool(final_state)},
         )
-        self._js_guarded(js, self.mgr._session_id)
 
     def _check_lc_completer_exists(self):
         kw = ori_res.GUI.local_fav
@@ -374,6 +239,11 @@ class MangaPreviewFeature:
     # JS bridge helpers
     # ------------------------------------------------------------------
 
+    def _on_page_ready(self, session_id):
+        self._sync_page_favorites(session_id)
+        if self.mgr.books_cache and session_id not in self._dl_scan_runnables:
+            self._start_dl_scan(session_id)
+
     def _sync_page_favorites(self, session_id):
         if self.mgr.books_cache:
             if self.mgr._is_local_mode:
@@ -384,15 +254,22 @@ class MangaPreviewFeature:
                     key for key, book in self.mgr.books_cache.items()
                     if self._favorites.book_unique_url(book) in favorite_urls
                 ]
-            keys_json = json.dumps(fav_keys)
-            js = (
-                f"if (typeof initFavoriteStates === 'function') initFavoriteStates({keys_json});"
+            self.mgr.send_command(
+                "manga.favorites.sync",
+                {"bookKeys": fav_keys},
+                session_id=session_id,
             )
-            self._js_guarded(js, session_id)
 
-    def _js_guarded(self, js, session_id=None):
-        sid = self.mgr._session_id if session_id is None else session_id
-        self._page.run_js(js, sid)
+    @staticmethod
+    def _latest_badge_payload(book_key, episodes):
+        if not episodes:
+            return None
+        with_idx = [ep for ep in episodes if isinstance(getattr(ep, "idx", None), (int, float))]
+        latest_ep = max(with_idx, key=lambda ep: ep.idx) if with_idx else episodes[-1]
+        return {
+            "bookKey": str(book_key),
+            "latestEpName": str(getattr(latest_ep, "name", "") or ""),
+        }
 
     # ------------------------------------------------------------------
     # Download scan
@@ -410,7 +287,11 @@ class MangaPreviewFeature:
     def _start_dl_scan(self, session_id):
         if not self.mgr.books_cache:
             return
-        self._js_guarded('showScanNotification("正在扫描下载记录...")', session_id)
+        self.mgr.send_command(
+            "preview.scan.show",
+            {"message": "正在扫描下载记录..."},
+            session_id=session_id,
+        )
         runnable = _ScanRunnable(session_id, self.mgr.books_cache.copy(), self.gui.rv_tools)
         runnable.signals.scan_done.connect(self._on_dl_scan_done)
         runnable.signals.scan_error.connect(self._on_dl_scan_error)
@@ -425,26 +306,32 @@ class MangaPreviewFeature:
         self._release_dl_scan(session_id)
         if session_id != self.mgr._session_id:
             return
-        js_parts = []
+        badges = []
         batch_items = []
         for book_key, book_show in matched.items():
             book = self.mgr.books_cache.get(book_key)
             if book is None:
                 continue
-            book_key_js = json.dumps(str(book_key))
-            dl_max_js = json.dumps(str(book_show.dl_max), ensure_ascii=False)
-            js_parts.append(f"renderCardBadgeDl({book_key_js}, {dl_max_js})")
+            badge = {"bookKey": str(book_key), "dlMax": str(book_show.dl_max)}
             if book_key in self.episodes_cache:
-                latest_js = self._latest_badge_js(book_key, self.episodes_cache[book_key])
-                if latest_js:
-                    js_parts.append(latest_js)
+                latest_payload = self._latest_badge_payload(book_key, self.episodes_cache[book_key])
+                if latest_payload:
+                    badge["latestEpName"] = latest_payload["latestEpName"]
+                badges.append(badge)
                 continue
             token = (session_id, book_key)
             if token in self._inflight_books:
+                badges.append(badge)
                 continue
+            badges.append(badge)
             batch_items.append((session_id, book_key, book, self.mgr.site_index))
-        js_parts.append("hideScanNotification()")
-        self._js_guarded(";".join(js_parts), session_id)
+        if badges:
+            self.mgr.send_command(
+                "manga.dl_scan.result",
+                {"badges": badges},
+                session_id=session_id,
+            )
+        self.mgr.send_command("preview.scan.hide", {}, session_id=session_id)
         if batch_items and self.mgr.worker:
             for _, book_key, _, _ in batch_items:
                 self._inflight_books.add((session_id, book_key))
@@ -462,7 +349,7 @@ class MangaPreviewFeature:
         if session_id != self.mgr._session_id:
             return
         self.gui.log.error(error)
-        self._js_guarded("hideScanNotification()", session_id)
+        self.mgr.send_command("preview.scan.hide", {}, session_id=session_id)
 
     # ------------------------------------------------------------------
     # Episodes
@@ -493,16 +380,23 @@ class MangaPreviewFeature:
             return
         self.episodes_cache[book_key] = episodes
         ep_data = [{"idx": ep.idx, "name": ep.name} for ep in episodes]
-        js_arg = json.dumps(json.dumps(ep_data, ensure_ascii=False))
-        self._js_guarded(f"updateEpisodes('{book_key}', {js_arg})", session_id)
+        self.mgr.send_command(
+            "manga.episodes.loaded",
+            {"bookKey": str(book_key), "episodes": ep_data},
+            session_id=session_id,
+        )
         if dled_ids := self._mark_downloaded_episodes(book_key, episodes):
-            dled_json = json.dumps(dled_ids)
-            self._js_guarded(f"markDownloadedEpisodes({dled_json})", session_id)
-        if episodes:
-            with_idx = [ep for ep in episodes if isinstance(getattr(ep, "idx", None), (int, float))]
-            latest_ep = max(with_idx, key=lambda ep: ep.idx) if with_idx else episodes[-1]
-            latest_name = json.dumps(str(getattr(latest_ep, "name", "") or ""), ensure_ascii=False)
-            self._js_guarded(f"renderCardBadgeLatest('{book_key}', {latest_name})", session_id)
+            self.mgr.send_command(
+                "manga.episodes.downloaded",
+                {"episodeIds": dled_ids},
+                session_id=session_id,
+            )
+        if latest_payload := self._latest_badge_payload(book_key, episodes):
+            self.mgr.send_command(
+                "manga.badge.latest",
+                latest_payload,
+                session_id=session_id,
+            )
 
     def _mark_downloaded_episodes(self, book_key, episodes):
         if not episodes:
@@ -530,9 +424,11 @@ class MangaPreviewFeature:
         if generation != self.mgr._generation or session_id != self.mgr._session_id:
             return
         self.gui.log.error(error)
-        key_js = json.dumps(str(book_key))
-        code_js = json.dumps("fetch_failed")
-        self._js_guarded(f"showEpisodeFetchError({key_js}, {code_js})", session_id)
+        self.mgr.send_command(
+            "manga.episodes.error",
+            {"bookKey": str(book_key), "code": "fetch_failed"},
+            session_id=session_id,
+        )
 
     # ------------------------------------------------------------------
     # Pages fetch
@@ -544,22 +440,24 @@ class MangaPreviewFeature:
             return
         if generation != self.mgr._generation:
             if not self._inflight_pages:
-                self._js_guarded("hideScanNotification()")
+                self.mgr.send_command("preview.scan.hide", {})
             return
         book, selected_eps = pending
         book.episodes = list(selected_eps)
         self.gui.sel_mgr.submit_decision("EP", book)
         if not self._inflight_pages:
-            self._js_guarded("hideScanNotification()")
+            self.mgr.send_command("preview.scan.hide", {})
 
     def on_pages_error(self, generation, book_key, error):
         self._inflight_pages.pop(book_key, None)
         if generation == self.mgr._generation:
             self.gui.log.error(error)
-            key_js = json.dumps(str(book_key))
-            self._js_guarded(f"showEpisodeFetchError({key_js}, '\"pages_fetch_failed\"')")
+            self.mgr.send_command(
+                "manga.episodes.error",
+                {"bookKey": str(book_key), "code": "pages_fetch_failed"},
+            )
         if not self._inflight_pages:
-            self._js_guarded("hideScanNotification()")
+            self.mgr.send_command("preview.scan.hide", {})
 
     # ------------------------------------------------------------------
     # Selection / ensure
@@ -616,7 +514,7 @@ class MangaPreviewFeature:
                 batch_items.append((book_key, ep, self.mgr.site_index))
         if batch_items:
             self.mgr.worker.enqueue_pages_batch(batch_items)
-            self._js_guarded('showScanNotification("正在获取页面信息...")')
+            self.mgr.send_command("preview.scan.show", {"message": "正在获取页面信息..."})
 
     def submit_page_selections(self):
         self._submit_checked_output(self._parse_checked_output())

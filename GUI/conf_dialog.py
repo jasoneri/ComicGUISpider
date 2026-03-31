@@ -177,8 +177,8 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             self.gui.open_url_by_browser(CGS_DOC)
         self.descBtn.clicked.connect(_open_docs)
         def _switch_mode():
-            conf.darkTheme = bool(self.darkTheme.isChecked())
-            theme_mgr.set_dark(conf.darkTheme)
+            checked = bool(self.darkTheme.isChecked())
+            theme_mgr.set_dark(checked, save=True)
         self.darkTheme.clicked.connect(_switch_mode)
         def _regular_update():
             self.puThread = ProjUpdateThread(self)
@@ -251,7 +251,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         # 处理cookies配置
         self._load_cookie_config()
         # 2. CheckBox类配置
-        for _ in ('addUuid', 'isDeduplicate', "darkTheme", "kbShowDhb", "skipDev"):
+        for _ in ('addUuid', 'isDeduplicate', "kbShowDhb", "skipDev"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
@@ -332,7 +332,6 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             "concurr_num": getattr(self, "concurr_numEdit").value(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "addUuid": getattr(self, "addUuid").isChecked(),
-            "darkTheme": getattr(self, "darkTheme").isChecked(),
             "kbShowDhb": getattr(self, "kbShowDhb").isChecked(),
             "skipDev": getattr(self, "skipDev").isChecked(),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,
@@ -341,6 +340,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             "completer": yaml.safe_load(cp(getattr(self, "completerEdit").toPlainText())),
             "clip_read_num": getattr(self, "clip_read_numEdit").value(),
         }
+        theme_mgr.save()
         conf.update(**config)
         
         if sv_path != str(conf.sv_path):  # after conf.update(sv_path)

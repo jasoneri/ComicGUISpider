@@ -36,7 +36,8 @@ def get_httpx_verify():
 
 
 def bs_theme():
-    return "dark" if conf.darkTheme else "light"
+    from GUI.core.theme import theme_mgr
+    return "dark" if theme_mgr.is_dark else "light"
 
 
 class PresetHtmlEl:

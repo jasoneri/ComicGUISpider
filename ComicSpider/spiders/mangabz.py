@@ -2,7 +2,7 @@
 import re
 
 from utils.website import MangabzUtils
-from utils.website.req_schema import MbBody as Body, MbSearchBody as SearchBody, mb_curr_time_format as curr_time_format
+from utils.website.schema import MbBody as Body, MbSearchBody as SearchBody, mb_curr_time_format as curr_time_format
 from .basecomicspider import FormReqBaseComicSpider, ComicspiderItem
 
 domain = MangabzUtils.domain
@@ -27,19 +27,16 @@ class MangabzSpider(FormReqBaseComicSpider):
 
     def frame_book(self, response):
         frame_results = {}
-        render_keys = self.body.print_head[1:]
         targets = response.json() if isinstance(self.body, SearchBody) \
             else response.json().get('UpdateComicItems')
-        rendering_map = self.body.rendering_map()
-        for x, target in enumerate(targets):
-            book = MangabzUtils.parse_book_item(
-                target, rendering_map, render_keys, x + 1, self.domain)
+        books = self.ut.parser.parse_search_targets(targets, self.body, domain=self.domain)
+        for book in books:
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, url=response.url)
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        episodes = MangabzUtils.parse_episodes(response, book, domain)
+        episodes = self.ut.parser.parse_episodes(response, book, domain)
         frame_results = {ep.idx: ep for ep in episodes}
         return self.say.frame_section_print(frame_results)
 
@@ -47,7 +44,7 @@ class MangabzSpider(FormReqBaseComicSpider):
         ep = response.meta['ep']
         book = ep.from_book
         uid, u_md5 = ep.id_and_md5()
-        img_list = MangabzUtils.parse_page_urls_from_html(response.text)
+        img_list = self.ut.parser.parse_page_urls_from_html(response.text)
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
         ep.pages = len(img_list)
         self.set_task(ep)

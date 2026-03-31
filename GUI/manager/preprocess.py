@@ -6,7 +6,7 @@ from dataclasses import replace
 import psutil
 import httpx
 from PySide6.QtCore import Qt, QObject
-from qfluentwidgets import InfoBar, InfoBarPosition, setTheme
+from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
 from variables import PYPI_SOURCE, VER, Spider, SPIDERS, CGS_DOC
@@ -16,7 +16,7 @@ from GUI.browser_window import BrowserWindow
 from GUI.manager import _UpdateLauncher
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import CustomInfoBar
-from GUI.core.theme import setupTheme, theme_mgr
+from GUI.core.theme import setupTheme
 from GUI.types import SearchContextSnapshot
 
 
@@ -283,7 +283,6 @@ class PreprocessManager(QObject):
                 from GUI.script import ScriptWindow
                 scriptWin = ScriptWindow(self.gui)
                 setupTheme(scriptWin.kemonoInterface)
-                setTheme(theme_mgr.theme.c)
                 scriptWin.show()
             kemono_flag[k] = v
             if "services" in kemono_flag and "dependencies" in kemono_flag:

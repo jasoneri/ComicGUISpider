@@ -25,7 +25,6 @@ from GUI.core.browser.window_mode import BrowserWindowModeController
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
-from GUI.core.theme import theme_mgr, CustTheme
 from assets import res
 from utils import conf
 from utils.website import EHentaiKits
@@ -38,84 +37,6 @@ class CustomWebEnginePage(QWebEnginePage):
         new_page = QWebEnginePage(self.profile(), self.parent())
         new_page.urlChanged.connect(lambda url: self.setUrl(url) if url.isValid() else None)
         return new_page
-
-
-class CustomFramelessWebEngineView(FramelessWebEngineView):
-    _SCROLLBAR_CSS_TPL = """::-webkit-scrollbar {{ width: 12px; height: 12px; }}
-::-webkit-scrollbar-track {{ background: transparent; }}
-::-webkit-scrollbar-thumb {{
-    background: rgba({rgb}, 0.35);
-    border-radius: 6px;
-    border: 3px solid transparent;
-    background-clip: content-box;
-}}
-::-webkit-scrollbar-thumb:hover {{
-    background: rgba({rgb}, 0.55);
-    background-clip: content-box;
-}}"""
-    
-    @staticmethod
-    def _get_scrollbar_css():
-        rgb = "255,255,255" if theme_mgr.get_theme() == CustTheme.DARK else "0,0,0"
-        return CustomFramelessWebEngineView._SCROLLBAR_CSS_TPL.format(rgb=rgb)
-    
-    def createPage(self):
-        return CustomWebEnginePage(self.page().profile(), self)
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.browser = parent
-        self._last_injected_css = None
-        self.setPage(self.createPage())
-        theme_mgr.subscribe(self.on_theme_changed)
-
-    def on_page_ready(self):
-        self.apply_scrollbar_css(reason="page-ready")
-    
-    def on_theme_changed(self, _):
-        runtime = getattr(self.browser, "page_runtime", None)
-        if runtime is None or not runtime.page_ready:
-            return
-        self.apply_scrollbar_css(reason="theme-changed")
-
-    def apply_scrollbar_css(self, *, reason="manual"):
-        runtime = getattr(self.browser, "page_runtime", None)
-        if runtime is None or not runtime.page_ready:
-            if runtime is not None:
-                runtime.log_web_perf(f"scrollbar_css skipped reason={reason} page_ready=False")
-            return
-        css = self._get_scrollbar_css()
-        if self._last_injected_css == css:
-            runtime.log_web_perf(f"scrollbar_css skipped reason={reason} unchanged=True")
-            return
-        js = f"""(function(){{
-var id='__cgs_scrollbar__';
-var root=document.head||document.documentElement;
-if(!root) return false;
-var s=document.getElementById(id);
-if(!s){{
-  s=document.createElement('style');s.id=id;root.appendChild(s);
-}}
-if(s.textContent==={json.dumps(css)}) return false;
-s.textContent={json.dumps(css)};
-return true;
-}})();"""
-        started_at = time.perf_counter()
-
-        def _log_result(changed):
-            elapsed_ms = (time.perf_counter() - started_at) * 1000
-            if changed:
-                self._last_injected_css = css
-                runtime.record_scrollbar_css_injection(reason=reason, elapsed_ms=elapsed_ms)
-                return
-            runtime.log_web_perf(
-                f"scrollbar_css skipped reason={reason} unchanged=True elapsed_ms={elapsed_ms:.1f}"
-            )
-
-        runtime.run_js(js, _log_result, page=self.page())
-
-    def reset_scrollbar_css(self):
-        self._last_injected_css = None
 
 
 class ZoomManager:
@@ -188,7 +109,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self._first_show = True
         self.gui = gui
         self.interceptor = BrowserRequestInterceptor(self)
-        self.view = CustomFramelessWebEngineView(self)
+        self.view = FramelessWebEngineView(self)
         self.page_runtime = BrowserPageRuntime(self)
         settings = self.view.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
@@ -239,9 +160,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     def showEvent(self, event):
         super(BrowserWindow, self).showEvent(event)
-        self.page_runtime.log_web_perf(
-            f"showEvent first_show={self._first_show} visible={self.isVisible()}"
-        )
         if not self.window_mode.uses_page_scan:
             CustomInfoBar.show_custom('', 'cf验证需要人工点击，请耐心等待\n之后首页出现会自动退回界面，全程不要主动关闭内置浏览器',
                 parent=self, _type="INFORMATION", ib_pos=InfoBarPosition.BOTTOM_LEFT)
@@ -253,10 +171,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         super(BrowserWindow, self).setupUi(_window)
         self.titleBar.hide()
         self.groupBox.installEventFilter(self)
-        self.topHintBox.clicked.connect(self.keep_top_hint)
+        self.topHintBox.clicked.connect(self.keep_top_hint)  # remark: setupUi 期间禁止 keep_top_hint ，不然会造成窗口边缘无法点击伸缩
         self.topHintBox.setIcon(FIF.PIN)
-        self.topHintBox.setChecked(True)
-        self.keep_top_hint(self.topHintBox.isChecked())
         self.homeBtn.setIcon(FIF.HOME)
         self.backBtn.setIcon(FIF.LEFT_ARROW)
         self.forwardBtn.setIcon(FIF.RIGHT_ARROW)
@@ -305,11 +221,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             child = obj.childAt(event.pos())
             if event.button() == Qt.LeftButton and child is None:
                 global_point = event.globalPosition().toPoint()
-                self.page_runtime.log_web_perf(
-                    f"startSystemMove local=({event.pos().x()},{event.pos().y()}) "
-                    f"global=({global_point.x()},{global_point.y()}) child=<none> "
-                    f"page_ready={self.page_runtime.page_ready} url={self.view.url().toString()!r}"
-                )
                 startSystemMove(self, global_point)
                 return True
         return super().eventFilter(obj, event)
@@ -353,7 +264,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     def load_home(self):
         self.page_runtime.prepare_navigation()
-        self.view.reset_scrollbar_css()
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
             self.profile = self.view.page().profile()
@@ -415,18 +325,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                     hwnd, insert_after, 0, 0, 0, 0,
                     win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE
                 )
-                self.page_runtime.record_top_hint(
-                    flag=flag,
-                    elapsed_ms=(time.perf_counter() - started_at) * 1000,
-                )
                 return
         self.setWindowFlag(Qt.WindowStaysOnTopHint, flag)
         if self.isVisible():
             self.show()
-        self.page_runtime.record_top_hint(
-            flag=flag,
-            elapsed_ms=(time.perf_counter() - started_at) * 1000,
-        )
 
     def current_context_selected_text(self) -> str:
         request_getter = getattr(self.view, "lastContextMenuRequest", None)
@@ -510,8 +412,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.page_runtime.run_js(js_code)
 
     def closeEvent(self, event):
-        if hasattr(self, 'view'):
-            theme_mgr.unsubscribe(self.view.on_theme_changed)
         self.page_runtime.shutdown()
         self.window_mode.shutdown()
         if self.page_runtime.has_activity:

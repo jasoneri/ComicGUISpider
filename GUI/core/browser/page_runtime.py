@@ -35,7 +35,6 @@ class BrowserPageRuntime:
         self._js_dispatch_count = 0
         self._js_callback_count = 0
         self._js_structured_count = 0
-        self._css_injection_count = 0
         self._top_hint_count = 0
         self._frameless_update_count = 0
         self._last_frameless_update_started_at = None
@@ -86,19 +85,6 @@ class BrowserPageRuntime:
             f"page_ready={self._page_ready} visible={self._browser.isVisible()}"
         )
         return result
-
-    def record_top_hint(self, *, flag: bool, elapsed_ms: float) -> None:
-        self._top_hint_count += 1
-        self.log_web_perf(
-            f"keep_top_hint flag={flag} count={self._top_hint_count} elapsed_ms={elapsed_ms:.1f}"
-        )
-
-    def record_scrollbar_css_injection(self, *, reason: str, elapsed_ms: float) -> None:
-        self._css_injection_count += 1
-        self.log_web_perf(
-            f"scrollbar_css injected count={self._css_injection_count} reason={reason} "
-            f"elapsed_ms={elapsed_ms:.1f}"
-        )
 
     def log_js_metrics(self, scope: str, **extra) -> None:
         details = ", ".join(f"{key}={value}" for key, value in extra.items())
@@ -215,7 +201,6 @@ class BrowserPageRuntime:
         self._js_dispatch_count = 0
         self._js_callback_count = 0
         self._js_structured_count = 0
-        self._css_injection_count = 0
         self._top_hint_count = 0
         self._frameless_update_count = 0
         self._last_frameless_update_started_at = None
@@ -225,7 +210,6 @@ class BrowserPageRuntime:
             return
         self._page_ready = True
         self._page_ready_announced = True
-        self._browser.view.on_page_ready()
         elapsed_ms = None
         if self._page_load_started_at is not None:
             elapsed_ms = (time.perf_counter() - self._page_load_started_at) * 1000
@@ -284,7 +268,7 @@ class BrowserPageRuntime:
             )
         elapsed_label = f"{elapsed_ms:.1f}" if elapsed_ms is not None else "n/a"
         self.log_web_perf(
-            f"load finished elapsed_ms={elapsed_label} css_injections={self._css_injection_count} "
+            f"load finished elapsed_ms={elapsed_label} "
             f"top_hint={self._top_hint_count} frameless_updates={self._frameless_update_count}"
         )
         append_browser_debug_event(
