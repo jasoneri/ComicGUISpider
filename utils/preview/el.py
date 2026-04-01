@@ -98,7 +98,7 @@ class MangaEl(ElMinix):
         meta_badges_html = ""
         if meta_badges:
             badge_lines = "\n".join(
-                f'<span class="demo-badge demo-badge-manga-meta" title="{html.escape(str(m), quote=True)}"><span class="demo-badge-label">{html.escape(str(m), quote=True)}</span></span>'
+                f'<span class="demo-badge-manga-meta" title="{html.escape(str(m), quote=True)}"><span class="demo-badge-label">{html.escape(str(m), quote=True)}</span></span>'
                 for m in meta_badges
             )
             meta_badges_html = f'\n                    <div class="demo-badge-group demo-badge-group-bottom">{badge_lines}</div>'

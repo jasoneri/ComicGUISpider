@@ -66,7 +66,7 @@
     }
     if (options.btype) {
       const text = esc(options.btype);
-      top.push(`<span class="demo-badge demo-badge-light demo-badge-btype" title="${text}">${text}</span>`);
+      top.push(`<span class="demo-badge demo-badge-light" title="${text}">${text}</span>`);
     }
     let html = '';
     if (bottom.length) {

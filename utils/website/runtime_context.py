@@ -47,13 +47,9 @@ class PreviewRuntimeContext:
         )
         if snapshot is None:
             return cls(
-                cookies_by_site=copy.deepcopy(dict(getattr(conf_state, "cookies", None) or {})),
-                domains=copy.deepcopy(dict(getattr(conf_state, "domains", None) or {})),
-                custom_map=copy.deepcopy(dict(getattr(conf_state, "custom_map", None) or {})),
-                transport=PreviewTransportConfig.create(
-                    proxies=getattr(conf_state, "proxies", None),
-                    doh_url=fallback_doh,
-                ),
+                cookies_by_site={}, domains={},
+                custom_map=copy.deepcopy(dict(getattr(conf_state, "custom_map", {}) or {})),
+                transport=PreviewTransportConfig.create(proxies=getattr(conf_state, "proxies", None), doh_url=fallback_doh)
             )
         return cls(
             cookies_by_site=copy.deepcopy(dict(getattr(snapshot, "cookies", None) or {})),

@@ -18,7 +18,7 @@
 .preview-bulk-select .bulk-toolbar-input input{width:4rem;padding:0.46rem 0.1rem;border:0;background:transparent;color:var(--preview-text,#0f172a);text-align:center;font:inherit;font-size:0.92rem}
 .preview-bulk-select .bulk-toolbar-input input:focus{outline:0}
 .preview-bulk-select .bulk-toolbar-badge{display:inline-flex;align-items:center;justify-content:center;padding:0.45rem 0.72rem;border:1px solid rgba(var(--preview-accent-rgb,15,127,255),0.18);border-radius:0.8rem;background:rgba(var(--preview-accent-rgb,15,127,255),0.1);color:var(--preview-accent-strong,#0358b8);font-size:0.78rem;font-weight:700;line-height:1;letter-spacing:0.01em;white-space:nowrap}
-#dragSelOverlay{position:fixed;pointer-events:none;z-index:9999;display:none;box-sizing:border-box;border:2px dashed var(--preview-accent,#0f7fff);background:rgba(var(--preview-accent-rgb,15,127,255),0.08)}
+#dragSelOverlay{position:fixed;pointer-events:none;z-index:9999;display:none;box-sizing:border-box;border:2px dashed var(--preview-accent,#0f7fff);border-radius:18px;background:rgba(var(--preview-accent-rgb,15,127,255),0.08)}
 body.drag-selecting,body.drag-selecting *{user-select:none !important;-webkit-user-select:none !important;cursor:crosshair !important}
 @media (max-width:640px){.preview-bulk-select--floating{right:max(0.75rem,env(safe-area-inset-right))}
 .preview-bulk-select .bulk-toolbar-inner{width:100%}
