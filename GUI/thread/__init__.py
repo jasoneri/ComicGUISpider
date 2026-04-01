@@ -9,6 +9,7 @@ from assets import res
 from deploy.update import Proj
 from GUI.core.font import font_color
 from utils.protocol import JobAcceptedEvent, LogEvent, ProcessStateEvent, TasksObjEvent, BarProgressEvent, JobFinishedEvent, ErrorEvent
+from utils.website.registry import resolve_spider_adapter
 
 from .ags import AggrSearchThread
 
@@ -29,15 +30,15 @@ class ClipTasksThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        reqer = getattr(getattr(self.gui, "sut", None), "reqer", None) or self.gui.spiderUtils
-        parser = getattr(getattr(self.gui, "sut", None), "parser", None) or self.gui.spiderUtils
-        async with reqer.get_cli(conf, is_async=True) as cli:
+        adapter = getattr(self.gui, "spider_adapter", None) or resolve_spider_adapter(self.gui.chooseBox.currentIndex())
+        session = adapter.create_session(conf)
+        async with session.get_cli(conf, is_async=True) as cli:
             total = {}
             async def fetch_single(idx, url):
                 _idx = idx + 1
                 try:
                     resp = await cli.get(url, follow_redirects=True, timeout=6)
-                    book = parser.parse_book(resp.text)
+                    book = session.parse_book(resp.text)
                     self.msleep(30)
                     book.idx = _idx
                     book.preview_url = book.url = url

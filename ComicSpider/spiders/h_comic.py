@@ -26,14 +26,14 @@ class HComicSpider(BaseComicSpider2):
         return HComicUtils.headers
 
     def frame_section(self, response):
-        book = self.ut.parser.parse_book(response.text)
+        book = self.site.parser.parse_book(response.text)
         pages = int(book.pages or 0)
         if pages <= 0:
             self.say(font_color("未解析到页面信息，请稍后重试", cls="theme-err"))
             return {}
         media_id = getattr(book, "media_id", "")
         comic_source = getattr(book, "comic_source", "")
-        image_prefix = self.ut.parser.get_image_prefix(comic_source)
+        image_prefix = self.site.parser.get_image_prefix(comic_source)
         frame_results = {}
         for page in range(1, pages + 1):
             frame_results[page] = f"{image_prefix}/{media_id}/pages/{page}"

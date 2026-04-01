@@ -13,7 +13,6 @@ from loguru import logger
 from ComicSpider.runtime import SpiderRuntimeThread
 from utils import conf, select
 from utils.config.qc import cgs_cfg
-from utils.network.doh import build_http_transport
 from utils.protocol import (
     SpiderDownloadJob,
     JobAcceptedEvent,
@@ -24,9 +23,7 @@ from utils.protocol import (
     ProcessStateEvent,
     TasksObjEvent,
 )
-from utils.website import spider_utils_map
-from utils.website.core import Previewer
-from utils.website.runtime_context import PreviewSiteConfig
+from utils.website.registry import resolve_site_gateway
 from variables import Spider, SPIDERS
 
 is_debugging = os.getenv("CGS_DEBUG") == "1"
@@ -34,44 +31,19 @@ is_debugging = os.getenv("CGS_DEBUG") == "1"
 
 class PreviewRuntime:
     def __init__(self, site_index: int):
-        preview_cls = spider_utils_map.get(site_index)
-        if preview_cls is None:
-            raise ValueError(f"unsupported site index: {site_index}")
-        if not issubclass(preview_cls, Previewer):
-            raise TypeError(f"{preview_cls.__name__} does not support preview search")
-        self.preview_cls = preview_cls
+        self.gateway = resolve_site_gateway(site_index)
         self.site_index = site_index
         self.client: httpx.AsyncClient | None = None
         self.doh_url = cgs_cfg.get_doh_url()
-        self.site_config = PreviewSiteConfig.create(
-            preview_cls.name,
-            cookies_by_site=conf.cookies,
-            domains=getattr(conf, "domains", None),
-            custom_map=conf.custom_map,
-            proxies=conf.proxies,
-            doh_url=self.doh_url,
+        self.site_config = self.gateway.build_site_config_from_conf(
+            conf_state=conf,
+            default_doh_url=self.doh_url,
         )
-        self.site_kw = self.site_config.as_provider_kwargs()
 
     async def __aenter__(self):
-        client_kw = dict(self.preview_cls.preview_client_config(**self.site_kw) or {})
-        transport_kw = dict(self.preview_cls.preview_transport_config() or {})
-        policy = getattr(self.preview_cls, "proxy_policy", "proxy")
-        transport, trust_env = build_http_transport(
-            policy,
-            list(self.site_config.transport.proxies),
-            doh_url=self.site_config.transport.doh_url,
-            is_async=True,
-            **transport_kw,
+        self.client = self.gateway.create_async_preview_client(
+            site_config=self.site_config,
         )
-        base_kw = dict(
-            transport=transport,
-            follow_redirects=True,
-            trust_env=trust_env,
-            headers=None,
-        )
-        base_kw.update(client_kw)
-        self.client = httpx.AsyncClient(**base_kw)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -80,18 +52,18 @@ class PreviewRuntime:
             self.client = None
 
     async def search(self, keyword: str, page: int = 1):
-        return await self.preview_cls.preview_search(
+        return await self.gateway.preview_search(
             keyword,
             self.client,
             page=page,
-            **self.site_kw,
+            site_config=self.site_config,
         )
 
     async def fetch_episodes(self, book):
-        return await self.preview_cls.preview_fetch_episodes(
+        return await self.gateway.preview_fetch_episodes(
             book,
             self.client,
-            **self.site_kw,
+            site_config=self.site_config,
         )
 
 

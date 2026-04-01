@@ -28,7 +28,6 @@ class HitomiSpider(BaseComicSpider):
     ua = HitomiUtils.headers
     backend_domain = "ltn.gold-usergeneratedcontent.net"
     frame_book_format = ["lang", "title", "preview_url", "pics"]
-    ut = None
     deferred_list = []
     async_cli = None
 
@@ -36,20 +35,19 @@ class HitomiSpider(BaseComicSpider):
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super(HitomiSpider, cls).from_crawler(crawler, *args, **kwargs)
         try:
-            spider.ut = HitomiUtils(conf)
+            spider.async_cli = spider.site.get_cli(conf, is_async=True)
         except Exception as e:
             if spider.crawler and spider.crawler.engine:
                 spider.crawler.engine.close_spider(spider, reason=f"[error]{str(e)}")
             else:
                 spider.logger.error(f"Failed to initialize HitomiUtils: {str(e)}")
                 raise e
-        spider.async_cli = spider.ut.reqer.get_cli(conf, is_async=True)
         return spider
 
     def _get_nozomi_sync(self, nozomi_url, page):
         """同步包装的异步nozomi获取方法"""
         async def _async_get():
-            headers = {**HitomiUtils.headers, "Range": self.ut.get_range(page)}
+            headers = {**HitomiUtils.headers, "Range": self.site.runtime.get_range(page)}
             return await self.async_cli.get(nozomi_url, headers=headers)
 
         try:
@@ -116,7 +114,7 @@ class HitomiSpider(BaseComicSpider):
             item['title'] = book.name
             item['page'] = str(index)
             item['section'] = None
-            img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
+            img_url = self.site.runtime.get_img_url(pic_info['hash'], pic_info['hasavif'])
             item['image_urls'] = [img_url]
             item['uuid'] = this_uuid
             item['uuid_md5'] = this_md5
@@ -141,7 +139,7 @@ class HitomiSpider(BaseComicSpider):
         frame_results = {}
         texts = [target['text'] for target in rets]
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.ut.parser.parse_search_item, texts))
+            books = list(executor.map(self.site.parser.parse_search_item, texts))
         for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f"{self.domain}{book.preview_url}"

@@ -65,7 +65,7 @@ class JmSpider(BaseComicSpider2):
             elif 'book' in meta:
                 _bid = meta.get('book').id
             else:
-                _bid = self.ut.get_uuid(response.request.url, only_id=True) or ''
+                _bid = self.site.get_uuid(response.request.url, only_id=True) or ''
             return _bid
         meta = response.meta
         bid = _get_bid()
@@ -109,7 +109,7 @@ class JmSpider(BaseComicSpider2):
         frame_results = {}
         targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.ut.parser.parse_search_item, targets))
+            books = list(executor.map(self.site.parser.parse_search_item, targets))
         for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f'https://{self.domain}{book.preview_url}'

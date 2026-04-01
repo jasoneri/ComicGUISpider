@@ -11,8 +11,6 @@ from PySide6.QtCore import QObject, QTimer, QUrl, Signal
 from PySide6.QtNetwork import QNetworkCookie
 from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 
-from utils.website.core import Previewer
-
 from .types import BrowserCookieSet
 
 class _BrowserDebugEventHub:
@@ -327,7 +325,7 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
         self._recent_image_requests.configure(limit=16)
 
     def set_referer_url(self, referer_url):
-        self.referer_url = referer_url
+        self.referer_url = str(referer_url or "").strip() or None
 
     @staticmethod
     def _is_image_request(request_url: QUrl) -> bool:
@@ -369,12 +367,7 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
         request_url = info.requestUrl()
         image_request = self._is_image_request(request_url)
         if self.referer_url and image_request:
-            referer_url = Previewer.build_referer_url(
-                self.referer_url,
-                request_url=request_url.toString(),
-            )
-            if referer_url:
-                info.setHttpHeader(b"referer", referer_url.encode())
+            info.setHttpHeader(b"referer", self.referer_url.encode())
         should_capture = self._capture.should_capture(request_url)
         if not image_request and not should_capture:
             return

@@ -2,7 +2,7 @@ import json
 
 from utils.website.info import BookInfo
 from utils import conf
-from utils.processed_class import PreviewByAgsHtml
+from utils.processed_class import PreviewByFixHtml
 from GUI.thread import AggrSearchThread
 
 
@@ -21,7 +21,7 @@ class AggrSearchManager:
         self.gui.searchinput.setDisabled(True)
         self.is_triggered = True
 
-        self.gui.tf = PreviewByAgsHtml.created_temp_html()
+        self.gui.tf = PreviewByFixHtml.created_temp_html()
         self.gui.set_preview()
         self.gui.BrowserWindow.resize(self.gui.BrowserWindow.width()+20, 860)
         self.gui.BrowserWindow.show()

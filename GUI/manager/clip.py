@@ -39,11 +39,14 @@ class ClipGUIManager:
                 url=f"{CGS_DOC}/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:
+            gateway = self.gui.site_gateway
+            if gateway is None:
+                raise RuntimeError("site gateway unavailable for clip flow")
             clip = ClipSqlHandler(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
-                               getattr(self.gui.spiderUtils, "book_url_regex"))
+                               gateway.book_url_regex)
             tf, match_items = clip.create_tf()
             if not match_items:
-                self.gui.say(res.GUI.Clip.match_none % self.gui.spiderUtils.book_url_regex,
+                self.gui.say(res.GUI.Clip.match_none % gateway.book_url_regex,
                              ignore_http=True)
             else:
                 self.init_clip_handle(tf, match_items)

@@ -107,6 +107,9 @@ class SpiderRuntimeThread(threading.Thread):
         if not spider_cls_name:
             self.event_q.put(ErrorEvent(job_id=job.job_id, error=f"Unknown site_index: {job.site_index}"))
             return
+        job.runtime_success = True
+        job.runtime_error = None
+        job.finish_reason = None
         self.state.update(stage="crawling", active_job_id=job.job_id, error=None)
         self.event_q.put(JobAcceptedEvent(job_id=job.job_id))
 
@@ -119,13 +122,19 @@ class SpiderRuntimeThread(threading.Thread):
         d.addErrback(lambda f: self._on_crawl_error(job, f))
 
     def _on_crawl_finished(self, job):
-        self.state.update(stage="idle", active_job_id=None, progress=0.0)
-        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=True))
-        logger.info(f"Job {job.job_id} finished")
+        success = bool(getattr(job, "runtime_success", True))
+        error = getattr(job, "runtime_error", None)
+        stage = "idle" if success else "error"
+        self.state.update(stage=stage, active_job_id=None, progress=0.0, error=error)
+        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=success))
+        if success:
+            logger.info(f"Job {job.job_id} finished")
+        else:
+            logger.error(f"Job {job.job_id} finished with error: {error}")
 
     def _on_crawl_error(self, job, failure):
         error_msg = str(failure.value) if hasattr(failure, 'value') else str(failure)
-        self.state.update(stage="error", error=error_msg)
+        self.state.update(stage="error", active_job_id=None, progress=0.0, error=error_msg)
         self.event_q.put(ErrorEvent(job_id=job.job_id, error=error_msg))
         self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=False))
         logger.error(f"Job {job.job_id} failed: {error_msg}")

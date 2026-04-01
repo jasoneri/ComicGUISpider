@@ -42,6 +42,7 @@ class BrowserWindowModeController:
         self._browser = browser
         self._interceptor = interceptor
         self._ensure_callback = browser.gui.next
+        self._ensure_result_kind = "checked_ids"
         self._close_handler = None
         self._uses_page_scan = True
         self._doh_proxy_runtime = BrowserDoHProxyRuntime(browser)
@@ -57,17 +58,23 @@ class BrowserWindowModeController:
         return self._close_handler
 
     @property
+    def ensure_result_kind(self) -> str:
+        return self._ensure_result_kind
+
+    @property
     def uses_page_scan(self) -> bool:
         return self._uses_page_scan
 
-    def set_ensure_handler(self, callback=None) -> None:
+    def set_ensure_handler(self, callback=None, *, result_kind: str = "checked_ids") -> None:
         self._ensure_callback = callback or self._browser.gui.next
+        self._ensure_result_kind = result_kind
 
     def set_close_handler(self, callback=None) -> None:
         self._close_handler = callback
 
     def reset_standard_mode(self, *, window_title: str, ensure_tooltip: str) -> None:
         self._uses_page_scan = True
+        self._ensure_result_kind = "checked_ids"
         self.stop_cookie_watch()
         self._interceptor.clear_request_capture()
         self._doh_proxy_runtime.restore()
@@ -84,6 +91,7 @@ class BrowserWindowModeController:
     ) -> None:
         self._uses_page_scan = False
         self._ensure_callback = ensure_handler or (lambda: None)
+        self._ensure_result_kind = "checked_ids"
         self._close_handler = close_handler
         self._browser.home_url = QUrl(str(spec.verify_url))
         if spec.doh_url:

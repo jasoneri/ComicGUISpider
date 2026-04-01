@@ -36,12 +36,13 @@ from GUI.types import GUIFlowStage, SearchContextSnapshot, SearchLifecycleState
 from utils.middleware.timeline import EventSource, TimelineStage
 from variables import *
 from assets import res
-from utils import conf, p, curr_os, select, ori_path, bs_theme, temp_p
+from utils import conf, p, curr_os, select, ori_path, bs_theme
 from utils.processed_class import (
     PreviewHtml, TmpFormatHtml
 )
 from utils.redViewer_tools import Handler as rVtools
-from utils.website import spider_utils_map, InfoMinix, WnacgUtils
+from utils.website import InfoMinix, WnacgUtils
+from utils.website.registry import resolve_site_gateway, resolve_spider_adapter
 from utils.sql import SqlRecorder
 
 _UNSET = object()
@@ -63,7 +64,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
     web_is_r18 = False
-    spiderUtils = None
+    site_gateway = None
+    spider_adapter = None
     sut = None
     bsm: dict = None  # books show max
     flow_stage: GUIFlowStage = GUIFlowStage.IDLE
@@ -238,15 +240,18 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def _build_search_context_snapshot(self, site_index: int) -> SearchContextSnapshot:
         domains = {}
-        site_utils = spider_utils_map.get(site_index)
-        if site_index == Spider.JM and site_utils is not None:
-            if domain := peek_snapshot_domain(site_utils):
+        try:
+            site_gateway = resolve_site_gateway(site_index)
+        except ValueError:
+            site_gateway = None
+        if site_index == Spider.JM and site_gateway is not None:
+            if domain := peek_snapshot_domain(site_gateway):
                 domains["jm"] = domain
-        elif site_index == Spider.WNACG and site_utils is not None:
-            if domain := peek_snapshot_domain(site_utils):
+        elif site_index == Spider.WNACG and site_gateway is not None:
+            if domain := peek_snapshot_domain(site_gateway):
                 domains["wnacg"] = domain
-        elif site_index == Spider.EHENTAI and site_utils is not None:
-            domains["ehentai"] = site_utils.domain
+        elif site_index == Spider.EHENTAI and site_gateway is not None:
+            domains["ehentai"] = site_gateway.domain
         return SearchContextSnapshot(
             site_index=site_index,
             proxies=list(conf.proxies or []),
@@ -283,7 +288,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self._search_context = None
             self._search_blocked = False
             self.web_is_r18 = False
-            self.spiderUtils = None
+            self.site_gateway = None
+            self.spider_adapter = None
             self.flow_stage = GUIFlowStage.IDLE
             self.preview_mgr.handle_choosebox_changed(index, None)
             self.lifecycle_state = SearchLifecycleState.Unlocked
@@ -292,8 +298,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._search_context = self._build_search_context_snapshot(index)
         self._search_blocked = False
         self.lifecycle_state = SearchLifecycleState.LockedIdle
-        self.spiderUtils = spider_utils_map.get(index)
-        self.spiderUtils = spider_utils_map.get(index)
+        try:
+            self.site_gateway = resolve_site_gateway(index)
+        except ValueError:
+            self.site_gateway = None
+        try:
+            self.spider_adapter = resolve_spider_adapter(index)
+        except ValueError:
+            self.spider_adapter = None
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
@@ -301,8 +313,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sut = None
         if index in (2,3) and not conf.proxies:
             self.domainBtn.setVisible(True)
-        if self.web_is_r18 and self.spiderUtils is not None:
-            self.sut = self.spiderUtils(conf)
+        if self.web_is_r18 and self.site_gateway is not None:
             self.rv_tools.ero = 1
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
         FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
@@ -331,8 +342,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             case 4:
                 self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
-                if self.spiderUtils:
-                    self.say(font_color(getattr(self.res, f"{self.spiderUtils.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
+                if self.site_gateway:
+                    self.say(font_color(getattr(self.res, f"{self.site_gateway.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
         if index in Spider.mangas():
             self.say(font_color(self.res.manga_fav_tip, cls='theme-tip'))
 
@@ -460,6 +471,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def present_browser(
         self, *,
         ensure_handler=_UNSET,
+        ensure_result_kind="checked_ids",
         close_handler=None,
         enable_page_frame=False,
         reload_tf=False,
@@ -475,7 +487,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.load_home()
 
         if ensure_handler is not _UNSET:
-            self.BrowserWindow.set_ensure_handler(ensure_handler)
+            self.BrowserWindow.set_ensure_handler(ensure_handler, result_kind=ensure_result_kind)
         if close_handler:
             self.BrowserWindow.set_close_handler(close_handler)
         final_rect = self.BrowserWindow.geometry()
@@ -530,8 +542,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.ags_mgr.reset()
         # self.tf = None
         # self.sut = None
-        # self.spiderUtils = None
         # self.web_is_r18 = False
+        self.site_gateway = None
+        self.spider_adapter = None
         self.domainBtn.setVisible(False)
         self.rv_tools.ero = 0
         self.bsm = None
@@ -660,10 +673,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=3))
 
     def do_publish(self):
-        cache_file = temp_p.joinpath(f"{self.spiderUtils.name}_domain.txt")
+        gateway = self.site_gateway
+        if gateway is None:
+            raise RuntimeError("site gateway unavailable for publish flow")
+        cache_file = gateway.cache_path()
         cached = cache_file.read_text(encoding='utf-8').strip() if cache_file.exists() else ""
         self.tf = TmpFormatHtml.created_temp_html("publish",
-            bs_theme=bs_theme(), publish_url=self.spiderUtils.publish_url,
+            bs_theme=bs_theme(), publish_url=gateway.publish_url,
             wnacg_publish=WnacgUtils.publish_domain, __cached_domain__=cached
         )
         self.set_preview()

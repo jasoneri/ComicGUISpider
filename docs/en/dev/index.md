@@ -47,7 +47,7 @@ Please complete the development in the following four parts:
    - parse_search: Method to parse search.html, locate elements, and call parse_search_item to get a list of BookInfo objects
    - parse_search_item: Takes a single located element as parameter, returns a BookInfo object
    - parse_book: Method to parse book.html into a BookInfo object
-4. After completion, register the Utils class in spider_utils_map
+4. After completion, register the Utils class in `provider_map` inside `utils/website/ins.py`; the runtime will populate `site_gateway_map` and `spider_adapter_map` automatically
 
 **Part 3: UI Configuration**
 

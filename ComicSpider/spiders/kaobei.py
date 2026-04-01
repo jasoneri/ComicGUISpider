@@ -33,7 +33,7 @@ class KaobeiSpider(BaseComicSpider):
     def frame_book(self, response):
         frame_results = {}
         targets = response.json().get('results', {}).get('list', [])
-        books = self.ut.parser.parse_search_targets(targets, self.preset_book_frame)
+        books = self.site.parser.parse_search_targets(targets, self.preset_book_frame)
         for book in books:
             frame_results[book.idx] = book
         return self.say.frame_book_print(
@@ -42,9 +42,9 @@ class KaobeiSpider(BaseComicSpider):
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        episodes = self.ut.parser.parse_episodes(
+        episodes = self.site.parser.parse_episodes(
             response.json()['results'], book, url=response.url, 
-            aes_key=self.ut.reqer_cls.get_aes_key(), show_dhb=conf.kbShowDhb,
+            aes_key=self.site.reqer_cls.get_aes_key(), show_dhb=conf.kbShowDhb,
         )
         frame_results = {ep.idx: ep for ep in episodes}
         self.say.frame_section_print(frame_results)
@@ -57,8 +57,8 @@ class KaobeiSpider(BaseComicSpider):
         book = ep.from_book
         uid, u_md5 = ep.id_and_md5()
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
-        imageData = self.ut.parser.parse_page_urls_from_html(
-            response.text, url=response.url, aes_key=self.ut.reqer_cls.get_aes_key(),
+        imageData = self.site.parser.parse_page_urls_from_html(
+            response.text, url=response.url, aes_key=self.site.reqer_cls.get_aes_key(),
         )
         ep.pages = len(imageData)
         self.set_task(ep)

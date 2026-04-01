@@ -135,6 +135,7 @@ class BrowserPageRuntime:
 
     def page_to_html(self, callback, *, page=None, description="page.toHtml()", error_callback=None):
         target_page = page or self._browser.view.page()
+        current_url = target_page.url().toString()
         self._js_callback_count += 1
 
         def handle_raw(raw_html):
@@ -142,7 +143,7 @@ class BrowserPageRuntime:
                 append_browser_debug_event(
                     "browser.page_to_html",
                     description=description,
-                    current_url=(page or self._browser.view.page()).url().toString(),
+                    current_url=current_url,
                     html_length=len(raw_html),
                     html_head=raw_html[:400],
                 )
@@ -155,7 +156,7 @@ class BrowserPageRuntime:
 
         target_page.toHtml(lambda html: QTimer.singleShot(0, lambda html=html: handle_raw(html)))
 
-    def run_page_scan(self, after_callback):
+    def collect_ensure_result(self, after_callback, *, result_kind: str = "checked_ids"):
         if not self._browser.window_mode.uses_page_scan:
             self._browser.output = []
             after_callback()
@@ -187,6 +188,16 @@ class BrowserPageRuntime:
                 duration=3500,
                 parent=self._browser.view,
             )
+
+        if result_kind == "preview_submit":
+            self.run_js_result(
+                "return collectPreviewSubmitPayload();",
+                callback,
+                expected_kind="object",
+                description="collectPreviewSubmitPayload()",
+                error_callback=on_error,
+            )
+            return
 
         self.run_js_result(
             "return scanChecked();",

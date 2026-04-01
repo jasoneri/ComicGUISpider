@@ -31,20 +31,25 @@ class WnacgSpider(BaseComicSpider2):
     def ua(self):
         return WnacgUtils.build_site_headers(self.domain, WnacgUtils.book_hea)
 
+    @property
+    def image_ua(self):
+        return WnacgUtils.image_ua
+
     def preready(self):
         if self._runtime_origin:
             return
-        self.domain = self.ut.get_domain()
+        self.domain = self.site.resolve_domain()
+        self.site.reqer.domain = self.domain
         self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def frame_book(self, response):
         frame_results = {}
         targets = response.xpath('//li[contains(@class, "gallary_item")]')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.ut.parser.parse_search_item, targets))
+            books = list(executor.map(self.site.parser.parse_search_item, targets))
         for x, book in enumerate(books):
             book.idx = x + 1
-            self.ut.parser.normalize_preview_fields(book, domain=self.domain)
+            self.site.parser.normalize_preview_fields(book, domain=self.domain)
             frame_results[book.idx] = book
         return self.say.frame_book_print(frame_results, url=response.url)
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import urllib.parse as up
 
 from utils import State, re
-from utils.preview import PreviewHtml, PreviewByClipHtml, PreviewByAgsHtml, TmpFormatHtml
+from utils.preview import PreviewHtml, PreviewByClipHtml, PreviewByFixHtml, TmpFormatHtml
 from utils.website.info import InfoMinix
 
 

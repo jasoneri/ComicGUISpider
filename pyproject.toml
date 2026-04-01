@@ -32,6 +32,7 @@ dependencies = [
     "psutil",
     "redis",
     "pandas",
+    "curl-cffi>=0.14.0",
 ]
 authors = [
     {name = "jsoneri", email = "jsoneri@outlook.com"},

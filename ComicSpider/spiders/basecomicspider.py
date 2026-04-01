@@ -18,9 +18,10 @@ from utils.processed_class import TextBrowserState, ProcessState, Url
         
 from utils.protocol import SpiderDownloadJob, JobContext, LogEvent, ProcessStateEvent, TasksObjEvent
 from utils.website import (
-    correct_domain, spider_utils_map,
+    correct_domain,
     InfoMinix, BookInfo, Episode
 )
+from utils.website.registry import resolve_spider_adapter
 from utils.website.schema import BodyFormat
 from utils.sql import SqlRecorder, SqlrV
 from utils.meta import MetaRecorder
@@ -83,7 +84,8 @@ class BaseComicSpider(scrapy.Spider):
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
     say: SayToGui = None
-    ut = None
+    adapter = None
+    site = None
     record_sql: SqlRecorder = None
     rv_sql: SqlrV = None
     ua = {}
@@ -364,7 +366,8 @@ class BaseComicSpider(scrapy.Spider):
 
         spider.record_sql = SqlRecorder()
         spider.rv_sql = SqlrV(1 if spider.name in spider.settings.get('SPECIAL') else 0).connect()
-        spider.ut = spider_utils_map[spider.name]
+        spider.adapter = resolve_spider_adapter(spider.name)
+        spider.site = spider.adapter.create_session(conf)
         spider.mr = MetaRecorder(conf)
 
         if job:
@@ -384,6 +387,10 @@ class BaseComicSpider(scrapy.Spider):
 
     def close(self, reason):
         stats = self.crawler.stats
+        if self.current_job:
+            self.current_job.finish_reason = reason
+            self.current_job.runtime_success = reason == "finished"
+            self.current_job.runtime_error = reason if "error" in reason else None
         try:
             self.makesure_tasks_status()
         except Exception as e:

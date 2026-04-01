@@ -1,10 +1,9 @@
 from copy import deepcopy
-import httpx
 import os
 import typing as t
 from urllib.parse import urlparse
 
-from PySide6.QtCore import Qt, QEvent, QObject, QSize, QUrl
+from PySide6.QtCore import Qt, QEvent, QObject, QRect, QSize, QUrl
 from PySide6.QtWidgets import QWidget, QLabel, QFrame
 from PySide6.QtGui import QGuiApplication, QPixmap, QDesktopServices
 from qfluentwidgets import (
@@ -16,12 +15,9 @@ from GUI.core.anim import ExpandCollapseOrchestrator, ContentTarget
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
-from utils import conf, TaskObj, TasksObj, curr_os, get_httpx_verify
-from utils.network.doh import build_http_transport
+from utils import conf, TaskObj, TasksObj, curr_os
 from utils.sql import SqlRecorder
-from utils.website import spider_utils_map
-from utils.website.core import Previewer
-from utils.website.runtime_context import PreviewSiteConfig
+from utils.website.registry import resolve_site_gateway
 
 
 class TaskProgress:
@@ -190,10 +186,6 @@ class TaskProgressEntry:
 
     __slots__ = ("owner", "progress", "view")
 
-    BROWSER_IMAGE_ACCEPT = (
-        "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"
-    )
-
     def __init__(self, owner: "TaskProgressManager", tasks_obj: TasksObj):
         self.owner = owner
         self.progress = TaskProgress(tasks_obj)
@@ -298,13 +290,16 @@ class TaskProgressEntry:
         return path if os.path.isfile(path) else None
 
     def schedule_cover_preload(self):
-        provider_cls = spider_utils_map.get(getattr(self.tasks_obj, "source", None))
+        try:
+            gateway = resolve_site_gateway(getattr(self.tasks_obj, "source", None))
+        except ValueError:
+            gateway = None
         if (
             not self.tasks_obj.cover_url
             or self.tasks_obj.cover_bytes
             or self.cover_path()
-            or not provider_cls
-            or not getattr(provider_cls, "cover_preload_via_http", True)
+            or gateway is None
+            or not gateway.cover_preload_via_http
         ):
             return
         task_id = f"task_cover_{self.taskid}"
@@ -331,10 +326,6 @@ class TaskProgressEntry:
             self.view.set_preview_cover(self.cover_pixmap(data))
 
     def download_cover_bytes(self) -> bytes:
-        referer_url = Previewer.build_referer_url(
-            getattr(self.tasks_obj, "title_url", None),
-            request_url=getattr(self.tasks_obj, "cover_url", None),
-        )
         browser_headers = {}
         gui = self.owner.gui
         browser = getattr(gui, "BrowserWindow", None)
@@ -347,57 +338,162 @@ class TaskProgressEntry:
                 ).get("headers") or {}
             )
 
-        provider_cls = spider_utils_map.get(getattr(self.tasks_obj, "source", None))
-        if provider_cls is None:
-            raise RuntimeError(f"cover preload provider unavailable: {getattr(self.tasks_obj, 'source', None)!r}")
+        gateway = resolve_site_gateway(getattr(self.tasks_obj, "source", None))
         snapshot = getattr(gui, "_search_context", None)
-        site_config = PreviewSiteConfig.from_snapshot(
-            provider_cls.name,
-            snapshot,
+        return gateway.download_cover_bytes(
+            self.tasks_obj,
+            snapshot=snapshot,
+            browser_headers=browser_headers,
             conf_state=conf,
         )
-        site_kw = site_config.as_provider_kwargs()
-        client_kw = dict(provider_cls.preview_client_config(**site_kw) or {})
-        provider_headers = client_kw.pop("headers", {})
-        transport_kw = dict(provider_cls.preview_transport_config() or {})
-        transport_verify = transport_kw.pop("verify", get_httpx_verify())
-        transport, trust_env = build_http_transport(
-            getattr(provider_cls, "proxy_policy", "proxy"),
-            list(site_config.transport.proxies),
-            doh_url=site_config.transport.doh_url,
-            is_async=False,
-            verify=transport_verify,
-            **transport_kw,
-        )
-
-        with httpx.Client(
-            headers=getattr(provider_cls, "book_hea", None) or getattr(provider_cls, "headers", {}),
-            transport=transport,
-            trust_env=trust_env,
-            follow_redirects=True,
-            timeout=15,
-            **client_kw,
-        ) as cli:
-            headers = httpx.Headers(cli.headers)
-            headers.update(provider_headers)
-            headers.update(browser_headers)
-            if "accept" not in headers or "image/" not in headers.get("accept", ""):
-                headers["Accept"] = self.BROWSER_IMAGE_ACCEPT
-            if referer_url and "referer" not in headers:
-                headers["Referer"] = referer_url
-            resp = cli.get(self.tasks_obj.cover_url, headers=headers)
-            resp.raise_for_status()
-            return resp.content
 
 
-class ExpandPanelController(QObject):
+class TaskPanelDisplayController(QObject):
+    def __init__(self, owner: "TaskProgressManager", layout: "TaskPanelLayoutController"):
+        super().__init__()
+        self.owner = owner
+        self.layout = layout
+        self._sync_pending = False
+        self._stick_to_bottom = False
+        self._viewport = None
+
+    def bind(self):
+        self._viewport = self.owner.gui.scroll_area.viewport()
+        self._viewport.installEventFilter(self)
+        self._sync_pending = False
+        self._stick_to_bottom = False
+
+    def cleanup(self):
+        if self._viewport is not None:
+            self._viewport.removeEventFilter(self)
+            self._viewport = None
+        self._sync_pending = False
+        self._stick_to_bottom = False
+
+    def eventFilter(self, obj, event):
+        if obj is self._viewport and event.type() == QEvent.Resize:
+            self.request_refresh()
+        return False
+
+    def request_refresh(self, *, stick_to_bottom: bool = False):
+        self._stick_to_bottom = self._stick_to_bottom or stick_to_bottom
+        if not self.owner.gui.scroll_area.isVisible():
+            return
+        if self._sync_pending:
+            return
+        self._sync_pending = True
+        safe_single_shot(0, self.refresh)
+
+    def hide_panel(self):
+        self.owner.gui.scroll_area.setVisible(False)
+
+    def reset(self):
+        gui = self.owner.gui
+        self._sync_pending = False
+        self._stick_to_bottom = False
+        gui.scroll_content.setMinimumHeight(0)
+        gui.scroll_content.resize(gui.scroll_content.width(), 0)
+
+    def refresh(self):
+        self._sync_pending = False
+        gui = self.owner.gui
+        scroll_area = gui.scroll_area
+        if not scroll_area.isVisible():
+            return
+        native_bar = scroll_area.verticalScrollBar()
+        should_stick = self._stick_to_bottom or self._is_at_bottom(native_bar)
+        self._stick_to_bottom = False
+
+        viewport = scroll_area.viewport()
+        viewport_w = max(1, viewport.width())
+        viewport_h = max(0, viewport.height())
+        content_w, content_h = self.layout.layout_metrics(viewport_h)
+        target_h = max(scroll_area.viewport().height(), content_h)
+        gui.scroll_content.setMinimumHeight(target_h)
+        gui.scroll_content.resize(viewport_w, target_h)
+        gui.flow_layout.setGeometry(QRect(0, 0, content_w, content_h))
+        gui.scroll_content.updateGeometry()
+        scroll_area.widget().updateGeometry()
+        viewport.update()
+        if should_stick:
+            native_bar.setValue(native_bar.maximum())
+
+    @staticmethod
+    def _is_at_bottom(scroll_bar) -> bool:
+        if scroll_bar.maximum() <= 0:
+            return True
+        return scroll_bar.maximum() - scroll_bar.value() <= 2
+
+
+class TaskPanelLayoutController(QObject):
     def __init__(self, owner: "TaskProgressManager"):
         super().__init__()
         self.owner = owner
+
+    def panel_target_height(self, available_height: int) -> int:
+        _layout_w, content_h = self.layout_metrics(max(0, available_height))
+        if content_h <= 0:
+            return self.owner.PANEL_MIN_HEIGHT
+        return max(self.owner.PANEL_MIN_HEIGHT, min(content_h, available_height))
+
+    def layout_metrics(self, viewport_height: int | None = None) -> tuple[int, int]:
+        layout_w = self.content_width()
+        content_h = self.content_height_for_width(layout_w)
+        if viewport_height is None:
+            viewport_height = max(0, self.owner.gui.scroll_area.viewport().height())
+        if content_h <= viewport_height:
+            return layout_w, content_h
+        gutter = self.vertical_overlay_width()
+        if gutter <= 0 or layout_w <= gutter:
+            return layout_w, content_h
+        layout_w = max(1, layout_w - gutter)
+        return layout_w, self.content_height_for_width(layout_w)
+
+    def content_height_for_width(self, width: int | None = None) -> int:
+        gui = self.owner.gui
+        flow_layout = gui.flow_layout
+        if flow_layout.count() == 0:
+            return 0
+        content_w = self.content_width(width)
+        flow_layout.invalidate()
+        return max(1, flow_layout.heightForWidth(content_w))
+
+    def content_width(self, width: int | None = None) -> int:
+        if width is not None and width > 0:
+            return width
+        gui = self.owner.gui
+        viewport_w = gui.scroll_area.viewport().width()
+        if viewport_w > 0:
+            return viewport_w
+        fallback = gui.scroll_area.width() - 2
+        if fallback > 0:
+            return fallback
+        return max(1, gui.width() - 20)
+
+    def vertical_overlay_width(self) -> int:
+        delegate = getattr(self.owner.gui.scroll_area, "scrollDelagate", None)
+        if delegate is None:
+            return 0
+        scroll_bar = getattr(delegate, "vScrollBar", None)
+        if scroll_bar is None:
+            return 0
+        return max(0, scroll_bar.width() + 1)
+
+
+class ExpandPanelController(QObject):
+    def __init__(
+        self,
+        owner: "TaskProgressManager",
+        layout: TaskPanelLayoutController,
+        display: TaskPanelDisplayController,
+    ):
+        super().__init__()
+        self.owner = owner
+        self.layout = layout
+        self.display = display
         self.expand_btn = None
         self.orchestrator = None
         self._transitioning = False
-        self._sync_pending = False
 
     def bind(self, expand_btn):
         gui = self.owner.gui
@@ -412,53 +508,17 @@ class ExpandPanelController(QObject):
             ],
             window_target_height_getter=self._window_target_height,
             can_expand_window=self._can_expand_window,
-            after_collapse=self._sync_scroll_visibility,
+            before_expand=self._before_expand,
+            after_expand=self._after_expand,
+            after_collapse=self._after_collapse,
         )
         self._transitioning = False
-        gui.scroll_area.viewport().installEventFilter(self)
 
     def cleanup(self):
-        gui = self.owner.gui
-        try:
-            gui.scroll_area.viewport().removeEventFilter(self)
-        except (RuntimeError, AttributeError):
-            pass
         if self.orchestrator is not None:
             self.orchestrator.cleanup()
             self.orchestrator = None
         self._transitioning = False
-        self._sync_pending = False
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.Resize:
-            self.request_scroll_sync()
-        return False
-
-    def request_scroll_sync(self):
-        if self._sync_pending:
-            return
-        self._sync_pending = True
-        safe_single_shot(0, self._do_scroll_sync)
-
-    def _do_scroll_sync(self):
-        self._sync_pending = False
-        gui = self.owner.gui
-        sa = gui.scroll_area
-        if not sa.isVisible():
-            return
-        viewport_w = sa.viewport().width()
-        if viewport_w <= 0:
-            viewport_w = sa.width() - 2
-        content_h = gui.flow_layout.heightForWidth(viewport_w)
-        gui.scroll_content.setMinimumHeight(content_h)
-        vbar = sa.scrollDelagate.vScrollBar
-        vbar.scrollTo(vbar.maximum())
-
-    def reset_content_height(self):
-        gui = self.owner.gui
-        gui.scroll_content.setMinimumHeight(0)
-        if self.orchestrator is not None:
-            self.orchestrator.set_content_height(gui.scroll_area, 0)
 
     def stop_and_reset(self):
         gui = self.owner.gui
@@ -478,8 +538,10 @@ class ExpandPanelController(QObject):
             self._transitioning = False
             return
         transition = self.orchestrator.expand if self.expand_btn.expanded else self.orchestrator.collapse
-        if not transition(self._finish_transition):
-            self._finish_transition()
+        def finish_transition():
+            self._transitioning = False
+        if not transition(finish_transition):
+            finish_transition()
 
     def _available_screen_height(self) -> int:
         gui = self.owner.gui
@@ -510,13 +572,10 @@ class ExpandPanelController(QObject):
 
     def _panel_target_height(self) -> int:
         gui = self.owner.gui
-        width = gui.scroll_area.viewport().width()
-        if width <= 0:
-            width = gui.width() - 20
-        content_h = gui.flow_layout.heightForWidth(width)
         max_window = min(gui.maximumHeight(), self._available_screen_height())
-        available = max_window - self._layout_overhead() - gui.showArea.minimumHeight()
-        return max(self.owner.PANEL_MIN_HEIGHT, min(content_h, available))
+        show_area_min = max(gui.showArea.minimumHeight(), gui.showArea.minimumSizeHint().height())
+        available = max(0, max_window - self._layout_overhead() - show_area_min)
+        return self.layout.panel_target_height(available)
 
     def _can_expand_window(self, panel_h: int) -> bool:
         gui = self.owner.gui
@@ -532,11 +591,14 @@ class ExpandPanelController(QObject):
             self._available_screen_height(),
         )
 
-    def _sync_scroll_visibility(self):
-        self.owner.gui.scroll_area.setVisible(self.expand_btn.expanded)
+    def _before_expand(self):
+        self.owner.gui.scroll_area.setVisible(True)
 
-    def _finish_transition(self):
-        self._transitioning = False
+    def _after_expand(self):
+        self.display.request_refresh(stick_to_bottom=True)
+
+    def _after_collapse(self):
+        self.display.hide_panel()
 
 
 class TaskProgressManager:
@@ -550,7 +612,9 @@ class TaskProgressManager:
         self.expandBtn = None
         self.clearBtn = None
         self._dl_status_badge = None
-        self.panel_ctrl = ExpandPanelController(self)
+        self.layout_ctrl = TaskPanelLayoutController(self)
+        self.display_ctrl = TaskPanelDisplayController(self, self.layout_ctrl)
+        self.animation_ctrl = ExpandPanelController(self, self.layout_ctrl, self.display_ctrl)
 
     def _set_entry_controls_visible(self, visible: bool):
         self.expandBtn.setVisible(visible)
@@ -582,18 +646,20 @@ class TaskProgressManager:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()
             self._dl_status_badge = None
-        self.panel_ctrl.cleanup()
+        self.animation_ctrl.cleanup()
+        self.display_ctrl.cleanup()
 
         self._entries.clear()
 
         self.expandBtn = self.gui.expandBtn
         self.clearBtn = self.gui.clearBtn
-        self.expandBtn.clicked.connect(self.panel_ctrl.on_expand_clicked)
+        self.expandBtn.clicked.connect(self.animation_ctrl.on_expand_clicked)
         self.clearBtn.clicked.connect(self._on_clear_btn_clicked)
 
         self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
-        self.panel_ctrl.bind(self.expandBtn)
+        self.display_ctrl.bind()
+        self.animation_ctrl.bind(self.expandBtn)
 
     def capture_native_snapshot(self) -> dict:
         return {"task_ids": list(self._entries.keys())}
@@ -605,25 +671,28 @@ class TaskProgressManager:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()
             self._dl_status_badge = None
-        self.panel_ctrl.cleanup()
+        self.animation_ctrl.cleanup()
+        self.display_ctrl.cleanup()
 
         self.expandBtn = self.gui.expandBtn
         self.clearBtn = self.gui.clearBtn
-        self.expandBtn.clicked.connect(self.panel_ctrl.on_expand_clicked)
+        self.expandBtn.clicked.connect(self.animation_ctrl.on_expand_clicked)
         self.clearBtn.clicked.connect(self._on_clear_btn_clicked)
 
         self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
-        self.panel_ctrl.bind(self.expandBtn)
+        self.display_ctrl.bind()
+        self.animation_ctrl.bind(self.expandBtn)
 
         for task_id in task_ids if task_ids is not None else list(self._entries.keys()):
             entry = self._entries.get(task_id)
             if entry is not None:
                 entry.mount()
         self._set_entry_controls_visible(bool(self._entries))
-        self.gui.scroll_area.setVisible(False)
-        self.panel_ctrl.reset_content_height()
+        self.display_ctrl.hide_panel()
+        self.display_ctrl.reset()
         self._refresh_dl_status_badge()
+        self.display_ctrl.request_refresh()
 
     def handle(self, task: t.Union[TasksObj, TaskObj]):
         if isinstance(task, TasksObj):
@@ -638,9 +707,10 @@ class TaskProgressManager:
                 if len(self._entries) == 1:
                     self._set_entry_controls_visible(True)
                 self._refresh_dl_status_badge()
-                self.panel_ctrl.request_scroll_sync()
+                self.display_ctrl.request_refresh(stick_to_bottom=True)
                 return
             entry.replace_tasks_obj(task)
+            self.display_ctrl.request_refresh()
             return
 
         if isinstance(task, TaskObj):
@@ -650,6 +720,7 @@ class TaskProgressManager:
                 return
             entry.apply_task(task)
             self._refresh_dl_status_badge()
+            self.display_ctrl.request_refresh()
 
             total_downloaded = sum(item.progress.downloaded for item in self._entries.values())
             total_tasks = sum(item.progress.tasks_count for item in self._entries.values())
@@ -677,9 +748,9 @@ class TaskProgressManager:
         self._set_entry_controls_visible(False)
         if self._dl_status_badge is not None:
             self._dl_status_badge.hide()
-        self.panel_ctrl.stop_and_reset()
-        self.panel_ctrl.reset_content_height()
-        self.gui.scroll_area.setVisible(False)
+        self.animation_ctrl.stop_and_reset()
+        self.display_ctrl.reset()
+        self.display_ctrl.hide_panel()
         if self.expandBtn.expanded:
             self.expandBtn.expanded = False
             self.expandBtn._anim_ctrl.rotate_to(0.0)
@@ -693,7 +764,8 @@ class TaskProgressManager:
 
     def close(self):
         self.cover_task_mgr.cleanup()
-        self.panel_ctrl.cleanup()
+        self.animation_ctrl.cleanup()
+        self.display_ctrl.cleanup()
         self._dispose_views(reset_view_ref=True)
         self._entries.clear()
         if self._dl_status_badge is not None:

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from assets import res
 from utils import temp_p
-from utils.website import EHentaiKits, spider_utils_map
 from utils.website.runtime_context import PreviewRuntimeContext
+from utils.website.registry import resolve_site_gateway
 from variables import Spider
 
 from .types import BrowserCookieSet, BrowserEnvironmentConfig
@@ -14,52 +14,27 @@ def build_browser_environment(browser) -> BrowserEnvironmentConfig:
     snapshot = gui.search_context
     runtime_context = PreviewRuntimeContext.from_snapshot(snapshot)
     site_index = snapshot.site_index if snapshot is not None else gui.chooseBox.currentIndex()
-    proxy_value = (runtime_context.transport.proxies or (None,))[0]
-    proxy = proxy_value if res.lang != "zh-CN" or site_index in Spider.cn_proxy() else None
-    cookie_sets: list[BrowserCookieSet] = []
-    referer_url = None
-
-    if site_index == Spider.JM:
-        domain = _resolve_site_domain(site_index, "jm", runtime_context)
-        referer_url = f"https://{domain}"
-        if cookies := runtime_context.site_cookies("jm"):
-            cookie_sets.append(BrowserCookieSet(values=cookies, domain=domain, url=referer_url))
-    elif site_index == Spider.WNACG:
-        referer_url = f"https://{_resolve_site_domain(site_index, 'wnacg', runtime_context)}"
-    elif site_index == Spider.EHENTAI:
-        if cookies := runtime_context.site_cookies("ehentai"):
-            domain = runtime_context.site_domain("ehentai") or EHentaiKits.domain
-            cookie_sets.append(BrowserCookieSet(values=cookies, domain=domain, url=f"https://{domain}/"))
-    elif site_index == Spider.HITOMI:
-        site_cls = spider_utils_map.get(site_index)
-        if site_cls is None or not getattr(site_cls, "index", None):
-            raise ValueError("hitomi site index unavailable")
-        referer_url = str(site_cls.index)
+    gateway = resolve_site_gateway(site_index)
+    env = gateway.build_browser_environment(
+        runtime_context,
+        site_index=site_index,
+        lang=res.lang,
+        cn_proxy_indexes=Spider.cn_proxy(),
+    )
 
     return BrowserEnvironmentConfig(
-        proxy=proxy,
-        referer_url=referer_url,
-        cookie_sets=tuple(cookie_sets),
+        proxy=env.proxy,
+        referer_url=env.referer_url,
+        cookie_sets=tuple(
+            BrowserCookieSet(values=item.values, domain=item.domain, url=item.url)
+            for item in env.cookie_sets
+        ),
     )
 
 
-def _resolve_site_domain(site_index: int, snapshot_key: str, runtime_context: PreviewRuntimeContext) -> str:
-    if domain := runtime_context.site_domain(snapshot_key):
-        return domain.rstrip("/")
-    site_cls = spider_utils_map.get(site_index)
-    if site_cls is None:
-        raise ValueError(f"site utils unavailable for {snapshot_key}")
-    domain = peek_snapshot_domain(site_cls)
-    if not domain and hasattr(site_cls, "get_domain"):
-        domain = site_cls.get_domain()
-    if not domain:
-        domain = getattr(site_cls, "domain", None)
-    if not domain:
-        raise ValueError(f"{snapshot_key} site domain unavailable")
-    return str(domain).strip().rstrip("/")
-
-
 def peek_snapshot_domain(site_utils) -> str | None:
+    if hasattr(site_utils, "peek_snapshot_domain"):
+        return site_utils.peek_snapshot_domain()
     cachef = getattr(site_utils, "cachef", None)
     cached = getattr(cachef, "val", None) if cachef else None
     if isinstance(cached, str) and cached.strip():

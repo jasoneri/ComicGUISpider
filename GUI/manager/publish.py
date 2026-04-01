@@ -12,10 +12,10 @@ class DomainTestThread(QThread):
     results_ready = Signal(set, set)
     error_occurred = Signal(str)
 
-    def __init__(self, domains, spider_utils):
+    def __init__(self, domains, site_gateway):
         super().__init__()
         self._domains = domains
-        self._spider_utils = spider_utils
+        self._site_gateway = site_gateway
 
     def cancel(self):
         self.requestInterruption()
@@ -26,7 +26,7 @@ class DomainTestThread(QThread):
         try:
             results = loop.run_until_complete(
                 asyncio.gather(
-                    *[self._spider_utils.test_aviable_domain(d) for d in self._domains],
+                    *[self._site_gateway.test_aviable_domain(d) for d in self._domains],
                     return_exceptions=True
                 )
             )
@@ -79,9 +79,12 @@ class PublishDomainManager(QObject):
         domains = extract_domains(texts)
         if not domains:
             return
+        gateway = self.gui.site_gateway
+        if gateway is None:
+            raise RuntimeError("site gateway unavailable for publish domain test")
         self._current_view = DomainToolView(self.gui)
         self.gui.BrowserWindow.domain_v = self._current_view
-        self._current_thread = DomainTestThread(domains, self.gui.spiderUtils)
+        self._current_thread = DomainTestThread(domains, gateway)
         self._current_view.show_loading()
         self._current_thread.results_ready.connect(
             lambda av, un: self._on_results_ready(current_id, av, un)

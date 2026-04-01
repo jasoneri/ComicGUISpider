@@ -86,26 +86,16 @@ class PreviewByClipHtml:
     def created_temp_html(cls, url_regex, match_num):
         import html as html_mod
         safe_regex = html_mod.escape(url_regex)
-        header = (
-            f'<script>window.CLIP_MAX_TASKS={int(match_num)};</script>'
-            f'<section class="preview-clip-header">'
-            f'<div class="preview-clip-copy">'
-            f'<p class="preview-clip-label">Current Regex</p>'
-            f'<h2 class="preview-clip-title">{safe_regex}</h2>'
-            f'</div>'
-            f'<div class="preview-clip-status">'
-            f'<p class="preview-clip-count">Match Tasks-num <span>{int(match_num)}</span></p>'
-            f'<div class="preview-clip-progress" role="progressbar" aria-label="Clip task progress" '
-            f'aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">'
-            f'<div id="progress-bar" class="preview-clip-progress__bar" style="width:0"></div>'
-            f'</div>'
-            f'</div>'
-            f'</section>'
-        )
+        header = f'''<script>window.CLIP_MAX_TASKS={int(match_num)};</script><section class="preview-clip-header">
+<div class="preview-clip-copy">
+    <p class="preview-clip-label">Current Regex</p>
+    <h2 class="preview-clip-title">{safe_regex}</h2>
+</div>
+<div class="preview-clip-status">
+    <p class="preview-clip-count">Match Tasks-num <span>{int(match_num)}</span></p>
+    <div class="preview-clip-progress" role="progressbar" aria-label="Clip task progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <div id="progress-bar" class="preview-clip-progress__bar" style="width:0"></div>
+    </div>
+</div>
+</section>'''
         return PreviewByFixHtml.created_temp_html(header_html=header)
-
-
-class PreviewByAgsHtml:
-    @classmethod
-    def created_temp_html(cls):
-        return PreviewByFixHtml.created_temp_html()

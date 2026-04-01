@@ -4,6 +4,7 @@ from utils import conf, get_loop, PresetHtmlEl
 from utils.ags import SearchKey
 from assets import res
 from GUI.core.font import font_color
+from utils.website.registry import resolve_spider_adapter
 
 
 class AggrSearchThread(QThread):
@@ -23,15 +24,15 @@ class AggrSearchThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        reqer = getattr(self.gui.sut, "reqer", self.gui.sut)
-        parser = getattr(self.gui.sut, "parser", self.gui.sut)
-        async with reqer.get_cli(conf, is_async=True) as cli:
+        adapter = getattr(self.gui, "spider_adapter", None) or resolve_spider_adapter(self.gui.chooseBox.currentIndex())
+        session = adapter.create_session(conf)
+        async with session.get_cli(conf, is_async=True) as cli:
             total = {}
             async def fetch_single(group_idx, search_keyword: SearchKey):
                 try:
-                    search_url = reqer.build_search_url(search_keyword)
+                    search_url = session.build_search_url(search_keyword)
                     resp = await cli.get(search_url, follow_redirects=True, timeout=6)
-                    books = parser.parse_search(resp.text)
+                    books = session.parse_search(resp.text)
                     self.msleep(50)
 
                     group_books = {}
