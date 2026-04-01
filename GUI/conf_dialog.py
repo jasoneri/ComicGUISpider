@@ -176,10 +176,11 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         def _open_docs():
             self.gui.open_url_by_browser(CGS_DOC)
         self.descBtn.clicked.connect(_open_docs)
-        def _switch_mode():
-            checked = bool(self.darkTheme.isChecked())
+        def _switch_mode(checked: bool):
             theme_mgr.set_dark(checked, save=True)
-        self.darkTheme.clicked.connect(_switch_mode)
+        self.darkTheme.toggled.connect(_switch_mode)
+        theme_mgr.subscribe(self._sync_dark_theme_button)
+        self.destroyed.connect(lambda _obj=None: theme_mgr.unsubscribe(self._sync_dark_theme_button))
         def _regular_update():
             self.puThread = ProjUpdateThread(self)
             Updater(self.gui).run()
@@ -253,6 +254,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         # 2. CheckBox类配置
         for _ in ('addUuid', 'isDeduplicate', "kbShowDhb", "skipDev"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
+        self._sync_dark_theme_button()
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
             getattr(self, f"{_}Edit").setValue(int(getattr(conf, _)))
@@ -285,6 +287,11 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
     def _update_cookie_display(self):
         self.cookiesEdit.setText(self.transfer_to_gui(conf.cookies.show(), is_cookies=True))
         self.cookiesEdit.setPlaceholderText(COOKIES_PLACEHOLDER.get(conf.cookies.current_type, ""))
+
+    def _sync_dark_theme_button(self, _theme=None):
+        self.darkTheme.blockSignals(True)
+        self.darkTheme.setChecked(theme_mgr.is_dark)
+        self.darkTheme.blockSignals(False)
 
     @staticmethod
     def transfer_to_gui(val, is_cookies=False) -> str:
@@ -340,7 +347,6 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             "completer": yaml.safe_load(cp(getattr(self, "completerEdit").toPlainText())),
             "clip_read_num": getattr(self, "clip_read_numEdit").value(),
         }
-        theme_mgr.save()
         conf.update(**config)
         
         if sv_path != str(conf.sv_path):  # after conf.update(sv_path)

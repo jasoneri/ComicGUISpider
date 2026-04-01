@@ -40,7 +40,7 @@ yaml.warnings({'YAMLLoadWarning': False})
 def yaml_update(_f, dic):
     with open(_f, 'r+', encoding='utf-8') as fp:
         cfg = fp.read()
-        ori_yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
+        ori_yml_config = yaml.load(cfg, Loader=yaml.FullLoader) or {}
         ori_yml_config.update(dic)
         fp.seek(0)
         fp.truncate()
@@ -153,7 +153,6 @@ class Conf(BaseConf):
     pypi_source: int = 0
     addUuid: bool = False
     isDeduplicate: bool = False
-    darkTheme: bool = False
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
     cookies = None

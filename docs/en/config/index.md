@@ -37,10 +37,11 @@ At the same time, the download will automatically filter out the existing record
 「flag icon button」  
 Add an identifier at the end of the directory when storing, which is used to handle different works with the same name
 
-### DarkMode / `darkTheme`
+### DarkMode
 
 「moon icon button」  
-switch mode base on boolean
+Theme state is managed by `qconfig`, not stored in `conf.yml`  
+Click to switch light/dark mode immediately and save it in real time
 
 ---
 

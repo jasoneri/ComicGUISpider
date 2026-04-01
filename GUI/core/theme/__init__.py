@@ -1,12 +1,10 @@
 from enum import Enum
-from pathlib import Path
 from typing import Callable
 
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 from qfluentwidgets import Theme, isDarkTheme, qconfig, setTheme
 
-from utils import conf
 from utils.config.qc import cgs_cfg
 from .mid import MidNodeColors, create_dark_mid_colors, create_light_mid_colors
 
@@ -78,11 +76,6 @@ _THEME_SCHEMES = {
 }
 _THEME_CALLBACK_ATTR = "_cgs_theme_callback"
 _THEME_CLEANUP_ATTR = "_cgs_theme_cleanup_bound"
-_THEME_MODE_KEY = '"ThemeMode"'
-
-
-def _has_saved_theme_mode(config_file: Path) -> bool:
-    return config_file.exists() and _THEME_MODE_KEY in config_file.read_text(encoding="utf-8")
 
 
 class ThemeManager:
@@ -97,9 +90,7 @@ class ThemeManager:
         if self._bootstrapped:
             return
         self._bootstrapped = True
-        config_file = Path(cgs_cfg.file)
-        if not _has_saved_theme_mode(config_file):
-            setTheme(Theme.DARK if conf.darkTheme else Theme.LIGHT, save=True)
+        setTheme(self.themeMode, save=False)
         self.apply_to_app()
 
     def _ensure_bootstrapped(self):
@@ -147,9 +138,6 @@ class ThemeManager:
 
     def set_dark(self, set_dark: bool, *, save: bool = False, lazy: bool = False):
         self.set_theme_mode(Theme.DARK if set_dark else Theme.LIGHT, save=save, lazy=lazy)
-
-    def save(self):
-        cgs_cfg.save()
 
     def apply_to_app(self, app: QApplication | None = None):
         target = app or QApplication.instance()
