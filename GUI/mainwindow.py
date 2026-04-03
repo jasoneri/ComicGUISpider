@@ -50,7 +50,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.setCurrentIndex(0)
         self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
         self.domainBtn.setVisible(False)
-        self.domainBtn.setIconSize(QtCore.QSize(28, 28))
+        self.domainBtn.setIconSize(QtCore.QSize(24, 20))
         self.domainBtn.setStatusTip(_translate("MainWindow", "domainHandler/域名管理"))
         self.horizontalLayout_3.insertWidget(1, self.domainBtn)
         self.searchinput.setPlaceholderText(_translate("MainWindow", res.searchinputPlaceholderText))

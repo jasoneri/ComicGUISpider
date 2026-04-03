@@ -29,6 +29,12 @@ def create_job_context(job: SpiderDownloadJob, record_sql, rv_sql, mr) -> JobCon
         else:
             task_copy = deepcopy(precompiled_task)
             tasks[task_copy.taskid] = task_copy
+    else:
+        for item in extract_payload_items(job.payload):
+            if not hasattr(item, "to_tasks_obj"):
+                continue
+            task_copy = deepcopy(item.to_tasks_obj())
+            tasks[task_copy.taskid] = task_copy
     return JobContext(
         job_id=job.job_id,
         tasks=tasks,

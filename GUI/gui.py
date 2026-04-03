@@ -559,6 +559,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.blockSignals(True)
         self.chooseBox.setCurrentIndex(0)
         self.chooseBox.blockSignals(False)
+        self.aggrBtn.setVisible(False)
         self.lifecycle_state = SearchLifecycleState.Unlocked
         self._restore_feedback_panel()
         self.log.info('===--→ reset_search_context end\n')
@@ -627,7 +628,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.info("===--→ crawl finish\n")
 
     def crawl_end(self, imgs_path):
-        self.progressBar.setCustomBarColor(light="#00ff00", dark="#00cc00")
         self.refresh_lifecycle_state()
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
         self.log.info(f"-*-*- crawl_end finish, spider closed \n")

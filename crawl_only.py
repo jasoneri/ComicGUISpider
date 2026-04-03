@@ -5,6 +5,7 @@ import asyncio
 import os
 import queue
 import sys
+from dataclasses import dataclass
 from uuid import uuid4
 
 import httpx
@@ -65,6 +66,70 @@ class PreviewRuntime:
             self.client,
             site_config=self.site_config,
         )
+
+
+@dataclass
+class DownloadQuantityRecord:
+    expected_pages: int | None = None
+    registered_tasks_count: int | None = None
+    processed_events: int = 0
+
+    @property
+    def is_aligned(self) -> bool:
+        return (
+            self.expected_pages is not None
+            and self.expected_pages == self.registered_tasks_count
+            and self.expected_pages == self.processed_events
+        )
+
+
+class DownloadQuantityProbe:
+    def __init__(self, payload):
+        self.records: dict[str, DownloadQuantityRecord] = {}
+        self._seed_from_payload(payload)
+
+    @staticmethod
+    def _iter_payload_items(payload):
+        if payload is None:
+            return
+        if isinstance(payload, list):
+            for item in payload:
+                if hasattr(item, "to_tasks_obj"):
+                    yield item
+            return
+        if hasattr(payload, "to_tasks_obj"):
+            yield payload
+
+    def _seed_from_payload(self, payload):
+        for item in self._iter_payload_items(payload):
+            tasks_obj = item.to_tasks_obj()
+            record = self.records.setdefault(tasks_obj.taskid, DownloadQuantityRecord())
+            record.expected_pages = tasks_obj.tasks_count
+
+    def observe(self, event: TasksObjEvent):
+        task = getattr(event, "task_obj", None)
+        taskid = getattr(task, "taskid", None)
+        if not taskid:
+            return
+        record = self.records.setdefault(taskid, DownloadQuantityRecord())
+        if event.is_new:
+            record.registered_tasks_count = getattr(task, "tasks_count", None)
+            return
+        record.processed_events += 1
+
+    def summarize(self) -> tuple[list[str], list[str]]:
+        aligned = []
+        drifted = []
+        for taskid, record in sorted(self.records.items()):
+            summary = (
+                f"{taskid}: expected={record.expected_pages}, "
+                f"registered={record.registered_tasks_count}, processed={record.processed_events}"
+            )
+            if record.is_aligned:
+                aligned.append(summary)
+            else:
+                drifted.append(summary)
+        return aligned, drifted
 
 
 def _build_parser():
@@ -152,6 +217,7 @@ def _submit_and_wait(site_index: int, payload) -> bool:
     runtime.daemon = True
     runtime.start()
     runtime.wait_ready(timeout=30)
+    quantity_probe = DownloadQuantityProbe(payload)
 
     job = SpiderDownloadJob(
         job_id=uuid4().hex,
@@ -187,6 +253,7 @@ def _submit_and_wait(site_index: int, payload) -> bool:
                     last_percent = event.percent
                     logger.info(f"[progress] {event.percent}%")
             elif isinstance(event, TasksObjEvent):
+                quantity_probe.observe(event)
                 task = event.task_obj
                 if event.is_new:
                     title = getattr(task, "display_title", None) or getattr(task, "taskid", "")
@@ -198,6 +265,11 @@ def _submit_and_wait(site_index: int, payload) -> bool:
                 logger.info(f"[finished] success={success}")
                 return success
     finally:
+        aligned, drifted = quantity_probe.summarize()
+        for summary in aligned:
+            logger.info(f"[quantity] aligned {summary}")
+        for summary in drifted:
+            logger.warning(f"[quantity] drift {summary}")
         runtime.shutdown()
         runtime.join(timeout=5)
 

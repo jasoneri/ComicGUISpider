@@ -411,11 +411,19 @@ class BaseComicSpider(scrapy.Spider):
         if 'init' in self.process_state.process:
             self.say(font_color('unknown init end, if cgs not work, please contact maintainer with log', cls='theme-tip'))
             return
-        downloaded_count = stats.get_value('image/downloaded', 0)
+        downloaded_count, uptodate_count, processed_count, total = self._finish_counters(stats)
         exception_count = stats.get_value('process_exception/count', 0)
-        total = self.job_context.total if self.job_context else self.total
-        if total != 0 and downloaded_count > 0:
-            self.say(font_color(f'{self.res.finished_success % downloaded_count}', cls='theme-success', size=4))
+        if total and processed_count < total:
+            missing_count = total - processed_count
+            self.say(font_color(f'miss: new[{downloaded_count}], cache[{uptodate_count}], miss[{missing_count}]<br>',
+                cls='theme-err', size=3))
+            self._remove_cache()
+        elif total != 0 and processed_count > 0:
+            if downloaded_count:
+                _str = f'{self.res.finished_success % downloaded_count}'
+                if uptodate_count:
+                    _str = f'cache[{uptodate_count}] / {_str}'
+            self.say(font_color(_str, cls='theme-success', size=4))
         elif not downloaded_count and exception_count > 0:
             last_exception = stats.get_value("process_exception/last_exception", "")
             self.say(font_color(

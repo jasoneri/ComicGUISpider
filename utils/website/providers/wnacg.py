@@ -1,5 +1,7 @@
-import asyncio
 import re
+import asyncio
+import concurrent.futures
+import httpx
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
@@ -7,8 +9,8 @@ from lxml import etree
 from scrapy import Selector
 
 from assets import res
-from utils import ori_path
-from utils.website.core import DomainUtils, EroUtils, Previewer, Req
+from utils import conf, get_loop, ori_path, temp_p
+from utils.website.core import DomainUtils, EroUtils, Previewer, Req, build_proxy_transport
 from utils.website.info import WnacgBookInfo
 
 
@@ -71,22 +73,14 @@ class _WnacgContract:
 
 class WnacgParser(_WnacgContract, Previewer):
     @classmethod
-    async def parse_publish_(cls, html_text):
+    def extract_publish_domains(cls, html_text) -> list[str]:
         html_doc = etree.HTML(html_text)
         hrefs = html_doc.xpath('//div[@class="main"]//li[not(contains(.,"發佈頁") or contains(.,"发布页"))]/a/@href')
         publish_domain_old_str = "|".join(cls.publish_domain_old)
         match_regex = re.compile(f"google|{cls.publish_domain}|email|link|{publish_domain_old_str}")
-        order_href = list(map(lambda url: re.sub("https?://", "", url).strip("/"), filter(
+        return list(map(lambda url: re.sub("https?://", "", url).strip("/"), filter(
             lambda href: not bool(match_regex.search(href)), hrefs
         )))
-        hosts = await asyncio.gather(*[cls.test_aviable_domain(domain) for domain in order_href])
-        for host in hosts:
-            if host:
-                return host
-        WnacgUtils.status_publish = False
-        raise ConnectionError(
-            res.SPIDER.DOMAINS_INVALID % (cls.publish_url, order_href, ori_path.joinpath(f"__temp/{cls.name}_domain.txt"))
-        )
 
     @classmethod
     def normalize_preview_resource(
@@ -205,7 +199,84 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
 
     @classmethod
     async def parse_publish_(cls, html_text):
-        return await cls.parser.parse_publish_(html_text)
+        candidates = cls.parser.extract_publish_domains(html_text)
+        hosts = await asyncio.gather(*[cls.test_aviable_domain(domain) for domain in candidates])
+        for host in hosts:
+            if host:
+                return host
+        cls.status_publish = False
+        raise ConnectionError(
+            res.SPIDER.DOMAINS_INVALID % (cls.publish_url, candidates, ori_path.joinpath(f"__temp/{cls.name}_domain.txt"))
+        )
+
+    @staticmethod
+    def _is_redirect_challenge(html_text: str) -> bool:
+        lowered = str(html_text or "").casefold()
+        return (
+            "<title>redirecting...</title>" in lowered
+            or "router.parklogic.com" in lowered
+            or "adblockingdetected" in lowered
+        )
+
+    @classmethod
+    def _probe_search_url(cls, domain: str) -> str:
+        return f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=%E3%83%86%E3%82%B9%E3%83%88"
+
+    @classmethod
+    async def test_aviable_domain(cls, domain):
+        url = cls._probe_search_url(domain)
+        try:
+            transport, trust_env = build_proxy_transport(
+                cls.proxy_policy,
+                conf.proxies,
+                retries=1,
+                verify=False,
+            )
+            async with httpx.AsyncClient(
+                headers=cls.build_site_headers(domain, cls.headers, referer_url=cls.preview_origin(domain)),
+                transport=transport,
+                trust_env=trust_env,
+                follow_redirects=True,
+            ) as cli:
+                resp = await cli.get(url, timeout=6)
+                resp.raise_for_status()
+                title = re.search(r"<title>(.*?)</title>", resp.text, re.I | re.S)
+                if cls._is_redirect_challenge(resp.text):
+                    return None
+                if title and "紳士漫畫" in title.group(1):
+                    return resp.url.host
+        except Exception:
+            return None
+        return None
+
+    @classmethod
+    def _validate_cached_domain(cls, domain: str) -> bool:
+        loop = get_loop()
+        try:
+            return bool(loop.run_until_complete(cls.test_aviable_domain(domain)))
+        finally:
+            loop.close()
+
+    @classmethod
+    def get_domain(cls):
+        from utils.website.core import Cache
+
+        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
+        cached = cls.cachef.run(lambda: None, 168)
+        if isinstance(cached, str) and cached.strip():
+            try:
+                asyncio.get_running_loop()
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    if executor.submit(cls._validate_cached_domain, cached.strip()).result():
+                        return cached.strip()
+            except RuntimeError:
+                if cls._validate_cached_domain(cached.strip()):
+                    return cached.strip()
+            temp_p.joinpath(f"{cls.name}_domain.txt").unlink(missing_ok=True)
+            if cls.cachef is not None:
+                cls.cachef.flag = "new"
+                cls.cachef.val = None
+        return super().get_domain()
 
     @classmethod
     def normalize_preview_resource(
@@ -230,7 +301,7 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
 
     @classmethod
     def preview_transport_config(cls) -> dict:
-        return {"verify": False}
+        return {"verify": False, "retries": 2}
 
     @classmethod
     async def preview_search(cls,keyword,cli,**kw):

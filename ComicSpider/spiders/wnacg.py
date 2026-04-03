@@ -3,7 +3,6 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 from utils.website import WnacgUtils, correct_domain
-from utils import conf
 from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "wnacg.com"
@@ -14,7 +13,9 @@ class WnacgSpider(BaseComicSpider2):
         'ComicSpider.middlewares.ComicDlAllProxyMiddleware': 6,
         # 'ComicSpider.middlewares.ScrapyDoHProxyMiddleware': 8,
         'ComicSpider.middlewares.RefererMiddleware': 10,
-    }}
+    },
+        "ITEM_PIPELINES": {'ComicSpider.pipelines.WnacgComicPipeline': 50},
+    }
     name = 'wnacg'
     num_of_row = 4
     domain = domain
@@ -30,10 +31,6 @@ class WnacgSpider(BaseComicSpider2):
     @property
     def ua(self):
         return WnacgUtils.build_site_headers(self.domain, WnacgUtils.book_hea)
-
-    @property
-    def image_ua(self):
-        return WnacgUtils.image_ua
 
     def preready(self):
         if self._runtime_origin:

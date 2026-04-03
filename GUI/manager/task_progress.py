@@ -656,7 +656,7 @@ class TaskProgressManager:
         self.expandBtn.clicked.connect(self.animation_ctrl.on_expand_clicked)
         self.clearBtn.clicked.connect(self._on_clear_btn_clicked)
 
-        self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
+        self._dl_status_badge = DlStatusBadge(self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
         self.display_ctrl.bind()
         self.animation_ctrl.bind(self.expandBtn)
@@ -679,7 +679,7 @@ class TaskProgressManager:
         self.expandBtn.clicked.connect(self.animation_ctrl.on_expand_clicked)
         self.clearBtn.clicked.connect(self._on_clear_btn_clicked)
 
-        self._dl_status_badge = DlStatusBadge(parent=self.gui, target=self.expandBtn)
+        self._dl_status_badge = DlStatusBadge(self.gui, target=self.expandBtn)
         self._dl_status_badge.hide()
         self.display_ctrl.bind()
         self.animation_ctrl.bind(self.expandBtn)

@@ -5,7 +5,6 @@ from GUI.manager.preview.manga import MangaPreviewFeature
 class FixPreviewFeature(MangaPreviewFeature):
     def __init__(self, mgr):
         super().__init__(mgr)
-        self._pending_full_book_submit = {}
         self._inflight_book_pages = {}
 
     @staticmethod
@@ -13,7 +12,6 @@ class FixPreviewFeature(MangaPreviewFeature):
         return bool(getattr(book, "episodes", None) or "青年漫" in (getattr(book, "btype", None) or ""))
 
     def _clear_fix_state(self):
-        self._pending_full_book_submit.clear()
         self._inflight_book_pages.clear()
 
     def publish(self, books):
@@ -37,7 +35,7 @@ class FixPreviewFeature(MangaPreviewFeature):
             lower_html="\n".join(lower_cards),
         )
         self.mgr.show_preview(
-            ensure_handler=self._handle_ensure_result,
+            ensure_handler=self._handle_submit_request,
             bridge=self.bridge,
         )
 
@@ -73,7 +71,7 @@ class FixPreviewFeature(MangaPreviewFeature):
             )
         )
 
-    def _queue_direct_books(self, books):
+    def _submit_direct_books(self, books):
         ready_books = []
         batch_items = []
         for book in books:
@@ -91,9 +89,8 @@ class FixPreviewFeature(MangaPreviewFeature):
             )
         if batch_items and self.mgr.worker:
             self.mgr.worker.enqueue_pages_batch(batch_items)
-            self.mgr.send_command("preview.scan.show", {"message": "正在获取页面信息..."})
 
-    def _queue_episode_submit(self, book_key, book, selected_eps):
+    def _submit_selected_episodes_for_book(self, book_key, book, selected_eps):
         if not selected_eps:
             return
         needs_pages = [ep for ep in selected_eps if ep.pages is None]
@@ -107,18 +104,6 @@ class FixPreviewFeature(MangaPreviewFeature):
         batch_items = [(book_key, ep, self.mgr.site_index) for ep in needs_pages]
         if batch_items and self.mgr.worker:
             self.mgr.worker.enqueue_pages_batch(batch_items)
-            self.mgr.send_command("preview.scan.show", {"message": "正在获取页面信息..."})
-
-    def _submit_full_episode_book(self, session_id, book_key, book):
-        if book_key in self.episodes_cache:
-            self._queue_episode_submit(book_key, book, list(self.episodes_cache[book_key]))
-            return
-        token = (session_id, book_key)
-        if token in self._inflight_books or not self.mgr.worker:
-            return
-        self._pending_full_book_submit[token] = book
-        self._inflight_books.add(token)
-        self.mgr.worker.enqueue_episodes(session_id, book_key, book, self.mgr.site_index)
 
     def _on_dl_scan_done(self, session_id, matched):
         self._release_dl_scan(session_id)
@@ -164,43 +149,6 @@ class FixPreviewFeature(MangaPreviewFeature):
             return
         super().start_fetch_episodes(book_key)
 
-    def on_episodes_done(self, generation, session_id, book_key, episodes):
-        token = (session_id, book_key)
-        pending_book = self._pending_full_book_submit.get(token)
-        current_session = generation == self.mgr._generation and session_id == self.mgr._session_id
-        if current_session:
-            super().on_episodes_done(generation, session_id, book_key, episodes)
-        else:
-            self._inflight_books.discard(token)
-            if generation != self.mgr._generation:
-                self._pending_full_book_submit.pop(token, None)
-                return
-            cached_book = self.mgr.books_cache.get(book_key)
-            if self._same_book(cached_book, pending_book):
-                self.episodes_cache[book_key] = episodes
-        if pending_book is None:
-            return
-        self._pending_full_book_submit.pop(token, None)
-        if episodes:
-            self._queue_episode_submit(book_key, pending_book, list(episodes))
-            return
-        self._queue_direct_books([pending_book])
-
-    def on_episodes_error(self, generation, session_id, book_key, error):
-        token = (session_id, book_key)
-        pending_submit = token in self._pending_full_book_submit
-        self._pending_full_book_submit.pop(token, None)
-        if generation != self.mgr._generation:
-            self._inflight_books.discard(token)
-            return
-        if session_id == self.mgr._session_id:
-            super().on_episodes_error(generation, session_id, book_key, error)
-            return
-        self._inflight_books.discard(token)
-        self.gui.log.error(error)
-        if pending_submit:
-            self._hide_scan_if_idle()
-
     def on_pages_done(self, generation, book_key, items):
         book = self._inflight_book_pages.pop(book_key, None)
         if book is not None:
@@ -239,26 +187,21 @@ class FixPreviewFeature(MangaPreviewFeature):
             )
         self._hide_scan_if_idle()
 
-    def _handle_ensure_result(self):
-        parsed = self._parse_checked_output()
-        self._submit_checked_output(parsed)
-        checked = self.gui.BrowserWindow.output if self.gui.BrowserWindow else []
-        book_ids = [
-            c for c in checked
-            if isinstance(c, str) and not c.startswith("ep") and c not in parsed
-        ]
-        if book_ids:
-            direct_books = []
-            for bid in book_ids:
-                book = self.mgr.books_cache.get(bid)
-                if book is None:
-                    continue
-                if self.is_episode_card(book):
-                    self._submit_full_episode_book(self.mgr._session_id, bid, book)
-                    continue
-                direct_books.append(book)
-            if direct_books:
-                self._queue_direct_books(direct_books)
+    def _submit_payload(self, payload: dict):
+        selected_episodes = self._parse_selected_episodes(payload)
+        self._submit_selected_episodes(selected_episodes)
+
+        direct_books = []
+        for book_id in payload["book_ids"]:
+            book = self.mgr.books_cache.get(book_id)
+            if book is None or self.is_episode_card(book):
+                continue
+            direct_books.append(book)
+        if direct_books:
+            self._submit_direct_books(direct_books)
 
     def submit_page_selections(self):
-        self._handle_ensure_result()
+        self._submit_payload(self._current_submit_payload())
+
+    def _handle_submit_request(self):
+        self._submit_payload(self._current_submit_payload())

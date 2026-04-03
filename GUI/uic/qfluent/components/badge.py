@@ -192,7 +192,8 @@ class DlStatusBadge:
     COLOR_COMPLETE = "#67C23A"
     COLOR_TEXT = "#FFFFFF"
 
-    def __init__(self, parent, target, pos=InfoBadgePosition.TOP_LEFT):
+    def __init__(self, gui, target, pos=InfoBadgePosition.TOP_LEFT):
+        self.gui = parent = gui
         self.badge = InfoBadge.custom("", self.COLOR_PROGRESS, self.COLOR_PROGRESS, parent, target=None, position=pos)
         self._anchor = _BadgeAnchor(target, self.badge, parent, pos, division=3)
         self.badge.move(self._anchor.calc_position())
@@ -217,6 +218,7 @@ class DlStatusBadge:
             self._set_color(self.COLOR_PROGRESS)
 
     def _set_color(self, bg_color: str):
+        self.gui.progressBar.setCustomBarColor(light=bg_color, dark=bg_color)
         self.badge.setCustomBackgroundColor(bg_color, bg_color)
 
     def show(self):
