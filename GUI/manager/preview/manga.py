@@ -9,7 +9,6 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from assets import res as ori_res
 from variables import SPIDERS
 from utils import bs_theme, conf, temp_p, conf_dir
-from utils.sql import SqlRecorder
 from utils.preview import TF, El, format_path
 
 
@@ -155,17 +154,18 @@ class MangaPreviewFeature:
         self.mgr.begin_preview_session()
         self._inflight_books.clear()
         self.mgr.books_cache = {str(book.idx): book for book in books}
+        self.mgr.downloaded_book_ids.clear()
         self.episodes_cache.clear()
         self.gui.clean_temp_file()
         self.gui.tf = self._write_cards_html(self._build_cards_html(books))
         self.mgr.show_preview(
-            ensure_handler=self._handle_ensure_result,
+            ensure_handler=self._handle_submit_request,
             bridge=self.bridge,
         )
 
     def show_cached(self):
         self.mgr.show_preview(
-            ensure_handler=self._handle_ensure_result,
+            ensure_handler=self._handle_submit_request,
             reload_tf=False,
             bridge=self.bridge,
         )
@@ -379,45 +379,32 @@ class MangaPreviewFeature:
         if book_key not in self.mgr.books_cache:
             return
         self.episodes_cache[book_key] = episodes
-        ep_data = [{"idx": ep.idx, "name": ep.name} for ep in episodes]
+        downloaded_items = self.gui.download_state.downloaded_items(episodes)
+        downloaded_md5s = {episode.id_and_md5()[1] for episode in downloaded_items}
+        downloaded_episode_ids = {
+            f"ep{book_key}-{episode.idx}"
+            for episode in episodes
+            if episode.id_and_md5()[1] in downloaded_md5s
+        }
+        ep_data = [
+            {
+                "idx": ep.idx,
+                "name": ep.name,
+                "downloaded": f"ep{book_key}-{ep.idx}" in downloaded_episode_ids,
+            }
+            for ep in episodes
+        ]
         self.mgr.send_command(
             "manga.episodes.loaded",
             {"bookKey": str(book_key), "episodes": ep_data},
             session_id=session_id,
         )
-        if dled_ids := self._mark_downloaded_episodes(book_key, episodes):
-            self.mgr.send_command(
-                "manga.episodes.downloaded",
-                {"episodeIds": dled_ids},
-                session_id=session_id,
-            )
         if latest_payload := self._latest_badge_payload(book_key, episodes):
             self.mgr.send_command(
                 "manga.badge.latest",
                 latest_payload,
                 session_id=session_id,
             )
-
-    def _mark_downloaded_episodes(self, book_key, episodes):
-        if not episodes:
-            return []
-        sql_utils = SqlRecorder()
-        try:
-            md5_to_ep = {}
-            md5s = []
-            for ep in episodes:
-                _, ep_md5 = ep.id_and_md5()
-                md5_to_ep[ep_md5] = ep
-                md5s.append(ep_md5)
-            if not md5s:
-                return []
-            downloaded_md5 = sql_utils.batch_check_dupe(md5s)
-        finally:
-            sql_utils.close()
-        return [
-            f"ep{book_key}-{md5_to_ep[m].idx}"
-            for m in downloaded_md5 if m in md5_to_ep
-        ]
 
     def on_episodes_error(self, generation, session_id, book_key, error):
         self._inflight_books.discard((session_id, book_key))
@@ -463,8 +450,28 @@ class MangaPreviewFeature:
     # Selection / ensure
     # ------------------------------------------------------------------
 
-    def _parse_checked_output(self) -> dict:
-        checked_ids = self.gui.BrowserWindow.output if self.gui.BrowserWindow else []
+    def _current_submit_payload(self) -> dict:
+        output = self.gui.BrowserWindow.output if self.gui.BrowserWindow else None
+        if output in (None, []):
+            return {"book_ids": [], "episode_ids": []}
+        if not isinstance(output, dict):
+            raise TypeError(f"preview submit payload must be dict, got {type(output).__name__}")
+        action = output.get("action")
+        if action not in (None, "submit-download"):
+            raise ValueError(f"unexpected preview submit action: {action!r}")
+        book_ids = output.get("bookIds") or []
+        episode_ids = output.get("episodeIds") or []
+        if not isinstance(book_ids, list):
+            raise TypeError(f"preview submit payload bookIds must be list, got {type(book_ids).__name__}")
+        if not isinstance(episode_ids, list):
+            raise TypeError(f"preview submit payload episodeIds must be list, got {type(episode_ids).__name__}")
+        return {
+            "book_ids": [str(book_id) for book_id in book_ids if book_id not in (None, "")],
+            "episode_ids": [str(ep_id) for ep_id in episode_ids if ep_id not in (None, "")],
+        }
+
+    def _parse_selected_episodes(self, payload: dict) -> dict:
+        checked_ids = payload["episode_ids"]
         if not checked_ids:
             return {}
         grouped = defaultdict(list)
@@ -494,7 +501,7 @@ class MangaPreviewFeature:
             result[book_key] = selected_eps
         return result
 
-    def _submit_checked_output(self, parsed: dict):
+    def _submit_selected_episodes(self, parsed: dict):
         if not self.mgr.worker:
             return
         batch_items = []
@@ -514,10 +521,12 @@ class MangaPreviewFeature:
                 batch_items.append((book_key, ep, self.mgr.site_index))
         if batch_items:
             self.mgr.worker.enqueue_pages_batch(batch_items)
-            self.mgr.send_command("preview.scan.show", {"message": "正在获取页面信息..."})
+
+    def _submit_payload(self, payload: dict):
+        self._submit_selected_episodes(self._parse_selected_episodes(payload))
 
     def submit_page_selections(self):
-        self._submit_checked_output(self._parse_checked_output())
+        self._submit_payload(self._current_submit_payload())
 
-    def _handle_ensure_result(self):
-        self._submit_checked_output(self._parse_checked_output())
+    def _handle_submit_request(self):
+        self._submit_payload(self._current_submit_payload())

@@ -22,6 +22,7 @@ from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
 from GUI.core.anim import PopupAnimator
 from GUI.core.browser.browser_environment import peek_snapshot_domain
+from GUI.manager.download_state import DownloadStateOwner
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.tools import ToolWindow, TextUtils
@@ -43,8 +44,6 @@ from utils.processed_class import (
 from utils.redViewer_tools import Handler as rVtools
 from utils.website import InfoMinix, WnacgUtils
 from utils.website.registry import resolve_site_gateway, resolve_spider_adapter
-from utils.sql import SqlRecorder
-
 _UNSET = object()
 
 
@@ -149,6 +148,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.ags_mgr = AggrSearchManager(self)
         self.preview_mgr = PreviewMgr(self)
         self.publish_mgr = PublishDomainManager(self)
+        if not getattr(self, 'download_state', None):
+            self.download_state = DownloadStateOwner()
         if not getattr(self, 'dl_mgr', None):
             self.dl_mgr = DownloadRuntimeManager(self)
         else:
@@ -410,28 +411,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.page_turn_frame()
 
-    def mark_tip(self, ori_infos):
-        """将self.books的各book加上
-        1.已下载标记,from sql;
-        2.（未做）非被指定标记"""
-        def mark_tip(_infos):
-            sql_utils = SqlRecorder()
-            obj_to_md5 = {}
-            md5s = []
-            for obj in _infos:
-                _, this_md5 = obj.id_and_md5()
-                obj_to_md5[this_md5] = obj
-                md5s.append(this_md5)
-            downloaded_md5 = sql_utils.batch_check_dupe(md5s)
-            for md5, obj in obj_to_md5.items():
-                if md5 in downloaded_md5:
-                    obj.mark_tip = "downloaded"
-            sql_utils.close()
-        infos = sorted(ori_infos.values(), key=lambda x: x.idx)
-        if conf.isDeduplicate:
-            mark_tip(infos)
-        return infos
-
     def page_turn_frame(self):
         def page_turn(_p):
             if not hasattr(self, "preview_mgr"):
@@ -560,6 +539,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.setCurrentIndex(0)
         self.chooseBox.blockSignals(False)
         self.aggrBtn.setVisible(False)
+        self.clipBtn.setVisible(False)
         self.lifecycle_state = SearchLifecycleState.Unlocked
         self._restore_feedback_panel()
         self.log.info('===--→ reset_search_context end\n')

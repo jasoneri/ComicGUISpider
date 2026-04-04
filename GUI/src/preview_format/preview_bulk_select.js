@@ -85,6 +85,17 @@
     });
   }
 
+  function isEpisodeModalOpen() {
+    const modal = document.getElementById('episodeModal');
+    return modal instanceof HTMLElement && !modal.hidden && modal.classList.contains('is-open');
+  }
+
+  function isBookSelectionSurface(target) {
+    return target instanceof Element && Boolean(
+      target.closest('#bookCards, #bookCardsUpper, #bookCardsLower, .fix-group-upper, .fix-group-lower')
+    );
+  }
+
   function mount() {
     const toolbar = ensureToolbar();
     const toggleAllBtn = getToolbarControl(toolbar, '#bulkToggleAllBtn');
@@ -229,7 +240,11 @@
       if (!wasDragging) {
         return;
       }
+      const shouldSuppress = isBookSelectionSurface(event.target);
       wasDragging = false;
+      if (!shouldSuppress) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
     }, true);
@@ -239,6 +254,9 @@
         return;
       }
       if (event.target.closest('input, a, button, select, textarea')) {
+        return;
+      }
+      if (isEpisodeModalOpen() || !isBookSelectionSurface(event.target)) {
         return;
       }
       startX = event.clientX;

@@ -225,12 +225,12 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                 return True
         return super().eventFilter(obj, event)
 
-    def set_ensure_handler(self, callback=None):
+    def set_ensure_handler(self, callback=None, *, result_kind: str = "checked_ids"):
         self.window_mode.reset_standard_mode(
             window_title=self._default_window_title,
             ensure_tooltip=self._default_ensure_tooltip,
         )
-        self.window_mode.set_ensure_handler(callback)
+        self.window_mode.set_ensure_handler(callback, result_kind=result_kind)
 
     def set_close_handler(self, callback=None):
         self.window_mode.set_close_handler(callback)
@@ -338,7 +338,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         return (request.selectedText() or "").strip()
 
     def page(self, after_callback):
-        self.page_runtime.run_page_scan(after_callback)
+        self.page_runtime.collect_ensure_result(
+            after_callback,
+            result_kind=self.window_mode.ensure_result_kind,
+        )
 
     ensure = page
 

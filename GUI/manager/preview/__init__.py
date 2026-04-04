@@ -20,6 +20,7 @@ class PreviewMgr:
         self.site_index = 0
         self.search_context: SearchContextSnapshot | None = None
         self.books_cache = {}
+        self.downloaded_book_ids = set()
         self._worker = None
         self._generation = 0
         self._session_id = 0
@@ -70,6 +71,7 @@ class PreviewMgr:
         self._generation += 1
         self.search_context = None
         self._active_keyword = ""
+        self.downloaded_book_ids.clear()
         self.reset_preview_page()
         self._manga.shutdown()
         self._ero.shutdown()
@@ -88,6 +90,7 @@ class PreviewMgr:
         self._current_page = 1
         self._target_page = None
         self.books_cache.clear()
+        self.downloaded_book_ids.clear()
         self.reset_preview_page()
         self._manga.reset()
         self._ero.reset()
@@ -120,6 +123,7 @@ class PreviewMgr:
         browser_created = getattr(self.gui, "BrowserWindow", None) is None
         browser = self.gui.present_browser(
             ensure_handler=ensure_handler,
+            ensure_result_kind="preview_submit" if ensure_handler is not None else "checked_ids",
             close_handler=self._on_preview_window_closed,
             enable_page_frame=True,
             reload_tf=reload_tf,

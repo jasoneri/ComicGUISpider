@@ -385,12 +385,24 @@ class BaseComicSpider(scrapy.Spider):
         if domain_cache.exists():
             os.remove(domain_cache)
 
+    def _finish_counters(self, stats):
+        downloaded_count = stats.get_value('image/downloaded', 0)
+        uptodate_count = stats.get_value('file_status_count/uptodate', 0)
+        total = self.job_context.total if self.job_context else self.total
+        return downloaded_count, uptodate_count, downloaded_count + uptodate_count, total
+
     def close(self, reason):
         stats = self.crawler.stats
+        downloaded_count, uptodate_count, processed_count, total = self._finish_counters(stats)
         if self.current_job:
             self.current_job.finish_reason = reason
-            self.current_job.runtime_success = reason == "finished"
-            self.current_job.runtime_error = reason if "error" in reason else None
+            incomplete = reason == "finished" and total and processed_count < total
+            self.current_job.runtime_success = reason == "finished" and not incomplete
+            self.current_job.runtime_error = (
+                f"incomplete download: processed={processed_count}/{total}, downloaded={downloaded_count}, uptodate={uptodate_count}"
+                if incomplete else
+                reason if "error" in reason else None
+            )
         try:
             self.makesure_tasks_status()
         except Exception as e:

@@ -2,7 +2,6 @@ import json
 import pathlib
 
 from assets import res
-from utils.website.info import BookInfo, Episode
 from variables import CGS_DOC
 from utils import conf
 from utils.processed_class import ClipSqlHandler
@@ -74,6 +73,10 @@ class ClipGUIManager:
 
     def single_clip_tasks_data(self, book):
         if book.episodes:
+            downloaded_md5s = {
+                episode.id_and_md5()[1]
+                for episode in self.gui.download_state.downloaded_items(book.episodes)
+            }
             for ep in book.episodes:
                 ep.name = ep.name or f'Episode-{ep.id}'
                 self.infos[f"ep{book.idx}-{ep.idx}"] = ep
@@ -91,7 +94,14 @@ class ClipGUIManager:
                 options['meta_badges'] = book.tags[:20]
 
             book_key = json.dumps(str(book.idx))
-            episodes_data = [{"name": ep.name, "idx": ep.idx} for ep in book.episodes]
+            episodes_data = [
+                {
+                    "name": ep.name,
+                    "idx": ep.idx,
+                    "downloaded": ep.id_and_md5()[1] in downloaded_md5s,
+                }
+                for ep in book.episodes
+            ]
             js_code = (
                 f'addBookWithEpsCard({json.dumps(book.idx)},'
                 f'{json.dumps(book.img_preview, ensure_ascii=False)},'
@@ -125,21 +135,16 @@ class ClipGUIManager:
                 with open(self.gui.tf, 'w', encoding='utf-8') as f:
                     f.write(html)
                 if conf.isDeduplicate:
-                    self.gui.mark_tip(self.infos)
                     dled_bidxes = []
-                    dled_eidxes = []
+                    downloaded_md5s = self.gui.download_state.downloaded_md5s(self.infos.values())
                     for key, obj in self.infos.items():
-                        if getattr(obj, 'mark_tip', None) == 'downloaded':
-                            if isinstance(obj, BookInfo):
-                                dled_bidxes.append(key)
-                            elif isinstance(obj, Episode):
-                                dled_eidxes.append(key)
-                    if dled_bidxes or dled_eidxes:
+                        if not hasattr(obj, "id_and_md5") or obj.id_and_md5()[1] not in downloaded_md5s:
+                            continue
+                        if getattr(obj, "from_book", None) is None:
+                            dled_bidxes.append(key)
+                    if dled_bidxes:
                         js_parts = []
-                        if dled_bidxes:
-                            js_parts.append(f'previewRuntime.markDownloaded({json.dumps(dled_bidxes)},[])')
-                        if dled_eidxes:
-                            js_parts.append(f'markDownloadedEpisodes({json.dumps(dled_eidxes)})')
+                        js_parts.append(f'previewRuntime.markDownloaded({json.dumps(dled_bidxes)},[])')
                         self.gui.BrowserWindow.page_runtime.run_js(';'.join(js_parts))
                 if self.gui.BrowserWindow.topHintBox.isChecked():
                     self.gui.BrowserWindow.topHintBox.click()

@@ -148,6 +148,7 @@ class MitmMainWindow(Ui_MainWindow):
     def preset(self):
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
+        self.clipBtn.setVisible(False)
         self.aggrBtn.setVisible(False)
         
         self.openPBtn = ToolButton(self.frame)

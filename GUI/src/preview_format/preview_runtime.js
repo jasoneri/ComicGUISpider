@@ -166,6 +166,30 @@
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  function applyDownloadedPresentation(descriptor, domTargets) {
+    if (!descriptor || !descriptor.downloaded) {
+      return;
+    }
+    if (descriptor.kind === 'book') {
+      if (domTargets.card) {
+        domTargets.card.classList.add('preview-card-state-downloaded');
+      }
+      if (domTargets.container) {
+        domTargets.container.classList.add('container-downloaded');
+      }
+      if (domTargets.img) {
+        domTargets.img.classList.add('img-downloaded');
+      }
+      return;
+    }
+    if (domTargets.label) {
+      domTargets.label.classList.add('episode-container-downloaded');
+    }
+    if (domTargets.checkbox) {
+      domTargets.checkbox.classList.add('episode-container-downloaded');
+    }
+  }
+
   function applyLockState(id, options = {}) {
     const descriptor = getDescriptor(id);
     if (!descriptor) {
@@ -251,6 +275,7 @@
       if (descriptor.locked || descriptor.downloaded || lockSet.has(id)) {
         applyLockState(id, { dispatchChange: false });
       }
+      applyDownloadedPresentation(descriptor, targets);
     });
 
     if (typeof window.reflowPreviewBadges === 'function') {
@@ -442,21 +467,7 @@
       descriptor.downloaded = true;
       registry.set(descriptor.id, descriptor);
       applyLockState(descriptor.id);
-
-      if (descriptor.kind === 'book') {
-        if (domTargets.card) {
-          domTargets.card.classList.add('preview-card-state-downloaded');
-        }
-        if (domTargets.container) {
-          domTargets.container.classList.add('container-downloaded');
-        }
-        if (domTargets.img) {
-          domTargets.img.classList.add('img-downloaded');
-        }
-      } else {
-        domTargets.label.classList.add('episode-container-downloaded');
-        domTargets.checkbox.classList.add('episode-container-downloaded');
-      }
+      applyDownloadedPresentation(descriptor, domTargets);
     });
 
     refresh();
@@ -470,6 +481,15 @@
     }
     const extraIds = extraCheckedIdsResolver();
     return normalizeIds(checkedIds.concat(Array.isArray(extraIds) ? extraIds : [extraIds]));
+  }
+
+  function collectSubmitPayload() {
+    const episodeIds = scanChecked().filter((id) => String(id).startsWith('ep'));
+    return {
+      action: 'submit-download',
+      bookIds: getCheckedIds({ kind: 'book' }),
+      episodeIds,
+    };
   }
 
   window.previewRuntime = {
@@ -490,6 +510,7 @@
     resolveDomTargets,
     markDownloaded,
     scanChecked,
+    collectSubmitPayload,
   };
 
   if (document.readyState === 'loading') {

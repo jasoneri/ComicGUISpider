@@ -1,6 +1,5 @@
 import json
 
-from utils.website.info import BookInfo
 from utils import conf
 from utils.processed_class import PreviewByFixHtml
 from GUI.thread import AggrSearchThread
@@ -51,8 +50,6 @@ class AggrSearchManager:
                 val = getattr(book, attr, None)
                 if val:
                     options[attr] = val
-            if getattr(book, 'mark_tip', None):
-                options['flag'] = book.mark_tip
 
             if book.episodes:
                 meta = []
@@ -89,10 +86,11 @@ class AggrSearchManager:
                 with open(self.gui.tf, 'w', encoding='utf-8') as f:
                     f.write(html)
                 if conf.isDeduplicate:
-                    self.gui.mark_tip(self.infos)
+                    downloaded_md5s = self.gui.download_state.downloaded_md5s(self.infos.values())
                     dled_bidxes = [
                         key for key, obj in self.infos.items()
-                        if getattr(obj, 'mark_tip', None) == 'downloaded' and isinstance(obj, BookInfo)
+                        if hasattr(obj, "id_and_md5") and obj.id_and_md5()[1] in downloaded_md5s
+                        and not getattr(obj, "episodes", None)
                     ]
                     if dled_bidxes:
                         self.gui.BrowserWindow.page_runtime.run_js(

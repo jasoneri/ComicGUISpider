@@ -119,6 +119,10 @@
           return;
         }
         dialogEl.removeEventListener('keydown', onKeyDown);
+        const activeEl = document.activeElement;
+        if (activeEl instanceof HTMLElement && dialogEl.contains(activeEl)) {
+          activeEl.blur();
+        }
         setHidden(true, DIALOG_HIDE_EVENT);
         if (openerEl && typeof openerEl.focus === 'function') {
           openerEl.focus();

@@ -93,21 +93,15 @@
     const safeTitle = esc(title);
     const safeUrl = esc(url);
     const safeImg = esc(imgSrc);
-    const isDownloaded = options.flag === 'downloaded';
-    const lockedAttr = isDownloaded ? ' data-preview-locked="true"' : '';
-    const disabledAttr = isDownloaded ? ' disabled aria-disabled="true"' : '';
-    const cardStateClass = isDownloaded ? ' preview-card-state-downloaded' : '';
-    const mediaStateClass = isDownloaded ? ' container-downloaded' : '';
-    const imageStateClass = isDownloaded ? ' img-downloaded' : '';
     const badges = buildBadgeGroups(options);
     const extraInfo = options.extra_info ? `\n          <div class="card-extra-info">${options.extra_info}</div>` : '';
-    return `<div class="singal-task preview-card${cardStateClass}">
+    return `<div class="singal-task preview-card">
         <div class="preview-checkbox preview-card-check">
-          <input class="preview-checkbox-input" type="checkbox" name="img" id="${safeIdx}"${lockedAttr}${disabledAttr}>
+          <input class="preview-checkbox-input" type="checkbox" name="img" id="${safeIdx}">
           <label class="preview-checkbox-label" for="${safeIdx}">
             <span class="preview-checkbox-toggle" aria-hidden="true"><span class="preview-checkbox-tick"></span></span>
-            <div class="preview-checkbox-media${mediaStateClass}">
-              <img src="${safeImg}" title="${safeTitle}" alt="${safeTitle}" class="preview-card-image${imageStateClass}"/>
+            <div class="preview-checkbox-media">
+              <img src="${safeImg}" title="${safeTitle}" alt="${safeTitle}" class="preview-card-image"/>
               ${badges}
             </div>
           </label>
@@ -218,8 +212,6 @@
         checkboxId: String(idx),
         scope: 'fix',
         groupIdx: groupIdx != null ? String(groupIdx) : undefined,
-        locked: options.flag === 'downloaded',
-        downloaded: options.flag === 'downloaded',
       }]);
       runtime.refresh(target.lastElementChild);
       updateProgressBar();

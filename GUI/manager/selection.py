@@ -4,8 +4,6 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, Signal
 
 from GUI.types import GUIFlowStage
-from utils import conf
-from utils.sql import SqlRecorder
 
 
 class SelectionFlowManager(QObject):
@@ -104,48 +102,7 @@ class SelectionFlowManager(QObject):
 
         dl_mgr = getattr(self.gui, "dl_mgr", None)
         running_ids = dl_mgr.get_running_task_ids() if dl_mgr else set()
-
-        downloaded_ids = set()
-        if conf.isDeduplicate:
-            sql = SqlRecorder()
-            try:
-                if lane == "BOOK" and isinstance(indexes, list):
-                    md5s = [item.id_and_md5()[1] for item in indexes if hasattr(item, "id_and_md5")]
-                    downloaded_ids = sql.batch_check_dupe(md5s) if md5s else set()
-                elif lane == "EP" and isinstance(indexes, list):
-                    md5s = [ep.id_and_md5()[1] for ep in indexes if hasattr(ep, "id_and_md5")]
-                    downloaded_ids = sql.batch_check_dupe(md5s) if md5s else set()
-            finally:
-                sql.close()
-
-        if lane == "BOOK" and isinstance(indexes, list):
-            filtered = []
-            for item in indexes:
-                if not hasattr(item, "id_and_md5"):
-                    filtered.append(item)
-                    continue
-                _, item_md5 = item.id_and_md5()
-                if item_md5 in running_ids:
-                    skip_info["running"] += 1
-                elif item_md5 in downloaded_ids:
-                    skip_info["downloaded"] += 1
-                else:
-                    filtered.append(item)
-            return filtered, skip_info
-
-        if lane == "EP" and isinstance(indexes, list):
-            filtered_eps = []
-            for ep in indexes:
-                if not hasattr(ep, "id_and_md5"):
-                    filtered_eps.append(ep)
-                    continue
-                _, ep_md5 = ep.id_and_md5()
-                if ep_md5 in running_ids:
-                    skip_info["running"] += 1
-                elif ep_md5 in downloaded_ids:
-                    skip_info["downloaded"] += 1
-                else:
-                    filtered_eps.append(ep)
-            return filtered_eps, skip_info
+        if lane in ("BOOK", "EP") and isinstance(indexes, list):
+            return self.gui.download_state.filter_pending(indexes, running_ids=running_ids)
 
         return indexes, skip_info

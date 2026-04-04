@@ -52,6 +52,7 @@ class PreprocessManager(QObject):
         if index in Spider.aggr():
             self._add_aggr_search()
         if index in Spider.clip():
+            self.gui.clipBtn.setVisible(True)
             self.gui.clipBtn.setEnabled(1)
 
     def _start_preprocess(self, index: int, generation: int):

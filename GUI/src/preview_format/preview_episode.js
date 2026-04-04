@@ -31,7 +31,6 @@
       this.pendingTimer = null;
       this.scanToastInstance = null;
       this.episodesCache = new Map();
-      this.downloadedEpCache = new Set();
 
       this.listEl = requireElement('episodeList');
       this.titleEl = requireElement('episodeTitle');
@@ -51,8 +50,10 @@
       previewCommandBus.register('manga.episodes.loaded', ({ bookKey, episodes }) => {
         this.updateEpisodes(bookKey, episodes);
       });
-      previewCommandBus.register('manga.episodes.downloaded', ({ episodeIds }) => {
-        this.markDownloadedEpisodes(episodeIds);
+      previewCommandBus.register('preview.books.downloaded', ({ bookIds }) => {
+        if (window.previewRuntime) {
+          window.previewRuntime.markDownloaded(bookIds, []);
+        }
       });
       previewCommandBus.register('manga.episodes.error', ({ bookKey, code }) => {
         this.showEpisodeFetchError(bookKey, code);
@@ -96,6 +97,8 @@
       }
       this.ensureModal();
       this.ensureScanToast();
+      window.collectPreviewSubmitPayload = () => this.collectSubmitPayload();
+      window.updateEpisodes = (bookKey, episodes) => this.preloadEpisodes(bookKey, episodes);
     }
 
     ensureModal() {
@@ -151,6 +154,19 @@
 
     getImmediateEpisodes(bookKey, _title) {
       return this.episodesCache.get(String(bookKey)) || null;
+    }
+
+    preloadEpisodes(bookKey, episodes) {
+      const cacheKey = String(bookKey);
+      if (!Array.isArray(episodes)) {
+        throw new TypeError('episodes payload must be an array');
+      }
+      this.episodesCache.set(cacheKey, episodes);
+      if (cacheKey === this.activeBookKey) {
+        this.clearPendingTimer();
+        this.setLoadingState(false);
+        this.renderEpisodes(cacheKey, episodes);
+      }
     }
 
     requestEpisodes(bridge, bookKey) {
@@ -239,6 +255,13 @@
         top: this.modalBodyEl.scrollHeight,
         behavior: 'smooth',
       });
+    }
+
+    collectSubmitPayload() {
+      if (!window.previewRuntime || typeof window.previewRuntime.collectSubmitPayload !== 'function') {
+        throw new Error('previewRuntime.collectSubmitPayload is not ready');
+      }
+      return window.previewRuntime.collectSubmitPayload();
     }
 
     renderLoading() {
@@ -353,6 +376,7 @@
       }
 
       let html = '<div class="episodes-grid">';
+      const descriptors = [];
       for (let index = 0; index < episodes.length; index += 1) {
         const episode = episodes[index];
         const episodeIndex = Number.isFinite(Number(episode.idx)) ? Number(episode.idx) : index + 1;
@@ -360,9 +384,16 @@
         const episodeName = escapeHtml(rawName);
         const checkboxId = `ep${bookKey}-${episodeIndex}`;
         const searchText = escapeHtml(`${episodeIndex} ${rawName}`.toLowerCase());
-        const isDled = this.downloadedEpCache.has(checkboxId);
+        const isDled = Boolean(episode.downloaded);
         const inputCls = isDled ? 'episode-item-input episode-container-downloaded' : 'episode-item-input';
         const labelCls = isDled ? 'episode-item episode-container-downloaded' : 'episode-item';
+        descriptors.push({
+          id: checkboxId,
+          kind: 'episode',
+          checkboxId,
+          parentId: String(bookKey),
+          downloaded: isDled,
+        });
         html += `
         <div class="episode-item-wrap" data-episode-item data-episode-text="${searchText}">
           <input class="${inputCls}" type="checkbox" id="${checkboxId}" autocomplete="off">
@@ -376,6 +407,12 @@
       html += '</div>';
 
       this.listEl.innerHTML = html;
+      if (window.previewRuntime && typeof window.previewRuntime.registerItems === 'function') {
+        window.previewRuntime.registerItems(descriptors);
+      }
+      if (window.previewRuntime && typeof window.previewRuntime.refresh === 'function') {
+        window.previewRuntime.refresh(this.listEl);
+      }
       this.showBtnGroup(true);
       this.updateCount();
       this.afterRenderEpisodes(bookKey);
@@ -396,8 +433,7 @@
         if (!Array.isArray(episodes)) {
           throw new TypeError('episodes payload must be an array');
         }
-        this.episodesCache.set(cacheKey, episodes);
-        this.renderEpisodes(cacheKey, episodes);
+        this.preloadEpisodes(cacheKey, episodes);
       } catch (_error) {
         this.showEpisodeError(this.buildEpisodeErrorMessage('parse_error'));
       }
@@ -414,23 +450,6 @@
         return;
       }
       this.showEpisodeError(this.buildEpisodeErrorMessage(code));
-    }
-
-    markDownloadedEpisodes(epIds) {
-      const ids = (Array.isArray(epIds) ? epIds : [])
-        .filter((id) => id !== null && id !== undefined && id !== '')
-        .map((id) => String(id));
-      ids.forEach((id) => {
-        this.downloadedEpCache.add(id);
-        const checkbox = document.getElementById(id);
-        if (checkbox instanceof HTMLInputElement && this.listEl.contains(checkbox)) {
-          checkbox.classList.add('episode-container-downloaded');
-          const label = document.querySelector(`label[for="${id}"]`);
-          if (label) {
-            label.classList.add('episode-container-downloaded');
-          }
-        }
-      });
     }
 
     applyDlScanResult(badges) {

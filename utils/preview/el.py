@@ -24,7 +24,7 @@ class ElMinix:
         )
 
     @classmethod
-    def create(cls, idx, img_src, title, url, flag=None, meta=None, extra_info=None, **badges_kw):
+    def create(cls, idx, img_src, title, url, meta=None, extra_info=None, **badges_kw):
         safe_title = html.escape(PresetHtmlEl.sub(title or ""), quote=True)
         safe_img_src = html.escape(img_src or "", quote=True)
         safe_url = html.escape(url or "", quote=True)
@@ -81,7 +81,7 @@ class MangaEl(ElMinix):
         )
 
     @classmethod
-    def create(cls, idx, img_src, title, url, flag=None, meta=None, extra_info=None, with_favorite=True, **badges_kw):
+    def create(cls, idx, img_src, title, url, meta=None, extra_info=None, with_favorite=True, **badges_kw):
         safe_title = html.escape(title or "", quote=True)
         # safe_url = html.escape(url or "", quote=True)
         safe_img_src = html.escape(img_src or "", quote=True)

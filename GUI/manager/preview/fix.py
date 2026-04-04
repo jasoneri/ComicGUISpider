@@ -19,6 +19,13 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._inflight_books.clear()
         self._clear_fix_state()
         self.mgr.books_cache = {str(book.idx): book for book in books}
+        direct_books = [
+            book for book in books
+            if not self.is_episode_card(book)
+        ]
+        self.mgr.downloaded_book_ids = {
+            str(book.idx) for book in self.gui.download_state.downloaded_items(direct_books)
+        }
         self.episodes_cache.clear()
         self.gui.clean_temp_file()
         upper_cards = []
@@ -48,6 +55,12 @@ class FixPreviewFeature(MangaPreviewFeature):
         super().reset()
 
     def _on_page_ready(self, session_id):
+        if self.mgr.downloaded_book_ids:
+            self.mgr.send_command(
+                "preview.books.downloaded",
+                {"bookIds": sorted(self.mgr.downloaded_book_ids)},
+                session_id=session_id,
+            )
         if self.mgr.books_cache and session_id not in self._dl_scan_runnables:
             self._start_dl_scan(session_id)
 

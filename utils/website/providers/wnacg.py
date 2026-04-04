@@ -1,6 +1,5 @@
 import re
 import asyncio
-import concurrent.futures
 import httpx
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
@@ -9,7 +8,7 @@ from lxml import etree
 from scrapy import Selector
 
 from assets import res
-from utils import conf, get_loop, ori_path, temp_p
+from utils import conf, ori_path
 from utils.website.core import DomainUtils, EroUtils, Previewer, Req, build_proxy_transport
 from utils.website.info import WnacgBookInfo
 
@@ -250,32 +249,13 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
         return None
 
     @classmethod
-    def _validate_cached_domain(cls, domain: str) -> bool:
-        loop = get_loop()
-        try:
-            return bool(loop.run_until_complete(cls.test_aviable_domain(domain)))
-        finally:
-            loop.close()
-
-    @classmethod
     def get_domain(cls):
         from utils.website.core import Cache
 
         cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
         cached = cls.cachef.run(lambda: None, 168)
         if isinstance(cached, str) and cached.strip():
-            try:
-                asyncio.get_running_loop()
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    if executor.submit(cls._validate_cached_domain, cached.strip()).result():
-                        return cached.strip()
-            except RuntimeError:
-                if cls._validate_cached_domain(cached.strip()):
-                    return cached.strip()
-            temp_p.joinpath(f"{cls.name}_domain.txt").unlink(missing_ok=True)
-            if cls.cachef is not None:
-                cls.cachef.flag = "new"
-                cls.cachef.val = None
+            return cached.strip()
         return super().get_domain()
 
     @classmethod

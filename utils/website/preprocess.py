@@ -102,10 +102,10 @@ def _preprocess_manga_copy(gateway: "ProviderSiteGateway") -> PreprocessResult:
 
 
 def _preprocess_jm_like(gateway: "ProviderSiteGateway") -> PreprocessResult:
-    cache_hit = _cache_hit(gateway)
     try:
         domain = gateway.get_domain()
     except (httpx.HTTPError, RuntimeError, ValueError) as exc:
+        cache_hit = _cache_hit(gateway)
         return PreprocessResult(
             ready=False,
             block_search=True,
@@ -116,6 +116,7 @@ def _preprocess_jm_like(gateway: "ProviderSiteGateway") -> PreprocessResult:
             state_flags={"cache_hit": cache_hit, "domain_ready": False, "error": str(exc)},
         )
 
+    cache_hit = _cache_hit(gateway)
     message = (
         "<br>➖ 缓存处于有效期内，跳过测试"
         if cache_hit

@@ -2,6 +2,7 @@
 import os
 import sys
 import traceback
+import contextlib
 from datetime import datetime
 from multiprocessing import freeze_support
 from pathlib import Path
@@ -90,8 +91,6 @@ class ExceptionRouter:
             seen.add(path)
             try:
                 path.parent.mkdir(parents=True, exist_ok=True)
-                with open(path, "a", encoding="utf-8"):
-                    pass
                 return path
             except OSError:
                 continue
@@ -107,21 +106,17 @@ class ExceptionRouter:
             f"log_path: {log_path}\n"
             f"{trace_text}"
         )
-        try:
+        with contextlib.suppress(OSError):
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write(payload)
-        except OSError:
-            pass
         return log_path
 
     @staticmethod
     def _write_stderr(message):
         if sys.stderr is None:
             return
-        try:
+        with contextlib.suppress(OSError):
             sys.stderr.write(message)
-        except OSError:
-            pass
 
 
 EXCEPTION_ROUTER = ExceptionRouter()
