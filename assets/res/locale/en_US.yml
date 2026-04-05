@@ -7,6 +7,7 @@ GUI:
   DESC_ELSE: "For issues/feature suggestions, contact with an issue."
   
   BrowserWindow_ensure_warning: "Return to selection page and ensure valid selection before proceeding."
+  BrowserWindow_cf_challenge_tip: "Cloudflare verification needs manual interaction. Please wait patiently (refresh if the page stays blank).\nWhen the home page appears, the app will return automatically. Do not close the built-in browser manually."
   jm_desc: "Supports multiple book IDs (decimal numbers), e.g. `123456,654321,114514` (comma-separated)<br>[Clipboard function: Avoid copying `18comic.vip` domain due to 5-second shield - direct ID input recommended]"
   wnacg_desc: "wnacg CN source may be slow/unstable. Common network errors [Errno 11001 10054 10060]/`ReadTimeout`:<br>Restart usually resolves. If persistent after multiple attempts, contact group/submit issue."
   mangabz_desc: "Māngabz uses iPhone web version. Note: Volumes/chapters both use numeric labels (e.g. Vol.1 and Ch.1 both labeled '1') - identify via adjacent chapters."

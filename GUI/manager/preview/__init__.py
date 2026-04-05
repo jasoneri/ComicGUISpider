@@ -4,7 +4,7 @@ import json
 from PySide6.QtWebChannel import QWebChannel
 
 from GUI.core.font import font_color
-from GUI.types import GUIFlowStage, SearchContextSnapshot, SearchLifecycleState
+from GUI.types import GUIFlowStage, PreviewRequestState, SearchContextSnapshot, SearchLifecycleState
 from GUI.thread.preview import PreviewWorker
 from GUI.manager.preview.manga import MangaPreviewFeature
 from GUI.manager.preview.ero import EroPreviewFeature
@@ -160,12 +160,16 @@ class PreviewMgr:
         if not keyword:
             return
 
+        self.gui.update_search_ui(
+            session=SearchLifecycleState.Locked,
+            request=PreviewRequestState.Running,
+        )
         self._active_keyword = keyword
         self._target_page = 1
         if keyword == ori_res.GUI.local_fav and (self.is_manga or self.is_fix):
             self._active._show_local_fav()
             self.gui.flow_stage = GUIFlowStage.SEARCHED
-            self.gui.lifecycle_state = SearchLifecycleState.LockedIdle
+            self.gui.update_search_ui(request=PreviewRequestState.Idle)
             return
 
         self._is_local_mode = False
@@ -176,19 +180,23 @@ class PreviewMgr:
             self._fix.episodes_cache.clear()
         if self._worker:
             self._worker.enqueue_search(keyword, self.site_index, page=1)
+            return
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
 
     def navigate_to(self, target_page: int):
         keyword = self._active_keyword.strip()
-        if self.gui.lifecycle_state is SearchLifecycleState.LockedSearching or not keyword or self._is_local_mode:
+        if self.gui.search_ui_state.request is PreviewRequestState.Running or not keyword or self._is_local_mode:
             return
         if target_page < 1 or target_page == self._current_page:
             return
         self.on_before_page_turn()
-        self.gui.lifecycle_state = SearchLifecycleState.LockedSearching
+        self.gui.update_search_ui(request=PreviewRequestState.Running)
         self._target_page = target_page
         self.begin_preview_session()
         if self._worker:
             self._worker.enqueue_search(keyword, self.site_index, page=target_page)
+            return
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
 
     def submit_browser_selection(self):
         browser = getattr(self.gui, "BrowserWindow", None)
@@ -216,7 +224,7 @@ class PreviewMgr:
         self.gui.pageEdit.setValue(self._current_page)
         self._is_local_mode = False
         self.gui.flow_stage = GUIFlowStage.SEARCHED
-        self.gui.lifecycle_state = SearchLifecycleState.LockedIdle
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
         self._active.publish(books)
 
     def _on_search_error(self, generation, keyword, site_index, error):
@@ -227,7 +235,7 @@ class PreviewMgr:
         self._target_page = None
         self.gui.pageEdit.setValue(self._current_page)
         self.gui.flow_stage = GUIFlowStage.IDLE
-        self.gui.lifecycle_state = SearchLifecycleState.LockedIdle
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
         self.gui.log.error(error)
         summary = (error.strip().splitlines() or ["unknown preview error"])[-1]
         self.gui.say(

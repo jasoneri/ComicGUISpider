@@ -33,7 +33,7 @@ from GUI.manager import (
 )
 from utils.config.qc import cgs_cfg
 from GUI.manager.preprocess import PreprocessManager
-from GUI.types import GUIFlowStage, SearchContextSnapshot, SearchLifecycleState
+from GUI.types import GUIFlowStage, PreviewRequestState, SearchContextSnapshot, SearchLifecycleState, SearchUiState
 from utils.middleware.timeline import EventSource, TimelineStage
 from variables import *
 from assets import res
@@ -76,36 +76,25 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log = conf.cLog(name="GUI")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
-        self.first_init = True
         self.setupUi(self)
 
+    def _pick_sleep_widget_image(self, *, allow_random: bool) -> str | None:
+        if allow_random and getattr(self.bg_mgr, "bg_fs", []):
+            return random.choice(self.bg_mgr.bg_fs)[0]
+        return self.bg_mgr.bg_f
+
     def setupUi(self, MainWindow):
-        snapshot = None
-        if not self.first_init and getattr(self, 'task_mgr', None):
-            snapshot = self.task_mgr.capture_native_snapshot()
         super(SpiderGUI, self).setupUi(MainWindow)
-        if self.first_init:
-            self.splashScreen = CustomSplashScreen(self)
-            self.setup_sleep_widget(self.bg_mgr.bg_f)
-            self.show()
-            res.set_language(conf.lang)
-            self.apply_translations()
-            self.task_init()
-            self.task_mgr = TaskProgressManager(self)
-            self.task_mgr.init_native_panel()
-            setupTheme(self)
-            safe_single_shot(10, self.setupUi_)
-            self.first_init = False
-        else:
-            self.apply_translations()
-            if getattr(self.bg_mgr, "bg_fs", []):
-                self.setup_sleep_widget(random.choice(self.bg_mgr.bg_fs)[0])
-            else:
-                self.setup_sleep_widget(self.bg_mgr.bg_f)
-            setupTheme(self)
-            self.task_init()
-            self.task_mgr.rebind_native_panel(snapshot)
-            self.finish_setup()
+        self.splashScreen = CustomSplashScreen(self)
+        self.setup_sleep_widget(self._pick_sleep_widget_image(allow_random=False))
+        self.show()
+        res.set_language(conf.lang)
+        self.apply_translations()
+        self.task_init()
+        self.task_mgr = TaskProgressManager(self)
+        self.task_mgr.init_native_panel()
+        setupTheme(self)
+        safe_single_shot(10, self.setupUi_)
 
     def setupUi_(self):
         self.rv_tools = rVtools()
@@ -138,27 +127,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.conf_dia = ConfDialog(self)
         self.textBrowser.append(TextUtils.description())
 
-        if getattr(self, 'sel_mgr', None):
-            _safe_disconnect(self.sel_mgr.decision_made)
-            _safe_disconnect(self.sel_mgr.skip_notified)
-        if getattr(self, 'dl_mgr', None):
-            _safe_disconnect(self.dl_mgr.process_stage_changed)
-
         self.clip_mgr = ClipGUIManager(self)
         self.ags_mgr = AggrSearchManager(self)
         self.preview_mgr = PreviewMgr(self)
         self.publish_mgr = PublishDomainManager(self)
-        if not getattr(self, 'download_state', None):
-            self.download_state = DownloadStateOwner()
-        if not getattr(self, 'dl_mgr', None):
-            self.dl_mgr = DownloadRuntimeManager(self)
-        else:
-            self.dl_mgr.rebind(self)
+        self.download_state = DownloadStateOwner()
+        self.dl_mgr = DownloadRuntimeManager(self)
         self.sel_mgr = SelectionFlowManager(self)
-        if not getattr(self, 'mid_mgr', None):
-            self.mid_mgr = CGSMidManagerGUI(self)
-        else:
-            self.mid_mgr.rebind(self)
+        self.mid_mgr = CGSMidManagerGUI(self)
         self.dl_mgr.process_stage_changed.connect(self.mid_mgr.on_process_stage)
         if self.dl_mgr.process_stage:
             self.mid_mgr.on_process_stage(self.dl_mgr.process_stage)
@@ -171,57 +147,62 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.set_tool_win()
         self.tf = None
         self._search_context = None
-        self._search_blocked = False
         self.BrowserWindow = None
         self.bsm = None
-        self._lifecycle_state = SearchLifecycleState.Unlocked
+        self.search_ui_state = SearchUiState()
 
         self.preprocess_mgr = PreprocessManager(self)
         _safe_disconnect(self.chooseBox.currentIndexChanged, self._chooseBox_changed_handle)
         self.chooseBox.currentIndexChanged.connect(self._chooseBox_changed_handle)
-        self.lifecycle_state = SearchLifecycleState.Unlocked
+        self.refresh_lifecycle_state()
         self.setup_finished.emit()
 
-    @property
-    def lifecycle_state(self):
-        return self._lifecycle_state
-
-    @lifecycle_state.setter
-    def lifecycle_state(self, state: SearchLifecycleState):
-        self._lifecycle_state = state
+    def update_search_ui(self, *, session=_UNSET, request=_UNSET, controls_blocked=_UNSET):
+        if session is not _UNSET:
+            self.search_ui_state.session = session
+        if request is not _UNSET:
+            self.search_ui_state.request = request
+        if controls_blocked is not _UNSET:
+            self.search_ui_state.controls_blocked = bool(controls_blocked)
+            self.clipBtn.setDisabled(self.search_ui_state.controls_blocked)
         self._apply_lifecycle_state()
 
     def refresh_lifecycle_state(self):
         self._apply_lifecycle_state()
 
     def _apply_lifecycle_state(self):
-        state = self._lifecycle_state
         has_selected_site = self.chooseBox.currentIndex() > 0
         has_search_site = self.chooseBox.currentIndex() in SPIDERS
-        choose_enabled = state is SearchLifecycleState.Unlocked
-        search_enabled = state is SearchLifecycleState.LockedIdle and has_search_site and not self._search_blocked
-        preview_enabled = state is SearchLifecycleState.LockedIdle and has_search_site and not self._search_blocked
-        retry_enabled = state is not SearchLifecycleState.Unlocked and has_selected_site
-        if state is SearchLifecycleState.Unlocked or not has_search_site:
+        ui_state = self.search_ui_state
+        request_running = ui_state.request is PreviewRequestState.Running
+        choose_enabled = not has_selected_site
+        search_enabled = (
+            has_search_site
+            and ui_state.session is SearchLifecycleState.Unlocked
+            and not ui_state.controls_blocked
+        )
+        preview_enabled = has_search_site and not request_running and not ui_state.controls_blocked
+        retry_enabled = has_selected_site
+        if not has_search_site:
             show_ero = False
             show_manga = False
         else:
             show_ero = self.web_is_r18
             show_manga = not self.web_is_r18
         page_enabled = (
-            state is SearchLifecycleState.LockedIdle
-            and has_search_site
+            has_search_site
             and self.flow_stage is GUIFlowStage.SEARCHED
             and getattr(self, "preview_mgr", None)
             and self.preview_mgr.is_pageable
+            and not request_running
         )
 
         self.chooseBox.setEnabled(choose_enabled)
         self.searchinput.setEnabled(search_enabled)
         self.previewBtn.setVisible(show_ero)
-        self.previewBtn.setEnabled(True)
+        self.previewBtn.setEnabled(preview_enabled and show_ero)
         self.mpreviewBtn.setVisible(show_manga)
-        # self.mpreviewBtn.setEnabled(preview_enabled and show_manga)
+        self.mpreviewBtn.setEnabled(preview_enabled and show_manga)
         self.retrybtn.setEnabled(retry_enabled)
         self.confBtn.setEnabled(True)
         self._set_page_frame_enabled(bool(page_enabled))
@@ -287,18 +268,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def _chooseBox_changed_handle(self, index):
         if index <= 0:
             self._search_context = None
-            self._search_blocked = False
+            self.search_ui_state = SearchUiState()
             self.web_is_r18 = False
             self.site_gateway = None
             self.spider_adapter = None
             self.flow_stage = GUIFlowStage.IDLE
             self.preview_mgr.handle_choosebox_changed(index, None)
-            self.lifecycle_state = SearchLifecycleState.Unlocked
+            self.refresh_lifecycle_state()
             return
 
         self._search_context = self._build_search_context_snapshot(index)
-        self._search_blocked = False
-        self.lifecycle_state = SearchLifecycleState.LockedIdle
+        self.search_ui_state = SearchUiState()
         try:
             self.site_gateway = resolve_site_gateway(index)
         except ValueError:
@@ -485,7 +465,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 return False
             return any(bool(mgr.is_triggered and mgr.infos) for mgr in (self.clip_mgr, self.ags_mgr))
     
-        if self.lifecycle_state is SearchLifecycleState.LockedSearching:
+        if self.search_ui_state.request is PreviewRequestState.Running:
             InfoBar.info(title='', content='searching', isClosable=True,
                 position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
             return
@@ -504,7 +484,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             os.remove(self.tf)
 
     def retry_schedule(self):
+        image = self._pick_sleep_widget_image(allow_random=True)
         self.reset_search_context()
+        self.setup_sleep_widget(image)
 
     def reset_search_context(self):
         reset_tip = font_color(f"{self.res.reboot_tip}", cls='theme-highlight', size=4)
@@ -530,7 +512,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sv_path = conf.sv_path
         self.flow_stage = GUIFlowStage.IDLE
         self._search_context = None
-        self._search_blocked = False
+        self.search_ui_state = SearchUiState()
         self.searchinput.clear()
         self.searchinput.setStatusTip("")
         self.pageEdit.setEnabled(True)
@@ -540,21 +522,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.blockSignals(False)
         self.aggrBtn.setVisible(False)
         self.clipBtn.setVisible(False)
-        self.lifecycle_state = SearchLifecycleState.Unlocked
+        self.refresh_lifecycle_state()
         self._restore_feedback_panel()
         self.log.info('===--→ reset_search_context end\n')
 
     def disable_start(self):
-        self._search_blocked = True
-        self.refresh_lifecycle_state()
-        self.clipBtn.setDisabled(True)
-
-    def _on_worker_finished(self, imgs_path: str, success: bool):
-        pass
+        self.update_search_ui(controls_blocked=True)
 
     def start_and_search(self, keyword=None, site_index=None):
         self.log.info('===--→ -*- searching')
-        if self.lifecycle_state is SearchLifecycleState.LockedSearching:
+        if self.search_ui_state.request is PreviewRequestState.Running:
             InfoBar.info(title='', content='searching', isClosable=True,
                 position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
             return
@@ -574,7 +551,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
             self.refresh_lifecycle_state()
             return
-        self.lifecycle_state = SearchLifecycleState.LockedSearching
         self.log.debug(f'[search] site :[{site}], keyword [{kw}] ')
         self.preview_mgr.on_spreview_clicked(keyword=kw)
 

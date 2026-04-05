@@ -17,7 +17,7 @@ class AggrSearchManager:
         self.extractor = None  # 从 AggrSearchView 传递过来的 extractor
 
     def run(self, search_keywords):
-        self.gui.searchinput.setDisabled(True)
+        self.gui.update_search_ui(controls_blocked=True)
         self.is_triggered = True
 
         self.gui.tf = PreviewByFixHtml.created_temp_html()

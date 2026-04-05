@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import contextlib
 from collections import deque
+from copy import deepcopy
 # from uuid import uuid4
 
 from PySide6.QtCore import QObject, Signal
@@ -33,6 +34,7 @@ class DownloadRuntimeManager(QObject):
         self.pending_job_ids: set[str] = set()
         self._job_task_ids: dict[str, set[str]] = {}
         self._submission_queue: deque[SpiderDownloadJob] = deque()
+        self._submitted_task_infos: dict[str, tuple[int, object]] = {}
 
     def start_runtime(self, site_index: int):
         if self.spider_runtime and self.spider_runtime.is_alive():
@@ -42,11 +44,11 @@ class DownloadRuntimeManager(QObject):
         self.spider_runtime.start()
         self.spider_runtime.wait_ready()
 
-    def submit_download(self, task_info):
+    def submit_download(self, task_info, site_index: int | None = None):
+        effective_site_index = self.gui.chooseBox.currentIndex() if site_index is None else site_index
         if not self.spider_runtime:
-            self.start_runtime(self.gui.chooseBox.currentIndex())
+            self.start_runtime(effective_site_index)
 
-        site_index = self.gui.chooseBox.currentIndex()
         tasks_obj = task_info.to_tasks_obj()
         job_id = tasks_obj.taskid
         if job_id in self.session_job_ids:
@@ -54,8 +56,8 @@ class DownloadRuntimeManager(QObject):
 
         job = SpiderDownloadJob(
             job_id=job_id,
-            spider_name=SPIDERS[site_index],
-            site_index=site_index,
+            spider_name=SPIDERS[effective_site_index],
+            site_index=effective_site_index,
             payload=task_info,
             options={},
             tasks_obj=tasks_obj,
@@ -64,10 +66,15 @@ class DownloadRuntimeManager(QObject):
         self.session_job_ids.add(job_id)
         self._job_task_ids[job_id] = {tasks_obj.taskid}
         self.session_job_task_ids.add(tasks_obj.taskid)
+        self._submitted_task_infos[job_id] = (effective_site_index, deepcopy(task_info))
         self.gui.task_mgr.handle(tasks_obj)
         self.ensure_work_thread()
         self._submission_queue.append(job)
         self._submit_queued_jobs()
+
+    def resubmit_download(self, task_id: str):
+        site_index, task_info = self._submitted_task_infos[task_id]
+        self.submit_download(deepcopy(task_info), site_index=site_index)
 
     def ensure_work_thread(self) -> WorkThread:
         if self.b_thread and self.b_thread.isRunning():
@@ -106,6 +113,7 @@ class DownloadRuntimeManager(QObject):
         if job_id in self._job_task_ids:
             del self._job_task_ids[job_id]
             self._rebuild_session_task_ids()
+        self.gui.task_mgr.sync_toolbar_state()
         self._submit_queued_jobs()
         if not self.has_active_download():
             self.all_jobs_finished.emit()
@@ -133,6 +141,7 @@ class DownloadRuntimeManager(QObject):
         if job_id in self._job_task_ids:
             del self._job_task_ids[job_id]
             self._rebuild_session_task_ids()
+        self.gui.task_mgr.sync_toolbar_state()
         self._submit_queued_jobs()
         if not self.has_active_download():
             self.all_jobs_finished.emit()
@@ -237,6 +246,7 @@ class DownloadRuntimeManager(QObject):
             self.pending_job_ids.clear()
             self._job_task_ids.clear()
             self._submission_queue.clear()
+            self._submitted_task_infos.clear()
         if stop_mgr and getattr(self.gui, "mid_mgr", None):
             self.gui.mid_mgr.stop()
 

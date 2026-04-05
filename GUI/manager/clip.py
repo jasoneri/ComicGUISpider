@@ -53,7 +53,7 @@ class ClipGUIManager:
     def init_clip_handle(self, tf, match_urls):
         """初始化剪贴板处理"""
 
-        self.gui.searchinput.setDisabled(True)
+        self.gui.update_search_ui(controls_blocked=True)
         self.is_triggered = True
         # 统一使用GUI的tf
         self.gui.tf = tf

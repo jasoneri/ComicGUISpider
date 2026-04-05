@@ -4,8 +4,19 @@ from enum import Enum
 
 class SearchLifecycleState(Enum):
     Unlocked = "unlocked"
-    LockedIdle = "locked_idle"
-    LockedSearching = "locked_searching"
+    Locked = "locked"
+
+
+class PreviewRequestState(Enum):
+    Idle = "idle"
+    Running = "running"
+
+
+@dataclass(slots=True)
+class SearchUiState:
+    session: SearchLifecycleState = SearchLifecycleState.Unlocked
+    request: PreviewRequestState = PreviewRequestState.Idle
+    controls_blocked: bool = False
 
 
 @dataclass(frozen=True, slots=True)

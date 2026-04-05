@@ -161,7 +161,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def showEvent(self, event):
         super(BrowserWindow, self).showEvent(event)
         if not self.window_mode.uses_page_scan:
-            CustomInfoBar.show_custom('', 'cf验证需要人工点击，请耐心等待\n之后首页出现会自动退回界面，全程不要主动关闭内置浏览器',
+            CustomInfoBar.show_custom('', res.GUI.BrowserWindow_cf_challenge_tip,
                 parent=self, _type="INFORMATION", ib_pos=InfoBarPosition.BOTTOM_LEFT)
         if self._first_show:
             self._first_show = False

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent, QObject
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
 from qfluentwidgets import (
@@ -18,12 +18,25 @@ from utils import ori_path
 res = ori_res.GUI.Uic
 
 
+class _SleepWidgetResizeFilter(QObject):
+    def __init__(self, owner):
+        super().__init__(owner)
+        self.owner = owner
+
+    def eventFilter(self, obj, event):
+        if obj is self.owner.sleepWidget and event.type() in (QEvent.Resize, QEvent.Show):
+            self.owner.refresh_sleep_label_size()
+        return False
+
+
 class MitmMainWindow(Ui_MainWindow):
     def setupUi(self, _mainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
         _mainWindow.setWindowTitle(_translate("MainWindow", f"ComicGUISpider {VER}"))
         self.preset()
+        self._sleep_widget_resize_filter = _SleepWidgetResizeFilter(self)
+        self.sleepWidget.installEventFilter(self._sleep_widget_resize_filter)
 
     def apply_translations(self):
         """依赖 res 翻译的文案设置，延迟到 set_language 之后调用"""
@@ -62,6 +75,10 @@ class MitmMainWindow(Ui_MainWindow):
     # === bg and bubble.svg
 
     def _mk_overlay(self, parent, name, image, *, init=None, lower=False):
+        current = getattr(self, name, None)
+        if current is not None:
+            current.hide()
+            current.deleteLater()
         label = ImageLabel(parent)
         label.setObjectName(name)
         label.setImage(image)
@@ -114,14 +131,14 @@ class MitmMainWindow(Ui_MainWindow):
 
     def resizeEvent(self, event):
         QtWidgets.QMainWindow.resizeEvent(self, event)
-        self._refresh_sleep_label_size()
+        self.refresh_sleep_label_size()
 
     def _sync_sleep_widget_geometry(self):
-        self._refresh_sleep_label_size()
+        self.refresh_sleep_label_size()
         h = self.height() + self.sleepLabel.height() - self.sleepWidget.height()
         self.resize(self.width(), min(h, self.maximumHeight()))
 
-    def _refresh_sleep_label_size(self):
+    def refresh_sleep_label_size(self):
         if not getattr(self, "sleepLabel", None) or not getattr(self, "sleepBasePixmap", None):
             return
         sw = self.sleepWidget.width()
@@ -162,6 +179,8 @@ class MitmMainWindow(Ui_MainWindow):
     def task_init(self):
         self.expandBtn = ExpandButton(self)
         self.clearBtn = TransparentToolButton(FIF.BROOM)
+        self.repairBtn = TransparentToolButton(QIcon(':/main/repair.svg'), self)
+        self.repairBtn.setStatusTip("Patch missing page/补漏页")
 
         self.scroll_content = QWidget()
         self.flow_layout = FlowLayout(self.scroll_content)
@@ -174,9 +193,11 @@ class MitmMainWindow(Ui_MainWindow):
         self.scroll_area.setWidgetResizable(True)
 
         self.barHLayout.insertWidget(0, self.expandBtn)
+        self.barHLayout.addWidget(self.repairBtn)
         self.barHLayout.addWidget(self.clearBtn)
         self.barVLayout.addWidget(self.scroll_area)
 
         self.expandBtn.setVisible(False)
+        self.repairBtn.setVisible(False)
         self.clearBtn.setVisible(False)
         self.scroll_area.setVisible(False)
