@@ -21,7 +21,7 @@ export const URLS = {
     rvFeed: join(ORIGINS.RV, "/contribute/feed"),
     quickStart: join(ORIGINS.MAIN, "/deploy/quick-start"),
     faq: join(ORIGINS.MAIN, "/faq"),
-    featScript: join(ORIGINS.MAIN, "/feat/script"),
+    featScript: join(ORIGINS.MAIN, "/script"),
   },
 } as const;
 

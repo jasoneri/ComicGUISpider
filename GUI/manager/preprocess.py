@@ -73,7 +73,7 @@ class PreprocessManager(QObject):
                 progress_callback=progress_callback,
             )
 
-        site_name = "kemono" if index == 7 else SPIDERS.get(index, str(index))
+        site_name = "Script" if index == 7 else SPIDERS.get(index, str(index))
         self.task_manager.execute_simple_task(
             task_func=task,
             success_callback=lambda result: self._on_preprocess_success(index, generation, result),

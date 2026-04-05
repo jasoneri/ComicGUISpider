@@ -44,7 +44,7 @@ def run_site_preprocess(
             progress_callback=progress_callback,
         )
     if site_key == 7:
-        return _preprocess_kemono(
+        return _preprocess_script(
             data_client=_ensure_data_client(data_client),
             progress_callback=progress_callback,
         )
@@ -180,7 +180,7 @@ def _preprocess_ehentai(gateway: "ProviderSiteGateway", *, conf_state=conf) -> P
         domain=getattr(gateway, "domain", None),
         runtime_ready=True,
         messages=(
-            _message("success", "<br>✅ exhentai 访问检测通过"),
+            _message("success", "<br>✅ exhentai access pass"),
         ),
         actions=(
             _action("attach_ehentai_runtime", runtime=runtime),
@@ -233,7 +233,7 @@ def _preprocess_hitomi(
     state_flags: dict[str, t.Any] = {"access_ready": access_ready}
 
     if access_ready:
-        messages.append(_message("success", "<br>✅ hitomi 访问检测通过"))
+        messages.append(_message("success", "<br>✅ hitomi access pass"))
     else:
         messages.append(
             _message(
@@ -298,13 +298,14 @@ def _download_hitomi_db(db_path: Path, data_client: httpx.Client) -> tuple[bool,
         tmp_path.unlink(missing_ok=True)
 
 
-def _preprocess_kemono(
+def _preprocess_script(
     *,
     data_client: httpx.Client,
     progress_callback=None,
 ) -> PreprocessResult:
-    services_ready = _check_kemono_services()
-    dependencies_result = _check_kemono_dependencies()
+    script_res = res.GUI.Script
+    services_ready = _check_script_services()
+    dependencies_result = _check_script_dependencies()
     dependencies_ready = dependencies_result is True
 
     messages: list[dict[str, t.Any]] = []
@@ -315,31 +316,31 @@ def _preprocess_kemono(
     }
 
     if services_ready:
-        messages.append(_message("success", "✅ 后台服务检测"))
+        messages.append(_message("success", script_res.service_check_success))
     else:
         messages.append(
             _message(
                 "error",
-                "Redis 或 Motrix 服务未运行，<br>点击指南查看`前置须知`，安装并运行相关服务",
+                script_res.service_check_failed_content,
                 channel="custom",
-                title="服务检测失败",
-                url=f"{CGS_DOC}/feat/script",
-                url_name="脚本集指南",
+                title=script_res.service_check_failed_title,
+                url=f"{CGS_DOC}/script",
+                url_name=script_res.guide_name,
             )
         )
 
     if dependencies_ready:
-        messages.append(_message("success", "✅ 额外依赖检测"))
+        messages.append(_message("success", script_res.dependency_check_success))
     else:
         missing = tuple(dependencies_result)
         messages.append(
             _message(
                 "error",
-                "点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）",
+                script_res.dependency_check_failed_content,
                 channel="custom",
-                title="依赖安装失败",
-                url=f"{CGS_DOC}/feat/script",
-                url_name="脚本集指南",
+                title=script_res.dependency_check_failed_title,
+                url=f"{CGS_DOC}/script",
+                url_name=script_res.guide_name,
             )
         )
         actions.append(_action("launch_update_flow"))
@@ -358,10 +359,10 @@ def _preprocess_kemono(
     state_flags["data_ready"] = data_ready
     state_flags["data_cache_hit"] = data_cache_hit
     if data_ready:
-        messages.append(_message("success", "✅ 数据缓存检测"))
+        messages.append(_message("success", script_res.data_cache_check_success))
         actions.append(_action("open_script_window"))
     else:
-        messages.append(_message("error", "❌ 数据缓存检测"))
+        messages.append(_message("error", script_res.data_cache_check_failed))
 
     return PreprocessResult(
         ready=data_ready,
@@ -373,7 +374,7 @@ def _preprocess_kemono(
     )
 
 
-def _check_kemono_services() -> bool:
+def _check_script_services() -> bool:
     running_processes = {proc.info["name"].lower() for proc in psutil.process_iter(["name"]) if proc.info["name"]}
     required = (
         any("motrix" in name for name in running_processes),
@@ -382,7 +383,7 @@ def _check_kemono_services() -> bool:
     return all(required)
 
 
-def _check_kemono_dependencies() -> bool | list[str]:
+def _check_script_dependencies() -> bool | list[str]:
     missing = []
     for package in ("redis", "pandas"):
         try:

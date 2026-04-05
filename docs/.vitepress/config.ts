@@ -84,6 +84,10 @@ export default defineConfig({
                     {
                         text: "mac部署",
                         link: "/deploy/mac-required-reading",
+                    },
+                    {
+                        text: "🚨可用监控",
+                        link: "/deploy/monitor",
                     }
                 ],
             },
@@ -114,10 +118,19 @@ export default defineConfig({
                     {
                         text: "🀄️CGSMid",
                         link: "/feat/mid",
+                    }
+                ]
+            },
+            {
+                text: "Script",
+                items: [
+                    {
+                        text: "🎮通用",
+                        link: "/script",
                     },
                     {
-                        text: "🚧其他脚本集",
-                        link: "/feat/script",
+                        text: "Kemono",
+                        link: "/script/kemono",
                     }
                 ]
             },

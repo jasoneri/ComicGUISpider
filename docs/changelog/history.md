@@ -7,11 +7,10 @@
 + 交互与下载分离，优化交互：
   - 翻页保留被拆解为翻页前自动提交
   - 内置重启语义改为重置搜索, 重置前可以一直提交任务, 已提交任务也与重置无关继续进行
-  - ~~重复提交补漏页~~
-+ [danbooru](https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv)
-  - doh: 当前 GUI (例如danbooru+motrix)都能用，scrapy(下载侧)不能用还在研究
++ [danbooru](https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv) 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
++ doh: 当前 GUI (例如danbooru+motrix) 都能用，scrapy(下载侧)不能用还在研究。 doh 是有效改善网络的功能，具体可以自行 github 找资源
 + html/卡片样式改变 (bootstrap转tailwind)
-  - 新增fix模式，可尝试jm搜"非H"，能同页区分上下卡片区域，下区域卡片点击会进入章节选择面板
+  - 新增fix模式，可尝试jm搜"非H"，能同页区分上下卡片区域，下区域卡片点击会进入章节选择面板（当前仅处理`青年漫`）
 + 两个网站的发布页管理可主动触发，选择网站后会有明显按钮
 + 补漏页一键重试，有漏页声明后右下会出现按钮
 + 代理记录缓存
@@ -20,6 +19,8 @@
 
 + wnacg 设置代理被视为图源也走代理
 + 任务面板滚动区域高度被裁修复
++ 站点选择的 kemono 改为 Script
++ 2.10.0-beta 后续强制统一安装包括 script 的所有依赖 (redis/pandas etc.)
 + git 瘦身至十多 mb (偏开发)
 
 > CGSMid 暂时关闭

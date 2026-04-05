@@ -27,6 +27,11 @@
   <img src="https://img-cgs.101114105.xyz/file/cgs/1772889192994_fake-play.png" alt="logo" height="200">
 </a></div>
 
+<div align="center">
+<a href="https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv" target="_blank">
+  <img src="https://img-cgs.101114105.xyz/file/cgs/1774207883543_danbooruPlay.png" alt="logo" height="120">
+</a></div>
+
 ## ✨功能特性
 
 - 多种使用方式，多开同时操作不同网站，下载封面对比等
@@ -35,7 +40,7 @@
 
 **更多移步查阅 [🎸功能文档](https://cgs.101114105.xyz/feat/)**
 
-## 🚨可用监控
+## 🚨[可用监控](https://cgs.101114105.xyz/deploy/monitor/)
 
 | 网站                                    | 适用区域 |    补充说明    |
 |:--------------------------------------|:----:|:----------:|
