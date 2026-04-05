@@ -10,8 +10,11 @@ from PySide6 import QtGui
 from GUI.core.font import font_color
 from GUI.core.theme import CustTheme, theme_mgr
 
-DEFAULT_TAB_STATUS_TEXT = "空词搜索进入首页"
 DEFAULT_TAB_STATUS_CLASS = "theme-tip"
+
+
+def default_tab_status_text() -> str:
+    return "空词搜索进入首页"
 
 CARD_WIDTH_BASE = 228
 CARD_PREVIEW_BASE_HEIGHT = 168
@@ -105,12 +108,6 @@ def get_danbooru_qss_tokens() -> dict[str, str]:
     if tokens is None:
         raise KeyError(f"Danbooru QSS token set is missing theme {theme_name!r}")
     return dict(tokens)
-
-
-def reload_danbooru_qss() -> None:
-    _load_qss_document.cache_clear()
-
-
 def _render_qss_section(name: str, **overrides: str) -> str:
     sections, _ = _load_qss_document()
     template = sections.get(name)
@@ -292,8 +289,3 @@ def build_title_label_stylesheet(palette: DanbooruUiPalette) -> str:
 def build_tip_line_stylesheet(palette: DanbooruUiPalette) -> str:
     _ = palette
     return _render_qss_section("tip_line_inline")
-
-
-def build_network_label_stylesheet(palette: DanbooruUiPalette) -> str:
-    _ = palette
-    return _render_qss_section("network_label_inline")

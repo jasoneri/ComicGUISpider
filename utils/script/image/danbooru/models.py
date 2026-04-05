@@ -22,7 +22,6 @@ from .constants import (
     _WHITESPACE_RE,
 )
 
-
 @dataclass(frozen=True, slots=True)
 class DanbooruSearchQuery:
     term: str = ""
@@ -203,28 +202,6 @@ class DanbooruRuntimeConfig:
 
     def stub_dns_endpoint(self) -> str:
         return dns_stub_endpoint(self.doh_url)
-
-    def request_dns_summary(self) -> str:
-        return f"DoH -> {self.doh_url}" if self.is_doh_enabled() else "系统 DNS"
-
-    def motrix_dns_summary(self) -> str:
-        return f"Motrix: async-dns-server={self.stub_dns_server()}" if self.is_doh_enabled() else "Motrix: 默认 DNS"
-
-    def network_label(self) -> str:
-        return f"请求 {self.request_dns_summary()} | {self.motrix_dns_summary()}"
-
-    def network_tooltip(self) -> str:
-        if self.is_doh_enabled():
-            request_text = f"Danbooru 请求通过 dnspython DoH resolver 解析，当前端点为 {self.doh_url}。"
-            motrix_text = f"Danbooru 会启动本地 DNS stub {self.stub_dns_endpoint()}，Motrix 通过 async-dns-server={self.stub_dns_server()} 使用同一上游。"
-            if self.motrix_aria2_conf_path:
-                motrix_text += " 设置页保存时还会同步 aria2.conf。"
-            return f"{request_text}\n{motrix_text}"
-        request_text = "Danbooru 请求使用系统或代理链路的默认 DNS 解析。"
-        motrix_text = "Motrix 不启用 Danbooru 本地 DNS stub。"
-        if self.motrix_aria2_conf_path:
-            motrix_text += " 设置页保存时会清空 aria2.conf 里的 Danbooru DNS 覆写。"
-        return f"{request_text}\n{motrix_text}"
 
     def resolve_download_path(self, post: DanbooruPost, *, base_path: Optional[str] = None) -> p.Path:
         root = p.Path(base_path or self.save_path)

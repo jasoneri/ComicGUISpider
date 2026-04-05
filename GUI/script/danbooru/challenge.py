@@ -41,12 +41,12 @@ class DanbooruChallengeController(QtCore.QObject):
         reason: str,
         retry_key: str,
     ) -> None:
-        normalized_reason = str(reason or "请求").strip() or "请求"
-        self.interface._set_tab_tip(tab_id, f"Danbooru {normalized_reason}需要网页验证，完成后会自动重试", cls="theme-tip")
+        _ = reason
+        self.interface._set_tab_tip(tab_id, "⚠", cls="theme-tip")
         self.coordinator.submit(
             self._build_spec(challenge),
             tab_id=tab_id,
-            retry_key=str(retry_key or f"{tab_id}:{normalized_reason}"),
+            retry_key=str(retry_key or f"{tab_id}:{reason}"),
             retry_callback=retry_callback,
         )
 
@@ -92,8 +92,7 @@ class DanbooruChallengeController(QtCore.QObject):
                 f"current_url={result.current_url or '<unknown>'}"
             )
         for tab_id in tab_ids:
-            self.interface._set_tab_tip(tab_id, "验证页已返回，但没有采集到可回灌的 Cloudflare Cookie", cls="theme-err")
-        self.interface._show_info(InfoBar.warning, "Danbooru 验证页已返回，但没有采集到可回灌的 Cloudflare Cookie", 5000)
+            self.interface._set_tab_tip(tab_id,"Cloudflare Cookie unget",cls="theme-err")
 
     def _handle_success(
         self,
@@ -115,10 +114,5 @@ class DanbooruChallengeController(QtCore.QObject):
                 f"headers={len(session.headers)} retries={len(retry_callbacks)} "
                 f"current_url={result.current_url or '<unknown>'}"
             )
-        for tab_id in tab_ids:
-            cookie_text = f"{len(session.cookies)} 个 Cookie" if session.cookies else "0 个 Cookie"
-            header_text = f"{len(session.headers)} 个 Header"
-            self.interface._set_tab_tip(tab_id, f"已同步浏览器验证态({cookie_text}, {header_text})，正在重试", cls="theme-success")
-        self.interface._show_info(InfoBar.success, "Danbooru 浏览器验证态已同步，正在重试请求", 4000)
         for retry_callback in retry_callbacks:
             retry_callback()

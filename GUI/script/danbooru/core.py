@@ -423,7 +423,6 @@ class DanbooruSearchController:
         replace: bool,
         task_prefix: str,
     ):
-        self.interface._set_tab_tip(tab_id, "加载中...", cls="theme-tip")
         self.interface._log_search_request(tab_id, query, order, page, DANBOORU_PAGE_SIZE)
         execute_danbooru_task(
             self.interface.task_mgr,
@@ -455,20 +454,20 @@ class DanbooruSearchController:
         state.mark_loaded_page(posts, page)
         self.interface._update_tab_title(tab_id, state.query)
         if not posts and replace:
-            self.interface._set_tab_tip(tab_id, "无结果", cls="theme-tip")
+            self.interface._set_tab_tip(tab_id, "∅", cls="theme-tip")
             return
         downloaded_md5s = self.interface.sql_recorder.batch_check_dupe([post.md5 for post in posts if post.md5])
         appended_cards = tab.append_results(posts, downloaded_md5s)
         if replace:
-            self.interface._set_tab_tip(tab_id, "已进入 Danbooru 首页" if not state.query else "已加载结果", cls="theme-success")
+            self.interface._set_tab_tip(tab_id, "access index" if not state.query else "✓", cls="theme-success")
         else:
-            self.interface._set_tab_tip(tab_id, "已追加内容" if not state.query else "已追加更多结果", cls="theme-success")
+            ...
         danbooru_cfg.add_history(state.query)
         self.interface._refresh_completer(tab)
         for card in appended_cards:
             self.load_card_preview(tab, card)
         if not state.has_more_results:
-            self.interface._set_tab_tip(tab_id, "没有更多结果", cls="theme-tip")
+            self.interface._set_tab_tip(tab_id, "empty", cls="theme-err")
 
     def handle_search_challenge(
         self, tab_id: str, token: int, challenge: DanbooruChallengeRequired,
@@ -479,8 +478,6 @@ class DanbooruSearchController:
         if tab is None or state is None or token != state.request_token:
             return
         tab.set_loading(False)
-        self.interface._set_tab_tip(tab_id, "Danbooru 需要网页验证，完成后会自动重试", cls="theme-tip")
-        self.interface._show_info(InfoBar.warning, "Danbooru 需要网页验证，验证通过后会自动重试", 7000)
         retry_callback = (
             (lambda tid=tab_id, query=state.query: self.start_search(tid, query))
             if replace or page <= 1
@@ -490,7 +487,7 @@ class DanbooruSearchController:
             tab_id,
             challenge,
             retry_callback,
-            reason="搜索请求",
+            reason="search",
             retry_key=f"search:{tab_id}:{page}:{int(replace)}",
         )
 
@@ -500,10 +497,10 @@ class DanbooruSearchController:
         if tab is None or state is None or token != state.request_token:
             return
         tab.set_loading(False)
-        summary = (error.splitlines() or ["unknown error"])[0]
-        msg = f"搜索失败: {summary}"
+        summary = (error.splitlines() or ["?"])[0]
+        msg = f"✕ search fail {summary}"
         self.interface._set_tab_tip(tab_id, msg, cls="theme-err")
-        self.interface._show_task_error("搜索失败", error, 6000)
+        self.interface._show_task_error(error, 6000)
 
     def load_card_preview(self, tab: "DanbooruTabWidget", card: "DanbooruCardWidget"):
         preview_url = card.post.preview_file_url or card.post.file_url
@@ -530,7 +527,7 @@ class DanbooruSearchController:
                 tab_id,
                 payload.challenge,
                 lambda tid=tab_id, pid=post_id: self.retry_card_preview(tid, pid),
-                reason="缩略图加载",
+                reason="thumbnail..",
                 retry_key=f"card-preview:{tab_id}:{post_id}",
             )
             return
@@ -563,7 +560,7 @@ class DanbooruSearchController:
             self.interface.task_mgr,
             lambda: DanbooruReq.autocomplete(term),
             success_callback=lambda payload, tid=tab_id: self.handle_conversion_task_result(tid, payload),
-            error_callback=lambda err: self.interface._show_task_error("转换失败", err, 6000),
+            error_callback=lambda err: self.interface._show_task_error(err, 6000),
             task_id=f"danbooru-convert-{tab_id}",
         )
 
@@ -581,7 +578,7 @@ class DanbooruSearchController:
             tab_id,
             challenge,
             lambda tid=tab_id: self.convert_term(tid),
-            reason="标签转换",
+            reason="tag conversion",
             retry_key=f"convert:{tab_id}",
         )
 
@@ -596,15 +593,15 @@ class DanbooruSearchController:
             self._search_converted_candidate(tab_id, result.matches[0])
             return
         if result.has_matches:
-            self.interface._set_tab_tip(tab_id, f"找到 {len(result.matches)} 个候选，请选择", cls="theme-tip")
+            self.interface._set_tab_tip(tab_id,f"? {len(result.matches)}",cls="theme-tip")
             tab.show_conversion_candidates(
                 result.matches,
                 on_selected=lambda candidate, tid=tab_id: self._search_converted_candidate(tid, candidate),
             )
             return
-        reason = result.reason or "unknown"
-        self.interface._set_tab_tip(tab_id, f"转换失败: {reason}", cls="theme-err")
-        self.interface._show_info(InfoBar.warning, f"转换失败: {reason}", 4000)
+        content = "unknown"
+        self.interface._set_tab_tip(tab_id, content, cls="theme-err")
+        self.interface._show_info(InfoBar.warning, content, 4000)
 
 
 class DanbooruDownloadController:
@@ -655,7 +652,7 @@ class DanbooruDownloadController:
             self.interface.task_mgr,
             submit_task,
             success_callback=success_callback,
-            error_callback=lambda err: self.interface._show_task_error("提交失败", err, 6000),
+            error_callback=lambda err: self.interface._show_task_error(err, 6000),
             task_id=task_id,
         )
 

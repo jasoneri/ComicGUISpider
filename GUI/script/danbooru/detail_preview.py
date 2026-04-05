@@ -13,7 +13,6 @@ from .viewer import DanbooruImageViewer
 if t.TYPE_CHECKING:
     from .interface import DanbooruInterface
 
-
 @dataclass(frozen=True, slots=True)
 class _DanbooruDetailRequestSpec:
     reason: str
@@ -24,19 +23,19 @@ class _DanbooruDetailRequestSpec:
 
 
 _PREFETCH_REQUEST = _DanbooruDetailRequestSpec(
-    reason="大图预取",
+    reason="detail prefetch",
     task_prefix="danbooru-detail-prefetch",
     retry_prefix="detail-prefetch",
     discard_prefetch=True,
 )
 _PREVIEW_REQUEST = _DanbooruDetailRequestSpec(
-    reason="大图加载",
+    reason="detail preview",
     task_prefix="danbooru-detail-preview",
     retry_prefix="detail-preview",
-    challenge_placeholder="需要网页验证",
+    challenge_placeholder="需要验证",
 )
 _SIZE_REQUEST = _DanbooruDetailRequestSpec(
-    reason="尺寸探测",
+    reason="detail size probe",
     task_prefix="danbooru-detail-size",
     retry_prefix="detail-size",
 )
@@ -136,15 +135,15 @@ class DanbooruDetailPreviewController(QtCore.QObject):
         first_line = (error or "").splitlines()[0].strip()
         ext = DanbooruPost.normalize_file_ext(post.file_ext)
         if DanbooruPost.is_unsupported_file_ext(ext):
-            return f"Preview Error\n原因: Viewer 暂不支持 {ext.upper()} 预览，请下载后在外部打开"
+            return f"{ext.upper()} 暂不支持预览和下载 / unsupported"
         if not DanbooruDetailPreviewController._detail_preview_url(post):
-            return "Preview Error\n原因: 当前条目没有可用的预览地址"
+            return "当前作品没有可用预览 / non preview"
         if first_line == "invalid image data":
             media_hint = ext.upper() if ext else "未知格式"
-            return f"Preview Error\n原因: 返回内容不是可渲染图片，当前资源格式为 {media_hint}"
+            return f"返回内容不是可渲染的图片（{media_hint}）"
         if first_line:
-            return f"Preview Error\n原因: {first_line}"
-        return "Preview Error\n原因: 未知错误"
+            return f"fail/预览失败：{first_line}"
+        return "fail/预览失败"
 
     def _apply_cached_size(self, post: DanbooruPost):
         cached_size = self._size_cache.get(post.post_id)

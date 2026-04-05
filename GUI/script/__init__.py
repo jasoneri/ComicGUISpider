@@ -17,6 +17,7 @@ from qfluentwidgets import (
     GroupHeaderCardWidget, PushButton, SpinBox, ComboBox, RangeSettingCard
 )
 
+from assets import res
 from utils import yaml, ori_path
 from utils.config.qc import danbooru_cfg, cgs_cfg
 from utils.script import conf as script_conf
@@ -28,9 +29,13 @@ from GUI.manager.async_task import summarize_error_message
 from GUI.script.danbooru import DanbooruInterface
 from GUI.script.kemono import KemonoInterface
 
+
+script_res = res.GUI.Script
+uic_res = res.GUI.Uic
+
+
 OFFSCREEN_FLUENT_FALLBACK = os.environ.get("QT_QPA_PLATFORM") == "offscreen"
 ScriptWindowBase = QFrame if OFFSCREEN_FLUENT_FALLBACK else FluentWindow
-
 class _OffscreenNavigationInterface(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -82,7 +87,7 @@ class BaseServiceGroupCard(GroupHeaderCardWidget):
         self.cookiesEdit.setClearButtonEnabled(True)
         self.cookiesEdit.setMinimumWidth(400)
 
-        self.pathButton = PushButton("选择目录")
+        self.pathButton = PushButton(uic_res.sv_path_desc_tip)
         self.pathButton.setFixedWidth(120)
         self.pathButton.clicked.connect(self._onSelectFolder)
 
@@ -91,8 +96,8 @@ class BaseServiceGroupCard(GroupHeaderCardWidget):
         self.current_path = config_data.get("sv_path", default_path)
 
         # 添加组件到分组中
+        self.pathCard = self.addGroup(FIF.DOWNLOAD, uic_res.sv_path_desc, f"{self.current_path}", self.pathButton)
         self.addGroup(FIF.VPN, "Cookie 设置", "获取方法: 登录后网站首页F12开控制台\n查cookies, 字段名为 `session`", self.cookiesEdit)
-        self.pathCard = self.addGroup(FIF.DOWNLOAD, "存储路径", f"{self.current_path}", self.pathButton)
 
     def _onSelectFolder(self):
         folder = QFileDialog.getExistingDirectory(self, f"选择{self.service_name}存储目录")
@@ -137,14 +142,15 @@ class KemonoGroupCard(BaseServiceGroupCard):
 
 class DanbooruGroupCard(GroupHeaderCardWidget):
     SAVE_TYPE_OPTIONS = (
-        ("默认", None),
-        ("按搜索标签", "search_tag"),
+        ("danbooru_save_type_default", None),
+        ("danbooru_save_type_search_tag", "search_tag"),
     )
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setting_interface = parent
-        self.setTitle("Danbooru 配置")
+
+        self.setTitle("Danbooru Config")
         self.setBorderRadius(8)
 
         danbooru_conf = getattr(script_conf, "danbooru", {}) or {}
@@ -155,27 +161,38 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.downloadConcurrencyEdit.setValue(int(danbooru_conf.get("download_concurrency", 3)))
 
         self.saveTypeBox = ComboBox(self)
-        for text, value in self.SAVE_TYPE_OPTIONS:
-            self.saveTypeBox.addItem(text, userData=value)
+        for text_key, value in self.SAVE_TYPE_OPTIONS:
+            self.saveTypeBox.addItem(getattr(script_res, text_key), userData=value)
         self.setSaveType(danbooru_conf.get("save_type"))
 
-        self.pathButton = PushButton("选择目录")
+        self.pathButton = PushButton(uic_res.sv_path_desc_tip)
         self.pathButton.setFixedWidth(120)
         self.pathButton.clicked.connect(self._onSelectFolder)
 
-        self.pathCard = self.addGroup(FIF.DOWNLOAD, "存储路径", self.current_path, self.pathButton)
-        self.addGroup(FIF.FOLDER, "存储方式", "默认存入根目录，可选按搜索标签建子目录", self.saveTypeBox)
-        self.addGroup(FIF.SPEED_HIGH, "下载并发", "Danbooru Motrix 轮询并发数", self.downloadConcurrencyEdit)
+        self.pathCard = self.addGroup(FIF.DOWNLOAD, uic_res.sv_path_desc, self.current_path, self.pathButton)
+        self.addGroup(
+            FIF.FOLDER,
+            script_res.danbooru_save_mode,
+            script_res.danbooru_save_mode_desc,
+            self.saveTypeBox,
+        )
+        self.addGroup(
+            FIF.SPEED_HIGH,
+            script_res.danbooru_download_concurrency,
+            script_res.danbooru_download_concurrency_desc,
+            self.downloadConcurrencyEdit,
+        )
         self.viewRatioCard = RangeSettingCard(
-            danbooru_cfg.view_ratio, FIF.ZOOM, "图片展示缩放",
-            "控制 图片viewer 的展示面积", self,
+            danbooru_cfg.view_ratio, FIF.ZOOM, 
+            script_res.danbooru_view_ratio, script_res.danbooru_view_ratio_desc,
+            self,
         )
         if self.groupWidgets:
             self.groupWidgets[-1].setSeparatorVisible(True)
         self.groupLayout.addWidget(self.viewRatioCard)
 
     def _onSelectFolder(self):
-        folder = QFileDialog.getExistingDirectory(self, "选择Danbooru存储目录")
+        folder = QFileDialog.getExistingDirectory(self, "选择 Danbooru 存储目录")
         if folder:
             wanted_p = pathlib.Path(folder)
             cgs_path = ori_path.parent if ori_path.parent.joinpath("scripts/CGS.py").exists() else ori_path

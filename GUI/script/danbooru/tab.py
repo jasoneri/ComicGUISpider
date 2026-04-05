@@ -14,6 +14,7 @@ from .card import DanbooruCardWidget
 from .core import DanbooruTabSelectionController, DanbooruTabState, delete_flow_item as _delete_flow_item
 from .style import DanbooruCardMetrics, DanbooruUiPalette, DEFAULT_CARD_METRICS, build_tab_stylesheet
 
+
 class DanbooruTabWidget(QFrame):
     selection_count_changed = Signal(int)
     request_search = Signal(str)
@@ -56,7 +57,7 @@ class DanbooruTabWidget(QFrame):
         self.query_group = query_group
         self.search_edit = SearchLineEdit(self)
         self.search_edit.setClearButtonEnabled(True)
-        self.search_edit.setPlaceholderText("输入标签，例如 blue_archive")
+        self.search_edit.setPlaceholderText("such as: blue_archive")
         self.search_edit.setMinimumHeight(38)
         self.search_edit.returnPressed.connect(self._submit_search_from_keyboard)
         self.search_edit.searchSignal.connect(lambda text: self.request_search.emit(text))
@@ -70,7 +71,7 @@ class DanbooruTabWidget(QFrame):
         )
         self.favorite_btn = TransparentToolButton(FIF.HEART, self)
         self.favorite_btn.setFixedSize(38, 38)
-        self.convert_btn = PushButton("转英文tag", self)
+        self.convert_btn = PushButton("to Tag", self)
         self.convert_btn.setMinimumHeight(38)
         self.convert_btn.clicked.connect(self.request_conversion.emit)
         self.sort_box = ComboBox(self)
@@ -94,12 +95,10 @@ class DanbooruTabWidget(QFrame):
         self.scroll_area.setToolTip("左键拖拽框选，右键可清空选择")
         self.scroll_content = QWidget()
         self.scroll_content.setObjectName("DanbooruGridContent")
-        self.scroll_content.setToolTip("左键拖拽框选，右键可清空选择")
         self.flow_layout = FlowLayout(self.scroll_content)
         self.flow_layout.setContentsMargins(2, 2, 2, 2)
         self.flow_layout.setSpacing(4)
         self.scroll_area.setWidget(self.scroll_content)
-        self.scroll_area.viewport().setToolTip("左键拖拽框选，右键可清空选择")
         self.scroll_area.verticalScrollBar().valueChanged.connect(self._on_scroll_changed)
         self.main_layout.addWidget(self.scroll_area, 1)
         self.refresh_from_state()
@@ -140,7 +139,7 @@ class DanbooruTabWidget(QFrame):
     ):
         menu = RoundMenu(parent=self.search_edit)
         if not candidates:
-            empty_action = Action(text="暂无候选")
+            empty_action = Action(text="empty")
             empty_action.setEnabled(False)
             menu.addAction(empty_action)
         else:
