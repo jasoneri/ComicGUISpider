@@ -106,6 +106,10 @@ class PreviewWorker(QThread):
     def _get_gateway(site_index):
         return resolve_site_gateway(site_index)
 
+    def _batch_limit(self, site_index: int, stage: str, default: int) -> int:
+        gateway = self._get_gateway(site_index)
+        return gateway.preview_batch_limit(stage, default)
+
     async def _do_search(self, keyword, site_index, page=1):
         gateway = self._get_gateway(site_index)
         site_config = self._build_site_config(gateway)
@@ -126,10 +130,17 @@ class PreviewWorker(QThread):
         )
 
     async def _do_fetch_episodes_batch(self, items):
-        sem = asyncio.Semaphore(4)
+        semaphores = {}
+
+        def _site_semaphore(site_index):
+            sem = semaphores.get(site_index)
+            if sem is None:
+                sem = asyncio.Semaphore(self._batch_limit(site_index, "episodes", 4))
+                semaphores[site_index] = sem
+            return sem
 
         async def _fetch_one(session_id, book_key, book, site_index):
-            async with sem:
+            async with _site_semaphore(site_index):
                 try:
                     episodes = await self._do_fetch_episodes(book, site_index)
                     self.episodes_done.emit(self._generation, session_id, book_key, episodes)
@@ -141,10 +152,17 @@ class PreviewWorker(QThread):
         )
 
     async def _do_fetch_pages_batch(self, items):
-        sem = asyncio.Semaphore(2)
+        semaphores = {}
+
+        def _site_semaphore(site_index):
+            sem = semaphores.get(site_index)
+            if sem is None:
+                sem = asyncio.Semaphore(self._batch_limit(site_index, "pages", 2))
+                semaphores[site_index] = sem
+            return sem
 
         async def _fetch_one(book_key, episode, site_index):
-            async with sem:
+            async with _site_semaphore(site_index):
                 gateway = self._get_gateway(site_index)
                 site_config = self._build_site_config(gateway)
                 await gateway.preview_fetch_pages(

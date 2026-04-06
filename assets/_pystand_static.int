@@ -4,7 +4,7 @@ import argparse
 import pathlib
 import subprocess
 
-VER = "2.9.11"
+VER = "2.10.0-beta"
 DEFAULT_INDEX = r'https://pypi.tuna.tsinghua.edu.cn/simple/'
 
 

@@ -200,9 +200,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.setEnabled(choose_enabled)
         self.searchinput.setEnabled(search_enabled)
         self.previewBtn.setVisible(show_ero)
-        self.previewBtn.setEnabled(preview_enabled and show_ero)
         self.mpreviewBtn.setVisible(show_manga)
-        self.mpreviewBtn.setEnabled(preview_enabled and show_manga)
         self.retrybtn.setEnabled(retry_enabled)
         self.confBtn.setEnabled(True)
         self._set_page_frame_enabled(bool(page_enabled))
@@ -213,12 +211,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageFrame.setStyleSheet(f"QToolButton {{ background-color: {color}; }}")
 
     def _snapshot_cookies(self, site_index: int) -> dict[str, dict]:
-        cookies = {}
-        if site_index == Spider.JM and conf.cookies.get("jm"):
-            cookies["jm"] = dict(conf.cookies["jm"])
-        elif site_index == Spider.EHENTAI and conf.cookies.get("ehentai"):
-            cookies["ehentai"] = dict(conf.cookies["ehentai"])
-        return cookies
+        if site_index == Spider.JM:
+            if cookies := conf.cookies.get("jm"):
+                return {"jm": dict(cookies)}
+        elif site_index == Spider.EHENTAI:
+            if cookies := conf.cookies.get("ehentai"):
+                return {"ehentai": dict(cookies)}
+        return {}
 
     def _build_search_context_snapshot(self, site_index: int) -> SearchContextSnapshot:
         domains = {}

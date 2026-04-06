@@ -57,19 +57,6 @@ class SayToGui:
             self.state.text = _text
             self.event_q.put_nowait(LogEvent(job_id=self.job_id, level="info", message=_text))
 
-    # def frame_book_print(self, rets, url=None, extra=None):
-    #     extra = extra or ""
-    #     self(url or self.spider.search_start)  # 每个爬虫不一样，进这里自动吧
-    #     if len(rets):
-    #         self(rets)
-    #         # 向gui传送rets并赋值需要比exp_txt(crawl_only的flag) 早才行
-    #         self(f"""<hr><p class="theme-text">{''.join(self.exp_txt)}<br>
-    #             {font_color(extra, cls='theme-tip')}</p><br>""")
-    #     else:
-    #         self(f"<br>{'✈' * 15}<br>"
-    #             f"{font_color(self.res.frame_book_print_retry_tip, cls='theme-err', size=4)}")
-    #     return rets
-
     def frame_section_print(self, rets, extra=None):
         extra = extra or self.res.frame_section_print_extra
         self(rets)

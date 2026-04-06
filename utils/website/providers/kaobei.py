@@ -18,6 +18,7 @@ from utils.website.info import Episode, KbBookInfo
 class _KaobeiContract:
     name = "manga_copy"
     proxy_policy = "proxy"
+    preview_batch_limits = {"episodes": 1, "pages": 1}
     uuid_regex = re.compile(r"(\d+)$")
     pc_domain = "www.2026copy.com"
     api_domain = "api.2026copy.com"
@@ -129,12 +130,31 @@ class KaobeiParser(_KaobeiContract):
     @classmethod
     def parse_episodes(cls, json_results, book, *, url, aes_key, show_dhb=False):
         resp_data = cls.decrypt_chapter_data(json_results, aes_key=aes_key, url=url)
-        comic_path_word = resp_data["build"]["path_word"]
-        chapters_data = list(resp_data["groups"]["default"]["chapters"])
+        build = resp_data.get("build")
+        if not isinstance(build, dict):
+            raise ValueError(f"kaobei chapters payload missing build block: url={url}")
+        comic_path_word = build.get("path_word")
+        if not comic_path_word:
+            raise ValueError(f"kaobei chapters payload missing path_word: url={url}")
+        groups = build.get("groups")
+        if not isinstance(groups, dict):
+            groups = resp_data.get("groups")
+        if not isinstance(groups, dict):
+            raise ValueError(f"kaobei chapters payload missing groups: url={url}")
+        default_group = groups.get("default")
+        if not isinstance(default_group, dict):
+            raise ValueError(f"kaobei chapters payload missing default group: url={url}")
+        chapters_data = list(default_group.get("chapters") or [])
         if show_dhb:
             for group_name in ("tankobon", "other_group"):
-                if resp_data["groups"].get(group_name):
-                    chapters_data.extend(resp_data["groups"][group_name]["chapters"])
+                group = groups.get(group_name)
+                if isinstance(group, dict):
+                    chapters_data.extend(group.get("chapters") or [])
+        if not chapters_data:
+            raise ValueError(
+                f"kaobei chapters payload returned no chapters: url={url} "
+                f"path_word={comic_path_word} group_keys={list(groups)}"
+            )
         return [
             cls.parse_ep_item(chapter_datum, comic_path_word, book, idx + 1)
             for idx, chapter_datum in enumerate(chapters_data)
@@ -160,13 +180,21 @@ class KaobeiParser(_KaobeiContract):
     def decrypt_chapter_data(cls, ret: str, *, aes_key: str, **meta_info):
         if not aes_key:
             raise ValueError("kaobei aes_key is required for decrypt_chapter_data")
+        if not isinstance(ret, str):
+            raise TypeError(
+                f"kaobei encrypted payload must be str: got {type(ret).__name__} {meta_info=}"
+            )
+        if len(ret) <= 16:
+            raise ValueError(
+                f"kaobei encrypted payload is empty or too short: len={len(ret)} {meta_info=}"
+            )
         try:
-            if len(ret) < 1000:
-                raise ValueError(f"加密信息过短疑似风控变化\n{ret=}\n{meta_info=}")
             return cls._decrypt(ret[16:], aes_key=aes_key, iv=ret[:16])
         except Exception as exc:
             KaobeiReqer.clear_aes_key()
-            raise RuntimeError(f"kaobei aes_key 失效，已删除缓存: {meta_info=}") from exc
+            raise RuntimeError(
+                f"kaobei decrypt failed, aes_key cache cleared: len={len(ret)} {meta_info=}"
+            ) from exc
 
     @classmethod
     def parse_page_urls_from_html(cls, html_text: str, *, url: str, aes_key: str) -> list[dict]:
@@ -181,6 +209,8 @@ class KaobeiParser(_KaobeiContract):
         if not content_key_match:
             raise ValueError("拷贝更改了contentKey 格式")
         content_key = content_key_match.group(1)
+        if not content_key:
+            raise ValueError(f"kaobei chapter page returned empty contentKey: url={url}")
         return cls.decrypt_chapter_data(content_key, aes_key=aes_key, url=url)
 
 

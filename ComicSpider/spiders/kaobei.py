@@ -30,16 +30,6 @@ class KaobeiSpider(BaseComicSpider):
         KaobeiUtils.reqer_cls.get_aes_key()
         return super().from_crawler(crawler, *args, **kwargs)
 
-    def frame_book(self, response):
-        frame_results = {}
-        targets = response.json().get('results', {}).get('list', [])
-        books = self.site.parser.parse_search_targets(targets, self.preset_book_frame)
-        for book in books:
-            frame_results[book.idx] = book
-        return self.say.frame_book_print(
-            frame_results, url=response.url,
-            extra=" →_→ 拷贝漫画翻页使用的是条目序号，并不是页数，一页有30条，类推计算")
-
     def frame_section(self, response):
         book = response.meta.get("book")
         episodes = self.site.parser.parse_episodes(

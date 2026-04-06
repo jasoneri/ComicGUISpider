@@ -25,15 +25,6 @@ class MangabzSpider(FormReqBaseComicSpider):
     body = Body()
     _enable_episode_dispatch = True
 
-    def frame_book(self, response):
-        frame_results = {}
-        targets = response.json() if isinstance(self.body, SearchBody) \
-            else response.json().get('UpdateComicItems')
-        books = self.site.parser.parse_search_targets(targets, self.body, domain=self.domain)
-        for book in books:
-            frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, url=response.url)
-
     def frame_section(self, response):
         book = response.meta.get("book")
         episodes = self.site.parser.parse_episodes(response, book, domain)

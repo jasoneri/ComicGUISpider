@@ -75,6 +75,28 @@ class ProviderSiteGateway:
     def create_runtime(self, conf_state=conf):
         return self.provider_cls(conf_state)
 
+    def preview_batch_limit(self, stage: str, default: int) -> int:
+        raw_limits = getattr(self.provider_cls, "preview_batch_limits", None)
+        if callable(raw_limits):
+            raw_limits = raw_limits()
+        if isinstance(raw_limits, dict):
+            raw_value = raw_limits.get(stage, default)
+        else:
+            raw_value = getattr(self.provider_cls, f"preview_{stage}_batch_limit", default)
+        try:
+            limit = int(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError(
+                f"{self.provider_cls.__name__} preview batch limit must be int-compatible: "
+                f"stage={stage!r} value={raw_value!r}"
+            ) from exc
+        if limit < 1:
+            raise ValueError(
+                f"{self.provider_cls.__name__} preview batch limit must be >= 1: "
+                f"stage={stage!r} value={limit}"
+            )
+        return limit
+
     def get_domain(self):
         if hasattr(self.provider_cls, "get_domain"):
             return self.provider_cls.get_domain()

@@ -1,108 +1,172 @@
 # ✒️ 开发指南
 
-后续会基于ai规则/工作流/skills, 方便统一规范测试
+后续会基于 ai 规则 / 工作流 / skills，方便统一规范测试
 
-::: tip `v2.10.1` 之前不接受按以下 prompt 开发的 PR
-预计会在 `v2.10.1` 更新 prompt 并取消此条禁止告示
+::: tip 当前说明适用于当前仓库的 provider / gateway / runtime 架构
+`2.10-dev` 以后的分支新增或迁移站点请以下文为准。
 :::
 
 ## 爬虫开发
 
 #### 前期准备
 
-目标网站搜索url(search_url), 搜索页面html(search.html)，  
-书页url(book_url)，书页html(book.html)
+目标网站搜索 url (`search_url`)、搜索页面 html (`search.html`)，  
+书页 url (`book_url`)、书页 html (`book.html`)
+
+如已知，也建议一并准备：
+
+- 是否需要代理 / cookies
+- 网站属于普通漫画还是 🔞
+- 是否支持 aggr / clip
+- 是否存在动态 domain / 发布页 / 特殊 referer / `verify=False`
 
 #### 实际开发
 
-1. git 克隆本项目到本地，使用主流的模型/Cli (claudecode/codex)
-2. 将第一步的两个 url 值加进下面的 prompt 上，上传/指定两个 html 文件，将 prompt 发给 ai
+1. `git` 克隆本项目到本地，使用主流模型 / CLI（`claudecode` / `codex`）
+2. 将第一步的 url、html 和已知站点特征补进下面的 prompt，发给 ai 执行
 
 ::: details prompt ⇩
 
 ```text
 search_url=
 book_url=
+site_name=
+need_proxy=
+need_cookies=
+site_kind=普通漫画 / R18
+supports_preview=
+supports_aggr=
+supports_clip=
 
-作为熟悉python与scrapy，优良代码规范的爬虫工程师，现在你需要在此项目上扩展新网站，
+作为熟悉 Python、Scrapy、httpx 与本仓库架构的开发者，现在你需要在 ComicGUISpider 当前分支上扩展新网站。
+
+先阅读仓库现状再编码，禁止按旧文档直接假设路径和职责。若发现当前结构与旧结构不一致，以当前代码为准。
 
 ## 本地开发相关
-请按照以下五个部分完成开发：
+请按以下六个部分完成开发：
 
-**一、爬虫部分（Spider类开发）**
+**一、先做基线检索（必须先检索，后生成）**
 
-1. 假如用户没有给目标网站定名，则从 search_url 的域名中提取定名，下文说明使用 `abcdefg` 作为代替
-2. 在 `ComicSpider/spiders/` 目录下创建新的爬虫文件（例如：`abcdefg.py`）
-3. 实现Spider类，需包含以下必需属性和方法：
-   - name：爬虫名称（使用目标网站域名或标题）
-   - domain：目标网站完整域名
-   - search_url_head：搜索页URL前缀（不含关键词部分）
-4. 参考已有的 [WnacgSpider](ComicSpider/spiders/wnacg.py) 实现方式
-5. **代理配置**：判断目标网站是否需要代理才能访问
-   - 需要代理：在 `custom_settings` 中添加 `ComicDlProxyMiddleware` 或 `ComicDlAllProxyMiddleware`
-   - 不需要代理：无需添加代理中间件
-   - 此判断结果用于后续解析类开发的 `test_index` 实现决策
+1. 先在仓库中找 1 到 2 个最像的现有站点做基线，至少同时阅读：
+   - `utils/website/providers/_template.py`
+   - `utils/website/providers/<baseline>.py`
+   - `ComicSpider/spiders/<baseline>.py`
+   - `ComicSpider/spiders/basecomicspider.py`
+   - `utils/website/ins.py`
+   - `variables/__init__.py`
+   - `GUI/mainwindow.py`
+   - `GUI/manager/preprocess.py`
+2. 先判断新站点属于“常规接入”还是“扩展接入”：
+   - 常规接入：主要是节点抽取、常规搜索 URL 组织
+   - 扩展接入：还需要请求层扩展、响应适配、资源定位规则、middleware 组合、动态 domain / cookies / 发布页等能力
+3. 命名时先统一以下标识：
+   - provider / spider `name`
+   - `variables.Spider` 枚举名
+   - `utils.website.ins.py` 的注册 key
+   - GUI 下拉展示名
+4. 若当前代码里已有同类站点实现，不要跳过对照，先抽能力矩阵再开发
 
-**二、解析部分（Utils类开发）**
+**二、provider 部分（站点能力主体）**
 
-1. 在 `utils/website/` 目录下实现对应的Utils解析类，驼峰命名 AbcdefgUtils
-2. 根据网站类型继承正确的基类（常规漫画网站与18+网站基类不同）
-3. 实现以下必需属性和方法：
-   - name：abcdefg
-   - uuid_regex：从预览URL能提取作品ID的正则表达式
-   - parse_search：解析 search.html 定位要素，调用 parse_search_item 得到 BookInfo 列表的方法
-   - parse_search_item：传参定位要素为单个条目，返回 BookInfo 对象
-   - parse_book：能将 book.html 解析为 BookInfo 对象的方法
-4. 可选属性和方法：
-   - 如果第一步判断网站需要代理，需实现 `test_index` 方法用于运行时检测网站可访问性
-5. 完成后在 `utils/website/ins.py` 的 `provider_map` 中注册该 Utils 类，运行时会自动生成 `site_gateway_map` 与 `spider_adapter_map`
+1. 在 `utils/website/providers/` 下创建新 provider 文件，优先以 `_template.py` 为起点
+2. 视站点能力组合正确的 mixin / 结构：
+   - 常规站点通常围绕 `Utils` / `Req` / `Previewer`
+   - `R18` 站点通常围绕 `EroUtils`
+   - 需要动态 domain 时使用 `DomainUtils`
+   - 需要 cookies 时补 `Cookies`
+3. provider 里至少明确这些能力：
+   - `name`
+   - `domain` / `index`
+   - `headers` / `book_hea`
+   - `uuid_regex` 或 `get_uuid`
+   - `parse_search_item`
+   - `parse_search`
+   - `parse_book`
+4. 当前架构优先使用 request / parser 分层；复杂站点不要把所有逻辑都堆进一个大类里
+5. 按站点需要补充这些扩展点：
+   - `reqer_cls`
+   - `build_search_url()`
+   - `preview_search()`
+   - `preview_fetch_episodes()`
+   - `preview_fetch_pages()`
+   - `preview_client_config()`
+   - `preview_transport_config()`
+   - `test_index()`
+   - `parse_publish_()`
+   - 资源定位 / 响应适配辅助函数
+   - 站点专用异常类型
+6. 保持异常直接暴露根因，不要吞异常、静默返回空值或做无说明的兼容补丁
 
-**三、UI部分（界面配置）**
+**三、spider 部分（下载装配）**
 
-1. 在 `variables/__init__.py` 中添加配置：
-   
-   **必需配置：**
-   - SPIDERS：添加新序号和爬虫名称
-   - DEFAULT_COMPLETER：添加序号和默认预设映射（可为空列表）
-   - STATUS_TIP：添加序号和状态栏提示文字（可为空字符串）
-   
-   **条件配置（根据网站特性判断）：**
-   | 配置项 | 添加条件 | 示例值 |
-   |--------|----------|--------|
-   | SPECIAL_WEBSITES | R18 | 添加爬虫名 |
-   | SPECIAL_WEBSITES_IDXES | R18 | 添加序号 |
-   | CN_PREVIEW_NEED_PROXIES_IDXES | 预览图需代理访问 | 添加序号 |
-   | AGGR_SEARCH_IDXES | 是否支持聚合搜索 | 添加序号 |
-   | CLIP_IDXES | 是否支持读剪贴板 | 添加序号 |
+1. 在 `ComicSpider/spiders/` 下创建站点 spider 文件
+2. 根据真实流程选择合适基类：
+   - `BaseComicSpider`
+   - `BaseComicSpider2`
+   - `BaseComicSpider3`
+   - `FormReqBaseComicSpider`
+3. spider 至少要明确这些契约：
+   - `name`
+   - `domain`
+   - `search_url_head`
+   - `book_id_url` / `transfer_url`（需要时）
+   - `mappings`
+   - `turn_page_search` / `turn_page_info`
+4. 按站点需要实现：
+   - `preready()`
+   - `frame_book()`
+   - `frame_section()`
+   - `parse_fin_page()`
+   - `custom_settings`（最小且正确的 middleware / pipeline 组合）
+5. spider 侧不要重复写解析规则；优先通过 `self.site` / adapter 消费 provider 能力
+6. 需要代理时再决定是否装配：
+   - `ComicDlProxyMiddleware`
+   - `ComicDlAllProxyMiddleware`
+   - `RefererMiddleware`
+   - `UAMiddleware`
+   - 其他站点专用 middleware
 
-2. 在 `GUI/mainwindow.py` 的 setupUi 方法中添加下拉选项：
-self.chooseBox.addItem("")
-self.chooseBox.setItemText(序号, _translate("MainWindow", "序号、网站名"))
+**四、注册、GUI 与运行时接线**
 
-**四、测试部分（验证功能）**
+1. 在 `utils/website/providers/__init__.py` 导出新 provider
+2. 在 `utils/website/ins.py` 的 `provider_map` 注册站点；运行时会同步生成 `site_gateway_map` 与 `spider_adapter_map`
+3. 在 `variables/__init__.py` 中同步：
+   - `Spider` 枚举
+   - `SPIDERS`
+   - `DEFAULT_COMPLETER`
+   - `STATUS_TIP`
+   - `COOKIES_SUPPORT`（需要 cookies 时）
+   - 能力集合：`specials()` / `mangas()` / `cn_proxy()` / `aggr()` / `clip()`
+4. 在 `GUI/mainwindow.py` 的 `apply_translations()` 中补 `chooseBox` 下拉文案，不是旧的 `setupUi()`
+5. 只有站点确实需要专门预处理时，才修改 `GUI/manager/preprocess.py`
+6. 明确 `specials()` 与 `preview_fetch_episodes()` 的契约：
+   - 属于 `specials()` 的站点通常不需要 CLI `-i2`
+   - 非 `specials()` 站点需要保证章节选择链路正常
 
-1. 无GUI测试：运行 `python crawl_only.py -w 序号 -k 关键词 -i 1` 验证爬虫基本功能
-2. GUI测试：运行 `python CGS.py` 完整测试：
-   - 测试新网站的完整流程（搜索、下载等）
-3. 注意日志配置：`ComicSpider/settings.py` 中的 LOG_FILE
+**五、测试与回归**
 
-**五、文档补充**
+1. 如需自动验证，使用 `unittest`，并由 agent 根据本次接入内容自行在 `test/` 下创建测试脚本
+2. 这些测试脚本默认用于本地验证，此 repo 的管理者已明确要求禁止 git 跟踪 unittest 相关资产
+3. 夹具统一放 `test/analyze/` 或测试脚本配套目录，不要内联大段 HTML
+4. 先跑 CLI 链路：
+   - `uv run crawl_only.py -w 序号 -k 关键词 -i 1`
+   - 非 `specials()` 站点再补 `-i2 1`
+5. 再跑 GUI 链路：
+   - `uv run CGS.py`
+6. 需要时由 agent 自行执行对应的 `uv run python -m unittest ...`
+7. 检查搜索、预览、章节选择、下载、任务面板、`log/scrapy.log` 是否都正常
+8. 若发现兼容节点或职责边界冲突，先把冲突点明确列出并说明影响，再决定如何实现
 
-1. 在 `docs/feat/index.md` 的功能适用性表格中，为新网站添加一列，根据实际实现情况标注各功能的支持状态：
-   - 预览：处于 `SPECIAL_WEBSITES_IDXES` 时总是支持（✔️/❌）
-   - 📋读剪贴板：是否配置了 `CLIP_IDXES`（✔️/❌）
-   - 🔎聚合搜索：是否配置了 `AGGR_SEARCH_IDXES`（✔️/❌）
-   - 以图搜索：处于 `SPECIAL_WEBSITES_IDXES` 时总是支持（✔️/❌）
+**六、输出要求**
 
-**输出要求：**
 - 提供完整可运行的代码
-- 代码需符合 PEP 8 规范
-- XPath 选择器需准确可靠
-- 添加必要的注释说明
-- 已内置全局异常反馈和日志系统，开发需保持直接抛出自定义异常信息
-
-## 线上开发相关
-开发分支命名格式为`x.x-dev`，根据项目中最新dev分支，提醒用户PR时合并需指向哪个分支
+- 仅修改与目标站点接入直接相关的文件
+- 默认使用 `uv`
+- 测试使用 `unittest`；若需补自动验证，由 agent 在 `test/` 下自行创建脚本
+- 注释非必要不添加
+- 禁止隐藏报错堆栈，异常直接暴露根因
+- 代码完成后使用 `$style-refactor` 对本轮改动做一次结构清洗
+- 提醒用户 PR 应合并到当前最新的 `*-dev` 分支
 ```
 
 :::
@@ -111,91 +175,116 @@ self.chooseBox.setItemText(序号, _translate("MainWindow", "序号、网站名"
 
 ## 注意
 
-ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，先尝试以自身代码/文档阅读能力解决  
+ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，先尝试以自身代码 / 文档阅读能力解决
 
-::: details ✒️原网站开发指南
+::: details ✒️当前架构下的网站开发说明
 
-### 1. 爬虫代码
+### 1. provider 代码
 
-以 wnacg 为例
+建议同时看两个样板：
 
-[scrapy爬虫类: `WnacgSpider`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/ComicSpider/spiders/wnacg.py)  
-[xpath解析类: `WnacgUtils`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/utils/website/ins.py)
+[scrapy 下载装配: `WnacgSpider`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/ComicSpider/spiders/wnacg.py)  
+[provider 样板: `HComicUtils / HComicReqer / HComicParser`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/utils/website/providers/hcomic.py)  
+[provider 模板: `TemplateUtils`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/utils/website/providers/_template.py)
 
-#### WnacgSpider
+#### Provider 文件落点
 
-&emsp;✅ name: 爬虫名字，取目标网站域名的部分或标题，与分支名相同  
-&emsp;✅ domain: 目标网站域名  
-&emsp;✅ search_url_head: 搜索页url(去掉关键词)，大部分网站都是以get形式直出的  
+&emsp;✅ 新站点主体放在 `utils/website/providers/<site>.py`  
+&emsp;✅ 导出放在 `utils/website/providers/__init__.py`  
+&emsp;✅ 注册放在 `utils/website/ins.py` 的 `provider_map`
 
-##### 类方法
+#### Provider 常见职责
 
-&emsp;🔳 @property search: 生成第一个请求的连接，可结合`mappings`进行复杂输入的转换  
-&emsp;🔳 start_requests: 发出第一个请求，可在此进行`search`实现不了 或 不合其逻辑的操作  
-&emsp;🔳 parse_fin_page: (一跳页面不需要，二跳页面必须) 章节页面 > 直接获取该章节的全页  
+&emsp;✅ `name` / `domain` / `index`  
+&emsp;✅ `headers` / `book_hea`  
+&emsp;✅ `uuid_regex` 或 `get_uuid()`  
+&emsp;✅ `parse_search_item` / `parse_search` / `parse_book`  
+&emsp;🔳 `reqer_cls`（复杂站点建议拆请求层）  
+&emsp;🔳 `preview_search` / `preview_fetch_episodes` / `preview_fetch_pages`  
+&emsp;🔳 `preview_client_config` / `preview_transport_config`  
+&emsp;🔳 `test_index`  
+&emsp;🔳 `parse_publish_` / 动态 domain / cookies / 资源定位规则  
+&emsp;🔳 站点专用异常类型
 
-##### 常用方法
+> [!tip] 当前运行时通过 `utils/website/ins.py` 的 `provider_map` 生成 `site_gateway_map` 与 `spider_adapter_map`。新增站点时不要只改 provider 文件本身。
 
-+ self.say: 能将字符串(可使用部分html标签格式)打印在gui上  
+### 2. spider 代码
 
-#### WnacgUtils
+#### [`ComicSpider/spiders/basecomicspider.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/ComicSpider/spiders/basecomicspider.py)
 
-常规漫与🔞继承基类不同
+先判断最接近的新站点样板再选基类：
 
-##### 类属性(Utils)
+&emsp;✅ `BaseComicSpider`：通用入口  
+&emsp;✅ `BaseComicSpider2`：章节页可直接产出最终图片 URL  
+&emsp;✅ `BaseComicSpider3`：多跳分页流程  
+&emsp;✅ `FormReqBaseComicSpider`：表单请求型站点
 
-&emsp;✅ name: 同爬虫名字  
-&emsp;✅ uuid_regex: 将 作品id 从作品 预览url 中抽取的正则表达式  
-&emsp;🔳 headers: 通用请求头  
-&emsp;🔳 book_hea: 读剪贴板功能使用的请求头  
-&emsp;🔳 book_url_regex: 读剪贴板功能使用所对应当前网站抽取 作品id 的正则表达式  
+#### spider 常见职责
 
-##### 类方法(Utils)
+&emsp;✅ `name` / `domain` / `search_url_head`  
+&emsp;🔳 `book_id_url` / `transfer_url`  
+&emsp;🔳 `mappings` / `turn_page_search` / `turn_page_info`  
+&emsp;🔳 `preready`  
+&emsp;✅ `frame_book`  
+&emsp;✅ `frame_section`  
+&emsp;🔳 `parse_fin_page`  
+&emsp;🔳 `custom_settings`（middleware / pipeline 组合）
 
-&emsp;✅ parse_search_item: 解析搜索页 xpath -> BookInfo  
-&emsp;🔳 parse_book: 读剪贴板功能 xpath 等解析作品页 -> BookInfo  
-&emsp;🔳 parse_search: 聚合搜索 xpath 等解析搜索页 -> List[BookInfo]  
-&emsp;🔳 parse_publish_: 解析发布页  
-&emsp;🔳 test_index: 测试网络环境能否访问当前网站  
+> [!tip] spider 负责下载装配，不应重复堆解析规则。当前代码通常通过 `self.site` 消费 provider 的 request / parser 能力。
 
-> [!tip] 最后需要在 `utils/website/ins.py` 的 `provider_map` 中加上对应的 Utils；gateway / adapter registry 会随之自动更新
+### 3. 其他代码
 
-### 2. 其他代码
+#### [`variables/__init__.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/variables/__init__.py)
 
-#### [`variables/__init__.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/variables/__init__.py) 
+1. `Spider` - 新站点先补枚举成员，能力分组通过类方法维护：
+   - `specials()`
+   - `mangas()`
+   - `cn_proxy()`
+   - `aggr()`
+   - `clip()`
+2. `SPIDERS` - 由 `Spider` 枚举自动生成
+3. `DEFAULT_COMPLETER` - 新序号的默认预设
+4. `STATUS_TIP` - 新序号的状态栏提示
+5. `COOKIES_SUPPORT` - 需要 cookies 的站点补支持字段
 
-1. `SPIDERS` - 爬虫名字：加入新序号(方面下面理解设为序号`3`²)，值为爬虫名字`wnacg`
-2. `DEFAULT_COMPLETER` - 默认预设：序号必须，值可空列表。用户配置会覆盖，但是可以先把做了开发的映射放进去
-3. `STATUS_TIP` - 状态栏输入提示：序号必须，值可空字符串。鼠标悬停在搜索框时，最下状态栏会出现的文字
+> [!TIP] `specials()` 不只是分类文案，它会直接影响 GUI / CLI 下载契约；非 `specials()` 站点的 CLI 需要 `-i2/--indexes2`。
 
-> [!TIP] 如目标网站为🔞的  
-> 还需在`SPECIAL_WEBSITES`加进 爬虫名字`wnacg` （此处影响存储位置）  
-> 在`SPECIAL_WEBSITES_IDXES`加进 序号`3`² （此处影响gui逻辑）
-
-### 3. ui 代码
+### 4. UI 代码
 
 #### [`GUI/mainwindow.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/GUI/mainwindow.py)
 
-在 setupUi 里加入如下类似代码（需参考 `variables/__init__.py` 的 `SPIDERS` 避免使用重复序号导致覆盖）
+在 `apply_translations()` 里加入如下类似代码
 
 ```python
 self.chooseBox.addItem("")
-self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg🔞"))  # 🔞标识符不影响任何代码
+self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
 ```
 
----
+只有站点需要额外预处理时，再看 [`GUI/manager/preprocess.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/GUI/manager/preprocess.py) 是否需要专门分支。  
+仅有 `test_index()` 的站点通常可以走通用预处理路径。
 
-### 4. 无GUI测试
+### 5. 测试
 
-```python
-python crawl_only.py -w 3 -k 首页 -i 1
+若需要自动验证，建议让 agent 按本次接入内容自行在 `test/` 下创建 `unittest` 脚本；只能用于本地验证，禁止纳入 git。
+
+#### CLI 链路
+
+```bash
+uv run crawl_only.py -w 8 -k test -i 1
 ```
 
-### 5. GUI测试
+非 `specials()` 站点需要补 `-i2`：
 
-`python CGS.py`，对进行开发的网站测试流程是否正常，然后测试其他网站有没受影响
+```bash
+uv run crawl_only.py -w 5 -k 更新 -i 1 -i2 1
+```
 
-> 注意: 当`ComicSpider/settings.py`里的`LOG_FILE`不为空时，控制台不会打印任何信息，只会在日志`log/scrapy.log`中输出，无论什么日志等级  
-> 反之想让控制台输出时将其值置为空，在commit时需要改回来
+#### GUI 链路
+
+```bash
+uv run CGS.py
+```
+
+> 注意：GUI / Scrapy 异常仍以日志为准，排查时优先看 `log/scrapy.log`，不要用吞异常掩盖根因。
 
 :::

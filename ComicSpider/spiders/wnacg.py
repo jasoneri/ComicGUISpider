@@ -39,17 +39,6 @@ class WnacgSpider(BaseComicSpider2):
         self.site.reqer.domain = self.domain
         self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
-    def frame_book(self, response):
-        frame_results = {}
-        targets = response.xpath('//li[contains(@class, "gallary_item")]')
-        with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.site.parser.parse_search_item, targets))
-        for x, book in enumerate(books):
-            book.idx = x + 1
-            self.site.parser.normalize_preview_fields(book, domain=self.domain)
-            frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, url=response.url)
-
     def frame_section(self, response):
         doc_wlns = re.split(r';[\n\s]+?document\.writeln', response.text)
         selected_doc = next(filter(lambda _: "var imglist" in _, doc_wlns))

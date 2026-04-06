@@ -50,7 +50,7 @@
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     代理     |
 | [Hitomi](https://hitomi.la/)     | 🌏 |          |
-| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)     |
+| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) (> v2.10.0-beta)    |
 | [HComic](https://kemono.cr)     | 🌏 |     代理     |
 
 点进网站前先判断 NSFW , 不了解就勿点  

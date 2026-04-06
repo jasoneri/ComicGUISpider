@@ -105,19 +105,6 @@ class JmSpider(BaseComicSpider2):
                 continue
             raise ValueError(f"jm runtime item is missing download url: {item!r}")
 
-    def frame_book(self, response):
-        frame_results = {}
-        targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
-        with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.site.parser.parse_search_item, targets))
-        for x, book in enumerate(books):
-            book.idx = x + 1
-            book.preview_url = f'https://{self.domain}{book.preview_url}'
-            book.url = f'https://{self.domain}{book.url}'
-            frame_results[book.idx] = book
-        self.say.frame_book_print(frame_results, url=response.url)
-        self.say(font_color("jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))
-
     def frame_section(self, response):
         targets = response.xpath(".//img[contains(@id,'album_photo_')]")
         frame_results = {}

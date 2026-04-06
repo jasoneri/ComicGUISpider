@@ -15,6 +15,7 @@ class _MangabzContract:
     proxy_policy = "proxy"
     domain = "www.mangabz.com"
     index = "https://www.mangabz.com"
+    search_cover_fields = ("Pic", "ShowPicUrlB", "ShowConver")
     search_url_head = f"https://{domain}/pager.ashx"
     mappings = {
         "更新": ["manga-list-0-0-2", "2"],
@@ -55,11 +56,35 @@ class _MangabzContract:
 
 class MangabzParser(_MangabzContract):
     @staticmethod
+    def normalize_search_targets(json_data):
+        if isinstance(json_data, list):
+            return json_data
+        if isinstance(json_data, dict):
+            targets = json_data.get("UpdateComicItems")
+            if isinstance(targets, list):
+                return targets
+            raise ValueError("mangabz search payload missing UpdateComicItems list")
+        raise TypeError(f"mangabz search payload must be list or dict, got {type(json_data).__name__}")
+
+    @staticmethod
+    def extract_search_cover(target):
+        for key in _MangabzContract.search_cover_fields:
+            value = target.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        return None
+
+    @staticmethod
     def parse_book_item(target, rendering_map, render_keys, idx, domain):
+        if not isinstance(target, dict):
+            raise TypeError(f"mangabz search target must be dict, got {type(target).__name__}")
         rendered = OrderedDict()
         for attr_name, path in rendering_map.items():
             rendered[attr_name] = ",".join(map(lambda value: str(value.value), path.find(target))).strip()
-        url = f"https://{domain}/{rendered.pop('book_path').strip('/')}/"
+        book_path = rendered.pop("book_path").strip("/")
+        if not book_path:
+            raise ValueError(f"mangabz search target missing book_path: keys={list(target)}")
+        url = f"https://{domain}/{book_path}/"
         book = MangabzBookInfo(idx=idx, render_keys=render_keys, url=url, preview_url=url)
         for key in render_keys:
             setattr(book, key, rendered.get(key))
@@ -81,12 +106,13 @@ class MangabzParser(_MangabzContract):
 
     @classmethod
     def parse_search_targets(cls, json_data, body, *, domain):
+        targets = cls.normalize_search_targets(json_data)
         rendering_map = body.rendering_map()
         render_keys = body.print_head[1:]
         books = []
-        for idx, target in enumerate(json_data, start=1):
+        for idx, target in enumerate(targets, start=1):
             book = cls.parse_book_item(target, rendering_map, render_keys, idx, domain)
-            book.img_preview = target.get("Pic")
+            book.img_preview = cls.extract_search_cover(target)
             books.append(book)
         return books
 
