@@ -21,7 +21,7 @@ class _HComicContract:
     index = "https://h-comic.com"
     image_server = "https://h-comic.link/api"
     search_url_head = f"https://{domain}/?q="
-    mappings = {}
+    mappings = {"更新": index}
     turn_page_info = (r"page=\d+",)
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
@@ -180,7 +180,7 @@ class HComicReqer(_HComicContract, Req):
         return True
 
     def build_search_url(self, key):
-        return f"{self.index}/?q={key}"
+        return self.mappings.get(key, f"{self.search_url_head}{key}")
 
 
 class HComicUtils(_HComicContract, EroUtils, Previewer):
@@ -193,9 +193,7 @@ class HComicUtils(_HComicContract, EroUtils, Previewer):
 
     @classmethod
     def preview_client_config(cls, **context):
-        return {
-            "headers": cls.headers,
-        }
+        return {"headers": cls.headers}
 
     @classmethod
     def preview_transport_config(cls) -> dict:

@@ -20,6 +20,7 @@
 + wnacg 设置代理被视为图源也走代理
 + 任务面板滚动区域高度被裁修复
 + 站点选择的 kemono 改为 Script
++ hcomic 补回首页入口，已设预设的加关键词`更新`
 + 2.10.0-beta 后续强制统一安装包括 script 的所有依赖 (redis/pandas etc.)
 + git 瘦身至十多 mb (偏开发)
 

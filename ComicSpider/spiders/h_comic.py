@@ -16,10 +16,10 @@ class HComicSpider(BaseComicSpider2):
     name = "h_comic"
     num_of_row = 4
     domain = domain
-    search_url_head = f"https://{domain}/?q="
+    search_url_head = HComicUtils.search_url_head
     turn_page_info = (r"page=\d+",)
     book_id_url = f"https://{domain}/comics/1?id=%s"
-    mappings = {}
+    mappings = dict(HComicUtils.mappings)
 
     @property
     def ua(self):

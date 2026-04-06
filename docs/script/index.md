@@ -36,7 +36,7 @@ utils
 ```
 :::
 
-## 1. [kemono](/script/kemono/)
+## 1. [kemono](/script/kemono)
 
 ## 2. Danbooru
 
