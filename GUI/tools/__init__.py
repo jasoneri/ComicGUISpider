@@ -1,6 +1,10 @@
-from PyQt5.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QLabel, QApplication
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QGuiApplication
+from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QLabel, QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
+from utils import install_qfluentwidgets_notice_filter
+
+install_qfluentwidgets_notice_filter()
+
 from qfluentwidgets import Pivot
 from qframelesswindow import FramelessWindow
 from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
@@ -93,7 +97,7 @@ class ToolWindow(FramelessWindow):
             self.htInterface = HitomiTools(self.gui)
             self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
         if widget.objectName() == "asInterface":
-            new_height = int(self.gui.height() * 0.85)
+            new_height = min(int(self.gui.height() * 0.85),300)
             self.resize(self.gui.width(), new_height)
         elif widget.objectName() == "midInterface":
             self.resize(self.gui.width(), min(370, self.gui.height()))
@@ -104,13 +108,11 @@ class ToolWindow(FramelessWindow):
 
 def main():
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication([])
     window = ToolWindow()
     # window.addMidTool()
     window.show()
-    app.exec_()
+    app.exec()
 
 
 if __name__ == '__main__':

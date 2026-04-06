@@ -28,6 +28,12 @@ Comic-Downloader
   <img src="https://img-cgs.101114105.xyz/file/cgs/1772889192994_fake-play.png" alt="logo" height="200">
 </a></div>
 
+
+<div align="center">
+<a href="https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv" target="_blank">
+  <img src="https://img-cgs.101114105.xyz/file/cgs/1774207883543_danbooruPlay.png" alt="logo" height="120">
+</a></div>
+
 ## ✨Features
 
 - Easy to use with simple configuration
@@ -40,15 +46,16 @@ Comic-Downloader
 
 ## 🚨Availability Monitor
 
-| Website                                 | locale |          Notes          |                                               status<br>(UTC+8)                                                |
-|:----------------------------------------|:------:|:-----------------------:|:--------------------------------------------------------------------------------------------------------------:|
-| [MangaCopy](https://www.2025copy.com/) |  :cn:  |  |  ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json)  |
-| [Māngabz](https://mangabz.com)          |  :cn:  |                         | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
-| [18comic](https://18comic.vip/)         |  :cn:  |           🔞            |      ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json)      |
-| [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |   ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json)   |
-| [ExHentai](https://exhentai.org/)       |   🌏   |           🔞            | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json) |
-| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     |  |
-| [Kemono](https://kemono.cr)     | 🌏 |     🔞/[📒Usage](https://cgs.101114105.xyz/feat/script)    |  |
+| Website                                 | locale |          Notes          |
+|:----------------------------------------|:------:|:-----------------------:|
+| [MangaCopy](https://www.2025copy.com/) |  :cn:  |  |
+| [Māngabz](https://mangabz.com)          |  :cn:  |                         |
+| [18comic](https://18comic.vip/)         |  :cn:  |           🔞            |
+| [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |
+| [ExHentai](https://exhentai.org/)     | 🌏 |     🔞     |
+| [Hitomi](https://hitomi.la/)     | 🌏 |   🔞       |
+| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)     |
+| [HComic](https://kemono.cr)     | 🌏 |     🔞     |
 
 ---
 

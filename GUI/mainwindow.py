@@ -1,20 +1,32 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import Qt
-from GUI.core.timer import safe_single_shot
-from PyQt5.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
+from PySide6 import QtCore, QtWidgets
+from PySide6.QtCore import Qt, QEvent, QObject
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
 from qfluentwidgets import (
     FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea, FlowLayout
 )
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
+from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
 from variables import VER
 from utils import ori_path
 
 res = ori_res.GUI.Uic
+
+
+class _SleepWidgetResizeFilter(QObject):
+    def __init__(self, owner):
+        super().__init__(owner)
+        self.owner = owner
+
+    def eventFilter(self, obj, event):
+        if obj is self.owner.sleepWidget and event.type() in (QEvent.Resize, QEvent.Show):
+            self.owner.refresh_sleep_label_size()
+        return False
 
 
 class MitmMainWindow(Ui_MainWindow):
@@ -23,6 +35,8 @@ class MitmMainWindow(Ui_MainWindow):
         super(MitmMainWindow, self).setupUi(_mainWindow)
         _mainWindow.setWindowTitle(_translate("MainWindow", f"ComicGUISpider {VER}"))
         self.preset()
+        self._sleep_widget_resize_filter = _SleepWidgetResizeFilter(self)
+        self.sleepWidget.installEventFilter(self._sleep_widget_resize_filter)
 
     def apply_translations(self):
         """依赖 res 翻译的文案设置，延迟到 set_language 之后调用"""
@@ -43,10 +57,15 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(6, _translate("MainWindow", "6、hitomi🔞"))
         self.chooseBox.addItem("")
-        self.chooseBox.setItemText(7, _translate("MainWindow", "7、kemono🔞"))
+        self.chooseBox.setItemText(7, _translate("MainWindow", "7、Script"))
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
         self.chooseBox.setCurrentIndex(0)
+        self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
+        self.domainBtn.setVisible(False)
+        self.domainBtn.setIconSize(QtCore.QSize(24, 20))
+        self.domainBtn.setStatusTip(_translate("MainWindow", "domainHandler/域名管理"))
+        self.horizontalLayout_3.insertWidget(1, self.domainBtn)
         self.searchinput.setPlaceholderText(_translate("MainWindow", res.searchinputPlaceholderText))
         self.chooseBox.setToolTip(_translate("MainWindow", res.chooseBoxToolTip))
         self.previewBtn.setStatusTip(_translate("MainWindow", res.previewBtnStatusTip))
@@ -56,6 +75,10 @@ class MitmMainWindow(Ui_MainWindow):
     # === bg and bubble.svg
 
     def _mk_overlay(self, parent, name, image, *, init=None, lower=False):
+        current = getattr(self, name, None)
+        if current is not None:
+            current.hide()
+            current.deleteLater()
         label = ImageLabel(parent)
         label.setObjectName(name)
         label.setImage(image)
@@ -108,14 +131,14 @@ class MitmMainWindow(Ui_MainWindow):
 
     def resizeEvent(self, event):
         QtWidgets.QMainWindow.resizeEvent(self, event)
-        self._refresh_sleep_label_size()
+        self.refresh_sleep_label_size()
 
     def _sync_sleep_widget_geometry(self):
-        self._refresh_sleep_label_size()
+        self.refresh_sleep_label_size()
         h = self.height() + self.sleepLabel.height() - self.sleepWidget.height()
         self.resize(self.width(), min(h, self.maximumHeight()))
 
-    def _refresh_sleep_label_size(self):
+    def refresh_sleep_label_size(self):
         if not getattr(self, "sleepLabel", None) or not getattr(self, "sleepBasePixmap", None):
             return
         sw = self.sleepWidget.width()
@@ -142,6 +165,7 @@ class MitmMainWindow(Ui_MainWindow):
     def preset(self):
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
+        self.clipBtn.setVisible(False)
         self.aggrBtn.setVisible(False)
         
         self.openPBtn = ToolButton(self.frame)
@@ -155,6 +179,8 @@ class MitmMainWindow(Ui_MainWindow):
     def task_init(self):
         self.expandBtn = ExpandButton(self)
         self.clearBtn = TransparentToolButton(FIF.BROOM)
+        self.repairBtn = TransparentToolButton(QIcon(':/main/repair.svg'), self)
+        self.repairBtn.setStatusTip("Patch missing page/补漏页")
 
         self.scroll_content = QWidget()
         self.flow_layout = FlowLayout(self.scroll_content)
@@ -167,9 +193,11 @@ class MitmMainWindow(Ui_MainWindow):
         self.scroll_area.setWidgetResizable(True)
 
         self.barHLayout.insertWidget(0, self.expandBtn)
+        self.barHLayout.addWidget(self.repairBtn)
         self.barHLayout.addWidget(self.clearBtn)
         self.barVLayout.addWidget(self.scroll_area)
 
         self.expandBtn.setVisible(False)
+        self.repairBtn.setVisible(False)
         self.clearBtn.setVisible(False)
         self.scroll_area.setVisible(False)

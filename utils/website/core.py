@@ -3,14 +3,37 @@ import os
 import functools
 import typing as t
 import pickle
+import copy
 from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 import asyncio
 import aiofiles
 
 from assets import res
-from utils import temp_p, get_loop, ori_path
+from utils.network.doh import build_http_transport
+from utils import temp_p, get_loop, ori_path, conf
+
+
+def build_proxy_transport(proxy_policy, proxies, is_async=True, **transport_kw):
+    """根据站点 proxy_policy 构建 httpx transport。
+
+    Args:
+        proxy_policy: "direct" | "proxy"
+        proxies: conf.proxies 列表
+        is_async: True→AsyncHTTPTransport, False→HTTPTransport
+        **transport_kw: 透传给 transport 构造（如 http2=True）
+
+    Returns:
+        (transport, trust_env) 元组
+    """
+    cls = httpx.AsyncHTTPTransport if is_async else httpx.HTTPTransport
+    retries = transport_kw.pop("retries", 0)
+    if proxy_policy == "direct" or not proxies:
+        return cls(retries=retries, **transport_kw), False
+    return cls(proxy=f"http://{proxies[0]}", retries=retries + 1, **transport_kw), False
 
 class Cache:
     def __init__(self, cache_f):
@@ -115,6 +138,8 @@ class Cookies:
 class Req:
     book_hea = {}
     book_url_regex = ""
+    proxy_policy= None
+    _TRANSPORT_PARAMS = frozenset(('http2', 'verify', 'cert', 'limits'))
 
     def __init__(self, _conf):
         ...
@@ -122,14 +147,16 @@ class Req:
     @classmethod
     def get_cli(cls, _conf, is_async=False, **kwargs):
         client_class = httpx.AsyncClient if is_async else httpx.Client
-        transport_class = httpx.AsyncHTTPTransport if is_async else httpx.HTTPTransport
-        if _conf.proxies:
-            base_kwargs = {
-                'headers': cls.book_hea,
-                'transport': transport_class(proxy=f"http://{_conf.proxies[0]}", retries=3)
-            }
-        else:
-            base_kwargs = {'headers': cls.book_hea, 'trust_env': True}
+        transport_kw = {k: kwargs.pop(k) for k in cls._TRANSPORT_PARAMS if k in kwargs}
+        transport, trust_env = build_http_transport(
+            cls.proxy_policy, _conf.proxies,
+            doh_url=getattr(_conf, "doh_url", ""), is_async=is_async, **transport_kw,
+        )
+        base_kwargs = {
+            'headers': cls.book_hea,
+            'transport': transport,
+            'trust_env': trust_env,
+        }
         base_kwargs.update(kwargs)
         return client_class(**base_kwargs)
 
@@ -146,23 +173,227 @@ class Req:
 class Utils:
     name = ""
     headers = {}
+    proxy_policy = "proxy"
 
     @classmethod
     def get_uuid(cls, info):
         return f"{cls.name}-{info}"
 
+    @classmethod
+    def display_meta(cls, *args, **kw) -> dict:
+        return {}
 
-class MangaPreview:
+
+@dataclass(slots=True)
+class PreviewRequestSpec:
+    url: str
+    method: str = "GET"
+    headers: dict[str, str] = field(default_factory=dict)
+    data: t.Optional[dict[str, t.Any]] = None
+    state: dict[str, t.Any] = field(default_factory=dict)
+    timeout: float = 12.0
+
+class Previewer:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
+    cover_preload_via_http = True
 
     @classmethod
-    async def preview_search(cls, keyword: str, client, **kw) -> list:
+    def preview_client_config(cls, **context) -> dict:
+        return {}
+
+    @classmethod
+    def preview_transport_config(cls) -> dict:
+        return {}
+
+    @staticmethod
+    def pop_site_kwargs(kw: dict[str, t.Any]) -> dict[str, t.Any]:
+        return {
+            "cookies": kw.pop("cookies", None),
+            "domain": kw.pop("domain", None),
+            "custom_map": kw.pop("custom_map", None),
+        }
+
+    @staticmethod
+    def preview_origin(domain: str | None) -> str | None:
+        if not domain:
+            return None
+        parsed = urlparse(domain)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+        return f"https://{domain}"
+
+    @staticmethod
+    def build_referer_url(
+        referer_url: str | None,
+        *,
+        request_url: str | None = None,
+        default_scheme: str = "https",
+    ) -> str | None:
+        raw_referer = str(referer_url or "").strip()
+        if not raw_referer:
+            return None
+        request_scheme = ""
+        if request_url:
+            request_parts = urlparse(str(request_url).strip())
+            request_scheme = str(request_parts.scheme or "").strip().casefold()
+            if request_scheme and request_scheme not in {"http", "https"}:
+                return None
+        final_default_scheme = request_scheme or default_scheme
+        referer_parts = urlparse(
+            raw_referer if "://" in raw_referer else f"{final_default_scheme}://{raw_referer}"
+        )
+        referer_host = str(referer_parts.netloc or referer_parts.path or "").strip()
+        if not referer_host:
+            return None
+        referer_scheme = str(referer_parts.scheme or "").strip().casefold()
+        final_scheme = referer_scheme if referer_scheme in {"http", "https"} else final_default_scheme
+        referer_path = str(referer_parts.path or "").strip() or "/"
+        return urlunparse((
+            final_scheme,
+            referer_host,
+            referer_path,
+            "",
+            str(referer_parts.query or "").strip(),
+            "",
+        ))
+
+    @classmethod
+    def build_site_headers(
+        cls,
+        domain: str,
+        base_headers: dict[str, str] | None = None,
+        *,
+        referer_url: str | None = None,
+        cookies: dict[str, str] | None = None,
+        cookie_serializer: t.Callable[[dict[str, str]], str] | None = None,
+    ) -> dict[str, str]:
+        headers = {"Host": domain, **(base_headers or {})}
+        referer = cls.build_referer_url(referer_url)
+        if referer:
+            headers["Referer"] = referer
+        if cookies and cookie_serializer is not None:
+            cookie_str = cookie_serializer(cookies)
+            if cookie_str:
+                headers["cookie"] = cookie_str
+        return headers
+
+    @classmethod
+    def normalize_preview_resource(
+        cls, value: str | None,
+        *,
+        domain: str | None = None, default_scheme: str = "https",
+    ) -> str | None:
+        raw_value = str(value or "").strip()
+        if not raw_value:
+            return value
+        if raw_value.startswith("///"):
+            raw_value = f"//{raw_value.lstrip('/')}"
+        parsed = urlparse(raw_value)
+        if parsed.scheme in {"http", "https"}:
+            return raw_value
+        if raw_value.startswith("//"):
+            return f"{default_scheme}:{raw_value}"
+        if parsed.scheme:
+            return raw_value
+        origin = cls.preview_origin(domain)
+        if origin is None:
+            return raw_value
+        prefix = "" if raw_value.startswith("/") else "/"
+        return f"{origin}{prefix}{raw_value}"
+
+    @classmethod
+    def normalize_preview_fields(
+        cls,
+        item,
+        *,
+        domain: str | None = None,
+        attrs: tuple[str, ...] = ("preview_url", "url", "img_preview"),
+    ):
+        for attr in attrs:
+            value = getattr(item, attr, None)
+            normalized = cls.normalize_preview_resource(value, domain=domain)
+            if normalized != value:
+                setattr(item, attr, normalized)
+        return item
+
+    @staticmethod
+    def merge_search_mappings(base: dict | None, custom: dict | None) -> dict:
+        merged = copy.deepcopy(base or {})
+        merged.update(copy.deepcopy(custom or {}))
+        return merged
+
+    @classmethod
+    def normalize_mapping_url(cls, domain: str, mapping_value) -> str:
+        parsed = urlparse(str(mapping_value))
+        origin = cls.preview_origin(domain)
+        if origin is None:
+            raise ValueError(f"{cls.__name__} requires domain for mapping search")
+        return f"{origin}{parsed.path}"
+
+    @classmethod
+    def build_page_url(cls, url: str, page: int, page_info: t.Optional[tuple]) -> str:
+        page = max(1, int(page or 1))
+        if page <= 1 or not page_info:
+            return str(url)
+        from utils.processed_class import Url
+        return str(Url(str(url)).set_next(*page_info).jump(page))
+
+    @classmethod
+    def build_basic_search_request(
+        cls,
+        keyword: str,
+        *,
+        page: int = 1, domain: str, search_url_head: str, turn_page_info: t.Optional[tuple], 
+        turn_page_search: t.Optional[str] = None, mappings: dict | None = None, 
+        custom_map: dict | None = None, headers: dict | None = None, state: dict | None = None,
+    ) -> PreviewRequestSpec:
+        merged = cls.merge_search_mappings(mappings, custom_map)
+        if keyword in merged:
+            base_url = cls.normalize_mapping_url(domain, merged[keyword])
+            page_info = turn_page_info
+        else:
+            base_url = f"{search_url_head}{keyword}"
+            page_info = (turn_page_search,) if turn_page_search else turn_page_info
+        return PreviewRequestSpec(
+            url=cls.build_page_url(base_url, page, page_info),
+            headers=dict(headers or {}),
+            state=dict(state or {}),
+        )
+
+    @classmethod
+    async def perform_preview_request(cls, client, spec: PreviewRequestSpec, **kw):
+        request_kw = dict(kw)
+        cls.pop_site_kwargs(request_kw)
+        if spec.headers:
+            request_kw["headers"] = spec.headers
+        if spec.data is not None:
+            request_kw["data"] = spec.data
+        resp = await client.request(
+            spec.method,
+            spec.url,
+            follow_redirects=True,
+            timeout=spec.timeout,
+            **request_kw,
+        )
+        resp.raise_for_status()
+        return resp
+
+    @classmethod
+    async def preview_search(
+        cls,
+        keyword: str,
+        client,
+        **kw,
+    ) -> list:
         raise NotImplementedError(f"{cls.__name__}.preview_search")
 
     @classmethod
     async def preview_fetch_episodes(cls, book, client, **kw) -> list:
-        raise NotImplementedError(f"{cls.__name__}.preview_fetch_episodes")
+        ...
 
+    @classmethod
+    async def preview_fetch_pages(cls, episode, client, **kw) -> list:
+        raise NotImplementedError(f"{cls.__name__}.preview_fetch_pages")
 
 class EroUtils(Utils):
     uuid_regex = None
@@ -193,7 +424,13 @@ class DomainUtils(Utils):
         if not cls.forever_url:
             return None
         try:
-            async with httpx.AsyncClient(headers=cls.headers, follow_redirects=True) as cli:
+            transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies)
+            async with httpx.AsyncClient(
+                headers=cls.headers,
+                follow_redirects=True,
+                transport=transport,
+                trust_env=trust_env,
+            ) as cli:
                 resp = await cli.head(cls.forever_url)
                 return re.search(r"https?://(.*)/?", str(resp.request.url)).group(1)
         except httpx.ConnectError:
@@ -206,8 +443,14 @@ class DomainUtils(Utils):
         e = None
         if not cls.publish_url:
             return None
-        async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, 
-                transport=httpx.AsyncHTTPTransport(http2=True, retries=5)) as cli:
+        transport, trust_env = build_proxy_transport(
+            cls.proxy_policy, conf.proxies, http2=True, retries=5
+        )
+        async with httpx.AsyncClient(
+            headers=cls.publish_headers or cls.headers,
+            transport=transport,
+            trust_env=trust_env,
+        ) as cli:
             try:
                 resp = await cli.get(cls.publish_url)
                 resp.raise_for_status()
@@ -235,11 +478,34 @@ class DomainUtils(Utils):
         return cls.cachef.run(_, 168, write_in=True)
 
     @classmethod
+    def _fallback_domain(cls):
+        if getattr(cls, "domain", None):
+            return cls.domain
+        for attr in ("book_id_url", "search_url_head", "publish_url", "forever_url"):
+            raw = getattr(cls, attr, "") or ""
+            matched = re.search(r"https?://([^/]+)", raw)
+            if matched:
+                return matched.group(1)
+        return None
+
+    @classmethod
     def _get_domain_thread(cls):
         loop = get_loop()
+        fallback_domain = cls._fallback_domain()
         try:
-            domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever()) or None
-            if not cls.status_forever and not cls.status_publish:
+            try:
+                domain = (
+                    loop.run_until_complete(cls.by_publish())
+                    or loop.run_until_complete(cls.by_forever())
+                    or fallback_domain
+                )
+            except Exception:
+                if fallback_domain:
+                    return fallback_domain
+                raise
+            if not domain and fallback_domain:
+                return fallback_domain
+            if not cls.status_forever and not cls.status_publish and not fallback_domain:
                 raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
             return domain
         finally:
@@ -249,7 +515,14 @@ class DomainUtils(Utils):
     async def test_aviable_domain(cls, domain):
         url = f"https://{domain}"
         try:
-            async with httpx.AsyncClient(headers={**cls.headers, 'Referer': url},transport=httpx.AsyncHTTPTransport(retries=1),verify=False) as cli:
+            transport, trust_env = build_proxy_transport(
+                cls.proxy_policy, conf.proxies, retries=1, verify=False
+            )
+            async with httpx.AsyncClient(
+                headers={**cls.headers, 'Referer': url},
+                transport=transport,
+                trust_env=trust_env,
+            ) as cli:
                 resp = await cli.head(url, follow_redirects=True, timeout=4)
                 if resp and str(resp.status_code).startswith('2'):
                     return resp.url.host

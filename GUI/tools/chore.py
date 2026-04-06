@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 from assets import res
 from utils import curr_os, ori_path

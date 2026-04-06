@@ -6,16 +6,16 @@ import typing as t
 from datetime import datetime
 
 import httpx
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer, QByteArray, QBuffer, QIODevice
+from PySide6 import QtWidgets
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
+from PySide6.QtCore import Qt, QUrl, Signal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer, QByteArray, QBuffer, QIODevice
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtGui import QFont, QGuiApplication, QDesktopServices, QPixmap, QColor
+from PySide6.QtGui import QFont, QGuiApplication, QDesktopServices, QPixmap, QColor
 from qfluentwidgets import (
     LineEdit, PrimaryPushButton,
     VBoxLayout, FluentIcon as FIF, ZhDatePicker, StrongBodyLabel,
     TransparentToolButton, HyperlinkButton, PushButton, PrimaryToolButton, TransparentTogglePushButton,
-    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, qconfig, ImageLabel,
+    TableView, FlyoutViewBase, FlyoutAnimationType, TextEdit, ImageLabel,
     Flyout, CommandBarView, Action, InfoBar, InfoBarPosition
 )
 from qframelesswindow import FramelessWindow
@@ -32,7 +32,7 @@ from GUI.script.avatar_cache import AvatarCache
 
 
 class FilterView(FlyoutViewBase):
-    closed = pyqtSignal()  # 添加closed信号
+    closed = Signal()  # 添加closed信号
     
     def __init__(self, parent=None):
         super(FilterView, self).__init__(parent)
@@ -50,7 +50,7 @@ class FilterView(FlyoutViewBase):
         first_row.addWidget(self.textEdit)
         
         second_row = QtWidgets.QHBoxLayout()
-        self.linkBtn = HyperlinkButton(FIF.LINK, f"{CGS_DOC}/feat/script.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
+        self.linkBtn = HyperlinkButton(FIF.LINK, f"{CGS_DOC}/script/kemono.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
         spacerItem = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.svBtn = PrimaryToolButton(FIF.SAVE, self)
         self.svBtn.clicked.connect(self.save)
@@ -68,7 +68,7 @@ class FilterView(FlyoutViewBase):
 
     def save(self):
         kemono_cfg.filterText.value = self.textEdit.toPlainText()
-        qconfig.save()
+        kemono_cfg.save()
         self.closeBtn.click()
 
 
@@ -212,7 +212,7 @@ class VirtualKemonoTableModel(QAbstractTableModel):
 
 class KemonoTableView(FramelessWindow):
     """Kemono作者表格视图"""
-    closed = pyqtSignal()
+    closed = Signal()
 
     def __init__(self, data: t.Dict[str, KemonoAuthor], parent=None):
         super().__init__()
@@ -329,8 +329,8 @@ class KemonoTableView(FramelessWindow):
 
         self._apply_column_layout()
 
-        self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.tableView.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tableView.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
         # 启用右键菜单
         self.tableView.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -616,7 +616,7 @@ class KemonoInterface(QFrame):
         endDateLabel = StrongBodyLabel("结束", self)
         self.endDateEdit = ZhDatePicker(self)
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.startDateEdit.setDate(QDate(2025, 1, 1))
+        self.startDateEdit.setDate(QDate(2026, 1, 1))
         self.endDateEdit.setDate(QDate(2045, 1, 1))
         self.extraFilterBtn = PushButton(FIF.FILTER, "过滤规则", self)
         self.extraFilterBtn.clicked.connect(self.show_extra_filter)
@@ -719,8 +719,8 @@ class KemonoInterface(QFrame):
 
 
 class KemonoBackendThread(QThread):
-    output_signal = pyqtSignal(str)
-    finished_signal = pyqtSignal(int)  # 添加完成信号，传递退出码
+    output_signal = Signal(str)
+    finished_signal = Signal(int)  # 添加完成信号，传递退出码
 
     def __init__(self, backend_kw, parent=None):
         super().__init__(parent)

@@ -56,25 +56,19 @@ hero:
       </a></div></td>
   </tr>
   <tr>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json"></td>
-    <td></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json"></td>
+    <td colspan="7"><a href="/deploy/monitor/">可用监控</a></td>
   </tr>
 </tbody></table>
 
 <table><tbody>
   <tr>
-    <td style="text-align: center; vertical-align: middle;" rowspan="4">
+    <td style="text-align: center; vertical-align: middle;" rowspan="5">
       <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1772894706883_normal.mp4" title="AGS demo"></HomeDemoVideo>
     </td>
   </tr>
   <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜素</strong></a></td></tr>
-  <tr><td style="text-align: left;"></td></tr>
+  <tr><td style="text-align: left;"><a href="/script/"><strong>🎮Script</strong></a></td></tr>
 </tbody></table>
 
 ## 功能特性

@@ -51,8 +51,10 @@ preset = {
                "__init__", "python.exe", "pythonw.exe", "VCRUNTIME140_1.dll"],
     "matplotlib": ["matplotlibrc", ".load-order", "matplotlib.svg"], "request": ["msgcat-1.6.1.tm"],
     "plotly": ["plotly.json", "plotly.min.js", "package_data\\templates"], "pyecharts": ["pyecharts"],
-    "pyqtwebengine": ["QtWebEngineProcess.exe", "icudtl.dat", "qtwebengine_devtools_resources.pak",
-                      "qtwebengine_resources", "qt.conf"], "streamlit": ["streamlit\\static"],
+    "pyside6-webengine": ["QtWebEngineProcess.exe", "icudtl.dat", "qtwebengine_devtools_resources.pak",
+                          "qtwebengine_resources.pak", "qtwebengine_resources_100p.pak",
+                          "qtwebengine_resources_200p.pak", "qtwebengine_resources", "qt.conf"],
+    "streamlit": ["streamlit\\static"],
     "trame_vtk": ["static_viewer.html"], "python-docx": ["docx\\templates"], "python-pptx": ["pptx\\templates"],
     "scrapy": ["mime.types"]}
 

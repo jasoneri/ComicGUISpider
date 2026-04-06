@@ -16,7 +16,6 @@ class BodyFormat:
 
 
 class KbFrameBook:
-    say_fm = ' {}、《{}》\t【{}】\t[{}]'
     print_head = ['book_path', 'name', 'artist', 'popular']
     target_json_path = ['path_word', 'name', 'author.[*].name', 'popular']
     cover_path = 'cover'
@@ -40,7 +39,6 @@ class KbFrameBook:
 
     def byRefresh(self):
         self.url = f'https://{self.domain}/api/v3/update/newest?limit=30&offset=0&_update=false'
-        self.say_fm = KbFrameBook.say_fm + '\t[{}]\t[{}]'
         self.print_head = KbFrameBook.print_head + ['datetime_updated', 'last_chapter_name']
         self.target_json_path = ['comic.path_word', 'comic.name', 'comic.author.[*].name',
                                  'comic.popular', 'comic.datetime_updated', 'comic.last_chapter_name']
@@ -71,7 +69,6 @@ class MbBody(BodyFormat):
         "status": "0",
         "sort": "2"
     }
-    say_fm = ' {}、\t《{}》\t【{}】\t[{}]'
     print_head = ['book_path', 'name', 'artist', 'last_chapter_name']
     target_json_path = ['UrlKey', 'Title', 'Author.[*]', 'ShowLastPartName']
 

@@ -1,0 +1,265 @@
+/* Danbooru QSS template and theme tokens */
+
+/* @tokens light */
+CANVAS = #f5f5f4;
+SHELL = rgba(250, 250, 249, 0.98);
+SHELL_BORDER = rgba(39, 39, 42, 0.10);
+CARD_BACKGROUND_IDLE = rgba(255, 255, 255, 0.99);
+CARD_BORDER_IDLE = rgba(39, 39, 42, 0.10);
+CARD_HOVER_BORDER_IDLE = rgba(39, 39, 42, 0.26);
+CARD_BACKGROUND_DOWNLOADED = rgba(255, 160, 122, 0.44);
+CARD_BORDER_DOWNLOADED = rgba(216, 110, 72, 0.76);
+CARD_HOVER_BORDER_DOWNLOADED = rgba(216, 110, 72, 0.92);
+CARD_PREVIEW_BACKGROUND = rgba(39, 39, 42, 0.05);
+CARD_PREVIEW_BACKGROUND_HOVER = rgba(39, 39, 42, 0.09);
+SECTION_BACKGROUND = rgba(245, 245, 244, 0.97);
+SECTION_BORDER = rgba(39, 39, 42, 0.08);
+TEXT = rgba(9, 9, 11, 0.97);
+MUTED_TEXT = rgba(63, 63, 70, 0.74);
+STATUS_TEXT = rgba(39, 39, 42, 0.80);
+VIEWER_FRAME = rgba(255, 255, 255, 1.0);
+VIEWER_BORDER = rgba(39, 39, 42, 0.50);
+VIEWER_IMAGE = rgba(39, 39, 42, 0.04);
+VIEWER_TAG = rgba(255, 255, 255, 0.92);
+VIEWER_TAG_HOVER = rgba(244, 244, 245, 0.98);
+SELECTION_BORDER = rgba(24, 24, 27, 0.88);
+TITLE_ACCENT = #18181b;
+PIVOT_SELECTED = rgba(255, 255, 255, 0.98);
+PIVOT_BUTTON_HOVER = rgba(39, 39, 42, 0.07);
+PIVOT_BUTTON_PRESSED = rgba(39, 39, 42, 0.11);
+CARD_SELECTION_BORDER = rgba(123, 90, 206, 0.74);
+CARD_SELECTION_FILL_START = rgba(65, 88, 208, 0.16);
+CARD_SELECTION_FILL_MID = rgba(200, 80, 192, 0.14);
+CARD_SELECTION_FILL_END = rgba(255, 204, 112, 0.22);
+CARD_PREVIEW_SELECTED_BORDER = rgba(255, 255, 255, 0.24);
+CARD_PREVIEW_SELECTED_OVERLAY_START = rgba(255, 255, 255, 0.28);
+CARD_PREVIEW_SELECTED_OVERLAY_END = rgba(255, 255, 255, 0.08);
+CARD_PREVIEW_UNSUPPORTED_TEXT = #b65239;
+CARD_PREVIEW_DOWNLOADED_GRAYSCALE = 1.0;
+CARD_PREVIEW_DOWNLOADED_OPACITY = 0.6;
+CARD_GLOW_COLOR = rgba(255, 190, 184, 0.88);
+CARD_CHECKBOX_OPACITY = 0.25;
+CARD_CHECKBOX_DISABLED_OPACITY = 0.25;
+CARD_CHECKBOX_GRADIENT_START = #a7abc0;
+CARD_CHECKBOX_GRADIENT_MID = #a39aa3;
+CARD_CHECKBOX_GRADIENT_END = #afa695;
+CARD_CHECKBOX_SHADOW = rgba(255, 190, 184, 144);
+CARD_CHECKBOX_INNER = rgba(255, 255, 255, 252);
+CARD_CHECKBOX_OFFSET_X = 12;
+CARD_CHECKBOX_OFFSET_Y = 12;
+/* @endtokens */
+
+/* @tokens dark */
+CANVAS = #09090b;
+SHELL = rgba(18, 18, 20, 0.98);
+SHELL_BORDER = rgba(244, 244, 245, 0.10);
+CARD_BACKGROUND_IDLE = rgba(24, 24, 27, 0.98);
+CARD_BORDER_IDLE = rgba(244, 244, 245, 0.10);
+CARD_HOVER_BORDER_IDLE = rgba(228, 228, 231, 0.44);
+CARD_BACKGROUND_DOWNLOADED = rgba(255, 160, 122, 0.24);
+CARD_BORDER_DOWNLOADED = rgba(255, 196, 171, 0.82);
+CARD_HOVER_BORDER_DOWNLOADED = rgba(255, 210, 190, 0.94);
+CARD_PREVIEW_BACKGROUND = rgba(244, 244, 245, 0.06);
+CARD_PREVIEW_BACKGROUND_HOVER = rgba(244, 244, 245, 0.12);
+SECTION_BACKGROUND = rgba(28, 28, 31, 0.96);
+SECTION_BORDER = rgba(244, 244, 245, 0.08);
+TEXT = rgba(250, 250, 250, 0.97);
+MUTED_TEXT = rgba(212, 212, 216, 0.72);
+STATUS_TEXT = rgba(228, 228, 231, 0.82);
+VIEWER_FRAME = rgba(15, 15, 17, 1.0);
+VIEWER_BORDER = rgba(244, 244, 245, 0.50);
+VIEWER_IMAGE = rgba(244, 244, 245, 0.05);
+VIEWER_TAG = rgba(255, 255, 255, 0.04);
+VIEWER_TAG_HOVER = rgba(255, 255, 255, 0.08);
+SELECTION_BORDER = rgba(226, 232, 240, 0.92);
+TITLE_ACCENT = #f4f4f5;
+PIVOT_SELECTED = rgba(46, 46, 51, 0.98);
+PIVOT_BUTTON_HOVER = rgba(244, 244, 245, 0.10);
+PIVOT_BUTTON_PRESSED = rgba(244, 244, 245, 0.14);
+CARD_SELECTION_BORDER = rgba(255, 239, 224, 0.82);
+CARD_SELECTION_FILL_START = rgba(65, 88, 208, 0.34);
+CARD_SELECTION_FILL_MID = rgba(200, 80, 192, 0.28);
+CARD_SELECTION_FILL_END = rgba(255, 204, 112, 0.34);
+CARD_PREVIEW_SELECTED_BORDER = rgba(255, 255, 255, 0.24);
+CARD_PREVIEW_SELECTED_OVERLAY_START = rgba(255, 255, 255, 0.18);
+CARD_PREVIEW_SELECTED_OVERLAY_END = rgba(255, 255, 255, 0.04);
+CARD_PREVIEW_UNSUPPORTED_TEXT = #b65239;
+CARD_PREVIEW_DOWNLOADED_GRAYSCALE = 1.0;
+CARD_PREVIEW_DOWNLOADED_OPACITY = 0.6;
+CARD_GLOW_COLOR = rgba(255, 190, 184, 0.74);
+CARD_CHECKBOX_OPACITY = 0.25;
+CARD_CHECKBOX_DISABLED_OPACITY = 0.25;
+CARD_CHECKBOX_GRADIENT_START = #acb1cb;
+CARD_CHECKBOX_GRADIENT_MID = #d1aacf;
+CARD_CHECKBOX_GRADIENT_END = #a99f8d;
+CARD_CHECKBOX_SHADOW = rgba(255, 190, 184, 112);
+CARD_CHECKBOX_INNER = rgba(255, 255, 255, 244);
+CARD_CHECKBOX_OFFSET_X = 12;
+CARD_CHECKBOX_OFFSET_Y = 12;
+/* @endtokens */
+
+/* @section card */
+DanbooruCardWidget {
+    background: ${CARD_BACKGROUND};
+    border: 1px solid ${CARD_BORDER};
+    border-radius: 20px;
+}
+DanbooruCardWidget:hover {
+    border-color: ${CARD_HOVER_BORDER};
+}
+DanbooruCardWidget[selected="true"] {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 ${CARD_SELECTION_FILL_START},
+        stop: 0.46 ${CARD_SELECTION_FILL_MID},
+        stop: 1 ${CARD_SELECTION_FILL_END}
+    );
+    border: 2px solid ${CARD_SELECTION_BORDER};
+}
+DanbooruCardWidget[selected="true"] QPushButton#DanbooruCardPreview {
+    border: 1px solid ${CARD_PREVIEW_SELECTED_BORDER};
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 ${CARD_PREVIEW_SELECTED_OVERLAY_START},
+        stop: 1 ${CARD_PREVIEW_SELECTED_OVERLAY_END}
+    );
+}
+QPushButton#DanbooruCardPreview {
+    border: none;
+    border-radius: 16px;
+    background: ${CARD_PREVIEW_BACKGROUND};
+    color: ${TEXT};
+    text-align: center;
+}
+QPushButton#DanbooruCardPreview:hover {
+    background: ${CARD_PREVIEW_BACKGROUND_HOVER};
+}
+QPushButton#DanbooruCardPreview[unsupported="true"] {
+    color: ${CARD_PREVIEW_UNSUPPORTED_TEXT};
+}
+/* @endsection */
+
+/* @section viewer */
+QFrame#DanbooruImageViewerFrame {
+    background: ${VIEWER_FRAME};
+    border: 1px solid ${VIEWER_BORDER};
+    border-radius: 20px;
+}
+QLabel#DanbooruImageLabel {
+    color: ${MUTED_TEXT};
+    background: ${VIEWER_IMAGE};
+    border-radius: 16px;
+}
+QLabel#DanbooruImageHint {
+    color: ${MUTED_TEXT};
+    background: transparent;
+    padding: 0 18px;
+}
+QWidget#DanbooruTagsContainer {
+    background: transparent;
+}
+QLabel#DanbooruTagSectionTitle {
+    color: ${MUTED_TEXT};
+    font-weight: 600;
+    padding: 8px 2px 2px 2px;
+}
+PushButton#DanbooruTagButton {
+    color: ${TEXT};
+    background: ${VIEWER_TAG};
+    border: 1px solid ${VIEWER_BORDER};
+    border-radius: 12px;
+    min-height: 16px;
+    padding: 0 6px;
+    text-align: left;
+}
+PushButton#DanbooruTagButton:hover {
+    background: ${VIEWER_TAG_HOVER};
+}
+/* @endsection */
+
+/* @section tab */
+QFrame#DanbooruSearchQueryGroup {
+    background: ${SECTION_BACKGROUND};
+    border: 1px solid ${SECTION_BORDER};
+    border-radius: 18px;
+}
+QWidget#DanbooruGridContent {
+    background: transparent;
+}
+QAbstractScrollArea#DanbooruGridScrollArea {
+    background: transparent;
+    border: none;
+}
+/* @endsection */
+
+/* @section interface */
+DanbooruInterface {
+    background: ${CANVAS};
+}
+QFrame#DanbooruContentShell,
+QWidget#DanbooruTitleBlock {
+    background: ${SHELL};
+    border: 1px solid ${SHELL_BORDER};
+    border-radius: 12px;
+}
+QFrame#DanbooruPivotShell {
+    background: ${SHELL};
+    border: 1px solid ${SHELL_BORDER};
+    border-radius: 12px;
+}
+QLabel#DanbooruSubtitle {
+    color: ${MUTED_TEXT};
+}
+QLabel#DanbooruTabCaption {
+    color: ${MUTED_TEXT};
+    padding: 0 6px 0 2px;
+}
+QWidget#DanbooruPivotTabBarView {
+    background: transparent;
+}
+QAbstractScrollArea#DanbooruPivotScrollArea {
+    background: transparent;
+    border: none;
+}
+TransparentToolButton#DanbooruPivotScrollButton {
+    color: ${STATUS_TEXT};
+    background: transparent;
+    border: none;
+    border-radius: 18px;
+}
+TransparentToolButton#DanbooruPivotScrollButton:hover {
+    background: ${PIVOT_BUTTON_HOVER};
+}
+TransparentToolButton#DanbooruPivotScrollButton:pressed {
+    background: ${PIVOT_BUTTON_PRESSED};
+}
+TransparentToolButton#DanbooruPivotScrollButton:disabled {
+    color: ${MUTED_TEXT};
+    background: transparent;
+    border: none;
+}
+QAbstractScrollArea#DanbooruPivotScrollArea TabToolButton {
+    color: ${STATUS_TEXT};
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+}
+QAbstractScrollArea#DanbooruPivotScrollArea TabToolButton:hover {
+    background: ${PIVOT_BUTTON_HOVER};
+}
+QAbstractScrollArea#DanbooruPivotScrollArea TabToolButton:pressed {
+    background: ${PIVOT_BUTTON_PRESSED};
+}
+/* @endsection */
+
+/* @section title_label_inline */
+color: ${TITLE_ACCENT}; letter-spacing: 0.5px;
+/* @endsection */
+
+/* @section tip_line_inline */
+padding-left: 8px; color: ${MUTED_TEXT};
+/* @endsection */
+
+/* @section network_label_inline */
+color: ${MUTED_TEXT};
+/* @endsection */

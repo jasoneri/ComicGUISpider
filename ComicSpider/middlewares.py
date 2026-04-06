@@ -2,6 +2,7 @@
 import re
 import random
 import traceback
+from urllib.parse import urlparse
 # Define here the models for your spider middleware
 #
 # See documentation in:
@@ -10,6 +11,9 @@ import traceback
 from scrapy import signals
 from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
 from scrapy.http import HtmlResponse
+from utils import conf
+from utils.config.qc import cgs_cfg
+from utils.network.extra import ensure_doh_connect_proxy_started
 
 
 class ComicspiderDownloaderMiddleware(object):
@@ -19,7 +23,7 @@ class ComicspiderDownloaderMiddleware(object):
 
     @classmethod
     def from_crawler(cls, crawler):
-        USER_AGENTS, PROXIES = crawler.settings.get('UA'), crawler.settings.get('PROXY_CUST')
+        USER_AGENTS, PROXIES = crawler.settings.get('UA'), conf.proxies
         s = cls(USER_AGENTS, PROXIES)
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
@@ -28,13 +32,6 @@ class ComicspiderDownloaderMiddleware(object):
         return None
 
     def process_response(self, request, response, spider):
-        # Called with the response returned from the downloader.
-        if response.status != 200:
-            request.headers['User-Agent'] = random.choice(self.USER_AGENTS)
-            if self.PROXIES:
-                proxy = random.choice(self.PROXIES)
-                request.meta['proxy'] = f"{request.url.split(':')[0]}://{proxy}"
-            return request
         return response
 
     def process_exception(self, request, exception, spider):
@@ -86,12 +83,13 @@ class UAMiddleware(ComicspiderDownloaderMiddleware):
 class UAKaobeiMiddleware(ComicspiderDownloaderMiddleware):
     def process_request(self, request, spider):
         if request.url.find(spider.pc_domain) != -1:
-            ua = getattr(spider, 'ua', {})
             if request.url.endswith('/chapters'):
-                ua.update({'Referer': f'https://{spider.pc_domain}/comic/{request.url.split("/")[-2]}'})
+                headers = {**getattr(spider, 'ua', {})}
+                headers['Referer'] = f'https://{spider.pc_domain}/comic/{request.url.split("/")[-2]}'
             else:
-                ua.update({'Referer': "/".join(request.url.split("/")[:-2])})
-            request.headers.update(ua)
+                headers = {**getattr(spider, 'page_headers', getattr(spider, 'headers', getattr(spider, 'ua', {})))}
+                request.headers.clear()
+            request.headers.update(headers)
         else:
             request.headers.update(getattr(spider, 'ua_mapi', {}))
         return None
@@ -132,18 +130,9 @@ class ComicDlProxyMiddleware(ComicspiderDownloaderMiddleware):
     """使用情况是"通常页需要over wall访问"，"图源cn就能访问"... 因此domain的都使用代理
     Spider 可定义 proxy_domains 列表指定需要代理的域名，未定义则回退到 domain
     """
-    domain_regex: re.Pattern = None
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        _ = super(ComicDlProxyMiddleware, cls).from_crawler(crawler)
-        spider = crawler.spider
-        domains = getattr(spider, 'proxy_domains', None) or [spider.domain]
-        _.domain_regex = re.compile('|'.join(re.escape(d) for d in domains))
-        return _
-
     def process_request(self, request, spider):
-        if bool(self.domain_regex.search(request.url)) and self.PROXIES:
+        domains = [d for d in (getattr(spider, 'proxy_domains', None) or [getattr(spider, 'domain', '')]) if d]
+        if domains and bool(re.compile('|'.join(re.escape(d) for d in domains)).search(request.url)) and self.PROXIES:
             proxy = random.choice(self.PROXIES)
             request.meta['proxy'] = f"http://{proxy}"
 
@@ -153,9 +142,53 @@ class DisableSystemProxyMiddleware(HttpProxyMiddleware):
         return None, None
 
 
+class ScrapyDoHProxyMiddleware:
+    def __init__(self, doh_url: str):
+        self._doh_url = doh_url
+        self._proxy_endpoint = ""
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        middleware = cls(cgs_cfg.get_doh_url())
+        crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
+        return middleware
+
+    def _ensure_proxy_endpoint(self, spider):
+        if not self._proxy_endpoint:
+            self._proxy_endpoint = ensure_doh_connect_proxy_started(self._doh_url)
+            spider.logger.info(
+                f"Scrapy DoH proxy enabled | doh={self._doh_url} | proxy={self._proxy_endpoint}"
+            )
+        return self._proxy_endpoint
+
+    def spider_opened(self, spider):
+        if not self._doh_url:
+            return
+        self._ensure_proxy_endpoint(spider)
+
+    def process_request(self, request, spider):
+        if not self._doh_url or request.meta.get('proxy'):
+            return None
+        parsed = urlparse(request.url)
+        if parsed.scheme != "https" or parsed.hostname == "fakefakefa.com":
+            return None
+        request.meta['proxy'] = f"http://{self._ensure_proxy_endpoint(spider)}"
+        return None
+
+
 class RefererMiddleware(ComicspiderDownloaderMiddleware):
     def process_request(self, request, spider):
-        request.headers['Referer'] = spider.domain
+        if request.headers.get('Referer'):
+            return None
+        if referer := request.meta.get('referer'):
+            request.headers['Referer'] = referer
+            return None
+        referer_resolver = getattr(spider, 'request_referer', None)
+        if callable(referer_resolver):
+            request.headers['Referer'] = referer_resolver()
+        else:
+            domain = getattr(spider, 'domain', '')
+            request.headers['Referer'] = domain if str(domain).startswith('http') else f"https://{domain}"
         return None
 
 

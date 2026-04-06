@@ -3,8 +3,10 @@
 import re
 import ast
 import ssl
+import sys
 import time
 import html
+import builtins
 import hashlib
 import asyncio
 import platform
@@ -13,7 +15,6 @@ from functools import lru_cache
 import pathlib as p
 import typing as t
 from dataclasses import asdict
-import multiprocessing.managers as m
 
 from utils.config import *
 from utils.core import *
@@ -35,7 +36,8 @@ def get_httpx_verify():
 
 
 def bs_theme():
-    return "dark" if conf.darkTheme else "light"
+    from GUI.core.theme import theme_mgr
+    return "dark" if theme_mgr.is_dark else "light"
 
 
 class PresetHtmlEl:
@@ -127,29 +129,6 @@ def clean_escape_chars(text):
     return text.replace('\\\\', '\\').replace('\\"', '"').replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
 
 
-
-
-class QueuesManager(m.BaseManager):
-    @staticmethod
-    def create_manager(*register_fields, **cls_kwargs):
-        for field in register_fields:
-            QueuesManager.register(field)
-        m = QueuesManager(**cls_kwargs)
-        return m
-
-    def connect(self):
-        loop = 0
-        while loop < 25:
-            try:
-                super(QueuesManager, self).connect()
-            except ConnectionRefusedError:
-                time.sleep(0.2)
-                loop += 1
-            else:
-                return
-        raise ConnectionRefusedError("Failed to connect to manager")
-
-
 def md5(_str):
     return hashlib.md5(_str.encode()).hexdigest()
 
@@ -161,3 +140,32 @@ def get_loop():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop
+
+
+_QFLUENT_PRO_MARKERS = (
+    "QFluentWidgets Pro is now released",
+    "qfluentwidgets.com/pages/pro",
+)
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def install_qfluentwidgets_notice_filter():
+    """Drop the import-time QFluentWidgets Pro notice without muting other prints."""
+    current_print = builtins.print
+    if getattr(current_print, "_cgs_qfluent_notice_filter", False):
+        return
+
+    def filtered_print(*args, **kwargs):
+        output = kwargs.get("file")
+        if output is None or output is sys.stdout:
+            sep = kwargs.get("sep")
+            if sep is None:
+                sep = " "
+            text = sep.join(str(arg) for arg in args)
+            normalized = _ANSI_ESCAPE_RE.sub("", text)
+            if all(marker in normalized for marker in _QFLUENT_PRO_MARKERS):
+                return
+        return current_print(*args, **kwargs)
+
+    filtered_print._cgs_qfluent_notice_filter = True
+    builtins.print = filtered_print

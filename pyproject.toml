@@ -1,26 +1,24 @@
 [project]
 name = "ComicGUISpider"
-version = "2.9.11"
+version = "2.10.0-beta"
 description = "GUI Comic Downloader"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "httpx[http2]",
+    "dnspython",
     "jsonpath_rw",
     "aiofiles",
     "colorama",
     "loguru",
     "lxml",
-    "PyQt5",
-    "pyqt5-qt5==5.15.2 ; platform_system == 'Windows'",
+    "PySide6>=6.11,<6.12",
     "PyYAML",
     "tqdm",
     "brotli",
     "markdown",
-    "PyQtWebEngine",
-    "pyqtwebengine-qt5==5.15.2 ; platform_system == 'Windows'",
     "PyExecJS",
-    "PyQt-Fluent-Widgets",
+    "PySide6-Fluent-Widgets",
     "polib",
     "pillow-avif-plugin",
     "uv",
@@ -32,6 +30,10 @@ dependencies = [
     "h11>=0.16.0",
     "requests>=2.32.4",
     "psutil",
+    "redis",
+    "pandas",
+    "curl-cffi>=0.14.0",
+    "retry>=0.9.2",
 ]
 authors = [
     {name = "jsoneri", email = "jsoneri@outlook.com"},

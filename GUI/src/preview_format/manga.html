@@ -1,68 +1,86 @@
 <!doctype html>
-<html lang="en" data-bs-theme="{bs_theme}">
+<html lang="en" data-preview-theme="{bs_theme}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Normal Preview</title>
-    <link rel="stylesheet" href="../GUI/src/preview_format/bootstrap.min.css">
     <link rel="stylesheet" href="../GUI/src/preview_format/public.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/preview_checkbox.css">
     <link rel="stylesheet" href="../GUI/src/preview_format/manga.css">
-    <link rel="stylesheet" href="../GUI/src/preview_format/task_toast.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/preview_bulk_select.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/widget/fav.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/widget/toast.css">
+    <link rel="stylesheet" href="../GUI/src/preview_format/widget/badge.css">
 </head>
 <body>
-<div class="container-fluid px-0">
-    <div class="row g-2" id="bookCards">
+<main class="preview-shell">
+    <section class="book-grid" id="bookCards">
         {body}
-    </div>
-</div>
+    </section>
+</main>
 
-<div class="modal" id="episodeModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header flex-column align-items-stretch gap-2">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="modal-title" id="episodeTitle">Episodes</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="input-group input-group-sm d-none" id="handleBtnGroup">
-                        <button class="btn btn-outline-secondary" type="button" id="clearEpBtn">
+<div class="preview-dialog" id="episodeModal" role="dialog" aria-modal="true" aria-hidden="true" data-preview-static hidden>
+    <div class="preview-dialog__panel preview-dialog__panel--wide">
+        <div class="preview-dialog__header">
+            <div class="preview-dialog__title-row">
+                <h2 class="preview-dialog__title" id="episodeTitle">Episodes</h2>
+                <button type="button" data-preview-dialog-close aria-label="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M6.4 5.34a.75.75 0 0 0-1.06 1.06L10.94 12l-5.6 5.6a.75.75 0 1 0 1.06 1.06l5.6-5.6l5.6 5.6a.75.75 0 0 0 1.06-1.06L13.06 12l5.6-5.6a.75.75 0 1 0-1.06-1.06L12 10.94z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="preview-dialog__toolbar preview-bulk-select">
+                <div class="bulk-toolbar-inner">
+                    <div class="bulk-toolbar-controls is-hidden" id="handleBtnGroup">
+                        <button class="preview-action-button bulk-toolbar-button bulk-toolbar-button--icon" type="button" id="clearEpBtn" title="Clear selection">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 1024 1024">
-                                <path fill="currentColor" d="m899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-.3 1.5-.4 3-.4 4.4c0 14.4 11.6 26 26 26h723c1.5 0 3-.1 4.4-.4c14.2-2.4 23.7-15.9 21.2-30M204 390h272V182h72v208h272v104H204zm468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260z" />
+                                <path fill="currentColor" d="m899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4 11.6-26 26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-.3 1.5-.4 3-.4 4.4c0 14.4 11.6 26 26 26h723c1.5 0 3-.1 4.4-.4c14.2-2.4 23.7-15.9 21.2-30M204 390h272V182h72v208h272v104H204zm468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260z" />
                             </svg>
                         </button>
-                        <button class="btn btn-outline-secondary" type="button" id="toggleAllEpBtn">All</button>
-                        <button class="btn btn-outline-secondary" type="button" id="beginBtn">First~</button>
-                        <input type="number" class="form-control text-center" id="EpsNumInput" value="1" min="1" step="1" inputmode="numeric" aria-label="Number of episodes to select" style="max-width: 60px;">
-                        <button class="btn btn-outline-secondary" type="button" id="lastBtn">~Last</button>
+                        <button class="preview-action-button bulk-toolbar-button" type="button" id="toggleAllEpBtn">All</button>
+                        <button class="preview-action-button bulk-toolbar-button" type="button" id="beginBtn">First~</button>
+                        <label class="preview-number-input bulk-toolbar-input" for="EpsNumInput">
+                            <span class="visually-hidden">Number of episodes to select</span>
+                            <input type="number" class="preview-number-input__field" id="EpsNumInput" value="1" min="1" step="1" inputmode="numeric" aria-label="Number of episodes to select">
+                        </label>
+                        <button class="preview-action-button bulk-toolbar-button" type="button" id="lastBtn">~Last</button>
+                        <button class="preview-icon-button--quiet bulk-toolbar-button bulk-toolbar-button--icon" type="button" id="scrollBottomBtn" aria-label="Scroll to bottom" title="Scroll to bottom">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M18 4.25A2.25 2.25 0 0 0 15.75 2h-7.5A2.25 2.25 0 0 0 6 4.25v15.5A2.25 2.25 0 0 0 8.25 22h7.5A2.25 2.25 0 0 0 18 19.75zM8.25 3.5h7.5a.75.75 0 0 1 .75.75v15.5a.75.75 0 0 1-.75.75h-7.5a.75.75 0 0 1-.75-.75V4.25a.75.75 0 0 1 .75-.75m7.25 14.75a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0 0 1.5h5.5a.75.75 0 0 0 .75-.75M11.993 16a.75.75 0 0 0 .533-.214l2.55-2.5a.75.75 0 1 0-1.051-1.072l-1.275 1.25V9.75a.75.75 0 0 0-1.5 0v3.662l-1.164-1.187a.75.75 0 1 0-1.07 1.05l2.45 2.5a.75.75 0 0 0 .527.225" />
+                            </svg>
+                        </button>
                     </div>
-                    <span class="badge text-bg-primary" id="epCount">0 selected</span>
+                    <span class="preview-count-badge bulk-toolbar-badge" id="epCount">0 selected</span>
                 </div>
             </div>
-            <div class="modal-body">
-                <div id="episodeList"></div>
-            </div>
+        </div>
+        <div class="preview-dialog__body">
+            <div id="episodeList"></div>
         </div>
     </div>
 </div>
 
-<!-- Scan Notification Toast -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1050">
-  <div id="scanToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body">
-        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-        <span id="scanToastBody">Scanning...</span>
-      </div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+<div class="preview-toast-stack" aria-live="assertive">
+    <div id="scanToast" class="preview-toast" role="status" aria-live="polite" aria-atomic="true" hidden>
+        <div class="preview-toast__body">
+            <span class="preview-spinner" aria-hidden="true"></span>
+            <span id="scanToastBody">Scanning...</span>
+        </div>
+        <button type="button" class="preview-icon-button--ghost" data-preview-toast-close aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M6.4 5.34a.75.75 0 0 0-1.06 1.06L10.94 12l-5.6 5.6a.75.75 0 1 0 1.06 1.06l5.6-5.6l5.6 5.6a.75.75 0 0 0 1.06-1.06L13.06 12l5.6-5.6a.75.75 0 1 0-1.06-1.06L12 10.94z"/>
+            </svg>
+        </button>
     </div>
-  </div>
 </div>
 
-<script src="../GUI/src/preview_format/bootstrap.min.js"></script>
-<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="../GUI/src/preview_format/tailwind.js"></script>
 <script src="../GUI/src/preview_format/public.js"></script>
-<script src="../GUI/src/preview_format/task_toast.js"></script>
+<script src="../GUI/src/preview_format/preview_episode.js"></script>
+<script src="../GUI/src/preview_format/preview_runtime.js"></script>
+<script src="../GUI/src/preview_format/widget/toast.js"></script>
+<script src="../GUI/src/preview_format/widget/fav.js"></script>
 <script src="../GUI/src/preview_format/manga.js"></script>
 </body>
 </html>

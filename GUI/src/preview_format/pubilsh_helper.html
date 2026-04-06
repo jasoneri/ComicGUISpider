@@ -1,17 +1,28 @@
 <!doctype html>
-<html lang="zh-CN" data-bs-theme="bs_theme">
+<html lang="zh-CN" data-preview-theme="bs_theme">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>发布页处理</title>
-    <link rel="stylesheet" href="../GUI/src/preview_format/bootstrap.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(105deg,var(--bs-body-bg) 45%,#ffa51eca 100%);overflow-y:auto;overflow-x:hidden;padding:20px 0}
+        :root{
+            --publish-bg:#f8fafc;
+            --publish-surface:rgba(255,255,255,.78);
+            --publish-text:#0f172a;
+            --publish-shadow:0 22px 48px rgba(15,23,42,.18);
+        }
+        html[data-preview-theme="dark"]{
+            --publish-bg:#020617;
+            --publish-surface:rgba(15,23,42,.76);
+            --publish-text:#f8fafc;
+            --publish-shadow:0 28px 64px rgba(2,6,23,.42);
+        }
+        body{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(105deg,var(--publish-bg) 45%,#ffa51eca 100%);color:var(--publish-text);overflow-y:auto;overflow-x:hidden;padding:20px 0}
         .content-wrapper{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;max-width:90vw;width:100%}
         .content-wrapper > * + *{margin-top:20px}
-        .page-title{color:white;font-weight:600;text-align:left;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 2px 10px rgba(0,0,0,0.5);margin:0}
-        .image-container{flex:0 0 auto;max-width:45vw;max-height:50vh;display:flex;align-items:center;justify-content:center;border-radius:15px;padding:15px}
+        .page-title{color:var(--publish-text);font-weight:600;text-align:left;text-shadow:0 2px 10px rgba(0,0,0,0.18);margin:0}
+        .image-container{flex:0 0 auto;max-width:45vw;max-height:50vh;display:flex;align-items:center;justify-content:center;border-radius:24px;padding:15px;background:var(--publish-surface);box-shadow:var(--publish-shadow);backdrop-filter:blur(10px)}
         .image-container img{max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
         .title-image-row{display:flex;flex-direction:row;align-items:center;justify-content:center;width:100%}
         .titles-container{display:flex;margin-right:30px;flex-direction:column;flex:1;min-width:0}
@@ -48,7 +59,6 @@
     </style>
 </head>
 <body>
-<script src="../GUI/src/preview_format/bootstrap.min.js"></script>
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <div class="content-wrapper">
 

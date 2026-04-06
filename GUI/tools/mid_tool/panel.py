@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
     QFrame
 )
@@ -12,7 +12,7 @@ from utils.middleware import MiddlewareDefinition
 
 
 class RulePanel(CardWidget):
-    rule_selected = pyqtSignal(object, str)
+    rule_selected = Signal(object, str)
 
     LANE_HEADERS = {
         "SITE": "选择网站 (A)",
@@ -95,8 +95,8 @@ class RulePanel(CardWidget):
 
 
 class DetailPanel(CardWidget):
-    back_requested = pyqtSignal()
-    param_changed = pyqtSignal(str, object)
+    back_requested = Signal()
+    param_changed = Signal(str, object)
 
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -1,6 +1,6 @@
 import asyncio
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QThread
-from PyQt5.QtWebChannel import QWebChannel
+from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
+from PySide6.QtWebChannel import QWebChannel
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res as ori_res
@@ -9,13 +9,13 @@ from GUI.tools.domain import DomainToolView
 
 
 class DomainTestThread(QThread):
-    results_ready = pyqtSignal(set, set)
-    error_occurred = pyqtSignal(str)
+    results_ready = Signal(set, set)
+    error_occurred = Signal(str)
 
-    def __init__(self, domains, spider_utils):
+    def __init__(self, domains, site_gateway):
         super().__init__()
         self._domains = domains
-        self._spider_utils = spider_utils
+        self._site_gateway = site_gateway
 
     def cancel(self):
         self.requestInterruption()
@@ -26,7 +26,7 @@ class DomainTestThread(QThread):
         try:
             results = loop.run_until_complete(
                 asyncio.gather(
-                    *[self._spider_utils.test_aviable_domain(d) for d in self._domains],
+                    *[self._site_gateway.test_aviable_domain(d) for d in self._domains],
                     return_exceptions=True
                 )
             )
@@ -47,7 +47,7 @@ class PublishBridge(QObject):
         super().__init__()
         self._mgr = manager
 
-    @pyqtSlot(str)
+    @Slot(str)
     def tpd(self, texts):
         self._mgr.start_domain_test(texts)
 
@@ -57,14 +57,19 @@ class PublishDomainManager(QObject):
         super().__init__(gui)
         self.gui = gui
         self._bridge = PublishBridge(self)
+        self._channel = None
+        self._channel_page = None
         self._current_thread = None
         self._current_view = None
         self._task_id = 0
 
     def setup_channel(self, page):
-        channel = QWebChannel(page)
-        channel.registerObject("bridge", self._bridge)
-        page.setWebChannel(channel)
+        if self._channel and self._channel_page is page:
+            return
+        self._channel = QWebChannel(page)
+        self._channel.registerObject("bridge", self._bridge)
+        page.setWebChannel(self._channel)
+        self._channel_page = page
 
     def start_domain_test(self, texts):
         self._task_id += 1
@@ -74,9 +79,12 @@ class PublishDomainManager(QObject):
         domains = extract_domains(texts)
         if not domains:
             return
+        gateway = self.gui.site_gateway
+        if gateway is None:
+            raise RuntimeError("site gateway unavailable for publish domain test")
         self._current_view = DomainToolView(self.gui)
         self.gui.BrowserWindow.domain_v = self._current_view
-        self._current_thread = DomainTestThread(domains, self.gui.spiderUtils)
+        self._current_thread = DomainTestThread(domains, gateway)
         self._current_view.show_loading()
         self._current_thread.results_ready.connect(
             lambda av, un: self._on_results_ready(current_id, av, un)

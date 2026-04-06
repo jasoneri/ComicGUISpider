@@ -1,7 +1,7 @@
 import subprocess
-from PyQt5.QtCore import Qt, QSize, QUrl
-from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap
-from PyQt5.QtWidgets import QSpacerItem, QSizePolicy, QFileDialog, QHBoxLayout, QVBoxLayout, QWidget, QGraphicsOpacityEffect
+from PySide6.QtCore import Qt, QSize, QUrl
+from PySide6.QtGui import QIcon, QDesktopServices, QPixmap
+from PySide6.QtWidgets import QSpacerItem, QSizePolicy, QFileDialog, QHBoxLayout, QVBoxLayout, QWidget, QGraphicsOpacityEffect
 from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton,
     TransparentToolButton, PushButton, PrimaryToolButton, 

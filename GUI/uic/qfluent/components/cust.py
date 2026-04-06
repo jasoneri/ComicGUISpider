@@ -1,24 +1,103 @@
 import typing as t
 from enum import Enum
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, QSize
+from PySide6 import QtWidgets, QtCore
+from PySide6.QtWidgets import QApplication, QSizePolicy
+from PySide6.QtCore import Qt, QUrl, Signal, QSize
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene, QCompleter
 
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
-    FluentIcon, FluentIconBase, Theme,
+    FluentIcon, FluentIconBase, Theme, LineEdit, LineEditButton,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
-    TeachingTip, ImageLabel, TeachingTipView,
+    TeachingTip, ImageLabel, TeachingTipView, PrimaryToolButton, TeachingTipTailPosition, 
     StrongBodyLabel, SwitchButton, ComboBox
 )
 
 from assets import res
 from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, ContentTarget
 from utils.redViewer_tools import BookShow
+from utils.config.qc import cgs_cfg
+from utils.network.doh import DEFAULT_DOH_URL
+
+
+class DoHButtonController:
+    def __init__(self, button, parent, on_saved=None, tail_position=TeachingTipTailPosition.RIGHT):
+        self._button = button
+        self._parent = parent
+        self._on_saved = on_saved
+        self._tail_position = tail_position
+        self._tip = None
+        self._button.clicked.connect(self.show_tip)
+
+    def show_tip(self):
+        if self._tip is not None:
+            self._tip.close()
+        dohEdit = LineEdit(self._parent)
+        dohEdit.setMinimumWidth(360)
+        dohEdit.setPlaceholderText(DEFAULT_DOH_URL)
+        dohEdit.setText(cgs_cfg.get_doh_url())
+        completer = QCompleter(cgs_cfg.get_doh_history(), dohEdit)
+        completer.setFilterMode(Qt.MatchStartsWith)
+        completer.setCompletionMode(QCompleter.PopupCompletion)
+        dohEdit.setCompleter(completer)
+        dohEdit.setClearButtonEnabled(True)
+        dohSvBtn = PrimaryToolButton(FluentIcon.SAVE, self._parent)
+        tip = CustomTeachingTip.create(
+            [dohEdit, dohSvBtn],target=self._button,parent=self._parent,tailPosition=self._tail_position,
+        )
+        self._tip = tip
+        tip.destroyed.connect(lambda *_args: setattr(self, "_tip", None))
+        dohEdit.returnPressed.connect(dohSvBtn.click)
+        dohSvBtn.clicked.connect(lambda: self._save(dohEdit.text()))
+
+    def _save(self, raw_value: str):
+        try:
+            doh_url = cgs_cfg.set_doh_url(raw_value)
+        except Exception as exc:
+            InfoBar.error(
+                title="", content=f"DoH 配置保存失败: {exc}", orient=Qt.Horizontal, isClosable=True, 
+                position=InfoBarPosition.BOTTOM, duration=8000, parent=self._parent)
+            return
+        InfoBar.success(
+            title="",content="DoH 配置保存成功",orient=Qt.Horizontal,isClosable=True,
+            position=InfoBarPosition.BOTTOM,duration=2500,parent=self._parent)
+        if callable(self._on_saved):
+            self._on_saved(doh_url)
+        if self._tip is not None:
+            self._tip.close()
+
+
+class LinkEdit(LineEdit):
+    """ Search line edit """
+
+    linkSignal = Signal(str)
+    clearSignal = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.linkButton = LineEditButton(FluentIcon.LINK, self)
+
+        self.hBoxLayout.addWidget(self.linkButton, 0, Qt.AlignRight)
+        self.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.setClearButtonEnabled(True)
+        self.setTextMargins(0, 0, 59, 0)
+
+        self.linkButton.clicked.connect(self.link)
+        self.clearButton.clicked.connect(self.clearSignal)
+
+    def link(self):
+        text = self.text().strip()
+        if text:
+            self.linkSignal.emit(text)
+        else:
+            self.clearSignal.emit()
+
+    def setClearButtonEnabled(self, enable: bool):
+        self._isClearButtonEnabled = enable
+        self.setTextMargins(0, 0, 28*enable+30, 0)
 
 
 class FlexImageLabel(ImageLabel):
@@ -94,10 +173,10 @@ class CustomFlyout:
 
 class CustomTeachingTip:
     @classmethod
-    def create(cls, widgets, target, parent, content,
+    def create(cls, widgets, target, parent, content=None,
              isClosable=True, duration=-1, **kw):
         view = TeachingTipView(
-            title="", content=content, isClosable=isClosable
+            title="", content="", isClosable=isClosable
         )
         offset = 0
         cindex = 1 if isClosable else 0
@@ -297,7 +376,7 @@ class ExpandSettings(QtWidgets.QWidget):
 
 
 class SupportView(FlyoutViewBase):
-    closed = pyqtSignal()  # 添加closed信号
+    closed = Signal()  # 添加closed信号
     res = res.GUI.Uic
     
     def __init__(self, conf_dia=None):
@@ -367,7 +446,7 @@ class IndeterminateBarFView(FlyoutViewBase):
 
 
 class TableFlyoutView(FlyoutViewBase):
-    closed = pyqtSignal()
+    closed = Signal()
 
     def __init__(self, data, parent=None):
         super().__init__(parent)
@@ -490,7 +569,7 @@ _VIEW_SIZE = 24
 _PAD = (_VIEW_SIZE - _ICON_SIZE) // 2
 
 class ExpandButton(QWidget):
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)

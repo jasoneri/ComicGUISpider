@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import re
 from dataclasses import dataclass
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QSizePolicy
 )
 from qfluentwidgets import (
@@ -21,10 +21,10 @@ class RuleToolButton(QWidget):
     WIDTH_OFFSET = 30
     BUTTON_HEIGHT = 24
 
-    move_up = pyqtSignal()
-    move_down = pyqtSignal()
-    remove_clicked = pyqtSignal()
-    badge_toggled = pyqtSignal(bool)
+    move_up = Signal()
+    move_down = Signal()
+    remove_clicked = Signal()
+    badge_toggled = Signal(bool)
 
     def __init__(self, label: str, definition: MiddlewareDefinition, parent=None):
         super().__init__(parent)

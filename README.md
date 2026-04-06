@@ -27,6 +27,11 @@
   <img src="https://img-cgs.101114105.xyz/file/cgs/1772889192994_fake-play.png" alt="logo" height="200">
 </a></div>
 
+<div align="center">
+<a href="https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv" target="_blank">
+  <img src="https://img-cgs.101114105.xyz/file/cgs/1774207883543_danbooruPlay.png" alt="logo" height="120">
+</a></div>
+
 ## ✨功能特性
 
 - 多种使用方式，多开同时操作不同网站，下载封面对比等
@@ -35,26 +40,25 @@
 
 **更多移步查阅 [🎸功能文档](https://cgs.101114105.xyz/feat/)**
 
-## 🚨可用监控
+## 🚨[可用监控](https://cgs.101114105.xyz/deploy/monitor/)
 
-| 网站                                    | 适用区域 |    补充说明    | 状态<br>(UTC+8) |
-|:--------------------------------------|:----:|:----------:|:----:|
-| [拷贝漫画](https://www.2025copy.com/)    | :cn: | | ![status_kaobei](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json) |
-| [Māngabz](https://mangabz.com)        | :cn: | | ![status_mangabz](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json) |
-| [禁漫天堂](https://18comic.vip/)          | :cn: |     🔞     | ![status_jm](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json) |
-| [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |     🔞     | ![status_wnacg](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json) |
-| [ExHentai](https://exhentai.org/)     | 🌏 |     🔞/代理     | ![status_ehentai](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json)  |
-| [Hitomi](https://hitomi.la/)     | 🌏 |     🔞     |  |
-| [Kemono](https://kemono.cr)     | 🌏 |     🔞     |  |
-| [HComic](https://kemono.cr)     | 🌏 |     🔞/代理     | ![status_hitomi](https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_h_comic.json) |
+| 网站                                    | 适用区域 |    补充说明    |
+|:--------------------------------------|:----:|:----------:|
+| [拷贝漫画](https://www.2026copy.com/)    | :cn: | |
+| [Māngabz](https://mangabz.com)        | :cn: | |
+| [禁漫天堂](https://18comic.vip/)          | :cn: |
+| [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
+| [ExHentai](https://exhentai.org/)     | 🌏 |     代理     |
+| [Hitomi](https://hitomi.la/)     | 🌏 |          |
+| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) (> v2.10.0-beta)    |
+| [HComic](https://kemono.cr)     | 🌏 |     代理     |
 
+点进网站前先判断 NSFW , 不了解就勿点  
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
 
 ---
 
 ## 📢更新
-
-[![Sparkline](https://stars.medv.io/jasoneri/ComicGUISpider.svg)](https://stars.medv.io/jasoneri/ComicGUISpider)
 
 ### [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jasoneri/ComicGUISpider?color=blue&label=Ver&sort=semver)](https://github.com/jasoneri/ComicGUISpider/releases/latest)  [![release build-status](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml/badge.svg)](https://github.com/jasoneri/ComicGUISpider/actions/workflows/release.yml)
 

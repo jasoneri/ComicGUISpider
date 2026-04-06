@@ -1,16 +1,17 @@
-# core/theme_manager.py
 from enum import Enum
-from typing import Callable, Dict, List
-from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtWidgets import QApplication
-from qfluentwidgets import setTheme, Theme
-from utils import conf
-from .mid import create_light_mid_colors, create_dark_mid_colors, MidNodeColors
+from typing import Callable
+
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QApplication
+from qfluentwidgets import Theme, isDarkTheme, qconfig, setTheme
+
+from utils.config.qc import cgs_cfg
+from .mid import MidNodeColors, create_dark_mid_colors, create_light_mid_colors
 
 
 class CustTheme(Enum):
     LIGHT = "light"
-    DARK  = "dark"
+    DARK = "dark"
 
 
 class LightFontColor:
@@ -46,7 +47,7 @@ class Light:
         self.palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
         self.font_color = LightFontColor
         self.c = Theme.LIGHT
-        self.mid_colors = create_light_mid_colors()
+        self.mid_colors: MidNodeColors = create_light_mid_colors()
 
 
 class Dark:
@@ -66,49 +67,83 @@ class Dark:
         self.palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
         self.font_color = DarkFontColor
         self.c = Theme.DARK
-        self.mid_colors = create_dark_mid_colors()
+        self.mid_colors: MidNodeColors = create_dark_mid_colors()
 
 
-_DEFAULT_COLORS = {
+_THEME_SCHEMES = {
     CustTheme.LIGHT: Light(),
-    CustTheme.DARK: Dark() 
+    CustTheme.DARK: Dark(),
 }
+_THEME_CALLBACK_ATTR = "_cgs_theme_callback"
+_THEME_CLEANUP_ATTR = "_cgs_theme_cleanup_bound"
 
 
 class ThemeManager:
-    """单例式主题管理器 — 管理当前主题、调色板、订阅回调"""
-    def __init__(self):
-        self._theme = CustTheme.LIGHT
-        self._mode: Dict[CustTheme, Dict[str,str]] = dict(_DEFAULT_COLORS)
-        self._listeners: List[Callable[[CustTheme], None]] = []
+    """QFluent theme adapter with CGS-derived palette/font helpers."""
 
-    # ------------- 主题 API -------------
-    def set_dark(self, setDark: bool):
-        theme = CustTheme.DARK if setDark else CustTheme.LIGHT
-        if theme == self._theme:
+    def __init__(self):
+        self._listeners: list[Callable[[CustTheme], None]] = []
+        self._bootstrapped = False
+        qconfig.themeChanged.connect(self._on_qfluent_theme_changed)
+
+    def _bootstrap(self):
+        if self._bootstrapped:
             return
-        self._theme = theme
-        for cb in list(self._listeners):
-            try:
-                cb(self._theme)
-            except Exception:
-                pass
+        self._bootstrapped = True
+        setTheme(self.themeMode, save=False)
+        self.apply_to_app()
+
+    def _ensure_bootstrapped(self):
+        if QApplication.instance() is None:
+            return
+        self._bootstrap()
+
+    def _on_qfluent_theme_changed(self, _theme_mode):
+        self.apply_to_app()
+        current_theme = self.currentTheme
+        for callback in tuple(self._listeners):
+            callback(current_theme)
+
+    @property
+    def themeMode(self) -> Theme:
+        return cgs_cfg.themeMode.value
+
+    @property
+    def currentTheme(self) -> CustTheme:
+        self._ensure_bootstrapped()
+        return CustTheme.DARK if isDarkTheme() else CustTheme.LIGHT
+
+    @property
+    def is_dark(self) -> bool:
+        return self.currentTheme == CustTheme.DARK
 
     @property
     def theme(self):
-        return self._mode[self._theme]
+        return _THEME_SCHEMES[self.currentTheme]
 
     def get_theme(self) -> CustTheme:
-        return self._theme
+        return self.currentTheme
 
     @property
     def font_color(self):
         return self.theme.font_color
 
-    def apply_to_app(self, app: QApplication):
-        app.setPalette(self.theme.palette)
+    @property
+    def mid_colors(self) -> MidNodeColors:
+        return self.theme.mid_colors
 
-    # ------------- 订阅者 -------------
+    def set_theme_mode(self, theme_mode: Theme, *, save: bool = False, lazy: bool = False):
+        self._ensure_bootstrapped()
+        setTheme(theme_mode, save=save, lazy=lazy)
+
+    def set_dark(self, set_dark: bool, *, save: bool = False, lazy: bool = False):
+        self.set_theme_mode(Theme.DARK if set_dark else Theme.LIGHT, save=save, lazy=lazy)
+
+    def apply_to_app(self, app: QApplication | None = None):
+        target = app or QApplication.instance()
+        if target is not None:
+            target.setPalette(self.theme.palette)
+
     def subscribe(self, callback: Callable[[CustTheme], None]):
         if callback not in self._listeners:
             self._listeners.append(callback)
@@ -121,26 +156,10 @@ class ThemeManager:
 theme_mgr = ThemeManager()
 
 
-def _apply_theme_globally(theme: CustTheme):
-    """
-    Callback to apply theme changes to the entire application.
-    It handles both the qfluentwidgets theme and the Qt palette.
-    """
-    if theme == CustTheme.DARK:
-        setTheme(Theme.DARK)
-    else:
-        setTheme(Theme.LIGHT)
-    
-    app = QApplication.instance()
-    if app:
-        app.setPalette(theme_mgr.theme.palette)
+def setupTheme(widget):
+    theme_mgr._ensure_bootstrapped()
 
-theme_mgr.subscribe(_apply_theme_globally)
-
-
-def setupTheme(self):
-    def apply_theme(_t):
-        # 1. gui/kemonoInterface .textBrowser
+    def apply_theme(_theme):
         color = theme_mgr.font_color
         css = f"""
 p.theme-text {{ color: {color.text}; }}
@@ -149,9 +168,22 @@ font.theme-highlight {{ color: {color.highlight}; }}
 font.theme-success {{ color: {color.success}; }}
 font.theme-err {{ color: {color.err}; }}
 """
-        doc = self.textBrowser.document()
-        doc.setDefaultStyleSheet(css)
+        widget.textBrowser.document().setDefaultStyleSheet(css)
 
-    theme_mgr.set_dark(conf.darkTheme)
-    apply_theme(0)
+    previous = getattr(widget, _THEME_CALLBACK_ATTR, None)
+    if previous is not None:
+        theme_mgr.unsubscribe(previous)
+
+    setattr(widget, _THEME_CALLBACK_ATTR, apply_theme)
+    if not getattr(widget, _THEME_CLEANUP_ATTR, False):
+        def _cleanup(_obj=None):
+            callback = getattr(widget, _THEME_CALLBACK_ATTR, None)
+            if callback is not None:
+                theme_mgr.unsubscribe(callback)
+                setattr(widget, _THEME_CALLBACK_ATTR, None)
+
+        widget.destroyed.connect(_cleanup)
+        setattr(widget, _THEME_CLEANUP_ATTR, True)
+
+    apply_theme(theme_mgr.currentTheme)
     theme_mgr.subscribe(apply_theme)
