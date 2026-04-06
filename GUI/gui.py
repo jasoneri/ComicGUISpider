@@ -22,7 +22,7 @@ from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
 from GUI.core.anim import PopupAnimator
 from GUI.core.browser.browser_environment import peek_snapshot_domain
-from GUI.manager.download_state import DownloadStateOwner
+from utils.sql.download_state import DownloadStateStore
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
 from GUI.tools import ToolWindow, TextUtils
@@ -131,7 +131,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.ags_mgr = AggrSearchManager(self)
         self.preview_mgr = PreviewMgr(self)
         self.publish_mgr = PublishDomainManager(self)
-        self.download_state = DownloadStateOwner()
+        self.download_state = DownloadStateStore()
         self.dl_mgr = DownloadRuntimeManager(self)
         self.sel_mgr = SelectionFlowManager(self)
         self.mid_mgr = CGSMidManagerGUI(self)

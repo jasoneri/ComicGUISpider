@@ -11,6 +11,41 @@ from GUI.uic.qfluent import CustomInfoBar
 """处理所有剪贴板任务数据"""
 
 
+class _ClipPreviewScriptBatch:
+    def __init__(self):
+        self._calls = []
+
+    @staticmethod
+    def _serialize(value):
+        return json.dumps(value, ensure_ascii=False)
+
+    def call(self, name, *args):
+        rendered_args = ','.join(self._serialize(arg) for arg in args)
+        self._calls.append(f"{name}({rendered_args})")
+        return self
+
+    def add_book_card(self, book, options):
+        return self.call("addBookCard", book.idx, book.img_preview, book.name, book.url, options)
+
+    def add_book_with_episodes(self, book, options):
+        return self.call("addBookWithEpsCard", book.idx, book.img_preview, book.name, book.url, options)
+
+    def update_episodes(self, book_idx, episodes_data):
+        return self.call("updateEpisodes", str(book_idx), episodes_data)
+
+    def select_all_episodes(self, book_idx):
+        return self.call("selectAllEpisodes", str(book_idx))
+
+    def mark_downloaded(self, book_ids):
+        return self.call("previewRuntime.markDownloaded", book_ids, [])
+
+    def render(self):
+        return ';'.join(self._calls)
+
+    def run(self, page_runtime):
+        page_runtime.run_js(self.render())
+
+
 class ClipGUIManager:
     res = res.GUI.ClipGUIManager
 
@@ -93,7 +128,6 @@ class ClipGUIManager:
             if book.tags:
                 options['meta_badges'] = book.tags[:20]
 
-            book_key = json.dumps(str(book.idx))
             episodes_data = [
                 {
                     "name": ep.name,
@@ -102,16 +136,11 @@ class ClipGUIManager:
                 }
                 for ep in book.episodes
             ]
-            js_code = (
-                f'addBookWithEpsCard({json.dumps(book.idx)},'
-                f'{json.dumps(book.img_preview, ensure_ascii=False)},'
-                f'{json.dumps(book.name, ensure_ascii=False)},'
-                f'{json.dumps(book.url, ensure_ascii=False)},'
-                f'{json.dumps(options, ensure_ascii=False)});'
-                f'updateEpisodes({book_key},{json.dumps(episodes_data, ensure_ascii=False)});'
-                f'selectAllEpisodes({book_key})'
-            )
-            self.gui.BrowserWindow.page_runtime.run_js(js_code)
+            js_batch = _ClipPreviewScriptBatch()
+            js_batch.add_book_with_episodes(book, options)
+            js_batch.update_episodes(book.idx, episodes_data)
+            js_batch.select_all_episodes(book.idx)
+            js_batch.run(self.gui.BrowserWindow.page_runtime)
         else:
             self.infos[str(book.idx)] = book
 
@@ -119,14 +148,9 @@ class ClipGUIManager:
             if book.pages:
                 options['pages'] = book.pages
 
-            js_code = (
-                f'addBookCard({json.dumps(book.idx)},'
-                f'{json.dumps(book.img_preview, ensure_ascii=False)},'
-                f'{json.dumps(book.name, ensure_ascii=False)},'
-                f'{json.dumps(book.url, ensure_ascii=False)},'
-                f'{json.dumps(options, ensure_ascii=False)})'
+            _ClipPreviewScriptBatch().add_book_card(book, options).run(
+                self.gui.BrowserWindow.page_runtime
             )
-            self.gui.BrowserWindow.page_runtime.run_js(js_code)
 
     def all_clip_tasks_data(self, total_data):
         """处理所有剪贴板任务完成后的操作"""
@@ -143,9 +167,9 @@ class ClipGUIManager:
                         if getattr(obj, "from_book", None) is None:
                             dled_bidxes.append(key)
                     if dled_bidxes:
-                        js_parts = []
-                        js_parts.append(f'previewRuntime.markDownloaded({json.dumps(dled_bidxes)},[])')
-                        self.gui.BrowserWindow.page_runtime.run_js(';'.join(js_parts))
+                        _ClipPreviewScriptBatch().mark_downloaded(dled_bidxes).run(
+                            self.gui.BrowserWindow.page_runtime
+                        )
                 if self.gui.BrowserWindow.topHintBox.isChecked():
                     self.gui.BrowserWindow.topHintBox.click()
                 if len(total_data) < len(self.tasks):

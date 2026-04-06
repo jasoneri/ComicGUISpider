@@ -289,10 +289,7 @@ class ProviderSiteGateway:
 
         with httpx.Client(
             headers=getattr(self.provider_cls, "book_hea", None) or getattr(self.provider_cls, "headers", {}),
-            transport=transport,
-            trust_env=trust_env,
-            follow_redirects=True,
-            timeout=15,
+            transport=transport, trust_env=trust_env, follow_redirects=True, timeout=15
             **client_kw,
         ) as cli:
             headers = httpx.Headers(cli.headers)
@@ -333,10 +330,11 @@ class ProviderSiteGateway:
         elif site_index == Spider.WNACG:
             referer_url = f"https://{self._resolve_snapshot_domain(runtime_context, 'wnacg')}"
         elif site_index == Spider.EHENTAI:
+            domain = runtime_context.site_domain("ehentai") or self.domain
+            referer_url = f"https://{domain}/"
             if cookies := runtime_context.site_cookies("ehentai"):
-                domain = runtime_context.site_domain("ehentai") or self.domain
                 cookie_sets.append(
-                    BrowserCookiePayload(values=cookies, domain=domain, url=f"https://{domain}/")
+                    BrowserCookiePayload(values=cookies, domain=domain, url=referer_url)
                 )
         elif site_index == Spider.HITOMI:
             referer_url = str(getattr(self.provider_cls, "index", ""))

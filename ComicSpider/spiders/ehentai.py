@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 from scrapy import Request
 
 from utils import conf, re
@@ -16,6 +17,8 @@ class EHentaiSpider(BaseComicSpider3):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.ComicDlProxyMiddleware': 5,
                                                   'ComicSpider.middlewares.UAMiddleware': 6},
                        "COOKIES_ENABLED": False}
+    hath_image_download_timeout = 20
+    hath_image_retry_times = 1
     name = 'ehentai'
     num_of_row = 25
     domain = domain
@@ -31,6 +34,15 @@ class EHentaiSpider(BaseComicSpider3):
     @property
     def ua(self):
         return {**EK.headers, "cookie": EK.to_str_(conf.cookies.get(self.name))}
+
+    def image_request_meta(self, *, url, item=None):
+        hostname = (urlparse(url).hostname or "").lower()
+        if not hostname.endswith("hath.network"):
+            return {}
+        return {
+            "download_timeout": self.hath_image_download_timeout,
+            "max_retry_times": self.hath_image_retry_times,
+        }
 
     def frame_book(self, response):
         frame_results = {}
@@ -83,5 +95,7 @@ class EHentaiSpider(BaseComicSpider3):
             item.update(**book.get_group_infos())
             item['page'] = str(page)
             item['image_urls'] = [url]
+            if self.job_context:
+                self.job_context.total += 1
             self.total += 1
             yield item

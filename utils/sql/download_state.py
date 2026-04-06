@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from utils import conf
-from utils.sql import SqlRecorder
+
+from . import SqlRecorder
 
 
-class DownloadStateOwner:
+class DownloadStateStore:
+    """Query persisted downloaded state for id_and_md5-capable items."""
+
     def __init__(self, sql_factory=SqlRecorder):
         self._sql_factory = sql_factory
 

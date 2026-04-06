@@ -51,10 +51,22 @@ class ComicPipeline(ImagesPipeline):
 
     def get_media_requests(self, item, info):
         urls = ItemAdapter(item).get(self.images_urls_field, [])
-        return [
-            Request(url,callback=NO_CALLBACK,headers=dict(getattr(info.spider, "image_ua", {}) or {}),)
-            for url in urls
-        ]
+        spider = info.spider
+        headers = dict(getattr(spider, "image_ua", {}) or {})
+        resolver = getattr(spider, "image_request_meta", None)
+        requests = []
+        for url in urls:
+            meta = {}
+            if callable(resolver):
+                meta = resolver(url=url, item=item)
+                if meta is None:
+                    meta = {}
+                elif not isinstance(meta, dict):
+                    raise TypeError(f"{type(spider).__name__}.image_request_meta() must return dict or None")
+                else:
+                    meta = dict(meta)
+            requests.append(Request(url,callback=NO_CALLBACK,headers=dict(headers),meta=meta))
+        return requests
 
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
@@ -238,28 +250,14 @@ class WnacgComicPipeline(ComicPipeline):
                             raise
                         spider.logger.warning(
                             "Wnacg image curl retry %s/%s | url=%s | referer=%s | error=%s: %s",
-                            attempt,
-                            attempts - 1,
-                            request.url,
-                            referer or "-",
-                            type(exc).__name__,
-                            exc,
-                        )
+                            attempt,attempts - 1,request.url,referer or "-",type(exc).__name__,exc)
                         sleep(retry_delay)
 
             def _handle_curl_result(result):
                 status_code, content = result
                 return self.media_downloaded(
-                    Response(
-                        url=request.url,
-                        status=status_code,
-                        body=content,
-                        request=request,
-                    ),
-                    request,
-                    info,
-                    item=item,
-                )
+                    Response(url=request.url,status=status_code,body=content,request=request),
+                    request,info,item=item)
 
             thread_dfd = deferToThread(_download_via_curl)
             thread_dfd.addCallback(_handle_curl_result)

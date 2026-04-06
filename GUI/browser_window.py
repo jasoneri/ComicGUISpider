@@ -4,7 +4,6 @@ import os
 import sys
 import re
 import json
-import time
 from PySide6 import QtNetwork
 from PySide6.QtCore import Qt, QUrl, QEvent, QSize, Signal, QLoggingCategory
 from PySide6.QtGui import QIcon
@@ -311,7 +310,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def keep_top_hint(self, _flag: bool = None):
         flag = _flag if _flag is not None else self.topHintBox.isChecked()
         self.topHintBox.setChecked(flag)
-        started_at = time.perf_counter()
         if sys.platform == "win32" and self.isVisible():
             try:
                 import win32con

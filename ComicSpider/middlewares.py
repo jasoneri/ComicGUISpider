@@ -83,12 +83,13 @@ class UAMiddleware(ComicspiderDownloaderMiddleware):
 class UAKaobeiMiddleware(ComicspiderDownloaderMiddleware):
     def process_request(self, request, spider):
         if request.url.find(spider.pc_domain) != -1:
-            ua = {**getattr(spider, 'ua', {})}
             if request.url.endswith('/chapters'):
-                ua['Referer'] = f'https://{spider.pc_domain}/comic/{request.url.split("/")[-2]}'
+                headers = {**getattr(spider, 'ua', {})}
+                headers['Referer'] = f'https://{spider.pc_domain}/comic/{request.url.split("/")[-2]}'
             else:
-                ua['Referer'] = "/".join(request.url.split("/")[:-2])
-            request.headers.update(ua)
+                headers = {**getattr(spider, 'page_headers', getattr(spider, 'headers', getattr(spider, 'ua', {})))}
+                request.headers.clear()
+            request.headers.update(headers)
         else:
             request.headers.update(getattr(spider, 'ua_mapi', {}))
         return None
