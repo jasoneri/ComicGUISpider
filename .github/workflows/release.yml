@@ -26,6 +26,9 @@ jobs:
     - name: Build package
       run: uv build
 
+    - name: Install Qt runtime libs for smoke test
+      uses: tlambert03/setup-qt-libs@v1
+
     - name: Smoke test wheel before publish
       env:
         QT_QPA_PLATFORM: offscreen
