@@ -75,4 +75,4 @@ LOG_FILE = log_path.joinpath("scrapy.log")
 SPECIAL = [s.spider_name for s in Spider.specials()]
 
 RETRY_TIMES = 3
-RETRY_HTTP_CODES = [500, 502, 503, 504, 408, 429]
+RETRY_HTTP_CODES = [500, 502, 503, 504, 408, 429]  # TODO[1](2026-04-06): 这是否本末倒置

@@ -9,6 +9,7 @@ import httpx
 from PySide6.QtCore import QThread, Signal
 
 from GUI.types import SearchContextSnapshot
+from utils.website.info import Episode
 from utils.website.registry import resolve_site_gateway
 
 
@@ -161,15 +162,19 @@ class PreviewWorker(QThread):
                 semaphores[site_index] = sem
             return sem
 
-        async def _fetch_one(book_key, episode, site_index):
+        async def _fetch_one(book_key, item, site_index):
             async with _site_semaphore(site_index):
                 gateway = self._get_gateway(site_index)
                 site_config = self._build_site_config(gateway)
-                await gateway.preview_fetch_pages(
-                    episode,
+                page_urls = await gateway.preview_fetch_pages(
+                    item,
                     self._get_client(site_index),
                     site_config=site_config,
                 )
+                if isinstance(page_urls, list):
+                    item.pages = len(page_urls)
+                    if isinstance(item, Episode):
+                        item.page_urls = list(page_urls)
 
         grouped = {}
         for book_key, episode, site_index in items:

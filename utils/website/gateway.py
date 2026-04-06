@@ -289,7 +289,7 @@ class ProviderSiteGateway:
 
         with httpx.Client(
             headers=getattr(self.provider_cls, "book_hea", None) or getattr(self.provider_cls, "headers", {}),
-            transport=transport, trust_env=trust_env, follow_redirects=True, timeout=15
+            transport=transport, trust_env=trust_env, follow_redirects=True, timeout=15,
             **client_kw,
         ) as cli:
             headers = httpx.Headers(cli.headers)

@@ -109,6 +109,7 @@ class Episode(InfoMinix):
     url: str = None
     name: str = None
     pages: t.Union[str, int] = None
+    page_urls: t.Optional[t.List[str]] = None
     
     def id_and_md5(self):
         _uuid = f"{self.from_book.source}-{self.id}" if self.id else \
