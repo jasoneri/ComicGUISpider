@@ -1,0 +1,68 @@
+name: Sync locale to i18n branch
+
+on:
+  push:
+    branches:
+      - GUI
+    paths:
+      - 'assets/res/locale/*.yml'
+      - '.github/workflows/sync_i18n.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-i18n
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_BRANCH: ${{ github.ref_name }}
+      SOURCE_REF: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync locale yml files to i18n branch
+        run: |
+          mapfile -t source_files < <(find assets/res/locale -maxdepth 1 -type f -name '*.yml' | LC_ALL=C sort)
+
+          if [ "${#source_files[@]}" -eq 0 ]; then
+            echo "No locale yml files found under assets/res/locale"
+            exit 1
+          fi
+
+          printf 'Sync source files:\n%s\n' "${source_files[@]}"
+
+          git checkout -B i18n origin/i18n
+          mkdir -p assets/res/locale
+
+          declare -A source_lookup=()
+          for file in "${source_files[@]}"; do
+            source_lookup["$file"]=1
+          done
+
+          while IFS= read -r target_file; do
+            if [ -z "${source_lookup[$target_file]+x}" ]; then
+              git rm -f "$target_file"
+            fi
+          done < <(find assets/res/locale -maxdepth 1 -type f -name '*.yml' | LC_ALL=C sort)
+
+          git checkout "$SOURCE_REF" -- "${source_files[@]}"
+
+          if git diff --cached --quiet; then
+            echo "No locale changes to sync."
+            exit 0
+          fi
+
+          git commit -m "chore: sync locale yml from ${SOURCE_BRANCH} [skip ci]"
+          git push origin HEAD:i18n

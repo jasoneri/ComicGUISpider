@@ -7,9 +7,9 @@ import codecs
 from functools import partial
 
 import yaml
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QSizePolicy, QFileDialog, QCompleter, QApplication
-from PyQt5.QtCore import Qt, QRect
+from PySide6 import QtCore
+from PySide6.QtWidgets import QSizePolicy, QFileDialog, QCompleter, QApplication
+from PySide6.QtCore import Qt, QRect, QStringListModel
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,
@@ -25,7 +25,9 @@ from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater
 from GUI.core.anim import PopupAnimator
+from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.theme import theme_mgr
+from utils.config.qc import cgs_cfg
 from GUI.uic.qfluent.components import (
     SupportView, CustomFlyout, CustomInfoBar, ExpandSettings, TextEditWithBg
 )
@@ -126,11 +128,15 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.sv_path_card = SvPathCard(self)
         self.topLayout.insertWidget(0, self.sv_path_card)
         
-        completer = QCompleter(['127.0.0.1:10809'])
+        completer = QCompleter(cgs_cfg.proxyHistory.value)
         completer.setFilterMode(QtCore.Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
+        self.dohBtn = PrimaryPushButton("DoH", self)
+        self.dohBtn.setMaximumSize(QtCore.QSize(80, 16777215))
+        self.horizontalLayout_log_level.addWidget(self.dohBtn)
+        self.dohController = DoHButtonController(self.dohBtn, parent=self)
 
     def insert_btn(self):
         self.clipDbBtn = PrimaryPushButton(FIF.FOLDER_ADD, res.GUI.Uic.confDia_labelClipDb)
@@ -170,10 +176,11 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         def _open_docs():
             self.gui.open_url_by_browser(CGS_DOC)
         self.descBtn.clicked.connect(_open_docs)
-        def _switch_mode():
-            conf.darkTheme = bool(self.darkTheme.isChecked())
-            theme_mgr.set_dark(conf.darkTheme)
-        self.darkTheme.clicked.connect(_switch_mode)
+        def _switch_mode(checked: bool):
+            theme_mgr.set_dark(checked, save=True)
+        self.darkTheme.toggled.connect(_switch_mode)
+        theme_mgr.subscribe(self._sync_dark_theme_button)
+        self.destroyed.connect(lambda _obj=None: theme_mgr.unsubscribe(self._sync_dark_theme_button))
         def _regular_update():
             self.puThread = ProjUpdateThread(self)
             Updater(self.gui).run()
@@ -245,8 +252,9 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         # 处理cookies配置
         self._load_cookie_config()
         # 2. CheckBox类配置
-        for _ in ('addUuid', 'isDeduplicate', "darkTheme", "kbShowDhb", "skipDev"):
+        for _ in ('addUuid', 'isDeduplicate', "kbShowDhb", "skipDev"):
             getattr(self, f"{_}").setChecked(getattr(conf, f"{_}"))
+        self._sync_dark_theme_button()
         # 3. SpinBox类配置
         for _ in ('clip_read_num', 'concurr_num'):
             getattr(self, f"{_}Edit").setValue(int(getattr(conf, _)))
@@ -280,6 +288,11 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.cookiesEdit.setText(self.transfer_to_gui(conf.cookies.show(), is_cookies=True))
         self.cookiesEdit.setPlaceholderText(COOKIES_PLACEHOLDER.get(conf.cookies.current_type, ""))
 
+    def _sync_dark_theme_button(self, _theme=None):
+        self.darkTheme.blockSignals(True)
+        self.darkTheme.setChecked(theme_mgr.is_dark)
+        self.darkTheme.blockSignals(False)
+
     @staticmethod
     def transfer_to_gui(val, is_cookies=False) -> str:
         if isinstance(val, list):
@@ -307,6 +320,17 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         
         self.format_cookie()
 
+        proxies_text = cp(self.proxiesEdit.text()).replace(" ", "")
+        if proxies_text:
+            history = cgs_cfg.proxyHistory.value
+            entries = [e for e in proxies_text.split(",") if e]
+            for entry in entries:
+                if entry not in history:
+                    history = [entry] + history
+            cgs_cfg.proxyHistory.value = history
+            cgs_cfg.save()
+            self.proxiesEdit.completer().setModel(QStringListModel(history))
+
         config = {
             "sv_path": sv_path,
             "log_level": getattr(self, "logLevelComboBox").currentText(),
@@ -315,7 +339,6 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             "concurr_num": getattr(self, "concurr_numEdit").value(),
             "isDeduplicate": getattr(self, "isDeduplicate").isChecked(),
             "addUuid": getattr(self, "addUuid").isChecked(),
-            "darkTheme": getattr(self, "darkTheme").isChecked(),
             "kbShowDhb": getattr(self, "kbShowDhb").isChecked(),
             "skipDev": getattr(self, "skipDev").isChecked(),
             "proxies": cp(self.proxiesEdit.text()).replace(" ", "").split(",") if self.proxiesEdit.text() else None,

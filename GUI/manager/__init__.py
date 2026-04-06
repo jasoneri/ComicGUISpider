@@ -20,15 +20,18 @@ from GUI.manager.clip import ClipGUIManager
 from GUI.manager.ags import AggrSearchManager
 from GUI.manager.rv import RVManager
 from GUI.manager.mid import CGSMidManagerGUI
-from GUI.manager.preview import MangaPreviewManager
+from GUI.manager.preview import PreviewMgr
 from GUI.manager.task_progress import TaskProgressManager
 from GUI.manager.publish import PublishDomainManager
+from GUI.manager.selection import SelectionFlowManager
+from GUI.manager.download import DownloadRuntimeManager
 
 __all__ = [
     'Updater', 'UpdateNotifier', 'TaskConfig',
     'RVManager', 'TaskProgressManager','AsyncTaskManager',
     'ClipGUIManager', 'AggrSearchManager', 'CGSMidManagerGUI',
-    'MangaPreviewManager', 'PublishDomainManager'
+    'PreviewMgr', 'PublishDomainManager',
+    'SelectionFlowManager', 'DownloadRuntimeManager'
 ]
 
 

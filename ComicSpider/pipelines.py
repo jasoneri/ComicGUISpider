@@ -3,18 +3,24 @@ import os
 import re
 import pathlib
 from io import BytesIO
+from time import sleep
 
+from curl_cffi import requests as curl_requests
 import pillow_avif
 from itemadapter import ItemAdapter
-from scrapy.http import Request
+from scrapy import signals
+from scrapy.http import Request, Response
 from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
+from twisted.internet.defer import maybeDeferred
+from twisted.internet.threads import deferToThread
 
 from utils import conf, TaskObj
 from utils.core import sanitize_for_path
 from utils.website import JmUtils, MangabzUtils, set_author_ahead
 from utils.config.rule import CgsRuleMgr
 from assets import res
+from utils.protocol import BarProgressEvent, TasksObjEvent
 
 
 class PageNamingMgr:
@@ -42,6 +48,25 @@ class ComicPipeline(ImagesPipeline):
         pipe = super(ComicPipeline, cls).from_crawler(crawler)
         pipe.page_naming = PageNamingMgr()
         return pipe
+
+    def get_media_requests(self, item, info):
+        urls = ItemAdapter(item).get(self.images_urls_field, [])
+        spider = info.spider
+        headers = dict(getattr(spider, "image_ua", {}) or {})
+        resolver = getattr(spider, "image_request_meta", None)
+        requests = []
+        for url in urls:
+            meta = {}
+            if callable(resolver):
+                meta = resolver(url=url, item=item)
+                if meta is None:
+                    meta = {}
+                elif not isinstance(meta, dict):
+                    raise TypeError(f"{type(spider).__name__}.image_request_meta() must return dict or None")
+                else:
+                    meta = dict(meta)
+            requests.append(Request(url,callback=NO_CALLBACK,headers=dict(headers),meta=meta))
+        return requests
 
     # 图片存储前调用
     def file_path(self, request, response=None, info=None, *, item=None):
@@ -78,7 +103,7 @@ class ComicPipeline(ImagesPipeline):
         if tasks_obj and getattr(tasks_obj, 'meta_info', None):
             tasks_obj.meta_info.sv_meta_in(path)
         tasks_obj.local_path = str(path)
-        spider.Q('TasksQueue').send(tasks_obj, wait=True)
+        spider.emit(TasksObjEvent(job_id=getattr(spider, '_job_id', None), task_obj=tasks_obj, is_new=True))
         # cache file_folder
         spider.tasks_path[uuid_md5] = path
         return path
@@ -88,15 +113,27 @@ class ComicPipeline(ImagesPipeline):
         try:
             super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
             stats = spider.crawler.stats
-            percent = int((stats.get_value('file_status_count/downloaded', default=0) / spider.total) * 100)
-            spider.Q('BarQueue').send(int(percent))  # 后台打印百分比进度扔回GUI界面
-            task_obj = TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0])
-            self.handle_task(spider, stats, task_obj)
+            self._sync_item_progress(spider, stats, item, count_download_stat=True)
         except Exception as e:
             spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
 
     @staticmethod
-    def handle_task(spider, stats, task_obj):
+    def _processed_file_count(stats):
+        return (
+            stats.get_value('file_status_count/downloaded', default=0) +
+            stats.get_value('file_status_count/uptodate', default=0)
+        )
+
+    def _sync_item_progress(self, spider, stats, item, *, count_download_stat):
+        total = getattr(spider, 'total', 0) or 0
+        processed = self._processed_file_count(stats)
+        percent = int((processed / total) * 100) if total else 0
+        spider.emit(BarProgressEvent(job_id=getattr(spider, '_job_id', None), percent=percent))
+        task_obj = TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0])
+        self._record_task_progress(spider, stats, task_obj, count_download_stat=count_download_stat)
+
+    @staticmethod
+    def _record_task_progress(spider, stats, task_obj, *, count_download_stat=True):
         _tasks = spider.tasks[task_obj.taskid]
         _tasks.downloaded.append(task_obj)
         curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
@@ -108,12 +145,126 @@ class ComicPipeline(ImagesPipeline):
                 spider.record_sql.add(task_obj.taskid)
             spider.rv_sql.write_episode(tasks_obj.title, tasks_obj.episode_name)
             
-        spider.Q('TasksQueue').send(task_obj, wait=True)
-        stats.inc_value('image/downloaded')
+        spider.emit(TasksObjEvent(
+            job_id=getattr(spider, '_job_id', None),
+            task_obj=task_obj,
+            is_new=False,
+        ))
+        if count_download_stat:
+            stats.inc_value('image/downloaded')
+
+    def media_to_download(self, request: Request, info, *, item=None):
+        dfd = maybeDeferred(super().media_to_download, request, info, item=item)
+
+        def _track_uptodate(file_info):
+            if (
+                item is not None and
+                isinstance(file_info, dict) and
+                file_info.get('status') == 'uptodate'
+            ):
+                self._sync_item_progress(info.spider, info.spider.crawler.stats, item, count_download_stat=False)
+            return file_info
+
+        dfd.addCallback(_track_uptodate)
+        return dfd
 
     def item_completed(self, results, item, info):
         _item = super(ComicPipeline, self).item_completed(results, item, info)
         return _item
+
+
+class WnacgComicPipeline(ComicPipeline):
+    curl_image_impersonate = "chrome124"
+    curl_image_timeout = 20
+    curl_image_proxy_policy = "direct"
+    curl_image_retries = 3
+    curl_image_retry_delay = 3.0
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        pipe = super().from_crawler(crawler)
+        pipe._curl_session = None
+        pipe._curl_session_config = None
+        crawler.signals.connect(pipe._close_curl_session, signal=signals.spider_closed)
+        return pipe
+
+    def get_media_requests(self, item, info):
+        urls = ItemAdapter(item).get(self.images_urls_field, [])
+        return [Request(url, callback=NO_CALLBACK) for url in urls]
+
+    def _close_curl_session(self, spider=None, reason=None):
+        if getattr(self, "_curl_session", None) is None:
+            return
+        self._curl_session.close()
+        self._curl_session = None
+        self._curl_session_config = None
+
+    def _get_curl_session(self, spider):
+        session_kwargs = {
+            "impersonate": getattr(spider, "image_impersonate", self.curl_image_impersonate),
+            "timeout": getattr(spider, "image_download_timeout", self.curl_image_timeout),
+        }
+        proxy_policy = getattr(spider, "curl_image_proxy_policy", self.curl_image_proxy_policy)
+        if proxy_policy == "proxy":
+            if not conf.proxies:
+                raise RuntimeError("WnacgComicPipeline requires conf.proxies when proxy mode is enabled")
+            session_kwargs["proxy"] = f"http://{conf.proxies[0]}"
+        if getattr(self, "_curl_session_config", None) != session_kwargs:
+            self._close_curl_session()
+            self._curl_session = curl_requests.Session(**session_kwargs)
+            self._curl_session_config = session_kwargs
+        return self._curl_session
+
+    @staticmethod
+    def _curl_request_context(request, spider):
+        headers = request.headers.to_unicode_dict()
+        referer = headers.pop("Referer", None) or headers.pop("referer", None)
+        if not referer:
+            referer = request.meta.get("referer")
+        if not referer:
+            referer_resolver = getattr(spider, "request_referer", None)
+            if callable(referer_resolver):
+                referer = referer_resolver()
+        return referer, headers or None
+
+    def media_to_download(self, request: Request, info, *, item=None):
+        dfd = maybeDeferred(super().media_to_download, request, info, item=item)
+        spider = info.spider
+        attempts = max(1, int(getattr(spider, "curl_image_retries", self.curl_image_retries)))
+        retry_delay = float(getattr(spider, "curl_image_retry_delay", self.curl_image_retry_delay))
+        referer, headers = self._curl_request_context(request, spider)
+
+        def _fallback(file_info):
+            if file_info is not None:
+                return file_info
+
+            def _download_via_curl():
+                session = self._get_curl_session(spider)
+                for attempt in range(1, attempts + 1):
+                    try:
+                        response = session.get(request.url, referer=referer, headers=headers)
+                        response.raise_for_status()
+                        return response.status_code, response.content
+                    except Exception as exc:
+                        if attempt >= attempts:
+                            raise
+                        spider.logger.warning(
+                            "Wnacg image curl retry %s/%s | url=%s | referer=%s | error=%s: %s",
+                            attempt,attempts - 1,request.url,referer or "-",type(exc).__name__,exc)
+                        sleep(retry_delay)
+
+            def _handle_curl_result(result):
+                status_code, content = result
+                return self.media_downloaded(
+                    Response(url=request.url,status=status_code,body=content,request=request),
+                    request,info,item=item)
+
+            thread_dfd = deferToThread(_download_via_curl)
+            thread_dfd.addCallback(_handle_curl_result)
+            return thread_dfd
+
+        dfd.addCallback(_fallback)
+        return dfd
 
 
 class JmComicPipeline(ComicPipeline):

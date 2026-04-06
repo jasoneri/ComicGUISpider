@@ -1,14 +1,15 @@
 import asyncio
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 from utils import conf, get_loop, PresetHtmlEl
 from utils.ags import SearchKey
 from assets import res
 from GUI.core.font import font_color
+from utils.website.registry import resolve_spider_adapter
 
 
 class AggrSearchThread(QThread):
-    total_signal = pyqtSignal(dict)
-    group_signal = pyqtSignal(int, list)  # 用于通知完成一组搜索: (group_idx, books_list)
+    total_signal = Signal(object)
+    group_signal = Signal(int, list)  # 用于通知完成一组搜索: (group_idx, books_list)
 
     def __init__(self, gui, tasks):
         super(AggrSearchThread, self).__init__(gui)
@@ -23,13 +24,15 @@ class AggrSearchThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        async with self.gui.sut.get_cli(conf, is_async=True) as cli:
+        adapter = getattr(self.gui, "spider_adapter", None) or resolve_spider_adapter(self.gui.chooseBox.currentIndex())
+        session = adapter.create_session(conf)
+        async with session.get_cli(conf, is_async=True) as cli:
             total = {}
             async def fetch_single(group_idx, search_keyword: SearchKey):
                 try:
-                    search_url = self.gui.sut.build_search_url(search_keyword)
+                    search_url = session.build_search_url(search_keyword)
                     resp = await cli.get(search_url, follow_redirects=True, timeout=6)
-                    books = self.gui.sut.parse_search(resp.text)
+                    books = session.parse_search(resp.text)
                     self.msleep(50)
 
                     group_books = {}
@@ -69,7 +72,7 @@ class AggrSearchThread(QThread):
             self.total_signal.emit(self.total)
             return
         self.iterations += 1
-        self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
+        self.gui.BrowserWindow.page_runtime.run_js("checkDoneTasks();", self.handle_js_result)
 
     def handle_js_result(self, num):
         if num and num >= len(self.total):

@@ -27,7 +27,6 @@ class BookInfo(InfoMinix):
     pages: int = None
     btype: str = None        # booktype
     tags: list = []
-    mark_tip = None
 
     @property
     def children_length(self):
@@ -59,10 +58,6 @@ class Manga(BookInfo):
     img_preview: str = None  
     latest_sec: str = None
     render_keys: list = []
-    
-    @property
-    def frame_result(self):
-        return self.url, self.name, self.preview_url
 
     @property
     def say(self):
@@ -76,10 +71,6 @@ class Ero(BookInfo):
     @property
     def say(self):
         return str(self.idx), self.name, chr(12288)
-
-    @property
-    def frame_result(self):
-        return self.url, self.name, self.preview_url
 
     @property
     def preview_args(self):
@@ -106,7 +97,8 @@ class Ero(BookInfo):
     def to_tasks_obj(self):
         assert self.pages is not None
         return TasksObj(
-            self.u_md5, self.name, int(self.pages), self.preview_url, None, self.img_preview
+            self.u_md5, self.name, int(self.pages), self.preview_url, None, self.img_preview,
+            source=self.source,
         )
 
 
@@ -117,6 +109,7 @@ class Episode(InfoMinix):
     url: str = None
     name: str = None
     pages: t.Union[str, int] = None
+    page_urls: t.Optional[t.List[str]] = None
     
     def id_and_md5(self):
         _uuid = f"{self.from_book.source}-{self.id}" if self.id else \
@@ -136,7 +129,7 @@ class Episode(InfoMinix):
         assert self.pages is not None
         return TasksObj(
             u_md5, self.from_book.name, int(self.pages), self.from_book.preview_url, self.name,
-            self.from_book.img_preview
+            self.from_book.img_preview, source=self.from_book.source,
         )
 # ---
 
@@ -174,7 +167,6 @@ class HitomiBookInfo(Ero):
     source = "hitomi"
     lang: str = None
     pics: list = []
-    say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
     
     @property
     def say(self):

@@ -19,7 +19,7 @@ from utils import Conf, ori_path
 
 init(autoreset=True)
 conf = Conf(path=proj_p.joinpath("utils/script"), iname='img')
-proxy = {"https://": f"http://{conf.proxies[0]}"}
+proxy_url = f"http://{conf.proxies[0]}"
 
 
 class SauceNAO:
@@ -51,7 +51,7 @@ class SauceNAO:
             "Pragma": "no-cache",
             "Cache-Control": "no-cache",
             "TE": "trailers"
-        }, proxies=proxy)
+        }, proxy=proxy_url)
         self.imgurs = imgurs
 
     async def upload(self, file):
@@ -101,7 +101,7 @@ class Imgur:
         return
 
     async def main(self, url):
-        sess = httpx.AsyncClient(proxies=proxy)
+        sess = httpx.AsyncClient(proxy=proxy_url)
         show_text = await self.req(sess, url, "text")
         origin_img_url = self.parse(show_text)
         filename = origin_img_url.split('/')[-1]  # db of booru commonly this

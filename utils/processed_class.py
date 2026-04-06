@@ -2,18 +2,12 @@
 # -*- coding: utf-8 -*-
 import time
 import typing as t
-import socket
 from dataclasses import dataclass
-from multiprocessing import Queue, freeze_support
 import urllib.parse as up
 
-from scrapy.crawler import CrawlerProcess
-from scrapy.utils.project import get_project_settings
-
-from utils import State, QueuesManager, Queues, re
-from utils.preview import PreviewHtml, PreviewByClipHtml, PreviewByAgsHtml, TmpFormatHtml
+from utils import State, re
+from utils.preview import PreviewHtml, PreviewByClipHtml, PreviewByFixHtml, TmpFormatHtml
 from utils.website.info import InfoMinix
-from variables import SPIDERS
 
 
 @dataclass
@@ -35,93 +29,6 @@ class TextBrowserState(State):
 @dataclass
 class ProcessState(State):
     process: str
-
-
-def refresh_state(self, state_name, queue_name, monitor_change=False):
-    _ = getattr(self, state_name)
-    state = self.Q(queue_name).recv()
-    while monitor_change:
-        if state == _:
-            state = self.Q(queue_name).recv()
-        else:
-            break
-    setattr(self, state_name, state)
-
-
-class QueueHandler:
-    def __init__(self, manager):
-        self.manager = manager
-
-    class Q:
-        def __init__(self, queue):
-            self.queue = queue
-
-        def send(self, state: State, **kw):
-            return Queues.send(self.queue, state, **kw)
-
-        def recv(self) -> State:
-            flag = False
-            while not flag:
-                flag = Queues.recv(self.queue)
-                time.sleep(0.2)
-            return flag
-
-        def clear(self):
-            return Queues.clear(self.queue)
-
-    def __call__(self, queue_name, *args, **kwargs):
-        _inner_attr = f'_instance_{queue_name}'
-        if not hasattr(self, _inner_attr):
-            setattr(self, f'_instance_{queue_name}', self.Q(getattr(self.manager, queue_name)()))
-        return getattr(self, _inner_attr)
-
-
-class GuiQueuesManger(QueuesManager):
-    queue_port: int = None
-
-    def create_server_manager(self, **extra):
-        InputFieldQueue = Queue()
-        TextBrowserQueue = Queue(2)
-        ProcessQueue = Queue()
-        BarQueue = Queue()
-        TasksQueue = Queue()
-        QueuesManager.register('InputFieldQueue', callable=lambda: InputFieldQueue)  # GUI > 爬虫
-        QueuesManager.register('TextBrowserQueue', callable=lambda: TextBrowserQueue)  # 爬虫 > GUI.thread
-        QueuesManager.register('ProcessQueue', callable=lambda: ProcessQueue)  # 爬虫 > GUI
-        QueuesManager.register('BarQueue', callable=lambda: BarQueue)  # 爬虫 > GUI.thread
-        QueuesManager.register('TasksQueue', callable=lambda: TasksQueue)  # 爬虫 > GUI.thread
-        for k, w in extra.items():
-            QueuesManager.register(k, lambda: w)
-        self.manager = QueuesManager(address=('127.0.0.1', self.queue_port), authkey=b'abracadabra')
-        self.s = self.manager.get_server()
-        self.s.serve_forever()
-
-    def find_free_port(self, start_port=50000):
-        for port in range(start_port, start_port + 20):
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                try:
-                    s.bind(('127.0.0.1', port))
-                    self.queue_port = port
-                    return port
-                except Exception as e:
-                    if isinstance(e, socket.error):  # Address in use
-                        continue
-        raise ConnectionError(f'no free port between {start_port} and {start_port + 20}')
-
-
-def crawl_what(what, queue_port, **settings_kw):
-    spider_what = SPIDERS
-    freeze_support()
-    s = get_project_settings()
-    s.setmodule("ComicSpider.settings")
-    s.update(settings_kw)
-    process = CrawlerProcess(s)
-    process.crawl(spider_what[what], queue_port=queue_port)
-    process.start()
-    process.join()
-    process.stop()
-
 
 class Url(str):
     """class for next page

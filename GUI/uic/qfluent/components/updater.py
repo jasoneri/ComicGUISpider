@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import re
 
-from PyQt5.QtCore import Qt
+from PySide6.QtCore import Qt
 from GUI.core.timer import safe_single_shot
 from qfluentwidgets import (
     MessageBoxBase, TextBrowser, SubtitleLabel, StateToolTip, PushButton

@@ -1,13 +1,12 @@
-from PyQt5.QtCore import Qt
+from PySide6.QtCore import Qt
 from GUI.core.timer import safe_single_shot
-from PyQt5.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QHBoxLayout
 from qfluentwidgets import (
     VBoxLayout, FlyoutViewBase, FlyoutAnimationType,
     InfoBadge, InfoBar, InfoBarPosition, StateToolTip
 )
 
 from assets import res as ori_res
-from utils import temp_p
 from GUI.uic.qfluent.components import CustomFlyout
 
 tools_res = ori_res.GUI.Tools
@@ -60,7 +59,10 @@ class DomainToolView(FlyoutViewBase):
 
         if available:
             _domain = next(iter(sorted(available)))
-            t_f = temp_p.joinpath(f"{self.gui.spiderUtils.name}_domain.txt")
+            gateway = self.gui.site_gateway
+            if gateway is None:
+                raise RuntimeError("site gateway unavailable for domain cache update")
+            t_f = gateway.cache_path()
             with open(t_f, 'w', encoding='utf-8') as f:
                 f.write(_domain)
             prefix_tip = tools_res.doamin_success_tip % (_domain, t_f)
@@ -70,7 +72,7 @@ class DomainToolView(FlyoutViewBase):
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
                 duration=sc*1000, parent=self.browser
             )
-            safe_single_shot(sc*1000, self.close_later)
+            safe_single_shot(sc*1000, self.gui.reset_search_context)
         else:
             InfoBar.error(
                 title='', content=tools_res.doamin_error_tip,
@@ -83,8 +85,3 @@ class DomainToolView(FlyoutViewBase):
             item = self.second_row.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-
-    def close_later(self):
-        self.browser.domain_v.close()
-        self.browser.close()
-        self.gui.retry_schedule()

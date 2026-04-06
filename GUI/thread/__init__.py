@@ -1,22 +1,22 @@
 import traceback
 import asyncio
-from copy import deepcopy
-from multiprocessing import Process
-from PyQt5.QtCore import QThread, pyqtSignal
-from utils import conf, get_loop, QueuesManager, code_env, Queues
-from utils.website.info import InfoMinix, BookInfo, Episode
-from utils.processed_class import GuiQueuesManger, QueueHandler
+import queue
+import threading
+from PySide6.QtCore import QThread, Signal
+from utils import conf, get_loop, code_env
+from utils.website.info import InfoMinix
 from assets import res
 from deploy.update import Proj
 from GUI.core.font import font_color
-from utils.middleware.timeline import Event, EventSource, TimelineStage, stage_from_process_name
+from utils.protocol import JobAcceptedEvent, LogEvent, ProcessStateEvent, TasksObjEvent, BarProgressEvent, JobFinishedEvent, ErrorEvent
+from utils.website.registry import resolve_spider_adapter
 
 from .ags import AggrSearchThread
 
 
 class ClipTasksThread(QThread):
-    info_signal = pyqtSignal(InfoMinix)
-    total_signal = pyqtSignal(dict)
+    info_signal = Signal(InfoMinix)
+    total_signal = Signal(object)
 
     def __init__(self, gui, tasks):
         super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
@@ -30,13 +30,15 @@ class ClipTasksThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        async with self.gui.spiderUtils.get_cli(conf, is_async=True) as cli:
+        adapter = getattr(self.gui, "spider_adapter", None) or resolve_spider_adapter(self.gui.chooseBox.currentIndex())
+        session = adapter.create_session(conf)
+        async with session.get_cli(conf, is_async=True) as cli:
             total = {}
             async def fetch_single(idx, url):
                 _idx = idx + 1
                 try:
                     resp = await cli.get(url, follow_redirects=True, timeout=6)
-                    book = self.gui.spiderUtils.parse_book(resp.text)
+                    book = session.parse_book(resp.text)
                     self.msleep(30)
                     book.idx = _idx
                     book.preview_url = book.url = url
@@ -63,7 +65,7 @@ class ClipTasksThread(QThread):
             self.total_signal.emit(self.total)
             return
         self.iterations += 1
-        self.gui.BrowserWindow.js_execute("checkDoneTasks();", self.handle_js_result)
+        self.gui.BrowserWindow.page_runtime.run_js("checkDoneTasks();", self.handle_js_result)
 
     def handle_js_result(self, num):
         if num and num >= len(self.total):
@@ -86,148 +88,125 @@ class ClipTasksThread(QThread):
             self.check_condition_and_run_js()
 
 
-class QueueInitThread(QThread):
-    init_completed = pyqtSignal(object, object, int)
-
-    def __init__(self, gui):
-        super().__init__(gui)
-        self.gui = gui
-
-    def run(self):
-        guiQueuesManger = GuiQueuesManger()
-        queue_port = guiQueuesManger.find_free_port()
-        p_qm = Process(target=guiQueuesManger.create_server_manager)
-        p_qm.daemon = False
-        p_qm.start()
-        manager = QueuesManager.create_manager(
-            'InputFieldQueue', 'TextBrowserQueue', 'ProcessQueue', 'BarQueue', 'TasksQueue',
-            address=('127.0.0.1', queue_port), authkey=b'abracadabra'
-        )
-        manager.connect()
-        Q = QueueHandler(manager)
-        self.gui.p_qm = p_qm
-        self.gui.guiQueuesManger = guiQueuesManger
-        self.init_completed.emit(manager, Q, queue_port)
-
-
 class WorkThread(QThread):
-    """only for monitor signals"""
-    item_count_signal = pyqtSignal(int)
-    print_signal = pyqtSignal(str)
-    tasks_signal = pyqtSignal(object)
-    mid_event_signal = pyqtSignal(object)
-    # FR-3 signals
-    books_ready_signal = pyqtSignal(object)
-    eps_ready_signal = pyqtSignal(object)
-    show_max_signal = pyqtSignal()
-    preview_signal = pyqtSignal(str)
-    keep_books_signal = pyqtSignal()
-    process_state_signal = pyqtSignal(object)
-    worker_finished_signal = pyqtSignal(str)
+    """Consume runtime events and forward only the active job to current GUI bindings."""
+    item_count_signal = Signal(int, object, int)
+    print_signal = Signal(int, object, str)
+    tasks_signal = Signal(int, object, object)
+    process_state_signal = Signal(int, object, str)
+    worker_finished_signal = Signal(int, object, str, bool)
 
-    def __init__(self, gui):
+    def __init__(self, gui, event_q: queue.Queue, authority=None):
         super(WorkThread, self).__init__(gui)
         self.gui = gui
+        self.event_q = event_q
+        self.authority = authority
         self.active = True
-        self._mid_last_stage = None
+        self._bind_lock = threading.Lock()
+        self._bind_generation = 0
+        self._dispatch_enabled = True
+        self._dispatching = False
+        self._rebind_cutoff_seq = 0
 
-    def run(self):
-        manager = self.gui.manager
-        TextBrowser = manager.TextBrowserQueue()
-        Bar = manager.BarQueue()
-        _Tasks = manager.TasksQueue()
-        ProcessQueue = manager.ProcessQueue()
-        last_process_state = None
-        _finish_flag = res.GUI.WorkThread_finish_flag
-        _empty_flag = res.GUI.WorkThread_empty_flag
-        _draining = False
+    def rebind(self, gui):
+        with self._bind_lock:
+            self.gui = gui
+            self._bind_generation += 1
+            self._rebind_cutoff_seq = getattr(self.event_q, "last_sequence", lambda: 0)()
+        self.setParent(gui)
 
-        def emit_mid_event(stage: TimelineStage, payload: dict, source: EventSource):
-            mgr = getattr(self.gui, "mid_mgr", None)
-            if not mgr or not getattr(mgr, "enabled", False):
-                return
-            evt = Event(source=source, stage=stage, payload=payload or {})
-            self.mid_event_signal.emit(evt)
+    def suspend_dispatch(self):
+        while True:
+            with self._bind_lock:
+                self._dispatch_enabled = False
+                if not self._dispatching:
+                    return
+            self.msleep(1)
 
-        def emit_collection_ready(raw, item_type, ready_signal, ready_stage, wait_stage, payload_key):
-            if not (isinstance(raw, dict) and all(isinstance(v, item_type) for v in raw.values())):
+    def resume_dispatch(self):
+        with self._bind_lock:
+            self._dispatch_enabled = True
+
+    def _capture_binding(self):
+        with self._bind_lock:
+            return self._bind_generation, self.gui
+
+    def _is_current_binding(self, generation: int) -> bool:
+        with self._bind_lock:
+            return generation == self._bind_generation
+
+    def _is_dispatch_enabled(self) -> bool:
+        with self._bind_lock:
+            return self._dispatch_enabled
+
+    def _begin_dispatch(self, event, generation: int) -> bool:
+        with self._bind_lock:
+            if not self._dispatch_enabled:
                 return False
-            data = deepcopy(raw)
-            ready_signal.emit(data)
-            emit_mid_event(ready_stage, {payload_key: deepcopy(data)}, EventSource.TEXTBROWSER_QUEUE)
-            emit_mid_event(wait_stage, {}, EventSource.TEXTBROWSER_QUEUE)
+            if generation != self._bind_generation:
+                return False
+            if isinstance(event, JobAcceptedEvent):
+                if self.authority is not None:
+                    event_job_id = getattr(event, "job_id", None)
+                    is_pending = getattr(self.authority, "is_job_pending", None)
+                    if callable(is_pending):
+                        if not is_pending(event_job_id):
+                            return False
+            event_seq = getattr(event, "_event_seq", 0)
+            if self._rebind_cutoff_seq and event_seq and event_seq <= self._rebind_cutoff_seq:
+                return False
+            self._dispatching = True
             return True
 
+    def _end_dispatch(self):
+        with self._bind_lock:
+            self._dispatching = False
+
+    def run(self):
         while self.active:
-            self.msleep(5)
             try:
-                if not TextBrowser.empty():
-                    _ = TextBrowser.get().text
-                    if emit_collection_ready(
-                        _,
-                        BookInfo,
-                        self.books_ready_signal,
-                        TimelineStage.BOOKS_READY,
-                        TimelineStage.WAIT_BOOK_DECISION,
-                        "books",
-                    ):
-                        pass
-                    elif emit_collection_ready(
-                        _,
-                        Episode,
-                        self.eps_ready_signal,
-                        TimelineStage.EPS_READY,
-                        TimelineStage.WAIT_EP_DECISION,
-                        "eps",
-                    ):
-                        pass
-                    elif "PreviewBookInfoEnd" in _:
-                        self.preview_signal.emit(_)
-                    elif "[ShowKeepBooks]" == _:
-                        self.keep_books_signal.emit()
-                    elif '[httpok]' in _:
-                        self.print_signal.emit('[httpok]' + _.replace('[httpok]', ''))
-                    elif _.endswith(f"{res.SPIDER.SayToGui.frame_section_print_extra}</font></p>"):
-                        self.print_signal.emit(_)
-                        self.show_max_signal.emit()
-                    else:
-                        self.print_signal.emit(_)
-                    if isinstance(_, str) and (_finish_flag in _ or _empty_flag in _):
-                        _draining = True
-                    self.msleep(2)
-                if not Bar.empty():
-                    self.item_count_signal.emit(Bar.get())
-                if not _Tasks.empty():
-                    self.tasks_signal.emit(_Tasks.get())
-                if _draining and TextBrowser.empty() and Bar.empty() and _Tasks.empty():
-                    self.item_count_signal.emit(100)
-                    break
-                _process_state = Queues.recv(ProcessQueue)
-                if _process_state and _process_state != last_process_state:
-                    last_process_state = deepcopy(_process_state)
-                    self.process_state_signal.emit(deepcopy(_process_state))
-                    stage = stage_from_process_name(getattr(_process_state, "process", ""))
-                    if stage is not None and stage != self._mid_last_stage:
-                        self._mid_last_stage = stage
-                        emit_mid_event(
-                            stage,
-                            {"process_state": deepcopy(_process_state)},
-                            EventSource.PROCESS_QUEUE,
-                        )
-            except ConnectionResetError:
-                self.active = False
-        if self.active:
-            self.worker_finished_signal.emit(str(conf.sv_path))
+                event = self.event_q.get(timeout=0.05)
+            except queue.Empty:
+                continue
+
+            generation, gui = self._capture_binding()
+
+            if not self._begin_dispatch(event, generation):
+                continue
+            try:
+                if isinstance(event, JobAcceptedEvent):
+                    if self.authority is not None:
+                        self.authority.accept_job(event.job_id)
+                elif isinstance(event, LogEvent):
+                    msg = event.message if isinstance(event.message, str) else str(event.message)
+                    self.print_signal.emit(generation, event.job_id, msg)
+                elif isinstance(event, ProcessStateEvent):
+                    self.process_state_signal.emit(generation, event.job_id, event.process)
+                elif isinstance(event, TasksObjEvent):
+                    if self.authority is not None and event.is_new:
+                        self.authority.track_task(event.job_id, event.task_obj)
+                    self.tasks_signal.emit(generation, event.job_id, event.task_obj)
+                elif isinstance(event, BarProgressEvent):
+                    self.item_count_signal.emit(generation, event.job_id, event.percent)
+                elif isinstance(event, JobFinishedEvent):
+                    imgs_path = str(getattr(gui, "sv_path", conf.sv_path))
+                    self.worker_finished_signal.emit(generation, event.job_id, imgs_path, event.success)
+                elif isinstance(event, ErrorEvent):
+                    if self.authority is not None:
+                        self.authority.reject_job(event.job_id)
+                    self.print_signal.emit(generation, event.job_id, font_color(f"[Error] {event.error}", cls='theme-err'))
+            finally:
+                self._end_dispatch()
 
     def stop(self):
         self.active = False
 
 
 class ProjUpdateThread(QThread):
-    checked_signal = pyqtSignal(object)
-    update_signal = pyqtSignal()
-    toupdate_signal = pyqtSignal(object)
-    debug_signal = pyqtSignal(str)
+    checked_signal = Signal(object)
+    update_signal = Signal()
+    toupdate_signal = Signal(object)
+    debug_signal = Signal(str)
 
     def __init__(self, conf_dia):
         self.proj = None
@@ -258,8 +237,8 @@ class ProjUpdateThread(QThread):
 
 
 class RvThread(QThread):
-    scan_completed = pyqtSignal(int)
-    scan_progress = pyqtSignal(str)
+    scan_completed = Signal(int)
+    scan_progress = Signal(str)
     
     def __init__(self, gui, show_progress: bool = False):
         super().__init__(gui)

@@ -3,7 +3,7 @@
 from enum import IntEnum
 from assets import res
 
-VER = "v2.9.11"
+VER = "v2.10.0-beta"
 
 LANG = {
     "en_US": "English",
@@ -52,7 +52,7 @@ DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of co
     5: ['更新', '人气'],
     6: ['index-all', 'popular/week-all', 'popular/month-all'],
     7: [],
-    8: []
+    8: ['更新']
 }
 STATUS_TIP = {
     0: None,

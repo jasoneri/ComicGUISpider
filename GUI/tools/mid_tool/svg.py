@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from enum import Enum
 from itertools import zip_longest
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
-from PyQt5.QtGui import QColor
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
+from PySide6.QtGui import QColor
 from qfluentwidgets import FluentIconBase, Theme, IconWidget
 
 
@@ -31,7 +31,7 @@ class NodeType(Enum):
 
 class SvgWidget(QWidget):
     MAX_LABEL_LINES = 2
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def __init__(self, node_type: NodeType = NodeType.MID, parent=None):
         super().__init__(parent)

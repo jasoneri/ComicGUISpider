@@ -2,12 +2,17 @@
 import os
 import sys
 import traceback
+import contextlib
 from datetime import datetime
 from multiprocessing import freeze_support
 from pathlib import Path
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMessageBox
+from utils import install_qfluentwidgets_notice_filter
+
+
+install_qfluentwidgets_notice_filter()
 
 
 class ExceptionRouter:
@@ -36,7 +41,7 @@ class ExceptionRouter:
         box.setIcon(QMessageBox.Critical)
         box.setWindowTitle("CGS Fatal Error")
         box.setText(msg)
-        box.exec_()
+        box.exec()
         raise
 
     def excepthook(self, exc_type, exc_value, exc_traceback):
@@ -86,8 +91,6 @@ class ExceptionRouter:
             seen.add(path)
             try:
                 path.parent.mkdir(parents=True, exist_ok=True)
-                with open(path, "a", encoding="utf-8"):
-                    pass
                 return path
             except OSError:
                 continue
@@ -103,21 +106,17 @@ class ExceptionRouter:
             f"log_path: {log_path}\n"
             f"{trace_text}"
         )
-        try:
+        with contextlib.suppress(OSError):
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write(payload)
-        except OSError:
-            pass
         return log_path
 
     @staticmethod
     def _write_stderr(message):
         if sys.stderr is None:
             return
-        try:
+        with contextlib.suppress(OSError):
             sys.stderr.write(message)
-        except OSError:
-            pass
 
 
 EXCEPTION_ROUTER = ExceptionRouter()
@@ -137,15 +136,13 @@ def start():
 
     try:
         QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
         app.setPalette(app.style().standardPalette())
         ui = SpiderGUI()
         EXCEPTION_ROUTER.bind_ui(ui)
         QApplication.processEvents()
-        app.exec_()
+        app.exec()
     except Exception as exc:
         EXCEPTION_ROUTER.raise_fatal(exc, "initialize QApplication")
 

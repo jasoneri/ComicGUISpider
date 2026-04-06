@@ -21,4 +21,3 @@ html,body{margin:0;padding:0;box-sizing:border-box;overflow-x:hidden}
 .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,max-content));gap:0.5rem;align-items:center}
 .episodes-grid .btn{display:inline-flex;align-items:center;justify-content:center;padding:.35rem .9rem;border-radius:.5rem}
 .episodes-container{box-sizing:border-box}
-@media (max-width:420px){.episodes-grid{grid-template-columns:repeat(auto-fill,minmax(80px,max-content))}}

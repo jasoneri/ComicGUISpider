@@ -36,7 +36,7 @@ class macOS:
             """下载的字体用绝对路径时可以用以下注释了的替换方法"""
             # font_path = "/Users/Shared/.../xxx.ttc"
             # if "QFontDatabase" not in content:
-            #     content = ("from PyQt5.QtGui import QFontDatabase\n"
+            #     content = ("from PySide6.QtGui import QFontDatabase\n"
             #                f"font_path = '{font_path}'\n"
             #                f"_id = QFontDatabase.addApplicationFont(font_path)\n") + content
             # new_content = re.sub(r'font = .*?\n.*?font\.setFamily\(".*?"\)',

@@ -38,9 +38,11 @@ class ConvertBase:
             sorted(set(REPLACE_MAP.values()) | set(self.custom_fluent_widgets))
         )
         content = deepcopy(self.content)
-        content = content.replace(
-            r'from PyQt5 import QtCore, QtGui, QtWidgets',
-            f'from PyQt5 import QtCore, QtGui, QtWidgets\n{import_part}{self.extra_import}'
+        content = re.sub(
+            r'from Py(?:Qt5|Side6) import QtCore, QtGui, QtWidgets',
+            f'from PySide6 import QtCore, QtGui, QtWidgets\n{import_part}{self.extra_import}',
+            content,
+            count=1,
         )
         # 替换控件实例化代码 ------------------------------------------------------------
         for origin, new in REPLACE_MAP.items():
@@ -73,8 +75,10 @@ if __name__ == '__main__':
             cb = ConvertBase('browser.py', 'browser.py', custom_sub={
                 "topHintBox = QtWidgets.QToolButton": "topHintBox = TransparentToggleToolButton",
                 "ensureBtn = QtWidgets.QToolButton": "ensureBtn = PrimaryToolButton",
+                "self.addressEdit = LineEdit(self.groupBox)": "self.addressEdit = LinkEdit(self.groupBox)",
                 "QtWidgets.QToolButton": "TransparentToolButton",
-            }, custom_fluent_widgets=['TransparentToolButton', 'PrimaryToolButton', 'TransparentToggleToolButton'])
+            }, custom_fluent_widgets=['TransparentToolButton', 'PrimaryToolButton', 'TransparentToggleToolButton'],
+            extra_import='\nfrom GUI.uic.qfluent.components import LinkEdit')
         case _:
             cb = ConvertBase(file, file)
     cb.run()

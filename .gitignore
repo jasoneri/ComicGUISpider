@@ -204,3 +204,4 @@ deploy/launcher/mac/*.html
 .ace-tool/
 openspec/
 nul
+.omc

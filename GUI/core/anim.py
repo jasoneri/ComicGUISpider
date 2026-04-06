@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Callable, Literal, Optional, Sequence
 
-from PyQt5.QtCore import (
+from PySide6.QtCore import (
     QObject, QAbstractAnimation, QPropertyAnimation, QEasingCurve,
     QParallelAnimationGroup, QSequentialAnimationGroup, QRect, QPoint,
-    pyqtProperty,
+    Property,
 )
-from PyQt5.QtWidgets import QGraphicsOpacityEffect
+from PySide6.QtWidgets import QGraphicsOpacityEffect
 
 from GUI.core.timer import safe_single_shot
 
@@ -45,7 +45,11 @@ class BreathingEffect(QObject):
     def _on_finished(self):
         if not self._running or self._anim is None:
             return
-        direction = QAbstractAnimation.Backward if self._anim.direction() == QAbstractAnimation.Forward else QAbstractAnimation.Forward
+        direction = (
+            QAbstractAnimation.Direction.Backward
+            if self._anim.direction() == QAbstractAnimation.Direction.Forward
+            else QAbstractAnimation.Direction.Forward
+        )
         self._anim.setDirection(direction)
         self._anim.start()
 
@@ -53,23 +57,27 @@ class BreathingEffect(QObject):
         if not self._ensure_effect_and_anim():
             return
         self._running = True
-        self._anim.setDirection(QAbstractAnimation.Forward)
+        self._anim.setDirection(QAbstractAnimation.Direction.Forward)
         self._anim.start()
 
     def stop(self, restore_opacity=True):
         self._running = False
-        if self._anim and self._anim.state() == QAbstractAnimation.Running:
+        if self._anim and self._anim.state() == QAbstractAnimation.State.Running:
             self._anim.stop()
         if restore_opacity and self._effect is not None:
             self._effect.setOpacity(1.0)
 
     def is_running(self) -> bool:
-        return self._running and self._anim is not None and self._anim.state() == QAbstractAnimation.Running
+        return (
+            self._running
+            and self._anim is not None
+            and self._anim.state() == QAbstractAnimation.State.Running
+        )
 
     def cleanup(self):
         self._running = False
         if self._anim is not None:
-            if self._anim.state() == QAbstractAnimation.Running:
+            if self._anim.state() == QAbstractAnimation.State.Running:
                 self._anim.stop()
             self._anim.deleteLater()
             self._anim = None
@@ -101,12 +109,12 @@ class ProxyRotationController(QObject):
         self.rotate_to(angle_b if current < (angle_a + angle_b) / 2 else angle_a)
 
     def stop(self):
-        if self._anim and self._anim.state() == QAbstractAnimation.Running:
+        if self._anim and self._anim.state() == QAbstractAnimation.State.Running:
             self._anim.stop()
 
     def cleanup(self):
         if self._anim is not None:
-            if self._anim.state() == QAbstractAnimation.Running:
+            if self._anim.state() == QAbstractAnimation.State.Running:
                 self._anim.stop()
             self._anim.deleteLater()
             self._anim = None
@@ -121,7 +129,7 @@ class WindowHeightAnimator(QObject):
         self._easing = easing
         window.destroyed.connect(self.cleanup)
 
-    @pyqtProperty(int)
+    @Property(int)
     def animatedHeight(self):
         return 0 if self._window is None else int(self._window.height())
 
@@ -312,7 +320,10 @@ class ExpandCollapseOrchestrator(QObject):
 
     @property
     def is_transitioning(self) -> bool:
-        return self._anim_group is not None and self._anim_group.state() == QAbstractAnimation.Running
+        return (
+            self._anim_group is not None
+            and self._anim_group.state() == QAbstractAnimation.State.Running
+        )
 
     def _resolve_window_target(self, total_expand_delta: int) -> int:
         if self._window_target_height_getter is not None:
@@ -442,7 +453,7 @@ class PopupAnimator:
     ):
         old_group = getattr(widget, "_popup_anim_group", None)
         if old_group:
-            if old_group.state() == QAbstractAnimation.Running:
+            if old_group.state() == QAbstractAnimation.State.Running:
                 old_group.stop()
             old_group.deleteLater()
             widget._popup_anim_group = None

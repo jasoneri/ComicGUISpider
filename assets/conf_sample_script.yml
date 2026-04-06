@@ -8,6 +8,12 @@ nekohouse:
   cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://nekohouse.su, F12打开控制台查看cookies, 字段名为 `session`
   redis_key: nekohouse
 
+danbooru:
+  save_path: D:\pic\danbooru
+  save_type: null
+  download_concurrency: 5
+  view_ratio: 60
+
 proxies: null
 redis:
   host: 127.0.0.1

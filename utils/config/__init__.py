@@ -8,7 +8,7 @@ from dataclasses import dataclass, asdict, field
 
 import yaml
 from loguru import logger as lg
-from PyQt5.QtCore import QStandardPaths
+from PySide6.QtCore import QStandardPaths
 
 from assets import res
 from variables import DEFAULT_COMPLETER, COOKIES_SUPPORT
@@ -30,15 +30,17 @@ try:
         uv_exc = str(exc_p.joinpath("runtime/uv.exe"))
 except (OSError, ValueError):
     pass
-conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)).joinpath("CGS")
+conf_dir = p.Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppConfigLocation)).joinpath("CGS")
 conf_dir.mkdir(parents=True, exist_ok=True)
+qconfig_dir = conf_dir.joinpath("qconfig")
+qconfig_dir.mkdir(parents=True, exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
 
 
 def yaml_update(_f, dic):
     with open(_f, 'r+', encoding='utf-8') as fp:
         cfg = fp.read()
-        ori_yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
+        ori_yml_config = yaml.load(cfg, Loader=yaml.FullLoader) or {}
         ori_yml_config.update(dic)
         fp.seek(0)
         fp.truncate()
@@ -110,12 +112,14 @@ class BaseConf:
             return self.__class__._loggers[name]
         self.log_path.mkdir(parents=True, exist_ok=True)
         log_file = self.log_path.joinpath(f'{name}.log')
-        handlers = [h for h in lg._core.handlers.values()
-                   if hasattr(h, 'file_path') and h.file_path == str(log_file)]
-        if not handlers:
-            lg.remove(handler_id=None)
+        log_file_str = str(log_file)
+        already_exists = any(
+            hasattr(h._sink, '_file_path') and str(h._sink._file_path) == log_file_str
+            for h in lg._core.handlers.values()
+        )
+        if not already_exists:
             lg.add(log_file,
-                filter=lambda record: name in record["extra"],
+                filter=lambda record, _n=name: _n in record["extra"],
                 format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}",
                 level=level or getattr(self, 'log_level', 'WARNING'), retention='5 days', encoding='utf-8')
         logger = lg.bind(**{name: True})
@@ -149,7 +153,6 @@ class Conf(BaseConf):
     pypi_source: int = 0
     addUuid: bool = False
     isDeduplicate: bool = False
-    darkTheme: bool = False
     custom_map: dict = field(default_factory=dict)
     completer: dict = field(default_factory=dict)
     cookies = None
@@ -216,7 +219,7 @@ class Conf(BaseConf):
 @dataclass
 class ScriptConf(BaseConf):
     kemono: dict = field(default_factory=dict)
-    nekohouse: dict = field(default_factory=dict)
+    danbooru: dict = field(default_factory=dict)
     proxies: list = field(default_factory=list)
     redis: dict = field(default_factory=dict)
 
@@ -224,13 +227,21 @@ class ScriptConf(BaseConf):
         self.init_conf()
 
     def init_conf(self):
+        sample_file = ori_path.joinpath('assets/conf_sample_script.yml')
         if not self.file.exists():
-            with open(ori_path.joinpath('assets/conf_sample_script.yml'), 'r', encoding='utf-8') as fps:
+            with open(sample_file, 'r', encoding='utf-8') as fps:
                 with open(self.file, 'w', encoding='utf-8') as fpw:
                     fpw.write(fps.read())
+        with open(sample_file, 'r', encoding='utf-8') as fp:
+            sample_config = yaml.load(fp.read(), Loader=yaml.FullLoader) or {}
         with open(self.file, 'r', encoding='utf-8') as fp:
             cfg = fp.read()
-        yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
+        yml_config = yaml.load(cfg, Loader=yaml.FullLoader) or {}
+        danbooru_defaults = (sample_config.get("danbooru") or {}).copy()
+        danbooru_config = (yml_config.get("danbooru") or {}).copy()
+        for key, value in danbooru_defaults.items():
+            danbooru_config.setdefault(key, value)
+        yml_config["danbooru"] = danbooru_config
         for k, v in yml_config.items():
             setattr(self, k, v or getattr(self, k, None))
 

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 from scrapy import Request
 
 from utils import conf, re
@@ -16,6 +17,8 @@ class EHentaiSpider(BaseComicSpider3):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.ComicDlProxyMiddleware': 5,
                                                   'ComicSpider.middlewares.UAMiddleware': 6},
                        "COOKIES_ENABLED": False}
+    hath_image_download_timeout = 20
+    hath_image_retry_times = 1
     name = 'ehentai'
     num_of_row = 25
     domain = domain
@@ -24,7 +27,6 @@ class EHentaiSpider(BaseComicSpider3):
         res.EHentai.MAPPINGS_INDEX: f'https://{domain}',
         res.EHentai.MAPPINGS_POPULAR: f'https://{domain}/popular'
     }
-    say_fm = r' [ {} ], p_{}, ⌈ {} ⌋ '
     frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)
     book_id_url = f'https://{domain}/g/%s'
@@ -33,28 +35,24 @@ class EHentaiSpider(BaseComicSpider3):
     def ua(self):
         return {**EK.headers, "cookie": EK.to_str_(conf.cookies.get(self.name))}
 
+    def image_request_meta(self, *, url, item=None):
+        hostname = (urlparse(url).hostname or "").lower()
+        if not hostname.endswith("hath.network"):
+            return {}
+        return {
+            "download_timeout": self.hath_image_download_timeout,
+            "max_retry_times": self.hath_image_retry_times,
+        }
+
     def frame_book(self, response):
         frame_results = {}
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(EK.parse_search_item, targets))
+            books = list(executor.map(self.site.parser.parse_search_item, targets))
         for x, book in enumerate(books):
             book.idx = x + 1
             frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}", url=response.url,
-                                         make_preview=True)
-
-    def page_turn(self, response):
-        if 'next' in self.input_state.pageTurn:
-            find_prevurl = re.search(r"""var nexturl="(.*?)";""", response.text)
-            url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield from self.page_turn_(url)
-        elif 'previous' in self.input_state.pageTurn:
-            find_prevurl = re.search(r"""var prevurl="(.*?)";""", response.text)
-            url = Url(find_prevurl.group(1) if bool(find_prevurl) else "")
-            yield from self.page_turn_(url)
-        else:
-            yield Request(url=self.search, callback=self.parse, meta=response.meta, dont_filter=True)
+        return self.say.frame_book_print(frame_results, extra=f"<br>{res.EHentai.JUMP_TIP}", url=response.url)
 
     def parse_section(self, response):
         if not response.meta.get('sec_page'):
@@ -97,5 +95,7 @@ class EHentaiSpider(BaseComicSpider3):
             item.update(**book.get_group_infos())
             item['page'] = str(page)
             item['image_urls'] = [url]
+            if self.job_context:
+                self.job_context.total += 1
             self.total += 1
             yield item

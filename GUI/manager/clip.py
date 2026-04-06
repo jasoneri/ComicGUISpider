@@ -1,11 +1,7 @@
-import re
+import json
 import pathlib
-from PyQt5.QtCore import Qt
-from GUI.core.timer import safe_single_shot
-from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res
-from utils.website.info import BookInfo, Episode
 from variables import CGS_DOC
 from utils import conf
 from utils.processed_class import ClipSqlHandler
@@ -13,6 +9,41 @@ from GUI.thread import ClipTasksThread
 from GUI.uic.qfluent import CustomInfoBar
 
 """处理所有剪贴板任务数据"""
+
+
+class _ClipPreviewScriptBatch:
+    def __init__(self):
+        self._calls = []
+
+    @staticmethod
+    def _serialize(value):
+        return json.dumps(value, ensure_ascii=False)
+
+    def call(self, name, *args):
+        rendered_args = ','.join(self._serialize(arg) for arg in args)
+        self._calls.append(f"{name}({rendered_args})")
+        return self
+
+    def add_book_card(self, book, options):
+        return self.call("addBookCard", book.idx, book.img_preview, book.name, book.url, options)
+
+    def add_book_with_episodes(self, book, options):
+        return self.call("addBookWithEpsCard", book.idx, book.img_preview, book.name, book.url, options)
+
+    def update_episodes(self, book_idx, episodes_data):
+        return self.call("updateEpisodes", str(book_idx), episodes_data)
+
+    def select_all_episodes(self, book_idx):
+        return self.call("selectAllEpisodes", str(book_idx))
+
+    def mark_downloaded(self, book_ids):
+        return self.call("previewRuntime.markDownloaded", book_ids, [])
+
+    def render(self):
+        return ';'.join(self._calls)
+
+    def run(self, page_runtime):
+        page_runtime.run_js(self.render())
 
 
 class ClipGUIManager:
@@ -26,7 +57,6 @@ class ClipGUIManager:
         self.is_triggered = False
         self.tasks = []
         self.infos = {}  # 存储完整的任务信息，由single_clip_tasks_data构建
-        self.page = None
         self.clipTasksThread = None
 
     def read_clip(self):
@@ -43,11 +73,14 @@ class ClipGUIManager:
                 url=f"{CGS_DOC}/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:
+            gateway = self.gui.site_gateway
+            if gateway is None:
+                raise RuntimeError("site gateway unavailable for clip flow")
             clip = ClipSqlHandler(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
-                               getattr(self.gui.spiderUtils, "book_url_regex"))
+                               gateway.book_url_regex)
             tf, match_items = clip.create_tf()
             if not match_items:
-                self.gui.say(res.GUI.Clip.match_none % self.gui.spiderUtils.book_url_regex,
+                self.gui.say(res.GUI.Clip.match_none % gateway.book_url_regex,
                              ignore_http=True)
             else:
                 self.init_clip_handle(tf, match_items)
@@ -55,8 +88,7 @@ class ClipGUIManager:
     def init_clip_handle(self, tf, match_urls):
         """初始化剪贴板处理"""
 
-        self.gui.searchinput.setDisabled(True)
-        self.gui.previewInit = False
+        self.gui.update_search_ui(controls_blocked=True)
         self.is_triggered = True
         # 统一使用GUI的tf
         self.gui.tf = tf
@@ -64,7 +96,6 @@ class ClipGUIManager:
         self.gui.set_preview()
         self.gui.BrowserWindow.resize(self.gui.BrowserWindow.width(), 860)
         self.gui.BrowserWindow.show()
-        self.page = self.gui.BrowserWindow.view.page()
         self.clipTasksThread = ClipTasksThread(self.gui, match_urls)
         self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
         self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
@@ -76,53 +107,69 @@ class ClipGUIManager:
         self.gui.BrowserWindow.view.loadFinished.connect(start_clip_thread_once)
 
     def single_clip_tasks_data(self, book):
-        # clip_info格式: (idx, url, img_src, title, author, pages, tags, episodes)
         if book.episodes:
-            # 有episodes时，每个episode用f"{idx}-{ep_idx}"作为键存储
+            downloaded_md5s = {
+                episode.id_and_md5()[1]
+                for episode in self.gui.download_state.downloaded_items(book.episodes)
+            }
             for ep in book.episodes:
                 ep.name = ep.name or f'Episode-{ep.id}'
-                unique_key = f"{book.idx}-{ep.idx}"
-                self.infos[unique_key] = ep
-        else:
-            # 无episodes时，使用任务idx作为键存储单个Selected
+                self.infos[f"ep{book.idx}-{ep.idx}"] = ep
             self.infos[str(book.idx)] = book
 
-        def js_param(val):
-            if isinstance(val, str):
-                return '"' + val.replace('"', '\\"') + '"'
-            else:
-                return str(val)
-        params = ','.join(map(js_param, book.clip_info()))
-        js_code = f'addEL({params})'
-        self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
+            options = {}
+            meta = []
+            if book.artist:
+                meta.append(book.artist)
+            if book.pages:
+                meta.append(f'{book.pages}pages')
+            if meta:
+                options['meta'] = meta
+            if book.tags:
+                options['meta_badges'] = book.tags[:20]
+
+            episodes_data = [
+                {
+                    "name": ep.name,
+                    "idx": ep.idx,
+                    "downloaded": ep.id_and_md5()[1] in downloaded_md5s,
+                }
+                for ep in book.episodes
+            ]
+            js_batch = _ClipPreviewScriptBatch()
+            js_batch.add_book_with_episodes(book, options)
+            js_batch.update_episodes(book.idx, episodes_data)
+            js_batch.select_all_episodes(book.idx)
+            js_batch.run(self.gui.BrowserWindow.page_runtime)
+        else:
+            self.infos[str(book.idx)] = book
+
+            options = {}
+            if book.pages:
+                options['pages'] = book.pages
+
+            _ClipPreviewScriptBatch().add_book_card(book, options).run(
+                self.gui.BrowserWindow.page_runtime
+            )
 
     def all_clip_tasks_data(self, total_data):
         """处理所有剪贴板任务完成后的操作"""
         def refresh_tf(html):
             if html:
                 with open(self.gui.tf, 'w', encoding='utf-8') as f:
-                    # 实在搞不懂怎么跨端正常关掉已经打开的模态框，只能硬改标签属性了
-                    html = re.sub(r"<body.*?>", "<body>", html)
-                    html = re.sub(r"""aria-labelledby="exampleModalLabel".*?>""",
-                                  """aria-labelledby="exampleModalLabel">""", html)
-                    html = html.replace(r"""<div class="modal-backdrop fade show"></div>""", "")
                     f.write(html)
                 if conf.isDeduplicate:
-                    # 延迟一点确保页面刷新完成
-                    def delayed_mark():
-                        books_and_eps = self.gui.mark_tip(self.infos)
-                        dled_bidxes = []
-                        dled_eidxes = []
-                        for key, obj in self.infos.items():
-                            if getattr(obj, 'mark_tip', None) == 'downloaded':
-                                if isinstance(obj, BookInfo):
-                                    dled_bidxes.append(key)  
-                                elif isinstance(obj, Episode):
-                                    dled_eidxes.append(key)  
-                        js_code = f'''tryMarkDownload({dled_bidxes},{dled_eidxes});'''
-                        self.gui.BrowserWindow.js_execute_by_page(self.page, js_code, lambda _: None)
-                    safe_single_shot(300, delayed_mark)
-                    self.gui.BrowserWindow.refreshBtn.click()
+                    dled_bidxes = []
+                    downloaded_md5s = self.gui.download_state.downloaded_md5s(self.infos.values())
+                    for key, obj in self.infos.items():
+                        if not hasattr(obj, "id_and_md5") or obj.id_and_md5()[1] not in downloaded_md5s:
+                            continue
+                        if getattr(obj, "from_book", None) is None:
+                            dled_bidxes.append(key)
+                    if dled_bidxes:
+                        _ClipPreviewScriptBatch().mark_downloaded(dled_bidxes).run(
+                            self.gui.BrowserWindow.page_runtime
+                        )
                 if self.gui.BrowserWindow.topHintBox.isChecked():
                     self.gui.BrowserWindow.topHintBox.click()
                 if len(total_data) < len(self.tasks):
@@ -133,21 +180,31 @@ class ClipGUIManager:
         if not total_data:
             self.gui.BrowserWindow.hide()
         else:
-            self.gui.BrowserWindow.js_execute("finishTasks();", refresh_tf)
+            self.gui.BrowserWindow.page_runtime.page_to_html(
+                refresh_tf,
+                description="clip HTML snapshot",
+                error_callback=lambda _exc: refresh_tf(""),
+            )
 
-    def create_selected_list(self, browser_output):
-        """根据用户选择创建Selected列表"""
+    def submit_browser_selection(self):
+        browser = getattr(self.gui, "BrowserWindow", None)
+        if browser is None:
+            return
         selected_list = [
             self.infos[unique_id]
-            for unique_id in browser_output if unique_id in self.infos
+            for unique_id in list(browser.output or [])
+            if unique_id in self.infos
         ]
-        return selected_list
+        self.gui.sel_mgr.submit_decision(
+            "BOOK",
+            selected_list,
+            flow_stage=self.gui.flow_stage,
+        )
 
     def reset(self):
         """重置剪贴板状态"""
         self.is_triggered = False
         self.tasks = []
         self.infos = {}
-        self.page = None
         if self.clipTasksThread:
             self.clipTasksThread = None

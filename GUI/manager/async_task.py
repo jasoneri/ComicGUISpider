@@ -7,15 +7,35 @@ import time
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal
+from PySide6.QtCore import QObject, Qt, QThread, Signal
 from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition, StateToolTip
 
 
+def summarize_error_message(message: object, *, max_length: int = 180) -> str:
+    if isinstance(message, BaseException):
+        detail = str(message).strip()
+        text = f"{type(message).__name__}: {detail}" if detail else type(message).__name__
+    else:
+        text = str(message or "").strip()
+
+    first_line = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    first_line = " ".join(first_line.split())
+    if not first_line:
+        first_line = "Unknown error"
+
+    clipped = len(first_line) > max_length
+    if clipped:
+        first_line = first_line[: max_length - 3].rstrip() + "..."
+
+    has_hidden_detail = clipped or len(text.splitlines()) > 1
+    return f"{first_line}。详情见日志" if has_hidden_detail else first_line
+
+
 class AsyncTaskThread(QThread):
-    success_signal = pyqtSignal(object)
-    error_signal = pyqtSignal(str)
-    progress_signal = pyqtSignal(str)
+    success_signal = Signal(object)
+    error_signal = Signal(str)
+    progress_signal = Signal(str)
 
     def __init__(self, task_func: Callable, *args, **kwargs):
         super().__init__()
@@ -227,9 +247,7 @@ class TaskInfoBarCenter:
 
     @staticmethod
     def _clip_error(message: str) -> str:
-        if len(message) <= 300:
-            return message
-        return f"{message[:70]}...\n...\n...{message[-200:]}"
+        return summarize_error_message(message)
 
 
 class AsyncTaskManager(QObject):
@@ -347,6 +365,13 @@ class AsyncTaskManager(QObject):
         self._tooltip_stack.cleanup()
         self._infobar_center.cleanup()
         self.current_tasks.clear()
+
+    def reset(self):
+        self.cancel_all_tasks()
+        self._tooltip_stack.cleanup()
+        self._infobar_center.cleanup()
+        self.current_tasks.clear()
+        self._active = True
 
     def _handle_success(self, task_id: str, result: Any, config: TaskConfig):
         if not self._active:

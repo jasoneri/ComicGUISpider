@@ -3,7 +3,7 @@ import { markdownUrlReplacePlugin } from './plugins/markdown-url-replace';
 import { URLS } from './shared/urls';
 
 
-const version = `v2.9.11`
+const version = `v2.10.0-beta`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
@@ -84,6 +84,10 @@ export default defineConfig({
                     {
                         text: "mac部署",
                         link: "/deploy/mac-required-reading",
+                    },
+                    {
+                        text: "🚨可用监控",
+                        link: "/deploy/monitor",
                     }
                 ],
             },
@@ -114,10 +118,19 @@ export default defineConfig({
                     {
                         text: "🀄️CGSMid",
                         link: "/feat/mid",
+                    }
+                ]
+            },
+            {
+                text: "Script",
+                items: [
+                    {
+                        text: "🎮通用",
+                        link: "/script",
                     },
                     {
-                        text: "🚧其他脚本集",
-                        link: "/feat/script",
+                        text: "Kemono",
+                        link: "/script/kemono",
                     }
                 ]
             },

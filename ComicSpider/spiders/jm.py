@@ -4,8 +4,10 @@ import typing as t
 from urllib.parse import urlencode, urlparse
 from concurrent.futures import ThreadPoolExecutor
 
+from ComicSpider.runtime.job_models import iter_download_items
+
 from utils import convert_punctuation, conf
-from utils.website import JmUtils, correct_domain, JmBookInfo
+from utils.website import JmUtils, correct_domain, JmBookInfo, BookInfo, Episode
 from utils.processed_class import Url
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
@@ -19,7 +21,8 @@ class JmSpider(BaseComicSpider2):
         "DOWNLOADER_MIDDLEWARES": {
             'ComicSpider.middlewares.UAMiddleware': 5,
             'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
-            'ComicSpider.middlewares.DisableSystemProxyMiddleware': 4,
+            'ComicSpider.middlewares.ComicDlProxyMiddleware': 4,
+            # 'ComicSpider.middlewares.ScrapyDoHProxyMiddleware': 8,
             'ComicSpider.middlewares.RefererMiddleware': 10,
         }, "COOKIES_ENABLED": not conf.cookies.get(name),
     }
@@ -46,20 +49,14 @@ class JmSpider(BaseComicSpider2):
         return _ua
 
     def preready(self):
+        if self._runtime_origin:
+            return
         self.domain = JmUtils.get_domain()
         self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def start_requests(self):
         self.preready()
-        self.refresh_state('input_state', 'InputFieldQueue')
-        keyword = convert_punctuation(self.input_state.keyword).replace(" ", "")
-        if ',' in keyword or keyword.isdecimal():
-            for key in filter(lambda x: x.isdecimal(), keyword.split(',')):
-                yield scrapy.Request(url=self.book_id_url % key, callback=self.parse_section,
-                                        headers={**self.ua, 'Referer': self.domain},
-                                        meta={'book_id': key}, dont_filter=True)
-        else:
-            yield from super(JmSpider, self).start_requests()
+        yield from self.iter_download_requests(self.current_job)
 
     def parse_section(self, response):
         def _get_bid():
@@ -68,12 +65,11 @@ class JmSpider(BaseComicSpider2):
             elif 'book' in meta:
                 _bid = meta.get('book').id
             else:
-                _bid = self.ut.get_uuid(response.request.url, only_id=True) or ''
+                _bid = self.site.get_uuid(response.request.url, only_id=True) or ''
             return _bid
         meta = response.meta
         bid = _get_bid()
-        self.process_state.process = 'parse section'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('parse section')
         if response.url.endswith('album_missing'):
             yield self.say(font_color(f'➖ 无效车号：{bid}', cls='theme-err'))
         elif response.url.endswith('login'):
@@ -89,37 +85,25 @@ class JmSpider(BaseComicSpider2):
                 ).get_id(response.url)
             yield from super(JmSpider, self).parse_section(response)
 
-    @property
-    def search(self):
-        self.domain = JmUtils.get_domain()
-        keyword = self.input_state.keyword
-        __t = self.time_regex.search(keyword)
-        __k = self.kind_regex.search(keyword)
-        if keyword in self.mappings.keys():
-            url = self.mappings[keyword]
-            return Url(f"https://{self.domain}{urlparse(url).path}").set_next(*self.turn_page_info)
-        elif not bool(__k):  # 不好说标题匹配到关键字情况，视情况返至前置带*触发
-            return Url(f"{self.search_url_head}{keyword}").set_next(*self.turn_page_info)
-        _t = __t.group(1) if bool(__t) else '周'
-        _k = __k.group(1) if bool(__k) else '点击'
-        params = {**self.expand_map[_t], **self.expand_map[_k]}
-        url = f"https://{self.domain}/albums?{urlencode(params)}"
-        if len(keyword) > 4:
-            url += keyword[4:]
-        return Url(url).set_next(*self.turn_page_info)
-
-    def frame_book(self, response):
-        frame_results = {}
-        targets = response.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
-        with ThreadPoolExecutor() as executor:
-            books = list(executor.map(JmUtils.parse_search_item, targets))
-        for x, book in enumerate(books):
-            book.idx = x + 1
-            book.preview_url = f'https://{self.domain}{book.preview_url}'
-            book.url = f'https://{self.domain}{book.url}'
-            frame_results[book.idx] = book
-        self.say.frame_book_print(frame_results, url=response.url, make_preview=True)
-        self.say(font_color("jm预览图加载懂得都懂，加载不出来是正常现象哦", cls='theme-highlight'))
+    def iter_download_requests(self, job):
+        self._emit_process('start_requests')
+        for item in iter_download_items(job):
+            if isinstance(item, Episode):
+                yield from self._process_episode(item)
+                continue
+            if isinstance(item, BookInfo):
+                if getattr(item, 'episodes', None):
+                    yield from self._dispatch_episodes(item)
+                    continue
+                yield scrapy.Request(
+                    url=self.transfer_url(item.url),
+                    callback=self.parse_section,
+                    headers={**self.ua, 'Referer': self.request_referer(item.url)},
+                    meta={'book': item},
+                    dont_filter=True,
+                )
+                continue
+            raise ValueError(f"jm runtime item is missing download url: {item!r}")
 
     def frame_section(self, response):
         targets = response.xpath(".//img[contains(@id,'album_photo_')]")

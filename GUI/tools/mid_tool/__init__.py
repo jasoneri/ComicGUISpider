@@ -2,8 +2,8 @@
 from pathlib import Path
 import contextlib
 from copy import deepcopy
-from PyQt5.QtCore import Qt, pyqtSignal, QEvent
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt, Signal, QEvent
+from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QScrollArea, QStackedWidget, QApplication, QSizePolicy
 )
 from qfluentwidgets import (
@@ -29,9 +29,9 @@ from .rule import RuleToolButton
 
 
 class WorkflowCanvas(QWidget):
-    rule_clicked = pyqtSignal(object)
-    lane_play_clicked = pyqtSignal(str)
-    active_rule_changed = pyqtSignal(object)
+    rule_clicked = Signal(object)
+    lane_play_clicked = Signal(str)
+    active_rule_changed = Signal(object)
 
     # Lane 配置列表
     LANE_CONFIGS = [
@@ -374,7 +374,7 @@ class MidToolInterface(QWidget):
 
     def eventFilter(self, obj, event):
         if obj is self.canvas and event.type() == QEvent.MouseButtonPress:
-            widget_at = QApplication.widgetAt(event.globalPos())
+            widget_at = QApplication.widgetAt(event.globalPosition().toPoint())
             if widget_at is self.canvas or (widget_at and widget_at.parent() is self.canvas):
                 self.canvas.clear_active_rule()
         return super().eventFilter(obj, event)

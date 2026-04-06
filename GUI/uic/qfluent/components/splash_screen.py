@@ -1,7 +1,7 @@
 import io
 import random
-from PyQt5.QtCore import QSize
-from PyQt5.QtGui import QIcon, QMovie, QPixmap
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QIcon, QMovie, QPixmap
 from qfluentwidgets import (
     ImageLabel, SplashScreen
 )

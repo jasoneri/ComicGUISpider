@@ -4,6 +4,8 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import scrapy
 
+from ComicSpider.runtime.job_models import iter_download_items
+
 from utils import PresetHtmlEl, conf
 from utils.website import HitomiUtils, get_loop
 from utils.processed_class import PreviewHtml
@@ -17,6 +19,7 @@ domain = HitomiUtils.index
 class HitomiSpider(BaseComicSpider):
     custom_settings = {"DOWNLOADER_MIDDLEWARES": {
         'ComicSpider.middlewares.ComicDlProxyMiddleware': 5,
+        # 'ComicSpider.middlewares.ScrapyDoHProxyMiddleware': 8,
         'ComicSpider.middlewares.UAMiddleware': 10,
         'ComicSpider.middlewares.FakeMiddleware': 30,
     }}
@@ -24,9 +27,7 @@ class HitomiSpider(BaseComicSpider):
     domain = domain
     ua = HitomiUtils.headers
     backend_domain = "ltn.gold-usergeneratedcontent.net"
-    say_fm = r' [ {} ], lang_{}, p_{}, ⌈ {} ⌋ '
     frame_book_format = ["lang", "title", "preview_url", "pics"]
-    ut = None
     deferred_list = []
     async_cli = None
 
@@ -34,20 +35,19 @@ class HitomiSpider(BaseComicSpider):
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super(HitomiSpider, cls).from_crawler(crawler, *args, **kwargs)
         try:
-            spider.ut = HitomiUtils(conf)
+            spider.async_cli = spider.site.get_cli(conf, is_async=True)
         except Exception as e:
             if spider.crawler and spider.crawler.engine:
                 spider.crawler.engine.close_spider(spider, reason=f"[error]{str(e)}")
             else:
                 spider.logger.error(f"Failed to initialize HitomiUtils: {str(e)}")
                 raise e
-        spider.async_cli = spider.ut.get_cli(conf, is_async=True)
         return spider
 
     def _get_nozomi_sync(self, nozomi_url, page):
         """同步包装的异步nozomi获取方法"""
         async def _async_get():
-            headers = {**HitomiUtils.headers, "Range": self.ut.get_range(page)}
+            headers = {**HitomiUtils.headers, "Range": self.site.runtime.get_range(page)}
             return await self.async_cli.get(nozomi_url, headers=headers)
 
         try:
@@ -59,22 +59,12 @@ class HitomiSpider(BaseComicSpider):
             return loop.run_until_complete(_async_get())
 
     def start_requests(self):
-        self.refresh_state('input_state', 'InputFieldQueue')
-        self.process_state.process = 'start_requests'
-        self.Q('ProcessQueue').send(self.process_state)
+        self.preready()
+        yield from self.iter_download_requests(self.current_job)
 
-        keyword = self.input_state.keyword
-        self.search_start = f"{self.domain}{keyword}.html"
-        page = 1
-        nozomi = f"https://{self.backend_domain}/{keyword}.nozomi"
-        meta = {"Url": self.search_start, "nozomi": nozomi, "page": page}
-        resp = self._get_nozomi_sync(nozomi, page)
-        yield from self.parse(response=resp, meta=meta)
-    
     # ==============================================
     def parse(self, response, meta):
-        self.process_state.process = 'parse'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('parse')
         result = HitomiUtils.parse_nozomi(response.content)
         
         meta = meta or {}
@@ -106,90 +96,55 @@ class HitomiSpider(BaseComicSpider):
             })
         yield from self.defer_parse(meta['results'])
 
-    def page_turn(self, meta):
-        if not self.input_state.pageTurn:
-            resp = self._get_nozomi_sync(meta.get("nozomi"), meta.get("page"))
-            yield from self.parse(response=resp, meta=meta)
-            # yield scrapy.Request(url=meta.get("nozomi"), callback=self.parse, meta=meta, dont_filter=True)
-        elif 'next' in self.input_state.pageTurn:
-            yield from self.page_turn_(meta['page']+1, meta)
-        elif 'previous' in self.input_state.pageTurn:
-            yield from self.page_turn_(meta['page']-1, meta)
-        elif self.input_state.pageTurn:
-            yield from self.page_turn_(int(self.input_state.pageTurn), meta)
-
-    def page_turn_(self, page, meta, **kw):
-        meta={"Url": meta.get("Url"), "nozomi": meta.get("nozomi"), "page": page}
-        resp = self._get_nozomi_sync(meta.get("nozomi"), page)
-        yield from self.parse(response=resp, meta=meta)
-
-    def actual_parse(self, response):
-        self.logger.info("actual_parse called")
-        meta = response.meta
-        meta['results'].append({
-            "text": response.text,
-            "meta": {k: v for k, v in meta.items() if k != 'results'}
-        })
-        self.say(self.ut.get_uuid(response.request.url))
-        if len(meta['results']) == meta['total_requests']:
-            self.logger.info("All requests completed, processing results")
-            yield from self.defer_parse(meta['results'])
-
     def defer_parse(self, rets):
-        self.process_state.process = 'defer_parse'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('defer_parse')
         if not rets:
             self.logger.error("No results to process")
             return
-        meta = json.loads(
-            {json.dumps(ret.pop('meta')) for ret in rets}.pop()
-        )
-        frame_book_results = self.frame_book(rets, meta)
-        self.refresh_state('input_state', 'InputFieldQueue', monitor_change=True)
-        if self.input_state.pageTurn:
-            yield from self.page_turn(meta)
-        else:
-            for book in self.input_state.indexes:
-                meta = {'book': book}
-                yield from self.parse_section(meta)
 
     def parse_section(self, meta):
-        self.process_state.process = 'parse section'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._emit_process('parse section')
 
         book = meta.get('book')
         this_uuid, this_md5 = book.id_and_md5()
-        if not conf.isDeduplicate or not (conf.isDeduplicate and self.record_sql.check_dupe(this_md5)):
-            self.set_task(book)
-            for pic_info in book.pics:
-                item = ComicspiderItem()
-                item['title'] = book.name
-                item['page'] = str(pic_info['name'])
-                item['section'] = None
-                img_url = self.ut.get_img_url(pic_info['hash'], pic_info['hasavif'])
-                item['image_urls'] = [img_url]
-                item['uuid'] = this_uuid
-                item['uuid_md5'] = this_md5
-                self.total += 1
-                # 使用一个空的请求来触发item处理
-                yield scrapy.Request(
-                    url=f'https://fakefakefa.com/{img_url}',callback=self.process_item,meta={'item': item},
-                    dont_filter=True
-                )
-        self.process_state.process = 'fin'
-        self.Q('ProcessQueue').send(self.process_state)
+        self._assert_task_not_downloaded(book)
+        self.set_task(book)
+        for index, pic_info in enumerate(book.pics, 1):
+            item = ComicspiderItem()
+            item['title'] = book.name
+            item['page'] = str(index)
+            item['section'] = None
+            img_url = self.site.runtime.get_img_url(pic_info['hash'], pic_info['hasavif'])
+            item['image_urls'] = [img_url]
+            item['uuid'] = this_uuid
+            item['uuid_md5'] = this_md5
+            if self.job_context:
+                self.job_context.total += 1
+            self.total += 1
+            yield scrapy.Request(
+                url=f'https://fakefakefa.com/{img_url}', callback=self.process_item, meta={'item': item},
+                dont_filter=True
+            )
+        self._emit_process('fin')
+
+    def iter_download_requests(self, job):
+        self._emit_process('start_requests')
+        for book in iter_download_items(job):
+            if not getattr(book, 'pics', None):
+                raise ValueError(f"hitomi runtime item is missing pics payload: {book!r}")
+            yield from self.parse_section({'book': book})
 
     # ==============================================
     def frame_book(self, rets, meta):
         frame_results = {}
         texts = [target['text'] for target in rets]
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.ut.parse_search_item, texts))
+            books = list(executor.map(self.site.parser.parse_search_item, texts))
         for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f"{self.domain}{book.preview_url}"
             frame_results[book.idx] = book
-        return self.say.frame_book_print(frame_results, url=meta.get("Url"), make_preview=True)
+        return self.say.frame_book_print(frame_results, url=meta.get("Url"))
 
     def process_item(self, response):
         item = response.meta['item']

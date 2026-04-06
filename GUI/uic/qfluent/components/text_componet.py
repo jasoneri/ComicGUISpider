@@ -1,8 +1,8 @@
-from PyQt5.QtCore import QSize
-from GUI.core.timer import safe_single_shot
-from PyQt5.QtGui import QPixmap, QDesktopServices
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QPixmap, QDesktopServices
 from qfluentwidgets import ImageLabel, TextBrowser, TextEdit
 
+from GUI.core.timer import safe_single_shot
 
 class TextBrowserLite(TextBrowser):
     def __init__(self, parent=None):
@@ -15,13 +15,19 @@ class TextBrowserLite(TextBrowser):
             }
         """)
 
-    def setSource(self, url):
+    def _open_source_url(self, url):
         if url.isEmpty():
             return
         if self.gui.chooseBox.currentIndex() == 2:
             QDesktopServices.openUrl(url)
         else:
             self.gui.open_url_by_browser(url.toString())
+
+    def setSource(self, url):
+        self._open_source_url(url)
+
+    def doSetSource(self, url, *_args):
+        self._open_source_url(url)
 
 
 class TextBrowserWithBg(TextBrowser):

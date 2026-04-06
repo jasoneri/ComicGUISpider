@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QObject
+from PySide6.QtCore import QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.thread import RvThread

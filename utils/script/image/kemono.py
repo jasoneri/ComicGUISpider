@@ -20,9 +20,14 @@ import tqdm
 
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
-from utils.script import conf, AioRClient, BlackList, folder_sub
+from utils import get_httpx_verify
+from utils.config.qc import cgs_cfg, kemono_cfg
+from utils.network.doh import build_http_transport, dns_stub_server
+from utils.script import conf as script_conf, AioRClient, BlackList, folder_sub
+from utils.script.motrix import MotrixRPC, build_motrix_dns_options
 from utils.script.image.expander import FilterMgr, format_naming
-from utils.config.qc import kemono_cfg
+
+conf = script_conf
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
 
@@ -114,13 +119,16 @@ class Api:
     creators_txt = base + "/creators"
 
     def __init__(self, conf):
-        if conf.proxies:
-            self.sess = httpx.AsyncClient(
-                transport=httpx.AsyncHTTPTransport(http2=True,
-                    proxy=f"http://{conf.proxies[0]}", retries=3)
-            )
-        else:
-            self.sess = httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(http2=True, retries=2))
+        transport, trust_env = build_http_transport(
+            "proxy",
+            getattr(conf, "proxies", None) or [],
+            doh_url=cgs_cfg.get_doh_url(),
+            is_async=True,
+            retries=2,
+            verify=get_httpx_verify(),
+            http2=True,
+        )
+        self.sess = httpx.AsyncClient(transport=transport, trust_env=trust_env)
         self.conf = conf.kemono
 
     async def req(self, url, method="GET", **kw):
@@ -151,32 +159,6 @@ class Api:
         return resp.json()
 
 
-class RPC:
-    url = "http://localhost:16800/jsonrpc"
-    
-    @staticmethod
-    def format_data(params: list, method="aria2.addUri", _id=None):
-        return {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-            "id": _id
-        }
-    
-    def __init__(self) -> None:
-        self.sess = httpx.AsyncClient()
-
-    async def check_gid_status(self, gid):
-        try:
-            status_resp = await self.sess.request(
-                "POST", self.url, headers={"Content-Type": "application/json"}, 
-                json=self.format_data([gid], method="aria2.tellStatus"))
-            status_resp_json = status_resp.json()
-            return (gid, status_resp_json)
-        except Exception as e:
-            return (gid, {"error": str(e)})
-
-
 class Kemono:
     """
     Api-service:
@@ -200,9 +182,9 @@ class Kemono:
     suffixes = ['jpg', 'jpeg', 'png', 'gif', 'mp4']
 
     def __init__(self, redis_cli: AioRClient):
-        self.conf = conf.kemono
-        self.api = Api(conf)
-        self.rpc = RPC()
+        self.conf = script_conf.kemono
+        self.api = Api(script_conf)
+        self.rpc = MotrixRPC()
         qconfig_text = kemono_cfg.filterText.value
         if qconfig_text.strip():
             filter_dict = yaml.safe_load(qconfig_text)
@@ -215,6 +197,12 @@ class Kemono:
         self.sorted_record = self.sv_path.joinpath('__sorted_record')
         self.blacklist_obj = BlackList(self.sv_path / 'blacklist.json')
         self.blacklist = self.blacklist_obj.read()
+
+    @staticmethod
+    def motrix_add_uri_options() -> dict[str, str]:
+        return build_motrix_dns_options(
+            dns_server=dns_stub_server(cgs_cfg.get_doh_url()),
+        )
 
     class Creator:
         cache_path = temp_p.joinpath("kemono_data.pkl")
@@ -376,10 +364,10 @@ class Kemono:
             """下载kemono创作者数据并转换为KemonoAuthor映射字典"""
             creators_txt = temp_p.joinpath("creators.txt")
             if not creators_txt.exists():
-                _data = [[Api.creators_txt], {"dir": str(temp_p)}]
+                _data = [[Api.creators_txt], {"dir": str(temp_p), **self.k.motrix_add_uri_options()}]
                 resp = await self.k.rpc.sess.request(
-                    "POST", RPC.url, headers={"Content-Type": "application/json"},
-                    json=RPC.format_data(_data, _id="creators.txt"))
+                    "POST", self.k.rpc.url, headers={"Content-Type": "application/json"},
+                    json=MotrixRPC.format_data(_data, _id="creators.txt"))
                 add_result = resp.json()
                 gid = add_result.get('result')
                 
@@ -465,10 +453,10 @@ class Kemono:
             async with _sem:
                 gids = {}
                 for task in _tasks:
-                    _data = [[task["url"]], {"dir": str(_path)}]
+                    _data = [[task["url"]], {"dir": str(_path), **self.motrix_add_uri_options()}]
                     resp = await self.rpc.sess.request(
-                        "POST", RPC.url, headers={"Content-Type": "application/json"}, 
-                        json=RPC.format_data(_data, _id=f"{_id}/{task['file_name']}"))
+                        "POST", self.rpc.url, headers={"Content-Type": "application/json"},
+                        json=MotrixRPC.format_data(_data, _id=f"{_id}/{task['file_name']}"))
                     add_result = resp.json()
                     gid = add_result.get('result')
                     gids[gid] = task['file_name']

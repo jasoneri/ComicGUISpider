@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from dataclasses import dataclass
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
     QFrame, QSizePolicy
 )
@@ -50,10 +50,10 @@ class LaneButtonGroup(QWidget):
     MAX_VISIBLE_RULES = 4
     RULE_HEIGHT = 44  # 32px button + 6px*2 margins
 
-    rule_moved = pyqtSignal(str, int, int)
-    rule_removed = pyqtSignal(str)
-    rule_clicked = pyqtSignal(object)
-    badge_toggle_requested = pyqtSignal(object, bool)  # (RuleToolButton, show)
+    rule_moved = Signal(str, int, int)
+    rule_removed = Signal(str)
+    rule_clicked = Signal(object)
+    badge_toggle_requested = Signal(object, bool)  # (RuleToolButton, show)
 
     def __init__(
         self,

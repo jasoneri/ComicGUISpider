@@ -63,9 +63,9 @@ ITEM_PIPELINES = {
 }
 
 IMAGES_STORE = '/'
-SV_PATH, log_path, PROXY_CUST, LOG_LEVEL, CUSTOM_MAP, CONCURR_NUM = conf.settings
+SV_PATH, log_path, _, LOG_LEVEL, CUSTOM_MAP, _ = conf.settings
 
-CONCURRENT_REQUESTS = int(CONCURR_NUM)
+CONCURRENT_REQUESTS = 12
 UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/101.0",
       r'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
       ]
@@ -73,3 +73,6 @@ UA = [r"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefo
 # 日志输出
 LOG_FILE = log_path.joinpath("scrapy.log")
 SPECIAL = [s.spider_name for s in Spider.specials()]
+
+RETRY_TIMES = 3
+RETRY_HTTP_CODES = [500, 502, 503, 504, 408, 429]  # TODO[1](2026-04-06): 这是否本末倒置
