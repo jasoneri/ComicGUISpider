@@ -1,1 +1,12 @@
- TODO : 用户自己投票，每周删掉，用 action 调用 discussion api ， gihub oauth cf worker
+---
+title: 站点可用监控
+description: 
+outline: false
+aside: false
+---
+
+<script setup lang="ts">
+import MonitorStatusBoard from '../components/MonitorStatusBoard.vue'
+</script>
+
+<MonitorStatusBoard />
