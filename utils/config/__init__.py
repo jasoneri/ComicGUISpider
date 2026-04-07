@@ -161,7 +161,7 @@ class Conf(BaseConf):
     bg_path: t.Union[p.Path, str] = ''
     ags_file: t.Union[p.Path, str] = ''
     clip_read_num: str = '20'
-    concurr_num: str = '16'
+    concurr_num: str = '4'
     clip_sql = curr_os.clip_sql
     kbShowDhb: bool = False
     active_workflow: str = ''

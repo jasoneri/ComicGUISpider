@@ -240,16 +240,19 @@ class TaskProgressEntry:
         self.progress.tasks_obj = next_tasks_obj
         self.refresh_view()
 
-    def apply_task(self, task_obj: TaskObj):
+    def apply_task(self, task_obj: TaskObj) -> bool:
+        layout_changed = False
         percent = self.progress.apply(task_obj)
         if self.view is not None and self.is_page_one(task_obj.page) and task_obj.success:
             cover = self.cover_path()
             if cover:
                 self.view.set_cover(cover)
+                layout_changed = True
         if self.view is not None:
             self.view.set_progress(percent)
             if self.progress.completed and not self.view.is_completed:
                 self.view.mark_completed()
+        return layout_changed
 
     def refresh_view(self):
         if self.view is None:
@@ -606,9 +609,11 @@ class TaskRepairActionController(QObject):
         super().__init__()
         self.owner = owner
         self.button = None
+        self._visible = None
 
     def bind(self, button):
         self.button = button
+        self._visible = None
         self.button.clicked.connect(self.submit_repairable_tasks)
 
     def repairable_task_ids(self) -> list[str]:
@@ -623,6 +628,9 @@ class TaskRepairActionController(QObject):
         if self.button is None:
             return
         visible = bool(self.repairable_task_ids())
+        if visible == self._visible:
+            return
+        self._visible = visible
         self.button.setVisible(visible)
         self.button.setEnabled(visible)
 
@@ -653,13 +661,31 @@ class TaskProgressManager:
         self.display_ctrl = TaskPanelDisplayController(self, self.layout_ctrl)
         self.animation_ctrl = ExpandPanelController(self, self.layout_ctrl, self.display_ctrl)
         self.repair_action = TaskRepairActionController(self)
+        self._total_tasks = 0
+        self._total_downloaded = 0
+        self._completed_entries = 0
+        self._toolbar_visible = None
+        self._badge_state = None
+        self._aggregate_percent = None
+        self._crawl_end_announced = False
+
+    def _reset_cached_state(self):
+        self._total_tasks = 0
+        self._total_downloaded = 0
+        self._completed_entries = 0
+        self._toolbar_visible = None
+        self._badge_state = None
+        self._aggregate_percent = None
+        self._crawl_end_announced = False
 
     def sync_toolbar_state(self):
         visible = bool(self._entries)
-        if self.expandBtn is not None:
-            self.expandBtn.setVisible(visible)
-        if self.clearBtn is not None:
-            self.clearBtn.setVisible(visible)
+        if visible != self._toolbar_visible:
+            self._toolbar_visible = visible
+            if self.expandBtn is not None:
+                self.expandBtn.setVisible(visible)
+            if self.clearBtn is not None:
+                self.clearBtn.setVisible(visible)
         self.repair_action.sync()
 
     def _dispose_views(self, reset_view_ref: bool = False):
@@ -683,9 +709,17 @@ class TaskProgressManager:
         accept_btn.clicked.connect(tip.close)
 
     def drop_entry(self, task_id: str):
+        def _unregister_entry(entry: TaskProgressEntry):
+            self._total_tasks -= entry.progress.tasks_count
+            self._total_downloaded -= entry.progress.downloaded
+            if entry.progress.completed:
+                self._completed_entries -= 1
+            self._crawl_end_announced = False
+
         entry = self._entries.pop(task_id, None)
         if entry is None:
             return
+        _unregister_entry(entry)
         if entry.view is not None:
             self.gui.flow_layout.removeWidget(entry.view)
         entry.dispose_view(reset_view_ref=True)
@@ -699,10 +733,14 @@ class TaskProgressManager:
             return
         total = len(self._entries)
         if total == 0:
+            self._badge_state = None
             self._dl_status_badge.hide()
             return
-        completed = sum(1 for entry in self._entries.values() if entry.progress.completed)
-        self._dl_status_badge.update_progress(completed, total)
+        badge_state = (self._completed_entries, total)
+        if badge_state == self._badge_state:
+            return
+        self._badge_state = badge_state
+        self._dl_status_badge.update_progress(*badge_state)
         self._dl_status_badge.show()
 
     def init_native_panel(self):
@@ -715,6 +753,7 @@ class TaskProgressManager:
         self.display_ctrl.cleanup()
 
         self._entries.clear()
+        self._reset_cached_state()
 
         self.expandBtn = self.gui.expandBtn
         self.clearBtn = self.gui.clearBtn
@@ -729,11 +768,19 @@ class TaskProgressManager:
         self.sync_toolbar_state()
 
     def handle(self, task: t.Union[TasksObj, TaskObj]):
+        def _register_entry(entry: TaskProgressEntry):
+            self._total_tasks += entry.progress.tasks_count
+            self._total_downloaded += entry.progress.downloaded
+            if entry.progress.completed:
+                self._completed_entries += 1
+            self._crawl_end_announced = False
+
         if isinstance(task, TasksObj):
             entry = self._entries.get(task.taskid)
             if entry is None:
                 entry = TaskProgressEntry(self, task)
                 self._entries[task.taskid] = entry
+                _register_entry(entry)
                 entry.mount()
                 browser = getattr(self.gui, "BrowserWindow", None)
                 if browser is not None and browser.isVisible():
@@ -743,7 +790,6 @@ class TaskProgressManager:
                 self.display_ctrl.request_refresh(stick_to_bottom=True)
                 return
             entry.replace_tasks_obj(task)
-            self.sync_toolbar_state()
             self.display_ctrl.request_refresh()
             return
 
@@ -752,23 +798,30 @@ class TaskProgressManager:
             if entry is None:
                 print(f"{task.taskid}: {task.page}")
                 return
-            entry.apply_task(task)
-            self.sync_progress_badge()
-            self.sync_toolbar_state()
-            self.display_ctrl.request_refresh()
-
-            total_downloaded = sum(item.progress.downloaded for item in self._entries.values())
-            total_tasks = sum(item.progress.tasks_count for item in self._entries.values())
-            aggregate = int(total_downloaded * 100 / total_tasks) if total_tasks else 0
-            self.gui.processbar_load(aggregate)
-
-            completed = sum(1 for item in self._entries.values() if item.progress.completed)
-            if completed == len(self._entries) and self._entries:
+            was_completed = entry.progress.completed
+            layout_changed = entry.apply_task(task)
+            self._total_downloaded += 1
+            if not was_completed and entry.progress.completed:
+                self._completed_entries += 1
+                self.sync_progress_badge()
+            if layout_changed:
+                self.display_ctrl.request_refresh()
+            aggregate = int(self._total_downloaded * 100 / self._total_tasks) if self._total_tasks else 0
+            if aggregate != self._aggregate_percent:
+                self._aggregate_percent = aggregate
+                self.gui.processbar_load(aggregate)
+            if (
+                not self._crawl_end_announced
+                and self._entries
+                and self._completed_entries == len(self._entries)
+            ):
+                self._crawl_end_announced = True
                 self.gui.crawl_end(str(getattr(self.gui, "sv_path", "")))
 
     def zero_task_state(self):
         self._dispose_views()
         self._entries.clear()
+        self._reset_cached_state()
         if self._dl_status_badge is not None:
             self._dl_status_badge.hide()
         self.sync_toolbar_state()
@@ -792,6 +845,7 @@ class TaskProgressManager:
         self.display_ctrl.cleanup()
         self._dispose_views(reset_view_ref=True)
         self._entries.clear()
+        self._reset_cached_state()
         if self._dl_status_badge is not None:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()

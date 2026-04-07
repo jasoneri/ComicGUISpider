@@ -1,32 +1,35 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  createMockMonitorBoardRuntimeData,
+  createEmptyMonitorBoardRuntimeData,
   emptyMonitorBoardLiveStatus,
   monitorBoardCopy,
   type MonitorBoardLocale,
+  type MonitorBoardRuntimeData,
   monitorBoardSites,
   type MonitorBoardLiveStatus,
   type MonitorBoardStatusMap,
+  type MonitorBoardVoteKey,
   type MonitorBoardVotes,
 } from './monitorStatusBoardSource'
+import {
+  fetchMonitorBoardRuntimeData,
+  submitMonitorBoardVote,
+} from './monitorBoardApi'
 
 const props = withDefaults(defineProps<{
   locale?: MonitorBoardLocale
   resetDate?: string
   statusMap?: MonitorBoardStatusMap
+  apiBaseUrl?: string
 }>(), {
   locale: 'zh',
-  resetDate: createMockMonitorBoardRuntimeData().resetDate,
-  statusMap: () => createMockMonitorBoardRuntimeData().statusMap,
 })
 
 type ChartShape = {
   areaPath: string
   linePath: string
 }
-
-type MonitorBoardVoteKey = keyof MonitorBoardVotes
 
 type MonitorBoardLocalStageEntry = {
   action: MonitorBoardVoteKey
@@ -35,18 +38,27 @@ type MonitorBoardLocalStageEntry = {
 
 type MonitorBoardLocalStageMap = Partial<Record<string, MonitorBoardLocalStageEntry>>
 
+type MonitorBoardLoadState = 'idle' | 'loading' | 'ready' | 'error'
+
 type MonitorBoardBubbleConfig = {
   key: MonitorBoardVoteKey
   label: string
   color: string
   glow: string
-  className: string
+  angleDeg: number
+  offsetX: number
+  offsetY: number
 }
 
 type MonitorBoardVoteVisual = {
   color: string
   glow: string
-  className: string
+  angleDeg: number
+}
+
+type MonitorBoardGuideBubbleConfig = {
+  offsetX: number
+  offsetY: number
 }
 
 function buildChart(values: number[], width = 112, height = 40, padding = 4): ChartShape {
@@ -85,57 +97,165 @@ function buildChart(values: number[], width = 112, height = 40, padding = 4): Ch
   return { areaPath, linePath }
 }
 
+function cloneStatusMap(statusMap: MonitorBoardStatusMap): Record<string, MonitorBoardLiveStatus> {
+  return Object.fromEntries(
+    Object.entries(statusMap).map(([siteId, liveStatus]) => [
+      siteId,
+      {
+        uptime: [...liveStatus.uptime],
+        votes: { ...liveStatus.votes },
+      },
+    ]),
+  )
+}
+
 const text = computed(() => monitorBoardCopy[props.locale])
-const resetDate = computed(() => props.resetDate)
 const guideHint = computed(() => props.locale === 'zh' ? '点击卡片' : 'click card')
 const completedToastLabel = computed(() => props.locale === 'zh' ? '已投票' : 'Voted')
 const hoverAvatarSrc = '/assets/img/icons/monitor.png'
 const bubblePlaceholderSrc = '/assets/img/monitor/speak.svg'
 const boardRoot = ref<HTMLElement | null>(null)
+const remoteRuntimeData = ref<MonitorBoardRuntimeData | null>(null)
+const loadState = ref<MonitorBoardLoadState>('idle')
+const loadErrorMessage = ref<string | null>(null)
 const localStageMap = ref<MonitorBoardLocalStageMap>({})
+const pendingStageMap = ref<MonitorBoardLocalStageMap>({})
 const activeCardId = ref<string | null>(null)
 const toastMessage = ref<string | null>(null)
 
+const providedRuntimeData = computed<MonitorBoardRuntimeData | null>(() => {
+  if (props.resetDate === undefined && props.statusMap === undefined) {
+    return null
+  }
+
+  return {
+    resetDate: props.resetDate ?? createEmptyMonitorBoardRuntimeData().resetDate,
+    statusMap: cloneStatusMap(props.statusMap ?? {}),
+  }
+})
+
+const runtimeData = computed<MonitorBoardRuntimeData>(() => (
+  providedRuntimeData.value
+  ?? remoteRuntimeData.value
+  ?? createEmptyMonitorBoardRuntimeData()
+))
+const resetDate = computed(() => runtimeData.value.resetDate)
+const effectiveStageMap = computed<MonitorBoardLocalStageMap>(() => ({
+  ...localStageMap.value,
+  ...pendingStageMap.value,
+}))
+const effectiveApiBaseUrl = computed(() => {
+  if (typeof props.apiBaseUrl === 'string' && props.apiBaseUrl.trim() !== '') {
+    return props.apiBaseUrl.trim()
+  }
+
+  const configuredApiBaseUrl = import.meta.env.VITE_MONITOR_API_BASE_URL
+  return typeof configuredApiBaseUrl === 'string' && configuredApiBaseUrl.trim() !== ''
+    ? configuredApiBaseUrl.trim()
+    : import.meta.env.DEV
+      ? LOCAL_MONITOR_API_BASE_URL
+      : '/api/monitor'
+})
 const localStageStorageKey = computed(() => `monitor-board-local-stage:${resetDate.value ?? 'default'}`)
 const hasActiveCard = computed(() => activeCardId.value !== null)
+const hasPendingSubmission = computed(() => Object.keys(pendingStageMap.value).length > 0)
+const summaryStatusLabel = computed(() => {
+  if (loadState.value === 'loading') {
+    return text.value.syncing
+  }
+  if (loadState.value === 'error') {
+    return text.value.syncFailed
+  }
+  if (hasPendingSubmission.value) {
+    return text.value.submitting
+  }
+  return null
+})
+const loadAlertMessage = computed(() => {
+  if (loadState.value !== 'error') {
+    return null
+  }
+  return loadErrorMessage.value ?? text.value.retryHint
+})
 
 const TOAST_TIMEOUT_MS = 1800
+const LOCAL_MONITOR_API_BASE_URL = 'http://127.0.0.1:8787/api/monitor'
+const DEFAULT_MONITOR_BUBBLE_RADIUS_PX = 130
+const DEFAULT_MONITOR_GUIDE_BUBBLE_RADIUS_PX = 140
+const MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG = 30
+const MONITOR_GUIDE_BUBBLE_ANGLE_DEG = MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG
+const MONITOR_CARD_LAYER = 400
+const MONITOR_PREVIEW_LAYER_UNDER = 200
+const MONITOR_PREVIEW_LAYER_OVER = 600
+const MONITOR_PREVIEW_START_Y_PX = 100
+const MONITOR_PREVIEW_APEX_Y_PX = -1
+const MONITOR_PREVIEW_REBOUND_Y_PX = 4
+const MONITOR_PREVIEW_SETTLE_Y_PX = -1
+const MONITOR_PREVIEW_END_Y_PX = 0
+const bubbleOrbitRadiusPx = ref(DEFAULT_MONITOR_BUBBLE_RADIUS_PX)
+const guideBubbleOrbitRadiusPx = ref(DEFAULT_MONITOR_GUIDE_BUBBLE_RADIUS_PX)
+
+const monitorPreviewMotionStyle = {
+  '--monitor-card-layer': `${MONITOR_CARD_LAYER}`,
+  '--monitor-preview-layer-under': `${MONITOR_PREVIEW_LAYER_UNDER}`,
+  '--monitor-preview-layer-over': `${MONITOR_PREVIEW_LAYER_OVER}`,
+  '--monitor-pop-start-y': `${MONITOR_PREVIEW_START_Y_PX}px`,
+  '--monitor-pop-apex-y': `${MONITOR_PREVIEW_APEX_Y_PX}px`,
+  '--monitor-pop-rebound-y': `${MONITOR_PREVIEW_REBOUND_Y_PX}px`,
+  '--monitor-pop-settle-y': `${MONITOR_PREVIEW_SETTLE_Y_PX}px`,
+  '--monitor-pop-end-y': `${MONITOR_PREVIEW_END_Y_PX}px`,
+} as const
 
 const voteVisualMap: Record<MonitorBoardVoteKey, MonitorBoardVoteVisual> = {
   up: {
     color: '#10b981',
     glow: '0 0 12px rgba(16, 185, 129, 0.52)',
-    className: 'bubble-action--up',
+    angleDeg: 180,
   },
   neutral: {
     color: '#f59e0b',
     glow: '0 0 12px rgba(245, 158, 11, 0.42)',
-    className: 'bubble-action--neutral',
+    angleDeg: MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG,
   },
   down: {
     color: '#f43f5e',
     glow: '0 0 12px rgba(244, 63, 94, 0.44)',
-    className: 'bubble-action--down',
+    angleDeg: 0,
   },
+}
+
+function buildBubbleOrbit(angleDeg: number, radiusPx: number): { offsetX: number, offsetY: number } {
+  const radians = angleDeg * Math.PI / 180
+  return {
+    offsetX: Number((Math.cos(radians) * radiusPx).toFixed(2)),
+    offsetY: Number((Math.sin(radians) * radiusPx * -1).toFixed(2)),
+  }
 }
 
 const bubbleConfigs = computed<MonitorBoardBubbleConfig[]>(() => [
   {
     key: 'up',
     label: text.value.segments.up,
+    ...buildBubbleOrbit(voteVisualMap.up.angleDeg, bubbleOrbitRadiusPx.value),
     ...voteVisualMap.up,
   },
   {
     key: 'neutral',
     label: text.value.segments.neutral,
+    ...buildBubbleOrbit(voteVisualMap.neutral.angleDeg, bubbleOrbitRadiusPx.value),
     ...voteVisualMap.neutral,
   },
   {
     key: 'down',
     label: text.value.segments.down,
+    ...buildBubbleOrbit(voteVisualMap.down.angleDeg, bubbleOrbitRadiusPx.value),
     ...voteVisualMap.down,
   },
 ])
+
+const guideBubbleConfig = computed<MonitorBoardGuideBubbleConfig>(() => (
+  buildBubbleOrbit(MONITOR_GUIDE_BUBBLE_ANGLE_DEG, guideBubbleOrbitRadiusPx.value)
+))
 
 let toastTimer: number | null = null
 
@@ -188,12 +308,80 @@ function writeLocalStageMap(storageKey: string, stageMap: MonitorBoardLocalStage
   window.localStorage.setItem(storageKey, JSON.stringify(stageMap))
 }
 
+function readOrbitRadiusPx(sizeVariableName: '--monitor-action-width' | '--monitor-guide-width', fallbackRadiusPx: number): number {
+  if (!boardRoot.value || typeof window === 'undefined') {
+    return fallbackRadiusPx
+  }
+
+  const sampleCard = boardRoot.value.querySelector<HTMLElement>('.status-card')
+  if (!sampleCard) {
+    return fallbackRadiusPx
+  }
+
+  const cardStyles = window.getComputedStyle(sampleCard)
+  const avatarWidth = Number.parseFloat(cardStyles.getPropertyValue('--monitor-avatar-width'))
+  const orbitWidth = Number.parseFloat(cardStyles.getPropertyValue(sizeVariableName))
+  const bubbleGap = Number.parseFloat(cardStyles.getPropertyValue('--monitor-bubble-gap'))
+  if (![avatarWidth, orbitWidth, bubbleGap].every(Number.isFinite)) {
+    return fallbackRadiusPx
+  }
+
+  return Number((((avatarWidth + orbitWidth) / 2) + bubbleGap).toFixed(2))
+}
+
+function syncBubbleOrbitMetrics(): void {
+  bubbleOrbitRadiusPx.value = readOrbitRadiusPx('--monitor-action-width', DEFAULT_MONITOR_BUBBLE_RADIUS_PX)
+  guideBubbleOrbitRadiusPx.value = readOrbitRadiusPx('--monitor-guide-width', DEFAULT_MONITOR_GUIDE_BUBBLE_RADIUS_PX)
+}
+
 function syncLocalStageMap(): void {
   localStageMap.value = readLocalStageMap(localStageStorageKey.value)
 }
 
+function setPendingStage(cardId: string, entry: MonitorBoardLocalStageEntry | null): void {
+  if (entry) {
+    pendingStageMap.value = {
+      ...pendingStageMap.value,
+      [cardId]: entry,
+    }
+    return
+  }
+
+  pendingStageMap.value = Object.fromEntries(
+    Object.entries(pendingStageMap.value).filter(([entryCardId]) => entryCardId !== cardId),
+  ) as MonitorBoardLocalStageMap
+}
+
+function commitLocalStage(cardId: string, entry: MonitorBoardLocalStageEntry): void {
+  const nextStageMap: MonitorBoardLocalStageMap = {
+    ...localStageMap.value,
+    [cardId]: entry,
+  }
+
+  localStageMap.value = nextStageMap
+  writeLocalStageMap(localStageStorageKey.value, nextStageMap)
+}
+
+async function hydrateRemoteRuntimeData(): Promise<void> {
+  if (providedRuntimeData.value) {
+    return
+  }
+
+  loadState.value = 'loading'
+  loadErrorMessage.value = null
+
+  try {
+    remoteRuntimeData.value = await fetchMonitorBoardRuntimeData(effectiveApiBaseUrl.value)
+    loadState.value = 'ready'
+  } catch (error) {
+    loadState.value = 'error'
+    loadErrorMessage.value = error instanceof Error ? error.message : text.value.retryHint
+    console.error('Failed to fetch monitor board runtime data.', error)
+  }
+}
+
 function isCardCompleted(cardId: string): boolean {
-  return localStageMap.value[cardId] != null
+  return effectiveStageMap.value[cardId] != null
 }
 
 function isCardLocked(cardId: string): boolean {
@@ -290,17 +478,31 @@ function handleCardKeydown(cardId: string, event: KeyboardEvent): void {
 }
 
 function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
-  const nextStageMap: MonitorBoardLocalStageMap = {
-    ...localStageMap.value,
-    [cardId]: {
-      action,
-      completedAt: new Date().toISOString(),
-    },
+  const stageEntry: MonitorBoardLocalStageEntry = {
+    action,
+    completedAt: new Date().toISOString(),
   }
 
-  localStageMap.value = nextStageMap
-  writeLocalStageMap(localStageStorageKey.value, nextStageMap)
+  setPendingStage(cardId, stageEntry)
   clearActiveCard()
+
+  void submitMonitorBoardVote({
+    siteId: cardId,
+    action,
+    delta: 1,
+  }, effectiveApiBaseUrl.value)
+    .then(() => {
+      commitLocalStage(cardId, stageEntry)
+      showToast(text.value.submitSuccess)
+    })
+    .catch((error: unknown) => {
+      const detail = error instanceof Error ? error.message : text.value.retryHint
+      console.error('Failed to submit monitor board vote.', error)
+      showToast(`${text.value.submitFailed}: ${detail}`)
+    })
+    .finally(() => {
+      setPendingStage(cardId, null)
+    })
 }
 
 function handleDocumentPointerDown(event: PointerEvent): void {
@@ -329,14 +531,18 @@ function handleDocumentKeydown(event: KeyboardEvent): void {
 
 onMounted(() => {
   syncLocalStageMap()
+  syncBubbleOrbitMetrics()
   document.addEventListener('pointerdown', handleDocumentPointerDown)
   document.addEventListener('keydown', handleDocumentKeydown)
+  window.addEventListener('resize', syncBubbleOrbitMetrics)
+  void hydrateRemoteRuntimeData()
 })
 
 onBeforeUnmount(() => {
   clearToast()
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   document.removeEventListener('keydown', handleDocumentKeydown)
+  window.removeEventListener('resize', syncBubbleOrbitMetrics)
 })
 
 watch(localStageStorageKey, () => {
@@ -345,8 +551,8 @@ watch(localStageStorageKey, () => {
 })
 
 const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
-  const liveStatus: MonitorBoardLiveStatus = props.statusMap[site.id] ?? emptyMonitorBoardLiveStatus
-  const localStage = localStageMap.value[site.id]
+  const liveStatus: MonitorBoardLiveStatus = runtimeData.value.statusMap[site.id] ?? emptyMonitorBoardLiveStatus
+  const localStage = effectiveStageMap.value[site.id]
   const effectiveVotes: MonitorBoardVotes = {
     up: liveStatus.votes.up,
     neutral: liveStatus.votes.neutral,
@@ -392,10 +598,25 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
         <div class="board-summary">
           <div class="summary-chip">
+            <span>{{ text.resetDate }}</span>
             <strong>{{ resetDate }}</strong>
+          </div>
+          <div
+            v-if="summaryStatusLabel"
+            class="summary-chip"
+            :class="{
+              'is-error': loadState === 'error',
+              'is-pending': loadState !== 'error',
+            }"
+          >
+            <strong>{{ summaryStatusLabel }}</strong>
           </div>
         </div>
       </header>
+
+      <p v-if="loadAlertMessage" class="board-alert" role="status">
+        {{ loadAlertMessage }}
+      </p>
 
       <div class="card-grid" :class="{ 'has-active-card': hasActiveCard }">
         <article
@@ -411,11 +632,14 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
           :data-card-id="card.id"
           :tabindex="card.isCompleted || isCardDimmed(card.id) ? -1 : 0"
           :aria-disabled="card.isCompleted ? 'true' : undefined"
-          :style="{
-            '--monitor-accent': card.accent,
-            '--monitor-completed-border': card.completedBorderColor,
-            '--monitor-delay': `${index * 120}ms`,
-          }"
+          :style="[
+            monitorPreviewMotionStyle,
+            {
+              '--monitor-accent': card.accent,
+              '--monitor-completed-border': card.completedBorderColor,
+              '--monitor-delay': `${index * 120}ms`,
+            },
+          ]"
           @click="handleCardClick(card.id, $event)"
           @keydown="handleCardKeydown(card.id, $event)"
         >
@@ -426,8 +650,17 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
               alt=""
               aria-hidden="true"
             >
+          </div>
 
-            <div class="bubble-guide" aria-hidden="true">
+          <div class="card-monitor-overlay">
+            <div
+              class="bubble-guide"
+              aria-hidden="true"
+              :style="{
+                '--guide-offset-x': `${guideBubbleConfig.offsetX}px`,
+                '--guide-offset-y': `${guideBubbleConfig.offsetY}px`,
+              }"
+            >
               <img class="bubble-guide-art" :src="bubblePlaceholderSrc" alt="">
               <span class="bubble-guide-label">{{ guideHint }}</span>
             </div>
@@ -438,11 +671,12 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
                 :key="`${card.id}-${bubble.key}`"
                 type="button"
                 class="bubble-action"
-                :class="bubble.className"
                 :style="{
                   '--bubble-color': bubble.color,
                   '--bubble-glow': bubble.glow,
                   '--bubble-delay': `${bubbleIndex * 60}ms`,
+                  '--bubble-offset-x': `${bubble.offsetX}px`,
+                  '--bubble-offset-y': `${bubble.offsetY}px`,
                 }"
                 :aria-label="`${card.name} ${bubble.label}`"
                 @click.stop="handleBubbleVote(card.id, bubble.key)"
@@ -529,13 +763,11 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
 <style scoped>
 .monitor-board {
-  --monitor-bg: #050505;
   --monitor-panel: rgba(12, 12, 14, 0.96);
   --monitor-border: rgba(255, 255, 255, 0.08);
   --monitor-border-strong: rgba(255, 255, 255, 0.14);
   --monitor-copy: rgba(245, 245, 246, 0.96);
   --monitor-muted: rgba(163, 163, 168, 0.78);
-  --monitor-surface: rgba(255, 255, 255, 0.04);
   color: var(--monitor-copy);
 }
 
@@ -594,12 +826,6 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
   letter-spacing: -0.04em;
 }
 
-.board-copy del {
-  margin: 0 0.18em;
-  color: rgba(250, 250, 250, 0.42);
-  text-decoration-thickness: 0.08em;
-}
-
 .board-summary {
   display: flex;
   flex-wrap: wrap;
@@ -609,6 +835,8 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
 .summary-chip {
   min-width: 124px;
+  display: grid;
+  gap: 6px;
   padding: 14px 16px;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 18px;
@@ -616,9 +844,40 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
   backdrop-filter: blur(14px);
 }
 
+.summary-chip span {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.72rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .summary-chip strong {
   font-size: 1rem;
   font-weight: 600;
+}
+
+.summary-chip.is-error {
+  border-color: rgba(248, 113, 113, 0.34);
+  background: rgba(127, 29, 29, 0.24);
+}
+
+.summary-chip.is-pending {
+  border-color: rgba(96, 165, 250, 0.28);
+  background: rgba(30, 41, 59, 0.72);
+}
+
+.board-alert {
+  position: relative;
+  z-index: 1;
+  margin: -6px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  border-radius: 16px;
+  background: rgba(127, 29, 29, 0.18);
+  color: rgba(254, 226, 226, 0.94);
+  font-size: 0.84rem;
+  line-height: 1.4;
 }
 
 .card-grid {
@@ -632,42 +891,50 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
   --monitor-avatar-bottom: calc(100% - 5px);
   --monitor-avatar-width: 180px;
   --monitor-shell-height: calc(var(--monitor-avatar-width) * 0.605);
+  --monitor-card-border-color: var(--monitor-border);
+  --monitor-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 40px rgba(0, 0, 0, 0.3);
   --monitor-bubble-gap: 12px;
   --monitor-guide-width: 92px;
   --monitor-guide-height: 54px;
-  --monitor-guide-offset-x: calc((var(--monitor-avatar-width) + var(--monitor-guide-width)) / 2 + var(--monitor-bubble-gap));
-  --monitor-guide-offset-y: calc(var(--monitor-shell-height) + var(--monitor-bubble-gap));
   --monitor-action-width: 88px;
   --monitor-action-height: 52px;
-  --monitor-action-base-y: 12px;
-  --monitor-action-top-y: calc(var(--monitor-shell-height) + var(--monitor-bubble-gap));
-  --monitor-action-side-offset: calc((var(--monitor-avatar-width) + var(--monitor-action-width)) / 2 + var(--monitor-bubble-gap));
-  --monitor-action-angle-offset: calc((var(--monitor-avatar-width) + var(--monitor-action-width)) / 2 + var(--monitor-bubble-gap));
-  --monitor-pop-hidden-y: 22px;
-  --monitor-pop-overshoot-y: -8px;
-  --monitor-pop-rebound-y: 4px;
-  --monitor-pop-settle-y: -1px;
+  --monitor-action-radius: calc((var(--monitor-avatar-width) + var(--monitor-action-width)) / 2 + var(--monitor-bubble-gap));
+  --monitor-action-center-x: 50%;
+  --monitor-action-center-y: 50%;
   --monitor-pop-start-scale: 0.88;
   --monitor-pop-peak-scale: 1.03;
   --monitor-pop-rebound-scale: 0.99;
   --monitor-pop-settle-scale: 1.01;
   position: relative;
   overflow: visible;
-  border: 1px solid var(--monitor-border);
+  border: 1px solid transparent;
   border-radius: 26px;
   padding: 20px 22px;
-  background: var(--monitor-panel);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 12px 40px rgba(0, 0, 0, 0.3);
+  background: transparent;
+  box-shadow: none;
   animation: card-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--monitor-delay);
   isolation: isolate;
   transition:
     transform 220ms ease,
-    border-color 220ms ease,
     opacity 220ms ease,
-    filter 220ms ease,
+    filter 220ms ease;
+}
+
+.status-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: var(--monitor-card-layer);
+  border: 1px solid var(--monitor-card-border-color);
+  border-radius: inherit;
+  background: var(--monitor-panel);
+  box-shadow: var(--monitor-card-shadow);
+  pointer-events: none;
+  transition:
+    border-color 220ms ease,
     box-shadow 220ms ease;
 }
 
@@ -676,19 +943,19 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 }
 
 .status-card.is-completed {
-  border-color: var(--monitor-completed-border);
+  --monitor-card-border-color: var(--monitor-completed-border);
   cursor: not-allowed;
 }
 
 .status-card.is-completed:hover {
-  border-color: var(--monitor-completed-border);
+  --monitor-card-border-color: var(--monitor-completed-border);
   transform: none;
 }
 
 .status-card.is-clickable:focus-visible {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow:
+  --monitor-card-border-color: rgba(255, 255, 255, 0.22);
+  --monitor-card-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08),
     0 0 0 4px rgba(255, 255, 255, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -696,7 +963,7 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 }
 
 .status-card:hover {
-  border-color: var(--monitor-border-strong);
+  --monitor-card-border-color: var(--monitor-border-strong);
   transform: translateY(-2px);
 }
 
@@ -707,8 +974,8 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
 .status-card.is-locked {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow:
+  --monitor-card-border-color: rgba(255, 255, 255, 0.22);
+  --monitor-card-shadow:
     0 24px 72px rgba(0, 0, 0, 0.46),
     0 0 0 1px rgba(255, 255, 255, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -722,20 +989,30 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
   user-select: none;
 }
 
-.card-monitor-shell {
+.card-monitor-shell,
+.card-monitor-overlay {
   position: absolute;
   left: var(--monitor-avatar-left);
   bottom: var(--monitor-avatar-bottom);
-  z-index: 4;
   width: var(--monitor-avatar-width);
   aspect-ratio: 516 / 312;
   overflow: visible;
+  pointer-events: none;
+}
+
+.card-monitor-shell {
+  z-index: var(--monitor-preview-layer-under);
   opacity: 0;
-  transform: translateX(-50%) translateY(var(--monitor-pop-hidden-y)) scale(var(--monitor-pop-start-scale));
+  transform: translateX(-50%) translateY(var(--monitor-pop-start-y)) scale(var(--monitor-pop-start-scale));
   transform-origin: bottom center;
   transition:
     opacity 180ms ease,
     transform 260ms ease;
+}
+
+.card-monitor-overlay {
+  z-index: var(--monitor-preview-layer-over);
+  transform: translateX(-50%);
 }
 
 .card-monitor {
@@ -753,7 +1030,9 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 .status-card:not(.is-completed):not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell,
 .status-card.is-locked .card-monitor-shell {
   opacity: 1;
-  animation: card-monitor-pop 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation:
+    card-monitor-pop 760ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    card-monitor-layer-pop 760ms linear both;
 }
 
 .status-card.is-completed .card-monitor {
@@ -761,21 +1040,25 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 }
 
 .status-card.is-completed:not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell {
+  z-index: var(--monitor-preview-layer-over);
   opacity: 0.72;
   transform: translateX(-50%) translateY(2px) scale(0.94);
 }
 
 .bubble-guide {
   position: absolute;
-  left: calc(50% + var(--monitor-guide-offset-x));
-  bottom: var(--monitor-guide-offset-y);
+  left: var(--monitor-action-center-x);
+  top: var(--monitor-action-center-y);
   z-index: 1;
   display: grid;
   place-items: center;
   width: var(--monitor-guide-width);
   height: var(--monitor-guide-height);
   opacity: 0;
-  transform: translate(-50%, 14px) scale(0.92);
+  transform: translate(
+    calc(-50% + var(--guide-offset-x)),
+    calc(-50% + var(--guide-offset-y) + 14px)
+  ) scale(0.92);
   pointer-events: none;
 }
 
@@ -815,45 +1098,34 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
 .bubble-action-stack {
   position: absolute;
-  left: 50%;
-  bottom: var(--monitor-action-base-y);
+  inset: 0;
   z-index: 2;
-  width: 0;
-  height: 0;
   pointer-events: none;
 }
 
 .bubble-action {
+  --bubble-reveal-offset-y: 12px;
+  --bubble-interaction-y: 0px;
+  --bubble-scale: 0.88;
   position: absolute;
-  left: 0;
+  left: var(--monitor-action-center-x);
+  top: var(--monitor-action-center-y);
   width: var(--monitor-action-width);
   height: var(--monitor-action-height);
   border: 0;
   padding: 0;
   background: transparent;
   opacity: 0;
-  transform: translate(-50%, 12px) scale(0.88);
+  transform: translate(
+    calc(-50% + var(--bubble-offset-x)),
+    calc(-50% + var(--bubble-offset-y) + var(--bubble-reveal-offset-y) + var(--bubble-interaction-y))
+  ) scale(var(--bubble-scale));
   cursor: pointer;
   pointer-events: none;
   transition:
     transform 220ms ease,
     opacity 220ms ease;
   transition-delay: var(--bubble-delay);
-}
-
-.bubble-action--up {
-  bottom: 0;
-  margin-left: calc(var(--monitor-action-side-offset) * -1);
-}
-
-.bubble-action--neutral {
-  bottom: calc(var(--monitor-action-top-y) - var(--monitor-action-base-y));
-  margin-left: var(--monitor-action-angle-offset);
-}
-
-.bubble-action--down {
-  bottom: 0;
-  margin-left: var(--monitor-action-side-offset);
 }
 
 .bubble-action-art {
@@ -868,7 +1140,8 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
 .bubble-action:hover,
 .bubble-action:focus-visible {
-  transform: translate(-50%, 6px) scale(1.04);
+  --bubble-interaction-y: 6px;
+  --bubble-scale: 1.04;
 }
 
 .bubble-action:focus-visible {
@@ -876,12 +1149,14 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 }
 
 .bubble-action:active {
-  transform: translate(-50%, 8px) scale(0.98);
+  --bubble-interaction-y: 8px;
+  --bubble-scale: 0.98;
 }
 
 .status-card.is-locked:not(.is-completed) .bubble-action {
   opacity: 1;
-  transform: translate(-50%, 0) scale(1);
+  --bubble-reveal-offset-y: 0px;
+  --bubble-scale: 1;
   pointer-events: auto;
 }
 
@@ -891,7 +1166,7 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
 .card-layout {
   position: relative;
-  z-index: 1;
+  z-index: var(--monitor-card-layer);
   display: grid;
   grid-template-columns: 104px minmax(0, 1fr);
   grid-template-rows: 52px minmax(56px, auto);
@@ -1055,12 +1330,12 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 @keyframes card-monitor-pop {
   0% {
     opacity: 0;
-    transform: translateX(-50%) translateY(var(--monitor-pop-hidden-y)) scale(var(--monitor-pop-start-scale));
+    transform: translateX(-50%) translateY(var(--monitor-pop-start-y)) scale(var(--monitor-pop-start-scale));
   }
 
   38% {
     opacity: 1;
-    transform: translateX(-50%) translateY(var(--monitor-pop-overshoot-y)) scale(var(--monitor-pop-peak-scale));
+    transform: translateX(-50%) translateY(var(--monitor-pop-apex-y)) scale(var(--monitor-pop-peak-scale));
   }
 
   56% {
@@ -1073,30 +1348,54 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 
   100% {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateX(-50%) translateY(var(--monitor-pop-end-y)) scale(1);
+  }
+}
+
+@keyframes card-monitor-layer-pop {
+  0%,
+  37.99% {
+    z-index: var(--monitor-preview-layer-under);
+  }
+
+  38%,
+  100% {
+    z-index: var(--monitor-preview-layer-over);
   }
 }
 
 @keyframes bubble-guide-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 14px) scale(0.92);
+    transform: translate(
+      calc(-50% + var(--guide-offset-x)),
+      calc(-50% + var(--guide-offset-y) + 14px)
+    ) scale(0.92);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, 0) scale(1);
+    transform: translate(
+      calc(-50% + var(--guide-offset-x)),
+      calc(-50% + var(--guide-offset-y))
+    ) scale(1);
   }
 }
 
 @keyframes bubble-guide-float {
   0%,
   100% {
-    transform: translate(-50%, 0);
+    transform: translate(
+      calc(-50% + var(--guide-offset-x)),
+      calc(-50% + var(--guide-offset-y))
+    ) scale(1);
   }
 
   50% {
-    transform: translate(-50%, -4px);
+    transform: translate(
+      calc(-50% + var(--guide-offset-x)),
+      calc(-50% + var(--guide-offset-y) - 4px)
+    ) scale(1);
   }
 }
 
@@ -1131,7 +1430,6 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
     --monitor-guide-height: 48px;
     --monitor-action-width: 78px;
     --monitor-action-height: 46px;
-    --monitor-action-base-y: 10px;
   }
 
   .card-layout {
@@ -1162,7 +1460,6 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
     --monitor-guide-height: 42px;
     --monitor-action-width: 68px;
     --monitor-action-height: 40px;
-    --monitor-action-base-y: 8px;
     padding: 18px;
   }
 
@@ -1209,21 +1506,32 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
   .status-card:not(.is-completed):not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell,
   .status-card.is-locked .card-monitor-shell {
     animation: none;
+    z-index: var(--monitor-preview-layer-over);
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateX(-50%) translateY(var(--monitor-pop-end-y)) scale(1);
   }
 
   .status-card.is-completed:not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell {
     animation: none;
+    z-index: var(--monitor-preview-layer-over);
     opacity: 0.72;
     transform: translateX(-50%) translateY(2px) scale(0.94);
   }
 
-  .status-card:not(.is-dimmed):is(:hover, :focus-within):not(.is-locked):not(.is-completed) .bubble-guide,
+  .status-card:not(.is-dimmed):is(:hover, :focus-within):not(.is-locked):not(.is-completed) .bubble-guide {
+    animation: none;
+    opacity: 1;
+    transform: translate(
+      calc(-50% + var(--guide-offset-x)),
+      calc(-50% + var(--guide-offset-y))
+    ) scale(1);
+  }
+
   .status-card.is-locked:not(.is-completed) .bubble-action {
     animation: none;
     opacity: 1;
-    transform: translate(-50%, 0) scale(1);
+    --bubble-reveal-offset-y: 0px;
+    --bubble-scale: 1;
   }
 
   .board-toast {

@@ -6,6 +6,8 @@ export type MonitorBoardVotes = {
   down: number
 }
 
+export type MonitorBoardVoteKey = keyof MonitorBoardVotes
+
 export type MonitorBoardSite = {
   id: string
   name: string
@@ -86,6 +88,13 @@ export const monitorBoardCopy = {
       neutral: '观望',
       down: '异常',
     },
+    resetDate: '重置起点',
+    syncing: '远端同步中',
+    syncFailed: '远端同步失败',
+    submitting: '提交中',
+    submitSuccess: '已提交',
+    submitFailed: '提交失败',
+    retryHint: '请稍后重试',
     totalVotes: '总票数',
     distribution: '社区反馈分布',
   },
@@ -96,6 +105,13 @@ export const monitorBoardCopy = {
       neutral: 'neutral',
       down: 'down',
     },
+    resetDate: 'reset since',
+    syncing: 'syncing',
+    syncFailed: 'sync failed',
+    submitting: 'submitting',
+    submitSuccess: 'submitted',
+    submitFailed: 'submit failed',
+    retryHint: 'retry later',
     totalVotes: 'total votes',
     distribution: 'Community signal distribution',
   },
@@ -133,7 +149,7 @@ const monitorBoardMockStatusMap: Record<string, MonitorBoardLiveStatus> = {
 }
 
 const monitorBoardMockRuntimeData: MonitorBoardRuntimeData = {
-  resetDate: '04/06',
+  resetDate: '0407 ~',
   statusMap: monitorBoardMockStatusMap,
 }
 
@@ -144,6 +160,13 @@ export const emptyMonitorBoardLiveStatus: MonitorBoardLiveStatus = {
     neutral: 0,
     down: 0,
   },
+}
+
+export function createEmptyMonitorBoardRuntimeData(resetDate = '---- ~'): MonitorBoardRuntimeData {
+  return {
+    resetDate,
+    statusMap: {},
+  }
 }
 
 export function createMockMonitorBoardStatusMap(): Record<string, MonitorBoardLiveStatus> {
