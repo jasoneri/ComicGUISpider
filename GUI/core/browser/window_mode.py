@@ -155,7 +155,7 @@ class BrowserWindowModeController:
             ))
 
         collector = BrowserCookieSnapshotCollector(
-            self._browser.view.page().profile().cookieStore(),
+            self._browser.profile.cookieStore(),
             domain_filter=spec.domain_filter,
             source_url=source_url,
             debug_pickle_path=spec.debug_pickle_path,
@@ -204,7 +204,7 @@ class BrowserWindowModeController:
     ) -> None:
         self.stop_cookie_watch()
         tracker = BrowserLiveCookieTracker(
-            self._browser.view.page().profile().cookieStore(),
+            self._browser.profile.cookieStore(),
             domain_filter=domain_filter,
             source_url=source_url,
             debug_pickle_path=debug_pickle_path,

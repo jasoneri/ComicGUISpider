@@ -133,6 +133,7 @@ GUI:
     confDia_updateDialog_dev: "New dev version available"
     confDia_skipDevRelease: "Skip dev releases"
     confDia_kbShowDhb: "Show tankobon"
+    confDia_monitorBtn: "Status"
     confDia_supportBtn: "Pandora box"
     confDia_promote_title: "Recommended VPN"
     confDia_promote_url: "https://hxlm.io/#/register?code=sZWBMyum"

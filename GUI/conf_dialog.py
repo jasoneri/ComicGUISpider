@@ -8,8 +8,9 @@ from functools import partial
 
 import yaml
 from PySide6 import QtCore
-from PySide6.QtWidgets import QSizePolicy, QFileDialog, QCompleter, QApplication
+from PySide6.QtWidgets import QSizePolicy, QFileDialog, QCompleter
 from PySide6.QtCore import Qt, QRect, QStringListModel
+from PySide6.QtGui import QIcon
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,
@@ -148,9 +149,11 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.updateBtn = PushButton(FIF.UPDATE, res.GUI.Uic.confDia_updateBtn)
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
+        self.monitorBtn = PushButton(QIcon(':/configDialog/monitor.svg'), res.GUI.Uic.confDia_monitorBtn)
         self.supportBtn = TransparentPushButton(FIF.GAME, res.GUI.Uic.confDia_supportBtn)
 
         self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
+        self.bottom_btn_horizontalLayout.insertWidget(0, self.monitorBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
 
@@ -173,9 +176,10 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.cookiesBox.setCurrentText(support[0])
 
     def bind_logic(self):
-        def _open_docs():
-            self.gui.open_url_by_browser(CGS_DOC)
-        self.descBtn.clicked.connect(_open_docs)
+        def _open_docs(_p=""):
+            self.gui.open_url_by_browser(f"{CGS_DOC}{_p}")
+        self.descBtn.clicked.connect(lambda: _open_docs(""))
+        self.monitorBtn.clicked.connect(lambda: _open_docs("/deploy/monitor"))
         def _switch_mode(checked: bool):
             theme_mgr.set_dark(checked, save=True)
         self.darkTheme.toggled.connect(_switch_mode)

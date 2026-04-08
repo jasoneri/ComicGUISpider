@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import hoverAvatarSrc from '../assets/img/icons/monitor.png'
+import downBubbleSrc from '../assets/img/monitor/down.png'
+import guideBubbleSrc from '../assets/img/monitor/guide.webp'
+import neutralBubbleSrc from '../assets/img/monitor/neutral.png'
+import upBubbleSrc from '../assets/img/monitor/up.png'
 import {
   createEmptyMonitorBoardRuntimeData,
   emptyMonitorBoardLiveStatus,
@@ -9,27 +14,25 @@ import {
   monitorBoardSites,
   type MonitorBoardLiveStatus,
   type MonitorBoardStatusMap,
+  type MonitorBoardUptimes,
   type MonitorBoardVoteKey,
   type MonitorBoardVotes,
 } from './monitorStatusBoardSource'
 import {
   fetchMonitorBoardRuntimeData,
+  MonitorBoardApiError,
   submitMonitorBoardVote,
 } from './monitorBoardApi'
 
 const props = withDefaults(defineProps<{
   locale?: MonitorBoardLocale
   resetDate?: string
+  resetStartedAt?: string
   statusMap?: MonitorBoardStatusMap
   apiBaseUrl?: string
 }>(), {
   locale: 'zh',
 })
-
-type ChartShape = {
-  areaPath: string
-  linePath: string
-}
 
 type MonitorBoardLocalStageEntry = {
   action: MonitorBoardVoteKey
@@ -40,45 +43,65 @@ type MonitorBoardLocalStageMap = Partial<Record<string, MonitorBoardLocalStageEn
 
 type MonitorBoardLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
-type MonitorBoardBubbleConfig = {
+type MonitorBoardOrbitPosition = {
+  offsetX: number
+  offsetY: number
+}
+
+type MonitorBoardBubbleConfig = MonitorBoardOrbitPosition & {
   key: MonitorBoardVoteKey
-  label: string
-  color: string
-  glow: string
-  angleDeg: number
-  offsetX: number
-  offsetY: number
+  assetSrc: string
 }
 
-type MonitorBoardVoteVisual = {
+type MonitorBoardVoteMeta = {
+  assetSrc: string
   color: string
   glow: string
   angleDeg: number
 }
 
-type MonitorBoardGuideBubbleConfig = {
-  offsetX: number
-  offsetY: number
+type MonitorBoardChartLine = {
+  key: MonitorBoardVoteKey
+  linePath: string
+  color: string
+  zIndex: number
 }
 
-function buildChart(values: number[], width = 112, height = 40, padding = 4): ChartShape {
-  if (values.length === 0) {
-    const floor = height - padding
-    return {
-      areaPath: `M ${padding} ${floor} L ${width - padding} ${floor} L ${width - padding} ${floor} L ${padding} ${floor} Z`,
-      linePath: `M ${padding} ${floor} L ${width - padding} ${floor}`,
-    }
+type MonitorBoardSegment = {
+  key: MonitorBoardVoteKey
+  value: number
+  color: string
+  glow: string
+  percent: number
+}
+
+const MONITOR_VOTE_DISABLED_STORAGE_KEY = 'monitor-board-vote-disabled:v1'
+const MONITOR_CHART_MIN_VALUE = 0
+const MONITOR_CHART_LAYER_OFFSETS = [20, 40, 60] as const
+
+function createZeroVotes(): MonitorBoardVotes {
+  return {
+    up: 0,
+    neutral: 0,
+    down: 0,
   }
+}
 
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = max - min || 1
-  const step = (width - padding * 2) / Math.max(values.length - 1, 1)
+function buildChartLinePath(values: number[], chartMax: number, width = 112, height = 40, padding = 4): string {
+  const floor = height - padding
+  const chartValues = values.length === 0
+    ? [MONITOR_CHART_MIN_VALUE, MONITOR_CHART_MIN_VALUE]
+    : values.length === 1
+      ? [values[0], values[0]]
+      : values
+  const usableHeight = height - padding * 2
+  const span = Math.max(chartMax - MONITOR_CHART_MIN_VALUE, 1)
+  const step = (width - padding * 2) / Math.max(chartValues.length - 1, 1)
 
-  const points = values.map((value, index) => {
+  const points = chartValues.map((value, index) => {
     const x = padding + step * index
-    const normalized = (value - min) / span
-    const y = height - padding - normalized * (height - padding * 2)
+    const normalized = (Math.max(value, MONITOR_CHART_MIN_VALUE) - MONITOR_CHART_MIN_VALUE) / span
+    const y = floor - normalized * usableHeight
     return {
       x: Number(x.toFixed(2)),
       y: Number(y.toFixed(2)),
@@ -89,12 +112,43 @@ function buildChart(values: number[], width = 112, height = 40, padding = 4): Ch
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
     .join(' ')
 
-  const firstPoint = points[0]
-  const lastPoint = points[points.length - 1]
-  const floor = height - padding
-  const areaPath = `${linePath} L ${lastPoint.x} ${floor} L ${firstPoint.x} ${floor} Z`
+  return linePath
+}
 
-  return { areaPath, linePath }
+function buildChartLines(cumulativeUptimes: MonitorBoardUptimes): MonitorBoardChartLine[] {
+  const chartSamples = cumulativeUptimes.length < 2
+    ? []
+    : cumulativeUptimes.slice(1).map((sample, index) => {
+        const previousSample = cumulativeUptimes[index]
+        return {
+          up: sample.up - previousSample.up,
+          neutral: sample.neutral - previousSample.neutral,
+          down: sample.down - previousSample.down,
+        }
+      })
+  if (chartSamples.length === 0) {
+    return []
+  }
+
+  const latestSample = chartSamples[chartSamples.length - 1] ?? createZeroVotes()
+  const chartMax = Math.max(
+    1,
+    ...chartSamples.flatMap((sample) => monitorVoteKeys.map((key) => sample[key])),
+  )
+  const orderedKeys = [...monitorVoteKeys].sort((leftKey, rightKey) => {
+    const valueDelta = latestSample[leftKey] - latestSample[rightKey]
+    if (valueDelta !== 0) {
+      return valueDelta
+    }
+    return monitorVoteKeys.indexOf(leftKey) - monitorVoteKeys.indexOf(rightKey)
+  })
+
+  return orderedKeys.map((key, index) => ({
+    key,
+    color: monitorVoteMetaMap[key].color,
+    linePath: buildChartLinePath(chartSamples.map((sample) => sample[key]), chartMax),
+    zIndex: MONITOR_CARD_LAYER + MONITOR_CHART_LAYER_OFFSETS[index],
+  }))
 }
 
 function cloneStatusMap(statusMap: MonitorBoardStatusMap): Record<string, MonitorBoardLiveStatus> {
@@ -102,7 +156,7 @@ function cloneStatusMap(statusMap: MonitorBoardStatusMap): Record<string, Monito
     Object.entries(statusMap).map(([siteId, liveStatus]) => [
       siteId,
       {
-        uptime: [...liveStatus.uptime],
+        uptimes: liveStatus.uptimes.map((sample) => ({ ...sample })),
         votes: { ...liveStatus.votes },
       },
     ]),
@@ -110,16 +164,14 @@ function cloneStatusMap(statusMap: MonitorBoardStatusMap): Record<string, Monito
 }
 
 const text = computed(() => monitorBoardCopy[props.locale])
-const guideHint = computed(() => props.locale === 'zh' ? '点击卡片' : 'click card')
 const completedToastLabel = computed(() => props.locale === 'zh' ? '已投票' : 'Voted')
-const hoverAvatarSrc = '/assets/img/icons/monitor.png'
-const bubblePlaceholderSrc = '/assets/img/monitor/speak.svg'
 const boardRoot = ref<HTMLElement | null>(null)
 const remoteRuntimeData = ref<MonitorBoardRuntimeData | null>(null)
 const loadState = ref<MonitorBoardLoadState>('idle')
 const loadErrorMessage = ref<string | null>(null)
 const localStageMap = ref<MonitorBoardLocalStageMap>({})
 const pendingStageMap = ref<MonitorBoardLocalStageMap>({})
+const voteDisabledDetail = ref<string | null>(null)
 const activeCardId = ref<string | null>(null)
 const toastMessage = ref<string | null>(null)
 
@@ -130,6 +182,7 @@ const providedRuntimeData = computed<MonitorBoardRuntimeData | null>(() => {
 
   return {
     resetDate: props.resetDate ?? createEmptyMonitorBoardRuntimeData().resetDate,
+    resetStartedAt: props.resetStartedAt ?? createEmptyMonitorBoardRuntimeData().resetStartedAt,
     statusMap: cloneStatusMap(props.statusMap ?? {}),
   }
 })
@@ -140,7 +193,8 @@ const runtimeData = computed<MonitorBoardRuntimeData>(() => (
   ?? createEmptyMonitorBoardRuntimeData()
 ))
 const resetDate = computed(() => runtimeData.value.resetDate)
-const effectiveStageMap = computed<MonitorBoardLocalStageMap>(() => ({
+const resetStartedAt = computed(() => runtimeData.value.resetStartedAt)
+const displayStageMap = computed<MonitorBoardLocalStageMap>(() => ({
   ...localStageMap.value,
   ...pendingStageMap.value,
 }))
@@ -152,13 +206,14 @@ const effectiveApiBaseUrl = computed(() => {
   const configuredApiBaseUrl = import.meta.env.VITE_MONITOR_API_BASE_URL
   return typeof configuredApiBaseUrl === 'string' && configuredApiBaseUrl.trim() !== ''
     ? configuredApiBaseUrl.trim()
-    : import.meta.env.DEV
-      ? LOCAL_MONITOR_API_BASE_URL
-      : '/api/monitor'
+    : '/api/monitor'
 })
-const localStageStorageKey = computed(() => `monitor-board-local-stage:${resetDate.value ?? 'default'}`)
+const localStageStorageKey = computed(() => `monitor-board-local-stage:${resetStartedAt.value ?? 'default'}`)
 const hasActiveCard = computed(() => activeCardId.value !== null)
 const hasPendingSubmission = computed(() => Object.keys(pendingStageMap.value).length > 0)
+const voteDisabledToastLabel = computed(() => (
+  voteDisabledDetail.value ? buildSubmitFailedToast(voteDisabledDetail.value) : null
+))
 const summaryStatusLabel = computed(() => {
   if (loadState.value === 'loading') {
     return text.value.syncing
@@ -178,12 +233,9 @@ const loadAlertMessage = computed(() => {
   return loadErrorMessage.value ?? text.value.retryHint
 })
 
-const TOAST_TIMEOUT_MS = 1800
-const LOCAL_MONITOR_API_BASE_URL = 'http://127.0.0.1:8787/api/monitor'
-const DEFAULT_MONITOR_BUBBLE_RADIUS_PX = 130
-const DEFAULT_MONITOR_GUIDE_BUBBLE_RADIUS_PX = 140
+const TOAST_TIMEOUT_MS = 2400
+const MONITOR_BUBBLE_RADIUS_PX = 120
 const MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG = 30
-const MONITOR_GUIDE_BUBBLE_ANGLE_DEG = MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG
 const MONITOR_CARD_LAYER = 400
 const MONITOR_PREVIEW_LAYER_UNDER = 200
 const MONITOR_PREVIEW_LAYER_OVER = 600
@@ -192,8 +244,7 @@ const MONITOR_PREVIEW_APEX_Y_PX = -1
 const MONITOR_PREVIEW_REBOUND_Y_PX = 4
 const MONITOR_PREVIEW_SETTLE_Y_PX = -1
 const MONITOR_PREVIEW_END_Y_PX = 0
-const bubbleOrbitRadiusPx = ref(DEFAULT_MONITOR_BUBBLE_RADIUS_PX)
-const guideBubbleOrbitRadiusPx = ref(DEFAULT_MONITOR_GUIDE_BUBBLE_RADIUS_PX)
+const monitorVoteKeys: MonitorBoardVoteKey[] = ['up', 'neutral', 'down']
 
 const monitorPreviewMotionStyle = {
   '--monitor-card-layer': `${MONITOR_CARD_LAYER}`,
@@ -206,25 +257,28 @@ const monitorPreviewMotionStyle = {
   '--monitor-pop-end-y': `${MONITOR_PREVIEW_END_Y_PX}px`,
 } as const
 
-const voteVisualMap: Record<MonitorBoardVoteKey, MonitorBoardVoteVisual> = {
+const monitorVoteMetaMap: Record<MonitorBoardVoteKey, MonitorBoardVoteMeta> = {
   up: {
+    assetSrc: upBubbleSrc,
     color: '#10b981',
     glow: '0 0 12px rgba(16, 185, 129, 0.52)',
     angleDeg: 180,
   },
   neutral: {
+    assetSrc: neutralBubbleSrc,
     color: '#f59e0b',
     glow: '0 0 12px rgba(245, 158, 11, 0.42)',
     angleDeg: MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG,
   },
   down: {
+    assetSrc: downBubbleSrc,
     color: '#f43f5e',
     glow: '0 0 12px rgba(244, 63, 94, 0.44)',
     angleDeg: 0,
   },
 }
 
-function buildBubbleOrbit(angleDeg: number, radiusPx: number): { offsetX: number, offsetY: number } {
+function buildBubbleOrbit(angleDeg: number, radiusPx: number): MonitorBoardOrbitPosition {
   const radians = angleDeg * Math.PI / 180
   return {
     offsetX: Number((Math.cos(radians) * radiusPx).toFixed(2)),
@@ -232,30 +286,30 @@ function buildBubbleOrbit(angleDeg: number, radiusPx: number): { offsetX: number
   }
 }
 
-const bubbleConfigs = computed<MonitorBoardBubbleConfig[]>(() => [
-  {
-    key: 'up',
-    label: text.value.segments.up,
-    ...buildBubbleOrbit(voteVisualMap.up.angleDeg, bubbleOrbitRadiusPx.value),
-    ...voteVisualMap.up,
-  },
-  {
-    key: 'neutral',
-    label: text.value.segments.neutral,
-    ...buildBubbleOrbit(voteVisualMap.neutral.angleDeg, bubbleOrbitRadiusPx.value),
-    ...voteVisualMap.neutral,
-  },
-  {
-    key: 'down',
-    label: text.value.segments.down,
-    ...buildBubbleOrbit(voteVisualMap.down.angleDeg, bubbleOrbitRadiusPx.value),
-    ...voteVisualMap.down,
-  },
-])
+const bubbleConfigs: MonitorBoardBubbleConfig[] = monitorVoteKeys.map((key) => {
+  const meta = monitorVoteMetaMap[key]
+  return {
+    key,
+    assetSrc: meta.assetSrc,
+    ...buildBubbleOrbit(meta.angleDeg, MONITOR_BUBBLE_RADIUS_PX),
+  }
+})
 
-const guideBubbleConfig = computed<MonitorBoardGuideBubbleConfig>(() => (
-  buildBubbleOrbit(MONITOR_GUIDE_BUBBLE_ANGLE_DEG, guideBubbleOrbitRadiusPx.value)
-))
+const guideBubbleConfig = buildBubbleOrbit(MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG, MONITOR_BUBBLE_RADIUS_PX)
+
+function buildVoteSegments(votes: MonitorBoardVotes): MonitorBoardSegment[] {
+  const totalVotes = votes.up + votes.neutral + votes.down
+  return monitorVoteKeys.map((key) => {
+    const meta = monitorVoteMetaMap[key]
+    return {
+      key,
+      value: votes[key],
+      color: meta.color,
+      glow: meta.glow,
+      percent: totalVotes === 0 ? 0 : (votes[key] / totalVotes) * 100,
+    }
+  })
+}
 
 let toastTimer: number | null = null
 
@@ -308,34 +362,33 @@ function writeLocalStageMap(storageKey: string, stageMap: MonitorBoardLocalStage
   window.localStorage.setItem(storageKey, JSON.stringify(stageMap))
 }
 
-function readOrbitRadiusPx(sizeVariableName: '--monitor-action-width' | '--monitor-guide-width', fallbackRadiusPx: number): number {
-  if (!boardRoot.value || typeof window === 'undefined') {
-    return fallbackRadiusPx
+function readVoteDisabledDetail(storageKey: string): string | null {
+  if (typeof window === 'undefined') {
+    return null
   }
 
-  const sampleCard = boardRoot.value.querySelector<HTMLElement>('.status-card')
-  if (!sampleCard) {
-    return fallbackRadiusPx
-  }
-
-  const cardStyles = window.getComputedStyle(sampleCard)
-  const avatarWidth = Number.parseFloat(cardStyles.getPropertyValue('--monitor-avatar-width'))
-  const orbitWidth = Number.parseFloat(cardStyles.getPropertyValue(sizeVariableName))
-  const bubbleGap = Number.parseFloat(cardStyles.getPropertyValue('--monitor-bubble-gap'))
-  if (![avatarWidth, orbitWidth, bubbleGap].every(Number.isFinite)) {
-    return fallbackRadiusPx
-  }
-
-  return Number((((avatarWidth + orbitWidth) / 2) + bubbleGap).toFixed(2))
+  const detail = window.localStorage.getItem(storageKey)
+  return typeof detail === 'string' && detail.trim() !== '' ? detail : null
 }
 
-function syncBubbleOrbitMetrics(): void {
-  bubbleOrbitRadiusPx.value = readOrbitRadiusPx('--monitor-action-width', DEFAULT_MONITOR_BUBBLE_RADIUS_PX)
-  guideBubbleOrbitRadiusPx.value = readOrbitRadiusPx('--monitor-guide-width', DEFAULT_MONITOR_GUIDE_BUBBLE_RADIUS_PX)
+function writeVoteDisabledDetail(storageKey: string, detail: string): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(storageKey, detail)
 }
 
 function syncLocalStageMap(): void {
   localStageMap.value = readLocalStageMap(localStageStorageKey.value)
+}
+
+function syncVoteDisabledDetail(): void {
+  voteDisabledDetail.value = readVoteDisabledDetail(MONITOR_VOTE_DISABLED_STORAGE_KEY)
+}
+
+function buildSubmitFailedToast(detail: string): string {
+  return `${text.value.submitFailed}: ${detail}`
 }
 
 function setPendingStage(cardId: string, entry: MonitorBoardLocalStageEntry | null): void {
@@ -381,7 +434,7 @@ async function hydrateRemoteRuntimeData(): Promise<void> {
 }
 
 function isCardCompleted(cardId: string): boolean {
-  return effectiveStageMap.value[cardId] != null
+  return displayStageMap.value[cardId] != null
 }
 
 function isCardLocked(cardId: string): boolean {
@@ -478,6 +531,12 @@ function handleCardKeydown(cardId: string, event: KeyboardEvent): void {
 }
 
 function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
+  if (voteDisabledToastLabel.value) {
+    clearActiveCard()
+    showToast(voteDisabledToastLabel.value)
+    return
+  }
+
   const stageEntry: MonitorBoardLocalStageEntry = {
     action,
     completedAt: new Date().toISOString(),
@@ -492,13 +551,38 @@ function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
     delta: 1,
   }, effectiveApiBaseUrl.value)
     .then(() => {
+      if (!providedRuntimeData.value) {
+        const currentRuntimeData = remoteRuntimeData.value
+          ?? createEmptyMonitorBoardRuntimeData(resetDate.value, resetStartedAt.value)
+        const currentLiveStatus = currentRuntimeData.statusMap[cardId] ?? emptyMonitorBoardLiveStatus
+
+        remoteRuntimeData.value = {
+          resetDate: currentRuntimeData.resetDate,
+          resetStartedAt: currentRuntimeData.resetStartedAt,
+          statusMap: {
+            ...currentRuntimeData.statusMap,
+            [cardId]: {
+              uptimes: currentLiveStatus.uptimes.map((sample) => ({ ...sample })),
+              votes: {
+                ...currentLiveStatus.votes,
+                [action]: currentLiveStatus.votes[action] + 1,
+              },
+            },
+          },
+        }
+      }
+
       commitLocalStage(cardId, stageEntry)
       showToast(text.value.submitSuccess)
     })
     .catch((error: unknown) => {
       const detail = error instanceof Error ? error.message : text.value.retryHint
+      if (error instanceof MonitorBoardApiError && error.status === 406) {
+        voteDisabledDetail.value = detail
+        writeVoteDisabledDetail(MONITOR_VOTE_DISABLED_STORAGE_KEY, detail)
+      }
       console.error('Failed to submit monitor board vote.', error)
-      showToast(`${text.value.submitFailed}: ${detail}`)
+      showToast(buildSubmitFailedToast(detail))
     })
     .finally(() => {
       setPendingStage(cardId, null)
@@ -531,10 +615,9 @@ function handleDocumentKeydown(event: KeyboardEvent): void {
 
 onMounted(() => {
   syncLocalStageMap()
-  syncBubbleOrbitMetrics()
+  syncVoteDisabledDetail()
   document.addEventListener('pointerdown', handleDocumentPointerDown)
   document.addEventListener('keydown', handleDocumentKeydown)
-  window.addEventListener('resize', syncBubbleOrbitMetrics)
   void hydrateRemoteRuntimeData()
 })
 
@@ -542,7 +625,6 @@ onBeforeUnmount(() => {
   clearToast()
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   document.removeEventListener('keydown', handleDocumentKeydown)
-  window.removeEventListener('resize', syncBubbleOrbitMetrics)
 })
 
 watch(localStageStorageKey, () => {
@@ -552,35 +634,29 @@ watch(localStageStorageKey, () => {
 
 const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
   const liveStatus: MonitorBoardLiveStatus = runtimeData.value.statusMap[site.id] ?? emptyMonitorBoardLiveStatus
-  const localStage = effectiveStageMap.value[site.id]
+  const displayStage = displayStageMap.value[site.id]
+  const pendingStage = pendingStageMap.value[site.id]
   const effectiveVotes: MonitorBoardVotes = {
     up: liveStatus.votes.up,
     neutral: liveStatus.votes.neutral,
     down: liveStatus.votes.down,
   }
 
-  if (localStage) {
-    effectiveVotes[localStage.action] += 1
+  // Persisted local stage only locks the card. Only in-flight submissions
+  // participate in optimistic vote overlay.
+  if (pendingStage) {
+    effectiveVotes[pendingStage.action] += 1
   }
 
-  const totalVotes = effectiveVotes.up + effectiveVotes.neutral + effectiveVotes.down
-  const chart = buildChart(liveStatus.uptime)
+  const chartLines = buildChartLines(liveStatus.uptimes)
+  const segments = buildVoteSegments(effectiveVotes)
 
   return {
     ...site,
-    chart,
-    isCompleted: localStage != null,
-    completedAction: localStage?.action ?? null,
-    completedBorderColor: localStage ? voteVisualMap[localStage.action].color : 'transparent',
-    totalVotes,
-    segments: (Object.keys(voteVisualMap) as MonitorBoardVoteKey[]).map((key) => ({
-      key,
-      label: text.value.segments[key],
-      value: effectiveVotes[key],
-      color: voteVisualMap[key].color,
-      glow: voteVisualMap[key].glow,
-      percent: totalVotes === 0 ? 0 : (effectiveVotes[key] / totalVotes) * 100,
-    })),
+    chartLines,
+    isCompleted: displayStage != null,
+    completedBorderColor: displayStage ? monitorVoteMetaMap[displayStage.action].color : 'transparent',
+    segments,
   }
 }))
 
@@ -591,14 +667,11 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
     <div class="board-shell">
       <header class="board-header">
         <div class="board-copy">
-          <h1>
-            站点可用<del>监控</del>投票
-          </h1>
+          <h1>{{ text.title }}</h1>
         </div>
 
         <div class="board-summary">
           <div class="summary-chip">
-            <span>{{ text.resetDate }}</span>
             <strong>{{ resetDate }}</strong>
           </div>
           <div
@@ -635,7 +708,6 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
           :style="[
             monitorPreviewMotionStyle,
             {
-              '--monitor-accent': card.accent,
               '--monitor-completed-border': card.completedBorderColor,
               '--monitor-delay': `${index * 120}ms`,
             },
@@ -661,8 +733,7 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
                 '--guide-offset-y': `${guideBubbleConfig.offsetY}px`,
               }"
             >
-              <img class="bubble-guide-art" :src="bubblePlaceholderSrc" alt="">
-              <span class="bubble-guide-label">{{ guideHint }}</span>
+              <img class="bubble-art" :src="guideBubbleSrc" alt="">
             </div>
 
             <div class="bubble-action-stack">
@@ -672,17 +743,14 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
                 type="button"
                 class="bubble-action"
                 :style="{
-                  '--bubble-color': bubble.color,
-                  '--bubble-glow': bubble.glow,
                   '--bubble-delay': `${bubbleIndex * 60}ms`,
                   '--bubble-offset-x': `${bubble.offsetX}px`,
                   '--bubble-offset-y': `${bubble.offsetY}px`,
                 }"
-                :aria-label="`${card.name} ${bubble.label}`"
+                :aria-label="`${card.name} ${bubble.key}`"
                 @click.stop="handleBubbleVote(card.id, bubble.key)"
               >
-                <img class="bubble-action-art" :src="bubblePlaceholderSrc" alt="">
-                <span class="bubble-action-label">{{ bubble.label }}</span>
+                <img class="bubble-art" :src="bubble.assetSrc" alt="">
               </button>
             </div>
           </div>
@@ -699,16 +767,22 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
               <img class="site-icon" :src="card.avatarSrc" :alt="card.name">
             </a>
 
-            <svg class="sparkline" viewBox="0 0 112 40" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient :id="`fill-${card.id}`" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" :stop-color="card.accent" stop-opacity="0.42" />
-                  <stop offset="100%" :stop-color="card.accent" stop-opacity="0" />
-                </linearGradient>
-              </defs>
-              <path class="sparkline-area" :d="card.chart.areaPath" :fill="`url(#fill-${card.id})`" />
-              <path class="sparkline-line" :d="card.chart.linePath" />
-            </svg>
+            <div class="sparkline-group" aria-hidden="true">
+              <svg
+                v-for="series in card.chartLines"
+                :key="`${card.id}-${series.key}`"
+                class="sparkline"
+                viewBox="0 0 112 40"
+                preserveAspectRatio="none"
+                :style="{ zIndex: String(series.zIndex) }"
+              >
+                <path
+                  class="sparkline-line"
+                  :d="series.linePath"
+                  :style="{ stroke: series.color }"
+                />
+              </svg>
+            </div>
 
             <div class="card-bottom">
               <div class="metric-row">
@@ -717,7 +791,6 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
                     v-for="segment in card.segments"
                     :key="segment.key"
                     class="segment-pill"
-                    :title="segment.label"
                   >
                     <span
                       class="segment-dot"
@@ -728,11 +801,6 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
                     />
                     {{ segment.value }}
                   </span>
-                </div>
-
-                <div class="total-votes">
-                  {{ text.totalVotes }}
-                  <strong>{{ card.totalVotes }}</strong>
                 </div>
               </div>
 
@@ -762,780 +830,108 @@ const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
 </template>
 
 <style scoped>
-.monitor-board {
-  --monitor-panel: rgba(12, 12, 14, 0.96);
-  --monitor-border: rgba(255, 255, 255, 0.08);
-  --monitor-border-strong: rgba(255, 255, 255, 0.14);
-  --monitor-copy: rgba(245, 245, 246, 0.96);
-  --monitor-muted: rgba(163, 163, 168, 0.78);
-  color: var(--monitor-copy);
+.monitor-board{--monitor-panel:rgba(12,12,14,0.96);--monitor-border:rgba(255,255,255,0.08);--monitor-border-strong:rgba(255,255,255,0.14);--monitor-copy:rgba(245,245,246,0.96);--monitor-muted:rgba(163,163,168,0.78);color:var(--monitor-copy)}
+.board-shell{position:relative;overflow:visible;border:1px solid var(--monitor-border);border-radius:32px;padding:28px;background:radial-gradient(circle at top right,rgba(255,255,255,0.08),transparent 26%),radial-gradient(circle at left center,rgba(88,28,135,0.24),transparent 32%),linear-gradient(180deg,rgba(10,10,11,0.98),rgba(5,5,5,0.98));box-shadow:0 24px 100px rgba(0,0,0,0.48),inset 0 1px 0 rgba(255,255,255,0.04)}
+.board-shell::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(180deg,rgba(0,0,0,0.55),transparent 88%);pointer-events:none}
+.board-header,.card-grid{position:relative;z-index:1}
+.board-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:24px;margin-bottom:28px}
+.board-copy{max-width:680px}
+.board-copy h1{margin:0;border:0;padding:0;color:#fafafa;font-size:clamp(2rem,4vw,2.75rem);line-height:1.08;letter-spacing:-0.04em}
+.board-summary{display:flex;flex-wrap:wrap;gap:12px;align-self:flex-start}
+.summary-chip{min-width:124px;display:grid;gap:6px;padding:14px 16px;border:1px solid rgba(255,255,255,0.09);border-radius:18px;background:rgba(255,255,255,0.04);backdrop-filter:blur(14px)}
+.summary-chip strong{font-size:1rem;font-weight:600}
+.summary-chip.is-error{border-color:rgba(248,113,113,0.34);background:rgba(127,29,29,0.24)}
+.summary-chip.is-pending{border-color:rgba(96,165,250,0.28);background:rgba(30,41,59,0.72)}
+.board-alert{position:relative;z-index:1;margin:-6px 0 20px;padding:12px 14px;border:1px solid rgba(248,113,113,0.24);border-radius:16px;background:rgba(127,29,29,0.18);color:rgba(254,226,226,0.94);font-size:0.84rem;line-height:1.4}
+.card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.status-card{--monitor-avatar-left:50%;--monitor-avatar-bottom:calc(100% - 5px);--monitor-avatar-width:180px;--monitor-card-border-color:var(--monitor-border);--monitor-card-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 12px 40px rgba(0,0,0,0.3);--monitor-guide-width:92px;--monitor-guide-height:54px;--monitor-action-width:88px;--monitor-action-height:52px;--monitor-pop-start-scale:0.88;--monitor-pop-peak-scale:1.03;--monitor-pop-rebound-scale:0.99;--monitor-pop-settle-scale:1.01;position:relative;overflow:visible;border:1px solid transparent;border-radius:26px;padding:20px 22px;background:transparent;box-shadow:none;animation:card-in 560ms cubic-bezier(0.22,1,0.36,1) both;animation-delay:var(--monitor-delay);isolation:isolate;transition:transform 220ms ease,opacity 220ms ease,filter 220ms ease}
+.status-card::before{content:'';position:absolute;inset:0;z-index:var(--monitor-card-layer);border:1px solid var(--monitor-card-border-color);border-radius:inherit;background:var(--monitor-panel);box-shadow:var(--monitor-card-shadow);pointer-events:none;transition:border-color 220ms ease,box-shadow 220ms ease}
+.status-card.is-clickable{cursor:pointer}
+.status-card.is-completed{--monitor-card-border-color:var(--monitor-completed-border);cursor:not-allowed}
+.status-card.is-completed:hover{--monitor-card-border-color:var(--monitor-completed-border);transform:none}
+.status-card.is-clickable:focus-visible{outline:none;--monitor-card-border-color:rgba(255,255,255,0.22);--monitor-card-shadow:0 0 0 1px rgba(255,255,255,0.08),0 0 0 4px rgba(255,255,255,0.08),inset 0 1px 0 rgba(255,255,255,0.05),0 12px 40px rgba(0,0,0,0.3)}
+.status-card:hover{--monitor-card-border-color:var(--monitor-border-strong);transform:translateY(-2px)}
+.status-card:is(:hover,:focus-within),.status-card.is-locked{z-index:400}
+.status-card.is-locked{transform:translateY(-4px);--monitor-card-border-color:rgba(255,255,255,0.22);--monitor-card-shadow:0 24px 72px rgba(0,0,0,0.46),0 0 0 1px rgba(255,255,255,0.08),inset 0 1px 0 rgba(255,255,255,0.06)}
+.card-grid.has-active-card .status-card.is-dimmed{opacity:0.28;filter:blur(7px) saturate(0.4);transform:scale(0.97);pointer-events:none;user-select:none}
+.status-card:not(.is-completed):not(.is-dimmed):is(:hover,:focus-within) .card-monitor-shell,.status-card.is-locked .card-monitor-shell{opacity:1;animation:card-monitor-pop 1200ms cubic-bezier(0.16,1,0.3,1) both,card-monitor-layer-pop 760ms linear both}
+.status-card.is-completed .card-monitor{filter:grayscale(0.14) saturate(0.82) drop-shadow(0 10px 22px rgba(0,0,0,0.28))}
+.status-card.is-completed:not(.is-dimmed):is(:hover,:focus-within) .card-monitor-shell{opacity:0.72;transform:translateX(-50%) translateY(2px) scale(0.94)}
+.status-card.is-locked:not(.is-completed) .bubble-action{opacity:1;--bubble-reveal-offset-y:0px;--bubble-scale:1;pointer-events:auto}
+.status-card.is-locked:not(.is-completed) .bubble-action-stack{pointer-events:auto}
+.status-card:not(.is-dimmed):is(:hover,:focus-within):not(.is-locked):not(.is-completed) .bubble-guide{animation:bubble-guide-in 240ms ease 720ms both}
+.card-monitor-shell,.card-monitor-overlay{position:absolute;left:var(--monitor-avatar-left);bottom:var(--monitor-avatar-bottom);width:var(--monitor-avatar-width);aspect-ratio:516 / 312;overflow:visible;pointer-events:none}
+.card-monitor-shell{z-index:var(--monitor-preview-layer-under);opacity:0;transform:translateX(-50%) translateY(var(--monitor-pop-start-y)) scale(var(--monitor-pop-start-scale));transform-origin:bottom center;transition:opacity 180ms ease,transform 260ms ease}
+.card-monitor-overlay{z-index:var(--monitor-preview-layer-over);transform:translateX(-50%)}
+.card-monitor{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none;user-select:none;object-fit:contain;filter:drop-shadow(0 14px 28px rgba(0,0,0,0.34))}
+.bubble-guide{position:absolute;left:50%;top:50%;z-index:1;display:grid;place-items:center;width:var(--monitor-guide-width);height:var(--monitor-guide-height);opacity:0;transform:translate( calc(-50% + var(--guide-offset-x)),calc(-50% + var(--guide-offset-y) + 14px) ) scale(0.92);pointer-events:none}
+.bubble-art{display:block;width:100%;height:100%}
+.bubble-guide .bubble-art{filter:drop-shadow(0 16px 22px rgba(0,0,0,0.28))}
+.bubble-action-stack{position:absolute;inset:0;z-index:2;pointer-events:none}
+.bubble-action{--bubble-reveal-offset-y:12px;--bubble-interaction-y:0px;--bubble-scale:0.88;position:absolute;left:50%;top:50%;width:var(--monitor-action-width);height:var(--monitor-action-height);border:0;padding:0;background:transparent;opacity:0;transform:translate( calc(-50% + var(--bubble-offset-x)),calc(-50% + var(--bubble-offset-y) + var(--bubble-reveal-offset-y) + var(--bubble-interaction-y)) ) scale(var(--bubble-scale));cursor:pointer;pointer-events:none;transition:transform 220ms ease,opacity 220ms ease;transition-delay:var(--bubble-delay)}
+.bubble-action .bubble-art{filter:drop-shadow(0 14px 24px rgba(0,0,0,0.32))}
+.bubble-action:focus-visible{--bubble-interaction-y:6px;--bubble-scale:1.04}
+.bubble-action:focus-visible{outline:none}
+.bubble-action:active{--bubble-interaction-y:8px;--bubble-scale:0.98}
+.card-layout{position:relative;z-index:var(--monitor-card-layer);display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:52px minmax(56px,auto);align-items:center;column-gap:20px;row-gap:12px}
+.site-link{display:flex;grid-row:1 / span 2;width:104px;height:104px;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;transition:transform 180ms ease,opacity 180ms ease}
+.site-link:hover{transform:translateY(-1px);opacity:0.92}
+.site-icon{display:block;width:100%;height:100%;object-fit:contain}
+.sparkline-group{position:relative;display:block;width:100%;height:60px;min-width:0;isolation:isolate}
+.sparkline{position:absolute;inset:0;display:block;width:100%;height:100%;min-width:0;pointer-events:none;overflow:visible}
+.sparkline-line{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.card-bottom{display:flex;min-width:0;flex-direction:column;gap:12px}
+.metric-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
+.segment-list{display:flex;flex-wrap:wrap;gap:8px 12px;color:rgba(255,255,255,0.7);font-size:0.78rem;line-height:1}
+.segment-pill{display:inline-flex;align-items:center;gap:6px}
+.segment-dot{width:7px;height:7px;border-radius:999px}
+.stacked-bar{display:flex;height:14px;overflow:hidden;border-radius:22px;background:rgba(255,255,255,0.05);box-shadow:inset 0 1px 2px rgba(0,0,0,0.45)}
+.stack-segment{position:relative;min-width:0}
+.stack-segment::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0.22),transparent)}
+.board-toast-stack{position:fixed;right:20px;bottom:20px;z-index:30;display:flex;justify-content:flex-end;pointer-events:none}
+.board-toast{display:inline-flex;align-items:center;justify-content:center;min-width:88px;padding:0.72rem 0.96rem;border:1px solid rgba(255,255,255,0.1);border-radius:999px;background:rgba(9,9,11,0.88);color:rgba(250,250,250,0.96);font-size:0.82rem;font-weight:600;letter-spacing:0.01em;box-shadow:0 18px 42px rgba(0,0,0,0.34);backdrop-filter:blur(16px);animation:toast-in 180ms ease both}
+@keyframes card-in{from{opacity:0;transform:translateY(20px)}
+to{opacity:1;transform:translateY(0)}
+}
+@keyframes card-monitor-pop{0%{opacity:0;transform:translateX(-50%) translateY(var(--monitor-pop-start-y)) scale(var(--monitor-pop-start-scale))}
+38%{opacity:1;transform:translateX(-50%) translateY(var(--monitor-pop-apex-y)) scale(var(--monitor-pop-peak-scale))}
+56%{transform:translateX(-50%) translateY(var(--monitor-pop-rebound-y)) scale(var(--monitor-pop-rebound-scale))}
+72%{transform:translateX(-50%) translateY(var(--monitor-pop-settle-y)) scale(var(--monitor-pop-settle-scale))}
+100%{opacity:1;transform:translateX(-50%) translateY(var(--monitor-pop-end-y)) scale(1)}
+}
+@keyframes card-monitor-layer-pop{0%,37.99%{z-index:var(--monitor-preview-layer-under)}
+38%,100%{z-index:var(--monitor-preview-layer-over)}
+}
+@keyframes bubble-guide-in{from{opacity:0;transform:translate( calc(-50% + var(--guide-offset-x)),calc(-50% + var(--guide-offset-y) + 14px) ) scale(0.92)}
+to{opacity:1;transform:translate( calc(-50% + var(--guide-offset-x)),calc(-50% + var(--guide-offset-y)) ) scale(1)}
+}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px) scale(0.96)}
+to{opacity:1;transform:translateY(0) scale(1)}
+}
+@media (max-width:980px){.card-grid{grid-template-columns:1fr}
+}
+@media (max-width:768px){.board-shell{padding:22px;border-radius:24px}
+.status-card{--monitor-avatar-width:96px;--monitor-guide-width:84px;--monitor-guide-height:48px;--monitor-action-width:78px;--monitor-action-height:46px}
+.card-layout{grid-template-columns:88px minmax(0,1fr);grid-template-rows:48px minmax(54px,auto);column-gap:16px}
+.site-link{width:88px;height:88px}
+.sparkline-group{height:48px}
+}
+@media (max-width:540px){.board-shell{padding:18px}
+.status-card{--monitor-avatar-width:84px;--monitor-guide-width:74px;--monitor-guide-height:42px;--monitor-action-width:68px;--monitor-action-height:40px;padding:18px}
+.card-layout{grid-template-columns:72px minmax(0,1fr);grid-template-rows:42px minmax(52px,auto);column-gap:14px;row-gap:10px}
+.site-link{width:72px;height:72px}
+.sparkline-group{height:42px}
+.metric-row{align-items:flex-start;flex-direction:column}
+.board-toast-stack{right:14px;bottom:14px}
+}
+@media (prefers-reduced-motion:reduce){.status-card{animation:none}
+.status-card:hover{transform:none}
+.card-monitor-shell{transition:opacity 120ms ease}
+.status-card:not(.is-completed):not(.is-dimmed):is(:hover,:focus-within) .card-monitor-shell,.status-card.is-locked .card-monitor-shell{animation:none;z-index:var(--monitor-preview-layer-over);opacity:1;transform:translateX(-50%) translateY(var(--monitor-pop-end-y)) scale(1)}
+.status-card.is-completed:not(.is-dimmed):is(:hover,:focus-within) .card-monitor-shell{animation:none;z-index:var(--monitor-preview-layer-over);opacity:0.72;transform:translateX(-50%) translateY(2px) scale(0.94)}
+.status-card:not(.is-dimmed):is(:hover,:focus-within):not(.is-locked):not(.is-completed) .bubble-guide{animation:none;opacity:1;transform:translate( calc(-50% + var(--guide-offset-x)),calc(-50% + var(--guide-offset-y)) ) scale(1)}
+.status-card.is-locked:not(.is-completed) .bubble-action{animation:none;opacity:1;--bubble-reveal-offset-y:0px;--bubble-scale:1}
+.board-toast{animation:none}
 }
 
-.board-shell {
-  position: relative;
-  overflow: visible;
-  border: 1px solid var(--monitor-border);
-  border-radius: 32px;
-  padding: 28px;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 26%),
-    radial-gradient(circle at left center, rgba(88, 28, 135, 0.24), transparent 32%),
-    linear-gradient(180deg, rgba(10, 10, 11, 0.98), rgba(5, 5, 5, 0.98));
-  box-shadow:
-    0 24px 100px rgba(0, 0, 0, 0.48),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.board-shell::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 88%);
-  pointer-events: none;
-}
-
-.board-header,
-.card-grid {
-  position: relative;
-  z-index: 1;
-}
-
-.board-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 28px;
-}
-
-.board-copy {
-  max-width: 680px;
-}
-
-.board-copy h1 {
-  margin: 0;
-  border: 0;
-  padding: 0;
-  color: #fafafa;
-  font-size: clamp(2rem, 4vw, 2.75rem);
-  line-height: 1.08;
-  letter-spacing: -0.04em;
-}
-
-.board-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-self: flex-start;
-}
-
-.summary-chip {
-  min-width: 124px;
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(14px);
-}
-
-.summary-chip span {
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 0.72rem;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.summary-chip strong {
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.summary-chip.is-error {
-  border-color: rgba(248, 113, 113, 0.34);
-  background: rgba(127, 29, 29, 0.24);
-}
-
-.summary-chip.is-pending {
-  border-color: rgba(96, 165, 250, 0.28);
-  background: rgba(30, 41, 59, 0.72);
-}
-
-.board-alert {
-  position: relative;
-  z-index: 1;
-  margin: -6px 0 20px;
-  padding: 12px 14px;
-  border: 1px solid rgba(248, 113, 113, 0.24);
-  border-radius: 16px;
-  background: rgba(127, 29, 29, 0.18);
-  color: rgba(254, 226, 226, 0.94);
-  font-size: 0.84rem;
-  line-height: 1.4;
-}
-
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.status-card {
-  --monitor-avatar-left: 50%;
-  --monitor-avatar-bottom: calc(100% - 5px);
-  --monitor-avatar-width: 180px;
-  --monitor-shell-height: calc(var(--monitor-avatar-width) * 0.605);
-  --monitor-card-border-color: var(--monitor-border);
-  --monitor-card-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 12px 40px rgba(0, 0, 0, 0.3);
-  --monitor-bubble-gap: 12px;
-  --monitor-guide-width: 92px;
-  --monitor-guide-height: 54px;
-  --monitor-action-width: 88px;
-  --monitor-action-height: 52px;
-  --monitor-action-radius: calc((var(--monitor-avatar-width) + var(--monitor-action-width)) / 2 + var(--monitor-bubble-gap));
-  --monitor-action-center-x: 50%;
-  --monitor-action-center-y: 50%;
-  --monitor-pop-start-scale: 0.88;
-  --monitor-pop-peak-scale: 1.03;
-  --monitor-pop-rebound-scale: 0.99;
-  --monitor-pop-settle-scale: 1.01;
-  position: relative;
-  overflow: visible;
-  border: 1px solid transparent;
-  border-radius: 26px;
-  padding: 20px 22px;
-  background: transparent;
-  box-shadow: none;
-  animation: card-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--monitor-delay);
-  isolation: isolate;
-  transition:
-    transform 220ms ease,
-    opacity 220ms ease,
-    filter 220ms ease;
-}
-
-.status-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: var(--monitor-card-layer);
-  border: 1px solid var(--monitor-card-border-color);
-  border-radius: inherit;
-  background: var(--monitor-panel);
-  box-shadow: var(--monitor-card-shadow);
-  pointer-events: none;
-  transition:
-    border-color 220ms ease,
-    box-shadow 220ms ease;
-}
-
-.status-card.is-clickable {
-  cursor: pointer;
-}
-
-.status-card.is-completed {
-  --monitor-card-border-color: var(--monitor-completed-border);
-  cursor: not-allowed;
-}
-
-.status-card.is-completed:hover {
-  --monitor-card-border-color: var(--monitor-completed-border);
-  transform: none;
-}
-
-.status-card.is-clickable:focus-visible {
-  outline: none;
-  --monitor-card-border-color: rgba(255, 255, 255, 0.22);
-  --monitor-card-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 0 4px rgba(255, 255, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 12px 40px rgba(0, 0, 0, 0.3);
-}
-
-.status-card:hover {
-  --monitor-card-border-color: var(--monitor-border-strong);
-  transform: translateY(-2px);
-}
-
-.status-card:is(:hover, :focus-within),
-.status-card.is-locked {
-  z-index: 3;
-}
-
-.status-card.is-locked {
-  transform: translateY(-4px);
-  --monitor-card-border-color: rgba(255, 255, 255, 0.22);
-  --monitor-card-shadow:
-    0 24px 72px rgba(0, 0, 0, 0.46),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.card-grid.has-active-card .status-card.is-dimmed {
-  opacity: 0.28;
-  filter: blur(7px) saturate(0.4);
-  transform: scale(0.97);
-  pointer-events: none;
-  user-select: none;
-}
-
-.card-monitor-shell,
-.card-monitor-overlay {
-  position: absolute;
-  left: var(--monitor-avatar-left);
-  bottom: var(--monitor-avatar-bottom);
-  width: var(--monitor-avatar-width);
-  aspect-ratio: 516 / 312;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.card-monitor-shell {
-  z-index: var(--monitor-preview-layer-under);
-  opacity: 0;
-  transform: translateX(-50%) translateY(var(--monitor-pop-start-y)) scale(var(--monitor-pop-start-scale));
-  transform-origin: bottom center;
-  transition:
-    opacity 180ms ease,
-    transform 260ms ease;
-}
-
-.card-monitor-overlay {
-  z-index: var(--monitor-preview-layer-over);
-  transform: translateX(-50%);
-}
-
-.card-monitor {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  user-select: none;
-  object-fit: contain;
-  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.34));
-}
-
-.status-card:not(.is-completed):not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell,
-.status-card.is-locked .card-monitor-shell {
-  opacity: 1;
-  animation:
-    card-monitor-pop 760ms cubic-bezier(0.16, 1, 0.3, 1) both,
-    card-monitor-layer-pop 760ms linear both;
-}
-
-.status-card.is-completed .card-monitor {
-  filter: grayscale(0.14) saturate(0.82) drop-shadow(0 10px 22px rgba(0, 0, 0, 0.28));
-}
-
-.status-card.is-completed:not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell {
-  z-index: var(--monitor-preview-layer-over);
-  opacity: 0.72;
-  transform: translateX(-50%) translateY(2px) scale(0.94);
-}
-
-.bubble-guide {
-  position: absolute;
-  left: var(--monitor-action-center-x);
-  top: var(--monitor-action-center-y);
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: var(--monitor-guide-width);
-  height: var(--monitor-guide-height);
-  opacity: 0;
-  transform: translate(
-    calc(-50% + var(--guide-offset-x)),
-    calc(-50% + var(--guide-offset-y) + 14px)
-  ) scale(0.92);
-  pointer-events: none;
-}
-
-.bubble-guide-art,
-.bubble-action-art {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.bubble-guide-art {
-  filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.28));
-}
-
-.bubble-guide-label,
-.bubble-action-label {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 0.25rem 0.7rem 0.7rem;
-  text-align: center;
-  letter-spacing: 0.01em;
-}
-
-.bubble-guide-label {
-  color: rgba(9, 9, 11, 0.92);
-  font-size: 0.68rem;
-  font-weight: 700;
-}
-
-.status-card:not(.is-dimmed):is(:hover, :focus-within):not(.is-locked):not(.is-completed) .bubble-guide {
-  animation:
-    bubble-guide-in 240ms ease 760ms both,
-    bubble-guide-float 1800ms ease-in-out 1040ms infinite;
-}
-
-.bubble-action-stack {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.bubble-action {
-  --bubble-reveal-offset-y: 12px;
-  --bubble-interaction-y: 0px;
-  --bubble-scale: 0.88;
-  position: absolute;
-  left: var(--monitor-action-center-x);
-  top: var(--monitor-action-center-y);
-  width: var(--monitor-action-width);
-  height: var(--monitor-action-height);
-  border: 0;
-  padding: 0;
-  background: transparent;
-  opacity: 0;
-  transform: translate(
-    calc(-50% + var(--bubble-offset-x)),
-    calc(-50% + var(--bubble-offset-y) + var(--bubble-reveal-offset-y) + var(--bubble-interaction-y))
-  ) scale(var(--bubble-scale));
-  cursor: pointer;
-  pointer-events: none;
-  transition:
-    transform 220ms ease,
-    opacity 220ms ease;
-  transition-delay: var(--bubble-delay);
-}
-
-.bubble-action-art {
-  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.32));
-}
-
-.bubble-action-label {
-  color: rgba(10, 10, 11, 0.94);
-  font-size: 0.68rem;
-  font-weight: 800;
-}
-
-.bubble-action:hover,
-.bubble-action:focus-visible {
-  --bubble-interaction-y: 6px;
-  --bubble-scale: 1.04;
-}
-
-.bubble-action:focus-visible {
-  outline: none;
-}
-
-.bubble-action:active {
-  --bubble-interaction-y: 8px;
-  --bubble-scale: 0.98;
-}
-
-.status-card.is-locked:not(.is-completed) .bubble-action {
-  opacity: 1;
-  --bubble-reveal-offset-y: 0px;
-  --bubble-scale: 1;
-  pointer-events: auto;
-}
-
-.status-card.is-locked:not(.is-completed) .bubble-action-stack {
-  pointer-events: auto;
-}
-
-.card-layout {
-  position: relative;
-  z-index: var(--monitor-card-layer);
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-  grid-template-rows: 52px minmax(56px, auto);
-  align-items: center;
-  column-gap: 20px;
-  row-gap: 12px;
-}
-
-.site-link {
-  display: flex;
-  grid-row: 1 / span 2;
-  width: 104px;
-  height: 104px;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  text-decoration: none;
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-
-.site-link:hover {
-  transform: translateY(-1px);
-  opacity: 0.92;
-}
-
-.site-icon {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.sparkline {
-  display: block;
-  width: 100%;
-  height: 52px;
-  min-width: 0;
-}
-
-.sparkline-area {
-  opacity: 0.96;
-}
-
-.sparkline-line {
-  fill: none;
-  stroke: var(--monitor-accent);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.card-bottom {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.metric-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-end;
-}
-
-.segment-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
-.segment-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.segment-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-}
-
-.total-votes {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.76rem;
-  line-height: 1;
-}
-
-.total-votes strong {
-  margin-left: 6px;
-  color: rgba(255, 255, 255, 0.94);
-  font-size: 0.88rem;
-}
-
-.stacked-bar {
-  display: flex;
-  height: 14px;
-  overflow: hidden;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
-}
-
-.stack-segment {
-  position: relative;
-  min-width: 0;
-}
-
-.stack-segment::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent);
-}
-
-.board-toast-stack {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 30;
-  display: flex;
-  justify-content: flex-end;
-  pointer-events: none;
-}
-
-.board-toast {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 88px;
-  padding: 0.72rem 0.96rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  background: rgba(9, 9, 11, 0.88);
-  color: rgba(250, 250, 250, 0.96);
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(16px);
-  animation: toast-in 180ms ease both;
-}
-
-@keyframes card-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes card-monitor-pop {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(var(--monitor-pop-start-y)) scale(var(--monitor-pop-start-scale));
-  }
-
-  38% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(var(--monitor-pop-apex-y)) scale(var(--monitor-pop-peak-scale));
-  }
-
-  56% {
-    transform: translateX(-50%) translateY(var(--monitor-pop-rebound-y)) scale(var(--monitor-pop-rebound-scale));
-  }
-
-  72% {
-    transform: translateX(-50%) translateY(var(--monitor-pop-settle-y)) scale(var(--monitor-pop-settle-scale));
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(var(--monitor-pop-end-y)) scale(1);
-  }
-}
-
-@keyframes card-monitor-layer-pop {
-  0%,
-  37.99% {
-    z-index: var(--monitor-preview-layer-under);
-  }
-
-  38%,
-  100% {
-    z-index: var(--monitor-preview-layer-over);
-  }
-}
-
-@keyframes bubble-guide-in {
-  from {
-    opacity: 0;
-    transform: translate(
-      calc(-50% + var(--guide-offset-x)),
-      calc(-50% + var(--guide-offset-y) + 14px)
-    ) scale(0.92);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate(
-      calc(-50% + var(--guide-offset-x)),
-      calc(-50% + var(--guide-offset-y))
-    ) scale(1);
-  }
-}
-
-@keyframes bubble-guide-float {
-  0%,
-  100% {
-    transform: translate(
-      calc(-50% + var(--guide-offset-x)),
-      calc(-50% + var(--guide-offset-y))
-    ) scale(1);
-  }
-
-  50% {
-    transform: translate(
-      calc(-50% + var(--guide-offset-x)),
-      calc(-50% + var(--guide-offset-y) - 4px)
-    ) scale(1);
-  }
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.96);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@media (max-width: 980px) {
-  .card-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .board-shell {
-    padding: 22px;
-    border-radius: 24px;
-  }
-
-  .status-card {
-    --monitor-avatar-width: 96px;
-    --monitor-bubble-gap: 8px;
-    --monitor-guide-width: 84px;
-    --monitor-guide-height: 48px;
-    --monitor-action-width: 78px;
-    --monitor-action-height: 46px;
-  }
-
-  .card-layout {
-    grid-template-columns: 88px minmax(0, 1fr);
-    grid-template-rows: 48px minmax(54px, auto);
-    column-gap: 16px;
-  }
-
-  .site-link {
-    width: 88px;
-    height: 88px;
-  }
-
-  .sparkline {
-    height: 48px;
-  }
-}
-
-@media (max-width: 540px) {
-  .board-shell {
-    padding: 18px;
-  }
-
-  .status-card {
-    --monitor-avatar-width: 84px;
-    --monitor-bubble-gap: 6px;
-    --monitor-guide-width: 74px;
-    --monitor-guide-height: 42px;
-    --monitor-action-width: 68px;
-    --monitor-action-height: 40px;
-    padding: 18px;
-  }
-
-  .card-layout {
-    grid-template-columns: 72px minmax(0, 1fr);
-    grid-template-rows: 42px minmax(52px, auto);
-    column-gap: 14px;
-    row-gap: 10px;
-  }
-
-  .site-link {
-    width: 72px;
-    height: 72px;
-  }
-
-  .sparkline {
-    height: 42px;
-  }
-
-  .metric-row {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .board-toast-stack {
-    right: 14px;
-    bottom: 14px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .status-card {
-    animation: none;
-  }
-
-  .status-card:hover {
-    transform: none;
-  }
-
-  .card-monitor-shell {
-    transition: opacity 120ms ease;
-  }
-
-  .status-card:not(.is-completed):not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell,
-  .status-card.is-locked .card-monitor-shell {
-    animation: none;
-    z-index: var(--monitor-preview-layer-over);
-    opacity: 1;
-    transform: translateX(-50%) translateY(var(--monitor-pop-end-y)) scale(1);
-  }
-
-  .status-card.is-completed:not(.is-dimmed):is(:hover, :focus-within) .card-monitor-shell {
-    animation: none;
-    z-index: var(--monitor-preview-layer-over);
-    opacity: 0.72;
-    transform: translateX(-50%) translateY(2px) scale(0.94);
-  }
-
-  .status-card:not(.is-dimmed):is(:hover, :focus-within):not(.is-locked):not(.is-completed) .bubble-guide {
-    animation: none;
-    opacity: 1;
-    transform: translate(
-      calc(-50% + var(--guide-offset-x)),
-      calc(-50% + var(--guide-offset-y))
-    ) scale(1);
-  }
-
-  .status-card.is-locked:not(.is-completed) .bubble-action {
-    animation: none;
-    opacity: 1;
-    --bubble-reveal-offset-y: 0px;
-    --bubble-scale: 1;
-  }
-
-  .board-toast {
-    animation: none;
-  }
-}
 </style>

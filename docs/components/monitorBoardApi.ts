@@ -1,6 +1,7 @@
 import type {
   MonitorBoardLiveStatus,
   MonitorBoardRuntimeData,
+  MonitorBoardUptimes,
   MonitorBoardVoteKey,
   MonitorBoardVotes,
 } from './monitorStatusBoardSource'
@@ -56,18 +57,21 @@ function normalizeVotes(value: unknown): MonitorBoardVotes {
   return { up, neutral, down }
 }
 
+function normalizeUptimes(value: unknown): MonitorBoardUptimes {
+  if (!Array.isArray(value)) {
+    throw new TypeError('Monitor board uptimes payload must be an array of vote snapshots.')
+  }
+
+  return value.map((entry) => normalizeVotes(entry))
+}
+
 function normalizeLiveStatus(value: unknown): MonitorBoardLiveStatus {
   if (!isRecord(value)) {
     throw new TypeError('Monitor board live status payload must be an object.')
   }
 
-  const uptime = value.uptime
-  if (!Array.isArray(uptime) || !uptime.every((entry) => typeof entry === 'number' && Number.isFinite(entry))) {
-    throw new TypeError('Monitor board uptime payload must be an array of finite numbers.')
-  }
-
   return {
-    uptime: [...uptime],
+    uptimes: normalizeUptimes(value.uptimes),
     votes: normalizeVotes(value.votes),
   }
 }
@@ -78,8 +82,12 @@ export function normalizeMonitorBoardRuntimeData(value: unknown): MonitorBoardRu
   }
 
   const resetDate = value.resetDate
+  const resetStartedAt = value.resetStartedAt
   if (typeof resetDate !== 'string' || resetDate.trim() === '') {
     throw new TypeError('Monitor board runtime payload requires a non-empty resetDate string.')
+  }
+  if (typeof resetStartedAt !== 'string' || resetStartedAt.trim() === '') {
+    throw new TypeError('Monitor board runtime payload requires a non-empty resetStartedAt string.')
   }
 
   const statusMap = value.statusMap
@@ -89,6 +97,7 @@ export function normalizeMonitorBoardRuntimeData(value: unknown): MonitorBoardRu
 
   return {
     resetDate,
+    resetStartedAt,
     statusMap: Object.fromEntries(
       Object.entries(statusMap).map(([siteId, liveStatus]) => [siteId, normalizeLiveStatus(liveStatus)]),
     ),

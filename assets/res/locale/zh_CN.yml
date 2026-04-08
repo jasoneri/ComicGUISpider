@@ -134,6 +134,7 @@ GUI:
     confDia_updateDialog_dev: "检测到最新开发版"
     confDia_skipDevRelease: "跳过开发版"
     confDia_kbShowDhb: "展示拷贝单行本"
+    confDia_monitorBtn: "状态"
     confDia_supportBtn: "潘多拉之盒"
     confDia_promote_title: "宝可梦机场"
     confDia_promote_url: "https://love.p6m6.com/#/register?code=NDrxqHw9"

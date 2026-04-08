@@ -19,6 +19,7 @@ from GUI.core.browser.runtime import (
 )
 from GUI.core.browser.browser_environment import build_browser_environment
 from GUI.core.browser.page_runtime import BrowserPageRuntime
+from GUI.core.browser.profile import create_browser_window_profile
 from GUI.core.browser.types import BrowserChallengeSpec, BrowserEnvironmentConfig
 from GUI.core.browser.window_mode import BrowserWindowModeController
 from GUI.uic.browser import Ui_browser
@@ -27,13 +28,14 @@ from GUI.tools import CopyUnfinished
 from assets import res
 from utils import conf
 from utils.website import EHentaiKits
+from variables import CGS_DOC
 
 _SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
 class CustomWebEnginePage(QWebEnginePage):
     def createWindow(self, _type):
-        new_page = QWebEnginePage(self.profile(), self.parent())
+        new_page = CustomWebEnginePage(self.profile(), self.parent())
         new_page.urlChanged.connect(lambda url: self.setUrl(url) if url.isValid() else None)
         return new_page
 
@@ -108,7 +110,13 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self._first_show = True
         self.gui = gui
         self.interceptor = BrowserRequestInterceptor(self)
+        self.interceptor.configure_monitor_vote_header(
+            allowed_origins=("http://localhost:5173", CGS_DOC),
+            page_path="/deploy/monitor", header_name="X-CGS-Flag", header_value="cgs-vote",
+        )
         self.view = FramelessWebEngineView(self)
+        self.profile = create_browser_window_profile(self)
+        self.view.setPage(CustomWebEnginePage(self.profile, self.view))
         self.page_runtime = BrowserPageRuntime(self)
         settings = self.view.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
@@ -121,7 +129,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
-        self.profile = self.view.page().profile()
         # self.profile.setHttpUserAgent(
         #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
@@ -145,7 +152,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             BrowserWindow.set_proxies(config.proxy)
         self._set_referer_nterceptor = bool(config.referer_url)
         self.interceptor.set_referer_url(config.referer_url or None)
-        apply_cookie_sets(self.view.page().profile().cookieStore(), config.cookie_sets)
+        apply_cookie_sets(self.profile.cookieStore(), config.cookie_sets)
 
     def apply_standard_environment(self):
         self.apply_environment(build_browser_environment(self))
@@ -202,6 +209,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.copyBtn.clicked.connect(copy_unfinished_tasks)
         self.addressEdit.setPlaceholderText("输入链接后回车")
         self.addressEdit.linkSignal.connect(self._handle_address_submit)
+        self.addressEdit.returnPressed.connect(self.addressEdit.link)
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
         for button in (
@@ -265,7 +273,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.page_runtime.prepare_navigation()
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
-            self.profile = self.view.page().profile()
             self.profile.setUrlRequestInterceptor(self.interceptor)
 
     def reload_current_view(self):
