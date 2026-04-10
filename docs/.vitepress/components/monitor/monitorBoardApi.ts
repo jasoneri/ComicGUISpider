@@ -5,8 +5,7 @@ import type {
   MonitorBoardVoteKey,
   MonitorBoardVotes,
 } from './monitorStatusBoardSource'
-
-const DEFAULT_MONITOR_API_BASE_URL = '/api/monitor'
+import { normalizeMonitorApiBaseUrl } from '../../shared/urls'
 
 export type MonitorBoardVoteSubmission = {
   siteId: string
@@ -120,16 +119,12 @@ async function parseJsonResponse(response: Response): Promise<unknown> {
   }
 }
 
-function trimTrailingSlash(value: string): string {
-  return value.endsWith('/') ? value.slice(0, -1) : value
-}
-
 function normalizeApiBaseUrl(apiBaseUrl: string | undefined): string {
   if (typeof apiBaseUrl !== 'string' || apiBaseUrl.trim() === '') {
-    return DEFAULT_MONITOR_API_BASE_URL
+    throw new TypeError('Monitor API base URL is required.')
   }
 
-  return trimTrailingSlash(apiBaseUrl.trim())
+  return normalizeMonitorApiBaseUrl(apiBaseUrl.trim(), 'Monitor API base URL')
 }
 
 export async function fetchMonitorBoardRuntimeData(apiBaseUrl?: string): Promise<MonitorBoardRuntimeData> {

@@ -1,9 +1,15 @@
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { loadEnv } from 'vite'
 import {defineConfig} from 'vitepress';
 import { markdownUrlReplacePlugin } from './plugins/markdown-url-replace';
-import { URLS } from './shared/urls';
+import { createDocsUrlConfig } from './shared/urls';
 
 
 const version = `v2.10.0-beta.2`
+const docsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const docsEnv = loadEnv('', docsRoot, '')
+const { URLS, PLACEHOLDER_MAP } = createDocsUrlConfig(docsEnv)
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
@@ -31,7 +37,7 @@ export default defineConfig({
       },
 
     vite: {
-        plugins: [markdownUrlReplacePlugin()],
+        plugins: [markdownUrlReplacePlugin(PLACEHOLDER_MAP)],
     },
 
     themeConfig: {

@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
-import { PLACEHOLDER_MAP } from "../shared/urls";
+
+type PlaceholderMap = Readonly<Record<string, string>>;
 
 function replaceOutsideCodeFence(
   markdown: string,
@@ -31,23 +32,23 @@ function replaceOutsideCodeFence(
   return result.join("\n");
 }
 
-function replacePlaceholders(src: string): string {
+function replacePlaceholders(src: string, placeholderMap: PlaceholderMap): string {
   return replaceOutsideCodeFence(src, (line) => {
     let result = line;
-    for (const [placeholder, url] of Object.entries(PLACEHOLDER_MAP)) {
+    for (const [placeholder, url] of Object.entries(placeholderMap)) {
       result = result.replaceAll(placeholder, url);
     }
     return result;
   });
 }
 
-export function markdownUrlReplacePlugin(): Plugin {
+export function markdownUrlReplacePlugin(placeholderMap: PlaceholderMap): Plugin {
   return {
     name: "markdown-url-replace",
     enforce: "pre",
     transform(code: string, id: string) {
       if (!id.endsWith(".md") || !code.includes("{{URL_")) return null;
-      const transformed = replacePlaceholders(code);
+      const transformed = replacePlaceholders(code, placeholderMap);
       if (transformed === code) return null;
       return { code: transformed, map: null };
     },

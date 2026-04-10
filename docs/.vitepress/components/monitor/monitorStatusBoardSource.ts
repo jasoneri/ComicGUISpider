@@ -1,11 +1,11 @@
-import copySiteAvatarSrc from '../assets/img/icons/website/copy.png'
-import ehentaiSiteAvatarSrc from '../assets/img/icons/website/ehentai.png'
-import hitomiSiteAvatarSrc from '../assets/img/icons/website/hitomi.png'
-import hcomicSiteAvatarSrc from '../assets/img/icons/website/hcomic.png'
-import jmSiteAvatarSrc from '../assets/img/icons/website/jm.png'
-import mangabzSiteAvatarSrc from '../assets/img/icons/website/mangabz.png'
-import wnacgSiteAvatarSrc from '../assets/img/icons/website/wnacg.png'
-import danbooruSiteAvatarSrc from '../assets/img/icons/website/danbooru.svg'
+const copySiteAvatarSrc = new URL('../../../assets/img/icons/website/copy.png', import.meta.url).href
+const ehentaiSiteAvatarSrc = new URL('../../../assets/img/icons/website/ehentai.png', import.meta.url).href
+const hitomiSiteAvatarSrc = new URL('../../../assets/img/icons/website/hitomi.png', import.meta.url).href
+const hcomicSiteAvatarSrc = new URL('../../../assets/img/icons/website/hcomic.png', import.meta.url).href
+const jmSiteAvatarSrc = new URL('../../../assets/img/icons/website/jm.png', import.meta.url).href
+const mangabzSiteAvatarSrc = new URL('../../../assets/img/icons/website/mangabz.png', import.meta.url).href
+const wnacgSiteAvatarSrc = new URL('../../../assets/img/icons/website/wnacg.png', import.meta.url).href
+const danbooruSiteAvatarSrc = new URL('../../../assets/img/icons/website/danbooru.svg', import.meta.url).href
 
 export type MonitorBoardLocale = 'zh' | 'en'
 

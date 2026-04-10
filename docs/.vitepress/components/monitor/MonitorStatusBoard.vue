@@ -1,10 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import hoverAvatarSrc from '../assets/img/icons/monitor.png'
-import downBubbleSrc from '../assets/img/monitor/down.png'
-import guideBubbleSrc from '../assets/img/monitor/guide.webp'
-import neutralBubbleSrc from '../assets/img/monitor/neutral.png'
-import upBubbleSrc from '../assets/img/monitor/up.png'
 import {
   createEmptyMonitorBoardRuntimeData,
   emptyMonitorBoardLiveStatus,
@@ -23,6 +18,12 @@ import {
   MonitorBoardApiError,
   submitMonitorBoardVote,
 } from './monitorBoardApi'
+
+const hoverAvatarSrc = new URL('../../../assets/img/icons/monitor.png', import.meta.url).href
+const downBubbleSrc = new URL('../../../assets/img/monitor/down.png', import.meta.url).href
+const guideBubbleSrc = new URL('../../../assets/img/monitor/guide.webp', import.meta.url).href
+const neutralBubbleSrc = new URL('../../../assets/img/monitor/neutral.png', import.meta.url).href
+const upBubbleSrc = new URL('../../../assets/img/monitor/up.png', import.meta.url).href
 
 const props = withDefaults(defineProps<{
   locale?: MonitorBoardLocale
@@ -199,14 +200,9 @@ const displayStageMap = computed<MonitorBoardLocalStageMap>(() => ({
   ...pendingStageMap.value,
 }))
 const effectiveApiBaseUrl = computed(() => {
-  if (typeof props.apiBaseUrl === 'string' && props.apiBaseUrl.trim() !== '') {
-    return props.apiBaseUrl.trim()
-  }
-
-  const configuredApiBaseUrl = import.meta.env.VITE_MONITOR_API_BASE_URL
-  return typeof configuredApiBaseUrl === 'string' && configuredApiBaseUrl.trim() !== ''
-    ? configuredApiBaseUrl.trim()
-    : '/api/monitor'
+  return typeof props.apiBaseUrl === 'string' && props.apiBaseUrl.trim() !== ''
+    ? props.apiBaseUrl.trim()
+    : undefined
 })
 const localStageStorageKey = computed(() => `monitor-board-local-stage:${resetStartedAt.value ?? 'default'}`)
 const hasActiveCard = computed(() => activeCardId.value !== null)
