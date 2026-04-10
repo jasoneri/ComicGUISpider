@@ -189,6 +189,7 @@ codecov*
 *.hash
 uv.lock
 version.json
+cf/
 # cgs/desc created html
 desc.html
 docs/*.html

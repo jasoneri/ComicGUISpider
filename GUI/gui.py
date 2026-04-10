@@ -413,8 +413,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
         self.pageEdit.valueChanged.connect(page_edit)
     
-    def set_preview(self, rect=None):
-        sb = self.BrowserWindow = BrowserWindowCls(self)
+    def set_preview(self, rect=None, *, skip_env_mode: bool = False):
+        sb = self.BrowserWindow = BrowserWindowCls(self, skip_env_mode=skip_env_mode)
         preview_y = self.y() + self.funcGroupBox.y() - sb.height() + 25
         if rect:
             self.BrowserWindow.setGeometry(rect)
@@ -651,7 +651,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         rect = QRect(self.x(), int(screen_height*0.05),
             self.width(), int(screen_height*0.9))
         if not getattr(self, 'BrowserWindow'):
-            self.set_preview(rect)
+            site_index = getattr(self.search_context, "site_index", self.chooseBox.currentIndex())
+            skip_env_mode = site_index not in SPIDERS
+            self.set_preview(rect, skip_env_mode=skip_env_mode)
         else:
             self.BrowserWindow.setGeometry(rect)
         final_rect = self.BrowserWindow.geometry()

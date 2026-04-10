@@ -3,7 +3,7 @@ import { markdownUrlReplacePlugin } from './plugins/markdown-url-replace';
 import { URLS } from './shared/urls';
 
 
-const version = `v2.10.0-beta`
+const version = `v2.10.0-beta.2`
 
 // https://vitepress.dev/reference/site-config
 // @ts-ignore
@@ -86,7 +86,7 @@ export default defineConfig({
                         link: "/deploy/mac-required-reading",
                     },
                     {
-                        text: "🚨可用监控",
+                        text: "🚨站点状态",
                         link: "/deploy/monitor",
                     }
                 ],

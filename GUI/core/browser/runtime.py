@@ -37,6 +37,7 @@ class _BrowserDebugEventHub:
 
 _BROWSER_DEBUG_EVENTS = _BrowserDebugEventHub()
 _IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp", ".avif"})
+_MONITOR_VOTE_REQUEST_PATH = "/api/monitor/vote"
 
 
 def set_browser_debug_event_sink(sink: Optional[Callable[[dict], None]]) -> None:
@@ -87,6 +88,34 @@ def _cookie_names_from_header(header_value: str) -> list[str]:
 
 def _decode_browser_bytes(payload) -> str:
     return bytes(payload).decode("utf-8", errors="ignore")
+
+
+def _normalize_browser_origin(url_or_origin: str) -> str:
+    raw = str(url_or_origin or "").strip()
+    if not raw:
+        return ""
+    parsed = urlsplit(raw if "://" in raw else f"https://{raw}")
+    scheme = (parsed.scheme or "https").casefold()
+    host = str(parsed.hostname or "").strip().casefold()
+    if not host:
+        return ""
+    port = parsed.port
+    default_port = 443 if scheme == "https" else 80 if scheme == "http" else None
+    if port is None or port == default_port:
+        return f"{scheme}://{host}"
+    return f"{scheme}://{host}:{port}"
+
+
+def _normalize_browser_path(path: str) -> str:
+    normalized = str(path or "").strip()
+    if not normalized:
+        return ""
+    if not normalized.startswith("/"):
+        normalized = f"/{normalized}"
+    if normalized.endswith(".html"):
+        normalized = normalized[:-5]
+    normalized = normalized.rstrip("/")
+    return normalized or "/"
 
 
 def _browser_logger(owner):
@@ -323,14 +352,66 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
         self._capture = _RequestCaptureStore()
         self._recent_image_requests = _RequestCaptureStore()
         self._recent_image_requests.configure(limit=16)
+        self._monitor_vote_header_name = b""
+        self._monitor_vote_header_value = b""
+        self._monitor_vote_allowed_origins: tuple[str, ...] = ()
+        self._monitor_vote_page_path = ""
 
     def set_referer_url(self, referer_url):
         self.referer_url = str(referer_url or "").strip() or None
+
+    def configure_monitor_vote_header(
+        self, *,
+        allowed_origins=(), page_path: str = "", header_name: str = "", header_value: str = "",
+    ) -> None:
+        normalized_origins = []
+        for origin in allowed_origins or ():
+            normalized = _normalize_browser_origin(origin)
+            if normalized and normalized not in normalized_origins:
+                normalized_origins.append(normalized)
+        self._monitor_vote_allowed_origins = tuple(normalized_origins)
+        self._monitor_vote_page_path = _normalize_browser_path(page_path)
+        self._monitor_vote_header_name = str(header_name or "").strip().encode("utf-8")
+        self._monitor_vote_header_value = str(header_value or "").strip().encode("utf-8")
 
     @staticmethod
     def _is_image_request(request_url: QUrl) -> bool:
         path = str(request_url.path() or "").strip()
         return Path(path).suffix.casefold() in _IMAGE_SUFFIXES
+
+    def _should_inject_monitor_vote_header(self, info) -> bool:
+        def _current_page_context_url() -> str:
+            parent = self.parent()
+            view = getattr(parent, "view", None)
+            url_getter = getattr(view, "url", None)
+            if not callable(url_getter):
+                return ""
+            current_url = url_getter()
+            return current_url.toString() if hasattr(current_url, "toString") else str(current_url or "")
+        def _matches_monitor_vote_page_context(url_value: str) -> bool:
+            if not self._monitor_vote_allowed_origins or not self._monitor_vote_page_path:
+                return False
+            raw = str(url_value or "").strip()
+            if not raw:
+                return False
+            parsed = urlsplit(raw if "://" in raw else f"https://{raw}")
+            return (
+                _normalize_browser_origin(raw) in self._monitor_vote_allowed_origins
+                and _normalize_browser_path(parsed.path) == self._monitor_vote_page_path
+            )
+        if not self._monitor_vote_header_name or not self._monitor_vote_header_value:
+            return False
+        request_path = _normalize_browser_path(info.requestUrl().path())
+        request_method = _decode_browser_bytes(info.requestMethod()).upper()
+        if request_method != "POST" or request_path != _MONITOR_VOTE_REQUEST_PATH:
+            return False
+        return any(
+            _matches_monitor_vote_page_context(candidate)
+            for candidate in (
+                info.firstPartyUrl().toString(), info.initiator().toString(),
+                _current_page_context_url(),
+            )
+        )
 
     def configure_request_capture(
         self,
@@ -368,6 +449,8 @@ class BrowserRequestInterceptor(QWebEngineUrlRequestInterceptor):
         image_request = self._is_image_request(request_url)
         if self.referer_url and image_request:
             info.setHttpHeader(b"referer", self.referer_url.encode())
+        if self._should_inject_monitor_vote_header(info):
+            info.setHttpHeader(self._monitor_vote_header_name, self._monitor_vote_header_value)
         should_capture = self._capture.should_capture(request_url)
         if not image_request and not should_capture:
             return
