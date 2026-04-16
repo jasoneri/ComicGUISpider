@@ -17,6 +17,8 @@ class WnacgSpider(BaseComicSpider2):
         "ITEM_PIPELINES": {'ComicSpider.pipelines.WnacgComicPipeline': 50},
     }
     name = 'wnacg'
+    # curl_cffi image misses do not imply the cached site domain is stale.
+    remove_domain_cache_on_finished_miss = False
     num_of_row = 4
     domain = domain
     # allowed_domains = [domain]

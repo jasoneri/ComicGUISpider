@@ -62,13 +62,7 @@ class DanbooruTabWidget(QFrame):
         self.search_edit.returnPressed.connect(self._submit_search_from_keyboard)
         self.search_edit.searchSignal.connect(lambda text: self.request_search.emit(text))
         self.search_edit.searchButton.clicked.connect(self._submit_empty_search_if_needed)
-        FluentMonkeyPatch.rbutton_menu_lineEdit(
-            self.search_edit,
-            extra_actions=[
-                self._create_search_value_action("打开历史", FIF.HISTORY, danbooru_cfg.get_history, "暂无历史记录"),
-                self._create_search_value_action("打开收藏列表", FIF.HEART, lambda: sorted(danbooru_cfg.get_favorites()), "暂无收藏记录"),
-            ],
-        )
+        self.set_search_menu()
         self.favorite_btn = TransparentToolButton(FIF.HEART, self)
         self.favorite_btn.setFixedSize(38, 38)
         self.convert_btn = PushButton("to Tag", self)
@@ -133,6 +127,30 @@ class DanbooruTabWidget(QFrame):
 
         return Action(icon, text=text, triggered=open_menu)
 
+    def set_search_menu(self):
+        FluentMonkeyPatch.rbutton_menu_lineEdit(
+            self.search_edit,
+            extra_actions=[self._create_search_value_action("打开历史", FIF.HISTORY, danbooru_cfg.get_history, "暂无历史记录")],
+            sub_menu=[self._create_fav_sub_menu()]
+        )
+
+    def _create_fav_sub_menu(self):
+        def _show_group_completer(terms: list[str]):
+            self.update_completer(terms)
+            self._show_search_edit_completer("")
+
+        submenu = RoundMenu("收藏组", self)
+        submenu.setIcon(FIF.HEART)
+        groups = visible_usage_groups(
+            build_tag_groups(
+                sorted(danbooru_cfg.get_favorites()),
+                danbooru_cfg.get_grouped_favorites()))
+        actions = [Action(text=group.display,
+            triggered=lambda _=False, current=list(group.tags): _show_group_completer(current))
+        for group in groups]
+        submenu.addActions(actions)
+        return submenu
+
     def show_conversion_candidates(
         self, candidates: list[DanbooruAutocompleteCandidate],
         on_selected: t.Callable[[DanbooruAutocompleteCandidate], None],
@@ -179,10 +197,11 @@ class DanbooruTabWidget(QFrame):
             self.request_next_page.emit()
 
     def update_completer(self, terms: list[str]):
-        completer = QCompleter(terms, self)
+        completer = QCompleter(list(dict.fromkeys(terms)), self)
         completer.setFilterMode(Qt.MatchContains)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.search_edit.setCompleter(completer)
+        return completer
 
     def set_loading(self, loading: bool):
         self.state.loading = loading

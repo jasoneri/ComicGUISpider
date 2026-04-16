@@ -207,6 +207,14 @@ class JmParser(_JmContract, Previewer):
         return books
 
     @classmethod
+    def parse_preview_search_response(cls, resp_text, domain):
+        if "album_photo_cover" in (resp_text or "") and bool(re.search(r"var aid = (\d+);", resp_text or "")):
+            book = cls.parse_book(resp_text, domain=domain)
+            book.idx = 1
+            return [book]
+        return cls.parse_preview_books(resp_text, domain)
+
+    @classmethod
     def parse_book(cls, resp_text, *, domain: str | None = None):
         if "Just a moment..." in resp_text[:100]:
             raise ValueError("触发5秒盾")
@@ -230,11 +238,9 @@ class JmParser(_JmContract, Previewer):
             ),
             pages=re.search(r"\d+", pages_text).group(0),
             public_date=public_date,
-            episodes=[],
         )
+        book.episodes = []
         for epa_el in epa_els:
-            if not book.episodes:
-                book.episodes = []
             title = epa_el.xpath(".//h3/text()[normalize-space()]").get().strip()
             episode = Episode(
                 from_book=book,
@@ -434,7 +440,7 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
         )
         resp = await client.get(url, headers=headers, follow_redirects=True, timeout=12, **kw)
         resp.raise_for_status()
-        return await asyncio.to_thread(cls.parser.parse_preview_books, resp.text, domain)
+        return await asyncio.to_thread(cls.parser.parse_preview_search_response, resp.text, domain)
 
     @classmethod
     async def preview_fetch_episodes(cls, book, client, **kw):

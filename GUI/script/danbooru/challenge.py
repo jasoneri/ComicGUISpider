@@ -26,7 +26,11 @@ class DanbooruChallengeController(QtCore.QObject):
         super().__init__(interface)
         self.interface = interface
         self.coordinator = BrowserChallengeCoordinator(
-            window_factory=lambda: BrowserWindow(self.interface._host_gui(), skip_env_mode=True),
+            window_factory=lambda: BrowserWindow(
+                self.interface._host_gui(),
+                skip_env_mode=True,
+                persistent_profile=False,
+            ),
             on_success=self._handle_success,
             on_missing=self._handle_missing,
             parent=self,

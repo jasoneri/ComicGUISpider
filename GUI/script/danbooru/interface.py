@@ -2,7 +2,7 @@ from pathlib import Path
 import typing as t
 
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (
@@ -22,6 +22,7 @@ from utils.sql import SqlRecorder
 from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
 from .detail_preview import DanbooruDetailPreviewController
+from .favorites import DanbooruFavoriteManagerDialog
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_CARD_ZOOM_INDEX, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
     build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
@@ -87,23 +88,24 @@ class DanbooruInterface(QFrame):
         self.zoomIn.setMaximumHeight(22)
         self.zoomOut = ToolButton(QIcon(':/script/zoomout.svg'))
         self.zoomOut.setMaximumHeight(22)
-        self.zoomIn.clicked.connect(self._zoom_in_cards)
-        self.zoomOut.clicked.connect(self._zoom_out_cards)
         zoomBtnGroup.addWidget(self.zoomIn)
         zoomBtnGroup.addWidget(self.zoomOut)
+        self.favMgrBtn = ToolButton(QIcon(':/script/favMgr.svg'), self)
+        self.favMgrBtn.setObjectName("FavMgrBtn")
+        self.favMgrBtn.setIconSize(QSize(20, 20))
+        self.favMgrBtn.setMinimumHeight(50)
         self.openBtn = ToolButton(FIF.FOLDER)
         self.openBtn.setMinimumHeight(50)
-        self.openBtn.clicked.connect(self._open_save_path)
         self.batch_download_btn = PrimaryToolButton(FIF.DOWNLOAD, self)
         self.batch_download_btn.setMinimumHeight(50)
         self.batch_download_btn.setMinimumWidth(80)
         self.batch_download_btn.setIconSize(QtCore.QSize(20, 20))
         self.batch_download_btn.setDisabled(True)
-        self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
         self.batch_download_badge = CountBadge(parent=self, target=self.batch_download_btn)
         self.batch_download_badge.hide()
         title_row.addWidget(self.title_block, 1)
         title_row.addLayout(zoomBtnGroup)
+        title_row.addWidget(self.favMgrBtn)
         title_row.addWidget(self.openBtn)
         title_row.addWidget(self.batch_download_btn)
         self.main_layout.addLayout(title_row)
@@ -118,7 +120,6 @@ class DanbooruInterface(QFrame):
         self.pivot_back_btn.setObjectName("DanbooruPivotScrollButton")
         self.pivot_back_btn.setFixedSize(18, 18)
         self.pivot_back_btn.setIconSize(QtCore.QSize(14, 14))
-        self.pivot_back_btn.clicked.connect(lambda: self._scroll_pivot_tabs(-1))
         pivot_shell_layout.addWidget(self.pivot_back_btn, 0, Qt.AlignVCenter)
         self.tab_bar = TabBar(self.pivot_shell)
         self.tab_bar.setObjectName("DanbooruPivotScrollArea")
@@ -132,19 +133,13 @@ class DanbooruInterface(QFrame):
         self.tab_bar.itemLayout.setContentsMargins(0, 5, 0, 5)
         self.tab_bar.itemLayout.setSpacing(6)
         self.pivot_scroll = self.tab_bar
-        self.tab_bar.currentChanged.connect(self._on_tabbar_index_changed)
-        self.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
         pivot_shell_layout.addWidget(self.tab_bar, 1)
         self.pivot_forward_btn = TransparentToolButton(FIF.RIGHT_ARROW, self.pivot_shell)
         self.pivot_forward_btn.setObjectName("DanbooruPivotScrollButton")
         self.pivot_forward_btn.setFixedSize(18, 18)
         self.pivot_forward_btn.setIconSize(QtCore.QSize(14, 14))
-        self.pivot_forward_btn.clicked.connect(lambda: self._scroll_pivot_tabs(1))
         pivot_shell_layout.addWidget(self.pivot_forward_btn, 0, Qt.AlignVCenter)
         pivot_scroll_bar = self.pivot_scroll.horizontalScrollBar()
-        pivot_scroll_bar.rangeChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
-        pivot_scroll_bar.valueChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
-        self.main_layout.addWidget(self.pivot_shell)
 
         self.content_shell = QFrame(self)
         self.content_shell.setObjectName("DanbooruContentShell")
@@ -152,8 +147,22 @@ class DanbooruInterface(QFrame):
         content_shell_layout.setContentsMargins(12, 12, 12, 12)
         content_shell_layout.setSpacing(0)
         self.stacked_widget = QStackedWidget(self.content_shell)
-        self.stacked_widget.currentChanged.connect(self._on_current_tab_changed)
         content_shell_layout.addWidget(self.stacked_widget)
+        # binding
+        self.zoomIn.clicked.connect(self._zoom_in_cards)
+        self.zoomOut.clicked.connect(self._zoom_out_cards)
+        self.favMgrBtn.clicked.connect(self._open_favorite_manager)
+        self.openBtn.clicked.connect(self._open_save_path)
+        self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
+        self.tab_bar.currentChanged.connect(self._on_tabbar_index_changed)
+        self.pivot_back_btn.clicked.connect(lambda: self._scroll_pivot_tabs(-1))
+        self.pivot_forward_btn.clicked.connect(lambda: self._scroll_pivot_tabs(1))
+        self.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
+        pivot_scroll_bar.rangeChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
+        pivot_scroll_bar.valueChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
+        self.stacked_widget.currentChanged.connect(self._on_current_tab_changed)
+        
+        self.main_layout.addWidget(self.pivot_shell)
         self.main_layout.addWidget(self.content_shell, 1)
 
     def _apply_theme(self, *_args):
@@ -191,6 +200,7 @@ class DanbooruInterface(QFrame):
         tab.request_next_page.connect(lambda tid=tab_id: self.search_controller.load_next_page(tid))
         tab.detail_opened.connect(lambda post, tid=tab_id: self.detail_preview_controller.open_viewer(tid, post))
         tab.selection_count_changed.connect(lambda _count, tid=tab_id: self._update_batch_button(tid))
+        tab.favorite_btn.clicked.connect(lambda _=False, tid=tab_id: self._toggle_favorite(tid))
         self.tabs[tab_id] = tab
         self.tab_states[tab_id] = state
         self._tab_tips[tab_id] = (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS)
@@ -420,11 +430,6 @@ class DanbooruInterface(QFrame):
         history = danbooru_cfg.get_history()
         favorites = sorted(danbooru_cfg.get_favorites() - set(history))
         tab.update_completer(history + favorites)
-        try:
-            tab.favorite_btn.clicked.disconnect()
-        except TypeError:
-            pass
-        tab.favorite_btn.clicked.connect(lambda _=False, tid=tab.state.tab_id: self._toggle_favorite(tid))
 
     def _show_info(self, factory, content: str, duration: int = 3000):
         factory(
@@ -445,9 +450,20 @@ class DanbooruInterface(QFrame):
         if not term:
             return
         is_favorited = danbooru_cfg.toggle_favorite(term)
-        self._refresh_completer(tab)
+        self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         self._show_info(InfoBar.success if is_favorited else InfoBar.error, content)
+
+    def _refresh_all_favorites_ui(self):
+        for tab in self.tabs.values():
+            tab.set_search_menu()
+            self._refresh_completer(tab)
+
+    def _open_favorite_manager(self):
+        dialog = DanbooruFavoriteManagerDialog(self)
+        dialog.favorites_changed.connect(self._refresh_all_favorites_ui)
+        dialog.exec()
+        self._refresh_all_favorites_ui()
 
     def _open_tag_jump_tab(self, tag: str):
         self.image_viewer.hide()

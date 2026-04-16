@@ -1,6 +1,7 @@
-from copy import deepcopy
 import os
+import gc
 import typing as t
+from copy import deepcopy
 from urllib.parse import urlparse
 
 from PySide6.QtCore import Qt, QEvent, QObject, QRect, QSize, QUrl
@@ -819,6 +820,8 @@ class TaskProgressManager:
                 self.gui.crawl_end(str(getattr(self.gui, "sv_path", "")))
 
     def zero_task_state(self):
+        completed_task_ids = [task_id for task_id, entry in self._entries.items() if entry.progress.completed]
+        self.drop_entries(completed_task_ids)
         self._dispose_views()
         self._entries.clear()
         self._reset_cached_state()
@@ -831,6 +834,8 @@ class TaskProgressManager:
         if self.expandBtn.expanded:
             self.expandBtn.expanded = False
             self.expandBtn._anim_ctrl.rotate_to(0.0)
+        gc.collect()
+        self.gui.progressBar.setValue(0)
 
     @property
     def unfinished_tasks(self):

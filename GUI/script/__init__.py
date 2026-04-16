@@ -78,7 +78,7 @@ class BaseServiceGroupCard(GroupHeaderCardWidget):
         self.setting_interface = parent
         self.service_name = service_name
         self.config_key = config_key
-        self.setTitle(f"{service_name} 配置")
+        self.setTitle(f"{service_name} Config")
         self.setBorderRadius(8)
 
         # 创建组件
@@ -243,7 +243,7 @@ class SettingInterface(QFrame):
 
         # 第一行：代理设置
         first_row = QHBoxLayout()
-        proxies_label = StrongBodyLabel("代理", self)
+        proxies_label = StrongBodyLabel("代理/Proxy", self)
         self.imgProxiesEdit = LineEdit(self)
         self.imgProxiesEdit.setToolTip(_translate("SettingInterface", "proxies"))
         self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", 
@@ -253,17 +253,15 @@ class SettingInterface(QFrame):
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.imgProxiesEdit.setCompleter(completer)
         self.imgProxiesEdit.setClearButtonEnabled(True)
-        first_row.addWidget(proxies_label)
-        first_row.addWidget(self.imgProxiesEdit)
 
-        second_row = QHBoxLayout()
         self.dohBtn = PushButton("DoH", self)
         self.dohBtn.setMaximumSize(QSize(80, 16777215))
-        second_row.addStretch()
-        second_row.addWidget(self.dohBtn)
         self.dohController = DoHButtonController(
             self.dohBtn, parent=self, on_saved=self._save_doh_config,
         )
+        first_row.addWidget(proxies_label)
+        first_row.addWidget(self.imgProxiesEdit)
+        first_row.addWidget(self.dohBtn)
         
         self.kemono_group_card = KemonoGroupCard(self)
         self.danbooru_group_card = DanbooruGroupCard(self)
@@ -276,7 +274,6 @@ class SettingInterface(QFrame):
         spacerItem = QtWidgets.QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.main_layout.addLayout(first_row)
-        self.main_layout.addLayout(second_row)
         self.main_layout.addWidget(self.kemono_group_card)
         self.main_layout.addWidget(self.danbooru_group_card)
         self.main_layout.addItem(spacerItem)

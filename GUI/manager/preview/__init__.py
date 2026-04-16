@@ -215,9 +215,24 @@ class PreviewMgr:
         else:
             self.submit_browser_selection()
 
+    def _on_empty_search_done(self):
+        target_page = self._target_page
+        self._target_page = None
+        self._is_local_mode = False
+        if target_page in (None, 1):
+            self._current_page = 1
+            self.gui.flow_stage = GUIFlowStage.IDLE
+            self.gui.clean_preview()
+        self.gui.pageEdit.setValue(self._current_page)
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
+        self.gui.say(f"<br>{'✈' * 15}<br>{font_color(ori_res.SPIDER.SayToGui.frame_book_print_retry_tip, cls='theme-err', size=4)}", 
+                     ignore_http=True)
+
     def _on_search_done(self, generation, _keyword, site_index, books):
         if generation != self._generation or site_index != self.site_index:
             return
+        if not books:
+            return self._on_empty_search_done()
         if self._target_page is not None:
             self._current_page = self._target_page
             self._target_page = None

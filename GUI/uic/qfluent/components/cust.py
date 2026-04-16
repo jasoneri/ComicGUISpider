@@ -70,34 +70,48 @@ class DoHButtonController:
             self._tip.close()
 
 
-class LinkEdit(LineEdit):
-    """ Search line edit """
-
-    linkSignal = Signal(str)
+class CustEdit(LineEdit):
+    custSignal = Signal(str)
     clearSignal = Signal()
-
+    icon: FluentIconBase = None
+    
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.linkButton = LineEditButton(FluentIcon.LINK, self)
-
-        self.hBoxLayout.addWidget(self.linkButton, 0, Qt.AlignRight)
+        self.btn = LineEditButton(self.icon, self)
+        self.hBoxLayout.addWidget(self.btn, 0, Qt.AlignRight)
         self.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.setClearButtonEnabled(True)
         self.setTextMargins(0, 0, 59, 0)
-
-        self.linkButton.clicked.connect(self.link)
+        self.btn.clicked.connect(self.do)
+        self.returnPressed.connect(self.do)
         self.clearButton.clicked.connect(self.clearSignal)
-
-    def link(self):
-        text = self.text().strip()
-        if text:
-            self.linkSignal.emit(text)
-        else:
-            self.clearSignal.emit()
 
     def setClearButtonEnabled(self, enable: bool):
         self._isClearButtonEnabled = enable
         self.setTextMargins(0, 0, 28*enable+30, 0)
+    
+    def do(self):
+        """self logic"""
+
+
+class LinkEdit(CustEdit):
+    """ Search line edit """
+    icon = FluentIcon.LINK
+
+    def do(self):
+        text = self.text().strip()
+        if text:
+            self.custSignal.emit(text)
+        else:
+            self.clearSignal.emit()
+
+
+class AcceptEdit(CustEdit):
+    """ Search line edit """
+    icon = FluentIcon.ACCEPT
+
+    def do(self):
+        self.custSignal.emit(self.text().strip())
 
 
 class FlexImageLabel(ImageLabel):

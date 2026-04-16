@@ -96,6 +96,7 @@ class BaseComicSpider(scrapy.Spider):
     turn_page_search: str = None
     turn_page_info: tuple = None
     _enable_episode_dispatch = False
+    remove_domain_cache_on_finished_miss = True
 
     def preready(self):
         ...
@@ -412,11 +413,13 @@ class BaseComicSpider(scrapy.Spider):
             return
         downloaded_count, uptodate_count, processed_count, total = self._finish_counters(stats)
         exception_count = stats.get_value('process_exception/count', 0)
+        remove_domain_cache = bool(self.remove_domain_cache_on_finished_miss)
         if total and processed_count < total:
             missing_count = total - processed_count
             self.say(font_color(f'miss: new[{downloaded_count}], cache[{uptodate_count}], miss[{missing_count}]<br>',
                 cls='theme-err', size=3))
-            self._remove_cache()
+            if remove_domain_cache:
+                self._remove_cache()
         elif total != 0 and processed_count > 0:
             if downloaded_count:
                 _str = f'{self.res.finished_success % downloaded_count}'
@@ -428,7 +431,8 @@ class BaseComicSpider(scrapy.Spider):
             self.say(font_color(
                 f'<br>{self.res.finished_err % last_exception}<br>log path/日志文件地址: [{self.settings.get("LOG_FILE")}]',
                 cls='theme-err', size=3))
-            self._remove_cache()
+            if remove_domain_cache:
+                self._remove_cache()
         else:
             self.say(font_color(f'{self.res.finished_empty}<br>', cls='theme-highlight', size=4))
 
