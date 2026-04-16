@@ -252,6 +252,15 @@ QAbstractScrollArea#DanbooruPivotScrollArea TabToolButton:pressed {
 }
 /* @endsection */
 
+/* @section favorites_tree_item_inline */
+QTreeView::item {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+/* @endsection */
+
 /* @section title_label_inline */
 color: ${TITLE_ACCENT}; letter-spacing: 0.5px;
 /* @endsection */

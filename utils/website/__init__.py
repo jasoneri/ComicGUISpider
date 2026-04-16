@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# ruff: noqa: F403
 from utils.website.adapter import *
 from utils.website.core import *
 from utils.website.contracts import *

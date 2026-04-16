@@ -208,7 +208,7 @@ class TaskInfoBarCenter:
             return
         self._show(
             factory=InfoBar.error,
-            title="错误",
+            title="",
             content=self._clip_error(message),
             duration=-1,
         )

@@ -4,7 +4,6 @@ import re
 import ast
 import ssl
 import sys
-import time
 import html
 import builtins
 import hashlib
@@ -12,9 +11,6 @@ import asyncio
 import platform
 import contextlib
 from functools import lru_cache
-import pathlib as p
-import typing as t
-from dataclasses import asdict
 
 from utils.config import *
 from utils.core import *
@@ -22,7 +18,7 @@ from utils.core import *
 temp_p = ori_path.joinpath("__temp")
 temp_p.mkdir(exist_ok=True)
 
-conf = Conf()
+conf = Conf()  # noqa: F405
 
 
 @lru_cache(maxsize=1)
@@ -101,19 +97,6 @@ def select(elect, infos: dict, **kw) -> list:
     _selected = fin_transfer(elect, sorted(infos.keys()))
     results = [infos[i] for i in _selected]
     return results
-
-
-def extract_eps_range(text) -> str:
-    matches = re.findall(r'-(\d+)', text)
-    if not matches:
-        return ""
-    numbers = [int(num) for num in matches]
-    first_num = numbers[0]
-    if len(numbers) > 1 and numbers[-1] < first_num:
-        numbers = numbers[:-1]
-    if len(numbers) == 1:
-        return f"{first_num}"
-    return f"{min(numbers)}-{max(numbers)}"
 
 
 cn_character = r'，。！？；：（）《》【】“”\‘\’、'

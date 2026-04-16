@@ -433,13 +433,7 @@ class DanbooruInterface(QFrame):
 
     def _show_info(self, factory, content: str, duration: int = 3000):
         factory(
-            title="",
-            content=content,
-            orient=Qt.Horizontal,
-            isClosable=True,
-            position=InfoBarPosition.TOP,
-            duration=duration,
-            parent=self,
+            title="", content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP, duration=duration, parent=self,
         )
 
     def _toggle_favorite(self, tab_id: str):
@@ -463,7 +457,6 @@ class DanbooruInterface(QFrame):
         dialog = DanbooruFavoriteManagerDialog(self)
         dialog.favorites_changed.connect(self._refresh_all_favorites_ui)
         dialog.exec()
-        self._refresh_all_favorites_ui()
 
     def _open_tag_jump_tab(self, tag: str):
         self.image_viewer.hide()

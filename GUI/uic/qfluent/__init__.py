@@ -1,13 +1,12 @@
 import types
 import contextlib
-from PySide6.QtWidgets import QWidget, QHBoxLayout
-from GUI.core.timer import safe_single_shot
 from qfluentwidgets import (
-    Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType,
+    Action, RoundMenu, FluentIcon,
     LineEdit, ToolButton
 )
+from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
-from utils import extract_eps_range, conf
+from utils import conf
 from .components import *
 
 __all__ = [

@@ -200,7 +200,7 @@ class Proj:
     #     updater_logger.info(f"local_ver: {self.local_ver}")
     
     def check(self):
-        self.local_ver = local_ver = self.check_existed_version()
+        self.local_ver = self.check_existed_version()
         latest_dev_info, latest_stable_info = self.git_handler.get_releases_info()
         ver_local = parse(self.local_ver.lstrip('v'))
         ver_dev = parse(latest_dev_info.get('tag_name').lstrip('v'))

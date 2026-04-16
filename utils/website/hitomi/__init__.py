@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 import struct
+import time
 
 import httpx
 
@@ -95,6 +96,28 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
         self.dec = self.Decrypt(self.gg)
 
     @staticmethod
+    def _gg_bucket_epoch(gg_instance) -> int | None:
+        bucket_epoch = getattr(gg_instance, "bucket_epoch", None)
+        if bucket_epoch is not None:
+            return int(bucket_epoch)
+        raw_bucket = str(getattr(gg_instance, "b", "")).rstrip("/")
+        if raw_bucket.isdigit():
+            return int(raw_bucket)
+        return None
+
+    def refresh_gg_if_needed(self, *, force: bool = False) -> bool:
+        current_bucket = gg.current_bucket()
+        loaded_bucket = self._gg_bucket_epoch(self.gg)
+        if not force and loaded_bucket is not None and loaded_bucket >= current_bucket:
+            return False
+
+        # Hitomi rotates gg.b on hourly boundaries, so long-lived runtime sessions
+        # must refresh it before constructing full-image URLs.
+        self.gg = gg(cli=self.cli)
+        self.dec = self.Decrypt(self.gg)
+        return True
+
+    @staticmethod
     def parse_nozomi(data):
         view = DataView(data)
         total = len(data) // 4
@@ -123,6 +146,8 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
             return f"{dir_name}/{path2}"
 
     def get_img_url(self, img_hash, hasavif=0, preview=None):
+        if not preview:
+            self.refresh_gg_if_needed()
         gg_s = self.gg.s(img_hash)
         img_type = "avif" if hasavif else "webp"
         if not preview:
@@ -220,6 +245,15 @@ class gg:
             script_text = js_code
         self.m_cases = self._parse_m_cases(script_text)
         self.b = f"{self._parse_b(script_text)}/"
+
+    @property
+    def bucket_epoch(self) -> int:
+        return int(self.b.rstrip("/"))
+
+    @classmethod
+    def current_bucket(cls, epoch: float | None = None) -> int:
+        timestamp = int(time.time() if epoch is None else epoch)
+        return (timestamp // 3600) * 3600 + 1
 
     def _parse_m_cases(self, js_code):
         return set(map(int, re.findall(r"case (\d+):", js_code)))

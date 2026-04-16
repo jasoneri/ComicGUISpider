@@ -281,6 +281,10 @@ def build_interface_stylesheet(palette: DanbooruUiPalette) -> str:
     return _render_qss_section("interface")
 
 
+def build_favorites_tree_item_stylesheet() -> str:
+    return _render_qss_section("favorites_tree_item_inline")
+
+
 def build_title_label_stylesheet(palette: DanbooruUiPalette) -> str:
     _ = palette
     return _render_qss_section("title_label_inline")

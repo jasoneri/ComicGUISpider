@@ -255,7 +255,8 @@ class WnacgComicPipeline(ComicPipeline):
 
             def _handle_curl_result(result):
                 status_code, content = result
-                return self.media_downloaded(
+                return maybeDeferred(
+                    self.media_downloaded,
                     Response(url=request.url,status=status_code,body=content,request=request),
                     request,info,item=item)
 

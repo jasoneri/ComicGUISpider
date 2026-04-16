@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
-import json
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import scrapy
 
 from ComicSpider.runtime.job_models import iter_download_items
 
-from utils import PresetHtmlEl, conf
+from utils import conf
 from utils.website import HitomiUtils, get_loop
-from utils.processed_class import PreviewHtml
 from ComicSpider.items import ComicspiderItem
 
-from .basecomicspider import BaseComicSpider, font_color
+from .basecomicspider import BaseComicSpider
 
 domain = HitomiUtils.index
 

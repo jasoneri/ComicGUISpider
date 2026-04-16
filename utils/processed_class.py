@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import time
 import typing as t
 from dataclasses import dataclass
 import urllib.parse as up

@@ -147,23 +147,21 @@ class DanbooruConfig(QConfig):
             groups.append((group_name, tags))
         return groups
 
-    def save_grouped_favorites(self, default_tags: list[str], groups: list[tuple[str, list[str]]]):
+    def save_grouped_favorites(self, groups_output: dict[str, list[str]]):
         payload = self._load_payload()
-        self.searchFavorites.value = sorted({
-            normalized
-            for tag in default_tags
-            if (normalized := self.canonicalize_term(tag))
-        })
-        payload["Search"] = {
-            "History": self.get_history(),
-            "Favorites": list(self.searchFavorites.value),
-            **{
-                self.canonicalize_term(raw_name): list(dict.fromkeys(
-                    normalized for raw_tag in raw_tags
-                    if (normalized := self.canonicalize_term(str(raw_tag)))
-                )) for raw_name, raw_tags in groups
-            },
-        }
+        search = {"History": self.get_history()}
+        for raw_name, raw_tags in groups_output.items():
+            group_name = self.canonicalize_term(str(raw_name))
+            if not group_name or group_name == "History":
+                continue
+            normalized_tags = list(dict.fromkeys(
+                normalized for raw_tag in raw_tags
+                if (normalized := self.canonicalize_term(str(raw_tag)))
+            ))
+            search[group_name] = sorted(normalized_tags) if group_name == "Favorites" else normalized_tags
+        self.searchFavorites.value = list(search.get("Favorites", []))
+        search.setdefault("Favorites", list(self.searchFavorites.value))
+        payload["Search"] = search
         self._write_payload(payload)
 
     def get_view_ratio_percent(self) -> int:
