@@ -5,7 +5,6 @@ from PySide6.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.browser_window import BrowserWindow
-from GUI.core.theme import setupTheme
 from GUI.manager import _UpdateLauncher
 from GUI.manager.async_task import AsyncTaskManager
 from GUI.uic.qfluent.components import CustomInfoBar
@@ -43,9 +42,9 @@ class PreprocessManager(QObject):
         generation = self._next_generation()
         self._reset_data_cli(list(snapshot.proxies) if snapshot else [])
 
-        gateway = getattr(self.gui, "site_gateway", None)
+        gateway = self.gui.site_gateway
         if index in {Spider.MANGA_COPY, Spider.JM, Spider.WNACG, Spider.EHENTAI, Spider.HITOMI, 7} or (
-            gateway and getattr(gateway, "supports_test_index", False)
+            gateway is not None and gateway.supports_test_index
         ):
             self._start_preprocess(index, generation)
 
@@ -57,8 +56,8 @@ class PreprocessManager(QObject):
 
     def _start_preprocess(self, index: int, generation: int):
         def task(progress_callback=None):
-            gateway = getattr(self.gui, "site_gateway", None)
-            if gateway is not None and hasattr(gateway, "preprocess"):
+            gateway = self.gui.site_gateway
+            if gateway is not None:
                 return gateway.preprocess(
                     index,
                     conf_state=conf,
@@ -106,9 +105,7 @@ class PreprocessManager(QObject):
         if index != Spider.HITOMI:
             self.gui.disable_start()
         self.gui.say("<br>❌ 预处理执行失败，请查看日志")
-        logger = getattr(self.gui, "log", None)
-        if logger is not None:
-            logger.error(error)
+        self.gui.log.error(error)
 
     def _display_message(self, message: dict):
         channel = message.get("channel", "text")
@@ -116,8 +113,7 @@ class PreprocessManager(QObject):
         text = str(message.get("text", ""))
         text_key = message.get("text_key")
         if not text and text_key:
-            site_res = getattr(self.gui, "res", None)
-            text = getattr(site_res, text_key)
+            text = getattr(self.gui.res, text_key)
         if channel == "text":
             self.gui.say(text, ignore_http=bool(message.get("ignore_http", False)))
             return
@@ -169,12 +165,7 @@ class PreprocessManager(QObject):
             self._try_add_hitomi_tool()
             return
         if action_type == "open_script_window":
-            self.gui.hide()
-            from GUI.script import ScriptWindow
-
-            script_window = ScriptWindow(self.gui)
-            setupTheme(script_window.kemonoInterface)
-            script_window.show()
+            self.gui.open_script_window()
             return
         if action_type == "launch_update_flow":
             _UpdateLauncher(VER, script=True).run()
@@ -186,8 +177,7 @@ class PreprocessManager(QObject):
         return generation == self._switch_generation and self.gui.chooseBox.currentIndex() == index
 
     def _try_add_hitomi_tool(self):
-        if hasattr(self.gui, "toolWin"):
-            self.gui.toolWin.addHitomiTool()
+        self.gui.toolWin.addHitomiTool()
 
     def _add_aggr_search(self):
         if not hasattr(self.gui.toolWin, "asInterface"):
@@ -205,7 +195,7 @@ class PreprocessManager(QObject):
     def _refresh_snapshot_domain(self, index: int, name: str, domain: str | None):
         if not domain:
             return
-        snapshot = getattr(self.gui, "_search_context", None)
+        snapshot = self.gui.search_context
         if snapshot is None or snapshot.site_index != index:
             return
         domains = {**snapshot.domains, name: domain}

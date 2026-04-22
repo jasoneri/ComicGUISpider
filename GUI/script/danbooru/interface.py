@@ -400,10 +400,10 @@ class DanbooruInterface(QFrame):
         self.detail_preview_controller.sync_navigation()
 
     def _gui_logger(self):
-        return getattr(getattr(self.parent_window, "gui", None), "log", None)
+        return self.parent_window.gui.log
 
     def _host_gui(self):
-        return getattr(self.parent_window, "gui", None) or self.parent_window
+        return self.parent_window.gui
 
     def _show_task_error(self, error: str, duration: int = 6000):
         logger = self._gui_logger()

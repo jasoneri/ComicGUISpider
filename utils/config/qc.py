@@ -58,6 +58,17 @@ cgs_cfg = CgsConfig()
 qconfig.load(_qconfig_path("qc.json"), cgs_cfg)
 
 
+class CbgConfig(QConfig):
+    scanRoot = ConfigItem("Scan", "Root", "", restart=False)
+    includePrevious = ConfigItem("Random", "IncludePrevious", True, restart=False)
+    randomCount = ConfigItem("Random", "Count", 10, restart=False)
+    generatedPaths = ConfigItem("History", "GeneratedPaths", [], restart=False)
+
+
+cbg_cfg = CbgConfig()
+qconfig.load(_qconfig_path("qc_cbg.json"), cbg_cfg)
+
+
 class KemonoConfig(QConfig):
     """Kemono配置管理，包含过滤和收藏功能"""
     filterText = ConfigItem("Filter", "FilterText", "", restart=False)

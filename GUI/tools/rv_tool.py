@@ -113,8 +113,14 @@ class rvTool(QWidget):
         col3.addWidget(self.deployBtn)
         col3.addLayout(btn_row)
         
+        col4 = QVBoxLayout()
+        self.cbgBtn = TransparentToolButton(QIcon(":/script/cbg.svg"))
+        self.cbgBtn.setIconSize(QSize(40, 40))
+        col4.addWidget(self.cbgBtn)
+        
         self.showMaxBtn.clicked.connect(self.show_max)
         self.scanBtn.clicked.connect(self.rv_scan)
+        self.cbgBtn.clicked.connect(lambda _=False: self.gui.open_script_window(pure_only=True))
         self.sauceBtn.clicked.connect(self.do_sauce)
         self.deployBtn.clicked.connect(self.deploy)
         self.broomBtn.clicked.connect(self.broom)
@@ -123,11 +129,13 @@ class rvTool(QWidget):
         row.addLayout(col1)
         row.addWidget(self.sauceWidget)
         row.addWidget(self.col3Widget)
+        row.addLayout(col4)
         row.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
         self.main_layout.addLayout(row)
 
         _bind_ratio(self.showMaxBtn, 3)
         _bind_ratio(self.scanBtn, 3)
+        _bind_ratio(self.cbgBtn, 1)
         _bind_ratio(self.sauceBtn, 1)
 
     def resizeEvent(self, event):
@@ -137,7 +145,7 @@ class rvTool(QWidget):
         self.col3Widget.setFixedSize(sq, sq)
         self.col3BgLabel.setGeometry(0, 0, sq, sq)
         if self.showMaxBtn.maximumHeight() != h:
-            for btn in (self.showMaxBtn, self.scanBtn, self.deployBtn, self.broomBtn, self.runBtn):
+            for btn in (self.showMaxBtn, self.scanBtn, self.cbgBtn, self.deployBtn, self.broomBtn, self.runBtn):
                 btn.setFixedHeight(h)
             icon_size = int(h*1.5)
             self.sauceBtn.setFixedHeight(icon_size)

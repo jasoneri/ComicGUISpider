@@ -12,7 +12,7 @@ from ComicSpider.runtime import SpiderRuntimeThread
 from GUI.thread import WorkThread
 from utils import conf
 from utils.protocol import SpiderDownloadJob
-from variables import SPIDERS
+from variables import SPIDERS, Spider
 
 
 class DownloadRuntimeManager(QObject):
@@ -256,12 +256,22 @@ class DownloadRuntimeManager(QObject):
             merged.update(task_ids)
         self.session_job_task_ids = merged
 
-    def _submit_queued_jobs(self):
+    def _submit_queued_jobs(self): 
+        def _has_active_kaobei_job() -> bool:
+            return any(
+                self._submitted_task_infos[job_id][0] == Spider.MANGA_COPY
+                for job_id in self.running_job_ids | self.pending_job_ids
+            )
         if not self.spider_runtime:
             return
-        available_slots = int(conf.concurr_num) - len(self.running_job_ids) - len(self.pending_job_ids)
-        while self._submission_queue and available_slots > 0:
+        while self._submission_queue:
+            if _has_active_kaobei_job():
+                return
+            active_job_count = len(self.running_job_ids) + len(self.pending_job_ids)
+            next_job = self._submission_queue[0]
+            concurrency_limit = 1 if next_job.site_index == Spider.MANGA_COPY else int(conf.concurr_num)
+            if active_job_count >= concurrency_limit:
+                return
             job = self._submission_queue.popleft()
             self.pending_job_ids.add(job.job_id)
             self.spider_runtime.submit_job(job)
-            available_slots -= 1

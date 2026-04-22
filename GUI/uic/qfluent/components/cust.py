@@ -162,6 +162,7 @@ class CustomInfoBar:
         for widget in widgets:
             w.addWidget(widget)
         w.show()
+        return w
 
 
 class CustomFlyout:
@@ -187,13 +188,15 @@ class CustomFlyout:
 
 class CustomTeachingTip:
     @classmethod
-    def create(cls, widgets, target, parent, content=None,
+    def create(cls, widgets, target, parent, content=None, topLayout=None,
              isClosable=True, duration=-1, **kw):
         view = TeachingTipView(
             title="", content="", isClosable=isClosable
         )
         offset = 0
         cindex = 1 if isClosable else 0
+        if topLayout:
+            view.viewLayout.insertLayout(view.viewLayout.count() - cindex, topLayout)
         for w in widgets:
             view.viewLayout.insertWidget(view.viewLayout.count() - cindex, w)
             offset += (w.sizeHint().width() + 5)
@@ -422,12 +425,13 @@ class SupportView(FlyoutViewBase):
         self.yuqueBtn = PrimaryPushButton(FluentIcon.QUICK_NOTE, "语雀")
         def _yuque():
             copyBtn = TransparentToolButton(FluentIcon.COPY)
+            ib = CustomInfoBar.show_custom(title='', content='点按钮复制邀请码', parent=self.conf_dia, _type="INFORMATION",
+                ib_pos=InfoBarPosition.TOP, widgets=[copyBtn])
             def _copied():
                 QApplication.clipboard().setText("CZULIQ")
                 InfoBar.success(title='', content='已复制', parent=self.conf_dia, position=InfoBarPosition.TOP, duration=2000)
+                ib.close()
             copyBtn.clicked.connect(_copied)
-            CustomInfoBar.show_custom(title='', content='点按钮复制邀请码', parent=self.conf_dia, _type="INFORMATION",
-                ib_pos=InfoBarPosition.TOP, widgets=[copyBtn])
             safe_single_shot(4000, lambda: QDesktopServices.openUrl(QUrl("https://www.yuque.com")))
         self.yuqueBtn.clicked.connect(_yuque)
         self.affLayout.addWidget(self.riesBtn)

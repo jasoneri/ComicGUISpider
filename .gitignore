@@ -207,3 +207,4 @@ deploy/launcher/mac/*.html
 openspec/
 nul
 .omc
+*.*ai

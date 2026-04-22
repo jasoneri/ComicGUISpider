@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 import random
 import traceback
@@ -12,11 +11,12 @@ from PySide6.QtCore import (
 )
 from GUI.core.timer import safe_single_shot
 from PySide6.QtWidgets import QMainWindow, QCompleter
-from qfluentwidgets import InfoBar, InfoBarPosition, MessageBox
+from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
 )
+from GUI.script import ScriptWindow
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
@@ -37,12 +37,10 @@ from GUI.types import GUIFlowStage, PreviewRequestState, SearchContextSnapshot, 
 from utils.middleware.timeline import EventSource, TimelineStage
 from variables import *
 from assets import res
-from utils import conf, p, curr_os, select, ori_path, bs_theme
-from utils.processed_class import (
-    PreviewHtml, TmpFormatHtml
-)
+from utils import conf, p, curr_os, select, bs_theme
+from utils.processed_class import TmpFormatHtml
 from utils.redViewer_tools import Handler as rVtools
-from utils.website import InfoMinix, WnacgUtils
+from utils.website import WnacgUtils
 from utils.website.registry import resolve_site_gateway, resolve_spider_adapter
 _UNSET = object()
 
@@ -60,6 +58,7 @@ def _safe_disconnect(signal, slot=None):
 class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
     setup_finished = Signal()
+    exception_feedback_requested = Signal(str, str)
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
     web_is_r18 = False
@@ -77,6 +76,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
+        self.exception_feedback_requested.connect(self._show_exception_feedback, Qt.QueuedConnection)
 
     def _pick_sleep_widget_image(self, *, allow_random: bool) -> str | None:
         if allow_random and getattr(self.bg_mgr, "bg_fs", []):
@@ -348,6 +348,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.toolWin.stackedWidget.setCurrentWidget(self.toolWin.asInterface)
         safe_single_shot(10, _jump)
 
+    def open_script_window(self, *, pure_only: bool = False):
+        if self.toolWin is not None and self.toolWin.isVisible():
+            self.toolWin.close()
+        self.hide()
+        script_window = ScriptWindow(self)
+        setupTheme(script_window.kemonoInterface)
+        if pure_only:
+            script_window.apply_pure_entry_mode()
+        script_window.show()
+
     def set_tool_win(self):
         # if getattr(self, "toolWin", None):
         #     self.toolWin.close()
@@ -585,7 +595,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def crawl_end(self, imgs_path):
         self.refresh_lifecycle_state()
         self.say(font_color("…… (*￣▽￣)(￣▽:;.…::;.:.:::;..::;.:..."))
-        self.log.info(f"-*-*- crawl_end finish, spider closed \n")
+        self.log.info("-*-*- crawl_end finish, spider closed \n")
 
     def say(self, string, ignore_http=False):
         fin_s = ""
@@ -600,6 +610,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if fin_s:
             self.textBrowser.append(fin_s)
         self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
+
+    def _show_exception_feedback(self, headline: str, guidance: str):
+        self.say(headline, ignore_http=True)
+        self.say(guidance)
 
     def processbar_load(self, i):
         self.progressBar.setValue(i)
@@ -624,8 +638,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             return sys.__excepthook__(exc_type, exc_value, exc_traceback)
         exception = str("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         self.log.error(exception)
-        self.say(font_color(rf"{type(exc_value)}{exc_value}", cls='theme-err', size=4), ignore_http=True)
-        self.say(font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=3))
+        headline = font_color(rf"{type(exc_value)}{exc_value}", cls='theme-err', size=4)
+        guidance = font_color(rf"<br>{self.res.global_err_hook} <br>[{conf.log_path}\GUI.log]<br>", cls='theme-err', size=3)
+        if QThread.currentThread() is self.thread():
+            self._show_exception_feedback(headline, guidance)
+            return
+        self.exception_feedback_requested.emit(headline, guidance)
 
     def do_publish(self):
         gateway = self.site_gateway

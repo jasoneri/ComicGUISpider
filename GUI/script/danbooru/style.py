@@ -1,14 +1,13 @@
 import html
-from functools import lru_cache
-from pathlib import Path
 import re
-from string import Template
 from dataclasses import dataclass
 
 from PySide6 import QtGui
 
+from utils import ori_path
 from GUI.core.font import font_color
 from GUI.core.theme import CustTheme, theme_mgr
+from GUI.core.theme.qss_template import read_templated_qss_tokens, render_templated_qss_section
 
 DEFAULT_TAB_STATUS_CLASS = "theme-tip"
 
@@ -29,15 +28,7 @@ _RGB_COLOR_RE = re.compile(
     r"(?:\s*,\s*(?P<a>[\d.]+))?\s*\)$",
     re.IGNORECASE,
 )
-_QSS_SECTION_RE = re.compile(
-    r"/\*\s*@section\s+(?P<name>[\w.-]+)\s*\*/(?P<body>.*?)/\*\s*@endsection\s*\*/",
-    re.DOTALL,
-)
-_QSS_TOKEN_RE = re.compile(
-    r"/\*\s*@tokens\s+(?P<name>[\w.-]+)\s*\*/(?P<body>.*?)/\*\s*@endtokens\s*\*/",
-    re.DOTALL,
-)
-_DANBOORU_QSS_PATH = Path(__file__).with_name("theme.qss")
+_DANBOORU_QSS_PATH = ori_path.joinpath("GUI/core/theme/danbooru.qss")
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,52 +61,12 @@ def _current_theme_name() -> str:
     return "dark" if theme_mgr.get_theme() == CustTheme.DARK else "light"
 
 
-def _parse_qss_tokens(body: str) -> dict[str, str]:
-    tokens: dict[str, str] = {}
-    for raw_line in body.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        key, sep, value = line.partition("=")
-        if not sep:
-            raise ValueError(f"Invalid Danbooru QSS token line: {raw_line!r}")
-        tokens[key.strip()] = value.strip().rstrip(";")
-    return tokens
-
-
-@lru_cache(maxsize=1)
-def _load_qss_document() -> tuple[dict[str, Template], dict[str, dict[str, str]]]:
-    raw = _DANBOORU_QSS_PATH.read_text(encoding="utf-8")
-    sections = {
-        match.group("name"): Template(match.group("body").strip())
-        for match in _QSS_SECTION_RE.finditer(raw)
-    }
-    token_sets = {
-        match.group("name"): _parse_qss_tokens(match.group("body"))
-        for match in _QSS_TOKEN_RE.finditer(raw)
-    }
-    if not sections:
-        raise RuntimeError(f"No Danbooru QSS sections found in {_DANBOORU_QSS_PATH}")
-    if not token_sets:
-        raise RuntimeError(f"No Danbooru QSS token sets found in {_DANBOORU_QSS_PATH}")
-    return sections, token_sets
-
-
 def get_danbooru_qss_tokens() -> dict[str, str]:
-    _, token_sets = _load_qss_document()
-    theme_name = _current_theme_name()
-    tokens = token_sets.get(theme_name)
-    if tokens is None:
-        raise KeyError(f"Danbooru QSS token set is missing theme {theme_name!r}")
-    return dict(tokens)
+    return read_templated_qss_tokens(_DANBOORU_QSS_PATH, _current_theme_name())
+
+
 def _render_qss_section(name: str, **overrides: str) -> str:
-    sections, _ = _load_qss_document()
-    template = sections.get(name)
-    if template is None:
-        raise KeyError(f"Danbooru QSS section is missing {name!r}")
-    tokens = get_danbooru_qss_tokens()
-    tokens.update({key: str(value) for key, value in overrides.items()})
-    return template.substitute(tokens).strip()
+    return render_templated_qss_section(_DANBOORU_QSS_PATH, _current_theme_name(), name, **overrides)
 
 
 @dataclass(frozen=True, slots=True)

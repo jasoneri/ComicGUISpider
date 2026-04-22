@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 import sys
 import pathlib
 import os
@@ -26,6 +27,7 @@ from GUI.core.doh_runtime import ScriptDoHStubRuntime
 from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import summarize_error_message
+from GUI.script.cbg import CbgInterface
 from GUI.script.danbooru import DanbooruInterface
 from GUI.script.kemono import KemonoInterface
 
@@ -297,7 +299,7 @@ class SettingInterface(QFrame):
         self.danbooru_group_card.setDownloadConcurrency(runtime_config.download_concurrency)
 
     def _gui_logger(self):
-        return getattr(getattr(self.parent_window, "gui", None), "log", None)
+        return self.parent_window.gui.log
 
     def _show_save_error(self, prefix: str, error: BaseException):
         logger = self._gui_logger()
@@ -364,9 +366,11 @@ class ScriptWindow(ScriptWindowBase):
         self.gui = parent
         if OFFSCREEN_FLUENT_FALLBACK:
             self._setup_offscreen_shell()
+        self._script_entry_specs: list[tuple[QFrame, bool]] = []
         self.doh_stub_runtime = ScriptDoHStubRuntime(self)
         self.danbooruInterface = DanbooruInterface(self)
         self.kemonoInterface = KemonoInterface(self)
+        self.cbgInterface = CbgInterface(self)
         self.settingInterface = SettingInterface(self)
         self.doh_stub_runtime.ensure_from_config()
 
@@ -425,10 +429,37 @@ class ScriptWindow(ScriptWindowBase):
             button.setChecked(current_widget is widget)
 
     def initNavigation(self):
-        self.addSubInterface(self.danbooruInterface, ':/script/danbooru.svg', 'Danbooru')
-        self.addSubInterface(self.kemonoInterface, ':/script/kemono.ico', 'Kemono')
+        self._add_script_entry(self.danbooruInterface, ':/script/danbooru.svg', 'Danbooru', show_in_pure_mode=False)
+        self._add_script_entry(self.kemonoInterface, ':/script/kemono.ico', 'Kemono', show_in_pure_mode=False)
+        self._add_script_entry(self.cbgInterface, ':/script/cbg.svg', 'Cbg', show_in_pure_mode=True)
         self.navigationInterface.addSeparator()
-        self.addSubInterface(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM)
+        self._add_script_entry(
+            self.settingInterface,
+            FIF.SETTING,
+            'Settings',
+            NavigationItemPosition.BOTTOM,
+            show_in_pure_mode=True,
+        )
+
+    def apply_pure_entry_mode(self):
+        for interface, show_in_pure_mode in self._script_entry_specs:
+            if show_in_pure_mode:
+                continue
+            if OFFSCREEN_FLUENT_FALLBACK:
+                button = self._offscreen_nav_buttons.get(interface)
+                if button is not None:
+                    button.hide()
+            else:
+                self.navigationInterface.removeWidget(interface.objectName())
+
+        if OFFSCREEN_FLUENT_FALLBACK:
+            self._set_offscreen_current_widget(self.cbgInterface)
+        else:
+            self.switchTo(self.cbgInterface)
+
+    def _add_script_entry(self, interface, icon, text, position=NavigationItemPosition.TOP, *, show_in_pure_mode: bool):
+        self._script_entry_specs.append((interface, show_in_pure_mode))
+        return self.addSubInterface(interface, icon, text, position)
 
     def addSubInterface(self, interface, icon, text, position=NavigationItemPosition.TOP):
         if OFFSCREEN_FLUENT_FALLBACK:

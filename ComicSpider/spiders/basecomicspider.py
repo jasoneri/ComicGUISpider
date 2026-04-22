@@ -14,12 +14,11 @@ from ComicSpider.items import ComicspiderItem
 from ComicSpider.runtime.job_models import create_job_context, iter_download_items
 from GUI.core.font import font_color
 from utils import PresetHtmlEl, temp_p, conf
-from utils.processed_class import TextBrowserState, ProcessState, Url
+from utils.processed_class import TextBrowserState, ProcessState
         
-from utils.protocol import SpiderDownloadJob, JobContext, LogEvent, ProcessStateEvent, TasksObjEvent
+from utils.protocol import SpiderDownloadJob, JobContext, LogEvent, ProcessStateEvent
 from utils.website import (
-    correct_domain,
-    InfoMinix, BookInfo, Episode
+    correct_domain, BookInfo, Episode
 )
 from utils.website.registry import resolve_spider_adapter
 from utils.website.schema import BodyFormat

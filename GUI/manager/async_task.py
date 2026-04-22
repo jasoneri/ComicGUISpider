@@ -255,6 +255,8 @@ class AsyncTaskManager(QObject):
 
     def __init__(self, gui=None):
         super().__init__()
+        if gui is not None and gui.__class__.__name__ != "SpiderGUI":
+            raise TypeError("AsyncTaskManager gui must be SpiderGUI or None.")
         self.gui = gui
         self.current_tasks: Dict[str, AsyncTaskThread] = {}
         self._tooltip_stack = TaskTooltipStack(gui)
