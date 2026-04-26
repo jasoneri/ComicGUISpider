@@ -1,16 +1,13 @@
 import asyncio
 import traceback
-from copy import deepcopy
 from dataclasses import dataclass
 from queue import Empty, Queue
 from typing import Union
 
-import httpx
 from PySide6.QtCore import QThread, Signal
 
-from GUI.types import SearchContextSnapshot
 from utils.website.info import Episode
-from utils.website.registry import resolve_site_gateway
+from utils.website import GuiSiteRuntime, ThreadSiteRuntime
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,33 +46,31 @@ class PreviewWorker(QThread):
     pages_done = Signal(int, str, object)
     pages_error = Signal(int, str, str)
 
-    def __init__(self, gui=None, *, snapshot: SearchContextSnapshot, generation: int):
+    def __init__(self, gui=None, *, gui_site_runtime: GuiSiteRuntime, generation: int):
         super().__init__(gui)
         self.gui = gui
         self._active = True
         self._task_queue = Queue()
         self._generation = generation
-        self._snapshot = self._copy_snapshot(snapshot)
-        self.site_clients: dict[int, httpx.AsyncClient] = {}
+        self._gui_site_runtime = gui_site_runtime
+        self._thread_site_runtime: ThreadSiteRuntime | None = None
+        self._retired_runtimes: list[ThreadSiteRuntime] = []
         self._loop = None
 
     def stop(self):
         self._active = False
         self._task_queue.put(None)
 
-    @staticmethod
-    def _copy_snapshot(snapshot: SearchContextSnapshot) -> SearchContextSnapshot:
-        return SearchContextSnapshot(
-            site_index=snapshot.site_index,
-            proxies=list(snapshot.proxies),
-            cookies=deepcopy(snapshot.cookies),
-            domains=dict(snapshot.domains),
-            custom_map=deepcopy(snapshot.custom_map),
-            doh_url=snapshot.doh_url,
-        )
-
-    def update_snapshot(self, snapshot: SearchContextSnapshot):
-        self._snapshot = self._copy_snapshot(snapshot)
+    def update_gui_site_runtime(self, gui_site_runtime: GuiSiteRuntime):
+        if gui_site_runtime.site_index != self._gui_site_runtime.site_index:
+            raise ValueError(
+                "preview worker site runtime update must keep the same site index: "
+                f"{self._gui_site_runtime.site_index!r} -> {gui_site_runtime.site_index!r}"
+            )
+        if self._thread_site_runtime is not None:
+            self._retired_runtimes.append(self._thread_site_runtime)
+            self._thread_site_runtime = None
+        self._gui_site_runtime = gui_site_runtime
 
     def enqueue_search(self, keyword, site_index, page=1):
         self._task_queue.put(SearchTask(keyword, site_index, page))
@@ -91,44 +86,24 @@ class PreviewWorker(QThread):
         if items:
             self._task_queue.put(PagesBatchTask(items))
 
-    def _build_site_config(self, gateway):
-        return gateway.build_site_config_from_snapshot(self._snapshot)
-
-    def _get_client(self, site_index):
-        if cli := self.site_clients.get(site_index):
-            return cli
-        gateway = self._get_gateway(site_index)
-        site_config = self._build_site_config(gateway)
-        cli = gateway.create_async_preview_client(site_config=site_config)
-        self.site_clients[site_index] = cli
-        return cli
-
-    @staticmethod
-    def _get_gateway(site_index):
-        return resolve_site_gateway(site_index)
+    def _get_thread_site_runtime(self, site_index: int) -> ThreadSiteRuntime:
+        if site_index != self._gui_site_runtime.site_index:
+            raise ValueError(
+                "preview worker received task for mismatched site runtime: "
+                f"runtime={self._gui_site_runtime.site_index!r} task={site_index!r}"
+            )
+        if self._thread_site_runtime is None:
+            self._thread_site_runtime = self._gui_site_runtime.create_thread_site_runtime()
+        return self._thread_site_runtime
 
     def _batch_limit(self, site_index: int, stage: str, default: int) -> int:
-        gateway = self._get_gateway(site_index)
-        return gateway.preview_batch_limit(stage, default)
+        return self._get_thread_site_runtime(site_index).preview_batch_limit(stage, default)
 
     async def _do_search(self, keyword, site_index, page=1):
-        gateway = self._get_gateway(site_index)
-        site_config = self._build_site_config(gateway)
-        return await gateway.preview_search(
-            keyword,
-            self._get_client(site_index),
-            page=page,
-            site_config=site_config,
-        )
+        return await self._get_thread_site_runtime(site_index).preview_search(keyword, page=page)
 
     async def _do_fetch_episodes(self, book, site_index):
-        gateway = self._get_gateway(site_index)
-        site_config = self._build_site_config(gateway)
-        return await gateway.preview_fetch_episodes(
-            book,
-            self._get_client(site_index),
-            site_config=site_config,
-        )
+        return await self._get_thread_site_runtime(site_index).preview_fetch_episodes(book)
 
     async def _do_fetch_episodes_batch(self, items):
         semaphores = {}
@@ -164,13 +139,7 @@ class PreviewWorker(QThread):
 
         async def _fetch_one(book_key, item, site_index):
             async with _site_semaphore(site_index):
-                gateway = self._get_gateway(site_index)
-                site_config = self._build_site_config(gateway)
-                page_urls = await gateway.preview_fetch_pages(
-                    item,
-                    self._get_client(site_index),
-                    site_config=site_config,
-                )
+                page_urls = await self._get_thread_site_runtime(site_index).preview_fetch_pages(item)
                 if isinstance(page_urls, list):
                     item.pages = len(page_urls)
                     if isinstance(item, Episode):
@@ -194,10 +163,14 @@ class PreviewWorker(QThread):
             *[_fetch_book(bk, eps) for bk, eps in grouped.items()]
         )
 
-    async def _close_clients(self):
-        for cli in self.site_clients.values():
-            await cli.aclose()
-        self.site_clients.clear()
+    async def _close_runtimes(self):
+        runtimes = list(self._retired_runtimes)
+        self._retired_runtimes.clear()
+        if self._thread_site_runtime is not None:
+            runtimes.append(self._thread_site_runtime)
+            self._thread_site_runtime = None
+        for runtime in runtimes:
+            await runtime.aclose()
 
     def run(self):
         self._loop = asyncio.new_event_loop()
@@ -241,8 +214,8 @@ class PreviewWorker(QThread):
                             self.search_error.emit(self._generation, "", -1, err)
         finally:
             try:
-                self._loop.run_until_complete(self._close_clients())
+                self._loop.run_until_complete(self._close_runtimes())
             except Exception:
-                pass
+                self.gui.log.error(traceback.format_exc())
             finally:
                 self._loop.close()

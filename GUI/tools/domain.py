@@ -59,10 +59,10 @@ class DomainToolView(FlyoutViewBase):
 
         if available:
             _domain = next(iter(sorted(available)))
-            gateway = self.gui.site_gateway
-            if gateway is None:
-                raise RuntimeError("site gateway unavailable for domain cache update")
-            t_f = gateway.cache_path()
+            gui_site_runtime = self.gui.gui_site_runtime
+            if gui_site_runtime is None:
+                raise RuntimeError("gui_site_runtime unavailable for domain cache update")
+            t_f = gui_site_runtime.cache_path()
             with open(t_f, 'w', encoding='utf-8') as f:
                 f.write(_domain)
             prefix_tip = tools_res.doamin_success_tip % (_domain, t_f)

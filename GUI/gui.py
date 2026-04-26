@@ -21,7 +21,6 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
 from GUI.core.anim import PopupAnimator
-from GUI.core.browser.browser_environment import peek_snapshot_domain
 from utils.sql.download_state import DownloadStateStore
 from GUI.conf_dialog import ConfDialog
 from GUI.browser_window import BrowserWindow as BrowserWindowCls
@@ -33,7 +32,7 @@ from GUI.manager import (
 )
 from utils.config.qc import cgs_cfg
 from GUI.manager.preprocess import PreprocessManager
-from GUI.types import GUIFlowStage, PreviewRequestState, SearchContextSnapshot, SearchLifecycleState, SearchUiState
+from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState, SearchUiState
 from utils.middleware.timeline import EventSource, TimelineStage
 from variables import *
 from assets import res
@@ -41,7 +40,7 @@ from utils import conf, p, curr_os, select, bs_theme
 from utils.processed_class import TmpFormatHtml
 from utils.redViewer_tools import Handler as rVtools
 from utils.website import WnacgUtils
-from utils.website.registry import resolve_site_gateway, resolve_spider_adapter
+from utils.website.registry import create_gui_site_runtime
 _UNSET = object()
 
 
@@ -62,8 +61,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     BrowserWindow: BrowserWindowCls = None
     toolWin = None
     web_is_r18 = False
-    site_gateway = None
-    spider_adapter = None
+    gui_site_runtime = None
     sut = None
     bsm: dict = None  # books show max
     flow_stage: GUIFlowStage = GUIFlowStage.IDLE
@@ -146,7 +144,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.set_shortcut()
         self.set_tool_win()
         self.tf = None
-        self._search_context = None
+        self.gui_site_runtime = None
         self.BrowserWindow = None
         self.bsm = None
         self.search_ui_state = SearchUiState()
@@ -210,50 +208,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         color = "rgb(255, 255, 255)" if enabled else "rgb(127, 127, 127)"
         self.pageFrame.setStyleSheet(f"QToolButton {{ background-color: {color}; }}")
 
-    def _snapshot_cookies(self, site_index: int) -> dict[str, dict]:
-        if site_index == Spider.JM:
-            if cookies := conf.cookies.get("jm"):
-                return {"jm": dict(cookies)}
-        elif site_index == Spider.EHENTAI:
-            if cookies := conf.cookies.get("ehentai"):
-                return {"ehentai": dict(cookies)}
-        return {}
-
-    def _build_search_context_snapshot(self, site_index: int) -> SearchContextSnapshot:
-        domains = {}
-        try:
-            site_gateway = resolve_site_gateway(site_index)
-        except ValueError:
-            site_gateway = None
-        if site_index == Spider.JM and site_gateway is not None:
-            if domain := peek_snapshot_domain(site_gateway):
-                domains["jm"] = domain
-        elif site_index == Spider.WNACG and site_gateway is not None:
-            if domain := peek_snapshot_domain(site_gateway):
-                domains["wnacg"] = domain
-        elif site_index == Spider.EHENTAI and site_gateway is not None:
-            domains["ehentai"] = site_gateway.domain
-        return SearchContextSnapshot(
-            site_index=site_index,
-            proxies=list(conf.proxies or []),
-            cookies=self._snapshot_cookies(site_index),
-            domains=domains,
-            custom_map=dict(conf.custom_map or {}),
-            doh_url=cgs_cfg.get_doh_url(),
+    def _create_gui_site_runtime(self, site_index: int):
+        if site_index not in SPIDERS:
+            raise ValueError(f"unsupported gui_site_runtime site index: {site_index!r}")
+        return create_gui_site_runtime(
+            site_index,
+            conf_state=conf,
+            default_doh_url=cgs_cfg.get_doh_url(),
         )
-
-    @property
-    def search_context(self) -> SearchContextSnapshot | None:
-        return self._search_context
-
-    def update_search_context(self, snapshot: SearchContextSnapshot):
-        if snapshot.site_index != self.chooseBox.currentIndex():
-            return
-        self._search_context = snapshot
-        if getattr(self, "preview_mgr", None):
-            self.preview_mgr.update_search_context(snapshot)
-        if getattr(self, "BrowserWindow", None):
-            self.BrowserWindow.apply_standard_environment()
 
     def _destroy_browser_window(self):
         browser = self.BrowserWindow
@@ -266,26 +228,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def _chooseBox_changed_handle(self, index):
         if index <= 0:
-            self._search_context = None
+            self.gui_site_runtime = None
             self.search_ui_state = SearchUiState()
             self.web_is_r18 = False
-            self.site_gateway = None
-            self.spider_adapter = None
             self.flow_stage = GUIFlowStage.IDLE
             self.preview_mgr.handle_choosebox_changed(index, None)
             self.refresh_lifecycle_state()
             return
 
-        self._search_context = self._build_search_context_snapshot(index)
+        self.gui_site_runtime = self._create_gui_site_runtime(index) if index in SPIDERS else None
         self.search_ui_state = SearchUiState()
-        try:
-            self.site_gateway = resolve_site_gateway(index)
-        except ValueError:
-            self.site_gateway = None
-        try:
-            self.spider_adapter = resolve_spider_adapter(index)
-        except ValueError:
-            self.spider_adapter = None
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
@@ -293,7 +245,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sut = None
         if index in (2,3) and not conf.proxies:
             self.domainBtn.setVisible(True)
-        if self.web_is_r18 and self.site_gateway is not None:
+        if self.web_is_r18 and self.gui_site_runtime is not None:
             self.rv_tools.ero = 1
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
         FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
@@ -306,8 +258,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.sv_path = conf.sv_path
         self.set_completer()
         self.flow_stage = GUIFlowStage.IDLE
-        self.preview_mgr.handle_choosebox_changed(index, self._search_context)
-        self.preprocess_mgr.handle_choosebox_changed(index, self._search_context)
+        self.preview_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
+        self.preprocess_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
         self.refresh_lifecycle_state()
 
     def chooseBox_changed_tips(self, index):
@@ -322,8 +274,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             case 4:
                 self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
-                if self.site_gateway:
-                    self.say(font_color(getattr(self.res, f"{self.site_gateway.name}_desc", ""), cls='theme-highlight'), ignore_http=True)
+                if self.gui_site_runtime is not None:
+                    self.say(
+                        font_color(
+                            getattr(self.res, f"{self.gui_site_runtime.name}_desc", ""),
+                            cls='theme-highlight',
+                        ),
+                        ignore_http=True,
+                    )
         if index in Spider.mangas():
             self.say(font_color(self.res.manga_fav_tip, cls='theme-tip'))
 
@@ -513,14 +471,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         # self.tf = None
         # self.sut = None
         # self.web_is_r18 = False
-        self.site_gateway = None
-        self.spider_adapter = None
+        self.gui_site_runtime = None
         self.domainBtn.setVisible(False)
         self.rv_tools.ero = 0
         self.bsm = None
         self.sv_path = conf.sv_path
         self.flow_stage = GUIFlowStage.IDLE
-        self._search_context = None
         self.search_ui_state = SearchUiState()
         self.searchinput.clear()
         self.searchinput.setStatusTip("")
@@ -646,13 +602,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.exception_feedback_requested.emit(headline, guidance)
 
     def do_publish(self):
-        gateway = self.site_gateway
-        if gateway is None:
-            raise RuntimeError("site gateway unavailable for publish flow")
-        cache_file = gateway.cache_path()
+        gui_site_runtime = self.gui_site_runtime
+        if gui_site_runtime is None:
+            raise RuntimeError("gui_site_runtime unavailable for publish flow")
+        cache_file = gui_site_runtime.cache_path()
         cached = cache_file.read_text(encoding='utf-8').strip() if cache_file.exists() else ""
         self.tf = TmpFormatHtml.created_temp_html("publish",
-            bs_theme=bs_theme(), publish_url=gateway.publish_url,
+            bs_theme=bs_theme(), publish_url=gui_site_runtime.publish_url,
             wnacg_publish=WnacgUtils.publish_domain, __cached_domain__=cached
         )
         self.set_preview()
@@ -669,8 +625,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         rect = QRect(self.x(), int(screen_height*0.05),
             self.width(), int(screen_height*0.9))
         if not getattr(self, 'BrowserWindow'):
-            site_index = getattr(self.search_context, "site_index", self.chooseBox.currentIndex())
-            skip_env_mode = site_index not in SPIDERS
+            site_index = (
+                self.gui_site_runtime.site_index
+                if self.gui_site_runtime is not None
+                else self.chooseBox.currentIndex()
+            )
+            skip_env_mode = self.gui_site_runtime is None or site_index not in SPIDERS
             self.set_preview(rect, skip_env_mode=skip_env_mode)
         else:
             self.BrowserWindow.setGeometry(rect)

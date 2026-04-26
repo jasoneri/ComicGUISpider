@@ -4,7 +4,6 @@ from utils import conf, get_loop, PresetHtmlEl
 from utils.ags import SearchKey
 from assets import res
 from GUI.core.font import font_color
-from utils.website.registry import resolve_spider_adapter
 
 
 class AggrSearchThread(QThread):
@@ -24,15 +23,13 @@ class AggrSearchThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        adapter = getattr(self.gui, "spider_adapter", None) or resolve_spider_adapter(self.gui.chooseBox.currentIndex())
-        session = adapter.create_session(conf)
-        async with session.get_cli(conf, is_async=True) as cli:
+        gui_site_runtime = self.gui.gui_site_runtime
+        _runtime = gui_site_runtime.create_thread_site_runtime()
+        try:
             total = {}
             async def fetch_single(group_idx, search_keyword: SearchKey):
                 try:
-                    search_url = session.build_search_url(search_keyword)
-                    resp = await cli.get(search_url, follow_redirects=True, timeout=6)
-                    books = session.parse_search(resp.text)
+                    books = await _runtime.preview_search(search_keyword)
                     self.msleep(50)
 
                     group_books = {}
@@ -63,8 +60,10 @@ class AggrSearchThread(QThread):
                 if isinstance(result, Exception):
                     continue
                 if result:
-                    total.update(result)  # 合并所有book到total字典中
+                    total.update(result)
             return total
+        finally:
+            _runtime.close()
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:

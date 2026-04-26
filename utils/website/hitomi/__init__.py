@@ -95,19 +95,17 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
         self.gg = gg(cli=self.cli)
         self.dec = self.Decrypt(self.gg)
 
-    @staticmethod
-    def _gg_bucket_epoch(gg_instance) -> int | None:
-        bucket_epoch = getattr(gg_instance, "bucket_epoch", None)
-        if bucket_epoch is not None:
-            return int(bucket_epoch)
-        raw_bucket = str(getattr(gg_instance, "b", "")).rstrip("/")
-        if raw_bucket.isdigit():
-            return int(raw_bucket)
-        return None
-
     def refresh_gg_if_needed(self, *, force: bool = False) -> bool:
+        def _gg_bucket_epoch() -> int | None:
+            bucket_epoch = self.gg.bucket_epoch
+            if bucket_epoch is not None:
+                return int(bucket_epoch)
+            raw_bucket = self.gg.b.rstrip("/")
+            if raw_bucket.isdigit():
+                return int(raw_bucket)
+            return None
         current_bucket = gg.current_bucket()
-        loaded_bucket = self._gg_bucket_epoch(self.gg)
+        loaded_bucket = _gg_bucket_epoch(self.gg)
         if not force and loaded_bucket is not None and loaded_bucket >= current_bucket:
             return False
 
@@ -174,7 +172,7 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
         **kw,
     ) -> list:
         page = max(1, int(kw.pop("page", 1) or 1))
-        nozomi_url = cls.reqer_cls.build_search_url(keyword)
+        nozomi_url = cls.reqer_cls.build_search_url(keyword)    # FIXME[0] cls.reqer_cls错误，链路因为 preview_search 为 classmethod 而错
         range_header = f"bytes={cls.galleries_per_page * (page - 1)}-{cls.galleries_per_page * page - 1}"
         resp, gg_resp = await asyncio.gather(
             client.get(nozomi_url, headers={**cls.headers, "Range": range_header}, timeout=15),

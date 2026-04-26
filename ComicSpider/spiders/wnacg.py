@@ -2,7 +2,7 @@
 import re
 from concurrent.futures import ThreadPoolExecutor
 
-from utils.website import WnacgUtils, correct_domain
+from utils.website import correct_domain
 from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "wnacg.com"
@@ -32,13 +32,13 @@ class WnacgSpider(BaseComicSpider2):
 
     @property
     def ua(self):
-        return WnacgUtils.build_site_headers(self.domain, WnacgUtils.book_hea)
+        provider = self.spider_site_runtime.provider
+        return provider.build_site_headers(self.domain, provider.book_hea)
 
     def preready(self):
         if self._runtime_origin:
             return
-        self.domain = self.site.resolve_domain()
-        self.site.reqer.domain = self.domain
+        self.domain = self.spider_site_runtime.resolve_domain()
         self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def frame_section(self, response):

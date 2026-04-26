@@ -21,16 +21,7 @@ from GUI.script.danbooru.style import DEFAULT_CARD_METRICS, DanbooruCardMetrics
 from GUI.uic.qfluent.components import CustomInfoBar, CustomTeachingTip
 from utils import ori_path, conf, conf_dir
 from utils.config.qc import cbg_cfg
-from utils.script.cbg import (
-    ALLOWED_RANDOM_COUNTS,
-    build_userscript,
-    canonicalize_random_count,
-    import_cbg_api_bundle,
-    normalize_path,
-    pick_random_paths,
-    scan_png_files,
-    unique_paths,
-)
+from utils.script.cbg import Api, ScriptMgr, StaticMgr
 
 
 _TEMPLATE_PATH = ori_path.joinpath("assets/cbg_sample.js")
@@ -89,13 +80,13 @@ class CbgPathCard(PushSettingCard):
 class CbgRandomCountSpinBox(CompactSpinBox):
     def __init__(self, initial_value: object, parent=None):
         super().__init__(parent)
-        self.setRange(ALLOWED_RANDOM_COUNTS[0], ALLOWED_RANDOM_COUNTS[-1])
+        self.setRange(ScriptMgr.ALLOWED_RANDOM_COUNTS[0], ScriptMgr.ALLOWED_RANDOM_COUNTS[-1])
         self.setSingleStep(5)
-        self.setValue(canonicalize_random_count(initial_value))
+        self.setValue(ScriptMgr.canonicalize_random_count(initial_value))
         self.editingFinished.connect(self._snap_to_allowed)
 
     def _snap_to_allowed(self) -> None:
-        normalized = canonicalize_random_count(self.value())
+        normalized = ScriptMgr.canonicalize_random_count(self.value())
         if normalized == self.value():
             return
         self.blockSignals(True)
@@ -164,10 +155,7 @@ class CbgCardWidget(QFrame):
 
     def _derive_preview_size(self) -> QtCore.QSize:
         source_size = self._source_preview_size()
-        bounds = QtCore.QSize(
-            max(1, self.metrics.preview_content_width),
-            max(1, self.metrics.preview_max_height),
-        )
+        bounds = QtCore.QSize(max(1, self.metrics.preview_content_width), max(1, self.metrics.preview_max_height))
         if source_size.width() <= 0 or source_size.height() <= 0:
             return QtCore.QSize(bounds.width(), max(1, self.metrics.preview_base_height))
         fitted = source_size.scaled(bounds, Qt.KeepAspectRatio)
@@ -346,10 +334,7 @@ class CbgSelectionController(QtCore.QObject):
         viewport = self.interface.scroll_area.viewport()
         point = viewport.mapFromGlobal(global_pos)
         rect = viewport.rect()
-        return QtCore.QPoint(
-            min(max(point.x(), rect.left()), rect.right()),
-            min(max(point.y(), rect.top()), rect.bottom()),
-        )
+        return QtCore.QPoint(min(max(point.x(), rect.left()), rect.right()), min(max(point.y(), rect.top()), rect.bottom()))
 
     def _begin_drag(self) -> None:
         if self._drag_active or self._drag_origin is None:
@@ -431,6 +416,10 @@ class CbgInterface(QFrame):
         self.cards: dict[Path, CbgCardWidget] = {}
         self._scanned_paths: list[Path] = []
         self._selected_paths: set[Path] = set()
+        template_text = _TEMPLATE_PATH.read_text(encoding="utf-8")
+        self.script_mgr = ScriptMgr(template_text)
+        self.static_mgr = StaticMgr()
+
         self._setup_ui()
         self.preview_scheduler = PreviewScheduler(self.scroll_area, max_concurrent=20)
         self.selection_controller = CbgSelectionController(self)
@@ -473,9 +462,7 @@ class CbgInterface(QFrame):
 
         self.numBox = CbgRandomCountSpinBox(cbg_cfg.randomCount.value, self.random_frame)
         self.numBox.setMinimumHeight(36)
-        self.numBox.valueChanged.connect(
-            lambda value: cbg_cfg.set(cbg_cfg.randomCount, canonicalize_random_count(value))
-        )
+        self.numBox.valueChanged.connect(lambda value: cbg_cfg.set(cbg_cfg.randomCount, ScriptMgr.canonicalize_random_count(value)))
 
         self.ensureBtn = ToolButton(QIcon(':/script/random.svg'), self.random_frame)
         self.ensureBtn.setFixedSize(38, 38)
@@ -567,7 +554,7 @@ class CbgInterface(QFrame):
                 )
                 return
             started = self.task_mgr.execute_simple_task(
-                import_cbg_api_bundle,
+                Api.import_bundle,
                 success_callback=on_imported, error_callback=log_error, tooltip_title="import resource", tooltip_content="read remote", show_success_info=False,
                 tooltip_parent=self, task_id="cbg_api_import", api_url=api_url, output_root=conf_dir.joinpath("cbg"),
             )
@@ -589,15 +576,17 @@ class CbgInterface(QFrame):
 
     def _restore_persisted_state(self) -> None:
         raw_scan_root = str(cbg_cfg.scanRoot.value or "").strip()
-        scan_root = str(normalize_path(raw_scan_root)) if raw_scan_root else ""
+        scan_root = str(StaticMgr.normalize_path(raw_scan_root)) if raw_scan_root else ""
         self.path_card.set_path(scan_root)
         self.containBtn.blockSignals(True)
         self.containBtn.setChecked(bool(cbg_cfg.includePrevious.value))
         self.containBtn.blockSignals(False)
         self.numBox.blockSignals(True)
-        self.numBox.setValue(canonicalize_random_count(cbg_cfg.randomCount.value))
+        self.numBox.setValue(ScriptMgr.canonicalize_random_count(cbg_cfg.randomCount.value))
         self.numBox.blockSignals(False)
         if scan_root:
+            self.static_mgr.set_scan_root(scan_root)
+            self.static_mgr.set_recorded_paths(cbg_cfg.generatedPaths.value or [])
             self._scan_selected_root(scan_root)
         else:
             self._sync_grid_view()
@@ -646,26 +635,23 @@ class CbgInterface(QFrame):
 
     def _scan_selected_root(self, raw_root: str) -> None:
         """扫描选定的根目录"""
-        normalized_root = str(normalize_path(raw_root)) if str(raw_root or "").strip() else ""
+        normalized_root = str(StaticMgr.normalize_path(raw_root)) if str(raw_root or "").strip() else ""
         cbg_cfg.set(cbg_cfg.scanRoot, normalized_root)
         self.path_card.set_path(normalized_root)
 
         if not normalized_root:
             self._load_scan_result([])
             return
-
-        self._load_scan_result(scan_png_files(Path(normalized_root)))
+        self.static_mgr.set_scan_root(normalized_root)
+        scanned = self.static_mgr.scan_files()
+        self._load_scan_result(scanned)
 
     def _select_random_paths(self) -> None:
         if not self._scanned_paths:
             return
-        target_count = canonicalize_random_count(self.numBox.value())
-        selected_paths = pick_random_paths(
-            self._scanned_paths,
-            recorded_paths=unique_paths(cbg_cfg.generatedPaths.value or []),
-            target_count=target_count,
-            include_recorded=self.containBtn.isChecked(),
-        )
+        target_count = ScriptMgr.canonicalize_random_count(self.numBox.value())
+        self.static_mgr.set_recorded_paths(cbg_cfg.generatedPaths.value or [])
+        selected_paths = self.static_mgr.pick_random(target_count=target_count, include_recorded=self.containBtn.isChecked())
         self.selection_controller.set_selected_paths(selected_paths)
 
     def _ordered_selected_paths(self) -> list[Path]:
@@ -675,15 +661,12 @@ class CbgInterface(QFrame):
         selected_paths = self._ordered_selected_paths()
         if not selected_paths:
             return
-        template_text = _TEMPLATE_PATH.read_text(encoding="utf-8")
-        userscript = build_userscript(selected_paths, template_text)
+        self.script_mgr.set_selected_paths(selected_paths)
+        userscript = self.script_mgr.build_userscript()
         QApplication.clipboard().setText(userscript)
-        cbg_cfg.set(
-            cbg_cfg.generatedPaths,
-            [str(path) for path in unique_paths(selected_paths)],
-        )
+        cbg_cfg.set(cbg_cfg.generatedPaths, [str(path) for path in self.script_mgr.selected_paths])
         CustomInfoBar.show(
-            "", "已复制进剪贴板，导入到浏览器油猴脚本中使用",
+            "", "已复制进剪贴板，导入到浏览器油猴脚本中使用\n(火狐无法使用，需进扩展勾选`允许访问文件网址`权限)",
             self, _TAMPERMONKEY_URL, "Tampermonkey", _type="SUCCESS", position=InfoBarPosition.BOTTOM,
         )
 

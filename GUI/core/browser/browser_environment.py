@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from assets import res
 from utils import temp_p
-from utils.website.runtime_context import PreviewRuntimeContext
-from utils.website.registry import resolve_site_gateway
 from variables import Spider
 
 from .types import BrowserCookieSet, BrowserEnvironmentConfig
@@ -11,13 +9,10 @@ from .types import BrowserCookieSet, BrowserEnvironmentConfig
 
 def build_browser_environment(browser) -> BrowserEnvironmentConfig:
     gui = browser.gui
-    snapshot = gui.search_context
-    runtime_context = PreviewRuntimeContext.from_snapshot(snapshot)
-    site_index = snapshot.site_index if snapshot is not None else gui.chooseBox.currentIndex()
-    gateway = resolve_site_gateway(site_index)
-    env = gateway.build_browser_environment(
-        runtime_context,
-        site_index=site_index,
+    gui_site_runtime = gui.gui_site_runtime
+    if gui_site_runtime is None:
+        raise RuntimeError("gui_site_runtime unavailable for browser environment")
+    env = gui_site_runtime.build_browser_environment(
         lang=res.lang,
         cn_proxy_indexes=Spider.cn_proxy(),
     )

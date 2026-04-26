@@ -1,16 +1,18 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import re
 from urllib.parse import urlencode
 
 import httpx
+from retry import retry
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from lxml import html
 
 from utils import conf, get_loop, temp_p
-from utils.processed_class import Url
 from utils.website.core import Cache, Previewer, Req, Utils, build_proxy_transport
 from utils.website.info import Episode, KbBookInfo
 
@@ -19,6 +21,7 @@ class _KaobeiContract:
     name = "manga_copy"
     proxy_policy = "proxy"
     preview_batch_limits = {"episodes": 1, "pages": 1}
+    preview_transport_retries = 2
     uuid_regex = re.compile(r"(\d+)$")
     pc_domain = "www.2026copy.com"
     api_domain = "api.2026copy.com"
@@ -58,37 +61,10 @@ class _KaobeiContract:
     turn_page_info = (r"offset=\d+", None, 30)
 
 
-def _kaobei_error_body(text: str) -> bool:
-    return str(text or "").strip().casefold() == "error"
-
-
-async def _kaobei_get_with_retry(
-    client,
-    url: str,
-    *,
-    stage: str,
-    headers: dict | None = None,
-    retries: int = 2,
-    retry_delay: float = 0.4,
-    **kwargs,
-):
-    last_response = None
-    for attempt in range(retries + 1):
-        resp = await client.get(url, headers=headers, **kwargs)
-        resp.raise_for_status()
-        if not _kaobei_error_body(resp.text):
-            return resp
-        last_response = resp
-        if attempt < retries:
-            await asyncio.sleep(retry_delay * (attempt + 1))
-    snippet = " ".join((last_response.text or "").split())[:160] if last_response else "<empty>"
-    raise ValueError(
-        f"kaobei {stage} expected content instead of error body: "
-        f"status={getattr(last_response, 'status_code', '?')} url={url} body={snippet}"
-    )
-
-
 class KaobeiParser(_KaobeiContract):
+    def __init__(self, reqer: "KaobeiReqer"):
+        self.reqer = reqer
+
     @classmethod
     def parse_search_targets(cls, targets, frame):
         rendering_map = frame.rendering_map()
@@ -127,9 +103,8 @@ class KaobeiParser(_KaobeiContract):
             name=chapter_datum["name"],
         )
 
-    @classmethod
-    def parse_episodes(cls, json_results, book, *, url, aes_key, show_dhb=False):
-        resp_data = cls.decrypt_chapter_data(json_results, aes_key=aes_key, url=url)
+    def parse_episodes(self, json_results, book, *, url, show_dhb=False):
+        resp_data = self.decrypt_chapter_data(json_results, url=url)
         build = resp_data.get("build")
         if not isinstance(build, dict):
             raise ValueError(f"kaobei chapters payload missing build block: url={url}")
@@ -156,7 +131,7 @@ class KaobeiParser(_KaobeiContract):
                 f"path_word={comic_path_word} group_keys={list(groups)}"
             )
         return [
-            cls.parse_ep_item(chapter_datum, comic_path_word, book, idx + 1)
+            self.parse_ep_item(chapter_datum, comic_path_word, book, idx + 1)
             for idx, chapter_datum in enumerate(chapters_data)
         ]
 
@@ -165,41 +140,27 @@ class KaobeiParser(_KaobeiContract):
         cipher_bytes = bytes.fromhex(cipher_hex)
         key_bytes = aes_key.encode("utf-8")
         iv_bytes = iv.encode("utf-8")
-        cipher = Cipher(
-            algorithms.AES(key_bytes),
-            modes.CBC(iv_bytes),
-            backend=default_backend(),
-        )
+        cipher = Cipher(algorithms.AES(key_bytes), modes.CBC(iv_bytes), backend=default_backend())
         decryptor = cipher.decryptor()
         decrypted_padded = decryptor.update(cipher_bytes) + decryptor.finalize()
         unpadder = padding.PKCS7(128).unpadder()
         decrypted = unpadder.update(decrypted_padded) + unpadder.finalize()
         return json.loads(decrypted.decode("utf-8"))
 
-    @classmethod
-    def decrypt_chapter_data(cls, ret: str, *, aes_key: str, **meta_info):
-        if not aes_key:
-            raise ValueError("kaobei aes_key is required for decrypt_chapter_data")
+    def decrypt_chapter_data(self, ret: str, **meta_info):
+        aes_key = self.reqer.get_aes_key()
         if not isinstance(ret, str):
-            raise TypeError(
-                f"kaobei encrypted payload must be str: got {type(ret).__name__} {meta_info=}"
-            )
+            raise TypeError(f"kaobei encrypted payload must be str: got {type(ret).__name__} {meta_info=}")
         if len(ret) <= 16:
-            raise ValueError(
-                f"kaobei encrypted payload is empty or too short: len={len(ret)} {meta_info=}"
-            )
+            raise ValueError(f"kaobei encrypted payload is empty or too short: len={len(ret)} {meta_info=}")
         try:
-            return cls._decrypt(ret[16:], aes_key=aes_key, iv=ret[:16])
+            return self._decrypt(ret[16:], aes_key=aes_key, iv=ret[:16])
         except Exception as exc:
-            KaobeiReqer.clear_aes_key()
-            raise RuntimeError(
-                f"kaobei decrypt failed, aes_key cache cleared: len={len(ret)} {meta_info=}"
-            ) from exc
+            self.reqer.clear_aes_key()
+            raise RuntimeError(f"kaobei decrypt failed, aes_key cache cleared: len={len(ret)} {meta_info=}") from exc
 
-    @classmethod
-    def parse_page_urls_from_html(cls, html_text: str, *, url: str, aes_key: str) -> list[dict]:
-        if not aes_key:
-            raise ValueError("kaobei aes_key is required for parse_page_urls_from_html")
+    @staticmethod
+    def extract_page_content_key(html_text: str, *, url: str) -> str:
         doc = html.fromstring(html_text)
         scripts = doc.xpath('//script[contains(text(), "var contentKey =")]/text()')
         content_key_script = next(iter(scripts), None)
@@ -211,14 +172,27 @@ class KaobeiParser(_KaobeiContract):
         content_key = content_key_match.group(1)
         if not content_key:
             raise ValueError(f"kaobei chapter page returned empty contentKey: url={url}")
-        return cls.decrypt_chapter_data(content_key, aes_key=aes_key, url=url)
+        return content_key
+
+    def parse_page_urls_from_html(self, html_text: str, *, url: str) -> list[dict]:
+        content_key = self.extract_page_content_key(html_text, url=url)
+        return self.decrypt_chapter_data(content_key, url=url)
 
 
 class KaobeiReqer(_KaobeiContract, Req):
-    AES_KEY = None
+    parser_cls = KaobeiParser
 
-    def __init__(self, _conf):
-        self.cli = self.get_cli(_conf)
+    def __init__(self, _conf=None, *, owner=None, build_sync_client=True):
+        self.conf = _conf or conf
+        self.owner = owner
+        self.preview_client = None
+        self._owned_preview_client = None
+        self._aes_key = None
+        self._aes_cache_path = temp_p.joinpath(self.cache_file)
+        self._aes_cache = Cache(self.cache_file)
+        self.parser = self.parser_cls(self)
+        if build_sync_client:
+            self.cli = self.get_cli(self.conf)
 
     @classmethod
     def build_search_spec(cls, keyword: str, domain: str = None) -> tuple:
@@ -242,43 +216,34 @@ class KaobeiReqer(_KaobeiContract, Req):
             url = f"{frame.url}&{urlencode(params)}"
         return url, frame
 
-    @classmethod
-    def _cache(cls):
-        cls.cachef = getattr(cls, "cachef", Cache(cls.cache_file))
-        return cls.cachef
-
-    @classmethod
-    def _cache_path(cls):
-        return temp_p.joinpath(cls.cache_file)
-
-    @classmethod
-    def _read_cached_key(cls):
-        if cls.AES_KEY:
-            return cls.AES_KEY
-        cached = cls._cache().run(lambda: None, "daily")
+    def _read_cached_key(self):
+        if self._aes_key:
+            return self._aes_key
+        cached = self._aes_cache.run(lambda: None, "daily")
         if cached:
-            cls.AES_KEY = cached
+            self._aes_key = cached
         return cached
 
-    @classmethod
-    def _write_cached_key(cls, key: str):
-        cls._cache_path().write_text(key, encoding="utf-8")
-        cachef = cls._cache()
-        cachef.flag = "new"
-        cachef.val = key
-        cls.AES_KEY = key
+    def _write_cached_key(self, key: str):
+        self._aes_cache_path.write_text(key, encoding="utf-8")
+        self._aes_cache.flag = "new"
+        self._aes_cache.val = key
+        self._aes_key = key
         return key
 
-    @classmethod
-    def clear_aes_key(cls):
-        cls.AES_KEY = None
-        cachef = cls._cache()
-        cachef.flag = "new"
-        cachef.val = None
-        cls._cache_path().unlink(missing_ok=True)
+    def clear_aes_key(self):
+        self._aes_key = None
+        self._aes_cache.flag = "new"
+        self._aes_cache.val = None
+        self._aes_cache_path.unlink(missing_ok=True)
 
-    @classmethod
-    def extract_aes_key(cls, html_text: str) -> str:
+    def aes_cache_hit(self) -> bool:
+        if self._aes_cache.flag is None:
+            self._read_cached_key()
+        return self._aes_cache.flag != "new"
+
+    @staticmethod
+    def extract_aes_key(html_text: str) -> str:
         html_doc = html.fromstring(html_text)
         script_texts = [text.strip().replace(" ", "") for text in html_doc.xpath("//script/text()")]
         real_script = next(filter(lambda text: text.startswith("var"), script_texts), None)
@@ -289,44 +254,105 @@ class KaobeiReqer(_KaobeiContract, Req):
             raise ValueError("kaobei aes key value not found")
         return matched.group(1)
 
-    @classmethod
-    async def _fetch_aes_key(cls, client) -> str:
-        resp = await _kaobei_get_with_retry(
-            client,
-            f"https://{cls.pc_domain}/comic/yiquanchaoren",
-            headers=cls.headers,
+    def _active_preview_client(self) -> httpx.AsyncClient:
+        if self.preview_client is not None:
+            return self.preview_client
+        if self._owned_preview_client is not None:
+            return self._owned_preview_client
+        raise RuntimeError("kaobei preview client is required for preview requests")
+
+    @staticmethod
+    def _parse_preview_json(resp, *, stage: str, request_url: str) -> dict:
+        try:
+            payload = resp.json()
+        except json.JSONDecodeError as exc:
+            snippet = " ".join(resp.text.split())
+            snippet = snippet[:160] if snippet else "<empty>"
+            raise ValueError(f"kaobei {stage} expected JSON: status={resp.status_code} url={request_url} body={snippet}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError(f"kaobei {stage} expected object payload: got {type(payload).__name__} url={request_url}")
+        return payload
+
+    async def _preview_get(self, url: str, *, stage: str, headers: dict | None = None, **kwargs):
+        async def fetch_once():
+            resp = await self._active_preview_client().get(url, headers=headers, **kwargs)
+            resp.raise_for_status()
+            if str(resp.text or "").strip().casefold() == "error":
+                snippet = " ".join((resp.text or "").split())[:160] if resp.text else "<empty>"
+                raise ValueError(
+                    f"kaobei {stage} expected content instead of error body: "
+                    f"status={getattr(resp, 'status_code', '?')} url={url} body={snippet}"
+                )
+            return resp
+
+        @retry(tries=self.preview_transport_retries + 1, delay=0.4, backoff=1, logger=None)
+        def fetch_with_retry():
+            return asyncio.run(fetch_once())
+
+        return await asyncio.to_thread(fetch_with_retry)
+
+    async def _fetch_aes_key(self) -> str:
+        resp = await self._preview_get(
+            f"https://{self.pc_domain}/comic/yiquanchaoren",
+            headers=self.headers,
             stage="aes_key",
+            follow_redirects=True,
             timeout=12,
         )
-        return cls._write_cached_key(cls.extract_aes_key(resp.text))
+        return self._write_cached_key(self.extract_aes_key(resp.text))
 
-    @classmethod
-    async def ensure_aes_key(cls, client=None) -> str:
-        if cached := cls._read_cached_key():
+    async def ensure_preview_aes_key(self) -> str:
+        if cached := self._read_cached_key():
             return cached
-        if client is not None:
-            return await cls._fetch_aes_key(client)
-        transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies)
-        async with httpx.AsyncClient(
-            headers=cls.headers,
-            transport=transport,
-            trust_env=trust_env,
-        ) as cli:
-            return await cls._fetch_aes_key(cli)
+        if self.preview_client is not None:
+            return await self._fetch_aes_key()
+        transport, trust_env = build_proxy_transport(self.proxy_policy, self.conf.proxies)
+        async with httpx.AsyncClient(headers=self.headers, transport=transport, trust_env=trust_env) as cli:
+            self._owned_preview_client = cli
+            try:
+                return await self._fetch_aes_key()
+            finally:
+                self._owned_preview_client = None
 
-    @classmethod
-    def get_aes_key(cls) -> str:
-        if cached := cls._read_cached_key():
+    def get_aes_key(self) -> str:
+        if cached := self._read_cached_key():
             return cached
-
+        loop = get_loop()
         try:
-            loop = get_loop()
-            return loop.run_until_complete(cls.ensure_aes_key())
-        except Exception as exc:
-            raise ValueError("aes_key 获取失败") from exc
+            return loop.run_until_complete(self.ensure_preview_aes_key())
         finally:
-            if 'loop' in locals():
-                loop.close()
+            loop.close()
+
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        url, frame = self.build_search_spec(keyword)
+        url = Previewer.build_page_url(url, page, self.turn_page_info)
+        resp = await self._preview_get(url, headers=self.ua_mapi, stage="preview_search", follow_redirects=True, timeout=12)
+        payload = self._parse_preview_json(resp, stage="preview_search", request_url=url)
+        targets = payload.get("results", {}).get("list", [])
+        return await asyncio.to_thread(self.parser.parse_search_targets, targets, frame)
+
+    async def preview_fetch_episodes(self, book, *, show_dhb=None):
+        self._active_preview_client()
+        await self.ensure_preview_aes_key()
+        path_word = book.url.rstrip("/").split("/")[-2]
+        headers = {**self.ua, "Referer": f"https://{self.pc_domain}/comic/{path_word}"}
+        resp = await self._preview_get(book.url, headers=headers, stage="preview_fetch_episodes", follow_redirects=True, timeout=12)
+        payload = self._parse_preview_json(resp, stage="preview_fetch_episodes", request_url=book.url)
+        return await asyncio.to_thread(
+            self.parser.parse_episodes,
+            payload["results"],
+            book,
+            url=book.url,
+            show_dhb=conf.kbShowDhb if show_dhb is None else show_dhb,
+        )
+
+    async def preview_fetch_pages(self, episode) -> list[str]:
+        self._active_preview_client()
+        await self.ensure_preview_aes_key()
+        resp = await self._preview_get(episode.url, headers=self.headers, stage="preview_fetch_pages", follow_redirects=True, timeout=12)
+        image_data = await asyncio.to_thread(self.parser.parse_page_urls_from_html, resp.text, url=str(resp.url))
+        episode.pages = len(image_data)
+        return [item["url"] for item in image_data]
 
 
 class KaobeiUtils(_KaobeiContract, Utils, Previewer):
@@ -334,8 +360,8 @@ class KaobeiUtils(_KaobeiContract, Utils, Previewer):
     reqer_cls = KaobeiReqer
 
     def __init__(self, _conf):
-        self.reqer = self.reqer_cls(_conf)
-        self.parser = self.__class__.parser
+        self.reqer = self.reqer_cls(_conf, owner=self)
+        self.parser = self.reqer.parser
 
     @classmethod
     def display_meta(cls, *args, **kw) -> dict:
@@ -352,91 +378,4 @@ class KaobeiUtils(_KaobeiContract, Utils, Previewer):
 
     @classmethod
     def preview_transport_config(cls) -> dict:
-        return {"retries": 2}
-
-    @classmethod
-    def _preview_json(cls, resp, *, stage, request_url):
-        try:
-            payload = resp.json()
-        except json.JSONDecodeError as exc:
-            snippet = " ".join(resp.text.split())
-            snippet = snippet[:160] if snippet else "<empty>"
-            raise ValueError(
-                f"kaobei {stage} expected JSON: status={resp.status_code} url={request_url} body={snippet}"
-            ) from exc
-        if not isinstance(payload, dict):
-            raise ValueError(
-                f"kaobei {stage} expected object payload: got {type(payload).__name__} url={request_url}"
-            )
-        return payload
-
-    @classmethod
-    async def preview_search(
-        cls,
-        keyword,
-        client,
-        **kw,
-    ):
-        cls.pop_site_kwargs(kw)
-        url, frame = cls.reqer_cls.build_search_spec(keyword)
-        page = max(1, int(kw.pop("page", 1) or 1))
-        if page > 1:
-            paged_url = Url(url).set_next(*cls.turn_page_info)
-            for _ in range(page - 1):
-                paged_url = paged_url.next
-            url = str(paged_url)
-        resp = await _kaobei_get_with_retry(
-            client,
-            url,
-            headers=cls.ua_mapi,
-            stage="preview_search",
-            follow_redirects=True,
-            timeout=12,
-            **kw,
-        )
-        payload = cls._preview_json(resp, stage="preview_search", request_url=url)
-        targets = payload.get("results", {}).get("list", [])
-        return await asyncio.to_thread(cls.parser.parse_search_targets, targets, frame)
-
-    @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        aes_key = await cls.reqer_cls.ensure_aes_key(client)
-        path_word = book.url.rstrip("/").split("/")[-2]
-        headers = {**cls.ua, "Referer": f"https://{cls.pc_domain}/comic/{path_word}"}
-        resp = await _kaobei_get_with_retry(
-            client,
-            book.url,
-            headers=headers,
-            stage="preview_fetch_episodes",
-            follow_redirects=True,
-            timeout=12,
-        )
-        payload = cls._preview_json(resp, stage="preview_fetch_episodes", request_url=book.url)
-        return await asyncio.to_thread(
-            cls.parser.parse_episodes,
-            payload["results"],
-            book,
-            url=book.url,
-            aes_key=aes_key,
-            show_dhb=kw.get("show_dhb", conf.kbShowDhb),
-        )
-
-    @classmethod
-    async def preview_fetch_pages(cls, episode, client, **kw) -> list[str]:
-        aes_key = await cls.reqer_cls.ensure_aes_key(client)
-        resp = await _kaobei_get_with_retry(
-            client,
-            episode.url,
-            headers=cls.headers,
-            stage="preview_fetch_pages",
-            follow_redirects=True,
-            timeout=12,
-        )
-        image_data = await asyncio.to_thread(
-            cls.parser.parse_page_urls_from_html,
-            resp.text,
-            url=str(resp.url),
-            aes_key=aes_key,
-        )
-        episode.pages = len(image_data)
-        return [item["url"] for item in image_data]
+        return {"retries": cls.preview_transport_retries}

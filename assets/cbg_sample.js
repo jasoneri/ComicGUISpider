@@ -23,17 +23,24 @@
     zIndex: 9999,
   };
 
-  const STYLE_ID = 'tm-random-png-style';
-  const BOX_ID = 'tm-random-png-bg';
-  let lastIndex = -1;
-  let lastUrl = location.href;
+  const STYLE_ID = 'tm-cbg-style';
+  const BOX_ID = 'tm-cbg-box';
+  let initialized = false;
 
   function getResourceNames() {
-    const meta = GM_info.scriptMetaStr || '';
+    const meta = (typeof GM_info !== 'undefined' && GM_info.scriptMetaStr) || '';
     return [...meta.matchAll(/@resource\s+(\S+)/g)].map(m => m[1]);
   }
 
-  const IMAGELIST = getResourceNames().map(name => GM_getResourceURL(name));
+  const IMAGELIST = getResourceNames()
+    .map(name => {
+      try {
+        return GM_getResourceURL(name);
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
 
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -48,6 +55,7 @@
         opacity: ${CONFIG.opacity} !important;
         z-index: ${CONFIG.zIndex} !important;
         pointer-events: none !important;
+        user-select: none !important;
       }
     `);
   }
@@ -62,26 +70,24 @@
     return box;
   }
 
-  function getRandomImage() {
+  function pickImage() {
     if (!IMAGELIST.length) return '';
-    if (IMAGELIST.length === 1) return IMAGELIST[0];
-    let index;
-    do {
-      index = Math.floor(Math.random() * IMAGELIST.length);
-    } while (index === lastIndex);
-    lastIndex = index;
+    const index = Math.floor(Math.random() * IMAGELIST.length);
     return IMAGELIST[index];
   }
 
-  function updateImage() {
+  function renderOnce() {
+    if (initialized) return;
+    if (!document.body) return;
+    const imgUrl = pickImage();
+    if (!imgUrl) return;
+
+    injectStyle();
+
     const box = ensureBox();
     if (!box) return;
 
-    const imgUrl = getRandomImage();
-    if (!imgUrl) return;
-
     const img = new Image();
-
     img.onload = function () {
       const naturalWidth = img.naturalWidth || img.width;
       const naturalHeight = img.naturalHeight || img.height;
@@ -105,46 +111,15 @@
     };
 
     img.onerror = function () {
-      console.error('[随机PNG背景] 图片加载失败:', imgUrl);
+      console.error('[cbg] 图片加载失败:', imgUrl);
     };
 
     img.src = imgUrl;
   }
 
-  function init() {
-    injectStyle();
-    ensureBox();
-    updateImage();
-  }
-
-  function checkUrlChange() {
-    if (location.href !== lastUrl) {
-      lastUrl = location.href;
-      updateImage();
-    }
-  }
-
-  const rawPushState = history.pushState;
-  history.pushState = function () {
-    const ret = rawPushState.apply(this, arguments);
-    setTimeout(checkUrlChange, 50);
-    return ret;
-  };
-
-  const rawReplaceState = history.replaceState;
-  history.replaceState = function () {
-    const ret = rawReplaceState.apply(this, arguments);
-    setTimeout(checkUrlChange, 50);
-    return ret;
-  };
-
-  window.addEventListener('popstate', checkUrlChange);
-  window.addEventListener('hashchange', checkUrlChange);
-
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', renderOnce, { once: true });
   } else {
-    init();
+    renderOnce();
   }
-
 })();
