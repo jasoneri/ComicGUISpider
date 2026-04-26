@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, shallowRef, watchEffect } from 'vue'
 import {
   createEmptyMonitorBoardRuntimeData,
   emptyMonitorBoardLiveStatus,
@@ -79,14 +79,7 @@ type MonitorBoardSegment = {
 const MONITOR_VOTE_DISABLED_STORAGE_KEY = 'monitor-board-vote-disabled:v1'
 const MONITOR_CHART_MIN_VALUE = 0
 const MONITOR_CHART_LAYER_OFFSETS = [20, 40, 60] as const
-
-function createZeroVotes(): MonitorBoardVotes {
-  return {
-    up: 0,
-    neutral: 0,
-    down: 0,
-  }
-}
+const MONITOR_CHART_EMA_DECAY = 0.75
 
 function buildChartLinePath(values: number[], chartMax: number, width = 112, height = 40, padding = 4): string {
   const floor = height - padding
@@ -117,25 +110,38 @@ function buildChartLinePath(values: number[], chartMax: number, width = 112, hei
 }
 
 function buildChartLines(cumulativeUptimes: MonitorBoardUptimes): MonitorBoardChartLine[] {
-  const chartSamples = cumulativeUptimes.length < 2
-    ? []
-    : cumulativeUptimes.slice(1).map((sample, index) => {
-        const previousSample = cumulativeUptimes[index]
-        return {
-          up: sample.up - previousSample.up,
-          neutral: sample.neutral - previousSample.neutral,
-          down: sample.down - previousSample.down,
-        }
-      })
-  if (chartSamples.length === 0) {
+  if (cumulativeUptimes.length < 2) {
     return []
   }
 
-  const latestSample = chartSamples[chartSamples.length - 1] ?? createZeroVotes()
-  const chartMax = Math.max(
-    1,
-    ...chartSamples.flatMap((sample) => monitorVoteKeys.map((key) => sample[key])),
-  )
+  const len = cumulativeUptimes.length - 1
+  let prev = cumulativeUptimes[0]
+  let chartMax = 1
+  const emaSamples: MonitorBoardVotes[] = new Array(len)
+  let emaUp = 0
+  let emaNeutral = 0
+  let emaDown = 0
+
+  for (let i = 0; i < len; i++) {
+    const curr = cumulativeUptimes[i + 1]
+    const diffUp = curr.up - prev.up
+    const diffNeutral = curr.neutral - prev.neutral
+    const diffDown = curr.down - prev.down
+    prev = curr
+
+    emaUp = emaUp * MONITOR_CHART_EMA_DECAY + diffUp
+    emaNeutral = emaNeutral * MONITOR_CHART_EMA_DECAY + diffNeutral
+    emaDown = emaDown * MONITOR_CHART_EMA_DECAY + diffDown
+
+    const sample: MonitorBoardVotes = { up: emaUp, neutral: emaNeutral, down: emaDown }
+    emaSamples[i] = sample
+
+    if (emaUp > chartMax) chartMax = emaUp
+    if (emaNeutral > chartMax) chartMax = emaNeutral
+    if (emaDown > chartMax) chartMax = emaDown
+  }
+
+  const latestSample = emaSamples[len - 1]
   const orderedKeys = [...monitorVoteKeys].sort((leftKey, rightKey) => {
     const valueDelta = latestSample[leftKey] - latestSample[rightKey]
     if (valueDelta !== 0) {
@@ -147,7 +153,7 @@ function buildChartLines(cumulativeUptimes: MonitorBoardUptimes): MonitorBoardCh
   return orderedKeys.map((key, index) => ({
     key,
     color: monitorVoteMetaMap[key].color,
-    linePath: buildChartLinePath(chartSamples.map((sample) => sample[key]), chartMax),
+    linePath: buildChartLinePath(emaSamples.map((sample) => sample[key]), chartMax),
     zIndex: MONITOR_CARD_LAYER + MONITOR_CHART_LAYER_OFFSETS[index],
   }))
 }
@@ -618,6 +624,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (chartRafId !== null) {
+    cancelAnimationFrame(chartRafId)
+    chartRafId = null
+  }
   clearToast()
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   document.removeEventListener('keydown', handleDocumentKeydown)
@@ -628,33 +638,52 @@ watch(localStageStorageKey, () => {
   syncLocalStageMap()
 })
 
-const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
-  const liveStatus: MonitorBoardLiveStatus = runtimeData.value.statusMap[site.id] ?? emptyMonitorBoardLiveStatus
-  const displayStage = displayStageMap.value[site.id]
-  const pendingStage = pendingStageMap.value[site.id]
-  const effectiveVotes: MonitorBoardVotes = {
-    up: liveStatus.votes.up,
-    neutral: liveStatus.votes.neutral,
-    down: liveStatus.votes.down,
+type MonitorBoardCardWithChart = {
+  chartLines: MonitorBoardChartLine[]
+  isCompleted: boolean
+  completedBorderColor: string
+  segments: MonitorBoardSegment[]
+} & typeof monitorBoardSites[number]
+
+const cardsWithCharts = shallowRef<MonitorBoardCardWithChart[]>([])
+
+let chartRafId: number | null = null
+
+watchEffect(() => {
+  const _statusMap = runtimeData.value.statusMap
+  const _displayStage = displayStageMap.value
+  const _pendingStage = pendingStageMap.value
+
+  if (chartRafId !== null) {
+    cancelAnimationFrame(chartRafId)
   }
 
-  // Persisted local stage only locks the card. Only in-flight submissions
-  // participate in optimistic vote overlay.
-  if (pendingStage) {
-    effectiveVotes[pendingStage.action] += 1
-  }
+  chartRafId = requestAnimationFrame(() => {
+    chartRafId = null
+    cardsWithCharts.value = monitorBoardSites.map((site) => {
+      const liveStatus: MonitorBoardLiveStatus = _statusMap[site.id] ?? emptyMonitorBoardLiveStatus
+      const displayStage = _displayStage[site.id]
+      const pendingStage = _pendingStage[site.id]
+      const effectiveVotes: MonitorBoardVotes = {
+        up: liveStatus.votes.up,
+        neutral: liveStatus.votes.neutral,
+        down: liveStatus.votes.down,
+      }
 
-  const chartLines = buildChartLines(liveStatus.uptimes)
-  const segments = buildVoteSegments(effectiveVotes)
+      if (pendingStage) {
+        effectiveVotes[pendingStage.action] += 1
+      }
 
-  return {
-    ...site,
-    chartLines,
-    isCompleted: displayStage != null,
-    completedBorderColor: displayStage ? monitorVoteMetaMap[displayStage.action].color : 'transparent',
-    segments,
-  }
-}))
+      return {
+        ...site,
+        chartLines: buildChartLines(liveStatus.uptimes),
+        isCompleted: displayStage != null,
+        completedBorderColor: displayStage ? monitorVoteMetaMap[displayStage.action].color : 'transparent',
+        segments: buildVoteSegments(effectiveVotes),
+      }
+    })
+  })
+})
 
 </script>
 

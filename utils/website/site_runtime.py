@@ -1,18 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 from dataclasses import dataclass, field, replace
 import typing as t
 
 import httpx
 
-from utils import conf, get_httpx_verify, temp_p
-from utils.network.doh import build_http_transport
-from variables import Spider
+from utils import conf, temp_p
 
-from .contracts import BrowserCookiePayload, BrowserEnvironmentPayload, PreprocessResult
-from .core import Previewer
+from .preprocess import run_site_preprocess
 from .runtime_context import PreviewRuntimeContext, PreviewSiteConfig
+from .contracts import BrowserEnvironmentPayload, PreprocessResult
 
 
 def _normalize_domain_value(value: t.Any) -> str | None:
@@ -22,8 +21,11 @@ def _normalize_domain_value(value: t.Any) -> str | None:
     return normalized or None
 
 
-def _raise_runtime_owner_todo(provider_cls: type, detail: str) -> t.NoReturn:
-    raise NotImplementedError(f"TODO(site-runtime-owner): {provider_cls.__name__} {detail}")
+def _pick_bound_domain(*values: t.Any) -> str | None:
+    for value in values:
+        if normalized := _normalize_domain_value(value):
+            return normalized
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,21 +111,39 @@ class _ProviderRuntimeBase:
     def get_uuid(self, *args, **kwargs):
         return self.provider_descriptor.get_uuid(*args, **kwargs)
 
-    def resolve_domain(self):
-        for candidate in (getattr(self.provider, "domain", None), getattr(self.reqer, "domain", None)):
-            if normalized := _normalize_domain_value(candidate):
-                return normalized
-        if static_domain := _normalize_domain_value(getattr(self.provider_cls, "domain", None)):
-            return static_domain
-        _raise_runtime_owner_todo(
-            self.provider_cls,
-            "must bind domain on provider/reqer runtime state before spider flow; "
-            "provider_cls.get_domain() fallback was removed",
+    def _bind_runtime_domain(self, domain: str) -> str:
+        normalized = _normalize_domain_value(domain)
+        if not normalized:
+            raise ValueError(f"{self.provider_cls.__name__} runtime domain must be a non-empty string")
+        self.provider.domain = normalized
+        self.reqer.domain = normalized
+        return normalized
+
+    def _require_runtime_domain(self) -> str:
+        domain = _pick_bound_domain(
+            getattr(self.provider, "domain", None),
+            getattr(self.reqer, "domain", None),
+            getattr(self.provider_cls, "domain", None),
         )
+        if domain is None:
+            raise RuntimeError(
+                f"{self.provider_cls.__name__} spider runtime requires a bound domain on provider/reqer runtime state "
+                "or static provider config"
+            )
+        return self._bind_runtime_domain(domain)
+
+    def _require_reqer_method(self, method_name: str, *, purpose: str):
+        method = getattr(self.reqer, method_name, None)
+        if callable(method):
+            return method
+        raise RuntimeError(f"{self.provider_cls.__name__} reqer.{method_name}() is required for {purpose}")
+
+    def resolve_domain(self):
+        return self._require_runtime_domain()
 
     def close(self):
         seen = set()
-        for owner in (self.provider, self.reqer, self.parser):
+        for owner in (self.provider, self.reqer):
             cli = getattr(owner, "cli", None)
             close = getattr(cli, "close", None)
             if cli is None or not callable(close) or id(cli) in seen:
@@ -137,10 +157,6 @@ class SpiderSiteRuntime(_ProviderRuntimeBase):
 
 
 class ThreadSiteRuntime(_ProviderRuntimeBase):
-    BROWSER_IMAGE_ACCEPT = (
-        "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"
-    )
-
     def __init__(
         self,
         provider_descriptor: ProviderDescriptor,
@@ -151,124 +167,67 @@ class ThreadSiteRuntime(_ProviderRuntimeBase):
     ):
         super().__init__(provider_descriptor, conf_state=conf_state)
         self.site_config = site_config
-        self._preview_client = preview_client
-        self._bind_preview_state()
+        self._bind_preview_state(preview_client=preview_client)
 
-    def _bind_preview_state(self):
+    def _bind_preview_state(self, *, preview_client: httpx.AsyncClient | None = None):
         if self.site_config.domain:
-            setattr(self.provider, "domain", self.site_config.domain)
-        setattr(self.provider, "site_config", self.site_config)
-        for owner in (self.provider, self.reqer):
-            if not hasattr(owner, "__dict__"):
-                continue
-            setattr(owner, "site_config", self.site_config)
-            setattr(owner, "transport", self.site_config.transport)
-            if self.site_config.domain:
-                setattr(owner, "domain", self.site_config.domain)
-            if self.site_config.cookies:
-                setattr(owner, "cookies", copy.deepcopy(self.site_config.cookies))
-            if self.site_config.custom_map:
-                setattr(owner, "custom_map", copy.deepcopy(self.site_config.custom_map))
-        if self._preview_client is not None:
-            self.attach_preview_client(self._preview_client)
-
-    def attach_preview_client(self, preview_client: httpx.AsyncClient | None):
-        self._preview_client = preview_client
-        if preview_client is not None and hasattr(self.reqer, "__dict__"):
-            setattr(self.reqer, "preview_client", preview_client)
-        return preview_client
-
-    def _ensure_preview_support(self):
-        if not issubclass(self.provider_cls, Previewer):
-            raise TypeError(f"{self.provider_cls.__name__} does not support preview search")
-
-    def _preview_client_parts(self):
-        self._ensure_preview_support()
-        site_kw = self.site_config.as_provider_kwargs()
-        client_kw = dict(self.provider_cls.preview_client_config(**site_kw) or {})
-        transport_kw = dict(self.provider_cls.preview_transport_config() or {})
-        policy = getattr(self.provider_cls, "proxy_policy", "proxy")
-        return site_kw, client_kw, transport_kw, policy
-
-    def create_async_preview_client(self) -> httpx.AsyncClient:
-        _site_kw, client_kw, transport_kw, policy = self._preview_client_parts()
-        transport, trust_env = build_http_transport(
-            policy,
-            list(self.site_config.transport.proxies),
-            doh_url=self.site_config.transport.doh_url,
-            is_async=True,
-            **transport_kw,
+            self.provider.domain = self.site_config.domain
+        self.provider.site_config = self.site_config
+        if self.site_config.cookies:
+            self.provider.cookies = copy.deepcopy(self.site_config.cookies)
+        if self.site_config.custom_map:
+            self.provider.custom_map = copy.deepcopy(self.site_config.custom_map)
+        self.reqer.preview_client = preview_client
+        bind_preview_runtime = self._require_reqer_method(
+            "bind_preview_runtime",
+            purpose="preview runtime binding",
         )
-        base_kw = {
-            "transport": transport,
-            "follow_redirects": True,
-            "trust_env": trust_env,
-            "headers": None,
-        }
-        base_kw.update(client_kw)
-        return httpx.AsyncClient(**base_kw)
-
-    def get_async_preview_client(self) -> httpx.AsyncClient:
-        if self._preview_client is None:
-            self.attach_preview_client(self.create_async_preview_client())
-        return self._preview_client
+        self._require_reqer_method(
+            "aclose_preview_client",
+            purpose="preview runtime cleanup",
+        )
+        bind_preview_runtime(owner=self.provider, site_config=self.site_config, preview_client=preview_client)
 
     def preview_batch_limit(self, stage: str, default: int) -> int:
         return self.provider_descriptor.preview_batch_limit(stage, default)
 
     async def preview_search(self, keyword: str, *, page: int = 1) -> list:
-        self.get_async_preview_client()
-        return await self.reqer.preview_search(keyword, page=page)
+        preview_search = self._require_reqer_method("preview_search", purpose="preview worker search")
+        return await preview_search(keyword, page=page)
 
     async def preview_fetch_episodes(self, book) -> list:
-        self.get_async_preview_client()
-        return await self.reqer.preview_fetch_episodes(book)
+        preview_fetch_episodes = self._require_reqer_method(
+            "preview_fetch_episodes",
+            purpose="preview episode fetch",
+        )
+        return await preview_fetch_episodes(book)
 
     async def preview_fetch_pages(self, item) -> list:
-        self.get_async_preview_client()
-        return await self.reqer.preview_fetch_pages(item)
-
-    def download_cover_bytes(self, tasks_obj, *, browser_headers: dict[str, str] | None = None) -> bytes:
-        _site_kw, client_kw, transport_kw, policy = self._preview_client_parts()
-        provider_headers = dict(client_kw.pop("headers", {}) or {})
-        transport_verify = transport_kw.pop("verify", get_httpx_verify())
-        transport, trust_env = build_http_transport(
-            policy,
-            list(self.site_config.transport.proxies),
-            doh_url=self.site_config.transport.doh_url,
-            is_async=False,
-            verify=transport_verify,
-            **transport_kw,
+        preview_fetch_pages = self._require_reqer_method(
+            "preview_fetch_pages",
+            purpose="preview page fetch",
         )
-        with httpx.Client(
-            headers=getattr(self.provider_cls, "book_hea", None) or getattr(self.provider_cls, "headers", {}),
-            transport=transport,
-            trust_env=trust_env,
-            follow_redirects=True,
-            timeout=15,
-            **client_kw,
-        ) as cli:
-            headers = httpx.Headers(cli.headers)
-            headers.update(provider_headers)
-            headers.update(dict(browser_headers or {}))
-            if "accept" not in headers or "image/" not in headers.get("accept", ""):
-                headers["Accept"] = self.BROWSER_IMAGE_ACCEPT
-            referer_url = Previewer.build_referer_url(
-                getattr(tasks_obj, "title_url", None),
-                request_url=getattr(tasks_obj, "cover_url", None),
-            )
-            if referer_url and "referer" not in headers:
-                headers["Referer"] = referer_url
-            resp = cli.get(tasks_obj.cover_url, headers=headers)
-            resp.raise_for_status()
-            return resp.content
+        return await preview_fetch_pages(item)
+
+    async def download_cover_bytes(self, tasks_obj, *, browser_headers: dict[str, str] | None = None) -> bytes:
+        download_cover_bytes = self._require_reqer_method(
+            "download_cover_bytes",
+            purpose="task-panel cover preload",
+        )
+        return await download_cover_bytes(tasks_obj, browser_headers=browser_headers)
 
     async def aclose(self):
-        preview_client = self._preview_client
-        self._preview_client = None
-        if preview_client is not None:
-            await preview_client.aclose()
-        self.close()
+        await self.reqer.aclose_preview_client()
+        super().close()
+
+    def close(self):
+        if self.reqer.preview_client is not None:
+            try:
+                asyncio.run(self.aclose())
+            except RuntimeError as exc:
+                raise RuntimeError("ThreadSiteRuntime with preview_client must be closed via await aclose() inside an active event loop") from exc
+            return
+        super().close()
 
 
 @dataclass(slots=True)
@@ -280,42 +239,30 @@ class GuiSiteRuntime:
 
     @classmethod
     def create(
-        cls, provider_descriptor: ProviderDescriptor, *, site_index: int, snapshot=None, conf_state=conf,
+        cls, provider_descriptor: ProviderDescriptor, *, site_index: int, conf_state=conf,
         default_doh_url: str | None = None,
     ) -> "GuiSiteRuntime":
-        runtime_context = cls._build_runtime_context(
-            provider_descriptor,
-            snapshot=snapshot,
-            conf_state=conf_state,
-            default_doh_url=default_doh_url,
-        )
+        runtime_context = PreviewRuntimeContext.from_conf_state(conf_state=conf_state, default_doh_url=default_doh_url)
+        cookies_by_site = {}
+        cookies_owner = getattr(conf_state, "cookies", None)
+        if cookies_owner is not None:
+            if isinstance(cookies_owner, dict):
+                site_cookies = cookies_owner.get(provider_descriptor.provider_name)
+            else:
+                get_site_cookies = getattr(cookies_owner, "get", None)
+                site_cookies = get_site_cookies(provider_descriptor.provider_name) if callable(get_site_cookies) else None
+            if site_cookies:
+                cookies_by_site[provider_descriptor.provider_name] = copy.deepcopy(dict(site_cookies))
+        domains = {}
+        if domain := cls._peek_cached_domain_for(provider_descriptor):
+            domains[provider_descriptor.provider_name] = domain
+        runtime_context = replace(runtime_context, cookies_by_site=cookies_by_site, domains=domains)
         return cls(
             provider_descriptor=provider_descriptor,
             site_index=site_index,
             runtime_context=runtime_context,
             conf_state=conf_state,
         )
-
-    @classmethod
-    def _build_runtime_context(
-        cls,
-        provider_descriptor: ProviderDescriptor,
-        *,
-        snapshot,
-        conf_state=conf,
-        default_doh_url: str | None = None,
-    ) -> PreviewRuntimeContext:
-        if snapshot is not None:
-            return PreviewRuntimeContext.from_snapshot(snapshot, conf_state=conf_state, default_doh_url=default_doh_url)
-        runtime_context = PreviewRuntimeContext.from_snapshot(None, conf_state=conf_state, default_doh_url=default_doh_url)
-        cookies_by_site = {}
-        raw_cookies = dict(getattr(conf_state, "cookies", {}) or {})
-        if site_cookies := raw_cookies.get(provider_descriptor.provider_name):
-            cookies_by_site[provider_descriptor.provider_name] = copy.deepcopy(dict(site_cookies))
-        domains = {}
-        if domain := cls._peek_cached_domain_for(provider_descriptor):
-            domains[provider_descriptor.provider_name] = domain
-        return replace(runtime_context, cookies_by_site=cookies_by_site, domains=domains)
 
     @property
     def provider_cls(self):
@@ -325,34 +272,37 @@ class GuiSiteRuntime:
     def name(self) -> str:
         return self.provider_descriptor.provider_name
 
-    @property
-    def publish_url(self) -> str:
-        """Read directly from provider_cls, not cached."""
-        return getattr(self.provider_cls, "publish_url", "")
+    def _cached_domain(self) -> str | None:
+        return self._peek_cached_domain_for(self.provider_descriptor)
 
-    @property
-    def book_url_regex(self) -> str:
-        """Read directly from provider_cls, not cached."""
-        return getattr(self.provider_cls, "book_url_regex", "")
+    def _static_domain(self) -> str | None:
+        return _normalize_domain_value(getattr(self.provider_cls, "domain", None))
 
-    @property
-    def index(self):
-        return getattr(self.provider_cls, "index", None)
+    def _resolved_gui_domain(self) -> str | None:
+        return _pick_bound_domain(
+            self.runtime_context.site_domain(self.name),
+            self._cached_domain(),
+            self._static_domain(),
+        )
 
-    @property
-    def domain(self):
-        return getattr(self.provider_cls, "domain", None)
+    def _require_gui_domain(self) -> str:
+        domain = self._resolved_gui_domain()
+        if domain is None:
+            raise RuntimeError(
+                f"{self.provider_cls.__name__} gui runtime requires a bound domain in runtime_context, cache, "
+                "or static provider config"
+            )
+        return domain
 
-    def cache_path(self):
+    get_domain = _require_gui_domain
+
+    def domain_cache_path(self):
         return temp_p.joinpath(f"{self.name}_domain.txt")
 
     def build_site_config(self) -> PreviewSiteConfig:
-        domain = self.runtime_context.site_domain(self.name)
-        if not domain:
-            domain = self.peek_snapshot_domain() or self.get_domain()
         return PreviewSiteConfig(
             cookies=self.runtime_context.site_cookies(self.name),
-            domain=domain,
+            domain=self._require_gui_domain(),
             custom_map=copy.deepcopy(self.runtime_context.custom_map),
             transport=self.runtime_context.transport,
         )
@@ -364,33 +314,6 @@ class GuiSiteRuntime:
             conf_state=self.conf_state,
             preview_client=preview_client,
         )
-
-    def create_runtime(self, conf_state=conf):
-        return self.provider_cls(conf_state)
-
-    def get_domain(self):
-        if domain := _normalize_domain_value(self.runtime_context.site_domain(self.name)):
-            return domain
-        if domain := _normalize_domain_value(self.peek_snapshot_domain()):
-            return domain
-        if domain := _normalize_domain_value(getattr(self.provider_cls, "domain", None)):
-            return domain
-        _raise_runtime_owner_todo(
-            self.provider_cls,
-            "must bind domain through runtime_context or static provider config; "
-            "provider_cls.get_domain() fallback was removed",
-        )
-
-    def test_index(self, conf_state=conf):
-        runtime = self.create_runtime(conf_state)
-        reqer = runtime.reqer
-        try:
-            return reqer.test_index()
-        finally:
-            reqer.cli.close()
-
-    async def test_aviable_domain(self, domain):
-        return await self.provider_cls.test_aviable_domain(domain)
 
     def with_domain(self, domain: str | None) -> "GuiSiteRuntime":
         if not domain:
@@ -409,77 +332,51 @@ class GuiSiteRuntime:
             conf_state=self.conf_state,
         )
 
-    def preprocess(self, *, conf_state=conf, data_client=None, progress_callback=None) -> PreprocessResult:
-        from .preprocess import run_site_preprocess
+    def persist_domain(self, domain: str) -> "GuiSiteRuntime":
+        normalized = _normalize_domain_value(domain)
+        if not normalized:
+            raise ValueError(f"{self.provider_cls.__name__} domain cache requires a non-empty domain")
+        self.domain_cache_path().write_text(normalized, encoding="utf-8")
+        return self.with_domain(normalized)
 
+    def preprocess(self, *, conf_state=conf, data_client=None, progress_callback=None) -> PreprocessResult:
         return run_site_preprocess(
-            self.site_index,
-            runtime_owner=self,
-            conf_state=conf_state,
-            data_client=data_client,
-            progress_callback=progress_callback,
+            self.site_index, runtime_owner=self, conf_state=conf_state, data_client=data_client, progress_callback=progress_callback
         )
 
     def build_browser_environment(self, *, lang: str, cn_proxy_indexes: t.Container[int]) -> BrowserEnvironmentPayload:
-        """
-        Build browser environment payload for the current site.
-
-        FIXME: This is transitional hardcoded site logic.
-        Each site should implement reqer.build_browser_environment() instead.
-        The hardcoded if/elif chain below should be replaced by:
-        - JM: reqer should own cookie injection and referer logic
-        - WNACG: reqer should own referer logic
-        - EHENTAI: reqer should own cookie and referer logic
-        - HITOMI: reqer should own index URL validation
-        """
+        def _browser_domain_required() -> bool:
+            referer_mode = getattr(self.provider_cls, "browser_referer_mode", None)
+            return referer_mode in {"domain_origin", "domain_origin_slash"} or bool(
+                getattr(self.provider_cls, "browser_cookie_set_enabled", False)
+            )
+        def _require_browser_domain() -> str:
+            domain = self._resolved_gui_domain()
+            if domain is None:
+                raise RuntimeError(
+                    f"{self.provider_cls.__name__} browser environment requires a bound domain in runtime_context, cache, "
+                    "or static provider config"
+                )
+            return domain
         site_config = self.build_site_config()
         proxy_value = (site_config.transport.proxies or (None,))[0]
         proxy = proxy_value if lang != "zh-CN" or self.site_index in cn_proxy_indexes else None
-        cookie_sets: list[BrowserCookiePayload] = []
-        referer_url = None
-
-        if self.site_index == Spider.JM:
-            domain = self._resolve_site_domain(site_config, "jm")
-            referer_url = f"https://{domain}"
-            if site_config.cookies:
-                cookie_sets.append(BrowserCookiePayload(values=site_config.cookies, domain=domain, url=referer_url))
-        elif self.site_index == Spider.WNACG:
-            referer_url = f"https://{self._resolve_site_domain(site_config, 'wnacg')}"
-        elif self.site_index == Spider.EHENTAI:
-            domain = site_config.domain or self.domain
-            referer_url = f"https://{domain}/"
-            if site_config.cookies:
-                cookie_sets.append(BrowserCookiePayload(values=site_config.cookies, domain=domain, url=referer_url))
-        elif self.site_index == Spider.HITOMI:
-            referer_url = str(getattr(self.provider_cls, "index", ""))
-            if not referer_url:
-                raise ValueError("hitomi site index unavailable")
-
-        return BrowserEnvironmentPayload(proxy=proxy, referer_url=referer_url, cookie_sets=tuple(cookie_sets))
-
-    def _resolve_site_domain(self, site_config: PreviewSiteConfig, snapshot_key: str) -> str:
-        if domain := _normalize_domain_value(site_config.domain):
-            return domain
-        if domain := _normalize_domain_value(self.peek_snapshot_domain()):
-            return domain
-        if domain := _normalize_domain_value(getattr(self.provider_cls, "domain", None)):
-            return domain
-        _raise_runtime_owner_todo(
-            self.provider_cls,
-            f"must bind domain before building {snapshot_key} browser environment; "
-            "provider_cls.get_domain() fallback was removed",
+        domain = None
+        if _browser_domain_required():
+            domain = _require_browser_domain()
+        referer_url = self.provider_cls.build_browser_referer_url(domain=domain)
+        cookie_sets = self.provider_cls.build_browser_cookie_sets(
+            cookies=site_config.cookies,
+            domain=domain,
+            referer_url=referer_url,
         )
+        return BrowserEnvironmentPayload(proxy=proxy, referer_url=referer_url, cookie_sets=cookie_sets)
 
-    def peek_snapshot_domain(self) -> str | None:
-        return self._peek_cached_domain_for(self.provider_descriptor)
+    def peek_cached_domain(self) -> str | None:
+        return self._cached_domain()
 
     @staticmethod
     def _peek_cached_domain_for(provider_descriptor: ProviderDescriptor) -> str | None:
-        provider_cls = provider_descriptor.provider_cls
-        cachef = getattr(provider_cls, "cachef", None)
-        cached = getattr(cachef, "val", None) if cachef else None
-        if isinstance(cached, str) and cached.strip():
-            return cached.strip()
         cache_path = temp_p.joinpath(f"{provider_descriptor.provider_name}_domain.txt")
         if cache_path.exists():
             cached_text = cache_path.read_text(encoding="utf-8").strip()

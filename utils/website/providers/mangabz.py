@@ -177,6 +177,56 @@ class MangabzReqer(_MangabzContract, Req):
             return False
         return True
 
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        owner = self._require_preview_owner()
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or getattr(self, "domain", None) or type(owner).domain
+        url, body, headers = self.build_search_request(
+            keyword,
+            domain=domain,
+            custom_map=site_kw.get("custom_map"),
+            page=max(1, int(page or 1)),
+        )
+        resp = await self.ensure_preview_client().post(
+            url,
+            data=dict(body.dic),
+            headers=headers,
+            follow_redirects=True,
+            timeout=12,
+        )
+        resp.raise_for_status()
+        return await asyncio.to_thread(
+            owner.parser.parse_search_targets,
+            resp.json(),
+            body,
+            domain=domain,
+        )
+
+    async def preview_fetch_episodes(self, book):
+        owner = self._require_preview_owner()
+        domain = self.preview_site_kwargs().get("domain") or getattr(self, "domain", None) or type(owner).domain
+        resp = await self.ensure_preview_client().get(
+            book.url,
+            headers=self.ua,
+            follow_redirects=True,
+            timeout=12,
+        )
+        resp.raise_for_status()
+        return await asyncio.to_thread(owner.parser.parse_episodes, Selector(text=resp.text), book, domain)
+
+    async def preview_fetch_pages(self, episode) -> list[str]:
+        owner = self._require_preview_owner()
+        resp = await self.ensure_preview_client().get(
+            episode.url,
+            headers=self.ua,
+            follow_redirects=True,
+            timeout=12,
+        )
+        resp.raise_for_status()
+        urls = await asyncio.to_thread(owner.parser.parse_page_urls_from_html, resp.text)
+        episode.pages = len(urls)
+        return urls
+
 
 class MangabzUtils(_MangabzContract, Utils, Previewer):
     parser = MangabzParser
@@ -191,46 +241,3 @@ class MangabzUtils(_MangabzContract, Utils, Previewer):
         return {
             "headers": cls.ua,
         }
-
-    @classmethod
-    async def preview_search(
-        cls,
-        keyword,
-        client,
-        **kw,
-    ):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        site_kw = cls.pop_site_kwargs(kw)
-        url, body, headers = cls.reqer_cls.build_search_request(
-            keyword,
-            domain=site_kw["domain"] or cls.domain,
-            custom_map=site_kw["custom_map"],
-            page=page,
-        )
-        resp = await client.post(url, data=dict(body.dic), headers=headers, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
-        return await asyncio.to_thread(
-            cls.parser.parse_search_targets,
-            resp.json(),
-            body,
-            domain=site_kw["domain"] or cls.domain,
-        )
-
-    @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        resp = await client.get(book.url, headers=cls.ua, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
-        domain = kw.pop("domain", None) or cls.domain
-
-        def parse_episodes(resp_text, parsed_book, parsed_domain):
-            return cls.parser.parse_episodes(Selector(text=resp_text), parsed_book, parsed_domain)
-
-        return await asyncio.to_thread(parse_episodes, resp.text, book, domain)
-
-    @classmethod
-    async def preview_fetch_pages(cls, episode, client, **kw) -> list[str]:
-        resp = await client.get(episode.url, headers=cls.ua, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
-        urls = await asyncio.to_thread(cls.parser.parse_page_urls_from_html, resp.text)
-        episode.pages = len(urls)
-        return urls

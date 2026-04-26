@@ -59,7 +59,7 @@ class ClipTasksThread(QThread):
                         total[result[0]] = result[1]
                 return total
         finally:
-            _runtime.close()
+            await _runtime.aclose()
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:

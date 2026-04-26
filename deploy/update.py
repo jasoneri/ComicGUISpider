@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 """code update"""
 import json
+import os
 import pathlib
 import platform
+import shutil
+import subprocess
 from datetime import date
 
 import httpx
@@ -30,6 +33,9 @@ temp_p.mkdir(exist_ok=True)
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
 }
+MANIFEST_ASSET_NAME = "manifest.json"
+INSTALLER_ASSET_NAME = "installer.exe"
+INSTALLER_ASSET_URL = f"https://github.com/jasoneri/ComicGUISpider/releases/download/preset/{INSTALLER_ASSET_NAME}"
 
 updater_logger = conf.cLog(name="GUI")
 res = ori_res.Updater
@@ -107,14 +113,23 @@ class GitHandler:
         except Exception as e:
             return f"Error fetching release notes: {str(e)}"
 
+    def get_release_manifest(self, release_info: dict) -> dict:
+        assets = release_info.get("assets") or []
+        manifest_asset = next((asset for asset in assets if asset.get("name") == MANIFEST_ASSET_NAME), None)
+        if manifest_asset is None:
+            raise ValueError(f"release missing {MANIFEST_ASSET_NAME}")
+        resp = self.sess.get(manifest_asset["browser_download_url"], timeout=10, headers=self.headers)
+        if not str(resp.status_code).startswith("2"):
+            raise ValueError(resp.text)
+        return resp.json()
+
     def download_src_code(self, _url=None, zip_name="src.zip"):
         """proj less than 1Mb, actually just take little second"""
         zip_file = temp_p.joinpath(zip_name)
         with self.sess.stream("GET", _url or self.src_url, follow_redirects=True) as resp:
             with open(zip_file, 'wb') as f:
                 size = 50 * 1024
-                for chunk in tqdm(resp.iter_bytes(size), ncols=80,
-                                  ascii=True, desc=f"{Fore.BLUE}[ {res.code_downloading}.. ]"):
+                for chunk in tqdm(resp.iter_bytes(size), ncols=80, ascii=True, desc=f"{Fore.BLUE}[ {res.code_downloading}.. ]"):
                     f.write(chunk)
         return zip_file
 
@@ -172,11 +187,13 @@ class Proj:
     changed_files = []
     update_flag = "local"
     update_info = {}
+    installer_manifest = {}
     updated_success_flag = True
 
     def __init__(self, debug_signal=None):
         self.git_handler = GitHandler(self.github_author, self.name, self.branch)
         self.debug_signal = debug_signal
+        self.installer_manifest = {}
 
     def print(self, *args, **kwargs):
         if self.debug_signal:
@@ -211,4 +228,68 @@ class Proj:
         elif ver_local < ver_dev:
             self.update_flag = 'dev'
             self.update_info = latest_dev_info
+        if curr_os == "Windows" and self.update_flag != "local":
+            try:
+                self.installer_manifest = self.git_handler.get_release_manifest(self.update_info)
+            except Exception as err:
+                updater_logger.warning(f"release manifest unavailable: {err}")
+                self.installer_manifest = {}
         updater_logger.info(f"local_ver: {self.local_ver}")
+
+
+class InstallerAssetUpdater:
+    def __init__(self, manifest: dict, installer_path, *, verify=None, request_headers=None):
+        self.manifest = manifest or {}
+        self.installer_path = pathlib.Path(installer_path)
+        self.verify = get_httpx_verify() if verify is None else verify
+        self.request_headers = request_headers or headers
+
+    def read_local_version(self) -> str | None:
+        def _parse_version_output(raw: str) -> str | None:
+            tokens = str(raw).strip().split()
+            return tokens[-1] if tokens else None
+        if not self.installer_path.exists():
+            return None
+        try:
+            result = subprocess.run((str(self.installer_path), "-V"), check=True, capture_output=True, text=True)
+        except (OSError, subprocess.SubprocessError):
+            return
+        parsed = _parse_version_output(result.stdout)
+        if parsed:
+            return parsed
+        return None
+
+    def update_if_needed(self):
+        def _replace(downloaded_path):
+            downloaded = pathlib.Path(downloaded_path)
+            self.installer_path.parent.mkdir(parents=True, exist_ok=True)
+            backup = self.installer_path.with_suffix(self.installer_path.suffix + ".bak")
+            if self.installer_path.exists():
+                shutil.copy2(self.installer_path, backup)
+            try:
+                os.replace(downloaded, self.installer_path)
+            except Exception:
+                if backup.exists():
+                    shutil.copy2(backup, self.installer_path)
+                raise
+            finally:
+                downloaded.unlink(missing_ok=True)
+                backup.unlink(missing_ok=True)
+        def _download() -> pathlib.Path:
+            temp_destination = self.installer_path.with_suffix(self.installer_path.suffix + ".tmp")
+            with httpx.Client(verify=self.verify) as client:
+                with client.stream("GET", INSTALLER_ASSET_URL, follow_redirects=True, headers=self.request_headers) as resp:
+                    if not str(resp.status_code).startswith("2"):
+                        raise ValueError(resp.text)
+                    with open(temp_destination, "wb") as handle:
+                        for chunk in resp.iter_bytes(8192):
+                            handle.write(chunk)
+            return temp_destination
+        
+        target_version = (self.manifest.get(INSTALLER_ASSET_NAME) or {}).get("version")
+        if not target_version:
+            return
+        current_version = self.read_local_version()
+        if not current_version or parse(current_version.lstrip("v")) < parse(target_version.lstrip("v")):
+            downloaded = _download()
+            _replace(downloaded)

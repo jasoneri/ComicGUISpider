@@ -135,6 +135,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
         self.logPathBtn = TransparentToolButton(QIcon(':/configDialog/log.svg'))
+        self.logPathBtn.setIconSize(QtCore.QSize(24, 24))
         self.dohBtn = PrimaryPushButton("DoH", self)
         self.dohBtn.setMaximumSize(QtCore.QSize(80, 16777215))
         self.horizontalLayout_log_level.addWidget(self.logPathBtn)

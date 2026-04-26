@@ -24,6 +24,8 @@ from variables import COOKIES_SUPPORT
 class _JmContract:
     name = "jm"
     proxy_policy = "direct"
+    browser_referer_mode = "domain_origin"
+    browser_cookie_set_enabled = True
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     publish_url2 = "https://jm-3x.cc/mJ8rWd"
@@ -323,10 +325,6 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
         base_kwargs.update(kwargs)
         return client_class(**base_kwargs)
 
-    def build_search_url(self, key):
-        self.domain = self.domain or JmUtils.get_domain()
-        return f"https://{self.domain}/search/photos?main_tag=0&search_query={key}"
-
     @classmethod
     def preview_headers(cls, domain: str, cookies: dict | None = None) -> dict[str, str]:
         return cls.build_site_headers(
@@ -363,6 +361,62 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
                 if len(keyword) > 4:
                     url += keyword[4:]
         return cls.build_page_url(url, page, cls.turn_page_info)
+
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        owner = self._require_preview_owner()
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or getattr(self, "domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for jm")
+        headers = self.preview_headers(domain, site_kw.get("cookies"))
+        url = self.build_preview_search_url(
+            keyword,
+            domain=domain,
+            custom_map=site_kw.get("custom_map"),
+            page=max(1, int(page or 1)),
+        )
+        resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        return await asyncio.to_thread(owner.parser.parse_preview_search_response, resp.text, domain)
+
+    async def preview_fetch_episodes(self, book):
+        owner = self._require_preview_owner()
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or getattr(self, "domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for jm")
+        headers = self.preview_headers(domain, site_kw.get("cookies"))
+        target_url = owner.normalize_preview_resource(book.preview_url or book.url, domain=domain)
+        if not target_url:
+            raise ValueError("jm book preview url is required for preview_fetch_episodes")
+        resp = await self.ensure_preview_client().get(target_url, headers=headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        return await asyncio.to_thread(owner.parser.parse_book_episodes, resp.text, book, domain)
+
+    async def preview_fetch_pages(self, item):
+        owner = self._require_preview_owner()
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or getattr(self, "domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for jm")
+        headers = self.preview_headers(domain, site_kw.get("cookies"))
+        if isinstance(item, JmBookInfo):
+            target_url = owner.normalize_preview_resource(item.url or item.preview_url, domain=domain)
+            if not target_url:
+                raise ValueError("jm book url is required for preview_fetch_pages")
+        else:
+            target_url = owner.normalize_preview_resource(
+                item.url or (f"/photo/{item.id}" if item.id else None),
+                domain=domain,
+            )
+            if not target_url:
+                raise ValueError("jm episode url is required for preview_fetch_pages")
+        resp = await self.ensure_preview_client().get(target_url, headers=headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        urls = await asyncio.to_thread(owner.parser.parse_page_urls_from_html, resp.text)
+        item.url = str(resp.url)
+        item.pages = len(urls)
+        return urls
 
 
 class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
@@ -410,7 +464,7 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
 
     @classmethod
     def preview_client_config(cls, **context):
-        domain = context.get("domain") or cls.get_domain()
+        domain = context.get("domain")
         if not domain:
             raise ValueError("preview domain is required for jm")
         return {"headers": cls.reqer_cls.preview_headers(domain, context.get("cookies"))}
@@ -418,76 +472,3 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
     @classmethod
     def preview_transport_config(cls) -> dict:
         return {"verify": False}
-
-    @classmethod
-    async def preview_search(
-        cls,
-        keyword,
-        client,
-        **kw,
-    ):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        site_kw = cls.pop_site_kwargs(kw)
-        domain = site_kw["domain"] or cls.get_domain()
-        if not domain:
-            raise ValueError("preview domain is required for jm")
-        headers = cls.reqer_cls.preview_headers(domain, site_kw["cookies"])
-        url = cls.reqer_cls.build_preview_search_url(
-            keyword,
-            domain=domain,
-            custom_map=site_kw["custom_map"],
-            page=page,
-        )
-        resp = await client.get(url, headers=headers, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
-        return await asyncio.to_thread(cls.parser.parse_preview_search_response, resp.text, domain)
-
-    @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        domain = kw.pop("domain", None) or cls.get_domain()
-        if not domain:
-            raise ValueError("preview domain is required for jm")
-        headers = cls.reqer_cls.preview_headers(domain, kw.pop("cookies", None))
-        resp = await client.get(book.preview_url, headers=headers, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
-        return await asyncio.to_thread(cls.parser.parse_book_episodes, resp.text, book, domain)
-
-    @classmethod
-    async def preview_fetch_pages(cls, item, client, **kw):
-        if isinstance(item, JmBookInfo):
-            return await item.preview_fetch_pages(client, **kw)
-        domain = kw.pop("domain", None) or cls.get_domain()
-        if not domain:
-            raise ValueError("preview domain is required for jm")
-        headers = cls.reqer_cls.preview_headers(domain, kw.pop("cookies", None))
-        target_url = cls.normalize_preview_resource(
-            item.url or (f"/photo/{item.id}" if item.id else None),
-            domain=domain,
-        )
-        if not target_url:
-            raise ValueError("jm episode url is required for preview_fetch_pages")
-        resp = await client.get(target_url, headers=headers, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
-        urls = await asyncio.to_thread(cls.parser.parse_page_urls_from_html, resp.text)
-        item.url = str(resp.url)
-        item.pages = len(urls)
-        return urls
-
-
-async def _jm_book_preview_fetch_pages(self, client, **kw):
-    domain = kw.pop("domain", None) or JmUtils.get_domain()
-    if not domain:
-        raise ValueError("preview domain is required for jm")
-    headers = JmUtils.reqer_cls.preview_headers(domain, kw.pop("cookies", None))
-    target_url = JmUtils.normalize_preview_resource(self.url or self.preview_url, domain=domain)
-    if not target_url:
-        raise ValueError("jm book url is required for preview_fetch_pages")
-    resp = await client.get(target_url, headers=headers, follow_redirects=True, timeout=12)
-    resp.raise_for_status()
-    urls = await asyncio.to_thread(JmUtils.parser.parse_page_urls_from_html, resp.text)
-    self.url = str(resp.url)
-    self.pages = len(urls)
-    return urls
-
-
-JmBookInfo.preview_fetch_pages = _jm_book_preview_fetch_pages

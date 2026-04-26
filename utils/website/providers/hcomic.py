@@ -179,8 +179,23 @@ class HComicReqer(_HComicContract, Req):
                 return False
         return True
 
-    def build_search_url(self, key):
-        return self.mappings.get(key, f"{self.search_url_head}{key}")
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        owner = self._require_preview_owner()
+        owner_type = type(owner)
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or getattr(self, "domain", None) or owner_type.domain
+        spec = owner_type.build_basic_search_request(
+            keyword,
+            page=max(1, int(page or 1)),
+            domain=domain,
+            search_url_head=f"https://{domain}/?q=",
+            turn_page_info=self.turn_page_info,
+            mappings=self.mappings,
+            custom_map=site_kw.get("custom_map"),
+            headers=self.headers,
+        )
+        resp = await owner_type.perform_preview_request(self.ensure_preview_client(), spec)
+        return await asyncio.to_thread(owner.parser.parse_preview_books, resp.text)
 
 
 class HComicUtils(_HComicContract, EroUtils, Previewer):
@@ -198,25 +213,3 @@ class HComicUtils(_HComicContract, EroUtils, Previewer):
     @classmethod
     def preview_transport_config(cls) -> dict:
         return {"verify": False}
-
-    @classmethod
-    async def preview_search(
-        cls,
-        keyword,
-        client,
-        **kw,
-    ):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        domain = kw.pop("domain", None) or cls.domain
-        spec = cls.build_basic_search_request(
-            keyword,
-            page=page,
-            domain=domain,
-            search_url_head=f"https://{domain}/?q=",
-            turn_page_info=cls.turn_page_info,
-            mappings=cls.mappings,
-            custom_map=kw.pop("custom_map", None),
-            headers=cls.headers,
-        )
-        resp = await cls.perform_preview_request(client, spec)
-        return await asyncio.to_thread(cls.parser.parse_preview_books, resp.text)

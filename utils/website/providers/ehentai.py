@@ -14,6 +14,8 @@ from utils.website.info import EhBookInfo
 
 class _EHentaiContract:
     name = "ehentai"
+    browser_referer_mode = "domain_origin_slash"
+    browser_cookie_set_enabled = True
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
     domain = "exhentai.org"
@@ -135,8 +137,25 @@ class EHentaiReqer(_EHentaiContract, Req, Cookies):
             return False
         return bool(resp.text)
 
-    def build_search_url(self, key):
-        return f"https://{self.domain}/?f_search={key}"
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        owner = self._require_preview_owner()
+        owner_type = type(owner)
+        site_kw = self.preview_site_kwargs()
+        page = max(1, int(page or 1))
+        cookies = site_kw.get("cookies") or {}
+        domain = site_kw.get("domain") or getattr(self, "domain", None) or owner_type.domain
+        mappings = owner_type.merge_search_mappings(self.mappings, site_kw.get("custom_map"))
+        if keyword in mappings:
+            url = owner_type.normalize_mapping_url(domain, mappings[keyword])
+        else:
+            url = f"https://{domain}/?f_search={keyword}"
+        if page > 1:
+            sep = "&" if urlparse(url).query else "?"
+            url = f"{url}{sep}page={page - 1}"
+        headers = {**self.book_hea, "Cookie": self.to_str_(cookies)}
+        resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        return await asyncio.to_thread(owner.parser.parse_preview_books, resp.text)
 
 
 class EHentaiKits(_EHentaiContract, EroUtils, Cookies, Previewer):
@@ -157,27 +176,3 @@ class EHentaiKits(_EHentaiContract, EroUtils, Cookies, Previewer):
         return {
             "headers": {**cls.book_hea, "Cookie": cookie_str},
         }
-
-    @classmethod
-    async def preview_search(
-        cls,
-        keyword,
-        client,
-        **kw,
-    ):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        site_kw = cls.pop_site_kwargs(kw)
-        cookies = site_kw["cookies"] or {}
-        domain = site_kw["domain"] or cls.domain
-        mappings = cls.merge_search_mappings(cls.mappings, site_kw["custom_map"])
-        if keyword in mappings:
-            url = cls.normalize_mapping_url(domain, mappings[keyword])
-        else:
-            url = f"https://{domain}/?f_search={keyword}"
-        if page > 1:
-            sep = "&" if urlparse(url).query else "?"
-            url = f"{url}{sep}page={page - 1}"
-        headers = {**cls.book_hea, "Cookie": cls.to_str_(cookies)}
-        resp = await client.get(url, headers=headers, follow_redirects=True, timeout=12, **kw)
-        resp.raise_for_status()
-        return await asyncio.to_thread(cls.parser.parse_preview_books, resp.text)

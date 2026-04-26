@@ -53,7 +53,6 @@ def resolve_provider_descriptor_by_spider(spider_name: str) -> ProviderDescripto
 def create_gui_site_runtime(
     site_key: ProviderKey,
     *,
-    snapshot=None,
     conf_state=conf,
     default_doh_url: str | None = None,
 ) -> GuiSiteRuntime:
@@ -62,7 +61,7 @@ def create_gui_site_runtime(
     if site_index is None:
         raise ValueError(f"provider descriptor does not expose numeric site index: {site_key!r}")
     return GuiSiteRuntime.create(
-        descriptor, site_index=site_index, snapshot=snapshot, conf_state=conf_state, default_doh_url=default_doh_url
+        descriptor, site_index=site_index, conf_state=conf_state, default_doh_url=default_doh_url
     )
 
 

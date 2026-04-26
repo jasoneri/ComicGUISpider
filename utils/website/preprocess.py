@@ -23,11 +23,11 @@ class SitePreprocessRuntime(t.Protocol):
 
 class SitePreprocessRuntimeOwner(t.Protocol):
     name: str
-    index: t.Any
-    domain: str | None
+    provider_cls: t.Any
 
     def get_domain(self): ...
-    def create_runtime(self, conf_state=conf) -> SitePreprocessRuntime: ...
+    def peek_cached_domain(self) -> str | None: ...
+    def create_thread_site_runtime(self) -> SitePreprocessRuntime: ...
 
 
 def run_site_preprocess(
@@ -56,9 +56,9 @@ def run_site_preprocess(
     if site_key == 7:
         return _preprocess_script(data_client=_ensure_data_client(data_client), progress_callback=progress_callback)
     if runtime_owner is not None:
-        raise NotImplementedError(
-            f"TODO(site-runtime-owner): preprocess site {site_key!r} must define an explicit runtime-owner flow "
-            "instead of using legacy supports_test_index probing."
+        raise RuntimeError(
+            f"preprocess site {site_key!r} requires an explicit runtime-owner flow "
+            "and does not support legacy supports_test_index probing"
         )
     return PreprocessResult()
 
@@ -83,8 +83,12 @@ def _action(action_type: str, **kwargs) -> dict[str, t.Any]:
     return {"type": action_type, **kwargs}
 
 
+def _provider_attr(runtime_owner: "SitePreprocessRuntimeOwner", attr_name: str, default=None):
+    return getattr(runtime_owner.provider_cls, attr_name, default)
+
+
 def _preprocess_manga_copy(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state=conf) -> PreprocessResult:
-    runtime = runtime_owner.create_runtime(conf_state)
+    runtime = runtime_owner.create_thread_site_runtime()
     reqer = runtime.reqer
     try:
         reqer.get_aes_key()
@@ -122,9 +126,10 @@ def _preprocess_jm_like(runtime_owner: "SitePreprocessRuntimeOwner") -> Preproce
 
 def _preprocess_wnacg(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state=conf) -> PreprocessResult:
     if conf_state.proxies:
+        domain = runtime_owner.peek_cached_domain() or _provider_attr(runtime_owner, "domain")
         return PreprocessResult(
             ready=True,
-            domain=runtime_owner.domain,
+            domain=domain,
             runtime_ready=True,
             messages=(_message("info", "🔔 已设置代理，跳过域名缓存处理"),),
             state_flags={"proxy_configured": True, "domain_ready": True},
@@ -133,7 +138,7 @@ def _preprocess_wnacg(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state
 
 
 def _preprocess_ehentai(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state=conf) -> PreprocessResult:
-    runtime = runtime_owner.create_runtime(conf_state)
+    runtime = runtime_owner.create_thread_site_runtime()
     cookies_ready = bool(conf_state.cookies.get("ehentai"))
     if not cookies_ready:
         return PreprocessResult(
@@ -144,17 +149,19 @@ def _preprocess_ehentai(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_sta
         )
 
     access_ready = bool(runtime.reqer.test_index())
+    provider_index = _provider_attr(runtime_owner, "index")
+    provider_domain = _provider_attr(runtime_owner, "domain")
     if not access_ready:
         return PreprocessResult(
             ready=False,
             block_search=True,
-            messages=(_message("error", res.EHentai.ACCESS_FAIL, channel="custom", url=runtime_owner.index, url_name=runtime_owner.name),),
+            messages=(_message("error", res.EHentai.ACCESS_FAIL, channel="custom", url=provider_index, url_name=runtime_owner.name),),
             state_flags={"cookies_ready": True, "access_ready": False},
         )
 
     return PreprocessResult(
         ready=True,
-        domain=runtime_owner.domain,
+        domain=provider_domain,
         runtime_ready=True,
         messages=(_message("success", "<br>✅ exhentai access pass"),),
         actions=(_action("attach_ehentai_runtime", runtime=runtime),),
@@ -168,8 +175,9 @@ def _preprocess_hitomi(
     data_client: httpx.Client,
     progress_callback=None,
 ) -> PreprocessResult:
-    runtime = runtime_owner.create_runtime(conf_state)
+    runtime = runtime_owner.create_thread_site_runtime()
     access_ready = bool(runtime.reqer.test_index())
+    provider_index = _provider_attr(runtime_owner, "index")
     messages: list[dict[str, t.Any]] = []
     actions: list[dict[str, t.Any]] = []
     state_flags: dict[str, t.Any] = {"access_ready": access_ready}
@@ -182,7 +190,7 @@ def _preprocess_hitomi(
             "",
             channel="custom",
             text_key="ACCESS_FAIL",
-            url=runtime_owner.index,
+            url=provider_index,
             url_name=runtime_owner.name,
         )
         messages.append(access_fail_message)

@@ -25,6 +25,7 @@ class _KaobeiContract:
     uuid_regex = re.compile(r"(\d+)$")
     pc_domain = "www.2026copy.com"
     api_domain = "api.2026copy.com"
+    domain = pc_domain
     cache_file = "kaobei_aeskey.txt"
     ua = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0",

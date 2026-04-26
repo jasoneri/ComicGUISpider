@@ -326,15 +326,15 @@ class TaskProgressEntry:
         if self.view is not None:
             self.view.set_preview_cover(self.cover_pixmap(data))
 
-    def download_cover_bytes(self) -> bytes:
+    async def download_cover_bytes(self) -> bytes:
         thread_site_runtime = create_gui_site_runtime(
             self.tasks_obj.source,
             conf_state=conf,
         ).create_thread_site_runtime()
         try:
-            return thread_site_runtime.download_cover_bytes(self.tasks_obj)
+            return await thread_site_runtime.download_cover_bytes(self.tasks_obj)
         finally:
-            thread_site_runtime.close()
+            await thread_site_runtime.aclose()
 
 
 class TaskPanelDisplayController(QObject):

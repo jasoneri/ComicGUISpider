@@ -26,26 +26,17 @@ class PreviewRuntimeContext:
     transport: PreviewTransportConfig
 
     @classmethod
-    def from_snapshot(cls, snapshot, *, conf_state=conf, default_doh_url: str | None = None) -> "PreviewRuntimeContext":
+    def from_conf_state(cls, *, conf_state=conf, default_doh_url: str | None = None) -> "PreviewRuntimeContext":
         fallback_doh = (
             default_doh_url
             if default_doh_url is not None
             else getattr(conf_state, "doh_url", "") or cgs_cfg.get_doh_url()
         )
-        if snapshot is None:
-            return cls(
-                cookies_by_site={}, domains={},
-                custom_map=copy.deepcopy(dict(getattr(conf_state, "custom_map", {}) or {})),
-                transport=PreviewTransportConfig.create(proxies=getattr(conf_state, "proxies", None), doh_url=fallback_doh),
-            )
         return cls(
-            cookies_by_site=copy.deepcopy(dict(getattr(snapshot, "cookies", None) or {})),
-            domains=copy.deepcopy(dict(getattr(snapshot, "domains", None) or {})),
-            custom_map=copy.deepcopy(dict(getattr(snapshot, "custom_map", None) or {})),
-            transport=PreviewTransportConfig.create(
-                proxies=getattr(snapshot, "proxies", None) or getattr(conf_state, "proxies", None),
-                doh_url=getattr(snapshot, "doh_url", "") or fallback_doh,
-            ),
+            cookies_by_site={},
+            domains={},
+            custom_map=copy.deepcopy(dict(getattr(conf_state, "custom_map", {}) or {})),
+            transport=PreviewTransportConfig.create(proxies=getattr(conf_state, "proxies", None), doh_url=fallback_doh),
         )
 
     @staticmethod
@@ -110,8 +101,3 @@ class PreviewSiteConfig:
         if self.custom_map:
             kwargs["custom_map"] = copy.deepcopy(self.custom_map)
         return kwargs
-
-    @classmethod
-    def from_snapshot(cls, provider_name: str, snapshot, *, conf_state=conf, default_doh_url: str | None = None) -> "PreviewSiteConfig":
-        runtime_context = PreviewRuntimeContext.from_snapshot(snapshot, conf_state=conf_state, default_doh_url=default_doh_url)
-        return runtime_context.site_config(provider_name)

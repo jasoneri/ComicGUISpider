@@ -47,7 +47,23 @@ doh 可免代理，空词进首页过 cf 盾即可
   <img src="https://img-cgs.101114105.xyz/file/cgs/1774207883543_danbooruPlay.png" alt="logo">
 </a></div>
 
-## 3. saucenao 二次元的以图搜图 (仅脚本)
+## 3. Cbg (CornerBackground)
+
+入口为 rvTool 橙色按钮 Cbg
+
+::: details 功能为油猴脚本，让立绘资源在浏览器右下角常驻展示（当前仅本地资源，火狐暂不支持 ¹）  
+> [!Tip] 需要进扩展管理油猴权限设 `允许访问文件网址` (火狐没有所以不支持)
+
+![cbgShow](https://img-cgs.101114105.xyz/file/cgs/1777293262706_cbgShow.png)
+:::
+技术开源，资源自备  
+或前往[引力圈](https://app.unifans.io/c/jsoneri)赞助获取资源  
+如展示图立绘还可用于 cgs-bg_path , 楓の美化工具箱资源管理器背景, rainmeter 的 Dock 等
+
+::: info 后续视赞助人数置换为图床api ¹
+:::
+
+## 4. saucenao 二次元的以图搜图 (仅脚本)
 
 `Danbooru`无需代理，`Yande`（这个指`yande.re`）需要代理，其他图源没做，感觉也没比`Yande`更全更高清的了，
 没代理就去掉`imgur_module`的`Yande`<br>

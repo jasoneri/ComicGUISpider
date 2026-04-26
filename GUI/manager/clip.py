@@ -76,11 +76,12 @@ class ClipGUIManager:
             gui_site_runtime = self.gui.gui_site_runtime
             if gui_site_runtime is None:
                 raise RuntimeError("gui_site_runtime unavailable for clip flow")
+            book_url_regex = getattr(gui_site_runtime.provider_cls, "book_url_regex", "")
             clip = ClipSqlHandler(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
-                               gui_site_runtime.book_url_regex)
+                               book_url_regex)
             tf, match_items = clip.create_tf()
             if not match_items:
-                self.gui.say(res.GUI.Clip.match_none % gui_site_runtime.book_url_regex,
+                self.gui.say(res.GUI.Clip.match_none % book_url_regex,
                              ignore_http=True)
             else:
                 self.init_clip_handle(tf, match_items)

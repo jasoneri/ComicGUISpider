@@ -16,6 +16,7 @@ from utils.website.info import WnacgBookInfo
 class _WnacgContract:
     name = "wnacg"
     cover_preload_via_http = False
+    browser_referer_mode = "domain_origin"
     publish_domain = "wnacg01.link"
     publish_domain_old = ["wnacg.date", "wn01.link"]
     publish_url = f"https://{publish_domain}"
@@ -183,9 +184,31 @@ class WnacgReqer(_WnacgContract, Req):
         self.domain = None
         self.cli = self.get_cli(_conf)
 
-    def build_search_url(self, key):
-        self.domain = self.domain or WnacgUtils.get_domain()
-        return f"https://{self.domain}/search/?f=_all&s=create_time_DESC&syn=yes&q={key}"
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        page = max(1, int(page or 1))
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or WnacgUtils.get_domain()
+        spec = WnacgUtils.build_basic_search_request(
+            keyword,
+            page=page,
+            domain=domain,
+            search_url_head=f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=",
+            turn_page_info=self.turn_page_info,
+            turn_page_search=self.turn_page_search,
+            mappings=self.mappings,
+            custom_map=site_kw.get("custom_map"),
+            headers=WnacgUtils.build_site_headers(
+                domain,
+                self.headers,
+                referer_url=WnacgUtils.preview_origin(domain),
+            ),
+            state={"domain": domain},
+        )
+        resp = await WnacgUtils.perform_preview_request(self.ensure_preview_client(), spec)
+        return await asyncio.to_thread(WnacgUtils.parser.parse_preview_books, resp.text, spec.state["domain"])
+
+    async def preview_fetch_episodes(self, book):
+        return [book]
 
 
 class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
@@ -282,28 +305,3 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
     @classmethod
     def preview_transport_config(cls) -> dict:
         return {"verify": False, "retries": 2}
-
-    @classmethod
-    async def preview_search(cls,keyword,cli,**kw):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        domain = kw.pop("domain", None) or cls.get_domain()
-        spec = cls.build_basic_search_request(
-            keyword,
-            page=page,
-            domain=domain,
-            search_url_head=f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=",
-            turn_page_info=cls.turn_page_info,
-            turn_page_search=cls.turn_page_search,
-            mappings=cls.mappings,
-            custom_map=kw.pop("custom_map", None),
-            headers=cls.build_site_headers(
-                domain, cls.headers, referer_url=cls.preview_origin(domain),
-            ),
-            state={"domain": domain},
-        )
-        resp = await cls.perform_preview_request(cli, spec)
-        return await asyncio.to_thread(cls.parser.parse_preview_books, resp.text, spec.state["domain"])
-
-    @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        return [book]

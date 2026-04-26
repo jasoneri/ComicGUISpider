@@ -12,10 +12,10 @@ class DomainTestThread(QThread):
     results_ready = Signal(set, set)
     error_occurred = Signal(str)
 
-    def __init__(self, domains, gui_site_runtime):
+    def __init__(self, domains, provider_cls):
         super().__init__()
         self._domains = domains
-        self._gui_site_runtime = gui_site_runtime
+        self._provider_cls = provider_cls
 
     def cancel(self):
         self.requestInterruption()
@@ -26,7 +26,7 @@ class DomainTestThread(QThread):
         try:
             results = loop.run_until_complete(
                 asyncio.gather(
-                    *[self._gui_site_runtime.test_aviable_domain(d) for d in self._domains],
+                    *[self._provider_cls.test_aviable_domain(d) for d in self._domains],
                     return_exceptions=True
                 )
             )
@@ -82,9 +82,10 @@ class PublishDomainManager(QObject):
         gui_site_runtime = self.gui.gui_site_runtime
         if gui_site_runtime is None:
             raise RuntimeError("gui_site_runtime unavailable for publish domain test")
+        provider_cls = gui_site_runtime.provider_cls
         self._current_view = DomainToolView(self.gui)
         self.gui.BrowserWindow.domain_v = self._current_view
-        self._current_thread = DomainTestThread(domains, gui_site_runtime)
+        self._current_thread = DomainTestThread(domains, provider_cls)
         self._current_view.show_loading()
         self._current_thread.results_ready.connect(
             lambda av, un: self._on_results_ready(current_id, av, un)

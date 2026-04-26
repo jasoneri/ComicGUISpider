@@ -169,6 +169,53 @@ class Req:
     def parse_book(cls, resp_text):
         """parse book-page"""
 
+    async def download_cover_bytes(self, tasks_obj, *, browser_headers: dict[str, str] | None = None) -> bytes:
+        cover_request_timeout = 15
+        browser_image_accept = "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"
+
+        def _require_preview_client() -> httpx.AsyncClient:
+            preview_client = getattr(self, "preview_client", None)
+            if preview_client is None:
+                raise RuntimeError(f"{type(self).__name__} cover preload requires requester preview_client")
+            return preview_client
+        def build_cover_headers() -> httpx.Headers:
+            def _require_cover_request_owner():
+                owner = getattr(self, "owner", None)
+                if owner is None:
+                    raise RuntimeError(f"{type(self).__name__} cover preload requires provider owner")
+                return owner
+            def cover_request_referer(tasks_obj) -> str | None:
+                return Previewer.build_referer_url(
+                    getattr(tasks_obj, "title_url", None),
+                    request_url=getattr(tasks_obj, "cover_url", None),
+                )
+            preview_client = _require_preview_client()
+            owner = _require_cover_request_owner()
+            preview_client_config = getattr(type(owner), "preview_client_config", None)
+            if not callable(preview_client_config):
+                raise RuntimeError(f"{type(self).__name__} cover preload requires provider owner.preview_client_config()")
+            site_config = getattr(self, "site_config", None)
+            site_kw = site_config.as_provider_kwargs() if site_config is not None else {}
+            owner_headers = dict((preview_client_config(**site_kw) or {}).get("headers", {}) or {})
+            headers = httpx.Headers(preview_client.headers)
+            headers.update(owner_headers)
+            headers.update(dict(browser_headers or {}))
+            if "accept" not in headers or "image/" not in headers.get("accept", ""):
+                headers["Accept"] = browser_image_accept
+            referer_url = cover_request_referer(tasks_obj)
+            if referer_url and "referer" not in headers:
+                headers["Referer"] = referer_url
+            return headers  
+        preview_client = _require_preview_client()
+        resp = await preview_client.get(
+            tasks_obj.cover_url,
+            headers=build_cover_headers(),
+            follow_redirects=True,
+            timeout=cover_request_timeout,
+        )
+        resp.raise_for_status()
+        return resp.content
+
 
 class Utils:
     name = ""

@@ -2,7 +2,9 @@
 异步任务管理器 - 流程化耗时操作处理
 提供类似微服务的便捷接入方式，支持 QThread 处理、回调和可视化状态提示
 """
+import asyncio
 from dataclasses import dataclass, field
+import inspect
 import time
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -47,9 +49,12 @@ class AsyncTaskThread(QThread):
         try:
             if self.is_cancelled:
                 return
-            if "progress_callback" in self.task_func.__code__.co_varnames:
+            code_obj = getattr(self.task_func, "__code__", None)
+            if code_obj is not None and "progress_callback" in code_obj.co_varnames:
                 self.kwargs["progress_callback"] = self.emit_progress
             result = self.task_func(*self.args, **self.kwargs)
+            if inspect.isawaitable(result):
+                result = asyncio.run(result)
             if not self.is_cancelled:
                 self.success_signal.emit(result)
         except Exception as exc:

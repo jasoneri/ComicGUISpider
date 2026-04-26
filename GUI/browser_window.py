@@ -18,7 +18,7 @@ from GUI.core.browser.runtime import (
     BrowserRequestInterceptor,
     apply_cookie_sets,
 )
-from GUI.core.browser.browser_environment import build_browser_environment
+from GUI.core.browser.environment import build_browser_environment
 from GUI.core.browser.page_runtime import BrowserPageRuntime
 from GUI.core.browser.profile import create_browser_window_profile
 from GUI.core.browser.types import BrowserChallengeSpec, BrowserEnvironmentConfig

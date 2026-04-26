@@ -12,16 +12,16 @@
 
 ### 存储路径 / `sv_path`
 
-::: warning 良好的习惯是创建一个空目录，并设于此处  
-因为默认值，⚠️ win 没D盘的必须改  
-同时设置防呆警告，所列情况设置无效：①设在盘符根；②设在 CGS 相关目录内
+::: tip 良好的习惯是创建一个空目录，并设于此处  
+设置了防呆警告，所列情况设置无效：①设在盘符根；②设在 CGS 相关目录内
 :::
 
-默认值：&emsp;`win: D:\Comic`&emsp;`macOS: ~/Downloads/Comic`  
+默认值：&emsp;`win: C:\Users\<UserName>\Downloads\Comic`&emsp;`macOS: ~/Downloads/Comic`  
 
 ### 日志等级 / `log_level`
 
-后台运行过后会有 log 目录，GUI 与 后台 同级，报错时 GUI 会进行操作指引
+后台运行过后会有 log 目录，GUI 与 后台 同级，报错时 GUI 会进行操作指引  
+附带日志目录打开按钮
 
 ### Doh (Dns over Https)
 

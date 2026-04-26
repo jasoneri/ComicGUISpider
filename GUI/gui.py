@@ -71,6 +71,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def __init__(self, parent=None):
         super(SpiderGUI, self).__init__(parent)
         self.log = conf.cLog(name="GUI")
+        self.log.debug(f"{conf.settings=}")
+        self.log.debug(f"{cgs_cfg.get_doh_url()=}")
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
@@ -605,10 +607,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         gui_site_runtime = self.gui_site_runtime
         if gui_site_runtime is None:
             raise RuntimeError("gui_site_runtime unavailable for publish flow")
-        cache_file = gui_site_runtime.cache_path()
-        cached = cache_file.read_text(encoding='utf-8').strip() if cache_file.exists() else ""
+        cached = gui_site_runtime.peek_cached_domain() or ""
+        publish_url = getattr(gui_site_runtime.provider_cls, "publish_url", "")
         self.tf = TmpFormatHtml.created_temp_html("publish",
-            bs_theme=bs_theme(), publish_url=gui_site_runtime.publish_url,
+            bs_theme=bs_theme(), publish_url=publish_url,
             wnacg_publish=WnacgUtils.publish_domain, __cached_domain__=cached
         )
         self.set_preview()

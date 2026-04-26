@@ -1,10 +1,14 @@
+import importlib
 import os
+import sys
 import shutil
 import argparse
 import pathlib
 import subprocess
+from importlib.machinery import SourceFileLoader
+from types import ModuleType
 
-VER = "2.10.0-beta.2"
+VER = "2.10.0-beta.3"
 DEFAULT_INDEX = r'https://pypi.tuna.tsinghua.edu.cn/simple/'
 
 
@@ -31,16 +35,10 @@ class CGSInstaller:
 
     @staticmethod
     def _parse_args():
-        parser = argparse.ArgumentParser(
-            description="cgs",
-            formatter_class=argparse.RawDescriptionHelpFormatter
-        )
-        parser.add_argument('-i', '--index', type=str, nargs='?', default=None,
-                            help=f'pypi source (default: {DEFAULT_INDEX})')
-        parser.add_argument('-v', '--version', type=str, default=None,
-                            help='specify ComicGUISpider version to install, e.g. 2.8.0')
-        parser.add_argument('-c', '--conf', type=str, default=None,
-                            help='uv.toml')
+        parser = argparse.ArgumentParser(description="cgs", formatter_class=argparse.RawDescriptionHelpFormatter)
+        parser.add_argument('-i', '--index', type=str, nargs='?', default=None, help=f'pypi source (default: {DEFAULT_INDEX})')
+        parser.add_argument('-v', '--version', type=str, default=None, help='specify ComicGUISpider version to install, e.g. 2.8.0')
+        parser.add_argument('-c', '--conf', type=str, default=None, help='uv.toml')
         return parser.parse_args()
 
     def clean(self):
@@ -68,6 +66,25 @@ class CGSInstaller:
     def _update_int(self):
         new_int = self.root / "comicguispider/Lib/site-packages/assets/_pystand_static.int"
         if not new_int.exists():
+            return
+        loader = SourceFileLoader("cgs_new_pystand_static_int", str(new_int))
+        new_int_module = ModuleType(loader.name)
+        new_int_module.__file__ = str(new_int)
+        loader.exec_module(new_int_module)
+        new_ver = getattr(new_int_module, "VER", None)
+        if new_ver is None:
+            return
+        site_packages = new_int.parents[1]
+        site_packages_str = str(site_packages)
+        added_site_packages = site_packages_str not in sys.path
+        if added_site_packages:
+            sys.path.insert(0, site_packages_str)
+        try:
+            parse = importlib.import_module("packaging.version").parse
+        finally:
+            if added_site_packages:
+                sys.path.remove(site_packages_str)
+        if parse(new_ver) < parse(VER):
             return
         shutil.copy2(new_int, self.root / "_pystand_static.int")
 

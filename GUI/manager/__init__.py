@@ -10,7 +10,7 @@ from qfluentwidgets import (
 from assets import res
 from variables import PYPI_SOURCE, CGS_DOC
 from datetime import date
-from deploy.update import Proj, UpdateState
+from deploy.update import InstallerAssetUpdater, Proj, UpdateState
 from utils import conf, env, uv_exc, exc_p
 from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox, CustomBadge
@@ -146,8 +146,7 @@ class Updater:
                 self.stateTooltip = None
             if isinstance(recv, str):
                 self.gui.textBrowser.append(recv)
-                CustomInfoBar.show("", self.res.ver_check_fail, self.gui.showArea,
-                                   f"{Proj.url}/releases", "access releases", _type="ERROR")
+                CustomInfoBar.show("", self.res.ver_check_fail, self.gui.showArea, f"{Proj.url}/releases", "access releases", _type="ERROR")
                 _close_thread()
                 return
             self.proj = recv
@@ -181,14 +180,15 @@ class Updater:
         safe_single_shot(1000, self.gui.close)
 
     def to_update(self, ver):
-        _UpdateLauncher(ver).run()
+        _UpdateLauncher(ver, installer_manifest=self.proj.installer_manifest).run()
         self.gui.close()
 
 
 class _UpdateLauncher:
-    def __init__(self, ver: str, script: bool = False):
+    def __init__(self, ver: str, script: bool = False, installer_manifest: dict | None = None):
         self.ver = ver
         self.script = script
+        self.installer_manifest = installer_manifest or {}
         pkg = "ComicGUISpider[script]" if script else "ComicGUISpider"
         self.install_spec = f"{pkg}=={ver}"
         self.index_url = PYPI_SOURCE[conf.pypi_source]
@@ -197,6 +197,7 @@ class _UpdateLauncher:
 
     def run(self):
         if os.name == "nt" and self.installer_exe.exists():
+            InstallerAssetUpdater(self.installer_manifest, self.installer_exe).update_if_needed()
             self._run_installer()
             return
         if os.name == "nt":
