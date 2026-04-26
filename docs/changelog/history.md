@@ -1,5 +1,42 @@
 # 🕑 更新历史
 
+## `v2.10.0-beta.3`
+
+### 🎁 Features
+
++ CBG (Comic Background Gallery)：新增浏览器背景定制系统
+  - PNG 文件管理界面，可视化选择本地图片
+  - 随机抽选模式，支持包含历史记录选项
+  - 生成 Tampermonkey 脚本一键复制使用
+  - 新主题样式 cbg.qss，QSS模板系统支持动态主题渲染
++ danbooru 收藏功能增强：
+  - 新增收藏管理对话框，支持分组管理收藏标签
+  - 可创建自定义收藏组，拖拽选择批量移动标签
+  - 标签组织更灵活，支持重命名/删除收藏组
++ DoH (DNS over HTTPS) 配置说明新增至文档，可参考 cmliu/CF-Workers-DoH 部署
+
+### ⚙️ Architecture
+
++ 重要重构：`site_gateway` 重命名为 `gui_site_runtime`，`spider_adapter` 重命名为 `provider_descriptor`
++ 引入 `site_runtime.py` 新架构：
+  - `GuiSiteRuntime`: GUI 侧站点运行时管理
+  - `ThreadSiteRuntime`: 线程级站点运行时（预览搜索）
+  - `SpiderSiteRuntime`: Spider 侧站点运行时（下载）
++ Pipeline 简化逻辑优化
+
+### 📦 Dependencies
+
++ Scrapy 升级至 >=2.15.1
++ 新增 py7zr>=1.1.0 依赖
+
+### 📝 Documentation
+
++ 域名缓存有效期从 48 小时调整为一周
++ 拷贝漫画网址更新为 2026copy.com
++ 发布页管理可主动触发功能说明（v2.10.0-beta 已启用）
+
+---
+
 ## `v2.10.0-beta.2`
 
 ### 🎁 Features
