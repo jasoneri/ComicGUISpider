@@ -4,9 +4,9 @@ import typing as t
 from pathlib import Path
 
 from PySide6 import QtCore, QtGui
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtGui import QImageReader, QPixmap
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication, QFileDialog, QFrame, QHBoxLayout, QVBoxLayout, QRubberBand, QSizePolicy, QStackedWidget, QWidget
 from qfluentwidgets import (
     CompactSpinBox, FlowLayout, FluentIcon as FIF, ImageLabel, InfoBar, InfoBarPosition, PrimaryToolButton, TransparentToolButton,
@@ -14,6 +14,7 @@ from qfluentwidgets import (
 )
 
 from GUI.manager.async_task import AsyncTaskManager
+from GUI.script.cbg.preview import PreviewScheduler
 from GUI.core.theme import CustTheme, theme_mgr
 from GUI.core.theme.qss_template import read_templated_qss_tokens, render_templated_qss_section
 from GUI.script.danbooru.style import DEFAULT_CARD_METRICS, DanbooruCardMetrics
@@ -104,6 +105,7 @@ class CbgRandomCountSpinBox(CompactSpinBox):
 
 class CbgCardWidget(QFrame):
     selection_changed = Signal(object, bool)
+    preview_loaded = Signal(Path)
 
     def __init__(self, path: Path, parent=None, metrics: DanbooruCardMetrics = DEFAULT_CARD_METRICS):
         super().__init__(parent)
@@ -116,7 +118,6 @@ class CbgCardWidget(QFrame):
         self.setObjectName(f"CbgCard_{self.path.stem}")
         self.setToolTip(str(self.path))
         self._setup_ui()
-        self._load_preview()
         self.apply_theme()
 
     def _setup_ui(self) -> None:
@@ -213,18 +214,11 @@ class CbgCardWidget(QFrame):
             return
         self.preview_label.setScaledSize(self._preview_target_size())
 
-    def _load_preview(self) -> None:
-        reader = QImageReader(str(self.path))
-        if not reader.canRead():
-            return
-        reader.setAutoTransform(True)
-        source_size = reader.size()
-        if source_size.isValid():
-            reader.setScaledSize(source_size.scaled(self._preview_target_size(), Qt.KeepAspectRatio))
-        image = reader.read()
-        if image.isNull():
-            return
-        self.set_preview_pixmap(QPixmap.fromImage(image))
+    @Slot(QPixmap)
+    def _set_preview_from_loader(self, pixmap: QPixmap) -> None:
+        """从后台加载器接收预览（线程安全）"""
+        self.set_preview_pixmap(pixmap)
+        self.preview_loaded.emit(self.path)
 
     def _sync_geometry(self) -> None:
         self._preview_size = self._derive_preview_size()
@@ -438,8 +432,10 @@ class CbgInterface(QFrame):
         self._scanned_paths: list[Path] = []
         self._selected_paths: set[Path] = set()
         self._setup_ui()
+        self.preview_scheduler = PreviewScheduler(self.scroll_area, max_concurrent=20)
         self.selection_controller = CbgSelectionController(self)
         self.selection_controller.selection_count_changed.connect(self._on_selection_count_changed)
+        self.scroll_area.verticalScrollBar().valueChanged.connect(self._on_scroll)
         theme_mgr.subscribe(self._apply_theme)
         self.destroyed.connect(lambda *_args: self.task_mgr.cleanup())
         self._restore_persisted_state()
@@ -580,7 +576,7 @@ class CbgInterface(QFrame):
 
         apiEdit = LineEdit(self)
         apiEdit.setMinimumWidth(320)
-        apiEdit.setPlaceholderText("使用 引力圈 赞助方案获取 api, 然后复制到此处")
+        apiEdit.setPlaceholderText("使用 引力圈 赞助方案获取 api, 复制至此..")
         apiEdit.setClearButtonEnabled(True)
         accept_btn = PrimaryToolButton(FIF.ACCEPT)
         linkBtn = TransparentToolButton(FIF.LINK)
@@ -604,7 +600,7 @@ class CbgInterface(QFrame):
         if scan_root:
             self._scan_selected_root(scan_root)
         else:
-            self.grid_stack.setCurrentWidget(self.empty_page)
+            self._sync_grid_view()
 
     def _apply_theme(self, *_args) -> None:
         self.setStyleSheet(_build_cbg_interface_stylesheet())
@@ -612,47 +608,53 @@ class CbgInterface(QFrame):
             card.apply_theme()
         self.selection_controller.apply_theme()
 
+    def _sync_grid_view(self) -> None:
+        """根据当前扫描结果同步视图状态"""
+        if not self._scanned_paths:
+            self.empty_label.setText("选择 PNG 目录后会在这里展示卡片")
+            self.grid_stack.setCurrentWidget(self.empty_page)
+        else:
+            self.grid_stack.setCurrentWidget(self.scroll_area)
+
     def _clear_cards(self) -> None:
         while self.flow_layout.count():
             _delete_flow_item(self.flow_layout.takeAt(0))
         self.cards.clear()
 
-    def _show_empty_state(self, text: str) -> None:
-        self.empty_label.setText(text)
-        self.grid_stack.setCurrentWidget(self.empty_page)
+    def _on_scroll(self) -> None:
+        """滚动时触发可见卡片加载"""
+        self.preview_scheduler.load_visible_cards()
 
-    def _reset_scan_result(self, text: str) -> None:
+    def _load_scan_result(self, paths: list[Path]) -> None:
+        """加载扫描结果到界面"""
         self.selection_controller.clear()
         self._clear_cards()
-        self._scanned_paths = []
-        self._show_empty_state(text)
-
-    def _rebuild_cards(self, paths: list[Path]) -> None:
-        self.selection_controller.clear()
-        self._clear_cards()
+        self.preview_scheduler.clear()
         self._scanned_paths = list(paths)
-        if not paths:
-            return self._show_empty_state("empty PNG")
-        for path in paths:
-            card = CbgCardWidget(path, self.scroll_content, metrics=self.card_metrics)
-            self.cards[path] = card
-            self.flow_layout.addWidget(card)
-            self.selection_controller.bind_card(card)
-        self.grid_stack.setCurrentWidget(self.scroll_area)
+
+        if paths:
+            for path in paths:
+                card = CbgCardWidget(path, self.scroll_content, metrics=self.card_metrics)
+                card.preview_loaded.connect(self.preview_scheduler.mark_loaded)
+                self.cards[path] = card
+                self.flow_layout.addWidget(card)
+                self.selection_controller.bind_card(card)
+                self.preview_scheduler.register_card(card)
+            QtCore.QTimer.singleShot(0, self.preview_scheduler.load_visible_cards)
+
+        self._sync_grid_view()
 
     def _scan_selected_root(self, raw_root: str) -> None:
+        """扫描选定的根目录"""
         normalized_root = str(normalize_path(raw_root)) if str(raw_root or "").strip() else ""
         cbg_cfg.set(cbg_cfg.scanRoot, normalized_root)
         self.path_card.set_path(normalized_root)
-        if not normalized_root:
-            return self._reset_scan_result("选择 PNG 目录后会在这里展示卡片")
-        root_path = Path(normalized_root)
-        if not root_path.exists():
-            return self._reset_scan_result("当前目录不存在")
-        if not root_path.is_dir():
-            return self._reset_scan_result("当前路径不是目录")
 
-        self._rebuild_cards(scan_png_files(root_path))
+        if not normalized_root:
+            self._load_scan_result([])
+            return
+
+        self._load_scan_result(scan_png_files(Path(normalized_root)))
 
     def _select_random_paths(self) -> None:
         if not self._scanned_paths:

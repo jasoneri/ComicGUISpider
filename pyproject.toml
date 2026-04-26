@@ -25,7 +25,7 @@ dependencies = [
     "uncurl",
     "urllib3>=2.5.0",
     "Pillow>=11.3.0",
-    "Scrapy>=2.13.0",
+    "Scrapy>=2.15.1",
     "setuptools>=78.1.1",
     "h11>=0.16.0",
     "requests>=2.32.4",

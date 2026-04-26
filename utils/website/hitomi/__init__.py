@@ -89,8 +89,8 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
     reqer_cls = HitomiReqer
 
     def __init__(self, _conf):
-        self.reqer = self.reqer_cls(_conf)
-        self.parser = self.__class__.parser(self)
+        self.reqer = HitomiParser(_conf)
+        self.parser = HitomiReqer(self)
         self.cli = self.reqer.cli
         self.gg = gg(cli=self.cli)
         self.dec = self.Decrypt(self.gg)

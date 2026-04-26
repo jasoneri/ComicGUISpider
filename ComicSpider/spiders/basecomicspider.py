@@ -373,7 +373,7 @@ class BaseComicSpider(scrapy.Spider):
             os.remove(domain_cache)
 
     def _finish_counters(self, stats):
-        downloaded_count = stats.get_value('image/downloaded', 0)
+        downloaded_count = stats.get_value('file_status_count/downloaded', 0)
         uptodate_count = stats.get_value('file_status_count/uptodate', 0)
         total = self.job_context.total if self.job_context else self.total
         return downloaded_count, uptodate_count, downloaded_count + uptodate_count, total

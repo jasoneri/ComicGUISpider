@@ -1,5 +1,6 @@
-from pathlib import Path
+import gc
 import typing as t
+from pathlib import Path
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, QSize
@@ -38,7 +39,7 @@ class DanbooruInterface(QFrame):
         super().__init__(parent=parent)
         self.parent_window = parent
         self.setObjectName("DanbooruInterface")
-        self.task_mgr = AsyncTaskManager(self)
+        self.task_mgr = AsyncTaskManager(self.parent_window.gui)
         self.tab_counter = 0
         self.tabs: dict[str, DanbooruTabWidget] = {}
         self.tab_states: dict[str, DanbooruTabState] = {}
@@ -237,6 +238,7 @@ class DanbooruInterface(QFrame):
         self.tab_bar.removeTabByKey(tab_id)
         self.stacked_widget.removeWidget(tab)
         tab.deleteLater()
+        gc.collect()
         if self.stacked_widget.count():
             self._set_current_tab(self.stacked_widget.widget(0).objectName())
         self._update_tab_chrome()
