@@ -28,7 +28,7 @@ from utils.config.qc import kemono_cfg
 from GUI.core.font import font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
-from GUI.script.avatar_cache import AvatarCache
+from GUI.script.kemono.avatar_cache import AvatarCache
 
 
 class FilterView(FlyoutViewBase):

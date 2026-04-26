@@ -51,7 +51,7 @@ def main(base_dir, lang):
     po_file = base_dir / 'locale' / lang / 'LC_MESSAGES' / 'res.po'
     mo_file = base_dir / 'locale' / lang / 'LC_MESSAGES' / 'res.mo'
     
-    po = yaml_to_po(lang, yaml_file, po_file)
+    yaml_to_po(lang, yaml_file, po_file)
     compile_po_to_mo(po_file, mo_file)
     with open(yaml_hash, 'w', encoding='utf-8') as f:
         f.write(hashlib.sha256(yaml_file.read_bytes()).hexdigest())

@@ -10,8 +10,17 @@ use std::sync::{Arc, LazyLock, Mutex};
 use std::thread;
 use std::time::Duration;
 
+const STARTING_PROGRESS: u8 = 5;
+const RESOLVING_PROGRESS: u8 = 15;
+const DOWNLOAD_PROGRESS_START: u8 = 15;
+const DOWNLOAD_PROGRESS_END: u8 = 75;
+const PREPARED_PROGRESS: u8 = 80;
+const INSTALLING_PROGRESS: u8 = 85;
+const RESTARTING_PROGRESS: u8 = 95;
+const COMPLETED_PROGRESS: u8 = 100;
+
 #[derive(Debug, Clone)]
-pub struct InstallerConfig {
+pub(crate) struct InstallerConfig {
     pub uv_exc: PathBuf,
     pub version: String,
     pub index_url: String,
@@ -21,14 +30,135 @@ pub struct InstallerConfig {
 }
 
 #[derive(Debug, Clone)]
-pub enum InstallerEvent {
-    Progress { percent: u8, status: String },
+pub(crate) enum InstallerEvent {
+    Progress(InstallerProgress),
     Finished { exit_code: i32, message: String },
     Fatal { message: String },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum InstallerStage {
+    Starting,
+    Resolving,
+    Downloading,
+    Prepared,
+    Installing,
+    Restarting,
+    Completed,
+    Failed,
+}
+
+impl InstallerStage {
+    pub(crate) fn rank(self) -> u8 {
+        match self {
+            Self::Starting => 0,
+            Self::Resolving => 1,
+            Self::Downloading => 2,
+            Self::Prepared => 3,
+            Self::Installing => 4,
+            Self::Restarting => 5,
+            Self::Completed => 6,
+            Self::Failed => 7,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InstallerProgress {
+    pub(crate) stage: InstallerStage,
+    pub(crate) percent: u8,
+    pub(crate) status: String,
+}
+
+impl InstallerProgress {
+    pub(crate) fn new(stage: InstallerStage, percent: u8, status: impl Into<String>) -> Self {
+        Self {
+            stage,
+            percent: percent.min(COMPLETED_PROGRESS),
+            status: status.into(),
+        }
+    }
+
+    pub(crate) fn starting() -> Self {
+        Self::new(
+            InstallerStage::Starting,
+            STARTING_PROGRESS,
+            "Starting update...",
+        )
+    }
+
+    pub(crate) fn resolving(total_packages: u32) -> Self {
+        Self::new(
+            InstallerStage::Resolving,
+            RESOLVING_PROGRESS,
+            format!("Resolving packages ({total_packages})"),
+        )
+    }
+
+    pub(crate) fn downloading(count: u32, total_packages: u32) -> Self {
+        let count = count.min(total_packages);
+        let span = u32::from(DOWNLOAD_PROGRESS_END - DOWNLOAD_PROGRESS_START);
+        let percent =
+            (u32::from(DOWNLOAD_PROGRESS_START) + count.saturating_mul(span) / total_packages)
+                .min(u32::from(DOWNLOAD_PROGRESS_END)) as u8;
+        Self::new(
+            InstallerStage::Downloading,
+            percent,
+            format!("Downloading packages ({count}/{total_packages})"),
+        )
+    }
+
+    pub(crate) fn download_summary(total_packages: u32) -> Self {
+        Self::new(
+            InstallerStage::Downloading,
+            DOWNLOAD_PROGRESS_END,
+            format!("Downloaded packages ({total_packages}/{total_packages})"),
+        )
+    }
+
+    pub(crate) fn downloading_unknown() -> Self {
+        Self::new(
+            InstallerStage::Downloading,
+            45,
+            "Downloading packages...".to_string(),
+        )
+    }
+
+    pub(crate) fn prepared() -> Self {
+        Self::new(
+            InstallerStage::Prepared,
+            PREPARED_PROGRESS,
+            "Prepared packages",
+        )
+    }
+
+    pub(crate) fn installing() -> Self {
+        Self::new(
+            InstallerStage::Installing,
+            INSTALLING_PROGRESS,
+            "Installing update...",
+        )
+    }
+
+    pub(crate) fn restarting() -> Self {
+        Self::new(
+            InstallerStage::Restarting,
+            RESTARTING_PROGRESS,
+            "Installed. Restarting...",
+        )
+    }
+
+    pub(crate) fn completed(status: impl Into<String>) -> Self {
+        Self::new(InstallerStage::Completed, COMPLETED_PROGRESS, status)
+    }
+
+    pub(crate) fn failed(percent: u8, status: impl Into<String>) -> Self {
+        Self::new(InstallerStage::Failed, percent, status)
+    }
+}
+
 impl InstallerConfig {
-    pub fn from_args(args: &CliArgs) -> Self {
+    pub(crate) fn from_args(args: &CliArgs) -> Self {
         let uv_tool_dir = if args.uv_tool_dir.is_empty() {
             std::env::var("UV_TOOL_DIR")
                 .map(PathBuf::from)
@@ -55,16 +185,16 @@ impl InstallerConfig {
         }
     }
 
-    pub fn log_path(&self) -> PathBuf {
+    pub(crate) fn log_path(&self) -> PathBuf {
         self.uv_tool_dir.join("cgs_update.log")
     }
 
-    pub fn install_args(&self) -> Vec<String> {
+    pub(crate) fn install_args(&self) -> Vec<String> {
         build_install_args(&self.version, &self.index_url, self.script)
     }
 }
 
-pub fn cleanup_stale_dirs(config: &InstallerConfig) -> io::Result<()> {
+pub(crate) fn cleanup_stale_dirs(config: &InstallerConfig) -> io::Result<()> {
     if !config.uv_tool_dir.exists() {
         return Ok(());
     }
@@ -83,7 +213,7 @@ pub fn cleanup_stale_dirs(config: &InstallerConfig) -> io::Result<()> {
     Ok(())
 }
 
-pub fn wait_for_parent_exit(parent_pid: u32, timeout_ms: u32) {
+pub(crate) fn wait_for_parent_exit(parent_pid: u32, timeout_ms: u32) {
     if parent_pid == 0 {
         return;
     }
@@ -110,7 +240,7 @@ pub fn wait_for_parent_exit(parent_pid: u32, timeout_ms: u32) {
     }
 }
 
-pub fn run_update_cli(config: &InstallerConfig) -> i32 {
+pub(crate) fn run_update_cli(config: &InstallerConfig) -> i32 {
     let logger = open_log(&config.log_path());
     log_msg(&logger, "CLI mode started");
 
@@ -151,7 +281,7 @@ pub fn run_update_cli(config: &InstallerConfig) -> i32 {
     exit_code
 }
 
-pub fn spawn_update_worker(
+pub(crate) fn spawn_update_worker(
     config: InstallerConfig,
     tx: Sender<InstallerEvent>,
 ) -> thread::JoinHandle<()> {
@@ -172,10 +302,7 @@ fn run_update_worker(config: &InstallerConfig, tx: &Sender<InstallerEvent>) -> i
         &logger,
         &format!("GUI mode: {} {}", config.uv_exc.display(), args.join(" ")),
     );
-    let _ = tx.send(InstallerEvent::Progress {
-        percent: 5,
-        status: "Starting update...".into(),
-    });
+    let _ = tx.send(InstallerEvent::Progress(InstallerProgress::starting()));
 
     let mut child = Command::new(&config.uv_exc)
         .args(&args)
@@ -213,10 +340,7 @@ fn run_update_worker(config: &InstallerConfig, tx: &Sender<InstallerEvent>) -> i
     let code = status.code().unwrap_or(1);
 
     if code == 0 {
-        let _ = tx.send(InstallerEvent::Progress {
-            percent: 100,
-            status: "Installed. Restarting...".into(),
-        });
+        let _ = tx.send(InstallerEvent::Progress(InstallerProgress::restarting()));
         match restart_cgs(config) {
             Ok(()) => {
                 log_msg(&logger, "Restart launched");
@@ -257,53 +381,34 @@ static RE_DL_ITEM: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\s*Downloaded\s+(.+)$").unwrap());
 
 impl ProgressParser {
-    fn parse(&mut self, line: &str) -> Option<InstallerEvent> {
+    fn parse(&mut self, line: &str) -> Option<InstallerProgress> {
         if line.contains("Resolved") {
             if let Some(caps) = RE_RESOLVED.captures(line) {
                 self.total_packages = caps[1].parse().unwrap_or(0);
                 self.downloaded_count = 0;
-                return Some(InstallerEvent::Progress {
-                    percent: 15,
-                    status: format!("Resolved ({})", &caps[1]),
-                });
+                return Some(InstallerProgress::resolving(self.total_packages));
             }
         } else if line.contains("Downloaded") {
             if let Some(caps) = RE_DL_SUMMARY.captures(line) {
-                return Some(InstallerEvent::Progress {
-                    percent: 75,
-                    status: format!("Downloaded ({})", &caps[1]),
-                });
+                let total_packages = caps[1].parse().unwrap_or(self.total_packages);
+                return Some(InstallerProgress::download_summary(total_packages));
             }
             if RE_DL_ITEM.is_match(line) {
                 self.downloaded_count = self.downloaded_count.saturating_add(1);
                 if self.total_packages > 0 {
-                    let count = self.downloaded_count.min(self.total_packages);
-                    let pct = (15 + count * 60 / self.total_packages).min(75) as u8;
-                    return Some(InstallerEvent::Progress {
-                        percent: pct,
-                        status: format!("Downloading ({}/{})", count, self.total_packages),
-                    });
+                    return Some(InstallerProgress::downloading(
+                        self.downloaded_count,
+                        self.total_packages,
+                    ));
                 }
-                return Some(InstallerEvent::Progress {
-                    percent: 45,
-                    status: "Downloading...".into(),
-                });
+                return Some(InstallerProgress::downloading_unknown());
             }
         } else if line.contains("Prepared") {
-            return Some(InstallerEvent::Progress {
-                percent: 80,
-                status: "Prepared".into(),
-            });
+            return Some(InstallerProgress::prepared());
         } else if line.contains("Installing") {
-            return Some(InstallerEvent::Progress {
-                percent: 85,
-                status: "Installing...".into(),
-            });
+            return Some(InstallerProgress::installing());
         } else if line.contains("Installed") {
-            return Some(InstallerEvent::Progress {
-                percent: 100,
-                status: "Installed".into(),
-            });
+            return Some(InstallerProgress::restarting());
         }
         None
     }
@@ -319,8 +424,8 @@ fn stream_lines<R: Read>(
         let Ok(line) = line else { continue };
         log_msg(logger, &line);
         if let Ok(mut p) = parser.lock() {
-            if let Some(ev) = p.parse(&line) {
-                let _ = tx.send(ev);
+            if let Some(progress) = p.parse(&line) {
+                let _ = tx.send(InstallerEvent::Progress(progress));
             }
         }
     }

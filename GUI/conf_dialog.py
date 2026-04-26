@@ -13,14 +13,14 @@ from PySide6.QtCore import Qt, QRect, QStringListModel
 from PySide6.QtGui import QIcon
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
-    FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton,
+    FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, TransparentToolButton,
     PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
 )
 import uncurl
 
 from assets import res
 from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG, CGS_DOC
-from utils import conf, convert_punctuation as cp, exc_p
+from utils import conf, convert_punctuation as cp, exc_p, curr_os, ori_path
 from utils.config.rule import CgsRuleMgr
 from GUI.thread import ProjUpdateThread
 from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
@@ -134,8 +134,10 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
+        self.logPathBtn = TransparentToolButton(QIcon(':/configDialog/log.svg'))
         self.dohBtn = PrimaryPushButton("DoH", self)
         self.dohBtn.setMaximumSize(QtCore.QSize(80, 16777215))
+        self.horizontalLayout_log_level.addWidget(self.logPathBtn)
         self.horizontalLayout_log_level.addWidget(self.dohBtn)
         self.dohController = DoHButtonController(self.dohBtn, parent=self)
 
@@ -180,6 +182,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             self.gui.open_url_by_browser(f"{CGS_DOC}{_p}")
         self.descBtn.clicked.connect(lambda: _open_docs(""))
         self.monitorBtn.clicked.connect(lambda: _open_docs("/deploy/monitor"))
+        self.logPathBtn.clicked.connect(lambda: curr_os.open_folder(ori_path.joinpath("log")))
         def _switch_mode(checked: bool):
             theme_mgr.set_dark(checked, save=True)
         self.darkTheme.toggled.connect(_switch_mode)

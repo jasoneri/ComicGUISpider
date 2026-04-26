@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
-import json
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import scrapy
 
 from ComicSpider.runtime.job_models import iter_download_items
 
-from utils import PresetHtmlEl, conf
+from utils import conf
 from utils.website import HitomiUtils, get_loop
-from utils.processed_class import PreviewHtml
 from ComicSpider.items import ComicspiderItem
 
-from .basecomicspider import BaseComicSpider, font_color
+from .basecomicspider import BaseComicSpider
 
 domain = HitomiUtils.index
 
@@ -35,7 +33,7 @@ class HitomiSpider(BaseComicSpider):
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super(HitomiSpider, cls).from_crawler(crawler, *args, **kwargs)
         try:
-            spider.async_cli = spider.site.get_cli(conf, is_async=True)
+            spider.async_cli = spider.spider_site_runtime.provider.reqer_cls.get_cli(conf, is_async=True)
         except Exception as e:
             if spider.crawler and spider.crawler.engine:
                 spider.crawler.engine.close_spider(spider, reason=f"[error]{str(e)}")
@@ -47,7 +45,8 @@ class HitomiSpider(BaseComicSpider):
     def _get_nozomi_sync(self, nozomi_url, page):
         """同步包装的异步nozomi获取方法"""
         async def _async_get():
-            headers = {**HitomiUtils.headers, "Range": self.site.runtime.get_range(page)}
+            provider = self.spider_site_runtime.provider
+            headers = {**provider.headers, "Range": provider.get_range(page)}
             return await self.async_cli.get(nozomi_url, headers=headers)
 
         try:
@@ -65,7 +64,7 @@ class HitomiSpider(BaseComicSpider):
     # ==============================================
     def parse(self, response, meta):
         self._emit_process('parse')
-        result = HitomiUtils.parse_nozomi(response.content)
+        result = self.spider_site_runtime.provider.parse_nozomi(response.content)
         
         meta = meta or {}
         meta['results'] = []
@@ -90,10 +89,7 @@ class HitomiSpider(BaseComicSpider):
         
         # 整合actual_parse的功能
         for _, resp in sorted(resps, key=lambda x: x[0]):  # 按原始索引排序
-            meta['results'].append({
-                "text": resp.text,
-                "meta": {k: v for k, v in meta.items() if k != 'results'}
-            })
+            meta['results'].append({"text": resp.text, "meta": {k: v for k, v in meta.items() if k != 'results'}})
         yield from self.defer_parse(meta['results'])
 
     def defer_parse(self, rets):
@@ -114,7 +110,7 @@ class HitomiSpider(BaseComicSpider):
             item['title'] = book.name
             item['page'] = str(index)
             item['section'] = None
-            img_url = self.site.runtime.get_img_url(pic_info['hash'], pic_info['hasavif'])
+            img_url = self.spider_site_runtime.provider.get_img_url(pic_info['hash'], pic_info['hasavif'])
             item['image_urls'] = [img_url]
             item['uuid'] = this_uuid
             item['uuid_md5'] = this_md5
@@ -138,8 +134,10 @@ class HitomiSpider(BaseComicSpider):
     def frame_book(self, rets, meta):
         frame_results = {}
         texts = [target['text'] for target in rets]
+        runtime_provider = self.spider_site_runtime.provider
+        parser = runtime_provider.__class__.parser(runtime_provider)
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.site.parser.parse_search_item, texts))
+            books = list(executor.map(parser.parse_search_item, texts))
         for x, book in enumerate(books):
             book.idx = x + 1
             book.preview_url = f"{self.domain}{book.preview_url}"

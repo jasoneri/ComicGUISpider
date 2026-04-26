@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 import struct
+import time
 
 import httpx
 
@@ -88,11 +89,31 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
     reqer_cls = HitomiReqer
 
     def __init__(self, _conf):
-        self.reqer = self.reqer_cls(_conf)
-        self.parser = self.__class__.parser(self)
+        self.reqer = HitomiParser(_conf)
+        self.parser = HitomiReqer(self)
         self.cli = self.reqer.cli
         self.gg = gg(cli=self.cli)
         self.dec = self.Decrypt(self.gg)
+
+    def refresh_gg_if_needed(self, *, force: bool = False) -> bool:
+        def _gg_bucket_epoch() -> int | None:
+            bucket_epoch = self.gg.bucket_epoch
+            if bucket_epoch is not None:
+                return int(bucket_epoch)
+            raw_bucket = self.gg.b.rstrip("/")
+            if raw_bucket.isdigit():
+                return int(raw_bucket)
+            return None
+        current_bucket = gg.current_bucket()
+        loaded_bucket = _gg_bucket_epoch(self.gg)
+        if not force and loaded_bucket is not None and loaded_bucket >= current_bucket:
+            return False
+
+        # Hitomi rotates gg.b on hourly boundaries, so long-lived runtime sessions
+        # must refresh it before constructing full-image URLs.
+        self.gg = gg(cli=self.cli)
+        self.dec = self.Decrypt(self.gg)
+        return True
 
     @staticmethod
     def parse_nozomi(data):
@@ -123,6 +144,8 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
             return f"{dir_name}/{path2}"
 
     def get_img_url(self, img_hash, hasavif=0, preview=None):
+        if not preview:
+            self.refresh_gg_if_needed()
         gg_s = self.gg.s(img_hash)
         img_type = "avif" if hasavif else "webp"
         if not preview:
@@ -149,7 +172,7 @@ class HitomiUtils(_HitomiContract, EroUtils, Previewer):
         **kw,
     ) -> list:
         page = max(1, int(kw.pop("page", 1) or 1))
-        nozomi_url = cls.reqer_cls.build_search_url(keyword)
+        nozomi_url = cls.reqer_cls.build_search_url(keyword)    # FIXME[0] cls.reqer_cls错误，链路因为 preview_search 为 classmethod 而错
         range_header = f"bytes={cls.galleries_per_page * (page - 1)}-{cls.galleries_per_page * page - 1}"
         resp, gg_resp = await asyncio.gather(
             client.get(nozomi_url, headers={**cls.headers, "Range": range_header}, timeout=15),
@@ -220,6 +243,15 @@ class gg:
             script_text = js_code
         self.m_cases = self._parse_m_cases(script_text)
         self.b = f"{self._parse_b(script_text)}/"
+
+    @property
+    def bucket_epoch(self) -> int:
+        return int(self.b.rstrip("/"))
+
+    @classmethod
+    def current_bucket(cls, epoch: float | None = None) -> int:
+        timestamp = int(time.time() if epoch is None else epoch)
+        return (timestamp // 3600) * 3600 + 1
 
     def _parse_m_cases(self, js_code):
         return set(map(int, re.findall(r"case (\d+):", js_code)))

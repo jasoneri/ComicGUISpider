@@ -4,13 +4,14 @@ import json
 from PySide6.QtWebChannel import QWebChannel
 
 from GUI.core.font import font_color
-from GUI.types import GUIFlowStage, PreviewRequestState, SearchContextSnapshot, SearchLifecycleState
+from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState
 from GUI.thread.preview import PreviewWorker
 from GUI.manager.preview.manga import MangaPreviewFeature
 from GUI.manager.preview.ero import EroPreviewFeature
 from GUI.manager.preview.fix import FixPreviewFeature
 from assets import res as ori_res
 from utils import select
+from utils.website import GuiSiteRuntime
 from variables import SPIDERS, Spider
 
 
@@ -18,7 +19,7 @@ class PreviewMgr:
     def __init__(self, gui):
         self.gui = gui
         self.site_index = 0
-        self.search_context: SearchContextSnapshot | None = None
+        self.gui_site_runtime: GuiSiteRuntime | None = None
         self.books_cache = {}
         self.downloaded_book_ids = set()
         self._worker = None
@@ -69,7 +70,7 @@ class PreviewMgr:
 
     def shutdown(self):
         self._generation += 1
-        self.search_context = None
+        self.gui_site_runtime = None
         self._active_keyword = ""
         self.downloaded_book_ids.clear()
         self.reset_preview_page()
@@ -78,10 +79,10 @@ class PreviewMgr:
         self._fix.shutdown()
         self._stop_worker()
 
-    def handle_choosebox_changed(self, index, snapshot: SearchContextSnapshot | None):
+    def handle_choosebox_changed(self, index, gui_site_runtime: GuiSiteRuntime | None):
         self._generation += 1
         self.site_index = index
-        self.search_context = snapshot
+        self.gui_site_runtime = gui_site_runtime
         self._session_id = 0
         self._active_keyword = ""
         self._manga.check_lc_completer()
@@ -96,16 +97,16 @@ class PreviewMgr:
         self._ero.reset()
         self._fix.reset()
         self.gui.pageEdit.setValue(1)
-        if index in SPIDERS and snapshot is not None:
-            self.create_worker(snapshot)
+        if index in SPIDERS and gui_site_runtime is not None:
+            self.create_worker(gui_site_runtime)
         else:
             self._stop_worker()
         self.gui.refresh_lifecycle_state()
 
-    def update_search_context(self, snapshot: SearchContextSnapshot):
-        self.search_context = snapshot
+    def update_gui_site_runtime(self, gui_site_runtime: GuiSiteRuntime):
+        self.gui_site_runtime = gui_site_runtime
         if self._worker:
-            self._worker.update_snapshot(snapshot)
+            self._worker.update_gui_site_runtime(gui_site_runtime)
 
     def begin_preview_session(self):
         self._session_id += 1
@@ -215,9 +216,24 @@ class PreviewMgr:
         else:
             self.submit_browser_selection()
 
+    def _on_empty_search_done(self):
+        target_page = self._target_page
+        self._target_page = None
+        self._is_local_mode = False
+        if target_page in (None, 1):
+            self._current_page = 1
+            self.gui.flow_stage = GUIFlowStage.IDLE
+            self.gui.clean_preview()
+        self.gui.pageEdit.setValue(self._current_page)
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
+        self.gui.say(f"<br>{'✈' * 15}<br>{font_color(ori_res.SPIDER.SayToGui.frame_book_print_retry_tip, cls='theme-err', size=4)}", 
+                     ignore_http=True)
+
     def _on_search_done(self, generation, _keyword, site_index, books):
         if generation != self._generation or site_index != self.site_index:
             return
+        if not books:
+            return self._on_empty_search_done()
         if self._target_page is not None:
             self._current_page = self._target_page
             self._target_page = None
@@ -246,9 +262,13 @@ class PreviewMgr:
             ignore_http=True,
         )
 
-    def create_worker(self, snapshot: SearchContextSnapshot):
+    def create_worker(self, gui_site_runtime: GuiSiteRuntime):
         self._stop_worker()
-        self._worker = PreviewWorker(self.gui, snapshot=snapshot, generation=self._generation)
+        self._worker = PreviewWorker(
+            self.gui,
+            gui_site_runtime=gui_site_runtime,
+            generation=self._generation,
+        )
         self._worker.search_done.connect(self._on_search_done)
         self._worker.search_error.connect(self._on_search_error)
         ep_handler = self._fix if self.is_fix else self._manga

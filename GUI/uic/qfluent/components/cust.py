@@ -70,34 +70,48 @@ class DoHButtonController:
             self._tip.close()
 
 
-class LinkEdit(LineEdit):
-    """ Search line edit """
-
-    linkSignal = Signal(str)
+class CustEdit(LineEdit):
+    custSignal = Signal(str)
     clearSignal = Signal()
-
+    icon: FluentIconBase = None
+    
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.linkButton = LineEditButton(FluentIcon.LINK, self)
-
-        self.hBoxLayout.addWidget(self.linkButton, 0, Qt.AlignRight)
+        self.btn = LineEditButton(self.icon, self)
+        self.hBoxLayout.addWidget(self.btn, 0, Qt.AlignRight)
         self.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.setClearButtonEnabled(True)
         self.setTextMargins(0, 0, 59, 0)
-
-        self.linkButton.clicked.connect(self.link)
+        self.btn.clicked.connect(self.do)
+        self.returnPressed.connect(self.do)
         self.clearButton.clicked.connect(self.clearSignal)
-
-    def link(self):
-        text = self.text().strip()
-        if text:
-            self.linkSignal.emit(text)
-        else:
-            self.clearSignal.emit()
 
     def setClearButtonEnabled(self, enable: bool):
         self._isClearButtonEnabled = enable
         self.setTextMargins(0, 0, 28*enable+30, 0)
+    
+    def do(self):
+        """self logic"""
+
+
+class LinkEdit(CustEdit):
+    """ Search line edit """
+    icon = FluentIcon.LINK
+
+    def do(self):
+        text = self.text().strip()
+        if text:
+            self.custSignal.emit(text)
+        else:
+            self.clearSignal.emit()
+
+
+class AcceptEdit(CustEdit):
+    """ Search line edit """
+    icon = FluentIcon.ACCEPT
+
+    def do(self):
+        self.custSignal.emit(self.text().strip())
 
 
 class FlexImageLabel(ImageLabel):
@@ -148,6 +162,7 @@ class CustomInfoBar:
         for widget in widgets:
             w.addWidget(widget)
         w.show()
+        return w
 
 
 class CustomFlyout:
@@ -173,13 +188,15 @@ class CustomFlyout:
 
 class CustomTeachingTip:
     @classmethod
-    def create(cls, widgets, target, parent, content=None,
+    def create(cls, widgets, target, parent, content=None, topLayout=None,
              isClosable=True, duration=-1, **kw):
         view = TeachingTipView(
             title="", content="", isClosable=isClosable
         )
         offset = 0
         cindex = 1 if isClosable else 0
+        if topLayout:
+            view.viewLayout.insertLayout(view.viewLayout.count() - cindex, topLayout)
         for w in widgets:
             view.viewLayout.insertWidget(view.viewLayout.count() - cindex, w)
             offset += (w.sizeHint().width() + 5)
@@ -408,12 +425,13 @@ class SupportView(FlyoutViewBase):
         self.yuqueBtn = PrimaryPushButton(FluentIcon.QUICK_NOTE, "语雀")
         def _yuque():
             copyBtn = TransparentToolButton(FluentIcon.COPY)
+            ib = CustomInfoBar.show_custom(title='', content='点按钮复制邀请码', parent=self.conf_dia, _type="INFORMATION",
+                ib_pos=InfoBarPosition.TOP, widgets=[copyBtn])
             def _copied():
                 QApplication.clipboard().setText("CZULIQ")
                 InfoBar.success(title='', content='已复制', parent=self.conf_dia, position=InfoBarPosition.TOP, duration=2000)
+                ib.close()
             copyBtn.clicked.connect(_copied)
-            CustomInfoBar.show_custom(title='', content='点按钮复制邀请码', parent=self.conf_dia, _type="INFORMATION",
-                ib_pos=InfoBarPosition.TOP, widgets=[copyBtn])
             safe_single_shot(4000, lambda: QDesktopServices.openUrl(QUrl("https://www.yuque.com")))
         self.yuqueBtn.clicked.connect(_yuque)
         self.affLayout.addWidget(self.riesBtn)

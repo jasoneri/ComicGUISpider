@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from ComicSpider.runtime.job_models import iter_download_items
 
 from utils import convert_punctuation, conf
-from utils.website import JmUtils, correct_domain, JmBookInfo, BookInfo, Episode
+from utils.website import correct_domain, JmBookInfo, BookInfo, Episode
 from utils.processed_class import Url
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
@@ -43,15 +43,16 @@ class JmSpider(BaseComicSpider2):
 
     @property
     def ua(self):
-        _ua = {'Host': self.domain, **JmUtils.headers}
+        provider = self.spider_site_runtime.provider
+        _ua = {'Host': self.domain, **provider.headers}
         if conf.cookies.get("jm"):
-            _ua.update({'cookie': JmUtils.to_str_(conf.cookies.get(self.name))})
+            _ua.update({'cookie': provider.to_str_(conf.cookies.get(self.name))})
         return _ua
 
     def preready(self):
         if self._runtime_origin:
             return
-        self.domain = JmUtils.get_domain()
+        self.domain = self.spider_site_runtime.resolve_domain()
         self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def start_requests(self):
@@ -65,7 +66,7 @@ class JmSpider(BaseComicSpider2):
             elif 'book' in meta:
                 _bid = meta.get('book').id
             else:
-                _bid = self.site.get_uuid(response.request.url, only_id=True) or ''
+                _bid = self.provider_descriptor.get_uuid(response.request.url, only_id=True) or ''
             return _bid
         meta = response.meta
         bid = _get_bid()
@@ -79,10 +80,7 @@ class JmSpider(BaseComicSpider2):
                 title = response.xpath('//title/text()').extract_first()
                 meta['title'] = title.rsplit('|', 1)[0]
             if not meta.get('book'):
-                meta['book'] = JmBookInfo(
-                    name=meta['title'],
-                    url=response.url,
-                ).get_id(response.url)
+                meta['book'] = JmBookInfo(name=meta['title'], url=response.url).get_id(response.url)
             yield from super(JmSpider, self).parse_section(response)
 
     def iter_download_requests(self, job):

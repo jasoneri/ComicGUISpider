@@ -31,7 +31,6 @@ def summarize_error_message(message: object, *, max_length: int = 180) -> str:
     has_hidden_detail = clipped or len(text.splitlines()) > 1
     return f"{first_line}。详情见日志" if has_hidden_detail else first_line
 
-
 class AsyncTaskThread(QThread):
     success_signal = Signal(object)
     error_signal = Signal(str)
@@ -106,25 +105,14 @@ class TaskTooltipStack:
         self.tooltips: Dict[str, StateToolTip] = {}
         self._entries: Dict[str, _TooltipEntry] = {}
 
-    def show(
-        self,
-        task_id: str,
-        title: str,
-        content: str,
-        position: Optional[Tuple[int, int]] = None,
-        parent: Optional[QObject] = None,
-    ):
+    def show(self, task_id: str, title: str, content: str, position: Optional[Tuple[int, int]] = None, parent: Optional[QObject] = None):
         tooltip_parent = parent or self._default_parent
         if tooltip_parent is None:
             return
 
         tooltip = StateToolTip(title, content, tooltip_parent)
         self.tooltips[task_id] = tooltip
-        self._entries[task_id] = _TooltipEntry(
-            tooltip=tooltip,
-            parent=tooltip_parent,
-            custom_position=position is not None,
-        )
+        self._entries[task_id] = _TooltipEntry(tooltip=tooltip, parent=tooltip_parent, custom_position=position is not None)
 
         if position is None:
             self._rearrange_parent(tooltip_parent)
@@ -187,31 +175,16 @@ class TaskInfoBarCenter:
         return None
 
     def warning(self, message: str):
-        self._show(
-            factory=InfoBar.warning,
-            title="警告",
-            content=message,
-            duration=6000,
-        )
+        self._show(factory=InfoBar.warning, title="警告", content=message, duration=6000)
 
     def info(self, message: str):
-        self._show(
-            factory=InfoBar.info,
-            title="",
-            content=message,
-            duration=2000,
-        )
+        self._show(factory=InfoBar.info, title="", content=message, duration=2000)
 
     def error(self, message: str, show_popup: bool = True):
-        self._log_error(message)
+        logged = self._log_error(message)
         if not show_popup:
             return
-        self._show(
-            factory=InfoBar.error,
-            title="错误",
-            content=self._clip_error(message),
-            duration=-1,
-        )
+        self._show(factory=InfoBar.error, title="", content=self._clip_error(message, logged=logged), duration=-1)
 
     def cleanup(self):
         for infobar in list(self.infobars):
@@ -241,13 +214,17 @@ class TaskInfoBarCenter:
             self.infobars.remove(infobar)
 
     def _log_error(self, message: str):
-        logger = getattr(self._gui, "log", None)
-        if logger is not None:
-            logger.error(message)
+        if self._gui is None:
+            return False
+        self._gui.log.error(message)
+        return True
 
     @staticmethod
-    def _clip_error(message: str) -> str:
-        return summarize_error_message(message)
+    def _clip_error(message: str, *, logged: bool) -> str:
+        summary = summarize_error_message(message)
+        if logged:
+            return summary
+        return summary.removesuffix("。详情见日志")
 
 
 class AsyncTaskManager(QObject):
@@ -255,6 +232,8 @@ class AsyncTaskManager(QObject):
 
     def __init__(self, gui=None):
         super().__init__()
+        if gui is not None and gui.__class__.__name__ != "SpiderGUI":
+            raise TypeError("AsyncTaskManager gui must be SpiderGUI or None.")
         self.gui = gui
         self.current_tasks: Dict[str, AsyncTaskThread] = {}
         self._tooltip_stack = TaskTooltipStack(gui)
@@ -271,12 +250,8 @@ class AsyncTaskManager(QObject):
         try:
             thread = AsyncTaskThread(config.task_func, *config.args, **config.kwargs)
             self.current_tasks[task_id] = thread
-            thread.success_signal.connect(
-                lambda result, tid=task_id, task_config=config: self._handle_success(tid, result, task_config)
-            )
-            thread.error_signal.connect(
-                lambda error, tid=task_id, task_config=config: self._handle_error(tid, error, task_config)
-            )
+            thread.success_signal.connect(lambda result, tid=task_id, task_config=config: self._handle_success(tid, result, task_config))
+            thread.error_signal.connect(lambda error, tid=task_id, task_config=config: self._handle_error(tid, error, task_config))
             thread.progress_signal.connect(
                 lambda progress, tid=task_id, task_config=config: self._handle_progress(tid, progress, task_config)
             )
@@ -346,6 +321,7 @@ class AsyncTaskManager(QObject):
         thread.cancel()
         self._tooltip_stack.complete(task_id, auto_hide=True)
         self._infobar_center.info("任务已取消")
+        self._cleanup_task(task_id)
         return True
 
     def cancel_all_tasks(self):
@@ -367,10 +343,7 @@ class AsyncTaskManager(QObject):
         self.current_tasks.clear()
 
     def reset(self):
-        self.cancel_all_tasks()
-        self._tooltip_stack.cleanup()
-        self._infobar_center.cleanup()
-        self.current_tasks.clear()
+        self.cleanup()
         self._active = True
 
     def _handle_success(self, task_id: str, result: Any, config: TaskConfig):
@@ -382,10 +355,7 @@ class AsyncTaskManager(QObject):
         if config.show_success_info:
             self._infobar_center.success(config.success_message)
 
-        callback_error = self._invoke_callback(config.success_callback, result, "成功")
-        if callback_error is not None:
-            self._infobar_center.error(callback_error)
-
+        self._run_callback(config.success_callback, result, "成功")
         self._cleanup_task(task_id)
 
     def _handle_error(self, task_id: str, error: str, config: TaskConfig):
@@ -396,10 +366,7 @@ class AsyncTaskManager(QObject):
         self._tooltip_stack.complete(task_id, auto_hide=True)
         self._infobar_center.error(error, show_popup=config.show_error_info)
 
-        callback_error = self._invoke_callback(config.error_callback, error, "错误")
-        if callback_error is not None:
-            self._infobar_center.error(callback_error)
-
+        self._run_callback(config.error_callback, error, "错误")
         self._cleanup_task(task_id)
 
     def _handle_progress(self, task_id: str, progress: str, config: TaskConfig):
@@ -407,19 +374,15 @@ class AsyncTaskManager(QObject):
             return
 
         self._tooltip_stack.update(task_id, progress)
-        callback_error = self._invoke_callback(config.progress_callback, progress, "进度")
-        if callback_error is not None:
-            self._infobar_center.error(callback_error)
+        self._run_callback(config.progress_callback, progress, "进度")
 
-    @staticmethod
-    def _invoke_callback(callback: Optional[Callable], payload: Any, stage: str) -> Optional[str]:
+    def _run_callback(self, callback: Optional[Callable], payload: Any, stage: str):
         if callback is None:
-            return None
+            return
         try:
             callback(payload)
         except Exception as exc:
-            return f"{stage}回调执行失败: {exc}\n{traceback.format_exc()}"
-        return None
+            self._infobar_center.error(f"{stage}回调执行失败: {exc}\n{traceback.format_exc()}")
 
     def _cleanup_task(self, task_id: str):
         thread = self.current_tasks.get(task_id)

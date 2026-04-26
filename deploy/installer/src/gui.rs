@@ -1,4 +1,6 @@
-use crate::process::{InstallerConfig, InstallerEvent, spawn_update_worker};
+use crate::process::{
+    InstallerConfig, InstallerEvent, InstallerProgress, InstallerStage, spawn_update_worker,
+};
 use eframe::egui;
 use egui::{Color32, Frame, Margin, RichText};
 use std::sync::Arc;
@@ -22,24 +24,15 @@ fn configure_visuals(ctx: &egui::Context) {
     });
 }
 
-fn status_color(status: &str) -> Color32 {
-    let s = status.to_ascii_lowercase();
-    if s.contains("fail") || s.contains("error") {
-        ERROR
-    } else if s.contains("installed")
-        || s.contains("success")
-        || s.contains("restart")
-        || s.contains("done")
-    {
-        SUCCESS
-    } else if s.contains("download") || s.contains("resolv") || s.contains("install") {
-        ACCENT
-    } else {
-        TEXT_SECONDARY
+fn stage_color(stage: InstallerStage) -> Color32 {
+    match stage {
+        InstallerStage::Completed => SUCCESS,
+        InstallerStage::Failed => ERROR,
+        _ => ACCENT,
     }
 }
 
-pub fn run_gui(config: InstallerConfig) -> i32 {
+pub(crate) fn run_gui(config: InstallerConfig) -> i32 {
     let (tx, rx) = mpsc::channel::<InstallerEvent>();
     let _worker = spawn_update_worker(config.clone(), tx);
     let exit_code = Arc::new(AtomicI32::new(1));
@@ -70,10 +63,7 @@ pub fn run_gui(config: InstallerConfig) -> i32 {
 
 struct UpdaterApp {
     version: String,
-    status: String,
-    progress: u8,
-    target_progress: u8,
-    last_event_time: Instant,
+    progress: InstallerProgress,
     rx: mpsc::Receiver<InstallerEvent>,
     exit_code: Arc<AtomicI32>,
     close_at: Option<Instant>,
@@ -83,40 +73,49 @@ impl UpdaterApp {
     fn new(version: String, rx: mpsc::Receiver<InstallerEvent>, exit_code: Arc<AtomicI32>) -> Self {
         Self {
             version,
-            status: "Preparing update...".into(),
-            progress: 0,
-            target_progress: 0,
-            last_event_time: Instant::now(),
+            progress: InstallerProgress::starting(),
             rx,
             exit_code,
             close_at: None,
         }
     }
 
+    fn apply_progress(&mut self, mut progress: InstallerProgress) {
+        if progress.stage.rank() < self.progress.stage.rank()
+            && progress.percent <= self.progress.percent
+        {
+            return;
+        }
+        progress.percent = progress.percent.max(self.progress.percent);
+        self.progress = progress;
+    }
+
+    fn apply_finished(&mut self, exit_code: i32, message: String) {
+        self.exit_code.store(exit_code, Ordering::Relaxed);
+        if exit_code == 0 {
+            self.progress = InstallerProgress::completed(message);
+            self.close_at = Some(Instant::now() + Duration::from_millis(1500));
+        } else {
+            self.progress = InstallerProgress::failed(self.progress.percent, message);
+            self.close_at = None;
+        }
+    }
+
+    fn apply_fatal(&mut self, message: String) {
+        self.exit_code.store(1, Ordering::Relaxed);
+        self.progress = InstallerProgress::failed(self.progress.percent, message);
+        self.close_at = None;
+    }
+
     fn drain_events(&mut self) {
         while let Ok(ev) = self.rx.try_recv() {
             match ev {
-                InstallerEvent::Progress { percent, status } => {
-                    let p = percent.min(100);
-                    self.target_progress = self.target_progress.max(p);
-                    self.progress = self.target_progress;
-                    self.status = status;
-                }
+                InstallerEvent::Progress(progress) => self.apply_progress(progress),
                 InstallerEvent::Finished { exit_code, message } => {
-                    self.exit_code.store(exit_code, Ordering::Relaxed);
-                    self.status = message;
-                    if exit_code == 0 {
-                        self.progress = 100;
-                        self.target_progress = 100;
-                        self.close_at = Some(Instant::now() + Duration::from_millis(1500));
-                    }
+                    self.apply_finished(exit_code, message)
                 }
-                InstallerEvent::Fatal { message } => {
-                    self.exit_code.store(1, Ordering::Relaxed);
-                    self.status = message;
-                }
+                InstallerEvent::Fatal { message } => self.apply_fatal(message),
             }
-            self.last_event_time = Instant::now();
         }
     }
 }
@@ -132,27 +131,6 @@ impl eframe::App for UpdaterApp {
             }
             ctx.request_repaint_after(Duration::from_millis(50));
         }
-
-        let elapsed = self.last_event_time.elapsed().as_secs_f32();
-        let display_progress = if elapsed > 2.0 && self.target_progress < 100 {
-            let next = match self.target_progress {
-                0..=14 => 14.0,
-                15..=74 => 72.0,
-                75..=79 => 79.0,
-                80..=84 => 84.0,
-                85..=99 => 98.0,
-                _ => self.target_progress as f32,
-            };
-            let t = ((elapsed - 2.0) / 60.0).min(0.9);
-            self.target_progress as f32 + t * (next - self.target_progress as f32)
-        } else {
-            self.target_progress as f32
-        };
-        let display_status = if elapsed > 3.0 && self.target_progress < 100 {
-            format!("{} — {}s", self.status, elapsed as u64)
-        } else {
-            self.status.clone()
-        };
 
         let panel = Frame::new()
             .inner_margin(Margin {
@@ -181,14 +159,20 @@ impl eframe::App for UpdaterApp {
             ui.separator();
             ui.add_space(12.0);
             ui.label(
-                RichText::new(&display_status)
+                RichText::new(&self.progress.status)
                     .size(14.0)
-                    .color(status_color(&self.status)),
+                    .color(stage_color(self.progress.stage)),
             );
-            ui.add_space(16.0);
+            ui.add_space(12.0);
+            ui.label(
+                RichText::new("Stage progress")
+                    .size(12.0)
+                    .color(TEXT_SECONDARY),
+            );
+            ui.add_space(4.0);
             ui.add(
-                egui::ProgressBar::new((display_progress / 100.0).clamp(0.0, 1.0))
-                    .fill(ACCENT)
+                egui::ProgressBar::new((self.progress.percent as f32 / 100.0).clamp(0.0, 1.0))
+                    .fill(stage_color(self.progress.stage))
                     .show_percentage(),
             );
         });

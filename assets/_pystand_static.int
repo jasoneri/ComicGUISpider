@@ -15,6 +15,7 @@ class CGSInstaller:
         self.toolbin = self.root / "bin"
         self.toolbin.mkdir(exist_ok=True)
         self.uv = self.runtime / "uv.exe"
+        self.installer = self.runtime / "installer.exe"
         self.cgs = self.toolbin / "cgs.exe"
         self.env = self._build_env()
         self.args = self._parse_args()
@@ -40,8 +41,6 @@ class CGSInstaller:
                             help='specify ComicGUISpider version to install, e.g. 2.8.0')
         parser.add_argument('-c', '--conf', type=str, default=None,
                             help='uv.toml')
-        parser.add_argument('-s', '--script', action='store_true',
-                            help='comicguispider[script]')
         return parser.parse_args()
 
     def clean(self):
@@ -52,42 +51,42 @@ class CGSInstaller:
     def run(self):
         subprocess.Popen([str(self.cgs)], env=self.env, text=True)
 
-    def _build_install_cmd(self, pkg_spec):
+    def _build_install_cmd(self):
         if self.args.conf:
-            cmd = [str(self.uv), "--config-file", str(self.root / self.args.conf),
-                   "tool", "install", pkg_spec, "--force", "--reinstall"]
-        else:
-            cmd = [str(self.uv), "tool", "install", pkg_spec, "--force", "--reinstall",
-                   "--index-url", self.args.index or DEFAULT_INDEX]
-        return cmd
+            raise ValueError("--conf is unsupported when install flow uses runtime/installer.exe")
+        if not self.installer.exists():
+            raise RuntimeError(f"installer missing: {self.installer}")
+        args = [
+            str(self.installer),
+            "--version", self.args.version or VER,
+            "--uv-exc", str(self.uv),
+            "--index-url", self.args.index or DEFAULT_INDEX,
+            "--uv-tool-dir", str(self.root), "--uv-tool-bin-dir", str(self.toolbin),
+        ]
+        return args
 
     def _update_int(self):
         new_int = self.root / "comicguispider/Lib/site-packages/assets/_pystand_static.int"
         if not new_int.exists():
             return
-        ver = lambda v: tuple(int(x) for x in v.split('.'))
-        if self.args.version and ver(self.args.version) < ver(VER):
-            return
         shutil.copy2(new_int, self.root / "_pystand_static.int")
 
     def install(self):
         self.clean()
-        pkg_spec = f"ComicGUISpider=={self.args.version}" if self.args.version else "ComicGUISpider"
-        if self.args.script:
-            pkg_spec = pkg_spec.replace("ComicGUISpider", "ComicGUISpider[script]")
-        cmd = self._build_install_cmd(pkg_spec)
+        cmd = self._build_install_cmd()
         print(cmd)
-        subprocess.Popen(cmd, env=self.env, text=True).wait()
+        exit_code = subprocess.Popen(cmd, env=self.env, text=True).wait()
         self._update_int()
         if self.cgs.exists():
-            self.run()
-        else:
-            self.clean()
-            input(r"安装失败，参考换源安装 \n https://cgs.101114105.xyz/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
+            if exit_code != 0:
+                self.run()
+            return
+        self.clean()
+        input(r"安装失败，参考换源安装 \n https://cgs.101114105.xyz/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
 
     def main(self):
         a = self.args
-        if not self.cgs.exists() or a.index is not None or a.version is not None or a.script or a.conf:
+        if not self.cgs.exists() or a.index is not None or a.version is not None or a.conf:
             self.install()
         else:
             self.run()

@@ -126,7 +126,7 @@ class SpiderRuntimeThread(threading.Thread):
         error = getattr(job, "runtime_error", None)
         stage = "idle" if success else "error"
         self.state.update(stage=stage, active_job_id=None, progress=0.0, error=error)
-        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=success))
+        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=success, error=error))
         if success:
             logger.info(f"Job {job.job_id} finished")
         else:
@@ -136,7 +136,7 @@ class SpiderRuntimeThread(threading.Thread):
         error_msg = str(failure.value) if hasattr(failure, 'value') else str(failure)
         self.state.update(stage="error", active_job_id=None, progress=0.0, error=error_msg)
         self.event_q.put(ErrorEvent(job_id=job.job_id, error=error_msg))
-        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=False))
+        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=False, error=error_msg))
         logger.error(f"Job {job.job_id} failed: {error_msg}")
 
     def submit_job(self, job: SpiderDownloadJob):

@@ -8,20 +8,22 @@ from urllib.parse import urlparse
 
 import scrapy
 
-from variables import *
+from variables import *  # noqa: F403
 from assets import res as ori_res
 from ComicSpider.items import ComicspiderItem
 from ComicSpider.runtime.job_models import create_job_context, iter_download_items
 from GUI.core.font import font_color
 from utils import PresetHtmlEl, temp_p, conf
-from utils.processed_class import TextBrowserState, ProcessState, Url
+from utils.processed_class import TextBrowserState, ProcessState
         
-from utils.protocol import SpiderDownloadJob, JobContext, LogEvent, ProcessStateEvent, TasksObjEvent
+from utils.protocol import SpiderDownloadJob, JobContext, LogEvent, ProcessStateEvent
 from utils.website import (
-    correct_domain,
-    InfoMinix, BookInfo, Episode
+    correct_domain, BookInfo, Episode
 )
-from utils.website.registry import resolve_spider_adapter
+from utils.website.registry import (
+    resolve_provider_descriptor_by_spider,
+    create_spider_site_runtime,
+)
 from utils.website.schema import BodyFormat
 from utils.sql import SqlRecorder, SqlrV
 from utils.meta import MetaRecorder
@@ -71,8 +73,8 @@ class BaseComicSpider(scrapy.Spider):
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
     say: SayToGui = None
-    adapter = None
-    site = None
+    provider_descriptor = None
+    spider_site_runtime = None
     record_sql: SqlRecorder = None
     rv_sql: SqlrV = None
     ua = {}
@@ -96,6 +98,7 @@ class BaseComicSpider(scrapy.Spider):
     turn_page_search: str = None
     turn_page_info: tuple = None
     _enable_episode_dispatch = False
+    remove_domain_cache_on_finished_miss = True
 
     def preready(self):
         ...
@@ -152,10 +155,7 @@ class BaseComicSpider(scrapy.Spider):
                     getattr(getattr(item, "from_book", None), "preview_url", None),
                 ])
             elif isinstance(item, BookInfo):
-                candidates.extend([
-                    getattr(item, "url", None),
-                    getattr(item, "preview_url", None),
-                ])
+                candidates.extend([getattr(item, "url", None), getattr(item, "preview_url", None)])
             for candidate in candidates:
                 if origin := self._url_origin(candidate):
                     self._runtime_origin = origin
@@ -275,12 +275,7 @@ class BaseComicSpider(scrapy.Spider):
             if isinstance(url_or_ep, Episode):
                 yield from self._process_episode(url_or_ep)
             elif isinstance(url_or_ep, str):
-                yield scrapy.Request(
-                    url=url_or_ep,
-                    callback=self.parse_fin_page,
-                    meta={'book': book, 'page': page},
-                    dont_filter=True,
-                )
+                yield scrapy.Request(url=url_or_ep, callback=self.parse_fin_page, meta={'book': book, 'page': page}, dont_filter=True)
 
     def need_sec_next_page(self, resp):
         pass
@@ -353,8 +348,8 @@ class BaseComicSpider(scrapy.Spider):
 
         spider.record_sql = SqlRecorder()
         spider.rv_sql = SqlrV(1 if spider.name in spider.settings.get('SPECIAL') else 0).connect()
-        spider.adapter = resolve_spider_adapter(spider.name)
-        spider.site = spider.adapter.create_session(conf)
+        spider.provider_descriptor = resolve_provider_descriptor_by_spider(spider.name)
+        spider.spider_site_runtime = create_spider_site_runtime(spider.name, conf_state=conf)
         spider.mr = MetaRecorder(conf)
 
         if job:
@@ -373,7 +368,7 @@ class BaseComicSpider(scrapy.Spider):
             os.remove(domain_cache)
 
     def _finish_counters(self, stats):
-        downloaded_count = stats.get_value('image/downloaded', 0)
+        downloaded_count = stats.get_value('file_status_count/downloaded', 0)
         uptodate_count = stats.get_value('file_status_count/uptodate', 0)
         total = self.job_context.total if self.job_context else self.total
         return downloaded_count, uptodate_count, downloaded_count + uptodate_count, total
@@ -412,11 +407,13 @@ class BaseComicSpider(scrapy.Spider):
             return
         downloaded_count, uptodate_count, processed_count, total = self._finish_counters(stats)
         exception_count = stats.get_value('process_exception/count', 0)
+        remove_domain_cache = bool(self.remove_domain_cache_on_finished_miss)
         if total and processed_count < total:
             missing_count = total - processed_count
             self.say(font_color(f'miss: new[{downloaded_count}], cache[{uptodate_count}], miss[{missing_count}]<br>',
                 cls='theme-err', size=3))
-            self._remove_cache()
+            if remove_domain_cache:
+                self._remove_cache()
         elif total != 0 and processed_count > 0:
             if downloaded_count:
                 _str = f'{self.res.finished_success % downloaded_count}'
@@ -428,7 +425,8 @@ class BaseComicSpider(scrapy.Spider):
             self.say(font_color(
                 f'<br>{self.res.finished_err % last_exception}<br>log path/日志文件地址: [{self.settings.get("LOG_FILE")}]',
                 cls='theme-err', size=3))
-            self._remove_cache()
+            if remove_domain_cache:
+                self._remove_cache()
         else:
             self.say(font_color(f'{self.res.finished_empty}<br>', cls='theme-highlight', size=4))
 

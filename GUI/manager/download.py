@@ -12,7 +12,7 @@ from ComicSpider.runtime import SpiderRuntimeThread
 from GUI.thread import WorkThread
 from utils import conf
 from utils.protocol import SpiderDownloadJob
-from variables import SPIDERS
+from variables import SPIDERS, Spider
 
 
 class DownloadRuntimeManager(QObject):
@@ -35,6 +35,8 @@ class DownloadRuntimeManager(QObject):
         self._job_task_ids: dict[str, set[str]] = {}
         self._submission_queue: deque[SpiderDownloadJob] = deque()
         self._submitted_task_infos: dict[str, tuple[int, object]] = {}
+        self._batch_had_failures = False
+        self._worker_signal_bindings: list[tuple[object, object]] = []
 
     def start_runtime(self, site_index: int):
         if self.spider_runtime and self.spider_runtime.is_alive():
@@ -46,6 +48,8 @@ class DownloadRuntimeManager(QObject):
 
     def submit_download(self, task_info, site_index: int | None = None):
         effective_site_index = self.gui.chooseBox.currentIndex() if site_index is None else site_index
+        if not self.has_active_download():
+            self._batch_had_failures = False
         if not self.spider_runtime:
             self.start_runtime(effective_site_index)
 
@@ -79,6 +83,7 @@ class DownloadRuntimeManager(QObject):
     def ensure_work_thread(self) -> WorkThread:
         if self.b_thread and self.b_thread.isRunning():
             return self.b_thread
+        self._disconnect_worker_signals()
         self.b_thread = WorkThread(self.gui, event_q=self.spider_runtime.event_q, authority=self)
         self.b_thread._bind_generation = self.binding_generation
         self._connect_worker_signals(self.b_thread)
@@ -152,103 +157,90 @@ class DownloadRuntimeManager(QObject):
     def get_running_task_ids(self) -> set[str]:
         return set(self.session_job_task_ids)
 
-    @staticmethod
-    def _disconnect_worker_signals(worker: WorkThread):
-        for signal in (
-            worker.print_signal,
-            worker.item_count_signal,
-            worker.tasks_signal,
-            worker.process_state_signal,
-            worker.worker_finished_signal,
-        ):
-            with contextlib.suppress(TypeError):
-                signal.disconnect()
+    def _disconnect_worker_signals(self):
+        while self._worker_signal_bindings:
+            signal, slot = self._worker_signal_bindings.pop()
+            with contextlib.suppress(TypeError, RuntimeError):
+                signal.disconnect(slot)
 
     def _connect_worker_signals(self, worker: WorkThread):
-        signal_slot_pairs = (
-            (worker.print_signal, self.on_worker_log),
-            (worker.item_count_signal, self.on_progress_changed),
-            (worker.tasks_signal, self.on_task_emitted),
-            (worker.process_state_signal, self.on_process_stage_changed),
-            (worker.worker_finished_signal, self.on_worker_finished),
-        )
-        for signal, slot in signal_slot_pairs:
-            signal.connect(slot)
+        def connect_filtered(signal, slot):
+            def filtered(generation: int, *args):
+                if generation != self.binding_generation:
+                    return
+                slot(*args)
 
-    def on_worker_log(self, generation: int, job_id: str | None, message: str):
-        if generation != self.binding_generation:
-            return
+            signal.connect(filtered)
+            self._worker_signal_bindings.append((signal, filtered))
+
+        connect_filtered(worker.print_signal, self.on_worker_log)
+        connect_filtered(worker.tasks_signal, self.on_task_emitted)
+        connect_filtered(worker.process_state_signal, self.on_process_stage_changed)
+        connect_filtered(worker.worker_finished_signal, self.on_worker_finished)
+
+    def on_worker_log(self, _job_id: str | None, message: str):
         if isinstance(message, str) and message.startswith("[PreviewBookInfoEnd]"):
             return
         self.gui.say(message)
 
-    def on_progress_changed(self, generation: int, job_id: str | None, percent: int):
-        if generation != self.binding_generation:
-            return
-
-    def on_task_emitted(self, generation: int, job_id: str | None, task_obj):
-        if generation != self.binding_generation:
-            return
+    def on_task_emitted(self, _job_id: str | None, task_obj):
         self.gui.task_mgr.handle(task_obj)
 
-    def on_process_stage_changed(self, generation: int, job_id: str | None, stage: str):
-        if generation != self.binding_generation:
-            return
+    def on_process_stage_changed(self, _job_id: str | None, stage: str):
         self.process_stage = stage or ""
         self.process_stage_changed.emit(self.process_stage)
 
-    def on_worker_finished(self, generation: int, job_id: str | None, imgs_path: str, success: bool):
-        if generation != self.binding_generation:
-            return
+    def on_worker_finished(self, job_id: str | None, imgs_path: str, success: bool, error: str | None):
+        if job_id:
+            self.gui.task_mgr.handle_job_finished(job_id, success=success, error=error)
+        if not success:
+            self._batch_had_failures = True
+            if error:
+                self.gui.say(f"[DownloadFailed] {error}")
         self.finish_job(job_id)
+        if success and not self._batch_had_failures and not self.has_active_download():
+            self.gui.crawl_end(imgs_path)
 
     def rebind(self, gui):
         self.gui = gui
         self.binding_generation += 1
-
-        if self.has_active_download():
-            # Preserve active session state, only rewire signals
-            if self.b_thread:
-                self.b_thread.authority = self
-                self.b_thread.suspend_dispatch()
-                self._disconnect_worker_signals(self.b_thread)
-                self.b_thread.rebind(gui)
-                self._connect_worker_signals(self.b_thread)
-                self.b_thread.resume_dispatch()
-        else:
-            # No active download: reset all session state
-            self.process_stage = ""
-            self.session_job_ids.clear()
-            self.session_job_task_ids.clear()
-            self.pending_job_ids.clear()
-            self._job_task_ids.clear()
-            self._submission_queue.clear()
-            if self.b_thread:
-                self.b_thread.authority = self
-                self.b_thread.suspend_dispatch()
-                self._disconnect_worker_signals(self.b_thread)
-                self.b_thread.rebind(gui)
-                self._connect_worker_signals(self.b_thread)
-                self.b_thread.resume_dispatch()
+        if not self.has_active_download():
+            self._reset_session_state()
+        worker = self.b_thread
+        if worker is None:
+            return
+        worker.authority = self
+        worker.suspend_dispatch()
+        self._disconnect_worker_signals()
+        worker.rebind(gui)
+        self._connect_worker_signals(worker)
+        worker.resume_dispatch()
 
     def close_runtime(self, stop_mgr=True, really_close=True):
         self.gui.clean_preview()
         if really_close:
+            self.binding_generation += 1
+            self._disconnect_worker_signals()
             self.stop_work_thread()
-        if self.spider_runtime and really_close:
-            self.spider_runtime.shutdown()
-            self.spider_runtime.join(timeout=3)
-            self.spider_runtime = None
-            self.running_job_ids.clear()
-            self.process_stage = ""
-            self.session_job_ids.clear()
-            self.session_job_task_ids.clear()
-            self.pending_job_ids.clear()
-            self._job_task_ids.clear()
-            self._submission_queue.clear()
-            self._submitted_task_infos.clear()
+            if self.spider_runtime:
+                self.spider_runtime.shutdown()
+                self.spider_runtime.join(timeout=3)
+                self.spider_runtime = None
+            self._reset_session_state(clear_submitted=True)
         if stop_mgr and getattr(self.gui, "mid_mgr", None):
             self.gui.mid_mgr.stop()
+
+    def _reset_session_state(self, clear_submitted=False):
+        self.running_job_ids.clear()
+        self.process_stage = ""
+        self.session_job_ids.clear()
+        self.session_job_task_ids.clear()
+        self.pending_job_ids.clear()
+        self._job_task_ids.clear()
+        self._submission_queue.clear()
+        self._batch_had_failures = False
+        if clear_submitted:
+            self._submitted_task_infos.clear()
 
     def _rebuild_session_task_ids(self):
         merged = set()
@@ -256,12 +248,22 @@ class DownloadRuntimeManager(QObject):
             merged.update(task_ids)
         self.session_job_task_ids = merged
 
-    def _submit_queued_jobs(self):
+    def _submit_queued_jobs(self): 
+        def _has_active_kaobei_job() -> bool:
+            return any(
+                self._submitted_task_infos[job_id][0] == Spider.MANGA_COPY
+                for job_id in self.running_job_ids | self.pending_job_ids
+            )
         if not self.spider_runtime:
             return
-        available_slots = int(conf.concurr_num) - len(self.running_job_ids) - len(self.pending_job_ids)
-        while self._submission_queue and available_slots > 0:
+        while self._submission_queue:
+            if _has_active_kaobei_job():
+                return
+            active_job_count = len(self.running_job_ids) + len(self.pending_job_ids)
+            next_job = self._submission_queue[0]
+            concurrency_limit = 1 if next_job.site_index == Spider.MANGA_COPY else int(conf.concurr_num)
+            if active_job_count >= concurrency_limit:
+                return
             job = self._submission_queue.popleft()
             self.pending_job_ids.add(job.job_id)
             self.spider_runtime.submit_job(job)
-            available_slots -= 1

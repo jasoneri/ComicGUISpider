@@ -7,22 +7,15 @@ import typing as t
 from utils import conf
 from utils.config.qc import cgs_cfg
 
+
 @dataclass(frozen=True, slots=True)
 class PreviewTransportConfig:
     proxies: tuple[str, ...] = ()
     doh_url: str = ""
 
     @classmethod
-    def create(
-        cls,
-        *,
-        proxies: t.Iterable[str] | None = None,
-        doh_url: str = "",
-    ) -> "PreviewTransportConfig":
-        return cls(
-            proxies=tuple(proxies or ()),
-            doh_url=str(doh_url or "").strip(),
-        )
+    def create(cls, *, proxies: t.Iterable[str] | None = None, doh_url: str = "") -> "PreviewTransportConfig":
+        return cls(proxies=tuple(proxies or ()), doh_url=str(doh_url or "").strip())
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,13 +26,7 @@ class PreviewRuntimeContext:
     transport: PreviewTransportConfig
 
     @classmethod
-    def from_snapshot(
-        cls,
-        snapshot,
-        *,
-        conf_state=conf,
-        default_doh_url: str | None = None,
-    ) -> "PreviewRuntimeContext":
+    def from_snapshot(cls, snapshot, *, conf_state=conf, default_doh_url: str | None = None) -> "PreviewRuntimeContext":
         fallback_doh = (
             default_doh_url
             if default_doh_url is not None
@@ -49,7 +36,7 @@ class PreviewRuntimeContext:
             return cls(
                 cookies_by_site={}, domains={},
                 custom_map=copy.deepcopy(dict(getattr(conf_state, "custom_map", {}) or {})),
-                transport=PreviewTransportConfig.create(proxies=getattr(conf_state, "proxies", None), doh_url=fallback_doh)
+                transport=PreviewTransportConfig.create(proxies=getattr(conf_state, "proxies", None), doh_url=fallback_doh),
             )
         return cls(
             cookies_by_site=copy.deepcopy(dict(getattr(snapshot, "cookies", None) or {})),
@@ -74,6 +61,14 @@ class PreviewRuntimeContext:
     def site_domain(self, provider_name: str) -> str | None:
         domain = self.domains.get(self._provider_key(provider_name))
         return str(domain).strip() if domain else None
+
+    def site_config(self, provider_name: str) -> "PreviewSiteConfig":
+        return PreviewSiteConfig(
+            cookies=self.site_cookies(provider_name),
+            domain=self.site_domain(provider_name),
+            custom_map=copy.deepcopy(self.custom_map),
+            transport=self.transport,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,14 +98,11 @@ class PreviewSiteConfig:
             cookies=copy.deepcopy(dict(site_cookies or {})),
             domain=str(site_domain).strip() if site_domain else None,
             custom_map=copy.deepcopy(dict(custom_map or {})),
-            transport=PreviewTransportConfig.create(
-                proxies=proxies,
-                doh_url=doh_url,
-            ),
+            transport=PreviewTransportConfig.create(proxies=proxies, doh_url=doh_url),
         )
 
     def as_provider_kwargs(self) -> dict[str, t.Any]:
-        kwargs = {}
+        kwargs = {"transport": self.transport}
         if self.cookies:
             kwargs["cookies"] = copy.deepcopy(self.cookies)
         if self.domain:
@@ -120,22 +112,6 @@ class PreviewSiteConfig:
         return kwargs
 
     @classmethod
-    def from_snapshot(
-        cls,
-        provider_name: str,
-        snapshot,
-        *,
-        conf_state=conf,
-        default_doh_url: str | None = None,
-    ) -> "PreviewSiteConfig":
-        runtime_context = PreviewRuntimeContext.from_snapshot(
-            snapshot,
-            conf_state=conf_state,
-            default_doh_url=default_doh_url,
-        )
-        return cls(
-            cookies=runtime_context.site_cookies(provider_name),
-            domain=runtime_context.site_domain(provider_name),
-            custom_map=copy.deepcopy(runtime_context.custom_map),
-            transport=runtime_context.transport,
-        )
+    def from_snapshot(cls, provider_name: str, snapshot, *, conf_state=conf, default_doh_url: str | None = None) -> "PreviewSiteConfig":
+        runtime_context = PreviewRuntimeContext.from_snapshot(snapshot, conf_state=conf_state, default_doh_url=default_doh_url)
+        return runtime_context.site_config(provider_name)

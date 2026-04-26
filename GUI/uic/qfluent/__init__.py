@@ -1,13 +1,12 @@
 import types
 import contextlib
-from PySide6.QtWidgets import QWidget, QHBoxLayout
-from GUI.core.timer import safe_single_shot
 from qfluentwidgets import (
-    Action, RoundMenu, FluentIcon, PushButton, Flyout, FlyoutAnimationType,
+    Action, RoundMenu, FluentIcon,
     LineEdit, ToolButton
 )
+from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
-from utils import extract_eps_range, conf
+from utils import conf
 from .components import *
 
 __all__ = [
@@ -47,7 +46,7 @@ def _selected_web_text(web_view):
 
 class MonkeyPatch:
     @staticmethod
-    def rbutton_menu_lineEdit(line_edit, extra_actions=None):
+    def rbutton_menu_lineEdit(line_edit, extra_actions=None, sub_menu=None):
         def new_context_menu(self, event):
             def _showCompleterMenu():
                 if not self.text().strip():
@@ -60,10 +59,12 @@ class MonkeyPatch:
             select_all_action = Action(self.tr("Select all"), triggered=self.selectAll)
             show_completer = Action(FluentIcon.ALIGNMENT, text=self.tr(res.menu_show_completer),
                                     triggered=_showCompleterMenu)
-            if not extra_actions:
+            if not extra_actions and not sub_menu:
                 menu.addAction(show_completer)
             for action in extra_actions or []:
                 menu.addAction(action)
+            for _menu in sub_menu or []:
+                menu.addMenu(_menu)
             menu.addSeparator()
             menu.addAction(paste_action)
             menu.addAction(undo_action)

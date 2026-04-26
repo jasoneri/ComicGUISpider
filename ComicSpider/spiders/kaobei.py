@@ -32,14 +32,15 @@ class KaobeiSpider(BaseComicSpider):
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
-        KaobeiUtils.reqer_cls.get_aes_key()
-        return super().from_crawler(crawler, *args, **kwargs)
+        spider = super().from_crawler(crawler, *args, **kwargs)
+        spider.spider_site_runtime.reqer.get_aes_key()
+        return spider
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        episodes = self.site.parser.parse_episodes(
-            response.json()['results'], book, url=response.url, 
-            aes_key=self.site.reqer_cls.get_aes_key(), show_dhb=conf.kbShowDhb,
+        episodes = self.spider_site_runtime.parser.parse_episodes(
+            response.json()['results'], book, url=response.url,
+            show_dhb=conf.kbShowDhb,
         )
         frame_results = {ep.idx: ep for ep in episodes}
         self.say.frame_section_print(frame_results)
@@ -81,8 +82,8 @@ class KaobeiSpider(BaseComicSpider):
 
     def parse_fin_page(self, response):
         ep = response.meta['ep']
-        imageData = self.site.parser.parse_page_urls_from_html(
-            response.text, url=response.url, aes_key=self.site.reqer_cls.get_aes_key(),
+        imageData = self.spider_site_runtime.parser.parse_page_urls_from_html(
+            response.text, url=response.url,
         )
         for item in self._build_episode_items(ep, [url_item['url'] for url_item in imageData]):
             yield item

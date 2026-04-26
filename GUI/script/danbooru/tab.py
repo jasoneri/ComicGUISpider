@@ -1,9 +1,11 @@
+import gc
 import typing as t
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QCompleter, QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import Action, ComboBox, FluentIcon as FIF, FlowLayout, PushButton, RoundMenu, ScrollArea, SearchLineEdit, TransparentToolButton
+from qfluentwidgets.components.widgets.line_edit import CompleterMenu
 
 from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch
 from utils.config.qc import danbooru_cfg
@@ -12,6 +14,7 @@ from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, Da
 
 from .card import DanbooruCardWidget
 from .core import DanbooruTabSelectionController, DanbooruTabState, delete_flow_item as _delete_flow_item
+from .favorite_groups import build_tag_groups, visible_usage_groups
 from .style import DanbooruCardMetrics, DanbooruUiPalette, DEFAULT_CARD_METRICS, build_tab_stylesheet
 
 
@@ -62,13 +65,7 @@ class DanbooruTabWidget(QFrame):
         self.search_edit.returnPressed.connect(self._submit_search_from_keyboard)
         self.search_edit.searchSignal.connect(lambda text: self.request_search.emit(text))
         self.search_edit.searchButton.clicked.connect(self._submit_empty_search_if_needed)
-        FluentMonkeyPatch.rbutton_menu_lineEdit(
-            self.search_edit,
-            extra_actions=[
-                self._create_search_value_action("打开历史", FIF.HISTORY, danbooru_cfg.get_history, "暂无历史记录"),
-                self._create_search_value_action("打开收藏列表", FIF.HEART, lambda: sorted(danbooru_cfg.get_favorites()), "暂无收藏记录"),
-            ],
-        )
+        self.set_search_menu()
         self.favorite_btn = TransparentToolButton(FIF.HEART, self)
         self.favorite_btn.setFixedSize(38, 38)
         self.convert_btn = PushButton("to Tag", self)
@@ -118,20 +115,33 @@ class DanbooruTabWidget(QFrame):
         if not self.search_edit.text().strip():
             self.request_search.emit("")
 
-    def _create_search_value_action(self, text: str, icon, values_getter, empty_text: str) -> Action:
-        def open_menu():
-            menu = RoundMenu(parent=self.search_edit)
-            values = [current for value in values_getter() or [] if (current := str(value).strip())]
-            if not values:
-                empty_action = Action(text=empty_text)
-                empty_action.setEnabled(False)
-                menu.addAction(empty_action)
-            else:
-                for value in values:
-                    menu.addAction(Action(text=value, triggered=lambda _=False, current=value: self._set_search_edit_value(current)))
-            menu.exec(self.search_edit.mapToGlobal(self.search_edit.rect().bottomLeft()))
-
-        return Action(icon, text=text, triggered=open_menu)
+    def set_search_menu(self):
+        def _create_search_value_action(text: str, icon, values_getter) -> Action:
+            def open_():
+                values = [current for value in values_getter() or [] if (current := str(value).strip())]
+                self.update_completer(values)
+                self._show_search_edit_completer("")
+            return Action(icon, text=text, triggered=open_)
+        def _create_fav_sub_menu():
+            def _show_group_completer(terms: list[str]):
+                self.update_completer(terms)
+                self._show_search_edit_completer("")
+            submenu = RoundMenu("收藏组", self)
+            submenu.setIcon(FIF.HEART)
+            groups = visible_usage_groups(
+                build_tag_groups(
+                    sorted(danbooru_cfg.get_favorites()),
+                    danbooru_cfg.get_grouped_favorites()))
+            actions = [Action(text=group.display,
+                triggered=lambda _=False, current=list(group.tags): _show_group_completer(current))
+            for group in groups]
+            submenu.addActions(actions)
+            return submenu
+        FluentMonkeyPatch.rbutton_menu_lineEdit(
+            self.search_edit,
+            extra_actions=[_create_search_value_action("打开历史", FIF.HISTORY, danbooru_cfg.get_history)],
+            sub_menu=[_create_fav_sub_menu()]
+        )
 
     def show_conversion_candidates(
         self, candidates: list[DanbooruAutocompleteCandidate],
@@ -179,10 +189,26 @@ class DanbooruTabWidget(QFrame):
             self.request_next_page.emit()
 
     def update_completer(self, terms: list[str]):
-        completer = QCompleter(terms, self)
+        completer = QCompleter(list(dict.fromkeys(terms)), self.search_edit)
         completer.setFilterMode(Qt.MatchContains)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.search_edit.setCompleter(completer)
+        return completer
+
+    def _show_search_edit_completer(self, prefix: str):
+        completer = self.search_edit.completer()
+        if completer is None:
+            return
+        completer.setCompletionPrefix(prefix)
+        menu = getattr(self.search_edit, "_completerMenu", None)
+        if menu is None:
+            self.search_edit.setCompleterMenu(CompleterMenu(self.search_edit))
+            menu = self.search_edit._completerMenu
+        changed = menu.setCompletion(completer.completionModel(), completer.completionColumn())
+        menu.setMaxVisibleItems(max(completer.maxVisibleItems(),10))
+        if changed:
+            self.search_edit.setFocus()
+            menu.popup()
 
     def set_loading(self, loading: bool):
         self.state.loading = loading
@@ -190,8 +216,39 @@ class DanbooruTabWidget(QFrame):
         self.convert_btn.setDisabled(loading)
         self.sort_box.setDisabled(loading)
 
+    def clear_images_before_current_page(self):
+        if not self.state.has_pages_before_current():
+            return
+        current_page = self.state.page_cursor
+        trim_count = self.state.trim_count_before_current_page()
+        if trim_count > len(self.state.result_list) or trim_count > self.flow_layout.count():
+            raise RuntimeError(
+                f"Danbooru grid trim out of range: page={current_page}, start={self.state.buffer_start_page}, trim={trim_count}, "
+                f"results={len(self.state.result_list)}, layout={self.flow_layout.count()}"
+            )
+        scroll_bar = self.scroll_area.verticalScrollBar()
+        scroll_bar.setValue(scroll_bar.minimum())
+        self.selection_controller.clear()
+        del self.state.result_list[:trim_count]
+        for _ in range(trim_count):
+            item = self.flow_layout.takeAt(0)
+            widget = item if isinstance(item, QWidget) else item.widget() if item is not None else None
+            if isinstance(widget, DanbooruCardWidget):
+                self.card_widgets.pop(widget.post.md5, None)
+            _delete_flow_item(item)
+        self.state.retain_current_page_as_buffer_start()
+        self._refresh_grid_layout()
+        scroll_bar.setValue(scroll_bar.minimum())
+        gc.collect()
+
     def show_grid_context_menu(self, global_pos: QtCore.QPoint):
         menu = RoundMenu(parent=self.scroll_area)
+        clear_previous_pages_action = Action(
+            FIF.BROOM,
+            text="清除此页前图片",
+            triggered=self.clear_images_before_current_page,
+        )
+        clear_previous_pages_action.setEnabled(self.state.has_pages_before_current())
         selection_count = self.selection_controller.selection_count()
         clear_action = Action(
             FIF.CANCEL,
@@ -199,6 +256,7 @@ class DanbooruTabWidget(QFrame):
             triggered=self.selection_controller.clear,
         )
         clear_action.setEnabled(selection_count > 0)
+        menu.addAction(clear_previous_pages_action)
         menu.addAction(clear_action)
         menu.exec(global_pos)
 

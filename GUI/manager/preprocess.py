@@ -1,17 +1,14 @@
-from dataclasses import replace
-
 import httpx
 from PySide6.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.browser_window import BrowserWindow
-from GUI.core.theme import setupTheme
 from GUI.manager import _UpdateLauncher
 from GUI.manager.async_task import AsyncTaskManager
 from GUI.uic.qfluent.components import CustomInfoBar
-from GUI.types import SearchContextSnapshot
 from utils import conf
 from utils.website.contracts import PreprocessResult
+from utils.website.site_runtime import GuiSiteRuntime
 from utils.website.preprocess import run_site_preprocess
 from variables import SPIDERS, VER, Spider
 
@@ -39,14 +36,14 @@ class PreprocessManager(QObject):
         transport = dict(proxy=f"http://{proxies[0]}", retries=2) if proxies else dict(retries=2)
         data_cli = httpx.Client(transport=httpx.HTTPTransport(**transport))
 
-    def handle_choosebox_changed(self, index: int, snapshot: SearchContextSnapshot | None):
+    def handle_choosebox_changed(self, index: int, gui_site_runtime: GuiSiteRuntime | None):
         generation = self._next_generation()
-        self._reset_data_cli(list(snapshot.proxies) if snapshot else [])
+        proxies = ()
+        if gui_site_runtime is not None:
+            proxies = gui_site_runtime.runtime_context.transport.proxies
+        self._reset_data_cli(list(proxies))
 
-        gateway = getattr(self.gui, "site_gateway", None)
-        if index in {Spider.MANGA_COPY, Spider.JM, Spider.WNACG, Spider.EHENTAI, Spider.HITOMI, 7} or (
-            gateway and getattr(gateway, "supports_test_index", False)
-        ):
+        if index in {Spider.MANGA_COPY, Spider.JM, Spider.WNACG, Spider.EHENTAI, Spider.HITOMI, 7}:
             self._start_preprocess(index, generation)
 
         if index in Spider.aggr():
@@ -57,17 +54,18 @@ class PreprocessManager(QObject):
 
     def _start_preprocess(self, index: int, generation: int):
         def task(progress_callback=None):
-            gateway = getattr(self.gui, "site_gateway", None)
-            if gateway is not None and hasattr(gateway, "preprocess"):
-                return gateway.preprocess(
+            if index == 7:
+                return run_site_preprocess(
                     index,
+                    runtime_owner=None,
                     conf_state=conf,
                     data_client=data_cli,
                     progress_callback=progress_callback,
                 )
-            return run_site_preprocess(
-                index,
-                gateway=gateway,
+            gui_site_runtime = self.gui.gui_site_runtime
+            if gui_site_runtime is None:
+                raise RuntimeError("gui_site_runtime unavailable for preprocess flow")
+            return gui_site_runtime.preprocess(
                 conf_state=conf,
                 data_client=data_cli,
                 progress_callback=progress_callback,
@@ -91,7 +89,7 @@ class PreprocessManager(QObject):
             raise TypeError(f"unexpected preprocess result: {type(result)!r}")
 
         if result.domain and index in SPIDERS:
-            self._refresh_snapshot_domain(index, SPIDERS[index], result.domain)
+            self._refresh_runtime_domain(index, result.domain)
         if result.block_search:
             self.gui.disable_start()
 
@@ -106,9 +104,7 @@ class PreprocessManager(QObject):
         if index != Spider.HITOMI:
             self.gui.disable_start()
         self.gui.say("<br>❌ 预处理执行失败，请查看日志")
-        logger = getattr(self.gui, "log", None)
-        if logger is not None:
-            logger.error(error)
+        self.gui.log.error(error)
 
     def _display_message(self, message: dict):
         channel = message.get("channel", "text")
@@ -116,8 +112,7 @@ class PreprocessManager(QObject):
         text = str(message.get("text", ""))
         text_key = message.get("text_key")
         if not text and text_key:
-            site_res = getattr(self.gui, "res", None)
-            text = getattr(site_res, text_key)
+            text = getattr(self.gui.res, text_key)
         if channel == "text":
             self.gui.say(text, ignore_http=bool(message.get("ignore_http", False)))
             return
@@ -169,12 +164,7 @@ class PreprocessManager(QObject):
             self._try_add_hitomi_tool()
             return
         if action_type == "open_script_window":
-            self.gui.hide()
-            from GUI.script import ScriptWindow
-
-            script_window = ScriptWindow(self.gui)
-            setupTheme(script_window.kemonoInterface)
-            script_window.show()
+            self.gui.open_script_window()
             return
         if action_type == "launch_update_flow":
             _UpdateLauncher(VER, script=True).run()
@@ -186,8 +176,7 @@ class PreprocessManager(QObject):
         return generation == self._switch_generation and self.gui.chooseBox.currentIndex() == index
 
     def _try_add_hitomi_tool(self):
-        if hasattr(self.gui, "toolWin"):
-            self.gui.toolWin.addHitomiTool()
+        self.gui.toolWin.addHitomiTool()
 
     def _add_aggr_search(self):
         if not hasattr(self.gui.toolWin, "asInterface"):
@@ -202,12 +191,14 @@ class PreprocessManager(QObject):
             data_cli.close()
             data_cli = None
 
-    def _refresh_snapshot_domain(self, index: int, name: str, domain: str | None):
+    def _refresh_runtime_domain(self, index: int, domain: str | None):
         if not domain:
             return
-        snapshot = getattr(self.gui, "_search_context", None)
-        if snapshot is None or snapshot.site_index != index:
+        gui_site_runtime = self.gui.gui_site_runtime
+        if gui_site_runtime is None or gui_site_runtime.site_index != index:
             return
-        domains = {**snapshot.domains, name: domain}
-        updated = replace(snapshot, domains=domains)
-        self.gui.update_search_context(updated)
+        self.gui.gui_site_runtime = gui_site_runtime.with_domain(domain)
+        if getattr(self.gui, "preview_mgr", None):
+            self.gui.preview_mgr.update_gui_site_runtime(self.gui.gui_site_runtime)
+        if getattr(self.gui, "BrowserWindow", None):
+            self.gui.BrowserWindow.apply_standard_environment()

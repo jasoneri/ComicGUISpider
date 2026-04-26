@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import contextlib
 import os
 import sys
 import re
@@ -103,19 +104,21 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     pageInteractive = Signal(str, float)
     pageLoadFinishedDetailed = Signal(bool, float)
 
-    def __init__(self, gui, *, skip_env_mode: bool = False):
+    def __init__(self, gui, *, skip_env_mode: bool = False, persistent_profile: bool = True):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
         self._first_show = True
         self.gui = gui
+        self.dev_tools = None
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.interceptor = BrowserRequestInterceptor(self)
         self.interceptor.configure_monitor_vote_header(
             allowed_origins=("http://localhost:5173", CGS_DOC),
             page_path="/deploy/monitor", header_name="X-CGS-Flag", header_value="cgs-vote",
         )
+        self.profile = create_browser_window_profile(self, persistent=persistent_profile)
         self.view = FramelessWebEngineView(self)
-        self.profile = create_browser_window_profile(self)
         self.view.setPage(CustomWebEnginePage(self.profile, self.view))
         self.page_runtime = BrowserPageRuntime(self)
         settings = self.view.settings()
@@ -208,8 +211,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
         self.copyBtn.clicked.connect(copy_unfinished_tasks)
         self.addressEdit.setPlaceholderText("输入链接后回车")
-        self.addressEdit.linkSignal.connect(self._handle_address_submit)
-        self.addressEdit.returnPressed.connect(self.addressEdit.link)
+        self.addressEdit.custSignal.connect(self._handle_address_submit)
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
         for button in (

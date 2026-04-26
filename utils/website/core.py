@@ -207,10 +207,13 @@ class Previewer:
 
     @staticmethod
     def pop_site_kwargs(kw: dict[str, t.Any]) -> dict[str, t.Any]:
+        # Legacy preview classmethod flows may still receive site-scoped runtime state.
+        # Strip those fields before forwarding raw kwargs into the httpx client call.
         return {
             "cookies": kw.pop("cookies", None),
             "domain": kw.pop("domain", None),
             "custom_map": kw.pop("custom_map", None),
+            "transport": kw.pop("transport", None),
         }
 
     @staticmethod
@@ -223,12 +226,7 @@ class Previewer:
         return f"https://{domain}"
 
     @staticmethod
-    def build_referer_url(
-        referer_url: str | None,
-        *,
-        request_url: str | None = None,
-        default_scheme: str = "https",
-    ) -> str | None:
+    def build_referer_url(referer_url: str | None, *, request_url: str | None = None, default_scheme: str = "https") -> str | None:
         raw_referer = str(referer_url or "").strip()
         if not raw_referer:
             return None
@@ -239,33 +237,19 @@ class Previewer:
             if request_scheme and request_scheme not in {"http", "https"}:
                 return None
         final_default_scheme = request_scheme or default_scheme
-        referer_parts = urlparse(
-            raw_referer if "://" in raw_referer else f"{final_default_scheme}://{raw_referer}"
-        )
+        referer_parts = urlparse(raw_referer if "://" in raw_referer else f"{final_default_scheme}://{raw_referer}")
         referer_host = str(referer_parts.netloc or referer_parts.path or "").strip()
         if not referer_host:
             return None
         referer_scheme = str(referer_parts.scheme or "").strip().casefold()
         final_scheme = referer_scheme if referer_scheme in {"http", "https"} else final_default_scheme
         referer_path = str(referer_parts.path or "").strip() or "/"
-        return urlunparse((
-            final_scheme,
-            referer_host,
-            referer_path,
-            "",
-            str(referer_parts.query or "").strip(),
-            "",
-        ))
+        return urlunparse((final_scheme, referer_host, referer_path, "", str(referer_parts.query or "").strip(), ""))
 
     @classmethod
     def build_site_headers(
-        cls,
-        domain: str,
-        base_headers: dict[str, str] | None = None,
-        *,
-        referer_url: str | None = None,
-        cookies: dict[str, str] | None = None,
-        cookie_serializer: t.Callable[[dict[str, str]], str] | None = None,
+        cls, domain: str, base_headers: dict[str, str] | None = None, *, referer_url: str | None = None, 
+        cookies: dict[str, str] | None = None, cookie_serializer: t.Callable[[dict[str, str]], str] | None = None,
     ) -> dict[str, str]:
         headers = {"Host": domain, **(base_headers or {})}
         referer = cls.build_referer_url(referer_url)
@@ -278,11 +262,7 @@ class Previewer:
         return headers
 
     @classmethod
-    def normalize_preview_resource(
-        cls, value: str | None,
-        *,
-        domain: str | None = None, default_scheme: str = "https",
-    ) -> str | None:
+    def normalize_preview_resource(cls, value: str | None, *, domain: str | None = None, default_scheme: str = "https") -> str | None:
         raw_value = str(value or "").strip()
         if not raw_value:
             return value
@@ -303,10 +283,7 @@ class Previewer:
 
     @classmethod
     def normalize_preview_fields(
-        cls,
-        item,
-        *,
-        domain: str | None = None,
+        cls, item, *, domain: str | None = None,
         attrs: tuple[str, ...] = ("preview_url", "url", "img_preview"),
     ):
         for attr in attrs:
@@ -368,23 +345,12 @@ class Previewer:
             request_kw["headers"] = spec.headers
         if spec.data is not None:
             request_kw["data"] = spec.data
-        resp = await client.request(
-            spec.method,
-            spec.url,
-            follow_redirects=True,
-            timeout=spec.timeout,
-            **request_kw,
-        )
+        resp = await client.request(spec.method, spec.url, follow_redirects=True, timeout=spec.timeout, **request_kw)
         resp.raise_for_status()
         return resp
 
     @classmethod
-    async def preview_search(
-        cls,
-        keyword: str,
-        client,
-        **kw,
-    ) -> list:
+    async def preview_search(cls, keyword: str, client, **kw) -> list:
         raise NotImplementedError(f"{cls.__name__}.preview_search")
 
     @classmethod
@@ -425,12 +391,7 @@ class DomainUtils(Utils):
             return None
         try:
             transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies)
-            async with httpx.AsyncClient(
-                headers=cls.headers,
-                follow_redirects=True,
-                transport=transport,
-                trust_env=trust_env,
-            ) as cli:
+            async with httpx.AsyncClient(headers=cls.headers, follow_redirects=True, transport=transport, trust_env=trust_env) as cli:
                 resp = await cli.head(cls.forever_url)
                 return re.search(r"https?://(.*)/?", str(resp.request.url)).group(1)
         except httpx.ConnectError:
@@ -443,14 +404,8 @@ class DomainUtils(Utils):
         e = None
         if not cls.publish_url:
             return None
-        transport, trust_env = build_proxy_transport(
-            cls.proxy_policy, conf.proxies, http2=True, retries=5
-        )
-        async with httpx.AsyncClient(
-            headers=cls.publish_headers or cls.headers,
-            transport=transport,
-            trust_env=trust_env,
-        ) as cli:
+        transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies, http2=True, retries=5)
+        async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, transport=transport, trust_env=trust_env) as cli:
             try:
                 resp = await cli.get(cls.publish_url)
                 resp.raise_for_status()
@@ -515,14 +470,8 @@ class DomainUtils(Utils):
     async def test_aviable_domain(cls, domain):
         url = f"https://{domain}"
         try:
-            transport, trust_env = build_proxy_transport(
-                cls.proxy_policy, conf.proxies, retries=1, verify=False
-            )
-            async with httpx.AsyncClient(
-                headers={**cls.headers, 'Referer': url},
-                transport=transport,
-                trust_env=trust_env,
-            ) as cli:
+            transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies, retries=1, verify=False)
+            async with httpx.AsyncClient(headers={**cls.headers, 'Referer': url}, transport=transport, trust_env=trust_env) as cli:
                 resp = await cli.head(url, follow_redirects=True, timeout=4)
                 if resp and str(resp.status_code).startswith('2'):
                     return resp.url.host

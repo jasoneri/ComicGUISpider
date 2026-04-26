@@ -153,6 +153,7 @@ class DanbooruTabState:
     query: str = ""
     sort_mode: str = ""
     page_cursor: int = 1
+    buffer_start_page: int = 1
     result_list: list[DanbooruPost] = field(default_factory=list)
     selected_md5_set: set[str] = field(default_factory=set)
     request_token: int = 0
@@ -168,18 +169,30 @@ class DanbooruTabState:
         if query is not None:
             self.query = query
         self.page_cursor = 1
+        self.buffer_start_page = 1
         self.result_list.clear()
         self.selected_md5_set.clear()
         self.has_more_results = True
         self.has_loaded_once = False
 
     def mark_loaded_page(self, posts: t.Sequence[DanbooruPost], page: int):
+        if not self.has_loaded_once or not self.result_list:
+            self.buffer_start_page = page
         self.page_cursor = page
         self.has_loaded_once = True
         self.has_more_results = len(posts) >= DANBOORU_PAGE_SIZE
 
     def can_load_next_page(self) -> bool:
         return not self.loading and self.has_more_results and self.has_loaded_once
+
+    def has_pages_before_current(self) -> bool:
+        return self.page_cursor > self.buffer_start_page
+
+    def trim_count_before_current_page(self) -> int:
+        return (self.page_cursor - self.buffer_start_page) * DANBOORU_PAGE_SIZE
+
+    def retain_current_page_as_buffer_start(self):
+        self.buffer_start_page = self.page_cursor
 
 
 class DanbooruTabSelectionController(QtCore.QObject):
