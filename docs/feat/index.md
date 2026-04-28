@@ -52,18 +52,14 @@
   </thead>
   <tbody>
     <tr>
-      <td style="text-align: center; vertical-align: middle;" rowspan="4">rV工具<br><small>rvTool</small></td>
+      <td style="text-align: center; vertical-align: middle;" rowspan="5">rV工具<br><small>rvTool</small></td>
       <td style="text-align: left;"><strong>显示记录</strong>: 显示已阅最新话、下载最新话<br><code>已阅最新话</code>需用 <a href="https://github.com/jasoneri/redViewer" target="_blank" rel="noopener noreferrer">rV</a> 操作过才有记录</td>
     </tr>
+    <tr><td style="text-align: left;"><strong>扫描本地</strong>: 重新刷本地数据存至<code>储存目录/rV.db</code>，<br>供<code>显示记录</code>使用，并且与 rV 共用</td></tr>
+    <tr><td style="text-align: left;"><strong>rv相关</strong>: 下载&emsp;/&emsp;(右下)绑定<code>锚点</code>与运行&emsp;/&emsp;(左下)清除<code>锚点</code></td></tr>
     <tr>
-      <td style="text-align: left;"><strong>扫描本地</strong>: 重新刷本地数据存至<code>储存目录/rV.db</code>，<br>供<code>显示记录</code>使用，并且与 rV 共用</td>
-    </tr>
-    <tr>
-      <td style="text-align: left;"><strong>rv相关</strong>: 下载&emsp;/&emsp;(右下)绑定<code>锚点</code>与运行&emsp;/&emsp;(左下)清除<code>锚点</code></td>
-    </tr>
-    <tr>
-      <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>ps: 搜索后按图示转 ascii2d 有奇效</td>
-    </tr>
+      <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>ps: 搜索后按图示转 ascii2d 有奇效</td></tr>
+    <tr><td style="text-align: left;"><strong>Cbg按钮</strong>: <a href="/script/#_3-cbg-cornerbackground">Cbg入口</a></td></tr>
     <tr>
       <td style="text-align: center;">CGSMid<br><small>midTool</small></td>
       <td style="text-align: left;"><a href="/feat/mid">🀄️跳转阅读 > 使用</a></td>

@@ -39,7 +39,7 @@
 #### 4. 待扩展
 
 详见 [utils/ags/extractor.py](
-https://github.com/jasoneri/ComicGUISpider/blob/2.6-dev/utils/ags/extractor.py) 参照 qq 实现即可
+https://github.com/jasoneri/ComicGUISpider/blob/GUI/utils/ags/extractor.py) 参照 qq 实现即可
 
 ### 搜索词列表
 

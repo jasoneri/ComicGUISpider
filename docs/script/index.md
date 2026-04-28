@@ -1,7 +1,7 @@
 
 # 🚧 ScriptTool
 
-kemono / danbooru / saucenao
+kemono / danbooru / cbg / saucenao
 
 ## ⚠️ 通用前置须知
 
@@ -17,7 +17,7 @@ uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsi
 ⚠️ win绿色包自动安装依赖失败时则用以下命令  
 （基于`_pystand_static.int` 的 `version` 大于等于 `v2`）
 ```cmd
-.\CGS.exe -v 2.9.0 -s -i https://pypi.tuna.tsinghua.edu.cn/simple
+.\CGS.exe -v 2.9.11 -s -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 :::
 
@@ -43,7 +43,7 @@ utils
 doh 可免代理，空词进首页过 cf 盾即可
 
 <div align="left">
-<a href="https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv" target="_blank">
+<a href="https://img-cgs.101114105.xyz/file/cgs/1777322414802_danbooru.webm" target="_blank">
   <img src="https://img-cgs.101114105.xyz/file/cgs/1774207883543_danbooruPlay.png" alt="logo">
 </a></div>
 

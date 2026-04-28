@@ -1,6 +1,7 @@
 import re
 import asyncio
 import httpx
+from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
@@ -70,6 +71,10 @@ class _WnacgContract:
     book_id_url = "https://www.wnacg02.cc/photos-index-aid-%s.html"
     book_url_regex = r"^https://(www\.)?wn.*?/photos-index-aid-\d+\.html$"
 
+    @dataclass
+    class SConf:
+        num_of_row = 4
+        
 
 class WnacgParser(_WnacgContract, Previewer):
     @classmethod
@@ -126,7 +131,8 @@ class WnacgParser(_WnacgContract, Previewer):
 
     @classmethod
     def parse_search(cls, resp_text, *, domain: str | None = None):
-        domain = domain or WnacgUtils.get_domain()
+        if not domain:
+            raise ValueError("domain is required for wnacg search parsing")
         html_doc = Selector(text=resp_text)
         targets = html_doc.xpath('//li[contains(@class, "gallary_item")]')
         with ThreadPoolExecutor() as executor:
@@ -187,7 +193,9 @@ class WnacgReqer(_WnacgContract, Req):
     async def preview_search(self, keyword: str, *, page: int = 1):
         page = max(1, int(page or 1))
         site_kw = self.preview_site_kwargs()
-        domain = site_kw.get("domain") or WnacgUtils.get_domain()
+        domain = site_kw.get("domain") or getattr(self, "domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for wnacg")
         spec = WnacgUtils.build_basic_search_request(
             keyword,
             page=page,
@@ -272,16 +280,6 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
         return None
 
     @classmethod
-    def get_domain(cls):
-        from utils.website.core import Cache
-
-        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
-        cached = cls.cachef.run(lambda: None, 168)
-        if isinstance(cached, str) and cached.strip():
-            return cached.strip()
-        return super().get_domain()
-
-    @classmethod
     def normalize_preview_resource(
         cls,
         value: str | None,
@@ -295,7 +293,9 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
 
     @classmethod
     def preview_client_config(cls, **context):
-        domain = context.get("domain") or cls.get_domain()
+        domain = context.get("domain")
+        if not domain:
+            raise ValueError("preview domain is required for wnacg")
         return {
             "headers": cls.build_site_headers(domain, cls.headers,
                 referer_url=cls.preview_origin(domain),

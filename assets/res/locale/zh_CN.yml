@@ -107,7 +107,7 @@ GUI:
     searchinputPlaceholderText: "输入关键字"
     chooseBoxToolTip: "选中网站后看状态栏有输入提示"
     previewBtnStatusTip: "点击进行搜索并预览"
-    progressBarStatusTip: " >>> Ⅰ、绿色填满表示完成 Ⅱ、 漏页情况下，可结合`复制未完成`与`剪贴板功能`进行补页"
+    progressBarStatusTip: " >>> Ⅰ、绿色填满表示完成 Ⅱ、 漏页情况下，可点击创可贴按钮提交任务补页"
     sv_path_desc: "存储路径"
     sv_path_desc_tip: "选择目录"
     menu_show_completer: "展开预设"

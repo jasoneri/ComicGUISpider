@@ -1,7 +1,9 @@
 import contextlib
 import json
+import time
 
 from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWidgets import QApplication
 
 from GUI.core.font import font_color
 from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState
@@ -132,8 +134,6 @@ class PreviewMgr:
         page = browser.view.page()
         self._ensure_web_channel(page, bridge)
         self._bind_page_interactive(browser)
-        if not browser_created and not reload_tf and browser.page_runtime.page_ready:
-            self._on_browser_page_ready("fast-path", -1.0)
         return browser
 
     def _legacy_run_js(self, js, session_id):
@@ -252,7 +252,6 @@ class PreviewMgr:
         self.gui.pageEdit.setValue(self._current_page)
         self.gui.flow_stage = GUIFlowStage.IDLE
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
-        self.gui.log.error(error)
         summary = (error.strip().splitlines() or ["unknown preview error"])[-1]
         self.gui.say(
             font_color(
@@ -293,11 +292,18 @@ class PreviewMgr:
                 signal.disconnect()
 
     def _stop_worker(self, *_):
-        if self._worker:
-            self._disconnect_worker_signals(self._worker)
-            self._worker.stop()
-            self._worker.wait(350)
-            self._worker = None
+        worker = self._worker
+        if worker is None:
+            return
+        self._disconnect_worker_signals(worker)
+        worker.stop()
+        deadline = time.monotonic() + 5.0
+        while worker.isRunning() and time.monotonic() < deadline:
+            worker.wait(100)
+            QApplication.processEvents()
+        if worker.isRunning():
+            raise RuntimeError("preview worker failed to stop within 5 seconds")
+        self._worker = None
 
     def _log_page_debug(self, message: str):
         logger = getattr(self.gui, "log", None)

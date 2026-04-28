@@ -105,12 +105,17 @@ class HitomiSpider(BaseComicSpider):
         this_uuid, this_md5 = book.id_and_md5()
         self._assert_task_not_downloaded(book)
         self.set_task(book)
+        provider = self.spider_site_runtime.provider
+        # Full-image URLs become invalid as soon as Hitomi rotates gg.b, even when the
+        # cached bucket still looks "same-hour" by local heuristic. Refresh once per
+        # download section before materializing image URLs.
+        provider.refresh_gg_if_needed(force=True)
         for index, pic_info in enumerate(book.pics, 1):
             item = ComicspiderItem()
             item['title'] = book.name
             item['page'] = str(index)
             item['section'] = None
-            img_url = self.spider_site_runtime.provider.get_img_url(pic_info['hash'], pic_info['hasavif'])
+            img_url = provider.get_img_url(pic_info['hash'], pic_info['hasavif'])
             item['image_urls'] = [img_url]
             item['uuid'] = this_uuid
             item['uuid_md5'] = this_md5

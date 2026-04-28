@@ -49,5 +49,5 @@ uv tool install ComicGUISpider==2.8.0 --force
 need `_pystand_static.int` first-line version of `v1`
 
 ```cmd
-.\CGS.exe -v 2.8.0
+.\CGS.exe -v 2.9.11
 ```

@@ -69,6 +69,7 @@ class SpiderRuntimeThread(threading.Thread):
         installed_reactor = f"{reactor.__class__.__module__}.{reactor.__class__.__name__}"
         s.set("TWISTED_REACTOR", installed_reactor, priority="cmdline")
         configure_logging(s)
+        logging.getLogger("PIL.Image").setLevel(logging.WARNING)
         self._runner = CrawlerRunner(s)
         self._settings = s
         self._ready.set()
@@ -113,11 +114,7 @@ class SpiderRuntimeThread(threading.Thread):
         self.state.update(stage="crawling", active_job_id=job.job_id, error=None)
         self.event_q.put(JobAcceptedEvent(job_id=job.job_id))
 
-        d = self._runner.crawl(
-            spider_cls_name,
-            runtime_thread=self,
-            job=job,
-        )
+        d = self._runner.crawl(spider_cls_name, runtime_thread=self, job=job)
         d.addCallback(lambda _: self._on_crawl_finished(job))
         d.addErrback(lambda f: self._on_crawl_error(job, f))
 

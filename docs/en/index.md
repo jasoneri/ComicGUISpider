@@ -52,7 +52,7 @@ hero:
 <table><tbody>
   <tr>
     <td>
-      <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1772894706883_normal.mp4" title="AGS demo"></HomeDemoVideo>
+      <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1777320602636_normal.webm" title="AGS demo"></HomeDemoVideo>
     </td>
   </tr>
 </tbody></table>

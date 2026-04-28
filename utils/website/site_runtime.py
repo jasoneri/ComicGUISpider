@@ -178,15 +178,12 @@ class ThreadSiteRuntime(_ProviderRuntimeBase):
         if self.site_config.custom_map:
             self.provider.custom_map = copy.deepcopy(self.site_config.custom_map)
         self.reqer.preview_client = preview_client
-        bind_preview_runtime = self._require_reqer_method(
-            "bind_preview_runtime",
-            purpose="preview runtime binding",
-        )
-        self._require_reqer_method(
-            "aclose_preview_client",
-            purpose="preview runtime cleanup",
-        )
+        bind_preview_runtime = self._require_reqer_method("bind_preview_runtime", purpose="preview runtime binding")
+        self._require_reqer_method("aclose_preview_client", purpose="preview runtime cleanup")
         bind_preview_runtime(owner=self.provider, site_config=self.site_config, preview_client=preview_client)
+        if preview_client is None:
+            ensure_preview_client = self._require_reqer_method("ensure_preview_client", purpose="preview runtime client bootstrap")
+            ensure_preview_client()
 
     def preview_batch_limit(self, stage: str, default: int) -> int:
         return self.provider_descriptor.preview_batch_limit(stage, default)
@@ -196,24 +193,15 @@ class ThreadSiteRuntime(_ProviderRuntimeBase):
         return await preview_search(keyword, page=page)
 
     async def preview_fetch_episodes(self, book) -> list:
-        preview_fetch_episodes = self._require_reqer_method(
-            "preview_fetch_episodes",
-            purpose="preview episode fetch",
-        )
+        preview_fetch_episodes = self._require_reqer_method("preview_fetch_episodes", purpose="preview episode fetch")
         return await preview_fetch_episodes(book)
 
     async def preview_fetch_pages(self, item) -> list:
-        preview_fetch_pages = self._require_reqer_method(
-            "preview_fetch_pages",
-            purpose="preview page fetch",
-        )
+        preview_fetch_pages = self._require_reqer_method("preview_fetch_pages", purpose="preview page fetch")
         return await preview_fetch_pages(item)
 
     async def download_cover_bytes(self, tasks_obj, *, browser_headers: dict[str, str] | None = None) -> bytes:
-        download_cover_bytes = self._require_reqer_method(
-            "download_cover_bytes",
-            purpose="task-panel cover preload",
-        )
+        download_cover_bytes = self._require_reqer_method("download_cover_bytes", purpose="task-panel cover preload")
         return await download_cover_bytes(tasks_obj, browser_headers=browser_headers)
 
     async def aclose(self):
@@ -279,11 +267,7 @@ class GuiSiteRuntime:
         return _normalize_domain_value(getattr(self.provider_cls, "domain", None))
 
     def _resolved_gui_domain(self) -> str | None:
-        return _pick_bound_domain(
-            self.runtime_context.site_domain(self.name),
-            self._cached_domain(),
-            self._static_domain(),
-        )
+        return _pick_bound_domain(self.runtime_context.site_domain(self.name), self._cached_domain(), self._static_domain())
 
     def _require_gui_domain(self) -> str:
         domain = self._resolved_gui_domain()
@@ -365,11 +349,7 @@ class GuiSiteRuntime:
         if _browser_domain_required():
             domain = _require_browser_domain()
         referer_url = self.provider_cls.build_browser_referer_url(domain=domain)
-        cookie_sets = self.provider_cls.build_browser_cookie_sets(
-            cookies=site_config.cookies,
-            domain=domain,
-            referer_url=referer_url,
-        )
+        cookie_sets = self.provider_cls.build_browser_cookie_sets(cookies=site_config.cookies, domain=domain, referer_url=referer_url)
         return BrowserEnvironmentPayload(proxy=proxy, referer_url=referer_url, cookie_sets=cookie_sets)
 
     def peek_cached_domain(self) -> str | None:

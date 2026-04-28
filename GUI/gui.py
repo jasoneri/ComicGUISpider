@@ -213,11 +213,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def _create_gui_site_runtime(self, site_index: int):
         if site_index not in SPIDERS:
             raise ValueError(f"unsupported gui_site_runtime site index: {site_index!r}")
-        return create_gui_site_runtime(
-            site_index,
-            conf_state=conf,
-            default_doh_url=cgs_cfg.get_doh_url(),
-        )
+        return create_gui_site_runtime(site_index, conf_state=conf, default_doh_url=cgs_cfg.get_doh_url())
 
     def _destroy_browser_window(self):
         browser = self.BrowserWindow
@@ -278,10 +274,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             case _:
                 if self.gui_site_runtime is not None:
                     self.say(
-                        font_color(
-                            getattr(self.res, f"{self.gui_site_runtime.name}_desc", ""),
-                            cls='theme-highlight',
-                        ),
+                        font_color(getattr(self.res, f"{self.gui_site_runtime.name}_desc", ""), cls='theme-highlight'),
                         ignore_http=True,
                     )
         if index in Spider.mangas():
@@ -302,10 +295,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 _safe_disconnect(shortcut.activated)
             shortcut.activated.connect(slot)
 
-    def showAggrWin(self):
+    def show_toolWin(self, win_type):
+        _map = {"ags": "asInterface", "hitomi": "htInterface"}
         self.rvBtn.click()
         def _jump():
-            self.toolWin.stackedWidget.setCurrentWidget(self.toolWin.asInterface)
+            self.toolWin.stackedWidget.setCurrentWidget(getattr(self.toolWin, _map[win_type]))
         safe_single_shot(10, _jump)
 
     def open_script_window(self, *, pure_only: bool = False):
@@ -319,12 +313,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         script_window.show()
 
     def set_tool_win(self):
-        # if getattr(self, "toolWin", None):
-        #     self.toolWin.close()
         self.toolWin = ToolWindow(self)
         # self.toolWin.addMidTool()  # TODO[2](2026-03-07): 下个稳定版本恢复
 
-        def show_toolWin():
+        def _show_toolWin():
             t = self.toolWin
             h = self.height()
             abs_y = self.y() + h
@@ -332,7 +324,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             target_y = screen_height - t.height() if abs_y + t.height() > screen_height else abs_y
             target_rect = QRect(self.x(), target_y, t.width(), t.height())
             PopupAnimator.show(t, target_rect, duration_ms=220, direction="down")
-        self.rvBtn.clicked.connect(show_toolWin)
+        self.rvBtn.clicked.connect(_show_toolWin)
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()
@@ -343,15 +335,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.searchinput.setCompleter(completer)
-        completer.activated.connect(lambda :
-            self.searchinput.setCursorPosition(len(self.searchinput.text())))
+        completer.activated.connect(lambda: self.searchinput.setCursorPosition(len(self.searchinput.text())))
 
     def btn_logic_bind(self):
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.confBtn.clicked.connect(self.conf_dia.show_self)
         self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
-        self.aggrBtn.clicked.connect(self.showAggrWin)
+        self.aggrBtn.clicked.connect(lambda: self.show_toolWin("ags"))
+        self.htBtn.clicked.connect(lambda: self.show_toolWin("hitomi"))
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
         self.domainBtn.clicked.connect(self.do_publish)
 
@@ -488,6 +480,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.setCurrentIndex(0)
         self.chooseBox.blockSignals(False)
         self.aggrBtn.setVisible(False)
+        self.htBtn.setVisible(False)
         self.clipBtn.setVisible(False)
         self.refresh_lifecycle_state()
         self._restore_feedback_panel()

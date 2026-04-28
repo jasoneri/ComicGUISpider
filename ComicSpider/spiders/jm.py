@@ -94,7 +94,7 @@ class JmSpider(BaseComicSpider2):
                     yield from self._dispatch_episodes(item)
                     continue
                 yield scrapy.Request(
-                    url=self.transfer_url(item.url),
+                    url=item.url,
                     callback=self.parse_section,
                     headers={**self.ua, 'Referer': self.request_referer(item.url)},
                     meta={'book': item},

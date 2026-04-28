@@ -187,13 +187,10 @@ class FixPreviewFeature(MangaPreviewFeature):
     def on_pages_error(self, generation, book_key, error):
         book = self._inflight_book_pages.pop(book_key, None)
         if book is not None:
-            if generation == self.mgr._generation:
-                self.gui.log.error(error)
             self._hide_scan_if_idle()
             return
         pending = self._inflight_pages.pop(book_key, None)
         if pending is not None and generation == self.mgr._generation:
-            self.gui.log.error(error)
             self.mgr.send_command(
                 "manga.episodes.error",
                 {"bookKey": str(book_key), "code": "pages_fetch_failed"},

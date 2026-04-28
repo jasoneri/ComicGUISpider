@@ -12,8 +12,8 @@
 
 ### 存储路径 / `sv_path`
 
-::: tip 良好的习惯是创建一个空目录，并设于此处  
-设置了防呆警告，所列情况设置无效：①设在盘符根；②设在 CGS 相关目录内
+::: tip 除非你熟悉规则，否则一律使用新的空目录  
+设置了防呆警告，所列情况设置无效：①设在盘符根；②设在 CGS 相关目录内；③已设不同后处理的目录
 :::
 
 默认值：&emsp;`win: C:\Users\<UserName>\Downloads\Comic`&emsp;`macOS: ~/Downloads/Comic`  

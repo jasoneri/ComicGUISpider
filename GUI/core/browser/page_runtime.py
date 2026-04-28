@@ -26,12 +26,36 @@ class _JsCallDispatcher(QObject):
 
 
 class BrowserPageRuntime:
+    _READY_PROBE_INTERVAL_MS = 50
+    _READY_PROBE_TIMEOUT_MS = 15000
+    _READY_PROBE_JS = """(function(){
+const previewRuntime = window.previewRuntime;
+const previewCommandBus = window.previewCommandBus;
+const readyState = document.readyState;
+return JSON.stringify({
+  domReady: readyState === 'interactive' || readyState === 'complete',
+  readyState,
+  hasPreviewRuntime: Boolean(
+    previewRuntime
+    && typeof previewRuntime.scanChecked === 'function'
+    && typeof previewRuntime.markDownloaded === 'function'
+  ),
+  hasScanChecked: typeof window.scanChecked === 'function'
+    || Boolean(previewRuntime && typeof previewRuntime.scanChecked === 'function'),
+  hasCollectPreviewSubmitPayload: typeof window.collectPreviewSubmitPayload === 'function',
+  hasPreviewCommandBus: Boolean(previewCommandBus && typeof previewCommandBus.dispatch === 'function')
+});
+})();"""
+
     def __init__(self, browser):
         self._browser = browser
         self._js_dispatcher = _JsCallDispatcher(browser)
         self._page_ready = False
         self._page_ready_announced = False
         self._page_load_started_at = None
+        self._ready_generation = 0
+        self._ready_probe_started_at = None
+        self._ready_probe_attempts = 0
         self._js_dispatch_count = 0
         self._js_callback_count = 0
         self._js_structured_count = 0
@@ -64,10 +88,12 @@ class BrowserPageRuntime:
     def prepare_navigation(self) -> None:
         self._page_ready = False
         self._page_ready_announced = False
+        self._cancel_ready_probe()
         self._reset_metrics()
 
     def shutdown(self) -> None:
         self._page_ready = False
+        self._cancel_ready_probe()
 
     def update_frameless(self, update_frameless):
         started_at = time.perf_counter()
@@ -103,16 +129,7 @@ class BrowserPageRuntime:
     def js_execute_by_page(page, js_code, callback):
         BrowserPageRuntime._run_js_now(page, js_code, callback)
 
-    def run_js_result(
-        self,
-        js_body,
-        callback,
-        *,
-        expected_kind,
-        description,
-        page=None,
-        error_callback=None,
-    ):
+    def run_js_result(self, js_body, callback, *, expected_kind, description, page=None, error_callback=None):
         wrapped_js = self._wrap_structured_js(js_body)
         target_page = page or self._browser.view.page()
         if target_page is self._browser.view.page() and not self._page_ready:
@@ -244,11 +261,15 @@ class BrowserPageRuntime:
             home_url=self._browser.home_url.toString(),
             ensure_uses_page_scan=self._browser.window_mode.uses_page_scan,
         )
+        self._cancel_ready_probe()
+        self._ready_probe_started_at = self._page_load_started_at
+        self._schedule_ready_probe(self._ready_generation, delay_ms=self._READY_PROBE_INTERVAL_MS)
 
     def _on_view_load_finished(self, ok: bool) -> None:
         self._browser.view.setFocus()
         if not ok:
             self._page_ready = False
+            self._cancel_ready_probe()
             current_url = self._browser.view.url().toString()
             self.log_js_debug(f"load failed url={current_url!r}")
             append_browser_debug_event(
@@ -262,7 +283,7 @@ class BrowserPageRuntime:
             )
             self._browser.pageLoadFinishedDetailed.emit(False, -1.0)
             return
-        self._mark_page_ready(reason="load-finished")
+        self._probe_page_interactive(self._ready_generation)
         elapsed_ms = None
         if self._page_load_started_at is not None:
             elapsed_ms = (time.perf_counter() - self._page_load_started_at) * 1000
@@ -293,6 +314,62 @@ class BrowserPageRuntime:
             page_ready=self._page_ready,
         )
         self._browser.pageLoadFinishedDetailed.emit(True, float(elapsed_ms if elapsed_ms is not None else -1.0))
+
+    def _cancel_ready_probe(self) -> None:
+        self._ready_generation += 1
+        self._ready_probe_started_at = None
+        self._ready_probe_attempts = 0
+
+    def _schedule_ready_probe(self, generation: int, *, delay_ms: int) -> None:
+        QTimer.singleShot(delay_ms, lambda generation=generation: self._probe_page_interactive(generation))
+
+    def _probe_page_interactive(self, generation: int) -> None:
+        if generation != self._ready_generation or self._page_ready:
+            return
+        page = self._browser.view.page()
+        self._ready_probe_attempts += 1
+        self._run_js_now(
+            page, self._READY_PROBE_JS,
+            lambda raw_result, generation=generation: self._handle_ready_probe_result(generation, raw_result),
+        )
+
+    def _handle_ready_probe_result(self, generation: int, raw_result) -> None:
+        def readiness_payload_is_ready(payload: dict, *, uses_page_scan: bool, result_kind: str) -> bool:
+            if not isinstance(payload, dict) or not payload.get("domReady"):
+                return False
+            if not uses_page_scan:
+                return True
+            if not payload.get("hasPreviewRuntime") or not payload.get("hasPreviewCommandBus"):
+                return False
+            if result_kind == "preview_submit":
+                return bool(payload.get("hasCollectPreviewSubmitPayload"))
+            return bool(payload.get("hasScanChecked"))
+        def _retry_ready_probe(self, generation: int, payload: dict) -> None:
+            elapsed_ms = (time.perf_counter() - (self._ready_probe_started_at or time.perf_counter())) * 1000
+            if elapsed_ms < self._READY_PROBE_TIMEOUT_MS:
+                self._schedule_ready_probe(generation, delay_ms=self._READY_PROBE_INTERVAL_MS)
+                return
+            self.log_js_debug(
+                f"page interactive probe timeout attempts={self._ready_probe_attempts} payload={payload!r}"
+            )
+        def _decode_ready_probe_payload(raw_result) -> dict:
+            if not isinstance(raw_result, str) or not raw_result:
+                return {}
+            payload = json.loads(raw_result)
+            if isinstance(payload, dict):
+                return payload
+            return {}
+        if generation != self._ready_generation or self._page_ready:
+            return
+        payload = _decode_ready_probe_payload(raw_result)
+        if readiness_payload_is_ready(
+            payload, uses_page_scan=self._browser.window_mode.uses_page_scan,
+            result_kind=self._browser.window_mode.ensure_result_kind,
+        ):
+            self._mark_page_ready(reason="dom-interactive")
+            self._cancel_ready_probe()
+            return
+        _retry_ready_probe(generation, payload)
 
     @staticmethod
     def _run_js_now(page, js_code, callback=None):
@@ -355,9 +432,7 @@ try {{
     @staticmethod
     def _decode_structured_result(raw_result, description: str):
         if not isinstance(raw_result, str) or not raw_result:
-            raise TypeError(
-                f"{description} returned unexpected {type(raw_result).__name__}: {raw_result!r}"
-            )
+            raise TypeError(f"{description} returned unexpected {type(raw_result).__name__}: {raw_result!r}")
         result = json.loads(raw_result)
         if not isinstance(result, dict):
             raise TypeError(f"{description} returned non-object envelope: {result!r}")
@@ -383,12 +458,8 @@ try {{
         return value
 
     def _handle_structured_js_error(self, description: str, error: Exception, raw_result=None):
-        logger = getattr(self._browser.gui, "log", None)
         message = f"[browser.js] {description} failed: {error}; raw={raw_result!r}"
-        if logger:
-            logger.exception(message)
-        else:
-            print(message)
+        self._browser.gui.log.error(message)
         append_browser_debug_event(
             "browser.js_error",
             description=description,

@@ -38,10 +38,11 @@ class AsyncTaskThread(QThread):
     error_signal = Signal(str)
     progress_signal = Signal(str)
 
-    def __init__(self, task_func: Callable, *args, **kwargs):
+    def __init__(self, task_func: Callable, *args, gui=None, **kwargs):
         super().__init__()
         self.task_func = task_func
         self.args = tuple(args)
+        self.gui = gui
         self.kwargs = dict(kwargs)
         self.is_cancelled = False
 
@@ -253,7 +254,7 @@ class AsyncTaskManager(QObject):
             return False
 
         try:
-            thread = AsyncTaskThread(config.task_func, *config.args, **config.kwargs)
+            thread = AsyncTaskThread(config.task_func, *config.args, gui=self.gui, **config.kwargs)
             self.current_tasks[task_id] = thread
             thread.success_signal.connect(lambda result, tid=task_id, task_config=config: self._handle_success(tid, result, task_config))
             thread.error_signal.connect(lambda error, tid=task_id, task_config=config: self._handle_error(tid, error, task_config))
@@ -359,9 +360,11 @@ class AsyncTaskManager(QObject):
         self._tooltip_stack.complete(task_id, config.auto_hide_tooltip)
         if config.show_success_info:
             self._infobar_center.success(config.success_message)
-
-        self._run_callback(config.success_callback, result, "成功")
-        self._cleanup_task(task_id)
+        try:
+            if config.success_callback is not None:
+                config.success_callback(result)
+        finally:
+            self._cleanup_task(task_id)
 
     def _handle_error(self, task_id: str, error: str, config: TaskConfig):
         if not self._active:
@@ -370,24 +373,19 @@ class AsyncTaskManager(QObject):
 
         self._tooltip_stack.complete(task_id, auto_hide=True)
         self._infobar_center.error(error, show_popup=config.show_error_info)
-
-        self._run_callback(config.error_callback, error, "错误")
-        self._cleanup_task(task_id)
+        try:
+            if config.error_callback is not None:
+                config.error_callback(error)
+        finally:
+            self._cleanup_task(task_id)
 
     def _handle_progress(self, task_id: str, progress: str, config: TaskConfig):
         if not self._active:
             return
 
         self._tooltip_stack.update(task_id, progress)
-        self._run_callback(config.progress_callback, progress, "进度")
-
-    def _run_callback(self, callback: Optional[Callable], payload: Any, stage: str):
-        if callback is None:
-            return
-        try:
-            callback(payload)
-        except Exception as exc:
-            self._infobar_center.error(f"{stage}回调执行失败: {exc}\n{traceback.format_exc()}")
+        if config.progress_callback is not None:
+            config.progress_callback(progress)
 
     def _cleanup_task(self, task_id: str):
         thread = self.current_tasks.get(task_id)

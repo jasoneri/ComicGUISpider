@@ -22,13 +22,6 @@ class WnacgSpider(BaseComicSpider2):
     num_of_row = 4
     domain = domain
     # allowed_domains = [domain]
-    search_url_head = f'https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q='
-    mappings = {'更新': f'https://{domain}/albums-index.html',
-                '汉化': f'https://{domain}/albums-index-cate-1.html', }
-    turn_page_search = r"p=\d+"
-    turn_page_info = (r"-page-\d+", "albums-index%s")
-    book_id_url = f'https://{domain}/photos-gallery-aid-%s.html'
-    transfer_url = staticmethod(lambda url: url.replace('index', 'gallery'))
 
     @property
     def ua(self):

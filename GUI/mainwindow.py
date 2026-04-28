@@ -167,6 +167,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.clipBtn.setDisabled(1)
         self.clipBtn.setVisible(False)
         self.aggrBtn.setVisible(False)
+        self.htBtn.setVisible(False)
         
         self.openPBtn = ToolButton(self.frame)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)

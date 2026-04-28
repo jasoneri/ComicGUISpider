@@ -26,6 +26,7 @@ class _JmContract:
     proxy_policy = "direct"
     browser_referer_mode = "domain_origin"
     browser_cookie_set_enabled = True
+    cover_preload_requires_browser_headers = True
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     publish_url2 = "https://jm-3x.cc/mJ8rWd"
@@ -33,12 +34,12 @@ class _JmContract:
     status_publish = True
     cookies_field = COOKIES_SUPPORT[name]
     publish_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
     }
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Connection": "keep-alive",
@@ -52,7 +53,7 @@ class _JmContract:
         "Cache-Control": "no-cache",
     }
     book_hea = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Accept-Encoding": "gzip, deflate, br",
@@ -188,7 +189,8 @@ class JmParser(_JmContract, Previewer):
 
     @classmethod
     def parse_search(cls, resp_text, *, domain: str | None = None):
-        domain = domain or JmUtils.get_domain()
+        if not domain:
+            raise ValueError("domain is required for jm search parsing")
         html_doc = Selector(text=resp_text)
         targets = html_doc.xpath('//div[contains(@class,"thumb-overlay") and not(@class="thumb-overlay-guess_likes")]')
         with ThreadPoolExecutor() as executor:
@@ -306,24 +308,11 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
 
     @classmethod
     def get_cli(cls, _conf, is_async=False, **kwargs):
-        client_class = httpx.AsyncClient if is_async else httpx.Client
-        domain = JmUtils.get_domain()
-        headers = {**cls.book_hea, "Referer": f"https://{domain}"}
-        transport_kw = {k: kwargs.pop(k) for k in Req._TRANSPORT_PARAMS if k in kwargs}
-        transport, trust_env = build_http_transport(
-            cls.proxy_policy,
-            _conf.proxies,
-            doh_url=getattr(_conf, "doh_url", ""),
-            is_async=is_async,
-            **transport_kw,
-        )
-        base_kwargs = {
-            "headers": headers,
-            "transport": transport,
-            "trust_env": trust_env,
-        }
-        base_kwargs.update(kwargs)
-        return client_class(**base_kwargs)
+        domain = kwargs.pop("domain", None)
+        headers = dict(kwargs.pop("headers", cls.book_hea))
+        if domain:
+            headers["Referer"] = f"https://{domain}"
+        return super().get_cli(_conf, is_async=is_async, headers=headers, **kwargs)
 
     @classmethod
     def preview_headers(cls, domain: str, cookies: dict | None = None) -> dict[str, str]:
@@ -336,14 +325,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
         )
 
     @classmethod
-    def build_preview_search_url(
-        cls,
-        keyword: str,
-        *,
-        domain: str,
-        custom_map: dict | None = None,
-        page: int = 1,
-    ) -> str:
+    def build_preview_search_url(cls, keyword: str, *, domain: str, custom_map: dict | None = None, page: int = 1) -> str:
         keyword = convert_punctuation(keyword).replace(" ", "")
         mappings = cls.merge_search_mappings(cls.mappings, custom_map)
         if keyword in mappings:
@@ -369,12 +351,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
         if not domain:
             raise ValueError("preview domain is required for jm")
         headers = self.preview_headers(domain, site_kw.get("cookies"))
-        url = self.build_preview_search_url(
-            keyword,
-            domain=domain,
-            custom_map=site_kw.get("custom_map"),
-            page=max(1, int(page or 1)),
-        )
+        url = self.build_preview_search_url(keyword, domain=domain, custom_map=site_kw.get("custom_map"), page=max(1, int(page or 1)))
         resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
         resp.raise_for_status()
         return await asyncio.to_thread(owner.parser.parse_preview_search_response, resp.text, domain)
@@ -405,10 +382,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
             if not target_url:
                 raise ValueError("jm book url is required for preview_fetch_pages")
         else:
-            target_url = owner.normalize_preview_resource(
-                item.url or (f"/photo/{item.id}" if item.id else None),
-                domain=domain,
-            )
+            target_url = owner.normalize_preview_resource(item.url or (f"/photo/{item.id}" if item.id else None), domain=domain)
             if not target_url:
                 raise ValueError("jm episode url is required for preview_fetch_pages")
         resp = await self.ensure_preview_client().get(target_url, headers=headers, follow_redirects=True, timeout=12)
@@ -437,11 +411,7 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
             http2=True,
             retries=2,
         )
-        async with httpx.AsyncClient(
-            headers=cls.publish_headers,
-            transport=transport,
-            trust_env=trust_env,
-        ) as sess:
+        async with httpx.AsyncClient(headers=cls.publish_headers, transport=transport, trust_env=trust_env) as sess:
             resp = await sess.get(cls.publish_url2)
             error = None
             while True:

@@ -13,11 +13,10 @@ from qfluentwidgets import (
 
 from GUI.core.anim import ExpandCollapseOrchestrator, ContentTarget
 from GUI.core.timer import safe_single_shot
-from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
 from utils import conf, TaskObj, TasksObj, curr_os
 from utils.sql import SqlRecorder
-from utils.website.registry import create_gui_site_runtime, resolve_provider_descriptor_by_site
+from utils.website.registry import resolve_provider_descriptor_by_site
 
 
 class TaskProgress:
@@ -177,6 +176,8 @@ class ProgressClass(QFrame):
 
     def set_progress(self, percent: int):
         self.progress_bar.setValue(percent)
+        if percent >= 100:
+            self.progress_bar.setCustomBarColor(light="#00ff00", dark="#00cc00")
 
     def dispose(self):
         self.deleteLater()
@@ -268,7 +269,7 @@ class TaskProgressEntry:
         if self.tasks_obj.cover_bytes:
             self.view.set_preview_cover(self.cover_pixmap(self.tasks_obj.cover_bytes))
             return
-        self.schedule_cover_preload()
+        self.owner.schedule_cover_preload(self)
 
     def cover_path(self) -> t.Optional[str]:
         if not self.tasks_obj.local_path:
@@ -292,50 +293,10 @@ class TaskProgressEntry:
         path = os.path.join(self.tasks_obj.local_path, filename)
         return path if os.path.isfile(path) else None
 
-    def schedule_cover_preload(self):
-        if (
-            not self.tasks_obj.cover_url
-            or self.tasks_obj.cover_bytes
-            or self.cover_path()
-        ):
-            return
-        provider_descriptor = resolve_provider_descriptor_by_site(self.tasks_obj.source)
-        cover_preload_via_http = bool(getattr(provider_descriptor.provider_cls, "cover_preload_via_http", True))
-        if not cover_preload_via_http:
-            return
-        task_id = f"task_cover_{self.taskid}"
-        cover_task_mgr = self.owner.cover_task_mgr
-        if cover_task_mgr.is_task_running(task_id):
-            return
-        cover_task_mgr.execute_task(
-            task_id,
-            TaskConfig(
-                task_func=self.download_cover_bytes,
-                success_callback=self.on_cover_preload_success,
-                error_callback=self.owner.gui.log.error,
-                tooltip_title="",
-                show_tooltip=False,
-                show_success_info=False,
-                show_error_info=False,
-                tooltip_parent=None,
-            ),
-        )
-
     def on_cover_preload_success(self, data: bytes):
         self.tasks_obj.cover_bytes = data
         if self.view is not None:
             self.view.set_preview_cover(self.cover_pixmap(data))
-
-    async def download_cover_bytes(self) -> bytes:
-        thread_site_runtime = create_gui_site_runtime(
-            self.tasks_obj.source,
-            conf_state=conf,
-        ).create_thread_site_runtime()
-        try:
-            return await thread_site_runtime.download_cover_bytes(self.tasks_obj)
-        finally:
-            await thread_site_runtime.aclose()
-
 
 class TaskPanelDisplayController(QObject):
     def __init__(self, owner: "TaskProgressManager", layout: "TaskPanelLayoutController"):
@@ -470,12 +431,7 @@ class TaskPanelLayoutController(QObject):
 
 
 class ExpandPanelController(QObject):
-    def __init__(
-        self,
-        owner: "TaskProgressManager",
-        layout: TaskPanelLayoutController,
-        display: TaskPanelDisplayController,
-    ):
+    def __init__(self, owner: "TaskProgressManager", layout: TaskPanelLayoutController, display: TaskPanelDisplayController):
         super().__init__()
         self.owner = owner
         self.layout = layout
@@ -489,12 +445,7 @@ class ExpandPanelController(QObject):
         self.expand_btn = expand_btn
         self.orchestrator = ExpandCollapseOrchestrator(
             window_target=gui,
-            content_targets=[
-                ContentTarget(
-                    widget=gui.scroll_area,
-                    measure_height=lambda _widget: self._panel_target_height(),
-                )
-            ],
+            content_targets=[ContentTarget(widget=gui.scroll_area, measure_height=lambda _widget: self._panel_target_height())],
             window_target_height_getter=self._window_target_height,
             can_expand_window=self._can_expand_window,
             before_expand=self._before_expand,
@@ -568,17 +519,11 @@ class ExpandPanelController(QObject):
 
     def _can_expand_window(self, panel_h: int) -> bool:
         gui = self.owner.gui
-        return panel_h > 0 and gui.height() < min(
-            gui.maximumHeight(), self._available_screen_height()
-        )
+        return panel_h > 0 and gui.height() < min(gui.maximumHeight(), self._available_screen_height())
 
     def _window_target_height(self, total_expand_delta: int) -> int:
         gui = self.owner.gui
-        return min(
-            gui.height() + total_expand_delta + 5,
-            gui.maximumHeight(),
-            self._available_screen_height(),
-        )
+        return min(gui.height() + total_expand_delta + 5, gui.maximumHeight(), self._available_screen_height())
 
     def _before_expand(self):
         self.owner.gui.scroll_area.setVisible(True)
@@ -639,7 +584,7 @@ class TaskProgressManager:
         self.gui = gui
         self._entries: t.Dict[str, TaskProgressEntry] = {}
         self.record_sql = SqlRecorder()
-        self.cover_task_mgr = AsyncTaskManager(gui)
+        self._cover_preloads_inflight: set[str] = set()
         self.expandBtn = None
         self.clearBtn = None
         self._dl_status_badge = None
@@ -702,6 +647,7 @@ class TaskProgressManager:
         entry = self._entries.pop(task_id, None)
         if entry is None:
             return
+        self._cover_preloads_inflight.discard(task_id)
         _unregister_entry(entry)
         if entry.view is not None:
             self.gui.flow_layout.removeWidget(entry.view)
@@ -725,6 +671,30 @@ class TaskProgressManager:
         self._badge_state = badge_state
         self._dl_status_badge.update_progress(*badge_state)
         self._dl_status_badge.show()
+
+    def schedule_cover_preload(self, entry: TaskProgressEntry):
+        tasks_obj = entry.tasks_obj
+        if (
+            not tasks_obj.cover_url
+            or tasks_obj.cover_bytes
+            or entry.cover_path()
+        ):
+            return
+        provider_descriptor = resolve_provider_descriptor_by_site(tasks_obj.source)
+        cover_preload_via_http = bool(getattr(provider_descriptor.provider_cls, "cover_preload_via_http", True))
+        if not cover_preload_via_http:
+            return
+        preview_mgr = self.gui.preview_mgr
+        browser_headers = preview_mgr.cover_preload_headers(tasks_obj.cover_url)
+        if bool(getattr(provider_descriptor.provider_cls, "cover_preload_requires_browser_headers", False)) and not browser_headers:
+            return
+        worker = preview_mgr.worker
+        if worker is None or preview_mgr.site_index != provider_descriptor.site_index:
+            return
+        if entry.taskid in self._cover_preloads_inflight:
+            return
+        self._cover_preloads_inflight.add(entry.taskid)
+        worker.enqueue_cover(entry.taskid, provider_descriptor.site_index, tasks_obj, browser_headers)
 
     def init_native_panel(self):
         self._dispose_views()
@@ -808,11 +778,26 @@ class TaskProgressManager:
         if changed:
             self.display_ctrl.request_refresh()
 
+    def on_cover_preload_success(self, generation: int, task_id: str, data: bytes):
+        self._cover_preloads_inflight.discard(task_id)
+        if generation != self.gui.preview_mgr._generation:
+            return
+        entry = self._entries.get(task_id)
+        if entry is not None:
+            entry.on_cover_preload_success(data)
+
+    def on_cover_preload_error(self, generation: int, task_id: str, error: str):
+        self._cover_preloads_inflight.discard(task_id)
+        if generation != self.gui.preview_mgr._generation:
+            return
+        self.gui.log.error(error)
+
     def zero_task_state(self):
         completed_task_ids = [task_id for task_id, entry in self._entries.items() if entry.progress.completed]
         self.drop_entries(completed_task_ids)
         self._dispose_views()
         self._entries.clear()
+        self._cover_preloads_inflight.clear()
         self._reset_cached_state()
         if self._dl_status_badge is not None:
             self._dl_status_badge.hide()
@@ -834,14 +819,17 @@ class TaskProgressManager:
         return [self._entries[taskid].tasks_obj for taskid in un_taskids]
 
     def close(self):
-        self.cover_task_mgr.cleanup()
         self.animation_ctrl.cleanup()
         self.display_ctrl.cleanup()
         self._dispose_views(reset_view_ref=True)
         self._entries.clear()
+        self._cover_preloads_inflight.clear()
         self._reset_cached_state()
         if self._dl_status_badge is not None:
             self._dl_status_badge.hide()
             self._dl_status_badge.badge.deleteLater()
             self._dl_status_badge = None
-        self.record_sql.close()
+        record_sql = self.record_sql
+        self.record_sql = None
+        if record_sql is not None:
+            record_sql.close()
