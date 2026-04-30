@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-import re
-import typing as t
-from urllib.parse import urlencode, urlparse
-from concurrent.futures import ThreadPoolExecutor
 
 from ComicSpider.runtime.job_models import iter_download_items
 
-from utils import convert_punctuation, conf
-from utils.website import correct_domain, JmBookInfo, BookInfo, Episode
-from utils.processed_class import Url
+from utils import conf
+from utils.website import JmBookInfo, BookInfo, Episode
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
 domain = "18comic-zzz.xyz"
@@ -28,18 +23,6 @@ class JmSpider(BaseComicSpider2):
     }
     num_of_row = 4
     domain = domain
-    search_url_head = f'https://{domain}/search/photos?main_tag=0&search_query='
-    book_id_url = f'https://{domain}/photo/%s'
-    transfer_url = staticmethod(lambda url: url.replace('album', 'photo'))
-    mappings = {}
-
-    time_regex = re.compile(r".*?([日周月总])")
-    kind_regex = re.compile(r".*?(更新|点击|评分|评论|收藏)")
-    expand_map: t.Dict[str, dict] = {
-        "日": {'t': 't'}, "周": {'t': 'w'}, "月": {'t': 'm'}, "总": {'t': 'a'},
-        "更新": {'o': 'mr'}, "点击": {'o': 'mv'}, "评分": {'o': 'tr'}, "评论": {'o': 'md'}, "收藏": {'o': 'tf'}
-    }
-    turn_page_info = (r"page=\d+",)
 
     @property
     def ua(self):
@@ -49,14 +32,7 @@ class JmSpider(BaseComicSpider2):
             _ua.update({'cookie': provider.to_str_(conf.cookies.get(self.name))})
         return _ua
 
-    def preready(self):
-        if self._runtime_origin:
-            return
-        self.domain = self.spider_site_runtime.resolve_domain()
-        self.book_id_url = correct_domain(self.domain, self.book_id_url)
-
     def start_requests(self):
-        self.preready()
         yield from self.iter_download_requests(self.current_job)
 
     def parse_section(self, response):

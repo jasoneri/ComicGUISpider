@@ -11,10 +11,13 @@ from urllib.parse import urlparse, urlunparse
 import httpx
 import asyncio
 import aiofiles
+from curl_cffi import requests as curl_requests
 
 from assets import res
 from utils.network.doh import build_http_transport
 from utils import temp_p, get_loop, ori_path, conf
+from utils.website.contracts import BrowserCookiePayload
+from utils.website.runtime_context import PreviewTransportConfig
 
 
 def build_proxy_transport(proxy_policy, proxies, is_async=True, **transport_kw):
@@ -160,6 +163,87 @@ class Req:
         base_kwargs.update(kwargs)
         return client_class(**base_kwargs)
 
+    def bind_preview_runtime(self, *, owner, site_config, preview_client: httpx.AsyncClient | None = None):
+        self.owner = owner
+        self.site_config = site_config
+        self.transport = site_config.transport
+        if site_config.domain:
+            self.domain = site_config.domain
+        if site_config.cookies:
+            self.cookies = copy.deepcopy(site_config.cookies)
+        if site_config.custom_map:
+            self.custom_map = copy.deepcopy(site_config.custom_map)
+        if preview_client is not None:
+            self.preview_client = preview_client
+        return self
+
+    def _require_preview_owner(self):
+        owner = getattr(self, "owner", None)
+        if owner is None:
+            raise RuntimeError(f"{type(self).__name__} preview flow requires provider owner")
+        if not isinstance(owner, Previewer):
+            raise TypeError(f"{type(self).__name__} preview owner must implement Previewer")
+        return owner
+
+    def _require_preview_site_config(self):
+        site_config = getattr(self, "site_config", None)
+        if site_config is None:
+            raise RuntimeError(f"{type(self).__name__} preview flow requires bound site_config")
+        return site_config
+
+    def preview_site_kwargs(self) -> dict[str, t.Any]:
+        return self._require_preview_site_config().as_provider_kwargs()
+
+    def set_preview_client(self, preview_client: httpx.AsyncClient | None):
+        self.preview_client = preview_client
+        return preview_client
+
+    def create_preview_client(self) -> httpx.AsyncClient:
+        owner = self._require_preview_owner()
+        site_config = self._require_preview_site_config()
+        site_kw = self.preview_site_kwargs()
+        client_kw = dict(type(owner).preview_client_config(**site_kw) or {})
+        transport_kw = dict(type(owner).preview_transport_config() or {})
+        transport, trust_env = build_http_transport(
+            getattr(type(owner), "proxy_policy", "proxy"),
+            list(site_config.transport.proxies),
+            doh_url=site_config.transport.doh_url,
+            is_async=True,
+            **transport_kw,
+        )
+        base_kwargs = {
+            "transport": transport,
+            "follow_redirects": True,
+            "trust_env": trust_env,
+            "headers": None,
+        }
+        base_kwargs.update(client_kw)
+        return httpx.AsyncClient(**base_kwargs)
+
+    def ensure_preview_client(self) -> httpx.AsyncClient:
+        preview_client = getattr(self, "preview_client", None)
+        if preview_client is None:
+            preview_client = self.set_preview_client(self.create_preview_client())
+        return preview_client
+
+    async def aclose_preview_client(self):
+        preview_client = getattr(self, "preview_client", None)
+        self.preview_client = None
+        if preview_client is not None:
+            await preview_client.aclose()
+
+    def _raise_preview_runtime_contract_error(self, method_name: str) -> t.NoReturn:
+        raise RuntimeError(f"{type(self).__name__} reqer.{method_name}() is required for the preview runtime owner contract")
+
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        self._raise_preview_runtime_contract_error("preview_search")
+
+    async def preview_fetch_episodes(self, book):
+        self._raise_preview_runtime_contract_error("preview_fetch_episodes")
+
+    async def preview_fetch_pages(self, episode):
+        self._raise_preview_runtime_contract_error("preview_fetch_pages")
+
     def parse_search(self, resp_text):
         """parse search_page
         由于 domain 关系，需要带状态
@@ -174,21 +258,21 @@ class Req:
         browser_image_accept = "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"
 
         def _require_preview_client() -> httpx.AsyncClient:
-            preview_client = getattr(self, "preview_client", None)
-            if preview_client is None:
-                raise RuntimeError(f"{type(self).__name__} cover preload requires requester preview_client")
-            return preview_client
+            return self.ensure_preview_client()
+        def _require_cover_request_owner():
+            owner = getattr(self, "owner", None)
+            if owner is None:
+                raise RuntimeError(f"{type(self).__name__} cover preload requires provider owner")
+            return owner
+        def _normalize_cover_headers(headers: httpx.Headers) -> dict[str, str]:
+            normalized = dict(headers.items())
+            return {k: v for k, v in normalized.items() if k.casefold() != "host"}
+        def _cover_request_referer(tasks_obj) -> str | None:
+            return Previewer.build_referer_url(
+                getattr(tasks_obj, "title_url", None),
+                request_url=getattr(tasks_obj, "cover_url", None),
+            )
         def build_cover_headers() -> httpx.Headers:
-            def _require_cover_request_owner():
-                owner = getattr(self, "owner", None)
-                if owner is None:
-                    raise RuntimeError(f"{type(self).__name__} cover preload requires provider owner")
-                return owner
-            def cover_request_referer(tasks_obj) -> str | None:
-                return Previewer.build_referer_url(
-                    getattr(tasks_obj, "title_url", None),
-                    request_url=getattr(tasks_obj, "cover_url", None),
-                )
             preview_client = _require_preview_client()
             owner = _require_cover_request_owner()
             preview_client_config = getattr(type(owner), "preview_client_config", None)
@@ -202,17 +286,42 @@ class Req:
             headers.update(dict(browser_headers or {}))
             if "accept" not in headers or "image/" not in headers.get("accept", ""):
                 headers["Accept"] = browser_image_accept
-            referer_url = cover_request_referer(tasks_obj)
+            referer_url = _cover_request_referer(tasks_obj)
             if referer_url and "referer" not in headers:
                 headers["Referer"] = referer_url
-            return headers  
+            return headers
+        def _cover_request_transport() -> str:
+            return str(getattr(type(_require_cover_request_owner()), "cover_preload_transport", "httpx") or "httpx")
+        def _cover_request_timeout() -> float:
+            return float(getattr(type(_require_cover_request_owner()), "cover_preload_timeout", cover_request_timeout) or cover_request_timeout)
+        def _cover_request_via_curl(headers: dict[str, str], timeout: float) -> bytes:
+            owner_cls = type(_require_cover_request_owner())
+            request_headers = dict(headers)
+            referer = request_headers.pop("Referer", None) or request_headers.pop("referer", None)
+            request_kw = {
+                "headers": request_headers or None, "referer": referer, "timeout": timeout,
+                "verify": dict(owner_cls.preview_transport_config() or {}).get("verify", True),
+            }
+            impersonate = getattr(owner_cls, "cover_preload_impersonate", None)
+            if impersonate:
+                request_kw["impersonate"] = impersonate
+            proxy_policy = getattr(owner_cls, "cover_preload_proxy_policy", getattr(owner_cls, "proxy_policy", "proxy"))
+            proxies = list(getattr(getattr(self, "site_config", None), "transport", PreviewTransportConfig()).proxies or ())
+            if proxy_policy == "proxy":
+                if not proxies:
+                    raise RuntimeError(f"{owner_cls.__name__} cover preload requires proxies when proxy mode is enabled")
+                request_kw["proxy"] = f"http://{proxies[0]}"
+            resp = curl_requests.get(tasks_obj.cover_url, allow_redirects=True, **request_kw)
+            resp.raise_for_status()
+            return resp.content
+
+        cover_headers = build_cover_headers()
+        normalized_headers = _normalize_cover_headers(cover_headers)
+        timeout = _cover_request_timeout()
+        if _cover_request_transport() == "curl_cffi":
+            return await asyncio.to_thread(_cover_request_via_curl, normalized_headers, timeout)
         preview_client = _require_preview_client()
-        resp = await preview_client.get(
-            tasks_obj.cover_url,
-            headers=build_cover_headers(),
-            follow_redirects=True,
-            timeout=cover_request_timeout,
-        )
+        resp = await preview_client.get(tasks_obj.cover_url, headers=normalized_headers, follow_redirects=True, timeout=timeout)
         resp.raise_for_status()
         return resp.content
 
@@ -242,7 +351,13 @@ class PreviewRequestSpec:
 
 class Previewer:
     """Preview 能力 Mixin - 需要支持 normal preview 的站点继承此类"""
-    cover_preload_via_http = True
+    # cover_preload_via_http = False
+    browser_referer_mode: str | None = None
+    browser_cookie_set_enabled = False
+    cover_preload_transport: str = "httpx"
+    cover_preload_timeout: float = 15.0
+    cover_preload_proxy_policy: str | None = None
+    cover_preload_impersonate: str | None = None
 
     @classmethod
     def preview_client_config(cls, **context) -> dict:
@@ -252,16 +367,45 @@ class Previewer:
     def preview_transport_config(cls) -> dict:
         return {}
 
-    @staticmethod
-    def pop_site_kwargs(kw: dict[str, t.Any]) -> dict[str, t.Any]:
-        # Legacy preview classmethod flows may still receive site-scoped runtime state.
-        # Strip those fields before forwarding raw kwargs into the httpx client call.
-        return {
-            "cookies": kw.pop("cookies", None),
-            "domain": kw.pop("domain", None),
-            "custom_map": kw.pop("custom_map", None),
-            "transport": kw.pop("transport", None),
-        }
+    @classmethod
+    def build_browser_referer_url(cls, *, domain: str | None = None) -> str | None:
+        mode = getattr(cls, "browser_referer_mode", None)
+        if not mode:
+            return None
+        if mode == "domain_origin":
+            origin = cls.preview_origin(domain)
+            if origin is None:
+                raise ValueError(f"{cls.__name__} browser referer requires domain")
+            return origin
+        if mode == "domain_origin_slash":
+            origin = cls.preview_origin(domain)
+            if origin is None:
+                raise ValueError(f"{cls.__name__} browser referer requires domain")
+            return f"{origin}/"
+        if mode == "provider_index":
+            referer_url = str(getattr(cls, "index", "") or "").strip()
+            if not referer_url:
+                raise ValueError(f"{cls.__name__} browser referer requires provider index")
+            return referer_url
+        raise ValueError(f"{cls.__name__} unsupported browser referer mode: {mode!r}")
+
+    @classmethod
+    def build_browser_cookie_sets(
+        cls,
+        *,
+        cookies: dict[str, str],
+        domain: str | None = None,
+        referer_url: str | None = None,
+    ) -> tuple[BrowserCookiePayload, ...]:
+        if not getattr(cls, "browser_cookie_set_enabled", False) or not cookies:
+            return ()
+        normalized_domain = str(domain or "").strip()
+        if not normalized_domain:
+            raise ValueError(f"{cls.__name__} browser cookie set requires domain")
+        normalized_referer = str(referer_url or "").strip()
+        if not normalized_referer:
+            raise ValueError(f"{cls.__name__} browser cookie set requires referer_url")
+        return (BrowserCookiePayload(values=cookies, domain=normalized_domain, url=normalized_referer),)
 
     @staticmethod
     def preview_origin(domain: str | None) -> str | None:
@@ -385,9 +529,8 @@ class Previewer:
         )
 
     @classmethod
-    async def perform_preview_request(cls, client, spec: PreviewRequestSpec, **kw):
-        request_kw = dict(kw)
-        cls.pop_site_kwargs(request_kw)
+    async def perform_preview_request(cls, client, spec: PreviewRequestSpec):
+        request_kw = {}
         if spec.headers:
             request_kw["headers"] = spec.headers
         if spec.data is not None:
@@ -396,17 +539,6 @@ class Previewer:
         resp.raise_for_status()
         return resp
 
-    @classmethod
-    async def preview_search(cls, keyword: str, client, **kw) -> list:
-        raise NotImplementedError(f"{cls.__name__}.preview_search")
-
-    @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw) -> list:
-        ...
-
-    @classmethod
-    async def preview_fetch_pages(cls, episode, client, **kw) -> list:
-        raise NotImplementedError(f"{cls.__name__}.preview_fetch_pages")
 
 class EroUtils(Utils):
     uuid_regex = None
@@ -431,6 +563,7 @@ class DomainUtils(Utils):
     status_forever = True
     status_publish = True
     publish_headers = {}
+    EXPIRE = 168
 
     @classmethod
     async def by_forever(cls):
@@ -466,6 +599,16 @@ class DomainUtils(Utils):
             )
 
     @classmethod
+    def peek_cached_domain(cls):
+        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
+        cached = cls.cachef.run(lambda: None, cls.EXPIRE)
+        if isinstance(cached, str):
+            cached = cached.strip()
+            if cached:
+                return cached
+        return None
+
+    @classmethod
     def get_domain(cls):
         def _():
             try:
@@ -475,39 +618,19 @@ class DomainUtils(Utils):
                     return executor.submit(cls._get_domain_thread).result()
             except RuntimeError:
                 return cls._get_domain_thread()
-                
-        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
-        return cls.cachef.run(_, 168, write_in=True)
 
-    @classmethod
-    def _fallback_domain(cls):
-        if getattr(cls, "domain", None):
-            return cls.domain
-        for attr in ("book_id_url", "search_url_head", "publish_url", "forever_url"):
-            raw = getattr(cls, attr, "") or ""
-            matched = re.search(r"https?://([^/]+)", raw)
-            if matched:
-                return matched.group(1)
-        return None
+        cached = cls.peek_cached_domain()
+        if cached:
+            return cached
+        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
+        return cls.cachef.run(_, cls.EXPIRE, write_in=True)
 
     @classmethod
     def _get_domain_thread(cls):
         loop = get_loop()
-        fallback_domain = cls._fallback_domain()
         try:
-            try:
-                domain = (
-                    loop.run_until_complete(cls.by_publish())
-                    or loop.run_until_complete(cls.by_forever())
-                    or fallback_domain
-                )
-            except Exception:
-                if fallback_domain:
-                    return fallback_domain
-                raise
-            if not domain and fallback_domain:
-                return fallback_domain
-            if not cls.status_forever and not cls.status_publish and not fallback_domain:
+            domain = loop.run_until_complete(cls.by_publish()) or loop.run_until_complete(cls.by_forever())
+            if not domain and not cls.status_forever and not cls.status_publish:
                 raise ConnectionError(f"无法获取 {cls.name} domain，方法均失效了，需要查看")
             return domain
         finally:
@@ -536,14 +659,3 @@ class DomainUtils(Utils):
     @classmethod
     async def parse_publish_(cls, html_text):
         ...
-
-
-def retry(func, retry_limit, *args, retry_times=0, raise_error=False, **kwargs):
-    try:
-        return func(*args, **kwargs)
-    except Exception as e:
-        retry_times += 1
-        if retry_times <= retry_limit:
-            return retry(func, retry_limit, *args, retry_times=retry_times, raise_error=raise_error, **kwargs)
-        if raise_error:
-            raise e

@@ -250,11 +250,7 @@ class DanbooruTabWidget(QFrame):
         )
         clear_previous_pages_action.setEnabled(self.state.has_pages_before_current())
         selection_count = self.selection_controller.selection_count()
-        clear_action = Action(
-            FIF.CANCEL,
-            text=f"清空选择 ({selection_count})" if selection_count else "清空选择",
-            triggered=self.selection_controller.clear,
-        )
+        clear_action = Action(FIF.CANCEL,text="清空选择",triggered=self.selection_controller.clear)
         clear_action.setEnabled(selection_count > 0)
         menu.addAction(clear_previous_pages_action)
         menu.addAction(clear_action)

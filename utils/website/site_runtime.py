@@ -9,6 +9,7 @@ import httpx
 
 from utils import conf, temp_p
 
+from .core import DomainUtils
 from .preprocess import run_site_preprocess
 from .runtime_context import PreviewRuntimeContext, PreviewSiteConfig
 from .contracts import BrowserEnvironmentPayload, PreprocessResult
@@ -260,8 +261,13 @@ class GuiSiteRuntime:
     def name(self) -> str:
         return self.provider_descriptor.provider_name
 
+    def _uses_dynamic_domain(self) -> bool:
+        return issubclass(self.provider_cls, DomainUtils)
+
     def _cached_domain(self) -> str | None:
-        return self._peek_cached_domain_for(self.provider_descriptor)
+        if not self._uses_dynamic_domain():
+            return None
+        return _normalize_domain_value(self.provider_cls.peek_cached_domain())
 
     def _static_domain(self) -> str | None:
         return _normalize_domain_value(getattr(self.provider_cls, "domain", None))
@@ -269,7 +275,7 @@ class GuiSiteRuntime:
     def _resolved_gui_domain(self) -> str | None:
         return _pick_bound_domain(self.runtime_context.site_domain(self.name), self._cached_domain(), self._static_domain())
 
-    def _require_gui_domain(self) -> str:
+    def _require_bound_gui_domain(self) -> str:
         domain = self._resolved_gui_domain()
         if domain is None:
             raise RuntimeError(
@@ -278,7 +284,12 @@ class GuiSiteRuntime:
             )
         return domain
 
-    get_domain = _require_gui_domain
+    def get_domain(self) -> str | None:
+        if domain := _normalize_domain_value(self.runtime_context.site_domain(self.name)):
+            return domain
+        if self._uses_dynamic_domain():
+            return _normalize_domain_value(self.provider_cls.get_domain())
+        return self._static_domain()
 
     def domain_cache_path(self):
         return temp_p.joinpath(f"{self.name}_domain.txt")
@@ -286,10 +297,23 @@ class GuiSiteRuntime:
     def build_site_config(self) -> PreviewSiteConfig:
         return PreviewSiteConfig(
             cookies=self.runtime_context.site_cookies(self.name),
-            domain=self._require_gui_domain(),
+            domain=self._require_bound_gui_domain(),
             custom_map=copy.deepcopy(self.runtime_context.custom_map),
             transport=self.runtime_context.transport,
         )
+
+    def build_cover_headers(self, tasks_obj) -> dict[str, str]:
+        site_config = self.build_site_config()
+        client_config = dict(self.provider_cls.preview_client_config(**site_config.as_provider_kwargs()) or {})
+        headers = dict(client_config.get("headers", {}) or {})
+        referer = self.provider_cls.build_referer_url(
+            getattr(tasks_obj, "title_url", None),
+            request_url=getattr(tasks_obj, "cover_url", None),
+        )
+        if referer:
+            headers = {k: v for k, v in headers.items() if k.casefold() != "referer"}
+            headers["Referer"] = referer
+        return headers
 
     def create_thread_site_runtime(self, *, preview_client: httpx.AsyncClient | None = None) -> ThreadSiteRuntime:
         return ThreadSiteRuntime(
@@ -325,7 +349,7 @@ class GuiSiteRuntime:
 
     def preprocess(self, *, conf_state=conf, data_client=None, progress_callback=None) -> PreprocessResult:
         return run_site_preprocess(
-            self.site_index, runtime_owner=self, conf_state=conf_state, data_client=data_client, progress_callback=progress_callback
+            self.site_index, gui_site_runtime=self, conf_state=conf_state, data_client=data_client, progress_callback=progress_callback
         )
 
     def build_browser_environment(self, *, lang: str, cn_proxy_indexes: t.Container[int]) -> BrowserEnvironmentPayload:
@@ -350,13 +374,17 @@ class GuiSiteRuntime:
             domain = _require_browser_domain()
         referer_url = self.provider_cls.build_browser_referer_url(domain=domain)
         cookie_sets = self.provider_cls.build_browser_cookie_sets(cookies=site_config.cookies, domain=domain, referer_url=referer_url)
-        return BrowserEnvironmentPayload(proxy=proxy, referer_url=referer_url, cookie_sets=cookie_sets)
+        return BrowserEnvironmentPayload(
+            proxy=proxy, doh_url=site_config.transport.doh_url, referer_url=referer_url, cookie_sets=cookie_sets,
+        )
 
     def peek_cached_domain(self) -> str | None:
         return self._cached_domain()
 
     @staticmethod
     def _peek_cached_domain_for(provider_descriptor: ProviderDescriptor) -> str | None:
+        if not issubclass(provider_descriptor.provider_cls, DomainUtils):
+            return None
         cache_path = temp_p.joinpath(f"{provider_descriptor.provider_name}_domain.txt")
         if cache_path.exists():
             cached_text = cache_path.read_text(encoding="utf-8").strip()

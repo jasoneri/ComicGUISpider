@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch, shallowRef, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   createEmptyMonitorBoardRuntimeData,
   emptyMonitorBoardLiveStatus,
@@ -624,10 +624,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (chartRafId !== null) {
-    cancelAnimationFrame(chartRafId)
-    chartRafId = null
-  }
   clearToast()
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   document.removeEventListener('keydown', handleDocumentKeydown)
@@ -645,43 +641,32 @@ type MonitorBoardCardWithChart = {
   segments: MonitorBoardSegment[]
 } & typeof monitorBoardSites[number]
 
-const cardsWithCharts = shallowRef<MonitorBoardCardWithChart[]>([])
+const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
+  const statusMap = runtimeData.value.statusMap
+  const displayStage = displayStageMap.value
+  const pendingStage = pendingStageMap.value
 
-let chartRafId: number | null = null
+  return monitorBoardSites.map((site) => {
+    const liveStatus: MonitorBoardLiveStatus = statusMap[site.id] ?? emptyMonitorBoardLiveStatus
+    const stagedVote = displayStage[site.id]
+    const pendingVote = pendingStage[site.id]
+    const effectiveVotes: MonitorBoardVotes = {
+      up: liveStatus.votes.up,
+      neutral: liveStatus.votes.neutral,
+      down: liveStatus.votes.down,
+    }
 
-watchEffect(() => {
-  const _statusMap = runtimeData.value.statusMap
-  const _displayStage = displayStageMap.value
-  const _pendingStage = pendingStageMap.value
+    if (pendingVote) {
+      effectiveVotes[pendingVote.action] += 1
+    }
 
-  if (chartRafId !== null) {
-    cancelAnimationFrame(chartRafId)
-  }
-
-  chartRafId = requestAnimationFrame(() => {
-    chartRafId = null
-    cardsWithCharts.value = monitorBoardSites.map((site) => {
-      const liveStatus: MonitorBoardLiveStatus = _statusMap[site.id] ?? emptyMonitorBoardLiveStatus
-      const displayStage = _displayStage[site.id]
-      const pendingStage = _pendingStage[site.id]
-      const effectiveVotes: MonitorBoardVotes = {
-        up: liveStatus.votes.up,
-        neutral: liveStatus.votes.neutral,
-        down: liveStatus.votes.down,
-      }
-
-      if (pendingStage) {
-        effectiveVotes[pendingStage.action] += 1
-      }
-
-      return {
-        ...site,
-        chartLines: buildChartLines(liveStatus.uptimes),
-        isCompleted: displayStage != null,
-        completedBorderColor: displayStage ? monitorVoteMetaMap[displayStage.action].color : 'transparent',
-        segments: buildVoteSegments(effectiveVotes),
-      }
-    })
+    return {
+      ...site,
+      chartLines: buildChartLines(liveStatus.uptimes),
+      isCompleted: stagedVote != null,
+      completedBorderColor: stagedVote ? monitorVoteMetaMap[stagedVote.action].color : 'transparent',
+      segments: buildVoteSegments(effectiveVotes),
+    }
   })
 })
 

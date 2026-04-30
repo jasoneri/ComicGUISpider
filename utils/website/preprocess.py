@@ -16,57 +16,47 @@ from variables import CGS_DOC, Spider
 from .contracts import PreprocessResult
 from .core import Cache
 
-
-class SitePreprocessRuntime(t.Protocol):
-    reqer: t.Any
-
-
-class SitePreprocessRuntimeOwner(t.Protocol):
-    name: str
-    provider_cls: t.Any
-
-    def get_domain(self): ...
-    def peek_cached_domain(self) -> str | None: ...
-    def create_thread_site_runtime(self) -> SitePreprocessRuntime: ...
+if t.TYPE_CHECKING:
+    from .site_runtime import GuiSiteRuntime
 
 
 def run_site_preprocess(
     site_key: int,
     *,
-    runtime_owner: "SitePreprocessRuntimeOwner | None" = None,
+    gui_site_runtime: "GuiSiteRuntime | None" = None,
     conf_state=conf,
     data_client: httpx.Client | None = None,
     progress_callback=None,
 ) -> PreprocessResult:
     if site_key == Spider.MANGA_COPY:
-        return _preprocess_manga_copy(_require_runtime_owner(site_key, runtime_owner), conf_state=conf_state)
+        return _preprocess_manga_copy(_require_gui_site_runtime(site_key, gui_site_runtime), conf_state=conf_state)
     if site_key == Spider.JM:
-        return _preprocess_jm_like(_require_runtime_owner(site_key, runtime_owner))
+        return _preprocess_jm_like(_require_gui_site_runtime(site_key, gui_site_runtime))
     if site_key == Spider.WNACG:
-        return _preprocess_wnacg(_require_runtime_owner(site_key, runtime_owner), conf_state=conf_state)
+        return _preprocess_wnacg(_require_gui_site_runtime(site_key, gui_site_runtime), conf_state=conf_state)
     if site_key == Spider.EHENTAI:
-        return _preprocess_ehentai(_require_runtime_owner(site_key, runtime_owner), conf_state=conf_state)
+        return _preprocess_ehentai(_require_gui_site_runtime(site_key, gui_site_runtime), conf_state=conf_state)
     if site_key == Spider.HITOMI:
         return _preprocess_hitomi(
-            _require_runtime_owner(site_key, runtime_owner),
+            _require_gui_site_runtime(site_key, gui_site_runtime),
             conf_state=conf_state,
             data_client=_ensure_data_client(data_client),
             progress_callback=progress_callback,
         )
     if site_key == 7:
         return _preprocess_script(data_client=_ensure_data_client(data_client), progress_callback=progress_callback)
-    if runtime_owner is not None:
+    if gui_site_runtime is not None:
         raise RuntimeError(
-            f"preprocess site {site_key!r} requires an explicit runtime-owner flow "
+            f"preprocess site {site_key!r} requires an explicit gui_site_runtime flow "
             "and does not support legacy supports_test_index probing"
         )
     return PreprocessResult()
 
 
-def _require_runtime_owner(site_key: int, runtime_owner: "SitePreprocessRuntimeOwner | None") -> "SitePreprocessRuntimeOwner":
-    if runtime_owner is None:
-        raise ValueError(f"site {site_key!r} preprocess requires a runtime owner")
-    return runtime_owner
+def _require_gui_site_runtime(site_key: int, gui_site_runtime: "GuiSiteRuntime | None") -> "GuiSiteRuntime":
+    if gui_site_runtime is None:
+        raise ValueError(f"site {site_key!r} preprocess requires gui_site_runtime")
+    return gui_site_runtime
 
 
 def _ensure_data_client(data_client: httpx.Client | None) -> httpx.Client:
@@ -83,18 +73,14 @@ def _action(action_type: str, **kwargs) -> dict[str, t.Any]:
     return {"type": action_type, **kwargs}
 
 
-def _provider_attr(runtime_owner: "SitePreprocessRuntimeOwner", attr_name: str, default=None):
-    return getattr(runtime_owner.provider_cls, attr_name, default)
-
-
-def _preprocess_manga_copy(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state=conf) -> PreprocessResult:
-    runtime = runtime_owner.create_thread_site_runtime()
+def _preprocess_manga_copy(gui_site_runtime: "GuiSiteRuntime", *, conf_state=conf) -> PreprocessResult:
+    runtime = gui_site_runtime.create_thread_site_runtime()
     reqer = runtime.reqer
     try:
         reqer.get_aes_key()
         cache_hit = reqer.aes_cache_hit()
     finally:
-        reqer.cli.close()
+        runtime.close()
     message = (
         "<br>➖ 缓存处于有效期内，跳过测试"
         if cache_hit
@@ -103,9 +89,9 @@ def _preprocess_manga_copy(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_
     return PreprocessResult(ready=True, runtime_ready=True, messages=(_message("success", message),), state_flags={"cache_hit": cache_hit})
 
 
-def _preprocess_jm_like(runtime_owner: "SitePreprocessRuntimeOwner") -> PreprocessResult:
+def _preprocess_jm_like(gui_site_runtime: "GuiSiteRuntime") -> PreprocessResult:
     try:
-        domain = runtime_owner.get_domain()
+        domain = gui_site_runtime.get_domain()
     except (httpx.HTTPError, RuntimeError, ValueError) as exc:
         return PreprocessResult(
             ready=False,
@@ -124,9 +110,9 @@ def _preprocess_jm_like(runtime_owner: "SitePreprocessRuntimeOwner") -> Preproce
     )
 
 
-def _preprocess_wnacg(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state=conf) -> PreprocessResult:
+def _preprocess_wnacg(gui_site_runtime: "GuiSiteRuntime", *, conf_state=conf) -> PreprocessResult:
     if conf_state.proxies:
-        domain = runtime_owner.peek_cached_domain() or _provider_attr(runtime_owner, "domain")
+        domain = gui_site_runtime.peek_cached_domain() or gui_site_runtime.provider_cls.domain
         return PreprocessResult(
             ready=True,
             domain=domain,
@@ -134,11 +120,10 @@ def _preprocess_wnacg(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state
             messages=(_message("info", "🔔 已设置代理，跳过域名缓存处理"),),
             state_flags={"proxy_configured": True, "domain_ready": True},
         )
-    return _preprocess_jm_like(runtime_owner)
+    return _preprocess_jm_like(gui_site_runtime)
 
 
-def _preprocess_ehentai(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_state=conf) -> PreprocessResult:
-    runtime = runtime_owner.create_thread_site_runtime()
+def _preprocess_ehentai(gui_site_runtime: "GuiSiteRuntime", *, conf_state=conf) -> PreprocessResult:
     cookies_ready = bool(conf_state.cookies.get("ehentai"))
     if not cookies_ready:
         return PreprocessResult(
@@ -148,14 +133,16 @@ def _preprocess_ehentai(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_sta
             state_flags={"cookies_ready": False, "access_ready": False},
         )
 
+    runtime = gui_site_runtime.create_thread_site_runtime()
     access_ready = bool(runtime.reqer.test_index())
-    provider_index = _provider_attr(runtime_owner, "index")
-    provider_domain = _provider_attr(runtime_owner, "domain")
+    provider_index = gui_site_runtime.provider_cls.index
+    provider_domain = gui_site_runtime.provider_cls.domain
     if not access_ready:
+        runtime.close()
         return PreprocessResult(
             ready=False,
             block_search=True,
-            messages=(_message("error", res.EHentai.ACCESS_FAIL, channel="custom", url=provider_index, url_name=runtime_owner.name),),
+            messages=(_message("error", res.EHentai.ACCESS_FAIL, channel="custom", url=provider_index, url_name=gui_site_runtime.name),),
             state_flags={"cookies_ready": True, "access_ready": False},
         )
 
@@ -169,15 +156,18 @@ def _preprocess_ehentai(runtime_owner: "SitePreprocessRuntimeOwner", *, conf_sta
     )
 
 def _preprocess_hitomi(
-    runtime_owner: "SitePreprocessRuntimeOwner",
+    gui_site_runtime: "GuiSiteRuntime",
     *,
     conf_state=conf,
     data_client: httpx.Client,
     progress_callback=None,
 ) -> PreprocessResult:
-    runtime = runtime_owner.create_thread_site_runtime()
-    access_ready = bool(runtime.reqer.test_index())
-    provider_index = _provider_attr(runtime_owner, "index")
+    runtime = gui_site_runtime.create_thread_site_runtime()
+    try:
+        access_ready = bool(runtime.reqer.test_index())
+    finally:
+        runtime.close()
+    provider_index = gui_site_runtime.provider_cls.index
     messages: list[dict[str, t.Any]] = []
     actions: list[dict[str, t.Any]] = []
     state_flags: dict[str, t.Any] = {"access_ready": access_ready}
@@ -191,7 +181,7 @@ def _preprocess_hitomi(
             channel="custom",
             text_key="ACCESS_FAIL",
             url=provider_index,
-            url_name=runtime_owner.name,
+            url_name=gui_site_runtime.name,
         )
         messages.append(access_fail_message)
 

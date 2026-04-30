@@ -39,7 +39,6 @@ from assets import res
 from utils import conf, p, curr_os, select, bs_theme
 from utils.processed_class import TmpFormatHtml
 from utils.redViewer_tools import Handler as rVtools
-from utils.website import WnacgUtils
 from utils.website.registry import create_gui_site_runtime
 _UNSET = object()
 
@@ -58,10 +57,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
     setup_finished = Signal()
     exception_feedback_requested = Signal(str, str)
-    BrowserWindow: BrowserWindowCls = None
+    BrowserWindow: BrowserWindowCls = None  # CG001 browser init/show flow
     toolWin = None
     web_is_r18 = False
-    gui_site_runtime = None
+    gui_site_runtime = None  # CG001 choose-box site flow
     sut = None
     bsm: dict = None  # books show max
     flow_stage: GUIFlowStage = GUIFlowStage.IDLE
@@ -211,9 +210,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageFrame.setStyleSheet(f"QToolButton {{ background-color: {color}; }}")
 
     def _create_gui_site_runtime(self, site_index: int):
-        if site_index not in SPIDERS:
-            raise ValueError(f"unsupported gui_site_runtime site index: {site_index!r}")
-        return create_gui_site_runtime(site_index, conf_state=conf, default_doh_url=cgs_cfg.get_doh_url())
+        if site_index in SPIDERS:
+            return create_gui_site_runtime(site_index, conf_state=conf, default_doh_url=cgs_cfg.get_doh_url())
 
     def _destroy_browser_window(self):
         browser = self.BrowserWindow
@@ -226,7 +224,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def _chooseBox_changed_handle(self, index):
         if index <= 0:
-            self.gui_site_runtime = None
             self.search_ui_state = SearchUiState()
             self.web_is_r18 = False
             self.flow_stage = GUIFlowStage.IDLE
@@ -234,7 +231,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.refresh_lifecycle_state()
             return
 
-        self.gui_site_runtime = self._create_gui_site_runtime(index) if index in SPIDERS else None
+        self.gui_site_runtime = self._create_gui_site_runtime(index)
         self.search_ui_state = SearchUiState()
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
@@ -243,7 +240,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sut = None
         if index in (2,3) and not conf.proxies:
             self.domainBtn.setVisible(True)
-        if self.web_is_r18 and self.gui_site_runtime is not None:
+        if self.web_is_r18:
             self.rv_tools.ero = 1
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
         FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
@@ -256,7 +253,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.sv_path = conf.sv_path
         self.set_completer()
         self.flow_stage = GUIFlowStage.IDLE
-        self.preview_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
+        preview_runtime = self.gui_site_runtime
+        if self.gui_site_runtime is not None:
+            preview_domain = (
+                self.gui_site_runtime.runtime_context.site_domain(self.gui_site_runtime.name)
+                or self.gui_site_runtime.peek_cached_domain()
+                or getattr(self.gui_site_runtime.provider_cls, "domain", None)
+            )
+            if not preview_domain:
+                preview_runtime = None
+        self.preview_mgr.handle_choosebox_changed(index, preview_runtime)  # 
         self.preprocess_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
         self.refresh_lifecycle_state()
 
@@ -603,10 +609,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         cached = gui_site_runtime.peek_cached_domain() or ""
         publish_url = getattr(gui_site_runtime.provider_cls, "publish_url", "")
         self.tf = TmpFormatHtml.created_temp_html("publish",
-            bs_theme=bs_theme(), publish_url=publish_url,
-            wnacg_publish=WnacgUtils.publish_domain, __cached_domain__=cached
+            bs_theme=bs_theme(), publish_url=publish_url, __cached_domain__=cached
         )
-        self.set_preview()
+        self.set_preview(skip_env_mode=not bool(gui_site_runtime.peek_cached_domain() or getattr(gui_site_runtime.provider_cls, "domain", None)))
         self.publish_mgr.setup_channel(self.BrowserWindow.view.page())
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
         o_h = self.BrowserWindow.height()

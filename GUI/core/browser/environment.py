@@ -18,6 +18,7 @@ def build_browser_environment(browser) -> BrowserEnvironmentConfig:
 
     return BrowserEnvironmentConfig(
         proxy=env.proxy,
+        doh_url=env.doh_url,
         referer_url=env.referer_url,
         cookie_sets=tuple(
             BrowserCookieSet(values=item.values, domain=item.domain, url=item.url)

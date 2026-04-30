@@ -16,8 +16,6 @@ from utils.website.info import WnacgBookInfo
 
 class _WnacgContract:
     name = "wnacg"
-    cover_preload_via_http = False
-    browser_referer_mode = "domain_origin"
     publish_domain = "wnacg01.link"
     publish_domain_old = ["wnacg.date", "wn01.link"]
     publish_url = f"https://{publish_domain}"
@@ -71,10 +69,19 @@ class _WnacgContract:
     book_id_url = "https://www.wnacg02.cc/photos-index-aid-%s.html"
     book_url_regex = r"^https://(www\.)?wn.*?/photos-index-aid-\d+\.html$"
 
+    # cover_preload_via_http = False
+    browser_referer_mode = "domain_origin"
+    cover_preload_transport = "curl_cffi"
+    cover_preload_proxy_policy = "direct"
+    cover_preload_impersonate = "chrome124"
+
     @dataclass
-    class SConf:
-        num_of_row = 4
-        
+    class Policy:
+        browser_referer_mode = "domain_origin"
+        cover_preload_transport = "curl_cffi"
+        cover_preload_proxy_policy = "direct"
+        cover_preload_impersonate = "chrome124"
+
 
 class WnacgParser(_WnacgContract, Previewer):
     @classmethod

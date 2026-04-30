@@ -6,7 +6,6 @@ import re
 from urllib.parse import urlencode
 
 import httpx
-from retry import retry
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -275,22 +274,24 @@ class KaobeiReqer(_KaobeiContract, Req):
         return payload
 
     async def _preview_get(self, url: str, *, stage: str, headers: dict | None = None, **kwargs):
-        async def fetch_once():
-            resp = await self._active_preview_client().get(url, headers=headers, **kwargs)
-            resp.raise_for_status()
-            if str(resp.text or "").strip().casefold() == "error":
-                snippet = " ".join((resp.text or "").split())[:160] if resp.text else "<empty>"
-                raise ValueError(
-                    f"kaobei {stage} expected content instead of error body: "
-                    f"status={getattr(resp, 'status_code', '?')} url={url} body={snippet}"
-                )
-            return resp
-
-        @retry(tries=self.preview_transport_retries + 1, delay=0.4, backoff=1, logger=None)
-        def fetch_with_retry():
-            return asyncio.run(fetch_once())
-
-        return await asyncio.to_thread(fetch_with_retry)
+        last_exc = None
+        for attempt in range(self.preview_transport_retries + 1):
+            try:
+                resp = await self._active_preview_client().get(url, headers=headers, **kwargs)
+                resp.raise_for_status()
+                if str(resp.text or "").strip().casefold() == "error":
+                    snippet = " ".join((resp.text or "").split())[:160] if resp.text else "<empty>"
+                    raise ValueError(
+                        f"kaobei {stage} expected content instead of error body: "
+                        f"status={getattr(resp, 'status_code', '?')} url={url} body={snippet}"
+                    )
+                return resp
+            except (httpx.HTTPError, ValueError) as exc:
+                last_exc = exc
+                if attempt >= self.preview_transport_retries:
+                    raise
+                await asyncio.sleep(0.4)
+        raise RuntimeError(f"kaobei {stage} preview request exhausted retries without result: url={url}") from last_exc
 
     async def _fetch_aes_key(self) -> str:
         resp = await self._preview_get(
@@ -334,18 +335,29 @@ class KaobeiReqer(_KaobeiContract, Req):
 
     async def preview_fetch_episodes(self, book, *, show_dhb=None):
         self._active_preview_client()
-        await self.ensure_preview_aes_key()
         path_word = book.url.rstrip("/").split("/")[-2]
         headers = {**self.ua, "Referer": f"https://{self.pc_domain}/comic/{path_word}"}
-        resp = await self._preview_get(book.url, headers=headers, stage="preview_fetch_episodes", follow_redirects=True, timeout=12)
-        payload = self._parse_preview_json(resp, stage="preview_fetch_episodes", request_url=book.url)
-        return await asyncio.to_thread(
-            self.parser.parse_episodes,
-            payload["results"],
-            book,
-            url=book.url,
-            show_dhb=conf.kbShowDhb if show_dhb is None else show_dhb,
-        )
+        parser_show_dhb = conf.kbShowDhb if show_dhb is None else show_dhb
+        last_exc = None
+        for attempt in range(self.preview_transport_retries + 1):
+            await self.ensure_preview_aes_key()
+            resp = await self._preview_get(book.url, headers=headers, stage="preview_fetch_episodes", follow_redirects=True, timeout=12)
+            payload = self._parse_preview_json(resp, stage="preview_fetch_episodes", request_url=book.url)
+            try:
+                return await asyncio.to_thread(
+                    self.parser.parse_episodes,
+                    payload["results"],
+                    book,
+                    url=book.url,
+                    show_dhb=parser_show_dhb,
+                )
+            except ValueError as exc:
+                last_exc = exc
+                if "kaobei chapters payload returned no chapters" not in str(exc) or attempt >= self.preview_transport_retries:
+                    raise
+                self.clear_aes_key()
+                await asyncio.sleep(0.4)
+        raise RuntimeError(f"kaobei preview_fetch_episodes exhausted retries without chapters: url={book.url}") from last_exc
 
     async def preview_fetch_pages(self, episode) -> list[str]:
         self._active_preview_client()

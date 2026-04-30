@@ -49,6 +49,7 @@ return JSON.stringify({
 
     def __init__(self, browser):
         self._browser = browser
+        self.gui = browser.gui
         self._js_dispatcher = _JsCallDispatcher(browser)
         self._page_ready = False
         self._page_ready_announced = False
@@ -334,42 +335,41 @@ return JSON.stringify({
         )
 
     def _handle_ready_probe_result(self, generation: int, raw_result) -> None:
-        def readiness_payload_is_ready(payload: dict, *, uses_page_scan: bool, result_kind: str) -> bool:
-            if not isinstance(payload, dict) or not payload.get("domReady"):
-                return False
-            if not uses_page_scan:
-                return True
-            if not payload.get("hasPreviewRuntime") or not payload.get("hasPreviewCommandBus"):
-                return False
-            if result_kind == "preview_submit":
-                return bool(payload.get("hasCollectPreviewSubmitPayload"))
-            return bool(payload.get("hasScanChecked"))
-        def _retry_ready_probe(self, generation: int, payload: dict) -> None:
-            elapsed_ms = (time.perf_counter() - (self._ready_probe_started_at or time.perf_counter())) * 1000
-            if elapsed_ms < self._READY_PROBE_TIMEOUT_MS:
-                self._schedule_ready_probe(generation, delay_ms=self._READY_PROBE_INTERVAL_MS)
-                return
-            self.log_js_debug(
-                f"page interactive probe timeout attempts={self._ready_probe_attempts} payload={payload!r}"
-            )
-        def _decode_ready_probe_payload(raw_result) -> dict:
+        if generation != self._ready_generation or self._page_ready:
+            return
+
+        def decode_ready_probe_payload() -> dict:
             if not isinstance(raw_result, str) or not raw_result:
                 return {}
             payload = json.loads(raw_result)
             if isinstance(payload, dict):
                 return payload
             return {}
-        if generation != self._ready_generation or self._page_ready:
-            return
-        payload = _decode_ready_probe_payload(raw_result)
-        if readiness_payload_is_ready(
-            payload, uses_page_scan=self._browser.window_mode.uses_page_scan,
-            result_kind=self._browser.window_mode.ensure_result_kind,
-        ):
+
+        def readiness_payload_is_ready(payload: dict) -> bool:
+            if not isinstance(payload, dict) or not payload.get("domReady"):
+                return False
+            if not self._browser.window_mode.uses_page_scan:
+                return True
+            if not payload.get("hasPreviewRuntime") or not payload.get("hasPreviewCommandBus"):
+                return False
+            if self._browser.window_mode.ensure_result_kind == "preview_submit":
+                return bool(payload.get("hasCollectPreviewSubmitPayload"))
+            return bool(payload.get("hasScanChecked"))
+
+        def retry_ready_probe(payload: dict) -> None:
+            elapsed_ms = (time.perf_counter() - (self._ready_probe_started_at or time.perf_counter())) * 1000
+            if elapsed_ms < self._READY_PROBE_TIMEOUT_MS:
+                self._schedule_ready_probe(generation, delay_ms=self._READY_PROBE_INTERVAL_MS)
+                return
+            self.log_js_debug(f"page interactive probe timeout attempts={self._ready_probe_attempts} payload={payload!r}")
+
+        payload = decode_ready_probe_payload()
+        if readiness_payload_is_ready(payload):
             self._mark_page_ready(reason="dom-interactive")
             self._cancel_ready_probe()
             return
-        _retry_ready_probe(generation, payload)
+        retry_ready_probe(payload)
 
     @staticmethod
     def _run_js_now(page, js_code, callback=None):
@@ -458,8 +458,8 @@ try {{
         return value
 
     def _handle_structured_js_error(self, description: str, error: Exception, raw_result=None):
-        message = f"[browser.js] {description} failed: {error}; raw={raw_result!r}"
-        self._browser.gui.log.error(message)
+        # message = f"[browser.js] {description} failed: {error}; raw={raw_result!r}"
+        self.gui.hook_exception(type(error), error, error.__traceback__)
         append_browser_debug_event(
             "browser.js_error",
             description=description,

@@ -97,7 +97,13 @@ class ClipGUIManager:
         self.gui.set_preview()
         self.gui.BrowserWindow.resize(self.gui.BrowserWindow.width(), 860)
         self.gui.BrowserWindow.show()
-        self.clipTasksThread = ClipTasksThread(self.gui, match_urls)
+        gui_site_runtime = self.gui.gui_site_runtime
+        if gui_site_runtime is None:
+            raise RuntimeError("gui_site_runtime unavailable for clip thread runtime")
+        self.clipTasksThread = ClipTasksThread(
+            self.gui, match_urls,
+            thread_site_runtime=gui_site_runtime.create_thread_site_runtime(),
+        )
         self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
         self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
 

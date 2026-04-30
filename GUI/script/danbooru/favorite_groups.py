@@ -47,10 +47,7 @@ class DefaultTagGroup(TagGroup):
         super().__init__(name="Favorites", tags=list(tags), _display="默认收藏")
 
 
-def build_tag_groups(
-    default_tags: t.Iterable[str],
-    grouped_favorites: t.Iterable[tuple[str, t.Iterable[str]]],
-) -> list[TagGroup]:
+def build_tag_groups(default_tags: t.Iterable[str], grouped_favorites: t.Iterable[tuple[str, t.Iterable[str]]]) -> list[TagGroup]:
     groups: list[TagGroup] = [DefaultTagGroup(default_tags)]
     groups.extend(TagGroup(group_name, list(tags)) for group_name, tags in grouped_favorites)
     return groups

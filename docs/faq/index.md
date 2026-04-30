@@ -1,5 +1,18 @@
 # ❓ 常见问题
 
+::: warning 如果存在下述 或 [issue搜索](https://github.com/jasoneri/ComicGUISpider/issues) 没有覆盖的问题时
+
+::: details 步骤指引
+
+1. 点击配置窗口打开日志目录  
+`<CGS目录|win解压目录/comicguispider\Lib\site-packages>/log/*.log`
+2. 网络问题尝试 切换代理/切换节点/切换doh/[Steamcommunity 302](https://www.dogfight360.com/blog/18682/) 自我解决  
+2.1 (有能力者建议)使用 ai/agent 读日志进行初步分析，或修复
+3. 最后带上 `log` [提issue](
+  https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
+) 或 进群(右上角qq/discord)反馈。  
+:::
+
 ## 1. GUI
 
 ::: warning 鉴于还是有人不看快速上手，再次声明启动出现各种异常的万恶之源！  
@@ -62,11 +75,5 @@ ValueError: 加密信息过短疑似风控变化
 :::
 
 ---
-
-::: warning 如果存在上述 或 [issue搜索](https://github.com/jasoneri/ComicGUISpider/issues) 没有覆盖的问题
-请带上 `log` [提issue](
-  https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
-) 或 进群(右上角qq/discord)反馈。  
-:::
 
 <iframe src="https://discord.com/widget?id=1373740034536112138&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>

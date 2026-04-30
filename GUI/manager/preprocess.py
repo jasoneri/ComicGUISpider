@@ -57,7 +57,7 @@ class PreprocessManager(QObject):
             if index == 7:
                 return run_site_preprocess(
                     index,
-                    runtime_owner=None,
+                    gui_site_runtime=None,
                     conf_state=conf,
                     data_client=data_cli,
                     progress_callback=progress_callback,
@@ -117,35 +117,17 @@ class PreprocessManager(QObject):
             self.gui.say(text, ignore_http=bool(message.get("ignore_http", False)))
             return
         if channel == "infobar":
-            factory = {
-                "success": InfoBar.success,
-                "info": InfoBar.info,
-                "warning": InfoBar.warning,
-                "error": InfoBar.error,
-            }[level]
+            factory = {"success": InfoBar.success, "info": InfoBar.info, "warning": InfoBar.warning, "error": InfoBar.error}[level]
             factory(
                 title=message.get("title", ""),
-                content=text,
-                orient=Qt.Horizontal,
-                isClosable=True,
-                position=message.get("position", InfoBarPosition.BOTTOM),
-                duration=message.get("duration", -1 if level == "error" else 2500),
-                parent=message.get("parent", self.gui.showArea),
+                content=text, orient=Qt.Horizontal, isClosable=True, position=message.get("position", InfoBarPosition.BOTTOM), 
+                duration=message.get("duration", -1 if level == "error" else 2500), parent=message.get("parent", self.gui.showArea),
             )
             return
         if channel == "custom":
             CustomInfoBar.show(
-                title=message.get("title", ""),
-                content=text,
-                parent=message.get("parent", self.gui.showArea),
-                url=message["url"],
-                url_name=message["url_name"],
-                _type={
-                    "success": "SUCCESS",
-                    "info": "INFORMATION",
-                    "warning": "WARNING",
-                    "error": "ERROR",
-                }[level],
+                title=message.get("title", ""), content=text, parent=message.get("parent", self.gui.showArea), url=message["url"], url_name=message["url_name"],
+                _type={"success": "SUCCESS", "info": "INFORMATION", "warning": "WARNING", "error": "ERROR"}[level],
             )
             return
         raise ValueError(f"unsupported preprocess message channel: {channel!r}")
@@ -177,11 +159,18 @@ class PreprocessManager(QObject):
 
     def _try_add_hitomi_tool(self):
         self.gui.toolWin.addHitomiTool()
+        self.gui.htBtn.setVisible(True)
 
     def _add_aggr_search(self):
         if not hasattr(self.gui.toolWin, "asInterface"):
             self.gui.toolWin.addAggrSearchView()
         self.gui.aggrBtn.setVisible(True)
+
+    def sync_gui_site_runtime(self, gui_site_runtime: GuiSiteRuntime | None):
+        proxies = ()
+        if gui_site_runtime is not None:
+            proxies = gui_site_runtime.runtime_context.transport.proxies
+        self._reset_data_cli(list(proxies))
 
     def cleanup(self):
         global data_cli
@@ -199,6 +188,6 @@ class PreprocessManager(QObject):
             return
         self.gui.gui_site_runtime = gui_site_runtime.with_domain(domain)
         if getattr(self.gui, "preview_mgr", None):
-            self.gui.preview_mgr.update_gui_site_runtime(self.gui.gui_site_runtime)
+            self.gui.preview_mgr.replace_gui_site_runtime(self.gui.gui_site_runtime)
         if getattr(self.gui, "BrowserWindow", None):
             self.gui.BrowserWindow.apply_standard_environment()

@@ -391,9 +391,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def latest_image_request(self, *, url: str = "", path_suffix: str = "") -> dict:
         return self.interceptor.latest_image_request(url=url, path_suffix=path_suffix)
 
-    def latest_image_request_headers(self, *, url: str = "", path_suffix: str = "") -> dict[str, str] | None:
-        return self.interceptor.latest_image_request_headers(url=url, path_suffix=path_suffix)
-
     @classmethod
     def check_ehentai(cls, gui):
         if not conf.cookies.get("ehentai"):

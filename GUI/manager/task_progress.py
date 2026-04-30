@@ -16,7 +16,6 @@ from GUI.core.timer import safe_single_shot
 from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
 from utils import conf, TaskObj, TasksObj, curr_os
 from utils.sql import SqlRecorder
-from utils.website.registry import resolve_provider_descriptor_by_site
 
 
 class TaskProgress:
@@ -678,23 +677,14 @@ class TaskProgressManager:
             not tasks_obj.cover_url
             or tasks_obj.cover_bytes
             or entry.cover_path()
+            or entry.taskid in self._cover_preloads_inflight
         ):
             return
-        provider_descriptor = resolve_provider_descriptor_by_site(tasks_obj.source)
-        cover_preload_via_http = bool(getattr(provider_descriptor.provider_cls, "cover_preload_via_http", True))
-        if not cover_preload_via_http:
-            return
         preview_mgr = self.gui.preview_mgr
-        browser_headers = preview_mgr.cover_preload_headers(tasks_obj.cover_url)
-        if bool(getattr(provider_descriptor.provider_cls, "cover_preload_requires_browser_headers", False)) and not browser_headers:
-            return
+        browser_headers = preview_mgr.gui_site_runtime.build_cover_headers(tasks_obj)
         worker = preview_mgr.worker
-        if worker is None or preview_mgr.site_index != provider_descriptor.site_index:
-            return
-        if entry.taskid in self._cover_preloads_inflight:
-            return
         self._cover_preloads_inflight.add(entry.taskid)
-        worker.enqueue_cover(entry.taskid, provider_descriptor.site_index, tasks_obj, browser_headers)
+        worker.enqueue('cover', entry.taskid, tasks_obj, browser_headers)
 
     def init_native_panel(self):
         self._dispose_views()

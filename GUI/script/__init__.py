@@ -480,9 +480,10 @@ class ScriptWindow(ScriptWindowBase):
     def closeEvent(self, event):
         event.accept()
         self.danbooruInterface.image_viewer.hide()
+        self.danbooruInterface.task_mgr.cleanup()
         if self.gui is not None:
             safe_single_shot(10, self.gui.close)
-        
+
 
 if __name__ == '__main__':
     import GUI.src.material_ct

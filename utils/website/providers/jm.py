@@ -23,13 +23,9 @@ from variables import COOKIES_SUPPORT
 
 class _JmContract:
     name = "jm"
-    proxy_policy = "direct"
-    browser_referer_mode = "domain_origin"
-    browser_cookie_set_enabled = True
-    cover_preload_requires_browser_headers = True
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
-    publish_url2 = "https://jm-3x.cc/mJ8rWd"
+    publish_url2 = "https://jmcomicne.net/"
     status_forever = True
     status_publish = True
     cookies_field = COOKIES_SUPPORT[name]
@@ -76,6 +72,14 @@ class _JmContract:
     }
     turn_page_info = (r"page=\d+",)
     book_url_regex = r"^https://.*?(18|jm).*?/album/\d+"
+    
+    proxy_policy = "direct"
+    browser_referer_mode = "domain_origin"
+    browser_cookie_set_enabled = True
+    cover_preload_requires_browser_headers = True
+    cover_preload_transport = "curl_cffi"
+    cover_preload_proxy_policy = "direct"
+    cover_preload_impersonate = "chrome124"
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")
@@ -412,7 +416,7 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
             retries=2,
         )
         async with httpx.AsyncClient(headers=cls.publish_headers, transport=transport, trust_env=trust_env) as sess:
-            resp = await sess.get(cls.publish_url2)
+            resp = await sess.get(cls.publish_url)
             error = None
             while True:
                 try:

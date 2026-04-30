@@ -10,10 +10,11 @@ class AggrSearchThread(QThread):
     total_signal = Signal(object)
     group_signal = Signal(int, list)  # 用于通知完成一组搜索: (group_idx, books_list)
 
-    def __init__(self, gui, tasks):
+    def __init__(self, gui, tasks, *, thread_site_runtime):
         super(AggrSearchThread, self).__init__(gui)
         self.gui = gui
         self.tasks = tasks
+        self.thread_site_runtime = thread_site_runtime
         self.book_idx_counter = 0  # 全局book索引计数器
 
     def run(self):
@@ -23,13 +24,11 @@ class AggrSearchThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        gui_site_runtime = self.gui.gui_site_runtime
-        _runtime = gui_site_runtime.create_thread_site_runtime()
         try:
             total = {}
             async def fetch_single(group_idx, search_keyword: SearchKey):
                 try:
-                    books = await _runtime.preview_search(search_keyword)
+                    books = await self.thread_site_runtime.preview_search(search_keyword)
                     self.msleep(50)
 
                     group_books = {}
@@ -63,7 +62,7 @@ class AggrSearchThread(QThread):
                     total.update(result)
             return total
         finally:
-            await _runtime.aclose()
+            await self.thread_site_runtime.aclose()
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:

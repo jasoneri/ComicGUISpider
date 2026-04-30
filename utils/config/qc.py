@@ -1,4 +1,3 @@
-import json
 import shutil
 
 from qfluentwidgets import QConfig, ConfigItem, RangeConfigItem, RangeValidator, qconfig
@@ -89,7 +88,7 @@ class KemonoConfig(QConfig):
             is_favorited = True
 
         self.favoriteAuthors.value = favorites
-        qconfig.save()
+        self.save()
         return is_favorited
 
     def is_favorited(self, author_id):
@@ -106,74 +105,49 @@ qconfig.load(_qconfig_path("qc_kemono.json"), kemono_cfg)
 
 
 class DanbooruConfig(QConfig):
-    RESERVED_SEARCH_KEYS = frozenset({"History", "Favorites"})
+    DEFAULT_FAVORITE_GROUP = "normal"
+    RESERVED_SEARCH_KEYS = frozenset({"History", "Favorites", DEFAULT_FAVORITE_GROUP})
 
     searchHistory = ConfigItem("Search", "History", [], restart=False)
-    searchFavorites = ConfigItem("Search", "Favorites", [], restart=False)
+    searchFavorites = ConfigItem("Search", "Favorites", {}, restart=False)
     view_ratio = RangeConfigItem("Viewer", "ViewRatio", _default_danbooru_view_ratio(), RangeValidator(30, 75), restart=False)
 
     @staticmethod
     def canonicalize_term(term: str) -> str:
         return " ".join((term or "").split())
 
-    def _load_payload(self):
-        try:
-            with open(self.file, encoding="utf-8") as fp:
-                return json.load(fp)
-        except FileNotFoundError:
-            return {}
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Danbooru 配置文件损坏: {self.file}") from exc
+    def _favorite_groups(self) -> dict[str, list[str]]:
+        if isinstance(self.searchFavorites.value, list):
+            self.searchFavorites.value = {}
+        return self.searchFavorites.value
 
-    def _write_payload(self, payload):
-        payload.update({key: value for key, value in super().toDict().items() if key != "Search"})
-        self.file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.file, "w", encoding="utf-8") as fp:
-            json.dump(payload, fp, ensure_ascii=False, indent=4)
+    def _normalize_tags(self, tags) -> list[str]:
+        return list(dict.fromkeys(normalized for raw_tag in tags if (normalized := self.canonicalize_term(str(raw_tag)))))
 
-    def save(self):
-        payload = self._load_payload()
-        search = payload.get("Search")
-        if not isinstance(search, dict):
-            search = {}
-        search["History"] = self.get_history()
-        search["Favorites"] = sorted(self.get_favorites())
-        payload["Search"] = search
-        self._write_payload(payload)
+    def toDict(self, serialize=True):
+        self._favorite_groups()
+        return super().toDict(serialize=serialize)
 
     def get_grouped_favorites(self) -> list[tuple[str, list[str]]]:
-        search = self._load_payload().get("Search")
-        if not isinstance(search, dict):
-            return []
-        groups: list[tuple[str, list[str]]] = []
-        for raw_name, raw_tags in search.items():
+        groups = []
+        for raw_name, raw_tags in self._favorite_groups().items():
             group_name = self.canonicalize_term(str(raw_name))
-            if not group_name or group_name in self.RESERVED_SEARCH_KEYS or not isinstance(raw_tags, list):
+            if not group_name or group_name == self.DEFAULT_FAVORITE_GROUP:
                 continue
-            tags = []
-            for raw_tag in raw_tags:
-                tag = self.canonicalize_term(str(raw_tag))
-                if tag and tag not in tags:
-                    tags.append(tag)
-            groups.append((group_name, tags))
+            groups.append((group_name, self._normalize_tags(raw_tags)))
         return groups
 
     def save_grouped_favorites(self, groups_output: dict[str, list[str]]):
-        payload = self._load_payload()
-        search = {"History": self.get_history()}
+        groups = {}
         for raw_name, raw_tags in groups_output.items():
             group_name = self.canonicalize_term(str(raw_name))
             if not group_name or group_name == "History":
                 continue
-            normalized_tags = list(dict.fromkeys(
-                normalized for raw_tag in raw_tags
-                if (normalized := self.canonicalize_term(str(raw_tag)))
-            ))
-            search[group_name] = sorted(normalized_tags) if group_name == "Favorites" else normalized_tags
-        self.searchFavorites.value = list(search.get("Favorites", []))
-        search.setdefault("Favorites", list(self.searchFavorites.value))
-        payload["Search"] = search
-        self._write_payload(payload)
+            output_name = self.DEFAULT_FAVORITE_GROUP if group_name == "Favorites" else group_name
+            tags = self._normalize_tags(raw_tags)
+            groups[output_name] = sorted(tags) if output_name == self.DEFAULT_FAVORITE_GROUP else tags
+        self.searchFavorites.value = groups
+        self.save()
 
     def get_view_ratio_percent(self) -> int:
         return int(self.view_ratio.value)
@@ -195,7 +169,7 @@ class DanbooruConfig(QConfig):
         return self.get_history()
 
     def get_favorites(self):
-        return set(self.searchFavorites.value)
+        return set(self._normalize_tags(self._favorite_groups().get(self.DEFAULT_FAVORITE_GROUP, [])))
 
     def is_favorite(self, term: str) -> bool:
         return self.canonicalize_term(term) in self.get_favorites()
@@ -204,17 +178,19 @@ class DanbooruConfig(QConfig):
         canonical = self.canonicalize_term(term)
         if not canonical:
             return self.get_favorites()
+        groups = self._favorite_groups()
         favorites = self.get_favorites()
         favorites.add(canonical)
-        self.searchFavorites.value = sorted(favorites)
+        groups[self.DEFAULT_FAVORITE_GROUP] = sorted(favorites)
         self.save()
         return self.get_favorites()
 
     def remove_favorite(self, term: str):
         canonical = self.canonicalize_term(term)
+        groups = self._favorite_groups()
         favorites = self.get_favorites()
         favorites.discard(canonical)
-        self.searchFavorites.value = sorted(favorites)
+        groups[self.DEFAULT_FAVORITE_GROUP] = sorted(favorites)
         self.save()
         return self.get_favorites()
 
@@ -222,16 +198,18 @@ class DanbooruConfig(QConfig):
         canonical = self.canonicalize_term(term)
         if not canonical:
             return False
+        groups = self._favorite_groups()
         favorites = self.get_favorites()
         is_favorited = canonical not in favorites
         if is_favorited:
             favorites.add(canonical)
         else:
             favorites.discard(canonical)
-        self.searchFavorites.value = sorted(favorites)
+        groups[self.DEFAULT_FAVORITE_GROUP] = sorted(favorites)
         self.save()
         return is_favorited
 
 
 danbooru_cfg = DanbooruConfig()
 qconfig.load(_qconfig_path("qc_danbooru.json"), danbooru_cfg)
+danbooru_cfg._favorite_groups()

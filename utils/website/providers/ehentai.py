@@ -14,8 +14,6 @@ from utils.website.info import EhBookInfo
 
 class _EHentaiContract:
     name = "ehentai"
-    browser_referer_mode = "domain_origin_slash"
-    browser_cookie_set_enabled = True
     login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
     domain = "exhentai.org"
@@ -34,6 +32,9 @@ class _EHentaiContract:
         res.EHentai.MAPPINGS_POPULAR: f"https://{domain}/popular",
     }
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"
+
+    browser_referer_mode = "domain_origin_slash"
+    browser_cookie_set_enabled = True
 
 
 class EHentaiParser(_EHentaiContract):
@@ -56,14 +57,9 @@ class EHentaiParser(_EHentaiContract):
             return language, tags, artist
 
         item_elem = target.xpath('./td/div[@class="glthumb"]')
-        pages = (
-            next(filter(lambda _: "pages" in _, item_elem.xpath(".//div/text()").getall()))
-            .replace(" pages", "")
-        )
+        pages = next(filter(lambda _: "pages" in _, item_elem.xpath(".//div/text()").getall())).replace(" pages", "")
         url = target.xpath('./td[contains(@class, "glname")]/a/@href').get()
-        btype = " ".join(
-            map(str.strip, target.xpath('./td[contains(@class, "gl1c")]/div/text()').getall())
-        ) or None
+        btype = " ".join(map(str.strip, target.xpath('./td[contains(@class, "gl1c")]/div/text()').getall())) or None
         language, tags, artist = _parse_tags(target.xpath('.//div[@class="gt"]'))
         return EhBookInfo(
             name=item_elem.xpath(".//img/@title").get(),

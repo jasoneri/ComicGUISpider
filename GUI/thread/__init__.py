@@ -17,10 +17,11 @@ class ClipTasksThread(QThread):
     info_signal = Signal(InfoMinix)
     total_signal = Signal(object)
 
-    def __init__(self, gui, tasks):
+    def __init__(self, gui, tasks, *, thread_site_runtime):
         super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
         self.gui = gui
         self.tasks = tasks
+        self.thread_site_runtime = thread_site_runtime
 
     def run(self):
         self.msleep(500)  # 延时，否则子线程太快导致主界面没跟上
@@ -29,16 +30,14 @@ class ClipTasksThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        gui_site_runtime = self.gui.gui_site_runtime
-        _runtime = gui_site_runtime.create_thread_site_runtime()
         try:
-            async with _runtime.reqer.get_cli(conf, is_async=True) as cli:
+            async with self.thread_site_runtime.reqer.get_cli(conf, is_async=True) as cli:
                 total = {}
                 async def fetch_single(idx, url):
                     _idx = idx + 1
                     try:
                         resp = await cli.get(url, follow_redirects=True, timeout=6)
-                        book = _runtime.parser.parse_book(resp.text)
+                        book = self.thread_site_runtime.parser.parse_book(resp.text)
                         self.msleep(30)
                         book.idx = _idx
                         book.preview_url = book.url = url
@@ -59,7 +58,7 @@ class ClipTasksThread(QThread):
                         total[result[0]] = result[1]
                 return total
         finally:
-            await _runtime.aclose()
+            await self.thread_site_runtime.aclose()
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:

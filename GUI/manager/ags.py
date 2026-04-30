@@ -26,7 +26,10 @@ class AggrSearchManager:
         self.gui.BrowserWindow.show()
 
         self.tasks = search_keywords
-        self.aggrSearchThread = AggrSearchThread(self.gui, search_keywords)
+        self.aggrSearchThread = AggrSearchThread(
+            self.gui, search_keywords,
+            thread_site_runtime=self.gui.gui_site_runtime.create_thread_site_runtime(),
+        )
         self.aggrSearchThread.group_signal.connect(self.handle_group_data)
         self.aggrSearchThread.total_signal.connect(self.all_aggr_search_data)
 

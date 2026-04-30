@@ -4,62 +4,34 @@
 
 ### 🎁 Features
 
-+ CBG (Comic Background Gallery)：新增浏览器背景定制系统
-  - PNG 文件管理界面，可视化选择本地图片
-  - 随机抽选模式，支持包含历史记录选项
-  - 生成 Tampermonkey 脚本一键复制使用
-  - 新主题样式 cbg.qss，QSS模板系统支持动态主题渲染
-+ danbooru 收藏功能增强：
-  - 新增收藏管理对话框，支持分组管理收藏标签
-  - 可创建自定义收藏组，拖拽选择批量移动标签
-  - 标签组织更灵活，支持重命名/删除收藏组
-+ DoH (DNS over HTTPS) 配置说明新增至文档，可参考 cmliu/CF-Workers-DoH 部署
-
-### ⚙️ Architecture
-
-+ 重要重构：`site_gateway` 重命名为 `gui_site_runtime`，`spider_adapter` 重命名为 `provider_descriptor`
-+ 引入 `site_runtime.py` 新架构：
-  - `GuiSiteRuntime`: GUI 侧站点运行时管理
-  - `ThreadSiteRuntime`: 线程级站点运行时（预览搜索）
-  - `SpiderSiteRuntime`: Spider 侧站点运行时（下载）
-+ Pipeline 简化逻辑优化
-
-### 📦 Dependencies
-
-+ Scrapy 升级至 >=2.15.1
-+ 新增 py7zr>=1.1.0 依赖
-
-### 📝 Documentation
-
-+ 域名缓存有效期从 48 小时调整为一周
-+ 拷贝漫画网址更新为 2026copy.com
-+ 发布页管理可主动触发功能说明（v2.10.0-beta 已启用）
-
----
-
-## `v2.10.0-beta.2`
-
-### 🎁 Features
-
++ ✨新增 Cbg(CornerBackground) 功能，入口为 rvTool 新增按钮，与 CGS 里常见的各种立绘资源相关，[详情看文档](https://cgs.101114105.xyz/script/#_3-cbg-cornerbackground)
++ [danbooru](https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv) 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
+  - ✨danbooru 收藏 tag 管理面板，搜索框右键菜单配合使用
 + 增设 站点状态 页面，上报入口在 配置窗口 的 状态 按钮
 + 交互与下载分离，优化交互：
-  - 翻页保留被拆解为翻页前自动提交
+  - 翻页保留拆解为翻页前自动提交
   - 内置重启语义改为重置搜索, 重置前可以一直提交任务, 已提交任务也与重置无关继续进行
-+ [danbooru](https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv) 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
 + doh: 当前 GUI (例如danbooru+motrix) 都能用，scrapy(下载侧)不能用还在研究。 doh 是有效改善网络的功能，具体可以自行 github 找资源
 + html/卡片样式改变 (bootstrap转tailwind)
   - 新增fix模式，可尝试jm搜"非H"，能同页区分上下卡片区域，下区域卡片点击会进入章节选择面板（当前仅处理`青年漫`）
-+ 两个网站的发布页管理可主动触发，选择网站后会有明显按钮
++ 两个网站的发布页管理可主动触发，非代理选择网站后会有明显按钮
 + 补漏页一键重试，有漏页声明后右下会出现按钮
 + 内置浏览器可输入网址点访问直达，特殊字段`dev`能开控制台 (利于前端渲染抓虫)
 + 代理记录缓存
 
-### 🐞 Fix
+### 🐞 Fix/Upd
 
-+ wnacg 设置代理被视为图源也走代理
++ win更新相关：_pystand_static.int 与 runtime/installer.exe 的策略更新，版本回退最低定格于 `v2.9.11`
++ 日志相关：配置窗口增设直达按钮，GUI初始化会 DEBUG 级别记录配置值，上报日志到公共网络注意保留使用痕迹告知之余脱敏
++ win 默认存储路径改为 `C:\Users\<UserName>\Downloads\Comic`
++ kaobei 封ip暂时没辙了，可以选择下一个章节重置换一个节点的打法
++ hitomim 图片加密规律切换尚未解决，偶发时间性可用
++ wnacg 设置代理被视为图源也走代理，仅 miss 不删域名缓存
++ jm 修复 beta 版的车号流
++ hcomic 补回首页入口，已设预设的加关键词`更新`
++ 修复空结果提示，内置浏览器空页问题
 + 任务面板滚动区域高度被裁修复
 + 站点选择的 kemono 改为 Script
-+ hcomic 补回首页入口，已设预设的加关键词`更新`
 + 2.10.0-beta 后续强制统一安装包括 script 的所有依赖 (redis/pandas etc.)
 + git 瘦身至十多 mb (偏开发)
 

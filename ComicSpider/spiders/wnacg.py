@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import re
-from concurrent.futures import ThreadPoolExecutor
 
 from utils.website import correct_domain
 from .basecomicspider import BaseComicSpider2, font_color
@@ -27,12 +26,6 @@ class WnacgSpider(BaseComicSpider2):
     def ua(self):
         provider = self.spider_site_runtime.provider
         return provider.build_site_headers(self.domain, provider.book_hea)
-
-    def preready(self):
-        if self._runtime_origin:
-            return
-        self.domain = self.spider_site_runtime.resolve_domain()
-        self.book_id_url = correct_domain(self.domain, self.book_id_url)
 
     def frame_section(self, response):
         doc_wlns = re.split(r';[\n\s]+?document\.writeln', response.text)

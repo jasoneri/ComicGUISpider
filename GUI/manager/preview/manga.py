@@ -298,14 +298,14 @@ class MangaPreviewFeature:
                 badges.append(badge)
                 continue
             badges.append(badge)
-            batch_items.append((session_id, book_key, book, self.mgr.site_index))
+            batch_items.append((session_id, book_key, book))
         if badges:
             self.mgr.send_command("manga.dl_scan.result", {"badges": badges}, session_id=session_id)
         self.mgr.send_command("preview.scan.hide", {}, session_id=session_id)
         if batch_items and self.mgr.worker:
-            for _, book_key, _, _ in batch_items:
+            for _, book_key, _ in batch_items:
                 self._inflight_books.add((session_id, book_key))
-            self.mgr.worker.enqueue_episodes_batch(batch_items)
+            self.mgr.worker.enqueue('episodes_batch', batch_items)
         if browser := getattr(self.gui, "BrowserWindow", None):
             browser.page_runtime.log_js_metrics("manga-dl-scan", session=session_id, matched=len(matched), batch=len(batch_items))
 
@@ -332,7 +332,7 @@ class MangaPreviewFeature:
         if token in self._inflight_books:
             return
         self._inflight_books.add(token)
-        worker.enqueue_episodes(self.mgr._session_id, book_key, self.mgr.books_cache[book_key], self.mgr.site_index)
+        worker.enqueue("episodes", self.mgr._session_id, book_key, self.mgr.books_cache[book_key])
 
     def on_episodes_done(self, generation, session_id, book_key, episodes):
         self._inflight_books.discard((session_id, book_key))
@@ -463,9 +463,9 @@ class MangaPreviewFeature:
                 continue
             self._inflight_pages[book_key] = (book, selected_eps)
             for ep in needs_pages:
-                batch_items.append((book_key, ep, self.mgr.site_index))
+                batch_items.append((book_key, ep))
         if batch_items:
-            self.mgr.worker.enqueue_pages_batch(batch_items)
+            self.mgr.worker.enqueue("pages_batch", batch_items)
 
     def _submit_payload(self, payload: dict):
         self._submit_selected_episodes(self._parse_selected_episodes(payload))
