@@ -298,7 +298,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.toolWin.stackedWidget.setCurrentWidget(getattr(self.toolWin, _map[win_type]))
         safe_single_shot(10, _jump)
 
-    def open_script_window(self, *, pure_only: bool = False):
+    def open_scriptWin(self, *, pure_only: bool = False):
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
         self.hide()

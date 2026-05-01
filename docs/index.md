@@ -68,7 +68,7 @@ hero:
   </tr>
   <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜素</strong></a></td></tr>
-  <tr><td style="text-align: left;"><a href="/script/"><strong>🎮Script</strong></a></td></tr>
+  <tr><td style="text-align: left;"><a href="/script/"><strong>🎮Script/Cbg</strong></a></td></tr>
 </tbody></table>
 
 ## 功能特性

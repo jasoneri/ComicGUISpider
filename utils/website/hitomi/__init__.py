@@ -247,6 +247,7 @@ class gg:
         else:
             script_text = js_code
         self.m_cases = self._parse_m_cases(script_text)
+        self.m_default_value, self.m_case_value = self._parse_m_values(script_text)
         self.b = f"{self._parse_b(script_text)}/"
 
     @property
@@ -261,12 +262,32 @@ class gg:
     def _parse_m_cases(self, js_code):
         return set(map(int, re.findall(r"case (\d+):", js_code)))
 
+    def _parse_m_values(self, js_code):
+        body_match = re.search(r"m:\s*function\s*\(\s*g\s*\)\s*\{(?P<body>.*?)\}\s*,\s*s\s*:", js_code, re.S)
+        if not body_match:
+            raise ValueError("hitomi gg.js m(g) function contract is not recognizable")
+        body = body_match.group("body")
+        default_match = re.search(r"\bvar\s+(?P<var_name>[A-Za-z_$][\w$]*)\s*=\s*(?P<value>[01])\s*;", body)
+        if not default_match:
+            raise ValueError("hitomi gg.js m(g) default value is not recognizable")
+        var_name = re.escape(default_match.group("var_name"))
+        return_match = re.search(rf"\breturn\s+{var_name}\s*;", body)
+        if not return_match:
+            raise ValueError("hitomi gg.js m(g) return value is not recognizable")
+        switch_match = re.search(r"switch\s*\(\s*g\s*\)\s*\{(?P<body>.*?)\}", body, re.S)
+        if not switch_match:
+            raise ValueError("hitomi gg.js m(g) switch contract is not recognizable")
+        case_match = re.search(rf"\b{var_name}\s*=\s*([01])\s*;\s*break\s*;", switch_match.group("body"))
+        if not case_match:
+            raise ValueError("hitomi gg.js m(g) case value is not recognizable")
+        return int(default_match.group("value")), int(case_match.group(1))
+
     def _parse_b(self, js_code):
         match = re.search(r"(\d{10})", js_code)
         return match.group(1)
 
     def m(self, g):
-        return 1 if int(g) in self.m_cases else 0
+        return self.m_case_value if int(g) in self.m_cases else self.m_default_value
 
     def s(self, h):
         matched = re.match(r"(..)(.)$", h[-3:])

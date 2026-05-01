@@ -30,15 +30,8 @@ GENERATED_IMPORTS = (
 
 
 class ConvertBase:
-    def __init__(
-        self,
-        old,
-        new,
-        pre_substitutions=None,
-        post_substitutions=None,
-        class_replacements=None,
-        custom_fluent_widgets=None,
-        extra_import="",
+    def __init__(self, old, new,
+        pre_substitutions=None, post_substitutions=None, class_replacements=None, custom_fluent_widgets=None, extra_import="",
     ):
         self.old = old
         self.new = new
@@ -112,9 +105,7 @@ if __name__ == "__main__":
     file = f"{args.filename}.py"
     match args.filename:
         case "conf_dia":
-            converter = ConvertBase(
-                file,
-                file,
+            converter = ConvertBase(file, file,
                 pre_substitutions={
                     "label_2 = QLabel": "label_2 = StrongBodyLabel",
                     "acceptBtn = QToolButton": "acceptBtn = PrimaryToolButton",
@@ -123,9 +114,7 @@ if __name__ == "__main__":
                 custom_fluent_widgets=["StrongBodyLabel", "TransparentToolButton", "PrimaryToolButton"],
             )
         case "browser":
-            converter = ConvertBase(
-                file,
-                file,
+            converter = ConvertBase(file, file,
                 pre_substitutions={
                     "topHintBox = QToolButton": "topHintBox = TransparentToggleToolButton",
                     "ensureBtn = QToolButton": "ensureBtn = PrimaryToolButton",

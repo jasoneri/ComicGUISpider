@@ -59,9 +59,7 @@ class ExceptionRouter:
 
     def handle_exception(self, exc_type, exc_value, exc_traceback, phase):
         if self.ui is not None:
-            self.ui.hook_exception(exc_type, exc_value, exc_traceback)
-            return
-
+            return self.ui.hook_exception(exc_type, exc_value, exc_traceback)
         trace_text = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
         log_path = self._append_fatal_log(phase, trace_text)
         self._write_stderr(f"\n[CGS uncaught] log: {log_path}\n{trace_text}\n")

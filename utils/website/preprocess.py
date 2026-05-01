@@ -301,7 +301,7 @@ def _preprocess_script(*, data_client: httpx.Client, progress_callback=None) -> 
     state_flags["data_cache_hit"] = data_cache_hit
     if data_ready:
         messages.append(_message("success", script_res.data_cache_check_success))
-        actions.append(_action("open_script_window"))
+        actions.append(_action("open_scriptWin"))
     else:
         messages.append(_message("error", script_res.data_cache_check_failed))
 

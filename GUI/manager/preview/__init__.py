@@ -100,7 +100,7 @@ class PreviewMgr:
         self._fix.reset()
         self.gui.pageEdit.setValue(1)
         if index in SPIDERS and gui_site_runtime is not None:
-            self.create_worker(gui_site_runtime)    # TODO[0](2026-04-30): 将其置于 preprocess_mgr.handle_choosebox_changed 的 callback 并删除 _chooseBox_changed_handle 的 self.gui_site_runtime is not None
+            self.create_worker(gui_site_runtime)    # REMARK[260501]: preprocessMgr 没处理好暂时没法删除
         else:
             self._stop_worker()
         self.gui.refresh_lifecycle_state()

@@ -141,19 +141,16 @@ class PreprocessManager(QObject):
     def _apply_action(self, action: dict):
         action_type = action.get("type")
         if action_type == "open_publish_flow":
-            self.gui.do_publish()
-            return
+            return self.gui.do_publish()
         if action_type == "attach_ehentai_runtime":
             runtime = action["runtime"]
             self.gui.sut = runtime
             BrowserWindow.eh_kits = runtime
             return
         if action_type == "add_hitomi_tool":
-            self._try_add_hitomi_tool()
-            return
-        if action_type == "open_script_window":
-            self.gui.open_script_window()
-            return
+            return self._add_hitomi_tool()
+        if action_type == "open_scriptWin":
+            return self.gui.open_scriptWin()
         if action_type == "launch_update_flow":
             _UpdateLauncher(VER, script=True).run()
             self.gui.close()
@@ -163,7 +160,7 @@ class PreprocessManager(QObject):
     def _is_current_site(self, index: int, generation: int) -> bool:
         return generation == self._switch_generation and self.gui.chooseBox.currentIndex() == index
 
-    def _try_add_hitomi_tool(self):
+    def _add_hitomi_tool(self):
         self.gui.toolWin.addHitomiTool()
         self.gui.htBtn.setVisible(True)
 

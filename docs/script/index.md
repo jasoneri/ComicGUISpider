@@ -58,7 +58,8 @@ doh 可免代理，空词进首页过 cf 盾即可
 :::
 技术开源，资源自备  
 或前往[引力圈](https://app.unifans.io/c/jsoneri)赞助获取资源  
-如展示图立绘还可用于 cgs-bg_path , 楓の美化工具箱资源管理器背景, rainmeter 的 Dock 等
+如展示图立绘还可用于 cgs-bg_path , [楓の美化工具箱](https://winmoes.com/tools/12948.html)资源管理器背景, 
+[rainmeter 的 Dock](https://tieba.baidu.com/p/3119085879) 等
 
 ::: info 后续视赞助人数置换为图床api ¹
 :::

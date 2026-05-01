@@ -7,6 +7,7 @@
 + ✨新增 Cbg(CornerBackground) 功能，入口为 rvTool 新增按钮，与 CGS 里常见的各种立绘资源相关，[详情看文档](https://cgs.101114105.xyz/script/#_3-cbg-cornerbackground)
 + [danbooru](https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv) 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
   - ✨danbooru 收藏 tag 管理面板，搜索框右键菜单配合使用
+  - ✨瀑布流右键菜单增加`清除此页前图片`，优化加载用
 + 增设 站点状态 页面，上报入口在 配置窗口 的 状态 按钮
 + 交互与下载分离，优化交互：
   - 翻页保留拆解为翻页前自动提交
@@ -25,7 +26,7 @@
 + 日志相关：配置窗口增设直达按钮，GUI初始化会 DEBUG 级别记录配置值，上报日志到公共网络注意保留使用痕迹告知之余脱敏
 + win 默认存储路径改为 `C:\Users\<UserName>\Downloads\Comic`
 + kaobei 封ip暂时没辙了，可以选择下一个章节重置换一个节点的打法
-+ hitomim 图片加密规律切换尚未解决，偶发时间性可用
++ hitomim 已更新图片解密算法
 + wnacg 设置代理被视为图源也走代理，仅 miss 不删域名缓存
 + jm 修复 beta 版的车号流
 + hcomic 补回首页入口，已设预设的加关键词`更新`

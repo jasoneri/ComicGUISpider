@@ -2,7 +2,6 @@ import types
 import contextlib
 from qfluentwidgets import (
     Action, RoundMenu, FluentIcon,
-    LineEdit, ToolButton
 )
 from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
@@ -199,21 +198,11 @@ class MonkeyPatch:
 
     @staticmethod
     def rbutton_menu_PulishPage(browserWindow):
-        def manual_input():
-            lineEdit = LineEdit()
-            lineEdit.setPlaceholderText("输入后按确认检测")
-            ensureBtn = ToolButton(FluentIcon.ACCEPT_MEDIUM)
-            ensureBtn.clicked.connect(lambda: gui.publish_mgr.start_domain_test(lineEdit.text()))
-            CustomInfoBar.show_custom(title='', content='', parent=browserWindow, _type="INFORMATION",
-                ib_pos=InfoBarPosition.BOTTOM, widgets=[lineEdit, ensureBtn])
-
         def custom_context_menu(self, event):
             selected_text = _selected_web_text(self)
             fluent_menu = RoundMenu(parent=self)
-            manual_action = Action(FluentIcon.PENCIL_INK, text="手输域名", triggered=manual_input)
             test_action = Action(FluentIcon.COMMAND_PROMPT, text="选中内地域名进行检测", triggered=lambda: gui.publish_mgr.start_domain_test(selected_text))
             test_action.setEnabled(bool(selected_text))
-            fluent_menu.addAction(manual_action)
             fluent_menu.addAction(test_action)
             _exec_menu(fluent_menu, event)
             event.accept()

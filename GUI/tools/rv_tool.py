@@ -120,7 +120,7 @@ class rvTool(QWidget):
         
         self.showMaxBtn.clicked.connect(self.show_max)
         self.scanBtn.clicked.connect(self.rv_scan)
-        self.cbgBtn.clicked.connect(lambda _=False: self.gui.open_script_window(pure_only=True))
+        self.cbgBtn.clicked.connect(lambda _=False: self.gui.open_scriptWin(pure_only=True))
         self.sauceBtn.clicked.connect(self.do_sauce)
         self.deployBtn.clicked.connect(self.deploy)
         self.broomBtn.clicked.connect(self.broom)

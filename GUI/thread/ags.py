@@ -59,7 +59,7 @@ class AggrSearchThread(QThread):
                 if isinstance(result, Exception):
                     continue
                 if result:
-                    total.update(result)
+                    total.update(result)  # 合并所有book到total字典中
             return total
         finally:
             await self.thread_site_runtime.aclose()

@@ -64,23 +64,6 @@ class PreviewWorker(QThread):
         self._active = False
         self._task_queue.put(None)
 
-    # def enqueue_search(self, keyword, page=1):
-    #     self._task_queue.put(SearchTask(keyword, page))
-
-    # def enqueue_episodes(self, session_id, book_key, book):
-    #     self._task_queue.put(EpisodesTask(session_id, book_key, book))
-
-    # def enqueue_episodes_batch(self, items):
-    #     if items:
-    #         self._task_queue.put(EpisodesBatchTask(items))
-
-    # def enqueue_pages_batch(self, items):
-    #     if items:
-    #         self._task_queue.put(PagesBatchTask(items))
-
-    # def enqueue_cover(self, task_id: str, tasks_obj, browser_headers: dict[str, str] | None = None):
-    #     self._task_queue.put(CoverTask(task_id, tasks_obj, browser_headers))
-
     def enqueue(self, _type, *args, **kw):
         match _type:
             case 'search': 
