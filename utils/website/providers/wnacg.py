@@ -1,6 +1,7 @@
 import re
 import asyncio
 import httpx
+from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
@@ -15,7 +16,6 @@ from utils.website.info import WnacgBookInfo
 
 class _WnacgContract:
     name = "wnacg"
-    cover_preload_via_http = False
     publish_domain = "wnacg01.link"
     publish_domain_old = ["wnacg.date", "wn01.link"]
     publish_url = f"https://{publish_domain}"
@@ -68,6 +68,19 @@ class _WnacgContract:
     turn_page_info = (r"-page-\d+", "albums-index%s")
     book_id_url = "https://www.wnacg02.cc/photos-index-aid-%s.html"
     book_url_regex = r"^https://(www\.)?wn.*?/photos-index-aid-\d+\.html$"
+
+    # cover_preload_via_http = False
+    browser_referer_mode = "domain_origin"
+    cover_preload_transport = "curl_cffi"
+    cover_preload_proxy_policy = "direct"
+    cover_preload_impersonate = "chrome124"
+
+    @dataclass
+    class Policy:
+        browser_referer_mode = "domain_origin"
+        cover_preload_transport = "curl_cffi"
+        cover_preload_proxy_policy = "direct"
+        cover_preload_impersonate = "chrome124"
 
 
 class WnacgParser(_WnacgContract, Previewer):
@@ -125,7 +138,8 @@ class WnacgParser(_WnacgContract, Previewer):
 
     @classmethod
     def parse_search(cls, resp_text, *, domain: str | None = None):
-        domain = domain or WnacgUtils.get_domain()
+        if not domain:
+            raise ValueError("domain is required for wnacg search parsing")
         html_doc = Selector(text=resp_text)
         targets = html_doc.xpath('//li[contains(@class, "gallary_item")]')
         with ThreadPoolExecutor() as executor:
@@ -183,9 +197,33 @@ class WnacgReqer(_WnacgContract, Req):
         self.domain = None
         self.cli = self.get_cli(_conf)
 
-    def build_search_url(self, key):
-        self.domain = self.domain or WnacgUtils.get_domain()
-        return f"https://{self.domain}/search/?f=_all&s=create_time_DESC&syn=yes&q={key}"
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        page = max(1, int(page or 1))
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or getattr(self, "domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for wnacg")
+        spec = WnacgUtils.build_basic_search_request(
+            keyword,
+            page=page,
+            domain=domain,
+            search_url_head=f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=",
+            turn_page_info=self.turn_page_info,
+            turn_page_search=self.turn_page_search,
+            mappings=self.mappings,
+            custom_map=site_kw.get("custom_map"),
+            headers=WnacgUtils.build_site_headers(
+                domain,
+                self.headers,
+                referer_url=WnacgUtils.preview_origin(domain),
+            ),
+            state={"domain": domain},
+        )
+        resp = await WnacgUtils.perform_preview_request(self.ensure_preview_client(), spec)
+        return await asyncio.to_thread(WnacgUtils.parser.parse_preview_books, resp.text, spec.state["domain"])
+
+    async def preview_fetch_episodes(self, book):
+        return [book]
 
 
 class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
@@ -249,16 +287,6 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
         return None
 
     @classmethod
-    def get_domain(cls):
-        from utils.website.core import Cache
-
-        cls.cachef = getattr(cls, "cachef", Cache(f"{cls.name}_domain.txt"))
-        cached = cls.cachef.run(lambda: None, 168)
-        if isinstance(cached, str) and cached.strip():
-            return cached.strip()
-        return super().get_domain()
-
-    @classmethod
     def normalize_preview_resource(
         cls,
         value: str | None,
@@ -272,7 +300,9 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
 
     @classmethod
     def preview_client_config(cls, **context):
-        domain = context.get("domain") or cls.get_domain()
+        domain = context.get("domain")
+        if not domain:
+            raise ValueError("preview domain is required for wnacg")
         return {
             "headers": cls.build_site_headers(domain, cls.headers,
                 referer_url=cls.preview_origin(domain),
@@ -282,28 +312,3 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
     @classmethod
     def preview_transport_config(cls) -> dict:
         return {"verify": False, "retries": 2}
-
-    @classmethod
-    async def preview_search(cls,keyword,cli,**kw):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        domain = kw.pop("domain", None) or cls.get_domain()
-        spec = cls.build_basic_search_request(
-            keyword,
-            page=page,
-            domain=domain,
-            search_url_head=f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=",
-            turn_page_info=cls.turn_page_info,
-            turn_page_search=cls.turn_page_search,
-            mappings=cls.mappings,
-            custom_map=kw.pop("custom_map", None),
-            headers=cls.build_site_headers(
-                domain, cls.headers, referer_url=cls.preview_origin(domain),
-            ),
-            state={"domain": domain},
-        )
-        resp = await cls.perform_preview_request(cli, spec)
-        return await asyncio.to_thread(cls.parser.parse_preview_books, resp.text, spec.state["domain"])
-
-    @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        return [book]

@@ -140,6 +140,9 @@ class KbBookInfo(Manga):
 class MangabzBookInfo(Manga):
     source = "mangabz"
 
+class JestfulBookInfo(Manga):
+    source = "jestful"
+
 # ---
 
 class JmBookInfo(Ero):

@@ -108,15 +108,6 @@ class ComicPipeline(ImagesPipeline):
         spider.tasks_path[uuid_md5] = path
         return path
 
-    def image_downloaded(self, response, request, info, *, item=None):
-        spider = info.spider
-        try:
-            super(ComicPipeline, self).image_downloaded(response, request, info, item=item)
-            stats = spider.crawler.stats
-            self._sync_item_progress(spider, stats, item, count_download_stat=True)
-        except Exception as e:
-            spider.logger.error(f'traceback: {str(type(e))}:: {str(e)}')
-
     @staticmethod
     def _processed_file_count(stats):
         return (
@@ -124,16 +115,16 @@ class ComicPipeline(ImagesPipeline):
             stats.get_value('file_status_count/uptodate', default=0)
         )
 
-    def _sync_item_progress(self, spider, stats, item, *, count_download_stat):
+    def _sync_item_progress(self, spider, stats, item):
         total = getattr(spider, 'total', 0) or 0
         processed = self._processed_file_count(stats)
         percent = int((processed / total) * 100) if total else 0
         spider.emit(BarProgressEvent(job_id=getattr(spider, '_job_id', None), percent=percent))
         task_obj = TaskObj(item.get('uuid_md5'), item.get('page'), item['image_urls'][0])
-        self._record_task_progress(spider, stats, task_obj, count_download_stat=count_download_stat)
+        self._record_task_progress(spider, task_obj)
 
     @staticmethod
-    def _record_task_progress(spider, stats, task_obj, *, count_download_stat=True):
+    def _record_task_progress(spider, task_obj):
         _tasks = spider.tasks[task_obj.taskid]
         _tasks.downloaded.append(task_obj)
         curr_progress = int(len(_tasks.downloaded) / _tasks.tasks_count * 100)
@@ -150,27 +141,16 @@ class ComicPipeline(ImagesPipeline):
             task_obj=task_obj,
             is_new=False,
         ))
-        if count_download_stat:
-            stats.inc_value('image/downloaded')
-
-    def media_to_download(self, request: Request, info, *, item=None):
-        dfd = maybeDeferred(super().media_to_download, request, info, item=item)
-
-        def _track_uptodate(file_info):
-            if (
-                item is not None and
-                isinstance(file_info, dict) and
-                file_info.get('status') == 'uptodate'
-            ):
-                self._sync_item_progress(info.spider, info.spider.crawler.stats, item, count_download_stat=False)
-            return file_info
-
-        dfd.addCallback(_track_uptodate)
-        return dfd
 
     def item_completed(self, results, item, info):
-        _item = super(ComicPipeline, self).item_completed(results, item, info)
-        return _item
+        completed_item = super(ComicPipeline, self).item_completed(results, item, info)
+        if not any(
+            ok and isinstance(file_info, dict) and file_info.get('status') in {'downloaded', 'uptodate'}
+            for ok, file_info in results
+        ):
+            return completed_item
+        self._sync_item_progress(info.spider, info.spider.crawler.stats, item)
+        return completed_item
 
 
 class WnacgComicPipeline(ComicPipeline):
@@ -255,7 +235,8 @@ class WnacgComicPipeline(ComicPipeline):
 
             def _handle_curl_result(result):
                 status_code, content = result
-                return self.media_downloaded(
+                return maybeDeferred(
+                    self.media_downloaded,
                     Response(url=request.url,status=status_code,body=content,request=request),
                     request,info,item=item)
 

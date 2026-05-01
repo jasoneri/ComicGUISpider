@@ -1,8 +1,9 @@
-from pathlib import Path
+import gc
 import typing as t
+from pathlib import Path
 
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (
@@ -12,7 +13,7 @@ from qfluentwidgets import (
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
-from GUI.manager.async_task import AsyncTaskManager
+from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
 from GUI.uic.qfluent.components import CountBadge
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru.constants import DANBOORU_SQL_TABLE
@@ -22,6 +23,7 @@ from utils.sql import SqlRecorder
 from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
 from .detail_preview import DanbooruDetailPreviewController
+from .favorites import DanbooruFavoriteManagerDialog
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_CARD_ZOOM_INDEX, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
     build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
@@ -36,12 +38,14 @@ class DanbooruInterface(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.parent_window = parent
+        self.gui = parent.gui
         self.setObjectName("DanbooruInterface")
-        self.task_mgr = AsyncTaskManager(self)
+        self.task_mgr = AsyncTaskManager(self.gui)
         self.tab_counter = 0
         self.tabs: dict[str, DanbooruTabWidget] = {}
         self.tab_states: dict[str, DanbooruTabState] = {}
         self._tab_tips: dict[str, tuple[str, str]] = {}
+        self._tab_httpx_status: dict[str, str] = {}
         self.sql_recorder = SqlRecorder(table=DANBOORU_SQL_TABLE)
         self.image_viewer = DanbooruImageViewer(parent)
         self.detail_preview_controller = DanbooruDetailPreviewController(self, self.image_viewer)
@@ -57,6 +61,7 @@ class DanbooruInterface(QFrame):
         self.image_viewer.next_requested.connect(lambda: self.detail_preview_controller.open_adjacent(1))
         self.image_viewer.closed.connect(self.detail_preview_controller.clear_context)
         theme_mgr.subscribe(self._apply_theme)
+        self.destroyed.connect(lambda *_args: self.task_mgr.cleanup())
         self.setupUi()
         self._apply_theme()
         self.create_tab()
@@ -87,23 +92,24 @@ class DanbooruInterface(QFrame):
         self.zoomIn.setMaximumHeight(22)
         self.zoomOut = ToolButton(QIcon(':/script/zoomout.svg'))
         self.zoomOut.setMaximumHeight(22)
-        self.zoomIn.clicked.connect(self._zoom_in_cards)
-        self.zoomOut.clicked.connect(self._zoom_out_cards)
         zoomBtnGroup.addWidget(self.zoomIn)
         zoomBtnGroup.addWidget(self.zoomOut)
+        self.favMgrBtn = ToolButton(QIcon(':/script/favMgr.svg'), self)
+        self.favMgrBtn.setObjectName("FavMgrBtn")
+        self.favMgrBtn.setIconSize(QSize(20, 20))
+        self.favMgrBtn.setMinimumHeight(50)
         self.openBtn = ToolButton(FIF.FOLDER)
         self.openBtn.setMinimumHeight(50)
-        self.openBtn.clicked.connect(self._open_save_path)
         self.batch_download_btn = PrimaryToolButton(FIF.DOWNLOAD, self)
         self.batch_download_btn.setMinimumHeight(50)
         self.batch_download_btn.setMinimumWidth(80)
         self.batch_download_btn.setIconSize(QtCore.QSize(20, 20))
         self.batch_download_btn.setDisabled(True)
-        self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
         self.batch_download_badge = CountBadge(parent=self, target=self.batch_download_btn)
         self.batch_download_badge.hide()
         title_row.addWidget(self.title_block, 1)
         title_row.addLayout(zoomBtnGroup)
+        title_row.addWidget(self.favMgrBtn)
         title_row.addWidget(self.openBtn)
         title_row.addWidget(self.batch_download_btn)
         self.main_layout.addLayout(title_row)
@@ -118,7 +124,6 @@ class DanbooruInterface(QFrame):
         self.pivot_back_btn.setObjectName("DanbooruPivotScrollButton")
         self.pivot_back_btn.setFixedSize(18, 18)
         self.pivot_back_btn.setIconSize(QtCore.QSize(14, 14))
-        self.pivot_back_btn.clicked.connect(lambda: self._scroll_pivot_tabs(-1))
         pivot_shell_layout.addWidget(self.pivot_back_btn, 0, Qt.AlignVCenter)
         self.tab_bar = TabBar(self.pivot_shell)
         self.tab_bar.setObjectName("DanbooruPivotScrollArea")
@@ -132,19 +137,13 @@ class DanbooruInterface(QFrame):
         self.tab_bar.itemLayout.setContentsMargins(0, 5, 0, 5)
         self.tab_bar.itemLayout.setSpacing(6)
         self.pivot_scroll = self.tab_bar
-        self.tab_bar.currentChanged.connect(self._on_tabbar_index_changed)
-        self.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
         pivot_shell_layout.addWidget(self.tab_bar, 1)
         self.pivot_forward_btn = TransparentToolButton(FIF.RIGHT_ARROW, self.pivot_shell)
         self.pivot_forward_btn.setObjectName("DanbooruPivotScrollButton")
         self.pivot_forward_btn.setFixedSize(18, 18)
         self.pivot_forward_btn.setIconSize(QtCore.QSize(14, 14))
-        self.pivot_forward_btn.clicked.connect(lambda: self._scroll_pivot_tabs(1))
         pivot_shell_layout.addWidget(self.pivot_forward_btn, 0, Qt.AlignVCenter)
         pivot_scroll_bar = self.pivot_scroll.horizontalScrollBar()
-        pivot_scroll_bar.rangeChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
-        pivot_scroll_bar.valueChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
-        self.main_layout.addWidget(self.pivot_shell)
 
         self.content_shell = QFrame(self)
         self.content_shell.setObjectName("DanbooruContentShell")
@@ -152,8 +151,22 @@ class DanbooruInterface(QFrame):
         content_shell_layout.setContentsMargins(12, 12, 12, 12)
         content_shell_layout.setSpacing(0)
         self.stacked_widget = QStackedWidget(self.content_shell)
-        self.stacked_widget.currentChanged.connect(self._on_current_tab_changed)
         content_shell_layout.addWidget(self.stacked_widget)
+        # binding
+        self.zoomIn.clicked.connect(self._zoom_in_cards)
+        self.zoomOut.clicked.connect(self._zoom_out_cards)
+        self.favMgrBtn.clicked.connect(self._open_favorite_manager)
+        self.openBtn.clicked.connect(self._open_save_path)
+        self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
+        self.tab_bar.currentChanged.connect(self._on_tabbar_index_changed)
+        self.pivot_back_btn.clicked.connect(lambda: self._scroll_pivot_tabs(-1))
+        self.pivot_forward_btn.clicked.connect(lambda: self._scroll_pivot_tabs(1))
+        self.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
+        pivot_scroll_bar.rangeChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
+        pivot_scroll_bar.valueChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
+        self.stacked_widget.currentChanged.connect(self._on_current_tab_changed)
+        
+        self.main_layout.addWidget(self.pivot_shell)
         self.main_layout.addWidget(self.content_shell, 1)
 
     def _apply_theme(self, *_args):
@@ -191,9 +204,11 @@ class DanbooruInterface(QFrame):
         tab.request_next_page.connect(lambda tid=tab_id: self.search_controller.load_next_page(tid))
         tab.detail_opened.connect(lambda post, tid=tab_id: self.detail_preview_controller.open_viewer(tid, post))
         tab.selection_count_changed.connect(lambda _count, tid=tab_id: self._update_batch_button(tid))
+        tab.favorite_btn.clicked.connect(lambda _=False, tid=tab_id: self._toggle_favorite(tid))
         self.tabs[tab_id] = tab
         self.tab_states[tab_id] = state
         self._tab_tips[tab_id] = (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS)
+        self._tab_httpx_status[tab_id] = ""
         self.stacked_widget.addWidget(tab)
         self.tab_bar.addTab(routeKey=tab_id, text=state.title)
         self._sync_tab_bar_width()
@@ -219,6 +234,7 @@ class DanbooruInterface(QFrame):
         tab = self.tabs.pop(tab_id, None)
         self.tab_states.pop(tab_id, None)
         self._tab_tips.pop(tab_id, None)
+        self._tab_httpx_status.pop(tab_id, None)
         if tab is None:
             return
         if self.detail_preview_controller.current_tab_id == tab_id and self.image_viewer.isVisible():
@@ -227,6 +243,7 @@ class DanbooruInterface(QFrame):
         self.tab_bar.removeTabByKey(tab_id)
         self.stacked_widget.removeWidget(tab)
         tab.deleteLater()
+        gc.collect()
         if self.stacked_widget.count():
             self._set_current_tab(self.stacked_widget.widget(0).objectName())
         self._update_tab_chrome()
@@ -301,10 +318,7 @@ class DanbooruInterface(QFrame):
                 continue
             tab_id = item.routeKey()
             item.setBorderRadius(12)
-            self.tab_bar.setTabTextColor(
-                index,
-                active_text_color if tab_id == current_tab_id else inactive_text_color,
-            )
+            self.tab_bar.setTabTextColor(index, active_text_color if tab_id == current_tab_id else inactive_text_color)
 
     def _active_tab_id(self) -> t.Optional[str]:
         widget = self.stacked_widget.currentWidget()
@@ -314,6 +328,13 @@ class DanbooruInterface(QFrame):
         self._tab_tips[tab_id] = (text, cls or DEFAULT_TAB_STATUS_CLASS)
         if self._active_tab_id() == tab_id:
             self.tip_line.setText(_format_tip_rich_text(*self._tab_tips[tab_id]))
+
+    def set_tab_httpx_status(self, tab_id: str, status: str, cls: str = DEFAULT_TAB_STATUS_CLASS):
+        self._tab_httpx_status[tab_id] = str(status or "")
+        self._set_tab_tip(tab_id, self._tab_httpx_status[tab_id], cls=cls)
+
+    def tab_httpx_status(self, tab_id: str) -> str:
+        return self._tab_httpx_status.get(tab_id, "")
 
     def _sync_tip_line(self, tab_id: t.Optional[str] = None):
         effective_tab_id = tab_id or self._active_tab_id()
@@ -389,29 +410,16 @@ class DanbooruInterface(QFrame):
             self.image_viewer.set_download_state(True)
         self.detail_preview_controller.sync_navigation()
 
-    def _gui_logger(self):
-        return getattr(getattr(self.parent_window, "gui", None), "log", None)
-
-    def _host_gui(self):
-        return getattr(self.parent_window, "gui", None) or self.parent_window
-
     def _show_task_error(self, error: str, duration: int = 6000):
-        logger = self._gui_logger()
-        if logger is not None:
-            logger.error(error)
-        summary = (error.splitlines() or ["?"])[0]
+        self.gui.log.error(error)
+        summary = summarize_error_message(error)
         self._show_info(InfoBar.error, f"✕ {summary}", duration)
 
     def _log_search_request(self, tab_id: str, query: str, order: str, page: int, limit: int):
-        logger = self._gui_logger()
-        if logger is None:
-            return
         params = DanbooruSearchQuery(query, order).params(page=page, limit=limit)
         stub_endpoint = self._runtime_config.stub_dns_endpoint() or "disabled"
         dns_summary = f"DoH={self._runtime_config.doh_url}" if self._runtime_config.is_doh_enabled() else "system"
-        logger.info(
-            f"[Danbooru] GET /posts.json tab={tab_id} params={params} dns={dns_summary} stub={stub_endpoint}"
-        )
+        self.gui.log.info(f"[Danbooru] GET /posts.json tab={tab_id} params={params} dns={dns_summary} stub={stub_endpoint}")
 
     def refresh_runtime_settings(self):
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
@@ -420,21 +428,10 @@ class DanbooruInterface(QFrame):
         history = danbooru_cfg.get_history()
         favorites = sorted(danbooru_cfg.get_favorites() - set(history))
         tab.update_completer(history + favorites)
-        try:
-            tab.favorite_btn.clicked.disconnect()
-        except TypeError:
-            pass
-        tab.favorite_btn.clicked.connect(lambda _=False, tid=tab.state.tab_id: self._toggle_favorite(tid))
 
     def _show_info(self, factory, content: str, duration: int = 3000):
         factory(
-            title="",
-            content=content,
-            orient=Qt.Horizontal,
-            isClosable=True,
-            position=InfoBarPosition.TOP,
-            duration=duration,
-            parent=self,
+            title="", content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP, duration=duration, parent=self,
         )
 
     def _toggle_favorite(self, tab_id: str):
@@ -445,9 +442,19 @@ class DanbooruInterface(QFrame):
         if not term:
             return
         is_favorited = danbooru_cfg.toggle_favorite(term)
-        self._refresh_completer(tab)
+        self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         self._show_info(InfoBar.success if is_favorited else InfoBar.error, content)
+
+    def _refresh_all_favorites_ui(self):
+        for tab in self.tabs.values():
+            tab.set_search_menu()
+            self._refresh_completer(tab)
+
+    def _open_favorite_manager(self):
+        dialog = DanbooruFavoriteManagerDialog(self)
+        dialog.favorites_changed.connect(self._refresh_all_favorites_ui)
+        dialog.exec()
 
     def _open_tag_jump_tab(self, tag: str):
         self.image_viewer.hide()

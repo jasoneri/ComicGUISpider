@@ -76,6 +76,7 @@ class ErrorEvent:
 class JobFinishedEvent:
     job_id: str
     success: bool
+    error: Optional[str] = None
 
 
 @dataclass

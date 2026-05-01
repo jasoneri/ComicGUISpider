@@ -48,7 +48,7 @@ class EHentaiSpider(BaseComicSpider3):
         frame_results = {}
         targets = response.xpath('//table[contains(@class, "itg")]//td[contains(@class, "glcat")]/..')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(self.site.parser.parse_search_item, targets))
+            books = list(executor.map(self.spider_site_runtime.parser.parse_search_item, targets))
         for x, book in enumerate(books):
             book.idx = x + 1
             frame_results[book.idx] = book

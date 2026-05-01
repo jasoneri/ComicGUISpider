@@ -176,6 +176,7 @@ custom/start/*
 GUI/src/*
 !GUI/src/preview_format/
 !GUI/src/material_ct.py
+!docs/.vitepress/
 *.db*
 # cgs/build
 *.ico
@@ -206,3 +207,4 @@ deploy/launcher/mac/*.html
 openspec/
 nul
 .omc
+*.*ai

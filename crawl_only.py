@@ -8,7 +8,6 @@ import sys
 from dataclasses import dataclass
 from uuid import uuid4
 
-import httpx
 from loguru import logger
 
 from ComicSpider.runtime import SpiderRuntimeThread
@@ -24,7 +23,9 @@ from utils.protocol import (
     ProcessStateEvent,
     TasksObjEvent,
 )
-from utils.website.registry import resolve_site_gateway
+from utils.website.registry import resolve_provider_descriptor_by_site
+from utils.website.runtime_context import PreviewSiteConfig
+from utils.website.site_runtime import ThreadSiteRuntime
 from variables import Spider, SPIDERS
 
 is_debugging = os.getenv("CGS_DEBUG") == "1"
@@ -32,40 +33,34 @@ is_debugging = os.getenv("CGS_DEBUG") == "1"
 
 class PreviewRuntime:
     def __init__(self, site_index: int):
-        self.gateway = resolve_site_gateway(site_index)
         self.site_index = site_index
-        self.client: httpx.AsyncClient | None = None
-        self.doh_url = cgs_cfg.get_doh_url()
-        self.site_config = self.gateway.build_site_config_from_conf(
+        self.provider_descriptor = resolve_provider_descriptor_by_site(site_index)
+        self.site_config = PreviewSiteConfig.create(
+            self.provider_descriptor.provider_name,
+            cookies_by_site=conf.cookies,
+            domains=getattr(conf, "domains", None),
+            custom_map=conf.custom_map,
+            proxies=conf.proxies,
+            doh_url=cgs_cfg.get_doh_url(),
+        )
+        self.thread_site_runtime = ThreadSiteRuntime(
+            self.provider_descriptor,
+            site_config=self.site_config,
             conf_state=conf,
-            default_doh_url=self.doh_url,
         )
 
     async def __aenter__(self):
-        self.client = self.gateway.create_async_preview_client(
-            site_config=self.site_config,
-        )
+        self.thread_site_runtime.get_async_preview_client()
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        if self.client is not None:
-            await self.client.aclose()
-            self.client = None
+        await self.thread_site_runtime.aclose()
 
     async def search(self, keyword: str, page: int = 1):
-        return await self.gateway.preview_search(
-            keyword,
-            self.client,
-            page=page,
-            site_config=self.site_config,
-        )
+        return await self.thread_site_runtime.preview_search(keyword, page=page)
 
     async def fetch_episodes(self, book):
-        return await self.gateway.preview_fetch_episodes(
-            book,
-            self.client,
-            site_config=self.site_config,
-        )
+        return await self.thread_site_runtime.preview_fetch_episodes(book)
 
 
 @dataclass

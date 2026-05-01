@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-import re
-import typing as t
-from urllib.parse import urlencode, urlparse
-from concurrent.futures import ThreadPoolExecutor
 
 from ComicSpider.runtime.job_models import iter_download_items
 
-from utils import convert_punctuation, conf
-from utils.website import JmUtils, correct_domain, JmBookInfo, BookInfo, Episode
-from utils.processed_class import Url
+from utils import conf
+from utils.website import JmBookInfo, BookInfo, Episode
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
 domain = "18comic-zzz.xyz"
@@ -28,34 +23,16 @@ class JmSpider(BaseComicSpider2):
     }
     num_of_row = 4
     domain = domain
-    search_url_head = f'https://{domain}/search/photos?main_tag=0&search_query='
-    book_id_url = f'https://{domain}/photo/%s'
-    transfer_url = staticmethod(lambda url: url.replace('album', 'photo'))
-    mappings = {}
-
-    time_regex = re.compile(r".*?([日周月总])")
-    kind_regex = re.compile(r".*?(更新|点击|评分|评论|收藏)")
-    expand_map: t.Dict[str, dict] = {
-        "日": {'t': 't'}, "周": {'t': 'w'}, "月": {'t': 'm'}, "总": {'t': 'a'},
-        "更新": {'o': 'mr'}, "点击": {'o': 'mv'}, "评分": {'o': 'tr'}, "评论": {'o': 'md'}, "收藏": {'o': 'tf'}
-    }
-    turn_page_info = (r"page=\d+",)
 
     @property
     def ua(self):
-        _ua = {'Host': self.domain, **JmUtils.headers}
+        provider = self.spider_site_runtime.provider
+        _ua = {'Host': self.domain, **provider.headers}
         if conf.cookies.get("jm"):
-            _ua.update({'cookie': JmUtils.to_str_(conf.cookies.get(self.name))})
+            _ua.update({'cookie': provider.to_str_(conf.cookies.get(self.name))})
         return _ua
 
-    def preready(self):
-        if self._runtime_origin:
-            return
-        self.domain = JmUtils.get_domain()
-        self.book_id_url = correct_domain(self.domain, self.book_id_url)
-
     def start_requests(self):
-        self.preready()
         yield from self.iter_download_requests(self.current_job)
 
     def parse_section(self, response):
@@ -65,7 +42,7 @@ class JmSpider(BaseComicSpider2):
             elif 'book' in meta:
                 _bid = meta.get('book').id
             else:
-                _bid = self.site.get_uuid(response.request.url, only_id=True) or ''
+                _bid = self.provider_descriptor.get_uuid(response.request.url, only_id=True) or ''
             return _bid
         meta = response.meta
         bid = _get_bid()
@@ -79,10 +56,7 @@ class JmSpider(BaseComicSpider2):
                 title = response.xpath('//title/text()').extract_first()
                 meta['title'] = title.rsplit('|', 1)[0]
             if not meta.get('book'):
-                meta['book'] = JmBookInfo(
-                    name=meta['title'],
-                    url=response.url,
-                ).get_id(response.url)
+                meta['book'] = JmBookInfo(name=meta['title'], url=response.url).get_id(response.url)
             yield from super(JmSpider, self).parse_section(response)
 
     def iter_download_requests(self, job):
@@ -96,7 +70,7 @@ class JmSpider(BaseComicSpider2):
                     yield from self._dispatch_episodes(item)
                     continue
                 yield scrapy.Request(
-                    url=self.transfer_url(item.url),
+                    url=item.url,
                     callback=self.parse_section,
                     headers={**self.ua, 'Referer': self.request_referer(item.url)},
                     meta={'book': item},

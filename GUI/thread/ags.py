@@ -4,17 +4,17 @@ from utils import conf, get_loop, PresetHtmlEl
 from utils.ags import SearchKey
 from assets import res
 from GUI.core.font import font_color
-from utils.website.registry import resolve_spider_adapter
 
 
 class AggrSearchThread(QThread):
     total_signal = Signal(object)
     group_signal = Signal(int, list)  # 用于通知完成一组搜索: (group_idx, books_list)
 
-    def __init__(self, gui, tasks):
+    def __init__(self, gui, tasks, *, thread_site_runtime):
         super(AggrSearchThread, self).__init__(gui)
         self.gui = gui
         self.tasks = tasks
+        self.thread_site_runtime = thread_site_runtime
         self.book_idx_counter = 0  # 全局book索引计数器
 
     def run(self):
@@ -24,15 +24,11 @@ class AggrSearchThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        adapter = getattr(self.gui, "spider_adapter", None) or resolve_spider_adapter(self.gui.chooseBox.currentIndex())
-        session = adapter.create_session(conf)
-        async with session.get_cli(conf, is_async=True) as cli:
+        try:
             total = {}
             async def fetch_single(group_idx, search_keyword: SearchKey):
                 try:
-                    search_url = session.build_search_url(search_keyword)
-                    resp = await cli.get(search_url, follow_redirects=True, timeout=6)
-                    books = session.parse_search(resp.text)
+                    books = await self.thread_site_runtime.preview_search(search_keyword)
                     self.msleep(50)
 
                     group_books = {}
@@ -65,6 +61,8 @@ class AggrSearchThread(QThread):
                 if result:
                     total.update(result)  # 合并所有book到total字典中
             return total
+        finally:
+            await self.thread_site_runtime.aclose()
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:

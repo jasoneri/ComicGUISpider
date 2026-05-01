@@ -84,16 +84,16 @@ cgs-cli --help
 需更新到`最新稳定版`后，才能更新到`最新开发版`
 :::
 
-+ 或 uv tool 管理的指定版本，例如 `2.9.0`
++ 或 uv tool 管理的指定版本，例如 `2.9.11`
 
 ```zsh
-uv tool install ComicGUISpider==2.9.0 --force --reinstall --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+uv tool install ComicGUISpider==2.9.11 --force --reinstall --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-+ 或 win-绿色包 安装指定版本，例如 `2.9.0`  
++ 或 win-绿色包 安装指定版本，例如 `2.9.11`  
 
 ```cmd
-.\CGS.exe -v 2.9.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+.\CGS.exe -v 2.9.11 -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ## 5. 搭配阅读器

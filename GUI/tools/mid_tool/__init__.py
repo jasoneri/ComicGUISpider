@@ -2,9 +2,9 @@
 from pathlib import Path
 import contextlib
 from copy import deepcopy
-from PySide6.QtCore import Qt, Signal, QEvent
+from PySide6.QtCore import Signal, QEvent
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QScrollArea, QStackedWidget, QApplication, QSizePolicy
+    QWidget, QHBoxLayout, QStackedWidget, QApplication
 )
 from qfluentwidgets import (
     SwitchButton, PrimaryToolButton, TransparentToolButton, PrimaryPushButton,

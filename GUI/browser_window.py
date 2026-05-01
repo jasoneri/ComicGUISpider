@@ -17,11 +17,11 @@ from GUI.core.browser.runtime import (
     BrowserRequestInterceptor,
     apply_cookie_sets,
 )
-from GUI.core.browser.browser_environment import build_browser_environment
+from GUI.core.browser.environment import build_browser_environment
 from GUI.core.browser.page_runtime import BrowserPageRuntime
 from GUI.core.browser.profile import create_browser_window_profile
 from GUI.core.browser.types import BrowserChallengeSpec, BrowserEnvironmentConfig
-from GUI.core.browser.window_mode import BrowserWindowModeController
+from GUI.core.browser.window_mode import BrowserDoHProxyRuntime, BrowserWindowModeController
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
@@ -103,19 +103,22 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     pageInteractive = Signal(str, float)
     pageLoadFinishedDetailed = Signal(bool, float)
 
-    def __init__(self, gui, *, skip_env_mode: bool = False):
+    def __init__(self, gui, *, skip_env_mode: bool = False, persistent_profile: bool = True, webengine_doh_url: str = ""):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
         self._first_show = True
         self.gui = gui
+        self.dev_tools = None
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.interceptor = BrowserRequestInterceptor(self)
         self.interceptor.configure_monitor_vote_header(
             allowed_origins=("http://localhost:5173", CGS_DOC),
             page_path="/deploy/monitor", header_name="X-CGS-Flag", header_value="cgs-vote",
         )
+        doh_proxy_bootstrap = BrowserDoHProxyRuntime.prepare_before_webengine(webengine_doh_url)
+        self.profile = create_browser_window_profile(self, persistent=persistent_profile)
         self.view = FramelessWebEngineView(self)
-        self.profile = create_browser_window_profile(self)
         self.view.setPage(CustomWebEnginePage(self.profile, self.view))
         self.page_runtime = BrowserPageRuntime(self)
         settings = self.view.settings()
@@ -132,7 +135,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         # self.profile.setHttpUserAgent(
         #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
-        self.window_mode = BrowserWindowModeController(self, self.interceptor)
+        self.window_mode = BrowserWindowModeController(self, self.interceptor, doh_proxy_bootstrap=doh_proxy_bootstrap)
         preview_file = getattr(self.gui, "tf", None)
         self.home_url = QUrl.fromLocalFile(str(preview_file)) if preview_file else QUrl("about:blank")
         if not skip_env_mode:
@@ -208,8 +211,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
         self.copyBtn.clicked.connect(copy_unfinished_tasks)
         self.addressEdit.setPlaceholderText("输入链接后回车")
-        self.addressEdit.linkSignal.connect(self._handle_address_submit)
-        self.addressEdit.returnPressed.connect(self.addressEdit.link)
+        self.addressEdit.custSignal.connect(self._handle_address_submit)
         self.horizontalLayout.addWidget(self.view)
         self.view.urlChanged.connect(lambda _url: self.addressEdit.setText(_url.toString()))
         for button in (

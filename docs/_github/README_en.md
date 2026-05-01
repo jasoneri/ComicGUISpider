@@ -48,7 +48,7 @@ Comic-Downloader
 
 | Website                                 | locale |          Notes          |
 |:----------------------------------------|:------:|:-----------------------:|
-| [MangaCopy](https://www.2025copy.com/) |  :cn:  |  |
+| [MangaCopy](https://www.2026copy.com/) |  :cn:  |  |
 | [Māngabz](https://mangabz.com)          |  :cn:  |                         |
 | [18comic](https://18comic.vip/)         |  :cn:  |           🔞            |
 | [wnacg](https://www.wnacg.com/)         |  :cn:  |           🔞            |

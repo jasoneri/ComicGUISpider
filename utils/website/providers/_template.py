@@ -1,23 +1,49 @@
-"""Provider template for new site adapters.
+"""Provider template for new owner-bound site implementations.
 
-Copy this file, rename the class, then only fill the site-specific hooks.
+Copy this file, rename the classes, then only fill the site-specific hooks.
 Do not import GUI classes or runtime-only side effects here.
 """
 
-from utils.website.core import (
-    Previewer,
-    PreviewRequestSpec,
-    Utils,
-)
+from utils.website.core import PreviewRequestSpec, Previewer, Req, Utils
+
+
+class TemplateParser(Previewer):
+    @classmethod
+    def parse_preview_search_response(cls, text: str, spec: PreviewRequestSpec) -> list:
+        raise NotImplementedError
+
+
+class TemplateReqer(Req):
+    def __init__(self, _conf):
+        self.cli = self.get_cli(_conf)
+
+    async def preview_search(self, keyword: str, *, page: int = 1):
+        owner = self._require_preview_owner()
+        owner_type = type(owner)
+        site_kw = self.preview_site_kwargs()
+        spec = owner_type.build_preview_search_request(
+            keyword,
+            page=max(1, int(page or 1)),
+            **site_kw,
+        )
+        resp = await owner_type.perform_preview_request(self.ensure_preview_client(), spec)
+        return await owner.parser.parse_preview_search_response(resp.text, spec)
 
 
 class TemplateUtils(Utils, Previewer):
     name = "template"
     domain = "example.com"
     index = f"https://{domain}"
+    search_url_head = f"https://{domain}/search?q="
     headers = {}
     mappings = {}
     turn_page_info = None
+    parser = TemplateParser
+    reqer_cls = TemplateReqer
+
+    def __init__(self, _conf):
+        self.reqer = self.reqer_cls(_conf)
+        self.parser = self.__class__.parser
 
     @classmethod
     def preview_client_config(cls, **context):
@@ -28,39 +54,22 @@ class TemplateUtils(Utils, Previewer):
         return {}
 
     @classmethod
-    def _build_preview_search_request(
+    def build_preview_search_request(
         cls,
         keyword: str,
         *,
         page: int = 1,
-        **context,
+        domain: str,
+        custom_map: dict | None = None,
+        **_,
     ) -> PreviewRequestSpec:
-        raise NotImplementedError
-
-    @classmethod
-    async def preview_search(
-        cls,
-        keyword,
-        client,
-        **kw,
-    ):
-        page = max(1, int(kw.pop("page", 1) or 1))
-        spec = cls._build_preview_search_request(
+        return cls.build_basic_search_request(
             keyword,
             page=page,
-            **cls.pop_site_kwargs(kw),
+            domain=domain,
+            search_url_head=cls.search_url_head,
+            turn_page_info=cls.turn_page_info,
+            mappings=cls.mappings,
+            custom_map=custom_map,
+            headers=cls.headers,
         )
-        resp = await cls.perform_preview_request(client, spec)
-        return await cls.parse_preview_search_response(resp.text, spec)
-
-    @classmethod
-    async def parse_preview_search_response(cls, text: str, spec: PreviewRequestSpec) -> list:
-        raise NotImplementedError
-
-    @classmethod
-    async def preview_fetch_episodes(cls, book, client, **kw):
-        raise NotImplementedError
-
-    @classmethod
-    async def preview_fetch_pages(cls, episode, client, **kw):
-        raise NotImplementedError

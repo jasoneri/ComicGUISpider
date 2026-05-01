@@ -1,8 +1,11 @@
+# ruff: noqa: F401,F403,F405
+from __future__ import annotations
+
 from utils.website.providers import *
-from utils.website.providers.hcomic import HComicParseError  # noqa: F401
+from utils.website.providers.hcomic import HComicParseError  
+
 from . import registry
-from .adapter import ProviderSpiderAdapter
-from .gateway import ProviderSiteGateway
+from .site_runtime import ProviderDescriptor
 
 provider_map = {
     1: KaobeiUtils, 2: JmUtils, 3: WnacgUtils, 4: EHentaiKits, 5: MangabzUtils,
@@ -11,14 +14,28 @@ provider_map = {
     'hitomi': HitomiUtils, 'h_comic': HComicUtils
 }
 
-gateway_cache = {}
-adapter_cache = {}
-for site_key, provider_cls in provider_map.items():
-    registry.site_gateway_map[site_key] = gateway_cache.setdefault(
-        provider_cls,
-        ProviderSiteGateway(provider_cls),
-    )
-    registry.spider_adapter_map[site_key] = adapter_cache.setdefault(
-        provider_cls,
-        ProviderSpiderAdapter(provider_cls),
-    )
+
+def _provider_site_indexes() -> dict[type, int]:
+    site_indexes = {}
+    for site_key, provider_cls in provider_map.items():
+        if isinstance(site_key, int) and provider_cls not in site_indexes:
+            site_indexes[provider_cls] = site_key
+    return site_indexes
+
+
+def _bootstrap_provider_descriptors():
+    registry.clear_provider_descriptors()
+    site_indexes = _provider_site_indexes()
+    descriptor_cache: dict[type, ProviderDescriptor] = {}
+    for site_key, provider_cls in provider_map.items():
+        descriptor = descriptor_cache.setdefault(
+            provider_cls,
+            ProviderDescriptor.create(provider_cls, site_index=site_indexes.get(provider_cls)),
+        )
+        registry.register_provider_descriptor(site_key, descriptor)
+        registry.register_provider_spider_alias(descriptor.spider_name, descriptor)
+        if isinstance(site_key, str):
+            registry.register_provider_spider_alias(site_key, descriptor)
+
+
+_bootstrap_provider_descriptors()

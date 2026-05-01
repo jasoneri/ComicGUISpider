@@ -1,10 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import hoverAvatarSrc from '../assets/img/icons/monitor.png'
-import downBubbleSrc from '../assets/img/monitor/down.png'
-import guideBubbleSrc from '../assets/img/monitor/guide.webp'
-import neutralBubbleSrc from '../assets/img/monitor/neutral.png'
-import upBubbleSrc from '../assets/img/monitor/up.png'
 import {
   createEmptyMonitorBoardRuntimeData,
   emptyMonitorBoardLiveStatus,
@@ -23,6 +18,12 @@ import {
   MonitorBoardApiError,
   submitMonitorBoardVote,
 } from './monitorBoardApi'
+
+const hoverAvatarSrc = new URL('../../../assets/img/icons/monitor.png', import.meta.url).href
+const downBubbleSrc = new URL('../../../assets/img/monitor/down.png', import.meta.url).href
+const guideBubbleSrc = new URL('../../../assets/img/monitor/guide.webp', import.meta.url).href
+const neutralBubbleSrc = new URL('../../../assets/img/monitor/neutral.png', import.meta.url).href
+const upBubbleSrc = new URL('../../../assets/img/monitor/up.png', import.meta.url).href
 
 const props = withDefaults(defineProps<{
   locale?: MonitorBoardLocale
@@ -78,14 +79,7 @@ type MonitorBoardSegment = {
 const MONITOR_VOTE_DISABLED_STORAGE_KEY = 'monitor-board-vote-disabled:v1'
 const MONITOR_CHART_MIN_VALUE = 0
 const MONITOR_CHART_LAYER_OFFSETS = [20, 40, 60] as const
-
-function createZeroVotes(): MonitorBoardVotes {
-  return {
-    up: 0,
-    neutral: 0,
-    down: 0,
-  }
-}
+const MONITOR_CHART_EMA_DECAY = 0.75
 
 function buildChartLinePath(values: number[], chartMax: number, width = 112, height = 40, padding = 4): string {
   const floor = height - padding
@@ -116,25 +110,38 @@ function buildChartLinePath(values: number[], chartMax: number, width = 112, hei
 }
 
 function buildChartLines(cumulativeUptimes: MonitorBoardUptimes): MonitorBoardChartLine[] {
-  const chartSamples = cumulativeUptimes.length < 2
-    ? []
-    : cumulativeUptimes.slice(1).map((sample, index) => {
-        const previousSample = cumulativeUptimes[index]
-        return {
-          up: sample.up - previousSample.up,
-          neutral: sample.neutral - previousSample.neutral,
-          down: sample.down - previousSample.down,
-        }
-      })
-  if (chartSamples.length === 0) {
+  if (cumulativeUptimes.length < 2) {
     return []
   }
 
-  const latestSample = chartSamples[chartSamples.length - 1] ?? createZeroVotes()
-  const chartMax = Math.max(
-    1,
-    ...chartSamples.flatMap((sample) => monitorVoteKeys.map((key) => sample[key])),
-  )
+  const len = cumulativeUptimes.length - 1
+  let prev = cumulativeUptimes[0]
+  let chartMax = 1
+  const emaSamples: MonitorBoardVotes[] = new Array(len)
+  let emaUp = 0
+  let emaNeutral = 0
+  let emaDown = 0
+
+  for (let i = 0; i < len; i++) {
+    const curr = cumulativeUptimes[i + 1]
+    const diffUp = curr.up - prev.up
+    const diffNeutral = curr.neutral - prev.neutral
+    const diffDown = curr.down - prev.down
+    prev = curr
+
+    emaUp = emaUp * MONITOR_CHART_EMA_DECAY + diffUp
+    emaNeutral = emaNeutral * MONITOR_CHART_EMA_DECAY + diffNeutral
+    emaDown = emaDown * MONITOR_CHART_EMA_DECAY + diffDown
+
+    const sample: MonitorBoardVotes = { up: emaUp, neutral: emaNeutral, down: emaDown }
+    emaSamples[i] = sample
+
+    if (emaUp > chartMax) chartMax = emaUp
+    if (emaNeutral > chartMax) chartMax = emaNeutral
+    if (emaDown > chartMax) chartMax = emaDown
+  }
+
+  const latestSample = emaSamples[len - 1]
   const orderedKeys = [...monitorVoteKeys].sort((leftKey, rightKey) => {
     const valueDelta = latestSample[leftKey] - latestSample[rightKey]
     if (valueDelta !== 0) {
@@ -146,7 +153,7 @@ function buildChartLines(cumulativeUptimes: MonitorBoardUptimes): MonitorBoardCh
   return orderedKeys.map((key, index) => ({
     key,
     color: monitorVoteMetaMap[key].color,
-    linePath: buildChartLinePath(chartSamples.map((sample) => sample[key]), chartMax),
+    linePath: buildChartLinePath(emaSamples.map((sample) => sample[key]), chartMax),
     zIndex: MONITOR_CARD_LAYER + MONITOR_CHART_LAYER_OFFSETS[index],
   }))
 }
@@ -199,14 +206,9 @@ const displayStageMap = computed<MonitorBoardLocalStageMap>(() => ({
   ...pendingStageMap.value,
 }))
 const effectiveApiBaseUrl = computed(() => {
-  if (typeof props.apiBaseUrl === 'string' && props.apiBaseUrl.trim() !== '') {
-    return props.apiBaseUrl.trim()
-  }
-
-  const configuredApiBaseUrl = import.meta.env.VITE_MONITOR_API_BASE_URL
-  return typeof configuredApiBaseUrl === 'string' && configuredApiBaseUrl.trim() !== ''
-    ? configuredApiBaseUrl.trim()
-    : '/api/monitor'
+  return typeof props.apiBaseUrl === 'string' && props.apiBaseUrl.trim() !== ''
+    ? props.apiBaseUrl.trim()
+    : undefined
 })
 const localStageStorageKey = computed(() => `monitor-board-local-stage:${resetStartedAt.value ?? 'default'}`)
 const hasActiveCard = computed(() => activeCardId.value !== null)
@@ -632,33 +634,41 @@ watch(localStageStorageKey, () => {
   syncLocalStageMap()
 })
 
-const cardsWithCharts = computed(() => monitorBoardSites.map((site) => {
-  const liveStatus: MonitorBoardLiveStatus = runtimeData.value.statusMap[site.id] ?? emptyMonitorBoardLiveStatus
-  const displayStage = displayStageMap.value[site.id]
-  const pendingStage = pendingStageMap.value[site.id]
-  const effectiveVotes: MonitorBoardVotes = {
-    up: liveStatus.votes.up,
-    neutral: liveStatus.votes.neutral,
-    down: liveStatus.votes.down,
-  }
+type MonitorBoardCardWithChart = {
+  chartLines: MonitorBoardChartLine[]
+  isCompleted: boolean
+  completedBorderColor: string
+  segments: MonitorBoardSegment[]
+} & typeof monitorBoardSites[number]
 
-  // Persisted local stage only locks the card. Only in-flight submissions
-  // participate in optimistic vote overlay.
-  if (pendingStage) {
-    effectiveVotes[pendingStage.action] += 1
-  }
+const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
+  const statusMap = runtimeData.value.statusMap
+  const displayStage = displayStageMap.value
+  const pendingStage = pendingStageMap.value
 
-  const chartLines = buildChartLines(liveStatus.uptimes)
-  const segments = buildVoteSegments(effectiveVotes)
+  return monitorBoardSites.map((site) => {
+    const liveStatus: MonitorBoardLiveStatus = statusMap[site.id] ?? emptyMonitorBoardLiveStatus
+    const stagedVote = displayStage[site.id]
+    const pendingVote = pendingStage[site.id]
+    const effectiveVotes: MonitorBoardVotes = {
+      up: liveStatus.votes.up,
+      neutral: liveStatus.votes.neutral,
+      down: liveStatus.votes.down,
+    }
 
-  return {
-    ...site,
-    chartLines,
-    isCompleted: displayStage != null,
-    completedBorderColor: displayStage ? monitorVoteMetaMap[displayStage.action].color : 'transparent',
-    segments,
-  }
-}))
+    if (pendingVote) {
+      effectiveVotes[pendingVote.action] += 1
+    }
+
+    return {
+      ...site,
+      chartLines: buildChartLines(liveStatus.uptimes),
+      isCompleted: stagedVote != null,
+      completedBorderColor: stagedVote ? monitorVoteMetaMap[stagedVote.action].color : 'transparent',
+      segments: buildVoteSegments(effectiveVotes),
+    }
+  })
+})
 
 </script>
 

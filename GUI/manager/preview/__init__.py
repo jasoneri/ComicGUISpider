@@ -1,16 +1,19 @@
 import contextlib
 import json
+import time
 
 from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWidgets import QApplication
 
 from GUI.core.font import font_color
-from GUI.types import GUIFlowStage, PreviewRequestState, SearchContextSnapshot, SearchLifecycleState
+from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState
 from GUI.thread.preview import PreviewWorker
 from GUI.manager.preview.manga import MangaPreviewFeature
 from GUI.manager.preview.ero import EroPreviewFeature
 from GUI.manager.preview.fix import FixPreviewFeature
 from assets import res as ori_res
 from utils import select
+from utils.website import GuiSiteRuntime
 from variables import SPIDERS, Spider
 
 
@@ -18,10 +21,10 @@ class PreviewMgr:
     def __init__(self, gui):
         self.gui = gui
         self.site_index = 0
-        self.search_context: SearchContextSnapshot | None = None
+        self.gui_site_runtime: GuiSiteRuntime | None = None  # CG001 choose-box preview flow
         self.books_cache = {}
         self.downloaded_book_ids = set()
-        self._worker = None
+        self._worker = None  # CG001 create_worker()
         self._generation = 0
         self._session_id = 0
         self._current_page = 1
@@ -69,7 +72,7 @@ class PreviewMgr:
 
     def shutdown(self):
         self._generation += 1
-        self.search_context = None
+        self.gui_site_runtime = None
         self._active_keyword = ""
         self.downloaded_book_ids.clear()
         self.reset_preview_page()
@@ -78,10 +81,10 @@ class PreviewMgr:
         self._fix.shutdown()
         self._stop_worker()
 
-    def handle_choosebox_changed(self, index, snapshot: SearchContextSnapshot | None):
+    def handle_choosebox_changed(self, index, gui_site_runtime: GuiSiteRuntime | None):
         self._generation += 1
         self.site_index = index
-        self.search_context = snapshot
+        self.gui_site_runtime = gui_site_runtime
         self._session_id = 0
         self._active_keyword = ""
         self._manga.check_lc_completer()
@@ -96,16 +99,11 @@ class PreviewMgr:
         self._ero.reset()
         self._fix.reset()
         self.gui.pageEdit.setValue(1)
-        if index in SPIDERS and snapshot is not None:
-            self.create_worker(snapshot)
+        if index in SPIDERS and gui_site_runtime is not None:
+            self.create_worker(gui_site_runtime)    # REMARK[260501]: preprocessMgr 没处理好暂时没法删除
         else:
             self._stop_worker()
         self.gui.refresh_lifecycle_state()
-
-    def update_search_context(self, snapshot: SearchContextSnapshot):
-        self.search_context = snapshot
-        if self._worker:
-            self._worker.update_snapshot(snapshot)
 
     def begin_preview_session(self):
         self._session_id += 1
@@ -120,7 +118,6 @@ class PreviewMgr:
             browser.set_close_handler()
 
     def show_preview(self, *, ensure_handler=None, reload_tf=True, bridge=None):
-        browser_created = getattr(self.gui, "BrowserWindow", None) is None
         browser = self.gui.present_browser(
             ensure_handler=ensure_handler,
             ensure_result_kind="preview_submit" if ensure_handler is not None else "checked_ids",
@@ -131,8 +128,6 @@ class PreviewMgr:
         page = browser.view.page()
         self._ensure_web_channel(page, bridge)
         self._bind_page_interactive(browser)
-        if not browser_created and not reload_tf and browser.page_runtime.page_ready:
-            self._on_browser_page_ready("fast-path", -1.0)
         return browser
 
     def _legacy_run_js(self, js, session_id):
@@ -179,7 +174,7 @@ class PreviewMgr:
         elif self.is_fix:
             self._fix.episodes_cache.clear()
         if self._worker:
-            self._worker.enqueue_search(keyword, self.site_index, page=1)
+            self._worker.enqueue("search", keyword, page=1)
             return
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
 
@@ -194,7 +189,7 @@ class PreviewMgr:
         self._target_page = target_page
         self.begin_preview_session()
         if self._worker:
-            self._worker.enqueue_search(keyword, self.site_index, page=target_page)
+            self._worker.enqueue("search", keyword, page=target_page)
             return
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
 
@@ -215,9 +210,24 @@ class PreviewMgr:
         else:
             self.submit_browser_selection()
 
+    def _on_empty_search_done(self):
+        target_page = self._target_page
+        self._target_page = None
+        self._is_local_mode = False
+        if target_page in (None, 1):
+            self._current_page = 1
+            self.gui.flow_stage = GUIFlowStage.IDLE
+            self.gui.clean_preview()
+        self.gui.pageEdit.setValue(self._current_page)
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
+        self.gui.say(f"<br>{'✈' * 15}<br>{font_color(ori_res.SPIDER.SayToGui.frame_book_print_retry_tip, cls='theme-err', size=4)}", 
+                     ignore_http=True)
+
     def _on_search_done(self, generation, _keyword, site_index, books):
         if generation != self._generation or site_index != self.site_index:
             return
+        if not books:
+            return self._on_empty_search_done()
         if self._target_page is not None:
             self._current_page = self._target_page
             self._target_page = None
@@ -227,35 +237,19 @@ class PreviewMgr:
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
         self._active.publish(books)
 
-    def _on_search_error(self, generation, keyword, site_index, error):
-        if generation != self._generation or site_index not in (-1, self.site_index):
-            return
-        if keyword and keyword != self._active_keyword:
-            return
-        self._target_page = None
-        self.gui.pageEdit.setValue(self._current_page)
-        self.gui.flow_stage = GUIFlowStage.IDLE
-        self.gui.update_search_ui(request=PreviewRequestState.Idle)
-        self.gui.log.error(error)
-        summary = (error.strip().splitlines() or ["unknown preview error"])[-1]
-        self.gui.say(
-            font_color(
-                f"<br>preview search failed ({SPIDERS.get(self.site_index, self.site_index)}): {summary}",
-                cls="theme-err", size=3,
-            ),
-            ignore_http=True,
-        )
-
-    def create_worker(self, snapshot: SearchContextSnapshot):
+    def create_worker(self, gui_site_runtime: GuiSiteRuntime):
         self._stop_worker()
-        self._worker = PreviewWorker(self.gui, snapshot=snapshot, generation=self._generation)
+        self._worker = PreviewWorker(
+            self.gui,
+            thread_site_runtime=gui_site_runtime.create_thread_site_runtime(),
+            generation=self._generation,
+        )
         self._worker.search_done.connect(self._on_search_done)
-        self._worker.search_error.connect(self._on_search_error)
         ep_handler = self._fix if self.is_fix else self._manga
         self._worker.episodes_done.connect(ep_handler.on_episodes_done)
-        self._worker.episodes_error.connect(ep_handler.on_episodes_error)
         self._worker.pages_done.connect(ep_handler.on_pages_done)
-        self._worker.pages_error.connect(ep_handler.on_pages_error)
+        self._worker.cover_done.connect(self.gui.task_mgr.on_cover_preload_success)
+        self._worker.cover_error.connect(self.gui.task_mgr.on_cover_preload_error)
         self._worker.start()
         return self._worker
 
@@ -263,21 +257,27 @@ class PreviewMgr:
     def _disconnect_worker_signals(worker: PreviewWorker):
         for signal in (
             worker.search_done,
-            worker.search_error,
             worker.episodes_done,
-            worker.episodes_error,
             worker.pages_done,
-            worker.pages_error,
+            worker.cover_done,
+            worker.cover_error,
         ):
             with contextlib.suppress(TypeError):
                 signal.disconnect()
 
     def _stop_worker(self, *_):
-        if self._worker:
-            self._disconnect_worker_signals(self._worker)
-            self._worker.stop()
-            self._worker.wait(350)
-            self._worker = None
+        worker = self._worker
+        if worker is None:
+            return
+        self._disconnect_worker_signals(worker)
+        worker.stop()
+        deadline = time.monotonic() + 5.0
+        while worker.isRunning() and time.monotonic() < deadline:
+            worker.wait(100)
+            QApplication.processEvents()
+        if worker.isRunning():
+            raise RuntimeError("preview worker failed to stop within 5 seconds")
+        self._worker = None
 
     def _log_page_debug(self, message: str):
         logger = getattr(self.gui, "log", None)

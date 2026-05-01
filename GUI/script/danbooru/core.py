@@ -16,13 +16,16 @@ from utils.script.image.danbooru.client import (
     fetch_remote_image_size,
     search_danbooru_posts,
 )
-from utils.script.image.danbooru.constants import DANBOORU_PAGE_SIZE
+from utils.script.image.danbooru.constants import DANBOORU_BASE_URL, DANBOORU_PAGE_SIZE
 from utils.script.image.danbooru.download import DanbooruDownloadSubmitter
 from utils.script.image.danbooru.http import DanbooruChallengeRequired
 from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, DanbooruPost, DanbooruSearchQuery
 
 if t.TYPE_CHECKING:
     from . import DanbooruCardWidget, DanbooruInterface, DanbooruTabWidget
+
+DANBOORU_CHALLENGE_ERROR_MARKER = "Danbooru request blocked by browser verification"
+DANBOORU_SEARCH_ERROR_STATUS = "search failed"
 
 
 def run_async(coro):
@@ -153,6 +156,7 @@ class DanbooruTabState:
     query: str = ""
     sort_mode: str = ""
     page_cursor: int = 1
+    buffer_start_page: int = 1
     result_list: list[DanbooruPost] = field(default_factory=list)
     selected_md5_set: set[str] = field(default_factory=set)
     request_token: int = 0
@@ -168,18 +172,52 @@ class DanbooruTabState:
         if query is not None:
             self.query = query
         self.page_cursor = 1
+        self.buffer_start_page = 1
         self.result_list.clear()
         self.selected_md5_set.clear()
         self.has_more_results = True
         self.has_loaded_once = False
 
     def mark_loaded_page(self, posts: t.Sequence[DanbooruPost], page: int):
+        if not self.has_loaded_once or not self.result_list:
+            self.buffer_start_page = page
         self.page_cursor = page
         self.has_loaded_once = True
         self.has_more_results = len(posts) >= DANBOORU_PAGE_SIZE
 
     def can_load_next_page(self) -> bool:
         return not self.loading and self.has_more_results and self.has_loaded_once
+
+    def has_pages_before_current(self) -> bool:
+        return self.page_cursor > self.buffer_start_page
+
+    def trim_count_before_current_page(self) -> int:
+        return (self.page_cursor - self.buffer_start_page) * DANBOORU_PAGE_SIZE
+
+    def retain_current_page_as_buffer_start(self):
+        self.buffer_start_page = self.page_cursor
+
+
+@dataclass(frozen=True, slots=True)
+class _DanbooruSearchDispatch:
+    tab_id: str
+    query: str
+    order: str
+    page: int
+    token: int
+    replace: bool
+    task_prefix: str
+
+    def task_id(self) -> str:
+        return f"danbooru-{self.task_prefix}-{self.tab_id}-{self.token}"
+
+    def challenge_retry_key(self) -> str:
+        return f"search:{self.tab_id}:{self.page}:{int(self.replace)}"
+
+    def retry_callback(self, controller: "DanbooruSearchController") -> t.Callable[[], None]:
+        if self.replace or self.page <= 1:
+            return lambda dispatch=self: controller.start_search(dispatch.tab_id, dispatch.query, order=dispatch.order)
+        return lambda dispatch=self: controller.load_next_page(dispatch.tab_id)
 
 
 class DanbooruTabSelectionController(QtCore.QObject):
@@ -198,9 +236,7 @@ class DanbooruTabSelectionController(QtCore.QObject):
         self._install_drag_select_source(self.tab.scroll_content)
 
     def apply_theme(self, *, selection_border: str, selection_background: str):
-        self._selection_band.setStyleSheet(
-            f"border: 2px dashed {selection_border}; background: {selection_background};"
-        )
+        self._selection_band.setStyleSheet(f"border: 2px dashed {selection_border}; background: {selection_background};")
 
     def bind_card(self, card: "DanbooruCardWidget"):
         card.selection_changed.connect(self._on_card_selection_changed)
@@ -232,14 +268,7 @@ class DanbooruTabSelectionController(QtCore.QObject):
         self.tab.state.selected_md5_set.discard(md5_value)
         self.sync_selection_count()
 
-    def _apply_card_selection(
-        self,
-        card: "DanbooruCardWidget",
-        selected: bool,
-        *,
-        sync_widget: bool = True,
-        emit_count: bool = True,
-    ):
+    def _apply_card_selection(self, card: "DanbooruCardWidget", selected: bool, *, sync_widget: bool = True, emit_count: bool = True):
         if sync_widget:
             card.set_selected(selected)
             selected = card.checkbox.isChecked()
@@ -283,10 +312,7 @@ class DanbooruTabSelectionController(QtCore.QObject):
         viewport = self.tab.scroll_area.viewport()
         rect = viewport.rect()
         point = viewport.mapFromGlobal(global_pos)
-        return QtCore.QPoint(
-            min(max(point.x(), rect.left()), rect.right()),
-            min(max(point.y(), rect.top()), rect.bottom()),
-        )
+        return QtCore.QPoint(min(max(point.x(), rect.left()), rect.right()), min(max(point.y(), rect.top()), rect.bottom()))
 
     def _reset_drag_select_state(self):
         was_active = self._drag_select_active
@@ -375,7 +401,7 @@ class DanbooruSearchController:
     def __init__(self, interface: "DanbooruInterface"):
         self.interface = interface
 
-    def start_search(self, tab_id: str, query: str):
+    def start_search(self, tab_id: str, query: str, *, order: str | None = None):
         tab = self.interface.tabs.get(tab_id)
         state = self.interface.tab_states.get(tab_id)
         if tab is None or state is None:
@@ -383,6 +409,8 @@ class DanbooruSearchController:
         canonical_term = DanbooruSearchQuery.normalize(query)
         token = state.begin_request()
         tab.clear_results(query=canonical_term)
+        if order is not None:
+            state.sort_mode = str(order or "")
         tab.set_loading(True)
         self._submit_search_request(
             tab_id=tab_id,
@@ -422,84 +450,76 @@ class DanbooruSearchController:
         token: int,
         replace: bool,
         task_prefix: str,
-    ):
-        self.interface._log_search_request(tab_id, query, order, page, DANBOORU_PAGE_SIZE)
+    ) -> None:
+        dispatch = _DanbooruSearchDispatch(
+            tab_id=tab_id,
+            query=query,
+            order=order,
+            page=page,
+            token=token,
+            replace=replace,
+            task_prefix=task_prefix,
+        )
+        self.interface._log_search_request(dispatch.tab_id, dispatch.query, dispatch.order, dispatch.page, DANBOORU_PAGE_SIZE)
         execute_danbooru_task(
             self.interface.task_mgr,
-            lambda current_query=query, current_order=order, current_page=page: DanbooruReq.search(
-                current_query,
-                order=current_order,
-                page=current_page,
-            ),
-            success_callback=lambda result, tid=tab_id, tkn=token, pg=page, do_replace=replace: self.handle_search_result(tid, tkn, result, pg, do_replace),
-            error_callback=lambda err, tid=tab_id, tkn=token: self.handle_search_error(tid, tkn, err),
-            task_id=f"danbooru-{task_prefix}-{tab_id}-{token}",
+            lambda current=dispatch: DanbooruReq.search(current.query, order=current.order, page=current.page),
+            success_callback=lambda result, current=dispatch: self.handle_search_result(current, result),
+            error_callback=lambda err, current=dispatch: self.handle_search_error(current, err),
+            task_id=dispatch.task_id(),
         )
 
-    def handle_search_result(
-        self, tab_id: str, token: int,
-        result: DanbooruReqResult, page: int, replace: bool,
-    ):
+    def handle_search_result(self, dispatch: _DanbooruSearchDispatch, result: DanbooruReqResult):
         if result.challenge is not None:
-            self.handle_search_challenge(tab_id, token, result.challenge, page=page, replace=replace)
+            self.handle_search_challenge(dispatch, result.challenge)
             return
-        self.handle_search_success(tab_id, token, result.value or [], page, replace)
+        self.handle_search_success(dispatch, result.value or [])
 
-    def handle_search_success(self, tab_id: str, token: int, posts: list[DanbooruPost], page: int, replace: bool):
-        tab = self.interface.tabs.get(tab_id)
-        state = self.interface.tab_states.get(tab_id)
-        if tab is None or state is None or token != state.request_token:
+    def handle_search_success(self, dispatch: _DanbooruSearchDispatch, posts: list[DanbooruPost]):
+        tab = self.interface.tabs.get(dispatch.tab_id)
+        state = self.interface.tab_states.get(dispatch.tab_id)
+        if tab is None or state is None or dispatch.token != state.request_token:
             return
         tab.set_loading(False)
-        state.mark_loaded_page(posts, page)
-        self.interface._update_tab_title(tab_id, state.query)
-        if not posts and replace:
-            self.interface._set_tab_tip(tab_id, "∅", cls="theme-tip")
+        state.mark_loaded_page(posts, dispatch.page)
+        self.interface._update_tab_title(dispatch.tab_id, state.query)
+        self.interface.set_tab_httpx_status(dispatch.tab_id, f"httpx 200/{len(posts)}", cls="theme-success")
+        if not posts and dispatch.replace:
+            self.interface.set_tab_httpx_status(dispatch.tab_id, "httpx 200/0", cls="theme-tip")
             return
         downloaded_md5s = self.interface.sql_recorder.batch_check_dupe([post.md5 for post in posts if post.md5])
         appended_cards = tab.append_results(posts, downloaded_md5s)
-        if replace:
-            self.interface._set_tab_tip(tab_id, "access index" if not state.query else "✓", cls="theme-success")
-        else:
-            ...
         danbooru_cfg.add_history(state.query)
         self.interface._refresh_completer(tab)
         for card in appended_cards:
             self.load_card_preview(tab, card)
         if not state.has_more_results:
-            self.interface._set_tab_tip(tab_id, "empty", cls="theme-err")
+            self.interface._set_tab_tip(dispatch.tab_id, "empty", cls="theme-err")
 
-    def handle_search_challenge(
-        self, tab_id: str, token: int, challenge: DanbooruChallengeRequired,
-        *, page: int, replace: bool,
-    ):
-        tab = self.interface.tabs.get(tab_id)
-        state = self.interface.tab_states.get(tab_id)
-        if tab is None or state is None or token != state.request_token:
+    def handle_search_challenge(self, dispatch: _DanbooruSearchDispatch, challenge: DanbooruChallengeRequired):
+        tab = self.interface.tabs.get(dispatch.tab_id)
+        state = self.interface.tab_states.get(dispatch.tab_id)
+        if tab is None or state is None or dispatch.token != state.request_token:
             return
         tab.set_loading(False)
-        retry_callback = (
-            (lambda tid=tab_id, query=state.query: self.start_search(tid, query))
-            if replace or page <= 1
-            else (lambda tid=tab_id: self.load_next_page(tid))
-        )
         self.interface.challenge_controller.submit(
-            tab_id,
+            dispatch.tab_id,
             challenge,
-            retry_callback,
+            dispatch.retry_callback(self),
             reason="search",
-            retry_key=f"search:{tab_id}:{page}:{int(replace)}",
+            retry_key=dispatch.challenge_retry_key(),
         )
 
-    def handle_search_error(self, tab_id: str, token: int, error: str):
-        tab = self.interface.tabs.get(tab_id)
-        state = self.interface.tab_states.get(tab_id)
-        if tab is None or state is None or token != state.request_token:
+    def handle_search_error(self, dispatch: _DanbooruSearchDispatch, error: str):
+        tab = self.interface.tabs.get(dispatch.tab_id)
+        state = self.interface.tab_states.get(dispatch.tab_id)
+        if tab is None or state is None or dispatch.token != state.request_token:
             return
         tab.set_loading(False)
-        summary = (error.splitlines() or ["?"])[0]
-        msg = f"✕ search fail {summary}"
-        self.interface._set_tab_tip(tab_id, msg, cls="theme-err")
+        if DANBOORU_CHALLENGE_ERROR_MARKER in str(error or ""):
+            self.handle_search_challenge(dispatch, DanbooruChallengeRequired(verify_url=DANBOORU_BASE_URL, status_code=403))
+            return
+        self.interface._set_tab_tip(dispatch.tab_id, DANBOORU_SEARCH_ERROR_STATUS, cls="theme-err")
         self.interface._show_task_error(error, 6000)
 
     def load_card_preview(self, tab: "DanbooruTabWidget", card: "DanbooruCardWidget"):
@@ -509,7 +529,9 @@ class DanbooruSearchController:
         execute_danbooru_task(
             self.interface.task_mgr,
             lambda width=max(card.preview_fetch_width(), 280): DanbooruReq.fetch_preview(preview_url, max_width=width),
-            success_callback=lambda payload, tid=tab.state.tab_id, pid=card.post.post_id: self.handle_card_preview_result(tid, pid, payload),
+            success_callback=lambda payload, tid=tab.state.tab_id, pid=card.post.post_id: self.handle_card_preview_result(
+                tid, pid, payload
+            ),
             error_callback=lambda _err, current_card=card: current_card.preview_button.setText("Preview Error"),
             task_id=f"danbooru-card-preview-{tab.state.tab_id}-{card.post.md5}",
         )

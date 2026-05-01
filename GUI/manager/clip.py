@@ -73,14 +73,15 @@ class ClipGUIManager:
                 url=f"{CGS_DOC}/config/#剪贴板db-clip-db", url_name="Guide"
             )
         else:
-            gateway = self.gui.site_gateway
-            if gateway is None:
-                raise RuntimeError("site gateway unavailable for clip flow")
+            gui_site_runtime = self.gui.gui_site_runtime
+            if gui_site_runtime is None:
+                raise RuntimeError("gui_site_runtime unavailable for clip flow")
+            book_url_regex = getattr(gui_site_runtime.provider_cls, "book_url_regex", "")
             clip = ClipSqlHandler(conf.clip_db, f"{conf.clip_sql} limit {conf.clip_read_num}",
-                               gateway.book_url_regex)
+                               book_url_regex)
             tf, match_items = clip.create_tf()
             if not match_items:
-                self.gui.say(res.GUI.Clip.match_none % gateway.book_url_regex,
+                self.gui.say(res.GUI.Clip.match_none % book_url_regex,
                              ignore_http=True)
             else:
                 self.init_clip_handle(tf, match_items)
@@ -96,7 +97,13 @@ class ClipGUIManager:
         self.gui.set_preview()
         self.gui.BrowserWindow.resize(self.gui.BrowserWindow.width(), 860)
         self.gui.BrowserWindow.show()
-        self.clipTasksThread = ClipTasksThread(self.gui, match_urls)
+        gui_site_runtime = self.gui.gui_site_runtime
+        if gui_site_runtime is None:
+            raise RuntimeError("gui_site_runtime unavailable for clip thread runtime")
+        self.clipTasksThread = ClipTasksThread(
+            self.gui, match_urls,
+            thread_site_runtime=gui_site_runtime.create_thread_site_runtime(),
+        )
         self.clipTasksThread.info_signal.connect(self.single_clip_tasks_data)
         self.clipTasksThread.total_signal.connect(self.all_clip_tasks_data)
 

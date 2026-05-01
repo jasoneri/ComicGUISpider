@@ -3,7 +3,7 @@
 from enum import IntEnum
 from assets import res
 
-VER = "v2.10.0-beta.2"
+VER = "v2.10.0-beta.3"
 
 LANG = {
     "en_US": "English",

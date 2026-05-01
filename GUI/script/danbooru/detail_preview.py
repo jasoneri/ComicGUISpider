@@ -45,6 +45,7 @@ class DanbooruDetailPreviewController(QtCore.QObject):
     def __init__(self, interface: "DanbooruInterface", viewer: DanbooruImageViewer):
         super().__init__(interface)
         self.interface = interface
+        self.gui = interface.gui
         self.viewer = viewer
         self._tab_id: t.Optional[str] = None
         self._pixmap_cache: dict[int, QPixmap] = {}
@@ -264,20 +265,16 @@ class DanbooruDetailPreviewController(QtCore.QObject):
         self._probe_size(tab_id, post)
 
     def _handle_request_error(self, spec: _DanbooruDetailRequestSpec, post: DanbooruPost, error: str):
-        logger = self.interface._gui_logger()
         if spec is _PREFETCH_REQUEST:
             self._prefetching_post_ids.discard(post.post_id)
-            if logger is not None:
-                logger.warning(f"[Danbooru] detail prefetch failed post_id={post.post_id}: {error}")
+            self.gui.log.warning(f"[Danbooru] detail prefetch failed post_id={post.post_id}: {error}")
             return
         if spec is _PREVIEW_REQUEST:
-            if logger is not None:
-                logger.error(f"[Danbooru] detail preview failed post_id={post.post_id}: {error}")
+            self.gui.log.error(f"[Danbooru] detail preview failed post_id={post.post_id}: {error}")
             if self.matches(post_id=post.post_id):
                 self.viewer.set_placeholder(self._detail_preview_error_message(post, error))
             return
-        if logger is not None:
-            logger.warning(f"[Danbooru] detail size probe failed post_id={post.post_id}: {error}")
+        self.gui.log.warning(f"[Danbooru] detail size probe failed post_id={post.post_id}: {error}")
 
     def _apply_preview_size(self, post_id: int, size: t.Optional[tuple[int, int]]):
         if not size:

@@ -9,19 +9,19 @@ from assets import res
 from deploy.update import Proj
 from GUI.core.font import font_color
 from utils.protocol import JobAcceptedEvent, LogEvent, ProcessStateEvent, TasksObjEvent, BarProgressEvent, JobFinishedEvent, ErrorEvent
-from utils.website.registry import resolve_spider_adapter
 
-from .ags import AggrSearchThread
+from .ags import AggrSearchThread   # noqa
 
 
 class ClipTasksThread(QThread):
     info_signal = Signal(InfoMinix)
     total_signal = Signal(object)
 
-    def __init__(self, gui, tasks):
+    def __init__(self, gui, tasks, *, thread_site_runtime):
         super(ClipTasksThread, self).__init__(gui)  # 设置GUI为parent，确保正确的线程上下文
         self.gui = gui
         self.tasks = tasks
+        self.thread_site_runtime = thread_site_runtime
 
     def run(self):
         self.msleep(500)  # 延时，否则子线程太快导致主界面没跟上
@@ -30,34 +30,35 @@ class ClipTasksThread(QThread):
         self.handle_total(total)
 
     async def _async_run(self):
-        adapter = getattr(self.gui, "spider_adapter", None) or resolve_spider_adapter(self.gui.chooseBox.currentIndex())
-        session = adapter.create_session(conf)
-        async with session.get_cli(conf, is_async=True) as cli:
-            total = {}
-            async def fetch_single(idx, url):
-                _idx = idx + 1
-                try:
-                    resp = await cli.get(url, follow_redirects=True, timeout=6)
-                    book = session.parse_book(resp.text)
-                    self.msleep(30)
-                    book.idx = _idx
-                    book.preview_url = book.url = url
-                    self.info_signal.emit(book)
-                    return _idx, book
-                except Exception as e:
-                    err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
-                    self.gui.log.exception(e)
-                    self.gui.say(font_color(err_msg + '<br>', cls='theme-err'), ignore_http=True)
-                    return _idx, None
-            # 并发执行所有任务
-            tasks = [fetch_single(idx, url) for idx, url in enumerate(self.tasks)]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, Exception):
-                    continue
-                if result[1] is not None:
-                    total[result[0]] = result[1]
-            return total
+        try:
+            async with self.thread_site_runtime.reqer.get_cli(conf, is_async=True) as cli:
+                total = {}
+                async def fetch_single(idx, url):
+                    _idx = idx + 1
+                    try:
+                        resp = await cli.get(url, follow_redirects=True, timeout=6)
+                        book = self.thread_site_runtime.parser.parse_book(resp.text)
+                        self.msleep(30)
+                        book.idx = _idx
+                        book.preview_url = book.url = url
+                        self.info_signal.emit(book)
+                        return _idx, book
+                    except Exception as e:
+                        err_msg = rf"{res.GUI.Clip.get_info_error}({url}): [{type(e).__name__}] {str(e)}"
+                        self.gui.log.exception(e)
+                        self.gui.say(font_color(err_msg + '<br>', cls='theme-err'), ignore_http=True)
+                        return _idx, None
+
+                tasks = [fetch_single(idx, url) for idx, url in enumerate(self.tasks)]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, Exception):
+                        continue
+                    if result[1] is not None:
+                        total[result[0]] = result[1]
+                return total
+        finally:
+            await self.thread_site_runtime.aclose()
 
     def check_condition_and_run_js(self):
         if self.iterations >= self.max_iterations:
@@ -94,7 +95,7 @@ class WorkThread(QThread):
     print_signal = Signal(int, object, str)
     tasks_signal = Signal(int, object, object)
     process_state_signal = Signal(int, object, str)
-    worker_finished_signal = Signal(int, object, str, bool)
+    worker_finished_signal = Signal(int, object, str, bool, object)
 
     def __init__(self, gui, event_q: queue.Queue, authority=None):
         super(WorkThread, self).__init__(gui)
@@ -190,7 +191,7 @@ class WorkThread(QThread):
                     self.item_count_signal.emit(generation, event.job_id, event.percent)
                 elif isinstance(event, JobFinishedEvent):
                     imgs_path = str(getattr(gui, "sv_path", conf.sv_path))
-                    self.worker_finished_signal.emit(generation, event.job_id, imgs_path, event.success)
+                    self.worker_finished_signal.emit(generation, event.job_id, imgs_path, event.success, event.error)
                 elif isinstance(event, ErrorEvent):
                     if self.authority is not None:
                         self.authority.reject_job(event.job_id)

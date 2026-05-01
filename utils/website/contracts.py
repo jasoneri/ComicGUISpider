@@ -14,6 +14,7 @@ class BrowserCookiePayload:
 @dataclass(frozen=True, slots=True)
 class BrowserEnvironmentPayload:
     proxy: str | None = None
+    doh_url: str = ""
     referer_url: str | None = None
     cookie_sets: tuple[BrowserCookiePayload, ...] = ()
 

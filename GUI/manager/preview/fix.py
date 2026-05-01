@@ -95,13 +95,13 @@ class FixPreviewFeature(MangaPreviewFeature):
             if not book_key or book_key in self._inflight_book_pages:
                 continue
             self._inflight_book_pages[book_key] = book
-            batch_items.append((book_key, book, self.mgr.site_index))
+            batch_items.append((book_key, book))
         if ready_books:
             self.gui.sel_mgr.submit_decision(
                 "BOOK", ready_books, flow_stage=self.gui.flow_stage,
             )
         if batch_items and self.mgr.worker:
-            self.mgr.worker.enqueue_pages_batch(batch_items)
+            self.mgr.worker.enqueue("pages_batch", batch_items)
 
     def _submit_selected_episodes_for_book(self, book_key, book, selected_eps):
         if not selected_eps:
@@ -114,9 +114,9 @@ class FixPreviewFeature(MangaPreviewFeature):
         if book_key in self._inflight_pages:
             return
         self._inflight_pages[book_key] = (book, selected_eps)
-        batch_items = [(book_key, ep, self.mgr.site_index) for ep in needs_pages]
+        batch_items = [(book_key, ep) for ep in needs_pages]
         if batch_items and self.mgr.worker:
-            self.mgr.worker.enqueue_pages_batch(batch_items)
+            self.mgr.worker.enqueue("pages_batch", batch_items)
 
     def _on_dl_scan_done(self, session_id, matched):
         self._release_dl_scan(session_id)
@@ -143,11 +143,11 @@ class FixPreviewFeature(MangaPreviewFeature):
             token = (session_id, book_key)
             if token in self._inflight_books:
                 continue
-            batch_items.append((session_id, book_key, book, self.mgr.site_index))
+            batch_items.append((session_id, book_key, book))
         if batch_items and self.mgr.worker:
-            for _, book_key, _, _ in batch_items:
+            for _, book_key, _ in batch_items:
                 self._inflight_books.add((session_id, book_key))
-            self.mgr.worker.enqueue_episodes_batch(batch_items)
+            self.mgr.worker.enqueue('episodes_batch', batch_items)
         if browser := getattr(self.gui, "BrowserWindow", None):
             browser.page_runtime.log_js_metrics(
                 "manga-dl-scan",
@@ -182,22 +182,6 @@ class FixPreviewFeature(MangaPreviewFeature):
             book, selected_eps = pending
             book.episodes = list(selected_eps)
             self.gui.sel_mgr.submit_decision("EP", book)
-        self._hide_scan_if_idle()
-
-    def on_pages_error(self, generation, book_key, error):
-        book = self._inflight_book_pages.pop(book_key, None)
-        if book is not None:
-            if generation == self.mgr._generation:
-                self.gui.log.error(error)
-            self._hide_scan_if_idle()
-            return
-        pending = self._inflight_pages.pop(book_key, None)
-        if pending is not None and generation == self.mgr._generation:
-            self.gui.log.error(error)
-            self.mgr.send_command(
-                "manga.episodes.error",
-                {"bookKey": str(book_key), "code": "pages_fetch_failed"},
-            )
         self._hide_scan_if_idle()
 
     def _submit_payload(self, payload: dict):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from PySide6 import QtNetwork
 from PySide6.QtCore import QUrl
 
@@ -12,21 +14,52 @@ from .runtime import (
 from .types import BrowserChallengeResult, BrowserChallengeSpec
 
 
+@dataclass(frozen=True, slots=True)
+class BrowserDoHProxyBootstrap:
+    doh_url: str
+    previous_application_proxy: QtNetwork.QNetworkProxy
+
+
 class BrowserDoHProxyRuntime:
-    def __init__(self, browser):
+    def __init__(self, browser, *, bootstrap: BrowserDoHProxyBootstrap | None = None):
         self._browser = browser
-        self._managed_proxy = False
-        self._previous_application_proxy = None
+        self._managed_proxy = bootstrap is not None
+        self._previous_application_proxy = bootstrap.previous_application_proxy if bootstrap is not None else None
+        self._doh_url = bootstrap.doh_url if bootstrap is not None else ""
+
+    @classmethod
+    def prepare_before_webengine(cls, doh_url: str) -> BrowserDoHProxyBootstrap | None:
+        normalized_url = str(doh_url or "").strip()
+        if not normalized_url:
+            return None
+        previous_proxy = QtNetwork.QNetworkProxy.applicationProxy()
+        cls._set_application_http_proxy(ensure_doh_webengine_proxy_started(normalized_url))
+        return BrowserDoHProxyBootstrap(doh_url=normalized_url, previous_application_proxy=previous_proxy)
 
     def apply(self, doh_url: str) -> None:
-        proxy_str = ensure_doh_webengine_proxy_started(doh_url)
+        normalized_url = str(doh_url or "").strip()
+        if self._managed_proxy and self._doh_url == normalized_url:
+            return
+        proxy_str = ensure_doh_webengine_proxy_started(normalized_url)
         if not self._managed_proxy:
             self._previous_application_proxy = QtNetwork.QNetworkProxy.applicationProxy()
         self._managed_proxy = True
+        self._doh_url = normalized_url
+        self._set_application_http_proxy(proxy_str)
+
+    @staticmethod
+    def _set_application_http_proxy(proxy_str: str) -> None:
         if proxy_str:
-            self._browser.set_proxies(proxy_str)
+            proxy = QtNetwork.QNetworkProxy()
+            proxy.setType(QtNetwork.QNetworkProxy.HttpProxy)
+            host, port = proxy_str.split(":")
+            proxy.setHostName(host)
+            proxy.setPort(int(port))
+            QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
             return
-        self._browser.clear_proxies()
+        proxy = QtNetwork.QNetworkProxy()
+        proxy.setType(QtNetwork.QNetworkProxy.NoProxy)
+        QtNetwork.QNetworkProxy.setApplicationProxy(proxy)
 
     def restore(self) -> None:
         if not self._managed_proxy:
@@ -35,17 +68,18 @@ class BrowserDoHProxyRuntime:
         QtNetwork.QNetworkProxy.setApplicationProxy(previous)
         self._previous_application_proxy = None
         self._managed_proxy = False
+        self._doh_url = ""
 
 
 class BrowserWindowModeController:
-    def __init__(self, browser, interceptor):
+    def __init__(self, browser, interceptor, *, doh_proxy_bootstrap: BrowserDoHProxyBootstrap | None = None):
         self._browser = browser
         self._interceptor = interceptor
         self._ensure_callback = browser.gui.next
         self._ensure_result_kind = "checked_ids"
         self._close_handler = None
         self._uses_page_scan = True
-        self._doh_proxy_runtime = BrowserDoHProxyRuntime(browser)
+        self._doh_proxy_runtime = BrowserDoHProxyRuntime(browser, bootstrap=doh_proxy_bootstrap)
         self._cookie_collector = None
         self._live_cookie_tracker = None
 

@@ -27,7 +27,7 @@ class MangabzSpider(FormReqBaseComicSpider):
 
     def frame_section(self, response):
         book = response.meta.get("book")
-        episodes = self.site.parser.parse_episodes(response, book, domain)
+        episodes = self.spider_site_runtime.parser.parse_episodes(response, book, domain)
         frame_results = {ep.idx: ep for ep in episodes}
         return self.say.frame_section_print(frame_results)
 
@@ -35,7 +35,7 @@ class MangabzSpider(FormReqBaseComicSpider):
         ep = response.meta['ep']
         book = ep.from_book
         uid, u_md5 = ep.id_and_md5()
-        img_list = self.site.parser.parse_page_urls_from_html(response.text)
+        img_list = self.spider_site_runtime.parser.parse_page_urls_from_html(response.text)
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
         ep.pages = len(img_list)
         self.set_task(ep)

@@ -20,7 +20,14 @@ def browser_window_profile_paths(*, base_dir: Path | None = None) -> tuple[Path,
     return storage_dir, cache_dir
 
 
-def create_browser_window_profile(parent=None, *, base_dir: Path | None = None) -> QWebEngineProfile:
+def create_browser_window_profile(
+    parent=None, *, base_dir: Path | None = None, persistent: bool = True,
+) -> QWebEngineProfile:
+    if not persistent:
+        profile = QWebEngineProfile(parent)
+        profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
+        profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.NoPersistentCookies)
+        return profile
     storage_dir, cache_dir = browser_window_profile_paths(base_dir=base_dir)
     profile = QWebEngineProfile(BROWSER_WINDOW_PROFILE_STORAGE_NAME, parent)
     profile.setPersistentStoragePath(str(storage_dir))

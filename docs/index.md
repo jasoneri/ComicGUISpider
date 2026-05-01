@@ -33,7 +33,7 @@ hero:
 
 <table><tbody>  
   <tr>
-    <td><div align="center"><a href="https://www.2025copy.com/" target="_blank">
+    <td><div align="center"><a href="https://www.2026copy.com/" target="_blank">
       <img src="./assets/img/icons/website/copy.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://mangabz.com" target="_blank">
@@ -63,12 +63,12 @@ hero:
 <table><tbody>
   <tr>
     <td style="text-align: center; vertical-align: middle;" rowspan="5">
-      <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1772894706883_normal.mp4" title="AGS demo"></HomeDemoVideo>
+      <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1777320602636_normal.webm" title="AGS demo"></HomeDemoVideo>
     </td>
   </tr>
   <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜素</strong></a></td></tr>
-  <tr><td style="text-align: left;"><a href="/script/"><strong>🎮Script</strong></a></td></tr>
+  <tr><td style="text-align: left;"><a href="/script/"><strong>🎮Script/Cbg</strong></a></td></tr>
 </tbody></table>
 
 ## 功能特性

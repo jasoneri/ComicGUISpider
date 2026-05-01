@@ -69,6 +69,7 @@ class SpiderRuntimeThread(threading.Thread):
         installed_reactor = f"{reactor.__class__.__module__}.{reactor.__class__.__name__}"
         s.set("TWISTED_REACTOR", installed_reactor, priority="cmdline")
         configure_logging(s)
+        logging.getLogger("PIL.Image").setLevel(logging.WARNING)
         self._runner = CrawlerRunner(s)
         self._settings = s
         self._ready.set()
@@ -113,11 +114,7 @@ class SpiderRuntimeThread(threading.Thread):
         self.state.update(stage="crawling", active_job_id=job.job_id, error=None)
         self.event_q.put(JobAcceptedEvent(job_id=job.job_id))
 
-        d = self._runner.crawl(
-            spider_cls_name,
-            runtime_thread=self,
-            job=job,
-        )
+        d = self._runner.crawl(spider_cls_name, runtime_thread=self, job=job)
         d.addCallback(lambda _: self._on_crawl_finished(job))
         d.addErrback(lambda f: self._on_crawl_error(job, f))
 
@@ -126,7 +123,7 @@ class SpiderRuntimeThread(threading.Thread):
         error = getattr(job, "runtime_error", None)
         stage = "idle" if success else "error"
         self.state.update(stage=stage, active_job_id=None, progress=0.0, error=error)
-        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=success))
+        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=success, error=error))
         if success:
             logger.info(f"Job {job.job_id} finished")
         else:
@@ -136,7 +133,7 @@ class SpiderRuntimeThread(threading.Thread):
         error_msg = str(failure.value) if hasattr(failure, 'value') else str(failure)
         self.state.update(stage="error", active_job_id=None, progress=0.0, error=error_msg)
         self.event_q.put(ErrorEvent(job_id=job.job_id, error=error_msg))
-        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=False))
+        self.event_q.put(JobFinishedEvent(job_id=job.job_id, success=False, error=error_msg))
         logger.error(f"Job {job.job_id} failed: {error_msg}")
 
     def submit_job(self, job: SpiderDownloadJob):

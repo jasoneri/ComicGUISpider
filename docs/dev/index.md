@@ -2,7 +2,7 @@
 
 后续会基于 ai 规则 / 工作流 / skills，方便统一规范测试
 
-::: tip 当前说明适用于当前仓库的 provider / gateway / runtime 架构
+::: tip 当前说明适用于当前仓库的 provider / runtime 架构
 `2.10-dev` 以后的分支新增或迁移站点请以下文为准。
 :::
 
@@ -20,12 +20,85 @@
 - 是否支持 aggr / clip
 - 是否存在动态 domain / 发布页 / 特殊 referer / `verify=False`
 
+开始开发的准备：`git` 克隆本项目到本地，使用主流模型 / CLI（`claudecode` / `codex`）
+
+> 以下 prompt 用于让 ai 协助捕获并验证上述素材的真实请求响应夹具，产出可直接衔接 prompt-dev。
+
+::: details prompt-prepare ⇩
+
+```text
+site_name=
+site_url=
+
+作为熟悉 Python、httpx 与本仓库架构的开发者，现在你需要为 ComicGUISpider 新站点准备请求响应夹具。
+
+## 任务目标
+
+基于开发者提供的 site_url 和已知站点特征，协助完成以下夹具捕获与验证工作。
+所有夹具仅供本地验证，禁止 git 跟踪。
+
+## 一、夹具捕获
+
+1. 在浏览器中访问站点，使用 DevTools → Network 抓取各阶段的真实请求与响应
+2. 对每个交互阶段保存一对文件：`<stage>_req.curl`（Copy as cURL）+ `<stage>_resp.<html|json>`（响应 Body）
+3. 推荐目录：`test/analyze/<site>/`
+
+### 最少必需阶段
+
+| 阶段 | 文件前缀 | 说明 |
+|------|----------|------|
+| 搜索 | `search_*` | 搜索请求与结果列表 |
+| 书页 | `book_*` | 书籍详情页，含章节引导 |
+| 章节 | `chapter_*` | 章节列表（XHR 或内嵌） |
+| 内页 | `section_*` | 章节内页图片数据 |
+
+4. 复杂站点可能还有：首页(`index_*`)、搜索建议(`search_suggest_*`)、书元数据XHR(`book_pop_*`) 等，按实际交互补充
+
+## 二、验证矩阵（可选）
+
+1. 基于捕获的夹具编写解析验证脚本：`test/net/<site>/transport_matrix.py`
+2. 对每个阶段用正则或解析器提取关键字段，输出 `[OK]` / `[ERR]` 报告
+3. 确认 HTML/JSON 结构可被稳定解析
+
+## 三、输出素材摘要
+
+将验证结果整理为以下格式，供 prompt-dev 消费：
+
+site_name: <站点英文标识>
+site_url: <站点首页>
+search_url: <搜索页 URL>
+book_url: <书页 URL>
+
+**已验证的交互阶段**
+stages:
+  search: <搜索方式：JSON XHR / HTML 分页 / ...>
+  book: <书页结构：loader引导 / 直接章节列表 / ...>
+  chapter: <章节来源：XHR / 内嵌HTML / ...>
+  pages: <内页图片：XHR / 直接img / ...>
+
+**站点特征**
+need_proxy: 是/否
+need_cookies: 是/否
+site_kind: 普通漫画 / R18
+supports_preview: 是/否
+supports_aggr: 是/否
+supports_clip: 是/否
+dynamic_domain: 是/否
+
+## 四、要求
+
+- 夹具路径可自定义，不必与示例一致
+- 不要伪造数据；无把握的阶段标注为"未验证"即可
+- 异常直接暴露根因，不要静默跳过或吞错误
+```
+
+:::
+
 #### 实际开发
 
-1. `git` 克隆本项目到本地，使用主流模型 / CLI（`claudecode` / `codex`）
-2. 将第一步的 url、html 和已知站点特征补进下面的 prompt，发给 ai 执行
+将上一步的 url、html 和已知站点特征/夹具准备等补进下面的 prompt，发给 ai 执行
 
-::: details prompt ⇩
+::: details prompt-dev ⇩
 
 ```text
 search_url=
@@ -40,7 +113,7 @@ supports_clip=
 
 作为熟悉 Python、Scrapy、httpx 与本仓库架构的开发者，现在你需要在 ComicGUISpider 当前分支上扩展新网站。
 
-先阅读仓库现状再编码，禁止按旧文档直接假设路径和职责。若发现当前结构与旧结构不一致，以当前代码为准。
+先阅读仓库现状再编码，以当前代码结构为准。
 
 ## 本地开发相关
 请按以下六个部分完成开发：
@@ -53,6 +126,8 @@ supports_clip=
    - `ComicSpider/spiders/<baseline>.py`
    - `ComicSpider/spiders/basecomicspider.py`
    - `utils/website/ins.py`
+   - `utils/website/registry.py`
+   - `utils/website/site_runtime.py`
    - `variables/__init__.py`
    - `GUI/mainwindow.py`
    - `GUI/manager/preprocess.py`
@@ -70,27 +145,20 @@ supports_clip=
 
 1. 在 `utils/website/providers/` 下创建新 provider 文件，优先以 `_template.py` 为起点
 2. 视站点能力组合正确的 mixin / 结构：
-   - 常规站点通常围绕 `Utils` / `Req` / `Previewer`
+   - 每个 provider 文件通常包含三个类：`XxxParser`（继承 `Previewer`，负责解析）、`XxxReqer`（继承 `Req`，负责请求与 preview 流程）、`XxxUtils`（继承 `Utils` + `Previewer`，组合 `parser` 与 `reqer_cls`）
    - `R18` 站点通常围绕 `EroUtils`
    - 需要动态 domain 时使用 `DomainUtils`
    - 需要 cookies 时补 `Cookies`
-3. provider 里至少明确这些能力：
-   - `name`
-   - `domain` / `index`
+3. `XxxUtils` 里至少明确这些静态配置：
+   - `name` / `domain` / `index`
    - `headers` / `book_hea`
    - `uuid_regex` 或 `get_uuid`
-   - `parse_search_item`
-   - `parse_search`
-   - `parse_book`
-4. 当前架构优先使用 request / parser 分层；复杂站点不要把所有逻辑都堆进一个大类里
+   - `parser` / `reqer_cls` / `__init__`（实例化 `self.reqer` 与 `self.parser`）
+4. `XxxParser` 负责解析方法（`parse_search` / `parse_book` / `parse_search_item` 等），`XxxReqer` 负责请求与 preview 异步流程；复杂站点不要把所有逻辑都堆进一个大类里
 5. 按站点需要补充这些扩展点：
-   - `reqer_cls`
-   - `build_search_url()`
-   - `preview_search()`
-   - `preview_fetch_episodes()`
-   - `preview_fetch_pages()`
-   - `preview_client_config()`
-   - `preview_transport_config()`
+   - `build_preview_search_request()`（Parser 类方法，构建搜索 `PreviewRequestSpec`）
+   - `preview_search()` / `preview_fetch_episodes()` / `preview_fetch_pages()`（Reqer 异步方法）
+   - `preview_client_config()` / `preview_transport_config()`（Utils 类方法）
    - `test_index()`
    - `parse_publish_()`
    - 资源定位 / 响应适配辅助函数
@@ -118,7 +186,7 @@ supports_clip=
    - `frame_section()`
    - `parse_fin_page()`
    - `custom_settings`（最小且正确的 middleware / pipeline 组合）
-5. spider 侧不要重复写解析规则；优先通过 `self.site` / adapter 消费 provider 能力
+5. spider 侧不要重复写解析规则；优先通过 `self.spider_site_runtime` 消费 provider 的 reqer / parser 能力
 6. 需要代理时再决定是否装配：
    - `ComicDlProxyMiddleware`
    - `ComicDlAllProxyMiddleware`
@@ -129,7 +197,7 @@ supports_clip=
 **四、注册、GUI 与运行时接线**
 
 1. 在 `utils/website/providers/__init__.py` 导出新 provider
-2. 在 `utils/website/ins.py` 的 `provider_map` 注册站点；运行时会同步生成 `site_gateway_map` 与 `spider_adapter_map`
+2. 在 `utils/website/ins.py` 的 `provider_map` 注册站点；运行时会通过 `registry` 生成 `provider_descriptor_map` 与 `provider_descriptor_spider_map`
 3. 在 `variables/__init__.py` 中同步：
    - `Spider` 枚举
    - `SPIDERS`
@@ -206,7 +274,7 @@ ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，�
 &emsp;🔳 `parse_publish_` / 动态 domain / cookies / 资源定位规则  
 &emsp;🔳 站点专用异常类型
 
-> [!tip] 当前运行时通过 `utils/website/ins.py` 的 `provider_map` 生成 `site_gateway_map` 与 `spider_adapter_map`。新增站点时不要只改 provider 文件本身。
+> [!tip] 当前运行时通过 `utils/website/ins.py` 的 `provider_map` 经 `registry.py` 生成 `provider_descriptor_map` 与 `provider_descriptor_spider_map`。新增站点时不要只改 provider 文件本身。
 
 ### 2. spider 代码
 
@@ -230,7 +298,7 @@ ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，�
 &emsp;🔳 `parse_fin_page`  
 &emsp;🔳 `custom_settings`（middleware / pipeline 组合）
 
-> [!tip] spider 负责下载装配，不应重复堆解析规则。当前代码通常通过 `self.site` 消费 provider 的 request / parser 能力。
+> [!tip] spider 负责下载装配，不应重复堆解析规则。当前代码通过 `self.spider_site_runtime` 消费 provider 的 reqer / parser 能力。
 
 ### 3. 其他代码
 
