@@ -46,10 +46,7 @@ def run_site_preprocess(
     if site_key == 7:
         return _preprocess_script(data_client=_ensure_data_client(data_client), progress_callback=progress_callback)
     if gui_site_runtime is not None:
-        raise RuntimeError(
-            f"preprocess site {site_key!r} requires an explicit gui_site_runtime flow "
-            "and does not support legacy supports_test_index probing"
-        )
+        return _preprocess_test_index(_require_gui_site_runtime(site_key, gui_site_runtime))
     return PreprocessResult()
 
 
@@ -73,6 +70,10 @@ def _action(action_type: str, **kwargs) -> dict[str, t.Any]:
     return {"type": action_type, **kwargs}
 
 
+def _domain_cache_hit(gui_site_runtime: "GuiSiteRuntime") -> bool:
+    return bool(gui_site_runtime.peek_cached_domain())
+
+
 def _preprocess_manga_copy(gui_site_runtime: "GuiSiteRuntime", *, conf_state=conf) -> PreprocessResult:
     runtime = gui_site_runtime.create_thread_site_runtime()
     reqer = runtime.reqer
@@ -83,30 +84,23 @@ def _preprocess_manga_copy(gui_site_runtime: "GuiSiteRuntime", *, conf_state=con
         runtime.close()
     message = (
         "<br>➖ 缓存处于有效期内，跳过测试"
-        if cache_hit
-        else "<br>✅ 拷贝预处理完成"
+        if cache_hit else "<br>✅ 拷贝预处理完成"
     )
     return PreprocessResult(ready=True, runtime_ready=True, messages=(_message("success", message),), state_flags={"cache_hit": cache_hit})
 
 
 def _preprocess_jm_like(gui_site_runtime: "GuiSiteRuntime") -> PreprocessResult:
+    cache_hit = _domain_cache_hit(gui_site_runtime)
     try:
         domain = gui_site_runtime.get_domain()
     except (httpx.HTTPError, RuntimeError, ValueError) as exc:
         return PreprocessResult(
-            ready=False,
-            block_search=True,
-            messages=(_message("error", "<br>❌ 域名获取/测试失效，按内置浏览器引导操作"),),
-            actions=(_action("open_publish_flow"),),
-            state_flags={"domain_ready": False, "error": str(exc)},
+            ready=False, block_search=True, messages=(_message("error", "<br>❌ 域名获取/测试失效，按内置浏览器引导操作"),), actions=(_action("open_publish_flow"),),
+            state_flags={"cache_hit": cache_hit, "domain_ready": False, "error": str(exc)},
         )
-
+    message = ("<br>➖ 缓存处于有效期内，跳过测试" if cache_hit else "<br>✅ 已设置有效域名")
     return PreprocessResult(
-        ready=True,
-        domain=domain,
-        runtime_ready=True,
-        messages=(_message("success", "<br>✅ 已设置有效域名"),),
-        state_flags={"domain_ready": True},
+        ready=True, domain=domain, runtime_ready=True, messages=(_message("success", message),), state_flags={"cache_hit": cache_hit, "domain_ready": True},
     )
 
 
@@ -209,6 +203,26 @@ def _preprocess_hitomi(
         messages=tuple(messages),
         actions=tuple(actions),
         state_flags=state_flags,
+    )
+
+
+def _preprocess_test_index(gui_site_runtime: "GuiSiteRuntime") -> PreprocessResult:
+    runtime = gui_site_runtime.create_thread_site_runtime()
+    try:
+        access_ready = bool(runtime.reqer.test_index())
+    finally:
+        runtime.close()
+    if not access_ready:
+        return PreprocessResult(
+            ready=False, block_search=True,
+            messages=(_message("error", "", channel="custom", text_key="ACCESS_FAIL", 
+                url=gui_site_runtime.provider_cls.index, url_name=gui_site_runtime.name),),
+            state_flags={"access_ready": False},
+        )
+    return PreprocessResult(
+        ready=True, runtime_ready=True,
+        messages=(_message("success", f"<br>✅ {gui_site_runtime.name} 访问检测通过"),),
+        state_flags={"access_ready": True},
     )
 
 

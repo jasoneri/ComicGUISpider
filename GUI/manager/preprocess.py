@@ -42,15 +42,19 @@ class PreprocessManager(QObject):
         if gui_site_runtime is not None:
             proxies = gui_site_runtime.runtime_context.transport.proxies
         self._reset_data_cli(list(proxies))
-
-        if index in {Spider.MANGA_COPY, Spider.JM, Spider.WNACG, Spider.EHENTAI, Spider.HITOMI, 7}:
-            self._start_preprocess(index, generation)
+        self._sync_preview_runtime(index, gui_site_runtime, runtime_ready=False)
+        self._start_preprocess(index, generation)
 
         if index in Spider.aggr():
             self._add_aggr_search()
         if index in Spider.clip():
             self.gui.clipBtn.setVisible(True)
             self.gui.clipBtn.setEnabled(1)
+
+    def _sync_preview_runtime(self, index: int, gui_site_runtime: GuiSiteRuntime | None, *, runtime_ready: bool):
+        if index not in SPIDERS or gui_site_runtime is None or not runtime_ready:
+            return self.gui.preview_mgr.handle_choosebox_changed(index, None)
+        self.gui.preview_mgr.handle_choosebox_changed(index, gui_site_runtime)
 
     def _start_preprocess(self, index: int, generation: int):
         def task(progress_callback=None):
@@ -90,6 +94,7 @@ class PreprocessManager(QObject):
 
         if result.domain and index in SPIDERS:
             self._refresh_runtime_domain(index, result.domain)
+        self._sync_preview_runtime(index, self.gui.gui_site_runtime, runtime_ready=result.runtime_ready)
         if result.block_search:
             self.gui.disable_start()
 
@@ -101,6 +106,7 @@ class PreprocessManager(QObject):
     def _on_preprocess_error(self, index: int, generation: int, error: str):
         if not self._is_current_site(index, generation):
             return
+        self._sync_preview_runtime(index, None, runtime_ready=False)
         if index != Spider.HITOMI:
             self.gui.disable_start()
         self.gui.say("<br>❌ 预处理执行失败，请查看日志")
@@ -187,7 +193,5 @@ class PreprocessManager(QObject):
         if gui_site_runtime is None or gui_site_runtime.site_index != index:
             return
         self.gui.gui_site_runtime = gui_site_runtime.with_domain(domain)
-        if getattr(self.gui, "preview_mgr", None):
-            self.gui.preview_mgr.replace_gui_site_runtime(self.gui.gui_site_runtime)
         if getattr(self.gui, "BrowserWindow", None):
             self.gui.BrowserWindow.apply_standard_environment()

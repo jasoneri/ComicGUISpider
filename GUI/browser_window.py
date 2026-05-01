@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import contextlib
 import os
 import sys
 import re
@@ -22,7 +21,7 @@ from GUI.core.browser.environment import build_browser_environment
 from GUI.core.browser.page_runtime import BrowserPageRuntime
 from GUI.core.browser.profile import create_browser_window_profile
 from GUI.core.browser.types import BrowserChallengeSpec, BrowserEnvironmentConfig
-from GUI.core.browser.window_mode import BrowserWindowModeController
+from GUI.core.browser.window_mode import BrowserDoHProxyRuntime, BrowserWindowModeController
 from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
@@ -104,7 +103,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     pageInteractive = Signal(str, float)
     pageLoadFinishedDetailed = Signal(bool, float)
 
-    def __init__(self, gui, *, skip_env_mode: bool = False, persistent_profile: bool = True):
+    def __init__(self, gui, *, skip_env_mode: bool = False, persistent_profile: bool = True, webengine_doh_url: str = ""):
         super(BrowserWindow, self).__init__()
         self.eh_kits = None
         self._set_referer_nterceptor = False
@@ -117,6 +116,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             allowed_origins=("http://localhost:5173", CGS_DOC),
             page_path="/deploy/monitor", header_name="X-CGS-Flag", header_value="cgs-vote",
         )
+        doh_proxy_bootstrap = BrowserDoHProxyRuntime.prepare_before_webengine(webengine_doh_url)
         self.profile = create_browser_window_profile(self, persistent=persistent_profile)
         self.view = FramelessWebEngineView(self)
         self.view.setPage(CustomWebEnginePage(self.profile, self.view))
@@ -135,7 +135,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         # self.profile.setHttpUserAgent(
         #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
-        self.window_mode = BrowserWindowModeController(self, self.interceptor)
+        self.window_mode = BrowserWindowModeController(self, self.interceptor, doh_proxy_bootstrap=doh_proxy_bootstrap)
         preview_file = getattr(self.gui, "tf", None)
         self.home_url = QUrl.fromLocalFile(str(preview_file)) if preview_file else QUrl("about:blank")
         if not skip_env_mode:

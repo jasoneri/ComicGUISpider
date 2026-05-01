@@ -253,16 +253,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.sv_path = conf.sv_path
         self.set_completer()
         self.flow_stage = GUIFlowStage.IDLE
-        preview_runtime = self.gui_site_runtime
-        if self.gui_site_runtime is not None:
-            preview_domain = (
-                self.gui_site_runtime.runtime_context.site_domain(self.gui_site_runtime.name)
-                or self.gui_site_runtime.peek_cached_domain()
-                or getattr(self.gui_site_runtime.provider_cls, "domain", None)
-            )
-            if not preview_domain:
-                preview_runtime = None
-        self.preview_mgr.handle_choosebox_changed(index, preview_runtime)  # 
         self.preprocess_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
         self.refresh_lifecycle_state()
 

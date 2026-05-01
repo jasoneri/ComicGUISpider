@@ -1,7 +1,7 @@
 import asyncio
 import re
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urlparse
+from urllib.parse import urljoin
 
 import httpx
 from scrapy import Selector
@@ -38,6 +38,22 @@ class _EHentaiContract:
 
 
 class EHentaiParser(_EHentaiContract):
+    @classmethod
+    def parse_search_navigation(cls, resp_text):
+        html_doc = Selector(text=resp_text)
+        next_url = html_doc.xpath('//a[@id="unext"]/@href').get()
+        prev_url = html_doc.xpath('//a[@id="uprev"]/@href').get()
+        if not next_url:
+            next_match = re.search(r'var nexturl\s*=\s*"([^"]*)"', resp_text)
+            next_url = next_match.group(1) if next_match else None
+        if not prev_url:
+            prev_match = re.search(r'var prevurl\s*=\s*"([^"]*)"', resp_text)
+            prev_url = prev_match.group(1) if prev_match else None
+        return {
+            "next": next_url or None,
+            "prev": prev_url or None,
+        }
+
     @classmethod
     def parse_search_item(cls, target):
         def _parse_tags(tag_divs):
@@ -118,12 +134,46 @@ class EHentaiParser(_EHentaiContract):
 class EHentaiReqer(_EHentaiContract, Req, Cookies):
     def __init__(self, _conf):
         self.cli = self.get_cli(_conf)
+        self._reset_preview_search_state()
 
     @classmethod
     def get_cli(cls, _conf, is_async=False, **kwargs):
         cli = super().get_cli(_conf, is_async=is_async, **kwargs)
         cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(_conf.cookies.get(cls.name))}
         return cli
+
+    def bind_preview_runtime(self, *, owner, site_config, preview_client: httpx.AsyncClient | None = None):
+        super().bind_preview_runtime(owner=owner, site_config=site_config, preview_client=preview_client)
+        self._reset_preview_search_state()
+        return self
+
+    def _reset_preview_search_state(self):
+        self._preview_search_state = {
+            "keyword": None,
+            "base_url": None,
+            "current_page": 0,
+            "next_url": None,
+            "page_urls": {},
+        }
+
+    def _resolve_preview_search_url(self, *, keyword: str, page: int, base_url: str) -> str:
+        state = self._preview_search_state
+        if page == 1 or state["keyword"] != keyword or state["base_url"] != base_url:
+            self._reset_preview_search_state()
+            state = self._preview_search_state
+            state["keyword"] = keyword
+            state["base_url"] = base_url
+            state["page_urls"][1] = base_url
+            return base_url
+        cached_url = state["page_urls"].get(page)
+        if cached_url:
+            return cached_url
+        if page == state["current_page"] + 1 and state["next_url"]:
+            state["page_urls"][page] = state["next_url"]
+            return state["next_url"]
+        raise ValueError(
+            f"ehentai preview search page {page} requires a cached page URL or sequential next-page navigation"
+        )
 
     def test_index(self):
         try:
@@ -132,6 +182,9 @@ class EHentaiReqer(_EHentaiContract, Req, Cookies):
         except httpx.HTTPError:
             return False
         return bool(resp.text)
+
+    def build_search_url(self, key):
+        return f"https://{self.domain}/?f_search={key}"
 
     async def preview_search(self, keyword: str, *, page: int = 1):
         owner = self._require_preview_owner()
@@ -142,15 +195,22 @@ class EHentaiReqer(_EHentaiContract, Req, Cookies):
         domain = site_kw.get("domain") or getattr(self, "domain", None) or owner_type.domain
         mappings = owner_type.merge_search_mappings(self.mappings, site_kw.get("custom_map"))
         if keyword in mappings:
-            url = owner_type.normalize_mapping_url(domain, mappings[keyword])
+            base_url = owner_type.normalize_mapping_url(domain, mappings[keyword])
         else:
-            url = f"https://{domain}/?f_search={keyword}"
-        if page > 1:
-            sep = "&" if urlparse(url).query else "?"
-            url = f"{url}{sep}page={page - 1}"
+            self.domain = domain
+            base_url = self.build_search_url(keyword)
+        url = self._resolve_preview_search_url(keyword=keyword, page=page, base_url=base_url)
         headers = {**self.book_hea, "Cookie": self.to_str_(cookies)}
         resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
         resp.raise_for_status()
+        navigation = owner.parser.parse_search_navigation(resp.text)
+        self._preview_search_state.update(
+            keyword=keyword,
+            base_url=base_url,
+            current_page=page,
+            next_url=urljoin(str(resp.url), navigation["next"]) if navigation["next"] else None,
+        )
+        self._preview_search_state["page_urls"][page] = str(resp.url)
         return await asyncio.to_thread(owner.parser.parse_preview_books, resp.text)
 
 

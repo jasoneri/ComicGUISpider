@@ -11,7 +11,7 @@ class BrowserChallengeCoordinator(QObject):
     def __init__(
         self,
         *,
-        window_factory: Callable[[], object],
+        window_factory: Callable[[BrowserChallengeSpec], object],
         on_success: Callable[[BrowserChallengeResult, list[Callable[[], None]], list[str]], None],
         on_missing: Callable[[BrowserChallengeResult, list[str]], None],
         parent=None,
@@ -25,6 +25,7 @@ class BrowserChallengeCoordinator(QObject):
         self._retry_callbacks: dict[str, Callable[[], None]] = {}
         self._tab_ids: set[str] = set()
         self._sync_inflight = False
+        self._generation = 0
 
     def current_window(self):
         return self._window
@@ -43,6 +44,12 @@ class BrowserChallengeCoordinator(QObject):
         if self._window is not None:
             self._window.close()
 
+    def cancel(self) -> None:
+        self._generation += 1
+        self._retry_callbacks.clear()
+        self._tab_ids.clear()
+        self._sync_inflight = False
+
     def submit(
         self,
         spec: BrowserChallengeSpec,
@@ -51,8 +58,9 @@ class BrowserChallengeCoordinator(QObject):
         retry_key: str,
         retry_callback: Callable[[], None],
     ) -> None:
-        window = self._ensure_window()
         self._active_spec = spec
+        window = self._ensure_window(spec)
+        self._generation += 1
         self._retry_callbacks[str(retry_key)] = retry_callback
         self._tab_ids.add(tab_id)
         self._sync_inflight = False
@@ -79,9 +87,9 @@ class BrowserChallengeCoordinator(QObject):
             trigger=trigger,
         )
 
-    def _ensure_window(self):
+    def _ensure_window(self, spec: BrowserChallengeSpec):
         if self._window is None:
-            window = self._window_factory()
+            window = self._window_factory(spec)
             window.destroyed.connect(self._on_window_destroyed)
             window.pageLoadFinishedDetailed.connect(self._on_window_load_finished)
             window.pageInteractive.connect(self._on_window_page_interactive)
@@ -91,6 +99,7 @@ class BrowserChallengeCoordinator(QObject):
     def _on_window_destroyed(self, *_args):
         self._window = None
         self._sync_inflight = False
+        self.cancel()
 
     def _on_window_load_finished(self, ok: bool, _elapsed_ms: float):
         if not ok or self._window is None or not self._retry_callbacks:
@@ -123,11 +132,17 @@ class BrowserChallengeCoordinator(QObject):
         if spec is None or int(spec.poll_interval_ms or 0) <= 0:
             return False
         active_url = current_url or self._window.view.url().toString()
+        generation = self._generation
         QTimer.singleShot(
             int(spec.poll_interval_ms),
-            lambda active_url=active_url: self.request_sync(trigger="poll", current_url=active_url),
+            lambda active_url=active_url, generation=generation: self._request_scheduled_sync(generation, active_url),
         )
         return True
+
+    def _request_scheduled_sync(self, generation: int, active_url: str) -> None:
+        if generation != self._generation:
+            return
+        self.request_sync(trigger="poll", current_url=active_url)
 
     def _handle_result(self, result: BrowserChallengeResult):
         self._sync_inflight = False

@@ -569,7 +569,7 @@ class CbgInterface(QFrame):
         linkBtn = TransparentToolButton(FIF.LINK)
         linkBtn.clicked.connect(lambda *_args: QtGui.QDesktopServices.openUrl(QtCore.QUrl(_CBG_SPONSOR_URL)))
         tip = CustomTeachingTip.create(
-            [apiEdit,linkBtn,accept_btn], target=self.apiBtn, parent=self.apiBtn, tailPosition=TeachingTipTailPosition.TOP_RIGHT,
+            [linkBtn,apiEdit,accept_btn], target=self.apiBtn, parent=self.apiBtn, tailPosition=TeachingTipTailPosition.TOP_RIGHT,
         )
         apiEdit.returnPressed.connect(accept_btn.click)
         accept_btn.clicked.connect(do)

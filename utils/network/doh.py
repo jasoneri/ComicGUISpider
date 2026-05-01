@@ -25,6 +25,7 @@ DNS_STUB_PORT = 53
 DOH_WEBENGINE_PROXY_HOST = DOH_CONNECT_PROXY_HOST = "127.0.0.1"
 DEFAULT_DOH_URL = "https://cloudflare-dns.com/dns-query"
 _DOH_CACHE_SIZE = 4096
+_DOH_JSON_TIMEOUT = 5.0
 
 _resolver_cache_lock = threading.Lock()
 _resolver_caches: dict[str, dns.resolver.LRUCache] = {}
@@ -73,6 +74,83 @@ def create_sync_doh_resolver(doh_url: str) -> dns.resolver.Resolver:
     return resolver
 
 
+def _resolver_doh_url(resolver: dns.asyncresolver.Resolver | dns.resolver.Resolver) -> str:
+    for nameserver in getattr(resolver, "nameservers", ()) or ():
+        text = str(nameserver or "").strip()
+        if text.startswith("https://"):
+            return text
+    raise httpcore.ConnectError("DoH resolver has no https nameserver")
+
+
+def _prefers_json_doh_relay(resolver: dns.asyncresolver.Resolver | dns.resolver.Resolver) -> bool:
+    parsed = urlparse(_resolver_doh_url(resolver))
+    return not parsed.path.rstrip("/").endswith("/dns-query")
+
+
+def _address_from_doh_json(payload: object, *, rdtype: dns.rdatatype.RdataType) -> str:
+    if not isinstance(payload, dict) or int(payload.get("Status", 0) or 0) != 0:
+        return ""
+    expected_type = int(rdtype)
+    expected_version = 6 if rdtype == dns.rdatatype.AAAA else 4
+    for answer in payload.get("Answer", []) or []:
+        if not isinstance(answer, dict) or int(answer.get("type", 0) or 0) != expected_type:
+            continue
+        data = str(answer.get("data") or "").strip()
+        if not data:
+            continue
+        try:
+            address = ipaddress.ip_address(data)
+        except ValueError:
+            continue
+        if address.version == expected_version:
+            return str(address)
+    return ""
+
+
+async def _resolve_host_via_doh_json(
+    resolver: dns.asyncresolver.Resolver,
+    host: str,
+    rdtype: dns.rdatatype.RdataType,
+    *,
+    timeout: Optional[float] = None,
+) -> str:
+    doh_url = _resolver_doh_url(resolver)
+    request_timeout = timeout if timeout and timeout > 0 else _DOH_JSON_TIMEOUT
+    async with httpx.AsyncClient(timeout=request_timeout, trust_env=False) as client:
+        response = await client.get(
+            doh_url,
+            params={"name": str(host), "type": dns.rdatatype.to_text(rdtype)},
+            headers={"Accept": "application/dns-json"},
+        )
+        response.raise_for_status()
+        address = _address_from_doh_json(response.json(), rdtype=rdtype)
+    if address:
+        return address
+    raise httpcore.ConnectError(f"DoH JSON relay returned no {dns.rdatatype.to_text(rdtype)} record for {host}")
+
+
+def _resolve_host_via_sync_doh_json(
+    resolver: dns.resolver.Resolver,
+    host: str,
+    rdtype: dns.rdatatype.RdataType,
+    *,
+    timeout: Optional[float] = None,
+) -> str:
+    doh_url = _resolver_doh_url(resolver)
+    request_timeout = timeout if timeout and timeout > 0 else _DOH_JSON_TIMEOUT
+    with httpx.Client(timeout=request_timeout, trust_env=False) as client:
+        response = client.get(
+            doh_url,
+            params={"name": str(host), "type": dns.rdatatype.to_text(rdtype)},
+            headers={"Accept": "application/dns-json"},
+        )
+        response.raise_for_status()
+        address = _address_from_doh_json(response.json(), rdtype=rdtype)
+    if address:
+        return address
+    raise httpcore.ConnectError(f"DoH JSON relay returned no {dns.rdatatype.to_text(rdtype)} record for {host}")
+
+
 async def resolve_host_via_doh(
     resolver: dns.asyncresolver.Resolver,
     host: str,
@@ -96,6 +174,11 @@ async def resolve_host_via_doh(
         family_order = [dns.rdatatype.AAAA, dns.rdatatype.A]
     last_error: Optional[Exception] = None
     for rdtype in family_order:
+        if _prefers_json_doh_relay(resolver):
+            try:
+                return await _resolve_host_via_doh_json(resolver, text, rdtype, timeout=timeout)
+            except Exception as exc:
+                last_error = exc
         try:
             answer = await resolver.resolve(text, rdtype, search=False, lifetime=lifetime)
         except dns.resolver.NoAnswer:
@@ -105,6 +188,10 @@ async def resolve_host_via_doh(
             break
         except Exception as exc:
             last_error = exc
+            try:
+                return await _resolve_host_via_doh_json(resolver, text, rdtype, timeout=timeout)
+            except Exception as json_exc:
+                last_error = json_exc
             continue
         if len(answer) > 0:
             candidate = answer[0]
@@ -140,6 +227,11 @@ def resolve_host_via_sync_doh(
         family_order = [dns.rdatatype.AAAA, dns.rdatatype.A]
     last_error: Optional[Exception] = None
     for rdtype in family_order:
+        if _prefers_json_doh_relay(resolver):
+            try:
+                return _resolve_host_via_sync_doh_json(resolver, text, rdtype, timeout=timeout)
+            except Exception as exc:
+                last_error = exc
         try:
             answer = resolver.resolve(text, rdtype, search=False, lifetime=lifetime)
         except dns.resolver.NoAnswer:
@@ -149,6 +241,10 @@ def resolve_host_via_sync_doh(
             break
         except Exception as exc:
             last_error = exc
+            try:
+                return _resolve_host_via_sync_doh_json(resolver, text, rdtype, timeout=timeout)
+            except Exception as json_exc:
+                last_error = json_exc
             continue
         if len(answer) > 0:
             candidate = answer[0]

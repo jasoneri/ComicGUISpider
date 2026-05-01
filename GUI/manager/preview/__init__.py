@@ -105,13 +105,6 @@ class PreviewMgr:
             self._stop_worker()
         self.gui.refresh_lifecycle_state()
 
-    def replace_gui_site_runtime(self, gui_site_runtime: GuiSiteRuntime):
-        self.gui_site_runtime = gui_site_runtime
-        if self.site_index in SPIDERS and gui_site_runtime is not None:
-            self.create_worker(gui_site_runtime)
-        else:
-            self._stop_worker()
-
     def begin_preview_session(self):
         self._session_id += 1
         self._reset_page_state()

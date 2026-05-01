@@ -13,7 +13,7 @@ from qfluentwidgets import (
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
-from GUI.manager.async_task import AsyncTaskManager
+from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
 from GUI.uic.qfluent.components import CountBadge
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru.constants import DANBOORU_SQL_TABLE
@@ -38,12 +38,14 @@ class DanbooruInterface(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.parent_window = parent
+        self.gui = parent.gui
         self.setObjectName("DanbooruInterface")
-        self.task_mgr = AsyncTaskManager(self.parent_window.gui)
+        self.task_mgr = AsyncTaskManager(self.gui)
         self.tab_counter = 0
         self.tabs: dict[str, DanbooruTabWidget] = {}
         self.tab_states: dict[str, DanbooruTabState] = {}
         self._tab_tips: dict[str, tuple[str, str]] = {}
+        self._tab_httpx_status: dict[str, str] = {}
         self.sql_recorder = SqlRecorder(table=DANBOORU_SQL_TABLE)
         self.image_viewer = DanbooruImageViewer(parent)
         self.detail_preview_controller = DanbooruDetailPreviewController(self, self.image_viewer)
@@ -59,6 +61,7 @@ class DanbooruInterface(QFrame):
         self.image_viewer.next_requested.connect(lambda: self.detail_preview_controller.open_adjacent(1))
         self.image_viewer.closed.connect(self.detail_preview_controller.clear_context)
         theme_mgr.subscribe(self._apply_theme)
+        self.destroyed.connect(lambda *_args: self.task_mgr.cleanup())
         self.setupUi()
         self._apply_theme()
         self.create_tab()
@@ -205,6 +208,7 @@ class DanbooruInterface(QFrame):
         self.tabs[tab_id] = tab
         self.tab_states[tab_id] = state
         self._tab_tips[tab_id] = (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS)
+        self._tab_httpx_status[tab_id] = ""
         self.stacked_widget.addWidget(tab)
         self.tab_bar.addTab(routeKey=tab_id, text=state.title)
         self._sync_tab_bar_width()
@@ -230,6 +234,7 @@ class DanbooruInterface(QFrame):
         tab = self.tabs.pop(tab_id, None)
         self.tab_states.pop(tab_id, None)
         self._tab_tips.pop(tab_id, None)
+        self._tab_httpx_status.pop(tab_id, None)
         if tab is None:
             return
         if self.detail_preview_controller.current_tab_id == tab_id and self.image_viewer.isVisible():
@@ -313,10 +318,7 @@ class DanbooruInterface(QFrame):
                 continue
             tab_id = item.routeKey()
             item.setBorderRadius(12)
-            self.tab_bar.setTabTextColor(
-                index,
-                active_text_color if tab_id == current_tab_id else inactive_text_color,
-            )
+            self.tab_bar.setTabTextColor(index, active_text_color if tab_id == current_tab_id else inactive_text_color)
 
     def _active_tab_id(self) -> t.Optional[str]:
         widget = self.stacked_widget.currentWidget()
@@ -326,6 +328,13 @@ class DanbooruInterface(QFrame):
         self._tab_tips[tab_id] = (text, cls or DEFAULT_TAB_STATUS_CLASS)
         if self._active_tab_id() == tab_id:
             self.tip_line.setText(_format_tip_rich_text(*self._tab_tips[tab_id]))
+
+    def set_tab_httpx_status(self, tab_id: str, status: str, cls: str = DEFAULT_TAB_STATUS_CLASS):
+        self._tab_httpx_status[tab_id] = str(status or "")
+        self._set_tab_tip(tab_id, self._tab_httpx_status[tab_id], cls=cls)
+
+    def tab_httpx_status(self, tab_id: str) -> str:
+        return self._tab_httpx_status.get(tab_id, "")
 
     def _sync_tip_line(self, tab_id: t.Optional[str] = None):
         effective_tab_id = tab_id or self._active_tab_id()
@@ -401,29 +410,16 @@ class DanbooruInterface(QFrame):
             self.image_viewer.set_download_state(True)
         self.detail_preview_controller.sync_navigation()
 
-    def _gui_logger(self):
-        return self.parent_window.gui.log
-
-    def _host_gui(self):
-        return self.parent_window.gui
-
     def _show_task_error(self, error: str, duration: int = 6000):
-        logger = self._gui_logger()
-        if logger is not None:
-            logger.error(error)
-        summary = (error.splitlines() or ["?"])[0]
+        self.gui.log.error(error)
+        summary = summarize_error_message(error)
         self._show_info(InfoBar.error, f"✕ {summary}", duration)
 
     def _log_search_request(self, tab_id: str, query: str, order: str, page: int, limit: int):
-        logger = self._gui_logger()
-        if logger is None:
-            return
         params = DanbooruSearchQuery(query, order).params(page=page, limit=limit)
         stub_endpoint = self._runtime_config.stub_dns_endpoint() or "disabled"
         dns_summary = f"DoH={self._runtime_config.doh_url}" if self._runtime_config.is_doh_enabled() else "system"
-        logger.info(
-            f"[Danbooru] GET /posts.json tab={tab_id} params={params} dns={dns_summary} stub={stub_endpoint}"
-        )
+        self.gui.log.info(f"[Danbooru] GET /posts.json tab={tab_id} params={params} dns={dns_summary} stub={stub_endpoint}")
 
     def refresh_runtime_settings(self):
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
