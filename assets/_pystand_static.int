@@ -50,18 +50,27 @@ class CGSInstaller:
         subprocess.Popen([str(self.cgs)], env=self.env, text=True)
 
     def _build_install_cmd(self):
-        if self.args.conf:
-            raise ValueError("--conf is unsupported when install flow uses runtime/installer.exe")
+        # Omitting --version keeps the historical "install latest stable" semantics.
+        if self.args.version is None or self.args.conf:
+            pkg_spec = "ComicGUISpider" if self.args.version is None else f"ComicGUISpider=={self.args.version}"
+            if self.args.conf:
+                return [
+                    str(self.uv), "--config-file", str(self.root / self.args.conf),
+                    "tool", "install", pkg_spec, "--force", "--reinstall",
+                ]
+            return [
+                str(self.uv), "tool", "install", pkg_spec, "--force", "--reinstall",
+                "--index-url", self.args.index or DEFAULT_INDEX,
+            ]
         if not self.installer.exists():
             raise RuntimeError(f"installer missing: {self.installer}")
-        args = [
+        return [
             str(self.installer),
-            "--version", self.args.version or VER,
+            "--version", self.args.version,
             "--uv-exc", str(self.uv),
             "--index-url", self.args.index or DEFAULT_INDEX,
             "--uv-tool-dir", str(self.root), "--uv-tool-bin-dir", str(self.toolbin),
         ]
-        return args
 
     def _update_int(self):
         new_int = self.root / "comicguispider/Lib/site-packages/assets/_pystand_static.int"
@@ -90,12 +99,13 @@ class CGSInstaller:
 
     def install(self):
         self.clean()
+        uses_installer = self.args.version is not None and self.args.conf is None
         cmd = self._build_install_cmd()
         print(cmd)
         exit_code = subprocess.Popen(cmd, env=self.env, text=True).wait()
         self._update_int()
         if self.cgs.exists():
-            if exit_code != 0:
+            if not uses_installer or exit_code != 0:
                 self.run()
             return
         self.clean()

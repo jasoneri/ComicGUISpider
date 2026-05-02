@@ -137,6 +137,10 @@ export default defineConfig({
                     {
                         text: "Kemono",
                         link: "/script/kemono",
+                    },
+                    {
+                        text: "Danbooru",
+                        link: "/script/danbooru",
                     }
                 ]
             },

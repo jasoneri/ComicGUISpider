@@ -27,7 +27,7 @@ hero:
       link: /changelog/history
     - theme: sponsor
       text: 🍖投喂
-      link: https://ko-fi.com/jsoneri
+      link: https://app.unifans.io/c/jsoneri
 
 ---
 
@@ -66,16 +66,21 @@ hero:
       <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1777320602636_normal.webm" title="AGS demo"></HomeDemoVideo>
     </td>
   </tr>
+  <tr><td style="text-align: left;"><strong>🎮Script:<br>
+    <a href="/script/kemono/">Kemono</a><br>
+    <a href="/script/danbooru/">Danbooru</a><br>
+    <a href="/script/#_3-cbg-cornerbackground">Cbg</a><br>
+    </strong></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜素</strong></a></td></tr>
-  <tr><td style="text-align: left;"><a href="/script/"><strong>🎮Script/Cbg</strong></a></td></tr>
 </tbody></table>
 
 ## 功能特性
 
-- 多种使用方式，多开同时操作不同网站，下载封面对比等
-- 无感翻页保留选择，已下载记录等提示
-- 预设，去重，加标识符等各种自定义设置
+- 多种使用方式，多开同时操作不同网站，各站点特有功能，任务面板等
+- 无感翻页提交，已下载记录等提示
+- 预设，去重，加标识符等各种自定义配置
+- 漫画外其他二次元工具箱 scriptWin
 
 ## 食用搭配(阅读器)
 

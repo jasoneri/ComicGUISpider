@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import random
 import traceback
 import contextlib
@@ -16,7 +17,6 @@ from qfluentwidgets import InfoBar, InfoBarPosition
 from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
 )
-from GUI.script import ScriptWindow
 from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
@@ -66,8 +66,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     flow_stage: GUIFlowStage = GUIFlowStage.IDLE
     sv_path = None
     rv_tools: rVtools = None
+    splashWait = 3
 
     def __init__(self, parent=None):
+        self.st = time.time()
         super(SpiderGUI, self).__init__(parent)
         self.log = conf.cLog(name="GUI")
         self.log.debug(f"{conf.settings=}")
@@ -117,8 +119,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def startup_only(self):
         self.update_notifier = UpdateNotifier(self)
         self.update_notifier.check_on_startup()
-        if hasattr(self, 'splashScreen'):
-            self.splashScreen.finish()
+        past = time.time() - self.st
+        safe_single_shot(int((0 if past >= self.splashWait else self.splashWait-past)*1000), self.splashScreen.finish)
 
     def generation_bind(self):
         self.flow_stage = GUIFlowStage.IDLE
@@ -299,6 +301,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         safe_single_shot(10, _jump)
 
     def open_scriptWin(self, *, pure_only: bool = False):
+        from GUI.script import ScriptWindow
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
         self.hide()

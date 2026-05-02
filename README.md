@@ -34,9 +34,10 @@
 
 ## ✨功能特性
 
-- 多种使用方式，多开同时操作不同网站，下载封面对比等
-- 无感翻页保留选择，已下载记录等提示
-- 预设，去重，加标识符等各种自定义设置
+- 多种使用方式，多开同时操作不同网站，各站点特有功能，任务面板等
+- 无感翻页提交，已下载记录等提示
+- 预设，去重，加标识符等各种自定义配置
+- 漫画外其他二次元工具箱 scriptWin
 
 **更多移步查阅 [🎸功能文档](https://cgs.101114105.xyz/feat/)**
 
@@ -50,7 +51,7 @@
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     代理     |
 | [Hitomi](https://hitomi.la/)     | 🌏 |          |
-| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) (> v2.10.0-beta)    |
+| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)    |
 | [HComic](https://kemono.cr)     | 🌏 |     代理     |
 
 点进网站前先判断 NSFW , 不了解就勿点  
