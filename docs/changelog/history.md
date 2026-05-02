@@ -4,6 +4,7 @@
 
 ### 🎁 Features
 
++ ✨新增 jestful 站点支持，表漫生肉
 + 新增 Cbg(CornerBackground) 功能，入口为 rvTool 新增按钮，与 CGS 里常见的各种立绘资源相关，[详情看文档](https://cgs.101114105.xyz/script/#_3-cbg-cornerbackground)
 + Danbooru(Script): 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
   - 功能：收藏 tag 管理，输入菜单，预览viewer按键 等等，前往[danbooru 文档页](https://cgs.101114105.xyz/script/danbooru)查看

@@ -14,6 +14,7 @@ class JestfulSpider(BaseComicSpider):
         "DOWNLOADER_MIDDLEWARES": {
             "ComicSpider.middlewares.UAMiddleware": 5,
             "ComicSpider.middlewares.RefererMiddleware": 10,
+            "ComicSpider.middlewares.FakeMiddleware": 30,
         }
     }
     _enable_episode_dispatch = True
@@ -58,7 +59,12 @@ class JestfulSpider(BaseComicSpider):
 
     def _yield_episode_items(self, ep, page_urls, *, chapter_referer):
         for item in self._build_episode_items(ep, page_urls, chapter_referer=chapter_referer):
-            yield item
+            yield scrapy.Request(
+                url=f'https://fakefakefa.com/{item["image_urls"][0]}',
+                callback=self.process_item,
+                meta={'item': item},
+                dont_filter=True,
+            )
         self._emit_process("fin")
 
     def _process_episode(self, ep):
@@ -95,3 +101,6 @@ class JestfulSpider(BaseComicSpider):
     def image_request_meta(self, *, url, item):
         referer = getattr(self, "_chapter_referers", {}).get(item.get("uuid_md5"))
         return {"referer": referer} if referer else {}
+
+    def process_item(self, response):
+        yield response.meta["item"]
