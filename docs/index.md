@@ -56,7 +56,7 @@ hero:
       </a></div></td>
   </tr>
   <tr>
-    <td colspan="7"><a href="/deploy/monitor/">站点状态</a></td>
+    <td colspan="7" style="width:100%;height:100%;text-align:center;vertical-align:middle;"><a href="/deploy/monitor/">站点状态</a></td>
   </tr>
 </tbody></table>
 

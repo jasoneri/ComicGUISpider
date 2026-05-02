@@ -165,7 +165,7 @@ export default defineConfig({
                 text: "更新",
                 items: [
                     {
-                        text: "更新历史",
+                        text: "🕑更新历史",
                         link: "/changelog/history",
                     }
                 ],
