@@ -60,6 +60,8 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.setItemText(7, _translate("MainWindow", "7、Script"))
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
+        self.chooseBox.addItem("")
+        self.chooseBox.setItemText(9, _translate("MainWindow", "9、jestful"))
         self.chooseBox.setCurrentIndex(0)
         self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
         self.domainBtn.setVisible(False)

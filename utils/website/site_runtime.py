@@ -193,6 +193,10 @@ class ThreadSiteRuntime(_ProviderRuntimeBase):
         preview_search = self._require_reqer_method("preview_search", purpose="preview worker search")
         return await preview_search(keyword, page=page)
 
+    def get_async_preview_client(self) -> httpx.AsyncClient:
+        ensure_preview_client = self._require_reqer_method("ensure_preview_client", purpose="preview runtime client bootstrap")
+        return ensure_preview_client()
+
     async def preview_fetch_episodes(self, book) -> list:
         preview_fetch_episodes = self._require_reqer_method("preview_fetch_episodes", purpose="preview episode fetch")
         return await preview_fetch_episodes(book)

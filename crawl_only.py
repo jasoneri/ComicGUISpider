@@ -109,6 +109,8 @@ class DownloadQuantityProbe:
         record = self.records.setdefault(taskid, DownloadQuantityRecord())
         if event.is_new:
             record.registered_tasks_count = getattr(task, "tasks_count", None)
+            if record.expected_pages is None:
+                record.expected_pages = record.registered_tasks_count
             return
         record.processed_events += 1
 

@@ -18,6 +18,7 @@ class Spider(IntEnum):
     MANGABZ = 5      # 🇨🇳
     HITOMI = 6       # 🌎 🔞
     H_COMIC = 8      # 🌎 🔞
+    JESTFUL = 9      # 🌎
 
     @property
     def spider_name(self): return self.name.lower()
@@ -25,7 +26,7 @@ class Spider(IntEnum):
     @classmethod
     def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC})
     @classmethod
-    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ})
+    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL})
     @classmethod
     def cn_proxy(cls):  return frozenset({cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC})
     @classmethod
@@ -52,7 +53,8 @@ DEFAULT_COMPLETER = {  # only take effect when init (mean value[completer] of co
     5: ['更新', '人气'],
     6: ['index-all', 'popular/week-all', 'popular/month-all'],
     7: [],
-    8: ['更新']
+    8: ['更新'],
+    9: ['更新']
 }
 STATUS_TIP = {
     0: None,
@@ -62,7 +64,8 @@ STATUS_TIP = {
     4: f"ehentai: {res.GUI.SearchInputStatusTip.ehentai}",
     5: f"mangabz: {res.GUI.SearchInputStatusTip.mangabz}",
     6: f"hitomi: {res.GUI.SearchInputStatusTip.hitomi}",
-    8: f"h_comic: {res.GUI.SearchInputStatusTip.h_comic}"
+    8: f"h_comic: {res.GUI.SearchInputStatusTip.h_comic}",
+    9: f"jestful: {res.GUI.SearchInputStatusTip.jestful}",
 }
 
 PYPI_SOURCE = {
