@@ -26,6 +26,7 @@ class DanbooruTabWidget(QFrame):
     request_tag_jump = Signal(str)
     request_next_page = Signal()
     detail_opened = Signal(object)
+    request_close = Signal()
 
     SORT_OPTIONS = list(DANBOORU_SORT_OPTIONS)
 

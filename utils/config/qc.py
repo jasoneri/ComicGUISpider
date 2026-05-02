@@ -110,7 +110,7 @@ class DanbooruConfig(QConfig):
 
     searchHistory = ConfigItem("Search", "History", [], restart=False)
     searchFavorites = ConfigItem("Search", "Favorites", {}, restart=False)
-    view_ratio = RangeConfigItem("Viewer", "ViewRatio", _default_danbooru_view_ratio(), RangeValidator(30, 75), restart=False)
+    view_ratio = RangeConfigItem("Viewer", "ViewRatio", _default_danbooru_view_ratio(), RangeValidator(30, 85), restart=False)
 
     @staticmethod
     def canonicalize_term(term: str) -> str:
@@ -208,6 +208,18 @@ class DanbooruConfig(QConfig):
         groups[self.DEFAULT_FAVORITE_GROUP] = sorted(favorites)
         self.save()
         return is_favorited
+
+    def move_favorite_to_group(self, term: str, group_name: str):
+        canonical = self.canonicalize_term(term)
+        if not canonical or not group_name or group_name == self.DEFAULT_FAVORITE_GROUP:
+            return
+        groups = self._favorite_groups()
+        groups[self.DEFAULT_FAVORITE_GROUP] = [t for t in groups.get(self.DEFAULT_FAVORITE_GROUP, []) if t != canonical]
+        target = list(groups.get(group_name, []))
+        if canonical not in target:
+            target.append(canonical)
+            groups[group_name] = target
+        self.save()
 
 
 danbooru_cfg = DanbooruConfig()

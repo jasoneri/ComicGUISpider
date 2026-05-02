@@ -7,14 +7,14 @@ from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (
-    FluentIcon as FIF, InfoBar, InfoBarPosition, PrimaryToolButton, StrongBodyLabel,
-    SubtitleLabel, TabBar, TabCloseButtonDisplayMode, ToolButton, TransparentToolButton
+    ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition, PrimaryToolButton,
+    StrongBodyLabel, SubtitleLabel, TabBar, TabCloseButtonDisplayMode, ToolButton, TransparentToolButton
     )
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
-from GUI.uic.qfluent.components import CountBadge
+from GUI.uic.qfluent.components import CountBadge, CustomInfoBar
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru.constants import DANBOORU_SQL_TABLE
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig, DanbooruSearchQuery
@@ -202,6 +202,7 @@ class DanbooruInterface(QFrame):
         tab.request_single_download.connect(lambda post, tid=tab_id: self.download_controller.submit_single(post, tid))
         tab.request_tag_jump.connect(self._open_tag_jump_tab)
         tab.request_next_page.connect(lambda tid=tab_id: self.search_controller.load_next_page(tid))
+        tab.request_close.connect(self.close_current_tab)
         tab.detail_opened.connect(lambda post, tid=tab_id: self.detail_preview_controller.open_viewer(tid, post))
         tab.selection_count_changed.connect(lambda _count, tid=tab_id: self._update_batch_button(tid))
         tab.favorite_btn.clicked.connect(lambda _=False, tid=tab_id: self._toggle_favorite(tid))
@@ -444,7 +445,34 @@ class DanbooruInterface(QFrame):
         is_favorited = danbooru_cfg.toggle_favorite(term)
         self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
-        self._show_info(InfoBar.success if is_favorited else InfoBar.error, content)
+        if not is_favorited:
+            return self._show_info(InfoBar.error, content)
+        custom_groups = danbooru_cfg.get_grouped_favorites()
+        if not custom_groups:
+            return self._show_info(InfoBar.success, content)
+        tmpFavMgrBtn = PrimaryToolButton(QIcon(':/script/favMgr.svg'))
+        first_ib = CustomInfoBar.show_custom(
+            title="", content=content, parent=self, _type="SUCCESS",
+            ib_pos=InfoBarPosition.TOP, duration=3000, widgets=[tmpFavMgrBtn],
+        )
+        def _open_group_picker():
+            first_ib.close()
+            combo = ComboBox()
+            combo.addItems([name for name, _ in custom_groups])
+            combo.setMinimumWidth(100)
+            accept_btn = PrimaryToolButton(FIF.ACCEPT)
+            picker_ib = CustomInfoBar.show_custom(
+                title="", content="move to:", parent=self, _type="INFORMATION",
+                ib_pos=InfoBarPosition.TOP, duration=-1, widgets=[combo, accept_btn],
+            )
+            def _move_tag():
+                group_name = combo.currentText()
+                danbooru_cfg.move_favorite_to_group(term, group_name)
+                self._refresh_all_favorites_ui()
+                picker_ib.close()
+                self._show_info(InfoBar.success, f"moved to「{group_name}」")
+            accept_btn.clicked.connect(_move_tag)
+        tmpFavMgrBtn.clicked.connect(_open_group_picker)
 
     def _refresh_all_favorites_ui(self):
         for tab in self.tabs.values():
