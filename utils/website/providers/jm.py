@@ -410,7 +410,7 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
         transport, trust_env = build_http_transport(
             cls.proxy_policy,
             conf.proxies,
-            doh_url=cgs_cfg.get_doh_url(),
+            doh_url=cgs_cfg.doh.get_url(),
             is_async=True,
             http2=True,
             retries=2,

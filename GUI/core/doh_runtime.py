@@ -16,7 +16,7 @@ class ScriptDoHStubRuntime:
         self._pending_warning = False
 
     def ensure_from_config(self) -> bool:
-        return self.ensure(cgs_cfg.get_doh_url())
+        return self.ensure(cgs_cfg.doh.get_url())
 
     def ensure(self, doh_url: object) -> bool:
         raw_value = str(doh_url or "").strip()

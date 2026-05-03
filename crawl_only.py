@@ -41,7 +41,7 @@ class PreviewRuntime:
             domains=getattr(conf, "domains", None),
             custom_map=conf.custom_map,
             proxies=conf.proxies,
-            doh_url=cgs_cfg.get_doh_url(),
+            doh_url=cgs_cfg.doh.get_url(),
         )
         self.thread_site_runtime = ThreadSiteRuntime(
             self.provider_descriptor,

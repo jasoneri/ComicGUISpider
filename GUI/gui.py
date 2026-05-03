@@ -73,7 +73,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         super(SpiderGUI, self).__init__(parent)
         self.log = conf.cLog(name="GUI")
         self.log.debug(f"{conf.settings=}")
-        self.log.debug(f"{cgs_cfg.get_doh_url()=}")
+        self.log.debug(f"{cgs_cfg.doh.get_url()=}")
         self._preview_warmup_pending = False
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
@@ -214,7 +214,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def _create_gui_site_runtime(self, site_index: int):
         if site_index in SPIDERS:
-            return create_gui_site_runtime(site_index, conf_state=conf, default_doh_url=cgs_cfg.get_doh_url())
+            return create_gui_site_runtime(site_index, conf_state=conf, default_doh_url=cgs_cfg.doh.get_url())
 
     def _destroy_browser_window(self):
         browser = self.BrowserWindow

@@ -6,7 +6,7 @@ import re
 import json
 from PySide6 import QtNetwork
 from PySide6.QtCore import Qt, QUrl, QEvent, QSize, Signal, QLoggingCategory
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
 from qframelesswindow import FramelessMainWindow
@@ -199,6 +199,9 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.refreshBtn.clicked.connect(self.reload_current_view)
         self.ensureBtn.clicked.connect(lambda: self.ensure(self.window_mode.ensure_callback))
         self.closeBtn.clicked.connect(self.close)
+        
+        self._dev_tools_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F12), self)
+        self._dev_tools_shortcut.activated.connect(self._set_dev_tools)
 
         def copy_unfinished_tasks():
             _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)

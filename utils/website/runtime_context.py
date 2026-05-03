@@ -30,7 +30,7 @@ class PreviewRuntimeContext:
         fallback_doh = (
             default_doh_url
             if default_doh_url is not None
-            else getattr(conf_state, "doh_url", "") or cgs_cfg.get_doh_url()
+            else getattr(conf_state, "doh_url", "") or cgs_cfg.doh.get_url()
         )
         return cls(
             cookies_by_site={},

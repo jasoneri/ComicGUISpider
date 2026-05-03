@@ -32,7 +32,8 @@
 #### 额外输入
 
 输入框文字触发显示左侧 `+` 号按钮  
-作用：为输入追加条件筛选 tag , 例如 `score:>50`(得分大于50) `-rating:e` (排除nsfw), [内有同样的指引](https://www.yuque.com/baimusheng/programer/wl9c6nxxdvecm1tg)
+作用：为输入追加条件筛选 tag , 例如 `score:>50`(得分大于50) `-rating:e` (排除nsfw)  
+[内有同样的指引](https://www.yuque.com/baimusheng/programer/wl9c6nxxdvecm1tg)
 
 #### 瀑布流网格区域操作
 

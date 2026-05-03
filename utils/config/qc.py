@@ -24,42 +24,45 @@ class CgsConfig(QConfig):
     proxyHistory = ConfigItem("Proxy", "History", ["127.0.0.1:10809"], restart=False)
     dohUrl = ConfigItem("DoH", "Url", "", restart=False)
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
-
-    def get_doh_url(self) -> str:
-        raw_value = str(self.dohUrl.value or "").strip()
-        return normalize_doh_url(raw_value) if raw_value else ""
-
-    def get_doh_history(self) -> list[str]:
-        history = []
-        for item in list(self.dohHistory.value or []):
-            try:
-                text = str(item or "").strip()
-                normalized = normalize_doh_url(text)
-            except ValueError:
-                continue
-            if normalized not in history:
-                history.append(normalized)
-        return history
-
-    def set_doh_url(self, value: object) -> str:
-        raw_value = str(value or "").strip()
-        normalized = normalize_doh_url(raw_value) if raw_value else ""
-        self.dohUrl.value = normalized
-        if normalized:
-            history = [item for item in self.get_doh_history() if item != normalized]
-            history.insert(0, normalized)
-            self.dohHistory.value = history[:20]
-        self.save()
-        return normalized
+    doh: "CgsConfig.DoH"
 
     class DoH:
-        def get_url(self): ...
-        def get_history(self): ...
-        def set_url(self): ...
+        def __init__(self, cfg: "CgsConfig"):
+            self._cfg = cfg
+
+        @staticmethod
+        def _normalize(value: object) -> str:
+            raw_value = str(value or "").strip()
+            return normalize_doh_url(raw_value) if raw_value else ""
+
+        def get_url(self) -> str:
+            return self._normalize(self._cfg.dohUrl.value)
+
+        def get_history(self) -> list[str]:
+            history = []
+            for item in list(self._cfg.dohHistory.value or []):
+                try:
+                    normalized = self._normalize(item)
+                except ValueError:
+                    continue
+                if normalized and normalized not in history:
+                    history.append(normalized)
+            return history
+
+        def set_url(self, value: object) -> str:
+            normalized = self._normalize(value)
+            self._cfg.dohUrl.value = normalized
+            if normalized:
+                history = [item for item in self.get_history() if item != normalized]
+                history.insert(0, normalized)
+                self._cfg.dohHistory.value = history[:20]
+            self._cfg.save()
+            return normalized
 
 
 cgs_cfg = CgsConfig()
 qconfig.load(_qconfig_path("qc.json"), cgs_cfg)
+cgs_cfg.doh = CgsConfig.DoH(cgs_cfg)
 
 
 class CbgConfig(QConfig):
@@ -77,42 +80,37 @@ class KemonoConfig(QConfig):
     """Kemono配置管理，包含过滤和收藏功能"""
     filterText = ConfigItem("Filter", "FilterText", "", restart=False)
     favoriteAuthors = ConfigItem("Favorites", "Authors", [], restart=False)
-
-    def is_favorite(self, author_id):
-        """检查是否已收藏"""
-        return author_id in self.favoriteAuthors.value
-
-    def toggle_favorite(self, author_id):
-        """切换收藏状态，返回新状态"""
-        favorites = self.favoriteAuthors.value.copy()
-        if author_id in favorites:
-            favorites.remove(author_id)
-            is_favorited = False
-        else:
-            favorites.append(author_id)
-            is_favorited = True
-
-        self.favoriteAuthors.value = favorites
-        self.save()
-        return is_favorited
-
-    def is_favorited(self, author_id):
-        """检查是否已收藏"""
-        return author_id in self.favoriteAuthors.value
-
-    def get_favorites(self):
-        """获取所有收藏"""
-        return self.favoriteAuthors.value
+    fav: "KemonoConfig.Favorites"
 
     class Favorites:
-        def in_(self): ...  # is_favorite
-        def faved_(self): ...  # is_favorited
-        def toggle_favorite(self): ...
-        def get_favorites(self): ...
+        def __init__(self, cfg: "KemonoConfig"):
+            self._cfg = cfg
+
+        def in_(self, author_id: str) -> bool:
+            return author_id in self.get_favorites()
+
+        def faved_(self, author_id: str) -> bool:
+            return self.in_(author_id)
+
+        def toggle_favorite(self, author_id: str) -> bool:
+            favorites = self.get_favorites()
+            if author_id in favorites:
+                favorites.remove(author_id)
+                is_favorited = False
+            else:
+                favorites.append(author_id)
+                is_favorited = True
+            self._cfg.favoriteAuthors.value = favorites
+            self._cfg.save()
+            return is_favorited
+
+        def get_favorites(self) -> list[str]:
+            return list(self._cfg.favoriteAuthors.value or [])
 
 
 kemono_cfg = KemonoConfig()
 qconfig.load(_qconfig_path("qc_kemono.json"), kemono_cfg)
+kemono_cfg.fav = KemonoConfig.Favorites(kemono_cfg)
 
 
 class DanbooruConfig(QConfig):
