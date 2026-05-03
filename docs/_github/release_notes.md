@@ -3,7 +3,7 @@
 + ✨新增 jestful 站点支持，表漫生肉
 + 新增 Cbg(CornerBackground) 功能，入口为 rvTool 新增按钮，与 CGS 里常见的各种立绘资源相关，[详情看文档](https://cgs.101114105.xyz/script/#_3-cbg-cornerbackground)
 + Danbooru(Script): 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
-  - 功能：收藏 tag 管理，输入菜单，预览viewer按键 等等，前往[danbooru 文档页](https://cgs.101114105.xyz/script/danbooru)查看
+  - 功能：收藏 tag 管理，输入菜单/额外输入，预览viewer键盘按键 等等，前往[danbooru 文档页](https://cgs.101114105.xyz/script/danbooru)查看
 + CGS-docs 增设 站点状态 页面，上报入口在 配置窗口 的 状态 按钮
 + 交互与下载分离，优化交互：
   - 翻页保留拆解为翻页前自动提交
@@ -26,7 +26,7 @@
 + wnacg 设置代理被视为图源也走代理，仅 miss 不删域名缓存
 + jm 修复 beta 版的车号流
 + hcomic 补回首页入口，已设预设的加关键词`更新`
-+ 修复封面加载完成前下载、翻页等操作被锁定的情况
++ 预览相关：修复封面加载完成前下载、翻页等操作被锁定的情况，恢复漫画卡片加载态动画
 + 修复空结果提示，内置浏览器空页问题
 + 任务面板滚动区域高度被裁修复
 + 站点选择的 kemono 改为 Script

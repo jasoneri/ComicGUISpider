@@ -74,6 +74,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log = conf.cLog(name="GUI")
         self.log.debug(f"{conf.settings=}")
         self.log.debug(f"{cgs_cfg.get_doh_url()=}")
+        self._preview_warmup_pending = False
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
@@ -375,6 +376,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
     
     def set_preview(self, rect=None, *, skip_env_mode: bool = False):
+        if self.BrowserWindow:
+            self._destroy_browser_window()
         sb = self.BrowserWindow = BrowserWindowCls(self, skip_env_mode=skip_env_mode)
         preview_y = self.y() + self.funcGroupBox.y() - sb.height() + 25
         if rect:
@@ -387,6 +390,30 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.BrowserWindow.move(self.BrowserWindow.x(), max(0,self.BrowserWindow.y() - 20))
         self.refresh_lifecycle_state()
 
+    def schedule_preview_warmup(self):
+        if self._preview_warmup_pending or self.BrowserWindow:
+            return
+        if self.chooseBox.currentIndex() not in SPIDERS:
+            return
+        self._preview_warmup_pending = True
+
+        def _warmup():
+            self._preview_warmup_pending = False
+            if self.BrowserWindow or self.chooseBox.currentIndex() not in SPIDERS:
+                return
+            gui_site_runtime = self.gui_site_runtime
+            skip_env_mode = not bool(
+                gui_site_runtime and (
+                    gui_site_runtime.peek_cached_domain()
+                    or getattr(gui_site_runtime.provider_cls, "domain", None)
+                )
+            )
+            self.log.debug(f"[preview.perf] warmup BrowserWindow start skip_env_mode={skip_env_mode}")
+            self.set_preview(skip_env_mode=skip_env_mode)
+            self.log.debug("[preview.perf] warmup BrowserWindow done")
+
+        safe_single_shot(0, _warmup)
+
     def present_browser(
         self, *,
         ensure_handler=_UNSET,
@@ -397,24 +424,27 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         rect=None,
     ):
         """Unified BrowserWindow init ceremony + animated presentation."""
+        browser = self.BrowserWindow
         browser_created = False
-        if not self.BrowserWindow:
+        if not browser:
             self.set_preview(rect)
+            browser = self.BrowserWindow
             browser_created = True
         elif reload_tf:
-            self.BrowserWindow.home_url = QUrl.fromLocalFile(str(self.tf)) if self.tf else QUrl("about:blank")
-            self.BrowserWindow.load_home()
+            browser._first_show = False
+            browser.home_url = QUrl.fromLocalFile(str(self.tf)) if self.tf else QUrl("about:blank")
+            browser.load_home()
 
         if ensure_handler is not _UNSET:
-            self.BrowserWindow.set_ensure_handler(ensure_handler, result_kind=ensure_result_kind)
+            browser.set_ensure_handler(ensure_handler, result_kind=ensure_result_kind)
         if close_handler:
-            self.BrowserWindow.set_close_handler(close_handler)
-        final_rect = self.BrowserWindow.geometry()
+            browser.set_close_handler(close_handler)
+        final_rect = browser.geometry()
         if enable_page_frame:
             self.refresh_lifecycle_state()
-        if browser_created or not reload_tf:
-            PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
-        return self.BrowserWindow
+        if browser_created or not reload_tf or not browser.isVisible():
+            PopupAnimator.show(browser, final_rect, duration_ms=220, direction="right")
+        return browser
 
     def show_preview(self):
         def _has_cached_preview():

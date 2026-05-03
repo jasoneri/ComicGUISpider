@@ -218,10 +218,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn,
         ):
             button.installEventFilter(ToolTipFilter(button, showDelay=300, position=ToolTipPosition.TOP))
-        if hasattr(self.gui, 'tf') and self.gui.tf and 'publish' in str(self.gui.tf).lower():
-            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
-        else:
-            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
         self._default_window_title = self.windowTitle()
         self._default_ensure_tooltip = self.ensureBtn.toolTip()
 
@@ -273,6 +270,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     def load_home(self):
         self.page_runtime.prepare_navigation()
+        if hasattr(self.gui, 'tf') and self.gui.tf and 'publish' in str(self.gui.tf).lower():
+            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
+        else:
+            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
             self.profile.setUrlRequestInterceptor(self.interceptor)

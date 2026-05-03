@@ -203,6 +203,7 @@ class DanbooruInterface(QFrame):
         tab.request_tag_jump.connect(self._open_tag_jump_tab)
         tab.request_next_page.connect(lambda tid=tab_id: self.search_controller.load_next_page(tid))
         tab.request_close.connect(self.close_current_tab)
+        tab.request_extra_search.connect(lambda term, tid=tab_id: self._on_extra_search(tid, term))
         tab.detail_opened.connect(lambda post, tid=tab_id: self.detail_preview_controller.open_viewer(tid, post))
         tab.selection_count_changed.connect(lambda _count, tid=tab_id: self._update_batch_button(tid))
         tab.favorite_btn.clicked.connect(lambda _=False, tid=tab_id: self._toggle_favorite(tid))
@@ -427,13 +428,22 @@ class DanbooruInterface(QFrame):
 
     def _refresh_completer(self, tab: DanbooruTabWidget):
         history = danbooru_cfg.get_history()
-        favorites = sorted(danbooru_cfg.get_favorites() - set(history))
+        favorites = sorted(danbooru_cfg.fav.get() - set(history))
         tab.update_completer(history + favorites)
 
     def _show_info(self, factory, content: str, duration: int = 3000):
         factory(
             title="", content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP, duration=duration, parent=self,
         )
+
+    def _on_extra_search(self, tab_id: str, extra_term: str):
+        tab = self.tabs.get(tab_id)
+        if tab is None:
+            return
+        current = DanbooruSearchQuery.normalize(tab.search_edit.text())
+        combined = f"{current} {extra_term}".strip() if current else extra_term
+        tab.search_edit.setText(combined)
+        self.search_controller.start_search(tab_id, combined)
 
     def _toggle_favorite(self, tab_id: str):
         tab = self.tabs.get(tab_id)
@@ -442,12 +452,12 @@ class DanbooruInterface(QFrame):
         term = DanbooruSearchQuery.normalize(tab.search_edit.text())
         if not term:
             return
-        is_favorited = danbooru_cfg.toggle_favorite(term)
+        is_favorited = danbooru_cfg.fav.toggle(term)
         self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         if not is_favorited:
             return self._show_info(InfoBar.error, content)
-        custom_groups = danbooru_cfg.get_grouped_favorites()
+        custom_groups = danbooru_cfg.fav.get_grouped()
         if not custom_groups:
             return self._show_info(InfoBar.success, content)
         tmpFavMgrBtn = PrimaryToolButton(QIcon(':/script/favMgr.svg'))
@@ -467,7 +477,7 @@ class DanbooruInterface(QFrame):
             )
             def _move_tag():
                 group_name = combo.currentText()
-                danbooru_cfg.move_favorite_to_group(term, group_name)
+                danbooru_cfg.fav.move_to_group(term, group_name)
                 self._refresh_all_favorites_ui()
                 picker_ib.close()
                 self._show_info(InfoBar.success, f"moved to「{group_name}」")

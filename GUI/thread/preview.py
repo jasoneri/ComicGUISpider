@@ -45,6 +45,7 @@ PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask, PagesBatchTask,
 
 class PreviewWorker(QThread):
     search_done = Signal(int, str, int, object)
+    search_error = Signal(str)
     episodes_done = Signal(int, int, str, object)
     pages_done = Signal(int, str, object)
     cover_done = Signal(int, str, object)
@@ -125,8 +126,12 @@ class PreviewWorker(QThread):
                     continue
                 match task:
                     case SearchTask(keyword=kw, page=pg):
-                        books = self._loop.run_until_complete(self.thread_site_runtime.preview_search(kw, page=pg))
-                        self.search_done.emit(self._generation, kw, self.site_index, books)
+                        try:
+                            books = self._loop.run_until_complete(self.thread_site_runtime.preview_search(kw, page=pg))
+                        except Exception as exc:
+                            self.search_error.emit(f"{exc}")
+                        else:
+                            self.search_done.emit(self._generation, kw, self.site_index, books)
                     case EpisodesTask(session_id=sid, book_key=bk, book=b):
                         episodes = self._loop.run_until_complete(self.thread_site_runtime.preview_fetch_episodes(b))
                         self.episodes_done.emit(self._generation, sid, bk, episodes)

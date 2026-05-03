@@ -16,7 +16,9 @@
 
 进 scriptWin 前 / 进 scriptWin 后搜索之前，设置 doh 即可免代理访问，空词进首页过 cf 盾即可
 
-### 标签管理
+### 主界面
+
+#### 标签管理
 
 点击`心列表图案`按钮进入
 
@@ -27,7 +29,10 @@
 可提前利用 ctrl/shift 将已分组 tags 批量 `左移` 回默认区
 :::
 
-### 主界面
+#### 额外输入
+
+输入框文字触发显示左侧 `+` 号按钮  
+作用：为输入追加条件筛选 tag , 例如 `score:>50`(得分大于50) `-rating:e` (排除nsfw), [内有同样的指引](https://www.yuque.com/baimusheng/programer/wl9c6nxxdvecm1tg)
 
 #### 瀑布流网格区域操作
 

@@ -9,6 +9,7 @@ from scrapy import Selector
 from assets import res
 from variables import COOKIES_SUPPORT
 from utils.website.core import Cookies, EroUtils, Previewer, Req
+from utils.website.core.err import EhResp
 from utils.website.info import EhBookInfo
 
 
@@ -98,6 +99,7 @@ class EHentaiParser(_EHentaiContract):
 
     @classmethod
     def parse_preview_books(cls, text):
+        EhResp.catch(text)
         books = cls.parse_search(text)
         for idx, book in enumerate(books, start=1):
             book.idx = idx

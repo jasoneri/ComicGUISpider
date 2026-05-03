@@ -479,11 +479,11 @@ class JestfulParser(_JestfulContract, Previewer):
     @classmethod
     def parse_episodes_from_list_html(cls, html_text: str, book: JestfulBookInfo, *, domain: str) -> list[Episode]:
         sel = Selector(text=html_text)
-        rows = sel.css("a.chapter[href]")
+        rows = list(sel.css("a.chapter[href]"))
         if not rows:
             raise ValueError(f"jestful chapter-list payload returned no chapters: book={book.url}")
         episodes = []
-        for idx, row in enumerate(rows, start=1):
+        for idx, row in enumerate(reversed(rows), start=1):
             href = cls._semantics.normalize_text(row.xpath("./@href").get())
             if not href:
                 raise ValueError(f"jestful chapter-list row missing href: idx={idx} book={book.url}")

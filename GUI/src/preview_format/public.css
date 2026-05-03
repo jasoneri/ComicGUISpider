@@ -38,9 +38,10 @@ body.preview-dialog-open{overflow:hidden}
 .preview-dialog__header{display:flex;flex-direction:column;gap:14px;padding:20px 22px 18px;border-bottom:1px solid var(--preview-border);background:linear-gradient(180deg,rgba(var(--preview-surface-rgb),0.98),rgba(var(--preview-surface-rgb),0.82))}
 .preview-dialog__title-row,
 .preview-dialog__toolbar{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
-.preview-dialog__title-row{justify-content:space-between}
+.preview-dialog__title-row{align-items:flex-start;justify-content:space-between;flex-wrap:nowrap}
 .preview-dialog__toolbar{justify-content:space-between}
-.preview-dialog__title{margin:0;font-size:1.08rem;font-weight:700;letter-spacing:0.01em}
+.preview-dialog__title{flex:1 1 auto;min-width:0;margin:0;font-size:1.08rem;font-weight:700;letter-spacing:0.01em;overflow-wrap:anywhere}
+.preview-dialog__title-row [data-preview-dialog-close]{flex:0 0 auto;align-self:flex-start;margin-left:auto}
 .preview-dialog__body{padding:14px 22px 22px;overflow:auto}
 .preview-number-input{display:inline-flex;align-items:center;min-width:0;padding:0 0.45rem;background:rgba(var(--preview-surface-rgb),0.92)}
 .preview-number-input__field{width:3.9rem;padding:0.62rem 0.1rem;border:0;background:transparent;color:var(--preview-text);text-align:center;font:inherit}
@@ -75,16 +76,12 @@ body.preview-dialog-open{overflow:hidden}
 .preview-spinner{width:0.95rem;height:0.95rem;flex:none;border:2px solid rgba(var(--preview-accent-rgb),0.18);border-top-color:var(--preview-accent);border-radius:999px;animation:previewSpin 0.75s linear infinite}
 .status-badge-fade{animation:badgeFadeIn 0.4s ease}
 
+@keyframes previewSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes badgeFadeIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}
+
 ::-webkit-scrollbar{width:12px;height:12px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(var(--scrollbar-rgb),0.35);border-radius:6px;border:3px solid transparent;background-clip:content-box}
 
-.img-downloaded {
-    filter: grayscale(70%);
-    opacity: 0.6 ;
-    transition: all 0.3s ease;
-}
-.container-downloaded {
-    background-color: lightsalmon;
-    opacity: 0.6;
-}
+.img-downloaded {filter: grayscale(70%);opacity: 0.6 ;transition: all 0.3s ease;}
+.container-downloaded {background-color: lightsalmon;opacity: 0.6;}
