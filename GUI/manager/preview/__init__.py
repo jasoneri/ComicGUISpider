@@ -101,8 +101,11 @@ class PreviewMgr:
         self.gui.pageEdit.setValue(1)
         if index in SPIDERS and gui_site_runtime is not None:
             self.create_worker(gui_site_runtime)    # REMARK[260501]: preprocessMgr 没处理好暂时没法删除
+            self.gui.schedule_preview_warmup()
         else:
             self._stop_worker()
+            if getattr(self.gui, 'BrowserWindow', None):
+                self.gui._destroy_browser_window()
         self.gui.refresh_lifecycle_state()
 
     def begin_preview_session(self):
@@ -223,6 +226,11 @@ class PreviewMgr:
         self.gui.say(f"<br>{'✈' * 15}<br>{font_color(ori_res.SPIDER.SayToGui.frame_book_print_retry_tip, cls='theme-err', size=4)}", 
                      ignore_http=True)
 
+    def _on_search_error(self, message):
+        self.gui.flow_stage = GUIFlowStage.IDLE
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
+        self.gui.say(f"<br>{font_color(message, cls='theme-err', size=4)}", ignore_http=True)
+
     def _on_search_done(self, generation, _keyword, site_index, books):
         if generation != self._generation or site_index != self.site_index:
             return
@@ -245,6 +253,7 @@ class PreviewMgr:
             generation=self._generation,
         )
         self._worker.search_done.connect(self._on_search_done)
+        self._worker.search_error.connect(self._on_search_error)
         ep_handler = self._fix if self.is_fix else self._manga
         self._worker.episodes_done.connect(ep_handler.on_episodes_done)
         self._worker.pages_done.connect(ep_handler.on_pages_done)
@@ -257,6 +266,7 @@ class PreviewMgr:
     def _disconnect_worker_signals(worker: PreviewWorker):
         for signal in (
             worker.search_done,
+            worker.search_error,
             worker.episodes_done,
             worker.pages_done,
             worker.cover_done,

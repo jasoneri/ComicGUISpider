@@ -1,42 +1,38 @@
 <div align="right">
 🌍<a href="docs/_github/README_en.md">English</a> / 中文
-</div>
+</div><br>
 
 <div align="center">
-  <a href="https://cgs.101114105.xyz" target="_blank">
-    <img src="https://img-cgs.101114105.xyz/file/1765128492268_cgs_eat.png" alt="logo" height="180">
+  <a href="https://img-cgs.101114105.xyz/file/cgs/1777320602636_normal.webm" target="_blank">
+    <img src="https://img-cgs.101114105.xyz/file/cgs/1772889192994_fake-play.png" alt="logo" height="140">
   </a>
-  <h1 id="koishi" style="margin: 0.1em 0;">ComicGUISpider(CGS)</h1>
+  <a href="https://img-cgs.101114105.xyz/file/cgs/1777322414802_danbooru.webm" target="_blank">
+    <img src="https://img-cgs.101114105.xyz/file/cgs/1777735134939_fake-danbooru.png" alt="logo" height="135">
+  </a>
+  <a href="https://cgs.101114105.xyz" target="_blank">
+    <img src="https://img-cgs.101114105.xyz/file/cgs/1777726123167_cgs-logo.png" alt="logo" height="160">
+  </a>
+<br clear="center">
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
   <img src="https://img.shields.io/badge/Platform-All-blue?color=#4ec820" alt="tag">
   <img src="https://img.shields.io/badge/-%3E3.12-brightgreen.svg?logo=python" alt="tag">
   <a href="https://github.com/jasoneri/ComicGUISpider/releases" target="_blank">
     <img src="https://img.shields.io/github/downloads/jasoneri/ComicGUISpider/total?style=social&logo=github" alt="tag">
-  </a>
-
-  <p align="center">
-  <a href="https://cgs.101114105.xyz">🏠项目主页</a> | 
+  </a>&nbsp; &emsp;
+  <a href="https://cgs.101114105.xyz">🏠主页</a> | 
   <a href="https://cgs.101114105.xyz/deploy/quick-start">🚀快速上手</a> | 
   <a href="https://cgs.101114105.xyz/faq">❓常见问题</a> | 
   <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
-  </p>
 </div>
 
-<div align="center">
-<a href="https://img-cgs.101114105.xyz/file/cgs/1772894706883_normal.mp4" target="_blank">
-  <img src="https://img-cgs.101114105.xyz/file/cgs/1772889192994_fake-play.png" alt="logo" height="200">
-</a></div>
-
-<div align="center">
-<a href="https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv" target="_blank">
-  <img src="https://img-cgs.101114105.xyz/file/cgs/1774207883543_danbooruPlay.png" alt="logo" height="120">
-</a></div>
+<br clear="all">
 
 ## ✨功能特性
 
-- 多种使用方式，多开同时操作不同网站，下载封面对比等
-- 无感翻页保留选择，已下载记录等提示
-- 预设，去重，加标识符等各种自定义设置
+- 多种使用方式，多开同时操作不同网站，各站点特有功能，任务面板等
+- 无感翻页提交，已下载记录等提示
+- 预设，去重，加标识符等各种自定义配置
+- 漫画外其他二次元工具箱 scriptWin
 
 **更多移步查阅 [🎸功能文档](https://cgs.101114105.xyz/feat/)**
 
@@ -50,8 +46,9 @@
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
 | [ExHentai](https://exhentai.org/)     | 🌏 |     代理     |
 | [Hitomi](https://hitomi.la/)     | 🌏 |          |
-| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) (> v2.10.0-beta)    |
+| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)    |
 | [HComic](https://kemono.cr)     | 🌏 |     代理     |
+| [jestful](https://jestful.net/)     | 🌏 |     灰测/表漫/生肉     |
 
 点进网站前先判断 NSFW , 不了解就勿点  
 使用请适度，以免加重对方服务器负担，也减少被封ip风险

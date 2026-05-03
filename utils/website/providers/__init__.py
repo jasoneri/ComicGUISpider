@@ -4,5 +4,6 @@ from .wnacg import *
 from .ehentai import *
 from .kaobei import *
 from .mangabz import *
+from .jestful import *
 from .hitomi import *
 from .hcomic import *

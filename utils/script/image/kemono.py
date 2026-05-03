@@ -122,7 +122,7 @@ class Api:
         transport, trust_env = build_http_transport(
             "proxy",
             getattr(conf, "proxies", None) or [],
-            doh_url=cgs_cfg.get_doh_url(),
+            doh_url=cgs_cfg.doh.get_url(),
             is_async=True,
             retries=2,
             verify=get_httpx_verify(),
@@ -201,7 +201,7 @@ class Kemono:
     @staticmethod
     def motrix_add_uri_options() -> dict[str, str]:
         return build_motrix_dns_options(
-            dns_server=dns_stub_server(cgs_cfg.get_doh_url()),
+            dns_server=dns_stub_server(cgs_cfg.doh.get_url()),
         )
 
     class Creator:

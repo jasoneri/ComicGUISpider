@@ -138,16 +138,18 @@ class _DanbooruCardPreviewButton(QPushButton):
         if target_rect.width() <= 0 or target_rect.height() <= 0:
             return
 
-        scaled = self._preview_pixmap.scaled(target_rect.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-        source_x = max(0, (scaled.width() - target_rect.width()) // 2)
-        source_y = max(0, (scaled.height() - target_rect.height()) // 2)
-        source_rect = QtCore.QRect(source_x, source_y, target_rect.width(), target_rect.height())
-
         path = QtGui.QPainterPath()
         path.addRoundedRect(QtCore.QRectF(target_rect), _CARD_PREVIEW_RADIUS, _CARD_PREVIEW_RADIUS)
         painter.save()
         painter.setClipPath(path)
-        painter.drawPixmap(target_rect, scaled, source_rect)
+        if self._preview_pixmap.size() == target_rect.size():
+            painter.drawPixmap(target_rect.topLeft(), self._preview_pixmap)
+        else:
+            scaled = self._preview_pixmap.scaled(target_rect.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            source_x = max(0, (scaled.width() - target_rect.width()) // 2)
+            source_y = max(0, (scaled.height() - target_rect.height()) // 2)
+            source_rect = QtCore.QRect(source_x, source_y, target_rect.width(), target_rect.height())
+            painter.drawPixmap(target_rect, scaled, source_rect)
         painter.restore()
 
 
@@ -314,7 +316,8 @@ class DanbooruCardWidget(QFrame):
         self._apply_preview_icon()
 
     def _preview_target_size(self) -> QtCore.QSize:
-        return QtCore.QSize(self.preview_width, max(1, self.preview_height))
+        inset = _CARD_PREVIEW_BORDER_INSET * 2
+        return QtCore.QSize(max(1, self.preview_width - inset), max(1, self.preview_height - inset))
 
     def _default_preview_text(self) -> str:
         if DanbooruPost.is_unsupported_file_ext(self.post.file_ext):
@@ -325,7 +328,10 @@ class DanbooruCardWidget(QFrame):
         target_size = self._preview_target_size()
         if self._preview_pixmap.isNull():
             return QPixmap()
-        preview = self._preview_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scaled = self._preview_pixmap.scaled(target_size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        source_x = max(0, (scaled.width() - target_size.width()) // 2)
+        source_y = max(0, (scaled.height() - target_size.height()) // 2)
+        preview = scaled.copy(source_x, source_y, target_size.width(), target_size.height())
         if self.already_downloaded:
             preview = self._apply_downloaded_preview_effect(preview, self._card_theme)
         if self._is_selected():
@@ -336,6 +342,10 @@ class DanbooruCardWidget(QFrame):
         preview = self._build_preview_icon()
         self.preview_button.set_preview_pixmap(preview)
         self.preview_button.setText("" if not preview.isNull() else self._default_preview_text())
+
+    def refresh_preview_icon(self):
+        if not self._preview_pixmap.isNull():
+            self._apply_preview_icon()
 
     @staticmethod
     def _apply_partial_grayscale(pixmap: QPixmap, amount: float) -> QPixmap:
@@ -386,10 +396,10 @@ class DanbooruCardWidget(QFrame):
         self.preview_button.setFixedSize(self._preview_size)
         self.setFixedSize(self.sizeHint())
 
-    def apply_metrics(self, metrics: DanbooruCardMetrics):
+    def apply_metrics(self, metrics: DanbooruCardMetrics, *, refresh_preview: bool = True):
         self.metrics = metrics
         self._sync_geometry()
-        if not self._preview_pixmap.isNull():
+        if refresh_preview and not self._preview_pixmap.isNull():
             self._apply_preview_icon()
         self._position_overlay_widgets()
         self.adjustSize()
@@ -408,6 +418,4 @@ class DanbooruCardWidget(QFrame):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if not self._preview_pixmap.isNull() and self.preview_button.iconSize() != self._preview_target_size():
-            self._apply_preview_icon()
         self._position_overlay_widgets()

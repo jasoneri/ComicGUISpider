@@ -134,6 +134,10 @@ class DanbooruImageViewer(QWidget):
 
         self.right_panel_widget.setFixedWidth(self._default_image_size.width())
         self.main_layout.addWidget(self.right_panel_widget, 0, Qt.AlignTop)
+        self.setFocusPolicy(Qt.StrongFocus)
+        for w in (self.previous_btn, self.next_btn, self.download_btn, self.tags_scroll,
+                  self.close_btn, self.topHintBox, self.image_label, self.image_hint_label):
+            w.setFocusPolicy(Qt.NoFocus)
         self._update_download_button()
         self._clear_tags()
         self.set_navigation_enabled(False, False)
@@ -387,6 +391,7 @@ class DanbooruImageViewer(QWidget):
             for tag in tags:
                 button = PushButton(tag, self.tags_container)
                 button.setObjectName("DanbooruTagButton")
+                button.setFocusPolicy(Qt.NoFocus)
                 button.clicked.connect(lambda _=False, current_tag=tag: self.tag_clicked.emit(current_tag))
                 self.tags_layout.addWidget(button)
         self.tags_layout.addStretch(1)
@@ -420,6 +425,7 @@ class DanbooruImageViewer(QWidget):
         self._settle_viewer_layout()
         self.raise_()
         self.activateWindow()
+        self.setFocus()
 
     def set_image(self, post_id: int, pixmap: QPixmap):
         if self.post is None or self.post.post_id != post_id:
@@ -442,11 +448,21 @@ class DanbooruImageViewer(QWidget):
         self._schedule_loaded_settlement()
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
+        key = event.key()
+        if key == Qt.Key_Escape:
             self.hide()
-            event.accept()
+        elif key == Qt.Key_Left and self.previous_btn.isEnabled():
+            self.previous_btn.click()
+        elif key == Qt.Key_Right and self.next_btn.isEnabled():
+            self.next_btn.click()
+        elif key == Qt.Key_Down and self.download_btn.isEnabled():
+            self.download_btn.click()
+        elif key == Qt.Key_Up:
+            self.close_btn.click()
+        else:
+            super().keyPressEvent(event)
             return
-        super().keyPressEvent(event)
+        event.accept()
 
     def hideEvent(self, event):
         self._drag_offset = None

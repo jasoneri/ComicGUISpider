@@ -20,7 +20,7 @@
 | 搜索框预设 | 搜索框区域按 `空格` 或右键点`展开预设`即可弹出预设项 （序号输入框同理）<br>主界面选中文本右键可快速加进预设 |
 | 翻页按钮组 | 当列表结果出来后开启使用 |
 | 读剪贴板 | ![clipBtn](../assets/img/feat/clipBtn.png)[📋跳转阅读 > 使用](/feat/clip) |
-| 内置重启 | ![rebootBtn](../assets/img/feat/reboot.png)选择网站后开启使用   |
+| 重置搜索 | ![rebootBtn](../assets/img/feat/reboot.png)选择站点后开启使用   |
 
 ## 2. 预览/内置浏览器
 
@@ -59,7 +59,7 @@
     <tr><td style="text-align: left;"><strong>rv相关</strong>: 下载&emsp;/&emsp;(右下)绑定<code>锚点</code>与运行&emsp;/&emsp;(左下)清除<code>锚点</code></td></tr>
     <tr>
       <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>ps: 搜索后按图示转 ascii2d 有奇效</td></tr>
-    <tr><td style="text-align: left;"><strong>Cbg按钮</strong>: <a href="/script/#_3-cbg-cornerbackground">Cbg入口</a></td></tr>
+    <tr><td style="text-align: left;"><strong>橙色Cbg按钮</strong>: <a href="/script/#_3-cbg-cornerbackground">Cbg入口</a></td></tr>
     <tr>
       <td style="text-align: center;">CGSMid<br><small>midTool</small></td>
       <td style="text-align: left;"><a href="/feat/mid">🀄️跳转阅读 > 使用</a></td>

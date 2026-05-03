@@ -3,11 +3,16 @@ import typing as t
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCompleter, QFrame, QHBoxLayout, QVBoxLayout, QWidget
-from qfluentwidgets import Action, ComboBox, FluentIcon as FIF, FlowLayout, PushButton, RoundMenu, ScrollArea, SearchLineEdit, TransparentToolButton
+from qfluentwidgets import (
+    Action, ComboBox, EditableComboBox, FluentIcon as FIF, FlowLayout, PrimaryToolButton, ToolButton, 
+    RoundMenu, ScrollArea, SearchLineEdit, TeachingTipTailPosition, TransparentToolButton
+)
 from qfluentwidgets.components.widgets.line_edit import CompleterMenu
 
 from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch
+from GUI.uic.qfluent.components import CustomTeachingTip
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru.constants import DANBOORU_SORT_OPTIONS
 from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, DanbooruPost
@@ -26,18 +31,113 @@ class DanbooruTabWidget(QFrame):
     request_tag_jump = Signal(str)
     request_next_page = Signal()
     detail_opened = Signal(object)
+    request_close = Signal()
+    request_extra_search = Signal(str)
 
     SORT_OPTIONS = list(DANBOORU_SORT_OPTIONS)
 
     def __init__(self, state: DanbooruTabState, parent=None):
         super().__init__(parent)
+        self.gui = parent.gui
         self.state = state
         self.card_metrics = DEFAULT_CARD_METRICS
         self.card_widgets: dict[str, DanbooruCardWidget] = {}
+        self._extra_tip = None
+        self.zoom_mgr = self._InnerZoomMgr(self)
         self._setup_ui()
         self.selection_controller = DanbooruTabSelectionController(self)
         self.selection_controller.selection_count_changed.connect(self.selection_count_changed.emit)
         self.apply_theme()
+
+    class _InnerZoomMgr:
+        def __init__(self, tab: "DanbooruTabWidget"):
+            self.tab = tab
+            self.hidden_target_metrics: t.Optional[DanbooruCardMetrics] = None
+            self.hidden_dirty = False
+            self.preview_refresh_ids: list[str] = []
+            self.preview_refresh_index = 0
+            self.preview_refresh_batch_size = 18
+            self.preview_refresh_timer = QtCore.QTimer(tab)
+            self.preview_refresh_timer.setSingleShot(True)
+            self.preview_refresh_timer.timeout.connect(self._drain_preview_refresh_queue)
+
+        def apply_immediate(self, *, metrics: DanbooruCardMetrics, refresh_preview: bool):
+            self.cancel_pending()
+            self.tab.card_metrics = metrics
+            for card in self.tab.card_widgets.values():
+                card.apply_metrics(metrics, refresh_preview=refresh_preview)
+            self.tab._refresh_grid_layout()
+
+        def apply_active(self, *, metrics: DanbooruCardMetrics, preview_delay_ms: int = 36):
+            self.hidden_target_metrics = None
+            self.hidden_dirty = False
+            self.apply_immediate(metrics=metrics, refresh_preview=False)
+            self.request_preview_refresh(refresh_visible_first=True, delay_ms=preview_delay_ms)
+
+        def mark_hidden_target(self, *, metrics: DanbooruCardMetrics):
+            self.cancel_pending()
+            self.tab.card_metrics = metrics
+            self.hidden_target_metrics = metrics
+            self.hidden_dirty = True
+
+        def suspend_hidden(self):
+            self.cancel_pending()
+
+        def sync_to(self, *, metrics: DanbooruCardMetrics):
+            target_metrics = self.hidden_target_metrics if self.hidden_target_metrics is not None else metrics
+            if self.tab.card_metrics != target_metrics or self.hidden_dirty:
+                self.apply_immediate(metrics=target_metrics, refresh_preview=True)
+                self.hidden_target_metrics = None
+                self.hidden_dirty = False
+                return
+            self.hidden_target_metrics = None
+            self.hidden_dirty = False
+            self.request_preview_refresh(refresh_visible_first=True, delay_ms=0)
+
+        def request_preview_refresh(self, *, refresh_visible_first: bool, delay_ms: int = 0):
+            self.preview_refresh_ids = self._build_preview_refresh_order(refresh_visible_first=refresh_visible_first)
+            self.preview_refresh_index = 0
+            self.preview_refresh_batch_size = 12 if refresh_visible_first else 18
+            self.preview_refresh_timer.stop()
+            if not self.preview_refresh_ids:
+                return
+            self.preview_refresh_timer.start(max(0, int(delay_ms)))
+
+        def cancel_pending(self):
+            self.preview_refresh_timer.stop()
+            self.preview_refresh_ids = []
+            self.preview_refresh_index = 0
+
+        def _build_preview_refresh_order(self, *, refresh_visible_first: bool) -> list[str]:
+            ordered_ids = list(self.tab.card_widgets.keys())
+            if not refresh_visible_first or not ordered_ids:
+                return ordered_ids
+            visible_ids = self._visible_card_md5s()
+            if not visible_ids:
+                return ordered_ids
+            return [md5 for md5 in ordered_ids if md5 in visible_ids] + [md5 for md5 in ordered_ids if md5 not in visible_ids]
+
+        def _visible_card_md5s(self) -> set[str]:
+            viewport = self.tab.scroll_area.viewport()
+            viewport_rect = viewport.rect()
+            visible_ids: set[str] = set()
+            for md5, card in self.tab.card_widgets.items():
+                card_rect = QtCore.QRect(card.mapTo(viewport, QtCore.QPoint(0, 0)), card.size())
+                if viewport_rect.intersects(card_rect):
+                    visible_ids.add(md5)
+            return visible_ids
+
+        def _drain_preview_refresh_queue(self):
+            if self.preview_refresh_index >= len(self.preview_refresh_ids):
+                return
+            end = min(len(self.preview_refresh_ids), self.preview_refresh_index + self.preview_refresh_batch_size)
+            for md5 in self.preview_refresh_ids[self.preview_refresh_index:end]:
+                card = self.tab.card_widgets.get(md5)
+                if card is not None:
+                    card.refresh_preview_icon()
+            self.preview_refresh_index = end
+            if self.preview_refresh_index < len(self.preview_refresh_ids):
+                self.preview_refresh_timer.start(16)
 
     def _create_group_frame(self, object_name: str) -> tuple[QFrame, QHBoxLayout]:
         frame = QFrame(self)
@@ -58,6 +158,9 @@ class DanbooruTabWidget(QFrame):
         query_frame, query_group = self._create_group_frame("DanbooruSearchQueryGroup")
         self.query_frame = query_frame
         self.query_group = query_group
+        self.extraSearchBtn = TransparentToolButton(FIF.ADD, self)
+        self.extraSearchBtn.setVisible(False)
+        self.extraSearchBtn.clicked.connect(self._on_extra_search_clicked)
         self.search_edit = SearchLineEdit(self)
         self.search_edit.setClearButtonEnabled(True)
         self.search_edit.setPlaceholderText("such as: blue_archive")
@@ -65,10 +168,12 @@ class DanbooruTabWidget(QFrame):
         self.search_edit.returnPressed.connect(self._submit_search_from_keyboard)
         self.search_edit.searchSignal.connect(lambda text: self.request_search.emit(text))
         self.search_edit.searchButton.clicked.connect(self._submit_empty_search_if_needed)
+        self.search_edit.textChanged.connect(self._sync_extra_search_btn_visibility)
         self.set_search_menu()
         self.favorite_btn = TransparentToolButton(FIF.HEART, self)
         self.favorite_btn.setFixedSize(38, 38)
-        self.convert_btn = PushButton("to Tag", self)
+        self.convert_btn = ToolButton(QIcon(':/script/translate.svg'), self)
+        self.convert_btn.setIconSize(QtCore.QSize(24,24))
         self.convert_btn.setMinimumHeight(38)
         self.convert_btn.clicked.connect(self.request_conversion.emit)
         self.sort_box = ComboBox(self)
@@ -76,7 +181,8 @@ class DanbooruTabWidget(QFrame):
         for label, _ in self.SORT_OPTIONS:
             self.sort_box.addItem(label)
         self.sort_box.currentIndexChanged.connect(self._on_sort_changed)
-        query_group.addWidget(self.search_edit, 1)
+        query_group.addWidget(self.extraSearchBtn)
+        query_group.addWidget(self.search_edit)
         query_group.addWidget(self.favorite_btn)
         query_group.addWidget(self.convert_btn)
         query_group.addWidget(self.sort_box)
@@ -99,6 +205,9 @@ class DanbooruTabWidget(QFrame):
         self.scroll_area.verticalScrollBar().valueChanged.connect(self._on_scroll_changed)
         self.main_layout.addWidget(self.scroll_area, 1)
         self.refresh_from_state()
+
+    def _sync_extra_search_btn_visibility(self):
+        self.extraSearchBtn.setVisible(bool(self.search_edit.text().strip()))
 
     def _set_search_edit_value(self, value: str):
         self.search_edit.setText(value)
@@ -130,8 +239,8 @@ class DanbooruTabWidget(QFrame):
             submenu.setIcon(FIF.HEART)
             groups = visible_usage_groups(
                 build_tag_groups(
-                    sorted(danbooru_cfg.get_favorites()),
-                    danbooru_cfg.get_grouped_favorites()))
+                    sorted(danbooru_cfg.fav.get()),
+                    danbooru_cfg.fav.get_grouped()))
             actions = [Action(text=group.display,
                 triggered=lambda _=False, current=list(group.tags): _show_group_completer(current))
             for group in groups]
@@ -183,6 +292,32 @@ class DanbooruTabWidget(QFrame):
         self.state.sort_mode = value
         self.request_search.emit(self.search_edit.text())
 
+    def _on_extra_search_clicked(self):
+        if self._extra_tip is not None:
+            self._extra_tip.close()
+        extraCombo = EditableComboBox(self)
+        extraCombo.setMinimumWidth(120)
+        extraCombo.setPlaceholderText("e.g. score:>50")
+        extraCombo.addItems(danbooru_cfg.get_search_extra())
+        helpBtn = TransparentToolButton(FIF.HELP, self)
+        helpBtn.clicked.connect(lambda: self.gui.open_url_by_browser(
+            "https://www.yuque.com/baimusheng/programer/wl9c6nxxdvecm1tg"))
+        svBtn = PrimaryToolButton(FIF.ACCEPT_MEDIUM, self)
+        tip = CustomTeachingTip.create(
+            [extraCombo, svBtn, helpBtn],
+            target=self.extraSearchBtn, parent=self,
+            tailPosition=TeachingTipTailPosition.BOTTOM_LEFT,
+        )
+        self._extra_tip = tip
+        tip.destroyed.connect(lambda *_args: setattr(self, '_extra_tip', None))
+        def _apply():
+            value = extraCombo.currentText().strip()
+            if value:
+                danbooru_cfg.add_search_extra(value)
+                self.request_extra_search.emit(value)
+            tip.close()
+        svBtn.clicked.connect(_apply)
+
     def _on_scroll_changed(self, value: int):
         bar = self.scroll_area.verticalScrollBar()
         if bar.maximum() - value < 200 and not self.state.loading and self.state.has_more_results:
@@ -215,6 +350,7 @@ class DanbooruTabWidget(QFrame):
         self.search_edit.searchButton.setDisabled(loading)
         self.convert_btn.setDisabled(loading)
         self.sort_box.setDisabled(loading)
+        self.extraSearchBtn.setDisabled(loading)
 
     def clear_images_before_current_page(self):
         if not self.state.has_pages_before_current():
@@ -257,6 +393,7 @@ class DanbooruTabWidget(QFrame):
         menu.exec(global_pos)
 
     def clear_results(self, *, query: t.Optional[str] = None):
+        self.zoom_mgr.cancel_pending()
         self.selection_controller.clear()
         self.state.reset_results(query=query)
         if query is not None:
@@ -285,12 +422,6 @@ class DanbooruTabWidget(QFrame):
         self.apply_theme()
         self._refresh_grid_layout()
         return appended_cards
-
-    def set_card_metrics(self, metrics: DanbooruCardMetrics):
-        self.card_metrics = metrics
-        for card in self.card_widgets.values():
-            card.apply_metrics(metrics)
-        self._refresh_grid_layout()
 
     def apply_downloaded_state(self, md5_value: str):
         self.selection_controller.mark_downloaded(md5_value)

@@ -384,6 +384,9 @@ class DanbooruTabSelectionController(QtCore.QObject):
             if event.button() == Qt.RightButton:
                 self.tab.show_grid_context_menu(event.globalPosition().toPoint())
                 return True
+            if event.button() == Qt.MiddleButton:
+                self.tab.request_close.emit()
+                return True
             if self._drag_select_origin is None:
                 return super().eventFilter(obj, event)
             selection_rect = self._selection_band.geometry()

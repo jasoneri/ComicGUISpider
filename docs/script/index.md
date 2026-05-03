@@ -38,16 +38,11 @@ utils
 
 ## 1. [kemono](/script/kemono)
 
-## 2. Danbooru
-
-doh 可免代理，空词进首页过 cf 盾即可
-
-<div align="left">
-<a href="https://img-cgs.101114105.xyz/file/cgs/1777322414802_danbooru.webm" target="_blank">
-  <img src="https://img-cgs.101114105.xyz/file/cgs/1774207883543_danbooruPlay.png" alt="logo">
-</a></div>
+## 2. [Danbooru](/script/danbooru)
 
 ## 3. Cbg (CornerBackground)
+
+> [!Tip] 无需通用前置
 
 入口为 rvTool 橙色按钮 Cbg
 

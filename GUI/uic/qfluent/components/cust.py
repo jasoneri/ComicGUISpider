@@ -38,8 +38,8 @@ class DoHButtonController:
         dohEdit = LineEdit(self._parent)
         dohEdit.setMinimumWidth(360)
         dohEdit.setPlaceholderText(DEFAULT_DOH_URL)
-        dohEdit.setText(cgs_cfg.get_doh_url())
-        completer = QCompleter(cgs_cfg.get_doh_history(), dohEdit)
+        dohEdit.setText(cgs_cfg.doh.get_url())
+        completer = QCompleter(cgs_cfg.doh.get_history(), dohEdit)
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         dohEdit.setCompleter(completer)
@@ -55,7 +55,7 @@ class DoHButtonController:
 
     def _save(self, raw_value: str):
         try:
-            doh_url = cgs_cfg.set_doh_url(raw_value)
+            doh_url = cgs_cfg.doh.set_url(raw_value)
         except Exception as exc:
             InfoBar.error(
                 title="", content=f"DoH 配置保存失败: {exc}", orient=Qt.Horizontal, isClosable=True, 

@@ -97,7 +97,7 @@ class DanbooruChallengeController(QtCore.QObject):
             challenge.verify_url,
             domain_filter="danbooru.donmai.us",
             source_url=challenge.verify_url,
-            doh_url=cgs_cfg.get_doh_url(),
+            doh_url=cgs_cfg.doh.get_url(),
             window_size=QtCore.QSize(980, 760),
             window_title="Danbooru Verification",
             completion_detector=DanbooruResponseInspector.is_verification_completion_url,

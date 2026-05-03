@@ -180,7 +180,7 @@ class DanbooruRuntimeConfig:
             save_path=data.get("save_path", DEFAULT_DANBOORU_SAVE_PATH),
             save_type=data.get("save_type"),
             download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY),
-            doh_url=cgs_cfg.get_doh_url() if doh_url is None else doh_url,
+            doh_url=cgs_cfg.doh.get_url() if doh_url is None else doh_url,
             motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""),
         )
 
@@ -188,7 +188,7 @@ class DanbooruRuntimeConfig:
     def from_conf(cls) -> "DanbooruRuntimeConfig":
         return cls.from_mapping(
             getattr(script_conf, "danbooru", {}) or {},
-            doh_url=cgs_cfg.get_doh_url(),
+            doh_url=cgs_cfg.doh.get_url(),
         )
 
     def is_doh_enabled(self) -> bool:

@@ -149,7 +149,7 @@ class ScrapyDoHProxyMiddleware:
 
     @classmethod
     def from_crawler(cls, crawler):
-        middleware = cls(cgs_cfg.get_doh_url())
+        middleware = cls(cgs_cfg.doh.get_url())
         crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
         return middleware
 

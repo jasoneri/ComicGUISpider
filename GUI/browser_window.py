@@ -6,7 +6,7 @@ import re
 import json
 from PySide6 import QtNetwork
 from PySide6.QtCore import Qt, QUrl, QEvent, QSize, Signal, QLoggingCategory
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
 from qframelesswindow import FramelessMainWindow
@@ -199,6 +199,9 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.refreshBtn.clicked.connect(self.reload_current_view)
         self.ensureBtn.clicked.connect(lambda: self.ensure(self.window_mode.ensure_callback))
         self.closeBtn.clicked.connect(self.close)
+        
+        self._dev_tools_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F12), self)
+        self._dev_tools_shortcut.activated.connect(self._set_dev_tools)
 
         def copy_unfinished_tasks():
             _ = CopyUnfinished(self.gui.task_mgr.unfinished_tasks)
@@ -218,10 +221,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
             self.topHintBox, self.homeBtn, self.backBtn, self.forwardBtn, self.refreshBtn, self.copyBtn, self.ensureBtn,
         ):
             button.installEventFilter(ToolTipFilter(button, showDelay=300, position=ToolTipPosition.TOP))
-        if hasattr(self.gui, 'tf') and self.gui.tf and 'publish' in str(self.gui.tf).lower():
-            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
-        else:
-            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
+        FluentMonkeyPatch.rbutton_menu_WebEngine(self)
         self._default_window_title = self.windowTitle()
         self._default_ensure_tooltip = self.ensureBtn.toolTip()
 
@@ -273,6 +273,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     def load_home(self):
         self.page_runtime.prepare_navigation()
+        if hasattr(self.gui, 'tf') and self.gui.tf and 'publish' in str(self.gui.tf).lower():
+            FluentMonkeyPatch.rbutton_menu_PulishPage(self)
+        else:
+            FluentMonkeyPatch.rbutton_menu_WebEngine(self)
         self.view.load(self.home_url)
         if self._set_referer_nterceptor:
             self.profile.setUrlRequestInterceptor(self.interceptor)

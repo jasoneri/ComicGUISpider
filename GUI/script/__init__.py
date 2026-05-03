@@ -292,7 +292,7 @@ class SettingInterface(QFrame):
         self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))
         runtime_config = DanbooruRuntimeConfig.from_mapping(
             config_data.get('danbooru', {}),
-            doh_url=cgs_cfg.get_doh_url(),
+            doh_url=cgs_cfg.doh.get_url(),
         )
         self.danbooru_group_card.setCurrentPath(runtime_config.save_path)
         self.danbooru_group_card.setSaveType(runtime_config.save_type)

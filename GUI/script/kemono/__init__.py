@@ -349,7 +349,7 @@ class KemonoTableView(FramelessWindow):
             self.show_all_authors()
 
     def show_favorites_only(self):
-        favorite_ids = kemono_cfg.favoriteAuthors.value
+        favorite_ids = kemono_cfg.fav.get_favorites()
         self.virtual_model.show_favorites_only(favorite_ids)
         self._apply_column_layout()
         self._schedule_avatar_sync()
@@ -574,7 +574,7 @@ class KemonoTableView(FramelessWindow):
         QDesktopServices.openUrl(QUrl(author_url))
 
     def fav_author(self, author):
-        is_favorited = kemono_cfg.toggle_favorite(author.id)
+        is_favorited = kemono_cfg.fav.toggle_favorite(author.id)
         action_text = "已添加收藏" if is_favorited else "已取消收藏"
         at = InfoBar.success if is_favorited else InfoBar.warning
         at(

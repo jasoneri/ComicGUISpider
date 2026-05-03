@@ -11,6 +11,7 @@ GUI:
   jm_desc: "Supports multiple book IDs (decimal numbers), e.g. `123456,654321,114514` (comma-separated)<br>[Clipboard function: Avoid copying `18comic.vip` domain due to 5-second shield - direct ID input recommended]"
   wnacg_desc: "wnacg CN source may be slow/unstable. Common network errors [Errno 11001 10054 10060]/`ReadTimeout`:<br>Restart usually resolves. If persistent after multiple attempts, contact group/submit issue."
   mangabz_desc: "Māngabz uses iPhone web version. Note: Volumes/chapters both use numeric labels (e.g. Vol.1 and Ch.1 both labeled '1') - identify via adjacent chapters."
+  jestful_desc: "jestful loads chapter list and page images through dynamic JS endpoints. Search by title keyword first, then verify chapter numbering before download."
   hitomi_desc: "Except presets, use `hitomi-tools` for input<a href='https://img-cgs.101114105.xyz/file/1764957586207_hitomi-tools-usage.gif'>📹References</a><br>1. Avoid using search-keyword 2. Hitomi does not support mappings"
   h_comic_desc: "h-comic is a frontend-rendered site. Prefer short keywords (core title words). If search returns empty, retry with synonyms."
   Script:
@@ -56,6 +57,7 @@ GUI:
     wnacg: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     ehentai: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     mangabz: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
+    jestful: Enter keyword directly; pagination is supported, and selected episodes resolve page URLs dynamically
     hitomi: Temp only supports using presets or `hitomi-tools` generated words
     h_comic: Enter keyword directly, e.g. NTR / Chinese / artist name
   Clip:

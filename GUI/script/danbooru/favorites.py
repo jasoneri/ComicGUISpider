@@ -323,8 +323,8 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
 
     def _load_snapshot(self) -> FavoriteDialogSnapshot:
         groups = build_tag_groups(
-            sorted(danbooru_cfg.get_favorites()),
-            danbooru_cfg.get_grouped_favorites(),
+            sorted(danbooru_cfg.fav.get()),
+            danbooru_cfg.fav.get_grouped(),
         )
         return FavoriteDialogSnapshot(
             default_group=t.cast(DefaultTagGroup, groups[0]),
@@ -674,6 +674,6 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         self._apply_snapshot_change(change)
 
     def _accept_changes(self):
-        danbooru_cfg.save_grouped_favorites(self._snapshot.output)
+        danbooru_cfg.fav.save_grouped(self._snapshot.output)
         self.favorites_changed.emit()
         self.accept()

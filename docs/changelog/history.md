@@ -1,14 +1,14 @@
 # 🕑 更新历史
 
-## `v2.10.0-beta.3`
+## `v2.10.0`
 
 ### 🎁 Features
 
-+ ✨新增 Cbg(CornerBackground) 功能，入口为 rvTool 新增按钮，与 CGS 里常见的各种立绘资源相关，[详情看文档](https://cgs.101114105.xyz/script/#_3-cbg-cornerbackground)
-+ [danbooru](https://img-cgs.101114105.xyz/file/cgs/1774207508440_danbooru.mkv) 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
-  - ✨danbooru 收藏 tag 管理面板，搜索框右键菜单配合使用
-  - ✨瀑布流右键菜单增加`清除此页前图片`，优化加载用
-+ 增设 站点状态 页面，上报入口在 配置窗口 的 状态 按钮
++ ✨新增 jestful 站点支持，表漫生肉
++ 新增 Cbg(CornerBackground) 功能，入口为 rvTool 新增按钮，与 CGS 里常见的各种立绘资源相关，[详情看文档](https://cgs.101114105.xyz/script/#_3-cbg-cornerbackground)
++ Danbooru(Script): 入口为站点选 Script , 同样需要[前置准备](https://cgs.101114105.xyz/script/)
+  - 功能：收藏 tag 管理，输入菜单/额外输入，预览viewer键盘按键 等等，前往[danbooru 文档页](https://cgs.101114105.xyz/script/danbooru)查看
++ CGS-docs 增设 站点状态 页面，上报入口在 配置窗口 的 状态 按钮
 + 交互与下载分离，优化交互：
   - 翻页保留拆解为翻页前自动提交
   - 内置重启语义改为重置搜索, 重置前可以一直提交任务, 已提交任务也与重置无关继续进行
@@ -26,10 +26,10 @@
 + 日志相关：配置窗口增设直达按钮，GUI初始化会 DEBUG 级别记录配置值，上报日志到公共网络注意保留使用痕迹告知之余脱敏
 + win 默认存储路径改为 `C:\Users\<UserName>\Downloads\Comic`
 + kaobei 封ip暂时没辙了，可以选择下一个章节重置换一个节点的打法
-+ hitomim 已更新图片解密算法
++ hitomi 已更新图片解密算法
 + wnacg 设置代理被视为图源也走代理，仅 miss 不删域名缓存
-+ jm 修复 beta 版的车号流
 + hcomic 补回首页入口，已设预设的加关键词`更新`
++ 预览相关：修复封面加载完成前下载、翻页等操作被锁定的情况，恢复漫画卡片加载态动画
 + 修复空结果提示，内置浏览器空页问题
 + 任务面板滚动区域高度被裁修复
 + 站点选择的 kemono 改为 Script

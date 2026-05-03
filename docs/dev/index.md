@@ -239,6 +239,17 @@ supports_clip=
 
 :::
 
+### 开发后的调整
+
+开发完成首轮跑通是基础，但一般需要进行调整  
+至少需要保证如下正常
+
+1. 首页index/更新接口
+2. 搜索接口
+3. 翻页
+
+需能达到正常的列表输出下载的流程使用
+
 > [实例 PR 参考](https://github.com/jasoneri/ComicGUISpider/issues?q=state%3Aclosed%20label%3A%22dev%20spider%22)
 
 ## 注意

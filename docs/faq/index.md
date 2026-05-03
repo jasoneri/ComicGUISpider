@@ -6,7 +6,7 @@
 
 1. 点击配置窗口打开日志目录  
 `<CGS目录|win解压目录/comicguispider\Lib\site-packages>/log/*.log`
-2. 网络问题尝试 切换代理/切换节点/切换doh/[Steamcommunity 302](https://www.dogfight360.com/blog/18682/) 自我解决  
+2. 网络问题尝试 改域名(jm/wnacg)/改代理/改节点/改doh/[Steamcommunity 302](https://www.dogfight360.com/blog/18682/) 自我解决  
 2.1 (有能力者建议)使用 ai/agent 读日志进行初步分析，或修复
 3. 最后带上 `log` [提issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml

@@ -6,7 +6,7 @@ import { markdownUrlReplacePlugin } from './plugins/markdown-url-replace';
 import { createDocsUrlConfig } from './shared/urls';
 
 
-const version = `v2.10.0-beta.3`
+const version = `v2.10.0`
 const docsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const docsEnv = loadEnv('', docsRoot, '')
 const { URLS, PLACEHOLDER_MAP } = createDocsUrlConfig(docsEnv)
@@ -137,6 +137,10 @@ export default defineConfig({
                     {
                         text: "Kemono",
                         link: "/script/kemono",
+                    },
+                    {
+                        text: "Danbooru",
+                        link: "/script/danbooru",
                     }
                 ]
             },
@@ -161,7 +165,7 @@ export default defineConfig({
                 text: "更新",
                 items: [
                     {
-                        text: "更新历史",
+                        text: "🕑更新历史",
                         link: "/changelog/history",
                     }
                 ],
