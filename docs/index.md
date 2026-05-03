@@ -72,7 +72,7 @@ hero:
     <a href="/script/#_3-cbg-cornerbackground">Cbg</a><br>
     </strong></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
-  <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜素</strong></a></td></tr>
+  <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜索</strong></a></td></tr>
 </tbody></table>
 
 ## 功能特性

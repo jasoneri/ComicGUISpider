@@ -26,10 +26,12 @@ class JestfulSpider(BaseComicSpider):
         if book is None:
             raise ValueError("jestful frame_section requires response.meta['book']")
         owner_state = parser.parse_book_owner_state(response.text, owner_url=response.url)
-        chapter_url = reqer.build_lstc_url(owner_state["loader_slug"], domain=self.domain)
+        chapter_url = reqer.tokenized_url(
+            reqer.listing_url(owner_state["loader_slug"]), domain=self.domain
+        )
         chapter_resp = reqer.cli.get(
             chapter_url,
-            headers=reqer.build_lstc_headers(referer=response.url),
+            headers=reqer.headers(referer=response.url),
             follow_redirects=True,
             timeout=12,
         )
