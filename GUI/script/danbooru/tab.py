@@ -43,10 +43,101 @@ class DanbooruTabWidget(QFrame):
         self.card_metrics = DEFAULT_CARD_METRICS
         self.card_widgets: dict[str, DanbooruCardWidget] = {}
         self._extra_tip = None
+        self.zoom_mgr = self._InnerZoomMgr(self)
         self._setup_ui()
         self.selection_controller = DanbooruTabSelectionController(self)
         self.selection_controller.selection_count_changed.connect(self.selection_count_changed.emit)
         self.apply_theme()
+
+    class _InnerZoomMgr:
+        def __init__(self, tab: "DanbooruTabWidget"):
+            self.tab = tab
+            self.hidden_target_metrics: t.Optional[DanbooruCardMetrics] = None
+            self.hidden_dirty = False
+            self.preview_refresh_ids: list[str] = []
+            self.preview_refresh_index = 0
+            self.preview_refresh_batch_size = 18
+            self.preview_refresh_timer = QtCore.QTimer(tab)
+            self.preview_refresh_timer.setSingleShot(True)
+            self.preview_refresh_timer.timeout.connect(self._drain_preview_refresh_queue)
+
+        def apply_immediate(self, *, metrics: DanbooruCardMetrics, refresh_preview: bool):
+            self.cancel_pending()
+            self.tab.card_metrics = metrics
+            for card in self.tab.card_widgets.values():
+                card.apply_metrics(metrics, refresh_preview=refresh_preview)
+            self.tab._refresh_grid_layout()
+
+        def apply_active(self, *, metrics: DanbooruCardMetrics, preview_delay_ms: int = 36):
+            self.hidden_target_metrics = None
+            self.hidden_dirty = False
+            self.apply_immediate(metrics=metrics, refresh_preview=False)
+            self.request_preview_refresh(refresh_visible_first=True, delay_ms=preview_delay_ms)
+
+        def mark_hidden_target(self, *, metrics: DanbooruCardMetrics):
+            self.cancel_pending()
+            self.tab.card_metrics = metrics
+            self.hidden_target_metrics = metrics
+            self.hidden_dirty = True
+
+        def suspend_hidden(self):
+            self.cancel_pending()
+
+        def sync_to(self, *, metrics: DanbooruCardMetrics):
+            target_metrics = self.hidden_target_metrics if self.hidden_target_metrics is not None else metrics
+            if self.tab.card_metrics != target_metrics or self.hidden_dirty:
+                self.apply_immediate(metrics=target_metrics, refresh_preview=True)
+                self.hidden_target_metrics = None
+                self.hidden_dirty = False
+                return
+            self.hidden_target_metrics = None
+            self.hidden_dirty = False
+            self.request_preview_refresh(refresh_visible_first=True, delay_ms=0)
+
+        def request_preview_refresh(self, *, refresh_visible_first: bool, delay_ms: int = 0):
+            self.preview_refresh_ids = self._build_preview_refresh_order(refresh_visible_first=refresh_visible_first)
+            self.preview_refresh_index = 0
+            self.preview_refresh_batch_size = 12 if refresh_visible_first else 18
+            self.preview_refresh_timer.stop()
+            if not self.preview_refresh_ids:
+                return
+            self.preview_refresh_timer.start(max(0, int(delay_ms)))
+
+        def cancel_pending(self):
+            self.preview_refresh_timer.stop()
+            self.preview_refresh_ids = []
+            self.preview_refresh_index = 0
+
+        def _build_preview_refresh_order(self, *, refresh_visible_first: bool) -> list[str]:
+            ordered_ids = list(self.tab.card_widgets.keys())
+            if not refresh_visible_first or not ordered_ids:
+                return ordered_ids
+            visible_ids = self._visible_card_md5s()
+            if not visible_ids:
+                return ordered_ids
+            return [md5 for md5 in ordered_ids if md5 in visible_ids] + [md5 for md5 in ordered_ids if md5 not in visible_ids]
+
+        def _visible_card_md5s(self) -> set[str]:
+            viewport = self.tab.scroll_area.viewport()
+            viewport_rect = viewport.rect()
+            visible_ids: set[str] = set()
+            for md5, card in self.tab.card_widgets.items():
+                card_rect = QtCore.QRect(card.mapTo(viewport, QtCore.QPoint(0, 0)), card.size())
+                if viewport_rect.intersects(card_rect):
+                    visible_ids.add(md5)
+            return visible_ids
+
+        def _drain_preview_refresh_queue(self):
+            if self.preview_refresh_index >= len(self.preview_refresh_ids):
+                return
+            end = min(len(self.preview_refresh_ids), self.preview_refresh_index + self.preview_refresh_batch_size)
+            for md5 in self.preview_refresh_ids[self.preview_refresh_index:end]:
+                card = self.tab.card_widgets.get(md5)
+                if card is not None:
+                    card.refresh_preview_icon()
+            self.preview_refresh_index = end
+            if self.preview_refresh_index < len(self.preview_refresh_ids):
+                self.preview_refresh_timer.start(16)
 
     def _create_group_frame(self, object_name: str) -> tuple[QFrame, QHBoxLayout]:
         frame = QFrame(self)
@@ -302,6 +393,7 @@ class DanbooruTabWidget(QFrame):
         menu.exec(global_pos)
 
     def clear_results(self, *, query: t.Optional[str] = None):
+        self.zoom_mgr.cancel_pending()
         self.selection_controller.clear()
         self.state.reset_results(query=query)
         if query is not None:
@@ -330,12 +422,6 @@ class DanbooruTabWidget(QFrame):
         self.apply_theme()
         self._refresh_grid_layout()
         return appended_cards
-
-    def set_card_metrics(self, metrics: DanbooruCardMetrics):
-        self.card_metrics = metrics
-        for card in self.card_widgets.values():
-            card.apply_metrics(metrics)
-        self._refresh_grid_layout()
 
     def apply_downloaded_state(self, md5_value: str):
         self.selection_controller.mark_downloaded(md5_value)

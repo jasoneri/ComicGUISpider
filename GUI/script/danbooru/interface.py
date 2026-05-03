@@ -52,7 +52,7 @@ class DanbooruInterface(QFrame):
         self.search_controller = DanbooruSearchController(self)
         self.download_controller = DanbooruDownloadController(self)
         self.challenge_controller = DanbooruChallengeController(self)
-        self._card_zoom_index = DEFAULT_CARD_ZOOM_INDEX
+        self.zoom_mgr = self._ZoomMgr(self)
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
         self.download_result_signal.connect(self.download_controller.on_download_result)
         self.image_viewer.tag_clicked.connect(self._open_tag_jump_tab)
@@ -65,6 +65,55 @@ class DanbooruInterface(QFrame):
         self.setupUi()
         self._apply_theme()
         self.create_tab()
+
+    class _ZoomMgr:
+        def __init__(self, interface: "DanbooruInterface"):
+            self.interface = interface
+            self.zoom_index = DEFAULT_CARD_ZOOM_INDEX
+            self.generation = 0
+
+        def current_metrics(self) -> DanbooruCardMetrics:
+            return CARD_ZOOM_METRICS[self.zoom_index]
+
+        def zoom_in(self):
+            if self.zoom_index >= len(CARD_ZOOM_METRICS) - 1:
+                return
+            self.zoom_index += 1
+            self.apply_current()
+            self.sync_buttons()
+
+        def zoom_out(self):
+            if self.zoom_index <= 0:
+                return
+            self.zoom_index -= 1
+            self.apply_current()
+            self.sync_buttons()
+
+        def sync_buttons(self):
+            self.interface.zoomIn.setEnabled(self.zoom_index < len(CARD_ZOOM_METRICS) - 1)
+            self.interface.zoomOut.setEnabled(self.zoom_index > 0)
+
+        def apply_current(self, *, active_tab_id: t.Optional[str] = None):
+            self.generation += 1
+            metrics = self.current_metrics()
+            active_tab_id = self.interface._active_tab_id() if active_tab_id is None else active_tab_id
+            for tab_id, tab in self.interface.tabs.items():
+                if tab_id == active_tab_id:
+                    tab.zoom_mgr.apply_active(metrics=metrics)
+                else:
+                    tab.zoom_mgr.mark_hidden_target(metrics=metrics)
+
+        def sync_tab(self, tab_id: str):
+            tab = self.interface.tabs.get(tab_id)
+            if tab is None:
+                return
+            tab.zoom_mgr.sync_to(metrics=self.current_metrics())
+
+        def forget(self, tab_id: str):
+            return
+
+        def shutdown(self):
+            return
 
     def setupUi(self):
         self.main_layout = QVBoxLayout(self)
@@ -153,8 +202,8 @@ class DanbooruInterface(QFrame):
         self.stacked_widget = QStackedWidget(self.content_shell)
         content_shell_layout.addWidget(self.stacked_widget)
         # binding
-        self.zoomIn.clicked.connect(self._zoom_in_cards)
-        self.zoomOut.clicked.connect(self._zoom_out_cards)
+        self.zoomIn.clicked.connect(self.zoom_mgr.zoom_in)
+        self.zoomOut.clicked.connect(self.zoom_mgr.zoom_out)
         self.favMgrBtn.clicked.connect(self._open_favorite_manager)
         self.openBtn.clicked.connect(self._open_save_path)
         self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
@@ -183,7 +232,7 @@ class DanbooruInterface(QFrame):
         self._update_tab_chrome()
         self._sync_tip_line()
         self.refresh_runtime_settings()
-        self._update_zoom_buttons()
+        self.zoom_mgr.sync_buttons()
         self._sync_tab_bar_width()
 
     def create_tab(self, initial_query: str = "", auto_search: bool = False):
@@ -196,7 +245,7 @@ class DanbooruInterface(QFrame):
         )
         tab = DanbooruTabWidget(state, self)
         tab.setObjectName(tab_id)
-        tab.set_card_metrics(self._current_card_metrics())
+        tab.zoom_mgr.apply_immediate(metrics=self.zoom_mgr.current_metrics(), refresh_preview=True)
         tab.request_search.connect(lambda query, tid=tab_id: self.search_controller.start_search(tid, query))
         tab.request_conversion.connect(lambda tid=tab_id: self.search_controller.convert_term(tid))
         tab.request_single_download.connect(lambda post, tid=tab_id: self.download_controller.submit_single(post, tid))
@@ -237,6 +286,7 @@ class DanbooruInterface(QFrame):
         self.tab_states.pop(tab_id, None)
         self._tab_tips.pop(tab_id, None)
         self._tab_httpx_status.pop(tab_id, None)
+        self.zoom_mgr.forget(tab_id)
         if tab is None:
             return
         if self.detail_preview_controller.current_tab_id == tab_id and self.image_viewer.isVisible():
@@ -255,6 +305,12 @@ class DanbooruInterface(QFrame):
         tab = self.tabs.get(tab_id)
         if tab is None:
             return
+        previous_widget = self.stacked_widget.currentWidget()
+        previous_tab_id = previous_widget.objectName() if previous_widget is not None else None
+        if previous_tab_id and previous_tab_id != tab_id:
+            previous_tab = self.tabs.get(previous_tab_id)
+            if previous_tab is not None:
+                previous_tab.zoom_mgr.suspend_hidden()
         self.stacked_widget.setCurrentWidget(tab)
         self.tab_bar.setCurrentTab(tab_id)
         self._update_batch_button(tab_id)
@@ -263,10 +319,12 @@ class DanbooruInterface(QFrame):
         widget = self.stacked_widget.currentWidget()
         if widget is None:
             return
-        self.tab_bar.setCurrentTab(widget.objectName())
-        self._update_batch_button(widget.objectName())
+        tab_id = widget.objectName()
+        self.tab_bar.setCurrentTab(tab_id)
+        self._update_batch_button(tab_id)
         self._update_tab_chrome()
-        self._sync_tip_line(widget.objectName())
+        self._sync_tip_line(tab_id)
+        self.zoom_mgr.sync_tab(tab_id)
 
     def _on_tabbar_index_changed(self, index: int):
         tab_id = self._tab_id_at(index)
@@ -342,31 +400,6 @@ class DanbooruInterface(QFrame):
         effective_tab_id = tab_id or self._active_tab_id()
         text, cls = self._tab_tips.get(effective_tab_id, (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS))
         self.tip_line.setText(_format_tip_rich_text(text, cls))
-
-    def _current_card_metrics(self) -> DanbooruCardMetrics:
-        return CARD_ZOOM_METRICS[self._card_zoom_index]
-
-    def _apply_card_metrics(self):
-        metrics = self._current_card_metrics()
-        for tab in self.tabs.values():
-            tab.set_card_metrics(metrics)
-        self._update_zoom_buttons()
-
-    def _zoom_in_cards(self):
-        if self._card_zoom_index >= len(CARD_ZOOM_METRICS) - 1:
-            return
-        self._card_zoom_index += 1
-        self._apply_card_metrics()
-
-    def _zoom_out_cards(self):
-        if self._card_zoom_index <= 0:
-            return
-        self._card_zoom_index -= 1
-        self._apply_card_metrics()
-
-    def _update_zoom_buttons(self):
-        self.zoomIn.setEnabled(self._card_zoom_index < len(CARD_ZOOM_METRICS) - 1)
-        self.zoomOut.setEnabled(self._card_zoom_index > 0)
 
     def _scroll_pivot_tabs(self, direction: int):
         bar = self.pivot_scroll.horizontalScrollBar()
@@ -528,5 +561,6 @@ class DanbooruInterface(QFrame):
             theme_mgr.unsubscribe(self._apply_theme)
             self.image_viewer.hide()
             self.sql_recorder.close()
+            self.zoom_mgr.shutdown()
         finally:
             super().closeEvent(event)
