@@ -3,7 +3,7 @@ from __future__ import annotations
 import ipaddress
 import threading
 from typing import Iterable, Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse, urlunparse
 
 import dns.asyncresolver
 import dns.resolver
@@ -107,6 +107,25 @@ def _address_from_doh_json(payload: object, *, rdtype: dns.rdatatype.RdataType) 
     return ""
 
 
+def _doh_json_request_target(
+    resolver: dns.asyncresolver.Resolver | dns.resolver.Resolver,
+    host: str,
+    rdtype: dns.rdatatype.RdataType,
+) -> tuple[str, dict[str, str]]:
+    doh_url = _resolver_doh_url(resolver)
+    parsed = urlparse(doh_url)
+    base_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, "", parsed.fragment))
+    query_pairs = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    request_type = dns.rdatatype.to_text(rdtype)
+    if "domain" in query_pairs or "doh" in query_pairs:
+        if "doh" in query_pairs and not str(query_pairs.get("doh") or "").strip():
+            query_pairs["doh"] = base_url.rstrip("/")
+        query_pairs["domain"] = str(host)
+        query_pairs["type"] = request_type
+        return base_url, query_pairs
+    return doh_url, {"name": str(host), "type": request_type}
+
+
 async def _resolve_host_via_doh_json(
     resolver: dns.asyncresolver.Resolver,
     host: str,
@@ -114,14 +133,10 @@ async def _resolve_host_via_doh_json(
     *,
     timeout: Optional[float] = None,
 ) -> str:
-    doh_url = _resolver_doh_url(resolver)
+    request_url, request_params = _doh_json_request_target(resolver, host, rdtype)
     request_timeout = timeout if timeout and timeout > 0 else _DOH_JSON_TIMEOUT
     async with httpx.AsyncClient(timeout=request_timeout, trust_env=False) as client:
-        response = await client.get(
-            doh_url,
-            params={"name": str(host), "type": dns.rdatatype.to_text(rdtype)},
-            headers={"Accept": "application/dns-json"},
-        )
+        response = await client.get(request_url, params=request_params, headers={"Accept": "application/dns-json"})
         response.raise_for_status()
         address = _address_from_doh_json(response.json(), rdtype=rdtype)
     if address:
@@ -136,14 +151,10 @@ def _resolve_host_via_sync_doh_json(
     *,
     timeout: Optional[float] = None,
 ) -> str:
-    doh_url = _resolver_doh_url(resolver)
+    request_url, request_params = _doh_json_request_target(resolver, host, rdtype)
     request_timeout = timeout if timeout and timeout > 0 else _DOH_JSON_TIMEOUT
     with httpx.Client(timeout=request_timeout, trust_env=False) as client:
-        response = client.get(
-            doh_url,
-            params={"name": str(host), "type": dns.rdatatype.to_text(rdtype)},
-            headers={"Accept": "application/dns-json"},
-        )
+        response = client.get(request_url, params=request_params, headers={"Accept": "application/dns-json"})
         response.raise_for_status()
         address = _address_from_doh_json(response.json(), rdtype=rdtype)
     if address:
@@ -285,10 +296,7 @@ class DoHNetworkBackend(httpcore.AsyncNetworkBackend):
     ):
         target_host = await self._resolve_host(host, timeout=timeout, local_address=local_address)
         return await self._backend.connect_tcp(
-            host=target_host,
-            port=port,
-            timeout=timeout,
-            local_address=local_address,
+            host=target_host, port=port, timeout=timeout, local_address=local_address,
             socket_options=socket_options,
         )
 
@@ -303,19 +311,8 @@ class DoHNetworkBackend(httpcore.AsyncNetworkBackend):
     async def sleep(self, seconds: float) -> None:
         await self._backend.sleep(seconds)
 
-    async def _resolve_host(
-        self,
-        host: str,
-        *,
-        timeout: Optional[float],
-        local_address: Optional[str],
-    ) -> str:
-        return await resolve_host_via_doh(
-            self._resolver,
-            host,
-            timeout=timeout,
-            local_address=local_address,
-        )
+    async def _resolve_host(self, host: str, *, timeout: Optional[float], local_address: Optional[str]) -> str:
+        return await resolve_host_via_doh(self._resolver, host, timeout=timeout, local_address=local_address)
 
 
 class SyncDoHNetworkBackend(SyncBackend):
@@ -332,19 +329,8 @@ class SyncDoHNetworkBackend(SyncBackend):
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[SOCKET_OPTION]] = None,
     ):
-        target_host = resolve_host_via_sync_doh(
-            self._resolver,
-            host,
-            timeout=timeout,
-            local_address=local_address,
-        )
-        return super().connect_tcp(
-            host=target_host,
-            port=port,
-            timeout=timeout,
-            local_address=local_address,
-            socket_options=socket_options,
-        )
+        target_host = resolve_host_via_sync_doh(self._resolver, host, timeout=timeout, local_address=local_address)
+        return super().connect_tcp(host=target_host, port=port, timeout=timeout, local_address=local_address, socket_options=socket_options)
 
 
 class DoHHTTPTransport(httpx.HTTPTransport):
@@ -363,28 +349,19 @@ class DoHHTTPTransport(httpx.HTTPTransport):
 
         if proxy is None:
             self._pool = httpcore.ConnectionPool(
-                ssl_context=ssl_context,
-                max_connections=limits.max_connections,
-                max_keepalive_connections=limits.max_keepalive_connections,
-                keepalive_expiry=limits.keepalive_expiry,
-                network_backend=network_backend, **kw
+                ssl_context=ssl_context, max_connections=limits.max_connections,
+                max_keepalive_connections=limits.max_keepalive_connections, keepalive_expiry=limits.keepalive_expiry,
+                network_backend=network_backend, **kw,
             )
         elif proxy.url.scheme in ("http", "https"):
             self._pool = httpcore.HTTPProxy(
                 proxy_url=httpcore.URL(
-                    scheme=proxy.url.raw_scheme,
-                    host=proxy.url.raw_host,
-                    port=proxy.url.port,
-                    target=proxy.url.raw_path,
+                    scheme=proxy.url.raw_scheme, host=proxy.url.raw_host, port=proxy.url.port, target=proxy.url.raw_path,
                 ),
-                proxy_auth=proxy.raw_auth,
-                proxy_headers=proxy.headers.raw,
-                ssl_context=ssl_context,
-                proxy_ssl_context=proxy.ssl_context,
-                max_connections=limits.max_connections,
-                max_keepalive_connections=limits.max_keepalive_connections,
-                keepalive_expiry=limits.keepalive_expiry,
-                network_backend=network_backend, **kw
+                proxy_auth=proxy.raw_auth, proxy_headers=proxy.headers.raw, ssl_context=ssl_context,
+                proxy_ssl_context=proxy.ssl_context, max_connections=limits.max_connections,
+                max_keepalive_connections=limits.max_keepalive_connections, keepalive_expiry=limits.keepalive_expiry,
+                network_backend=network_backend, **kw,
             )
         else:
             raise ValueError("DoH transport only supports direct or HTTP/HTTPS proxy connections")
@@ -412,40 +389,21 @@ class DoHAsyncHTTPTransport(httpx.AsyncBaseTransport):
 
         if proxy is None:
             self._pool = httpcore.AsyncConnectionPool(
-                ssl_context=ssl_context,
-                max_connections=limits.max_connections,
-                max_keepalive_connections=limits.max_keepalive_connections,
-                keepalive_expiry=limits.keepalive_expiry,
-                http1=http1,
-                http2=http2,
-                uds=uds,
-                local_address=local_address,
-                retries=retries,
-                socket_options=socket_options,
-                network_backend=network_backend,
+                ssl_context=ssl_context, max_connections=limits.max_connections,
+                max_keepalive_connections=limits.max_keepalive_connections, keepalive_expiry=limits.keepalive_expiry,
+                http1=http1, http2=http2, uds=uds, local_address=local_address,
+                retries=retries, socket_options=socket_options, network_backend=network_backend,
             )
         elif proxy.url.scheme in ("http", "https"):
             self._pool = httpcore.AsyncHTTPProxy(
                 proxy_url=httpcore.URL(
-                    scheme=proxy.url.raw_scheme,
-                    host=proxy.url.raw_host,
-                    port=proxy.url.port,
-                    target=proxy.url.raw_path,
+                    scheme=proxy.url.raw_scheme, host=proxy.url.raw_host, port=proxy.url.port, target=proxy.url.raw_path,
                 ),
-                proxy_auth=proxy.raw_auth,
-                proxy_headers=proxy.headers.raw,
-                ssl_context=ssl_context,
-                proxy_ssl_context=proxy.ssl_context,
-                max_connections=limits.max_connections,
-                max_keepalive_connections=limits.max_keepalive_connections,
-                keepalive_expiry=limits.keepalive_expiry,
-                http1=http1,
-                http2=http2,
-                retries=retries,
-                local_address=local_address,
-                uds=uds,
-                socket_options=socket_options,
-                network_backend=network_backend,
+                proxy_auth=proxy.raw_auth, proxy_headers=proxy.headers.raw, ssl_context=ssl_context,
+                proxy_ssl_context=proxy.ssl_context, max_connections=limits.max_connections,
+                max_keepalive_connections=limits.max_keepalive_connections, keepalive_expiry=limits.keepalive_expiry,
+                http1=http1, http2=http2, retries=retries, local_address=local_address,
+                uds=uds, socket_options=socket_options, network_backend=network_backend,
             )
         else:
             raise ValueError("DoH transport only supports direct or HTTP/HTTPS proxy connections")
@@ -462,21 +420,14 @@ class DoHAsyncHTTPTransport(httpx.AsyncBaseTransport):
         req = httpcore.Request(
             method=request.method,
             url=httpcore.URL(
-                scheme=request.url.raw_scheme,
-                host=request.url.raw_host,
-                port=request.url.port,
-                target=request.url.raw_path,
+                scheme=request.url.raw_scheme, host=request.url.raw_host, port=request.url.port, target=request.url.raw_path,
             ),
-            headers=request.headers.raw,
-            content=request.stream,
-            extensions=request.extensions,
+            headers=request.headers.raw, content=request.stream, extensions=request.extensions,
         )
         with map_httpcore_exceptions():
             resp = await self._pool.handle_async_request(req)
         return httpx.Response(
-            status_code=resp.status,
-            headers=resp.headers,
-            stream=AsyncResponseStream(resp.stream),
+            status_code=resp.status, headers=resp.headers, stream=AsyncResponseStream(resp.stream),
             extensions=resp.extensions,
         )
 
@@ -511,12 +462,7 @@ def build_http_transport(
             transport_kw["limits"] = limits
         from utils.website.core import build_proxy_transport
 
-        return build_proxy_transport(
-            proxy_policy,
-            proxies,
-            is_async=is_async,
-            **transport_kw,
-        )
+        return build_proxy_transport(proxy_policy, proxies, is_async=is_async, **transport_kw)
 
     proxy = None
     effective_retries = retries
@@ -527,26 +473,12 @@ def build_http_transport(
     doh_limits = limits or DEFAULT_LIMITS
     if is_async:
         transport = DoHAsyncHTTPTransport(
-            verify=verify,
-            cert=cert,
-            limits=doh_limits,
-            trust_env=False,
-            proxy=proxy,
-            retries=effective_retries,
-            http1=http1,
-            http2=http2,
-            network_backend=DoHNetworkBackend(normalized_doh_url),
+            verify=verify, cert=cert, limits=doh_limits, trust_env=False, proxy=proxy,
+            retries=effective_retries, http1=http1, http2=http2, network_backend=DoHNetworkBackend(normalized_doh_url),
         )
     else:
         transport = DoHHTTPTransport(
-            verify=verify,
-            cert=cert,
-            limits=doh_limits,
-            trust_env=False,
-            proxy=proxy,
-            retries=effective_retries,
-            http1=http1,
-            http2=http2,
-            network_backend=SyncDoHNetworkBackend(normalized_doh_url),
+            verify=verify, cert=cert, limits=doh_limits, trust_env=False, proxy=proxy,
+            retries=effective_retries, http1=http1, http2=http2, network_backend=SyncDoHNetworkBackend(normalized_doh_url),
         )
     return transport, False

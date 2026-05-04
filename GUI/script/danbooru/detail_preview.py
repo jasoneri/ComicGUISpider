@@ -7,15 +7,15 @@ from PySide6.QtGui import QPixmap
 from utils.script.image.danbooru.http import DanbooruChallengeRequired
 from utils.script.image.danbooru.models import DanbooruPost
 
-from .core import DanbooruReq, execute_danbooru_task
+from .core import capture_danbooru_request, execute_danbooru_task, fetch_pixmap
 from .viewer import DanbooruImageViewer
 
 if t.TYPE_CHECKING:
     from .interface import DanbooruInterface
 
+
 @dataclass(frozen=True, slots=True)
 class _DanbooruDetailRequestSpec:
-    reason: str
     task_prefix: str
     retry_prefix: str
     challenge_placeholder: str = ""
@@ -23,22 +23,12 @@ class _DanbooruDetailRequestSpec:
 
 
 _PREFETCH_REQUEST = _DanbooruDetailRequestSpec(
-    reason="detail prefetch",
-    task_prefix="danbooru-detail-prefetch",
-    retry_prefix="detail-prefetch",
-    discard_prefetch=True,
+    task_prefix="danbooru-detail-prefetch", retry_prefix="detail-prefetch", discard_prefetch=True,
 )
 _PREVIEW_REQUEST = _DanbooruDetailRequestSpec(
-    reason="detail preview",
-    task_prefix="danbooru-detail-preview",
-    retry_prefix="detail-preview",
-    challenge_placeholder="需要验证",
+    task_prefix="danbooru-detail-preview", retry_prefix="detail-preview", challenge_placeholder="需要验证",
 )
-_SIZE_REQUEST = _DanbooruDetailRequestSpec(
-    reason="detail size probe",
-    task_prefix="danbooru-detail-size",
-    retry_prefix="detail-size",
-)
+_SIZE_REQUEST = _DanbooruDetailRequestSpec(task_prefix="danbooru-detail-size", retry_prefix="detail-size")
 
 
 class DanbooruDetailPreviewController(QtCore.QObject):
@@ -160,12 +150,7 @@ class DanbooruDetailPreviewController(QtCore.QObject):
         if not preview_url:
             return
         self._prefetching_post_ids.add(post.post_id)
-        self._execute_request(
-            _PREFETCH_REQUEST,
-            tab_id,
-            post,
-            lambda: DanbooruReq.fetch_preview(preview_url, max_width=0),
-        )
+        self._execute_request(_PREFETCH_REQUEST, tab_id, post)
 
     def _load_preview(self, tab_id: str, post: DanbooruPost):
         preview_url = self._detail_preview_url(post)
@@ -173,55 +158,36 @@ class DanbooruDetailPreviewController(QtCore.QObject):
             if self.matches(post_id=post.post_id):
                 self.viewer.set_placeholder(self._detail_preview_error_message(post, "no preview url"))
             return
-        self._execute_request(
-            _PREVIEW_REQUEST,
-            tab_id,
-            post,
-            lambda: DanbooruReq.fetch_preview(preview_url, max_width=0),
-        )
+        self._execute_request(_PREVIEW_REQUEST, tab_id, post)
 
     def _probe_size(self, tab_id: str, post: DanbooruPost):
         preview_url = self._detail_preview_url(post)
         if not preview_url:
             return
-        self._execute_request(
-            _SIZE_REQUEST,
-            tab_id,
-            post,
-            lambda: DanbooruReq.fetch_image_size(preview_url),
-        )
+        self._execute_request(_SIZE_REQUEST, tab_id, post)
 
-    def _execute_request(
-        self,
-        spec: _DanbooruDetailRequestSpec,
-        tab_id: str,
-        post: DanbooruPost,
-        request: t.Callable[[], t.Any],
-    ):
+    def _execute_request(self, spec: _DanbooruDetailRequestSpec, tab_id: str, post: DanbooruPost):
+        preview_url = self._detail_preview_url(post)
+        if not preview_url:
+            raise ValueError(f"Danbooru detail request missing preview url: post_id={post.post_id}")
+        request_client = self.interface.request_client
+        if spec is _SIZE_REQUEST:
+            task = lambda url=preview_url: capture_danbooru_request(request_client.fetch_remote_image_size, url)
+        else:
+            task = lambda url=preview_url: capture_danbooru_request(fetch_pixmap, request_client, url, max_width=0)
         execute_danbooru_task(
             self.interface.task_mgr,
-            request,
+            task,
             success_callback=lambda payload, current_spec=spec, current_tab_id=tab_id, current_post=post: self._handle_request_result(
-                current_spec,
-                current_tab_id,
-                current_post,
-                payload,
+                current_spec, current_tab_id, current_post, payload,
             ),
             error_callback=lambda error, current_spec=spec, current_post=post: self._handle_request_error(
-                current_spec,
-                current_post,
-                error,
+                current_spec, current_post, error,
             ),
             task_id=f"{spec.task_prefix}-{tab_id}-{post.post_id}",
         )
 
-    def _handle_request_result(
-        self,
-        spec: _DanbooruDetailRequestSpec,
-        tab_id: str,
-        post: DanbooruPost,
-        payload,
-    ):
+    def _handle_request_result(self, spec: _DanbooruDetailRequestSpec, tab_id: str, post: DanbooruPost, payload):
         if payload.challenge is not None:
             self._handle_challenge(spec, tab_id, post, payload.challenge)
             return
@@ -232,37 +198,20 @@ class DanbooruDetailPreviewController(QtCore.QObject):
         if spec is _PREFETCH_REQUEST:
             self._prefetching_post_ids.discard(post.post_id)
 
-    def _handle_challenge(
-        self,
-        spec: _DanbooruDetailRequestSpec,
-        tab_id: str,
-        post: DanbooruPost,
-        challenge: DanbooruChallengeRequired,
-    ):
+    def _handle_challenge(self, spec: _DanbooruDetailRequestSpec, tab_id: str, post: DanbooruPost, challenge: DanbooruChallengeRequired):
         if spec.discard_prefetch:
             self._prefetching_post_ids.discard(post.post_id)
         if spec.challenge_placeholder and self.matches(post_id=post.post_id):
             self.viewer.set_placeholder(spec.challenge_placeholder)
-        self.interface.challenge_controller.submit(
-            tab_id,
-            challenge,
-            lambda current_spec=spec, current_tab_id=tab_id, current_post=post: self._retry_request(
-                current_spec,
-                current_tab_id,
-                current_post,
-            ),
-            reason=spec.reason,
-            retry_key=f"{spec.retry_prefix}:{tab_id}:{post.post_id}",
-        )
-
-    def _retry_request(self, spec: _DanbooruDetailRequestSpec, tab_id: str, post: DanbooruPost):
         if spec is _PREFETCH_REQUEST:
-            self._prefetch(tab_id, post)
-            return
-        if spec is _PREVIEW_REQUEST:
-            self._load_preview(tab_id, post)
-            return
-        self._probe_size(tab_id, post)
+            retry_callback = lambda current_tab_id=tab_id, current_post=post: self._prefetch(current_tab_id, current_post)
+        elif spec is _PREVIEW_REQUEST:
+            retry_callback = lambda current_tab_id=tab_id, current_post=post: self._load_preview(current_tab_id, current_post)
+        else:
+            retry_callback = lambda current_tab_id=tab_id, current_post=post: self._probe_size(current_tab_id, current_post)
+        self.interface.challenge_controller.submit(
+            tab_id, challenge, retry_callback, retry_key=f"{spec.retry_prefix}:{tab_id}:{post.post_id}",
+        )
 
     def _handle_request_error(self, spec: _DanbooruDetailRequestSpec, post: DanbooruPost, error: str):
         if spec is _PREFETCH_REQUEST:

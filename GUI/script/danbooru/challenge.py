@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import typing as t
 
 from PySide6 import QtCore
@@ -14,7 +13,6 @@ from GUI.core.browser import (
 )
 from utils.config.qc import cgs_cfg
 from utils.script.image.danbooru.constants import DANBOORU_BASE_URL
-from utils.script.image.danbooru.client import search_danbooru_posts
 from utils.script.image.danbooru.http import DanbooruChallengeRequired, DanbooruResponseInspector
 from utils.script.image.danbooru.session import DanbooruBrowserSession, danbooru_browser_session_store
 
@@ -33,31 +31,29 @@ class DanbooruHttpxSessionVerification:
 
     def submit(self) -> None:
         for tab_id in self.tab_ids:
-            self.interface.set_tab_httpx_status(tab_id, "httpx verifying", cls="theme-tip")
+            self.interface.tab_mgr.set_httpx_status(tab_id, "httpx verifying", cls="theme-tip")
         self.interface.task_mgr.execute_simple_task(
             self.run,
-            success_callback=self.accept,
-            error_callback=self.reject,
-            show_success_info=False,
-            show_error_info=False,
-            show_tooltip=False,
-            task_id=f"danbooru-httpx-verify-{','.join(self.tab_ids)}-{id(self)}",
+            success_callback=self.accept, error_callback=self.reject, show_success_info=False,
+            show_error_info=False, show_tooltip=False, task_id=f"danbooru-httpx-verify-{','.join(self.tab_ids)}-{id(self)}",
         )
 
-    @staticmethod
-    def run():
-        return asyncio.run(search_danbooru_posts("", page=1, limit=DANBOORU_HTTPX_VERIFY_LIMIT, timeout=DANBOORU_HTTPX_VERIFY_TIMEOUT))
+    def run(self):
+        return self.interface.request_client.search_posts(
+            "",
+            page=1, limit=DANBOORU_HTTPX_VERIFY_LIMIT, timeout=DANBOORU_HTTPX_VERIFY_TIMEOUT,
+        )
 
     def accept(self, posts) -> None:
         for tab_id in self.tab_ids:
-            self.interface.set_tab_httpx_status(tab_id, f"httpx 200/{len(posts or [])}", cls="theme-success")
+            self.interface.tab_mgr.set_httpx_status(tab_id, f"httpx 200/{len(posts or [])}", cls="theme-success")
         for retry_callback in self.retry_callbacks:
             retry_callback()
 
     def reject(self, error: str) -> None:
         self.interface.gui.log.warning(f"[Danbooru] browser session did not pass Python httpx verification: {error}")
         for tab_id in self.tab_ids:
-            self.interface.set_tab_httpx_status(tab_id, "httpx blocked", cls="theme-err")
+            self.interface.tab_mgr.set_httpx_status(tab_id, "httpx blocked", cls="theme-err")
 
 
 class DanbooruChallengeController(QtCore.QObject):
@@ -69,40 +65,20 @@ class DanbooruChallengeController(QtCore.QObject):
             window_factory=lambda spec: BrowserWindow(
                 self.interface.gui, skip_env_mode=True, persistent_profile=False, webengine_doh_url=spec.doh_url,
             ),
-            on_success=self._handle_success,
-            on_missing=self._handle_missing,
-            parent=self,
+            on_success=self._handle_success, on_missing=self._handle_missing, parent=self,
         )
 
-    def submit(
-        self,
-        tab_id: str,
-        challenge: DanbooruChallengeRequired,
-        retry_callback: t.Callable[[], None],
-        *,
-        reason: str,
-        retry_key: str,
-    ) -> None:
-        _ = reason
-        self.interface.set_tab_httpx_status(tab_id, "httpx blocked", cls="theme-tip")
-        self.coordinator.submit(
-            self._build_spec(challenge),
-            tab_id=tab_id,
-            retry_key=str(retry_key or f"{tab_id}:{reason}"),
-            retry_callback=retry_callback,
-        )
+    def submit(self, tab_id: str, challenge: DanbooruChallengeRequired, retry_callback: t.Callable[[], None], retry_key: str) -> None:
+        self.interface.tab_mgr.set_httpx_status(tab_id, "httpx blocked", cls="theme-tip")
+        self.coordinator.submit(self._build_spec(challenge), tab_id=tab_id, retry_key=str(retry_key), retry_callback=retry_callback)
 
     def _build_spec(self, challenge: DanbooruChallengeRequired) -> BrowserChallengeSpec:
         return BrowserChallengeSpec(
             challenge.verify_url,
-            domain_filter="danbooru.donmai.us",
-            source_url=challenge.verify_url,
-            doh_url=cgs_cfg.doh.get_url(),
-            window_size=QtCore.QSize(980, 760),
-            window_title="Danbooru Verification",
+            domain_filter="danbooru.donmai.us", source_url=challenge.verify_url, doh_url=cgs_cfg.doh.get_url(),
+            window_size=QtCore.QSize(980, 760), window_title="Danbooru Verification",
             completion_detector=DanbooruResponseInspector.is_verification_completion_url,
-            request_capture=BrowserRequestCaptureConfig(host_filter="danbooru.donmai.us"),
-            poll_interval_ms=500,
+            request_capture=BrowserRequestCaptureConfig(host_filter="danbooru.donmai.us"), poll_interval_ms=500,
             result_validator=self._has_syncable_session,
         )
 
@@ -115,9 +91,7 @@ class DanbooruChallengeController(QtCore.QObject):
             headers["Referer"] = effective_source_url
         return DanbooruBrowserSession.from_browser_capture(
             cookies=merged_cookies,
-            user_agent=result.user_agent,
-            headers=headers,
-            source_url=effective_source_url,
+            user_agent=result.user_agent, headers=headers, source_url=effective_source_url,
         )
 
     def _has_syncable_session(self, result: BrowserChallengeResult) -> bool:
@@ -129,15 +103,13 @@ class DanbooruChallengeController(QtCore.QObject):
             f"current_url={result.current_url or '<unknown>'}"
         )
         for tab_id in tab_ids:
-            self.interface.set_tab_httpx_status(tab_id, "httpx blocked", cls="theme-err")
+            self.interface.tab_mgr.set_httpx_status(tab_id, "httpx blocked", cls="theme-err")
 
     def _handle_success(self, result: BrowserChallengeResult, retry_callbacks: list[t.Callable[[], None]], tab_ids: list[str]) -> None:
         browser_session = self._build_session(result)
         session = danbooru_browser_session_store.update(
             cookies=browser_session.cookies,
-            user_agent=browser_session.user_agent,
-            headers=browser_session.headers,
-            source_url=browser_session.source_url,
+            user_agent=browser_session.user_agent, headers=browser_session.headers, source_url=browser_session.source_url,
         )
         self.gui.log.info(
             f"[Danbooru] browser verification session synced cookies={len(session.cookies)} "

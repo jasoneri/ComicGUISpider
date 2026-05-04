@@ -10,18 +10,13 @@ from PySide6.QtWidgets import QApplication, QPushButton, QRubberBand, QWidget
 from qfluentwidgets import InfoBar
 
 from utils.config.qc import danbooru_cfg
-from utils.script.image.danbooru.client import (
-    autocomplete_danbooru_tags,
-    fetch_remote_bytes,
-    fetch_remote_image_size,
-    search_danbooru_posts,
-)
 from utils.script.image.danbooru.constants import DANBOORU_BASE_URL, DANBOORU_PAGE_SIZE
 from utils.script.image.danbooru.download import DanbooruDownloadSubmitter
 from utils.script.image.danbooru.http import DanbooruChallengeRequired
 from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, DanbooruPost, DanbooruSearchQuery
 
 if t.TYPE_CHECKING:
+    from utils.script.image.danbooru.client import DanbooruClient
     from . import DanbooruCardWidget, DanbooruInterface, DanbooruTabWidget
 
 DANBOORU_CHALLENGE_ERROR_MARKER = "Danbooru request blocked by browser verification"
@@ -46,32 +41,11 @@ class DanbooruReqResult:
     challenge: t.Optional[DanbooruChallengeRequired] = None
 
 
-class DanbooruReq:
-    @staticmethod
-    def _run(coro) -> DanbooruReqResult:
-        try:
-            return DanbooruReqResult(value=run_async(coro))
-        except DanbooruChallengeRequired as exc:
-            return DanbooruReqResult(challenge=exc)
-
-    @staticmethod
-    def search(query: str, *, order: str = "", page: int = 1) -> DanbooruReqResult:
-        return DanbooruReq._run(search_danbooru_posts(query, order=order, page=page))
-
-    @staticmethod
-    def autocomplete(term: str) -> DanbooruReqResult:
-        return DanbooruReq._run(autocomplete_danbooru_tags(term))
-
-    @staticmethod
-    def fetch_preview(url: str, *, max_width: int = 280) -> DanbooruReqResult:
-        try:
-            return DanbooruReqResult(value=fetch_pixmap(url, max_width))
-        except DanbooruChallengeRequired as exc:
-            return DanbooruReqResult(challenge=exc)
-
-    @staticmethod
-    def fetch_image_size(url: str) -> DanbooruReqResult:
-        return DanbooruReq._run(fetch_remote_image_size(url))
+def capture_danbooru_request(task: t.Callable[..., t.Any], /, *args: t.Any, **kwargs: t.Any) -> DanbooruReqResult:
+    try:
+        return DanbooruReqResult(value=task(*args, **kwargs))
+    except DanbooruChallengeRequired as exc:
+        return DanbooruReqResult(challenge=exc)
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,16 +90,13 @@ class DanbooruViewerFitCalculator:
         )
         display_size = cls._fit_size_within_bounds(source_size, max_display_bounds)
         return DanbooruViewerFitResult(
-            available_bounds=normalized_available,
-            max_display_bounds=max_display_bounds,
-            display_size=display_size,
-            target_area=max(1, int(round(normalized_available.width() * normalized_available.height() * area_ratio))),
-            axis_scale=axis_scale,
+            available_bounds=normalized_available, max_display_bounds=max_display_bounds, display_size=display_size,
+            target_area=max(1, int(round(normalized_available.width() * normalized_available.height() * area_ratio))), axis_scale=axis_scale,
         )
 
 
-def fetch_pixmap(url: str, max_width: int = 280) -> bytes:
-    raw = run_async(fetch_remote_bytes(url, timeout=20.0))
+def fetch_pixmap(request_client: "DanbooruClient", url: str, max_width: int = 280) -> bytes:
+    raw = request_client.fetch_remote_bytes(url, timeout=20.0)
     image = QtGui.QImage()
     image.loadFromData(raw)
     if image.isNull():
@@ -416,13 +387,8 @@ class DanbooruSearchController:
             state.sort_mode = str(order or "")
         tab.set_loading(True)
         self._submit_search_request(
-            tab_id=tab_id,
-            query=state.query,
-            order=state.sort_mode,
-            page=1,
-            token=token,
-            replace=True,
-            task_prefix="search",
+            tab_id=tab_id, query=state.query, order=state.sort_mode, page=1,
+            token=token, replace=True, task_prefix="search",
         )
 
     def load_next_page(self, tab_id: str):
@@ -434,13 +400,8 @@ class DanbooruSearchController:
         next_page = state.page_cursor + 1
         tab.set_loading(True)
         self._submit_search_request(
-            tab_id=tab_id,
-            query=state.query,
-            order=state.sort_mode,
-            page=next_page,
-            token=token,
-            replace=False,
-            task_prefix="page",
+            tab_id=tab_id, query=state.query, order=state.sort_mode, page=next_page,
+            token=token, replace=False, task_prefix="page",
         )
 
     def _submit_search_request(
@@ -455,21 +416,17 @@ class DanbooruSearchController:
         task_prefix: str,
     ) -> None:
         dispatch = _DanbooruSearchDispatch(
-            tab_id=tab_id,
-            query=query,
-            order=order,
-            page=page,
-            token=token,
-            replace=replace,
-            task_prefix=task_prefix,
+            tab_id=tab_id, query=query, order=order, page=page,
+            token=token, replace=replace, task_prefix=task_prefix,
         )
         self.interface._log_search_request(dispatch.tab_id, dispatch.query, dispatch.order, dispatch.page, DANBOORU_PAGE_SIZE)
         execute_danbooru_task(
             self.interface.task_mgr,
-            lambda current=dispatch: DanbooruReq.search(current.query, order=current.order, page=current.page),
+            lambda current=dispatch, interface=self.interface: capture_danbooru_request(
+                interface.request_client.search_posts, current.query, order=current.order, page=current.page
+            ),
             success_callback=lambda result, current=dispatch: self.handle_search_result(current, result),
-            error_callback=lambda err, current=dispatch: self.handle_search_error(current, err),
-            task_id=dispatch.task_id(),
+            error_callback=lambda err, current=dispatch: self.handle_search_error(current, err), task_id=dispatch.task_id(),
         )
 
     def handle_search_result(self, dispatch: _DanbooruSearchDispatch, result: DanbooruReqResult):
@@ -485,10 +442,10 @@ class DanbooruSearchController:
             return
         tab.set_loading(False)
         state.mark_loaded_page(posts, dispatch.page)
-        self.interface._update_tab_title(dispatch.tab_id, state.query)
-        self.interface.set_tab_httpx_status(dispatch.tab_id, f"httpx 200/{len(posts)}", cls="theme-success")
+        self.interface.tab_mgr.update_title(dispatch.tab_id, state.query)
+        self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, f"httpx 200/{len(posts)}", cls="theme-success")
         if not posts and dispatch.replace:
-            self.interface.set_tab_httpx_status(dispatch.tab_id, "httpx 200/0", cls="theme-tip")
+            self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, "httpx 200/0", cls="theme-tip")
             return
         downloaded_md5s = self.interface.sql_recorder.batch_check_dupe([post.md5 for post in posts if post.md5])
         appended_cards = tab.append_results(posts, downloaded_md5s)
@@ -497,7 +454,7 @@ class DanbooruSearchController:
         for card in appended_cards:
             self.load_card_preview(tab, card)
         if not state.has_more_results:
-            self.interface._set_tab_tip(dispatch.tab_id, "empty", cls="theme-err")
+            self.interface.tab_mgr.set_tip(dispatch.tab_id, "empty", cls="theme-err")
 
     def handle_search_challenge(self, dispatch: _DanbooruSearchDispatch, challenge: DanbooruChallengeRequired):
         tab = self.interface.tabs.get(dispatch.tab_id)
@@ -506,11 +463,7 @@ class DanbooruSearchController:
             return
         tab.set_loading(False)
         self.interface.challenge_controller.submit(
-            dispatch.tab_id,
-            challenge,
-            dispatch.retry_callback(self),
-            reason="search",
-            retry_key=dispatch.challenge_retry_key(),
+            dispatch.tab_id, challenge, dispatch.retry_callback(self), retry_key=dispatch.challenge_retry_key(),
         )
 
     def handle_search_error(self, dispatch: _DanbooruSearchDispatch, error: str):
@@ -522,7 +475,7 @@ class DanbooruSearchController:
         if DANBOORU_CHALLENGE_ERROR_MARKER in str(error or ""):
             self.handle_search_challenge(dispatch, DanbooruChallengeRequired(verify_url=DANBOORU_BASE_URL, status_code=403))
             return
-        self.interface._set_tab_tip(dispatch.tab_id, DANBOORU_SEARCH_ERROR_STATUS, cls="theme-err")
+        self.interface.tab_mgr.set_tip(dispatch.tab_id, DANBOORU_SEARCH_ERROR_STATUS, cls="theme-err")
         self.interface._show_task_error(error, 6000)
 
     def load_card_preview(self, tab: "DanbooruTabWidget", card: "DanbooruCardWidget"):
@@ -531,7 +484,9 @@ class DanbooruSearchController:
             return
         execute_danbooru_task(
             self.interface.task_mgr,
-            lambda width=max(card.preview_fetch_width(), 280): DanbooruReq.fetch_preview(preview_url, max_width=width),
+            lambda url=preview_url, width=max(card.preview_fetch_width(), 280), interface=self.interface: capture_danbooru_request(
+                fetch_pixmap, interface.request_client, url, max_width=width
+            ),
             success_callback=lambda payload, tid=tab.state.tab_id, pid=card.post.post_id: self.handle_card_preview_result(
                 tid, pid, payload
             ),
@@ -549,10 +504,7 @@ class DanbooruSearchController:
         if payload.challenge is not None:
             card.preview_button.setText("需要验证")
             self.interface.challenge_controller.submit(
-                tab_id,
-                payload.challenge,
-                lambda tid=tab_id, pid=post_id: self.retry_card_preview(tid, pid),
-                reason="thumbnail..",
+                tab_id, payload.challenge, lambda tid=tab_id, pid=post_id: self.retry_card_preview(tid, pid),
                 retry_key=f"card-preview:{tab_id}:{post_id}",
             )
             return
@@ -583,10 +535,11 @@ class DanbooruSearchController:
             return
         execute_danbooru_task(
             self.interface.task_mgr,
-            lambda: DanbooruReq.autocomplete(term),
+            lambda current_term=term, interface=self.interface: capture_danbooru_request(
+                interface.request_client.autocomplete_tags, current_term,
+            ),
             success_callback=lambda payload, tid=tab_id: self.handle_conversion_task_result(tid, payload),
-            error_callback=lambda err: self.interface._show_task_error(err, 6000),
-            task_id=f"danbooru-convert-{tab_id}",
+            error_callback=lambda err: self.interface._show_task_error(err, 6000), task_id=f"danbooru-convert-{tab_id}",
         )
 
     def handle_conversion_task_result(self, tab_id: str, payload: DanbooruReqResult):
@@ -600,11 +553,7 @@ class DanbooruSearchController:
         if tab is None:
             return
         self.interface.challenge_controller.submit(
-            tab_id,
-            challenge,
-            lambda tid=tab_id: self.convert_term(tid),
-            reason="tag conversion",
-            retry_key=f"convert:{tab_id}",
+            tab_id, challenge, lambda tid=tab_id: self.convert_term(tid), retry_key=f"convert:{tab_id}",
         )
 
     def _search_converted_candidate(self, tab_id: str, candidate: DanbooruAutocompleteCandidate):
@@ -618,14 +567,14 @@ class DanbooruSearchController:
             self._search_converted_candidate(tab_id, result.matches[0])
             return
         if result.has_matches:
-            self.interface._set_tab_tip(tab_id,f"? {len(result.matches)}",cls="theme-tip")
+            self.interface.tab_mgr.set_tip(tab_id, f"? {len(result.matches)}", cls="theme-tip")
             tab.show_conversion_candidates(
                 result.matches,
                 on_selected=lambda candidate, tid=tab_id: self._search_converted_candidate(tid, candidate),
             )
             return
         content = "unknown"
-        self.interface._set_tab_tip(tab_id, content, cls="theme-err")
+        self.interface.tab_mgr.set_tip(tab_id, content, cls="theme-err")
         self.interface._show_info(InfoBar.warning, content, 4000)
 
 
@@ -640,7 +589,7 @@ class DanbooruDownloadController:
         return [post for post in state.result_list if post.md5 in state.selected_md5_set]
 
     def submit_selected(self):
-        tab_id = self.interface._active_tab_id()
+        tab_id = self.interface.tab_mgr.active_tab_id()
         if not tab_id:
             return
         posts = self.selected_posts_for_tab(tab_id)
@@ -653,7 +602,7 @@ class DanbooruDownloadController:
         )
 
     def submit_single(self, post: DanbooruPost, tab_id: t.Optional[str] = None):
-        effective_tab_id = tab_id or self.interface.detail_preview_controller.current_tab_id or self.interface._active_tab_id()
+        effective_tab_id = tab_id or self.interface.detail_preview_controller.current_tab_id or self.interface.tab_mgr.active_tab_id()
         if self.interface.sql_recorder.check_dupe(post.md5):
             self.interface.apply_downloaded_post(post.md5)
             return
@@ -668,17 +617,13 @@ class DanbooruDownloadController:
             return run_async(
                 DanbooruDownloadSubmitter().submit(
                     payload,
-                    completion_callback=self.interface.notify_download_result,
-                    progress_callback=progress_callback,
+                    completion_callback=self.interface.notify_download_result, progress_callback=progress_callback,
                 )
             )
 
         execute_danbooru_task(
             self.interface.task_mgr,
-            submit_task,
-            success_callback=success_callback,
-            error_callback=lambda err: self.interface._show_task_error(err, 6000),
-            task_id=task_id,
+            submit_task, success_callback=success_callback, error_callback=lambda err: self.interface._show_task_error(err, 6000), task_id=task_id,
         )
 
     def handle_submission_result(self, tab_id: str, plan, batch: bool):

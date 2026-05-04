@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import threading
 from typing import Optional
 
+import httpx
 from lxml import html as lxml_html
 
 from utils.script.motrix import HTTPX_USER_AGENT
@@ -12,7 +14,7 @@ from .constants import (
     DANBOORU_BASE_URL,
     DANBOORU_PAGE_SIZE,
 )
-from .http import DanbooruResponseInspector, create_async_http_client
+from .http import DanbooruResponseInspector, create_client
 from .models import (
     DanbooruAutocompleteCandidate,
     DanbooruAutocompleteResult,
@@ -20,6 +22,7 @@ from .models import (
     DanbooruRuntimeConfig,
     DanbooruSearchQuery,
 )
+from .session import danbooru_browser_session_store
 
 
 def probe_image_size_from_bytes(data: bytes) -> Optional[tuple[int, int]]:
@@ -68,78 +71,129 @@ def probe_image_size_from_bytes(data: bytes) -> Optional[tuple[int, int]]:
     return None
 
 
-async def fetch_remote_image_size(
-    url: str,
-    *,
-    timeout: float = 12.0,
-    proxy_policy: str = "proxy",
-    probe_bytes: int = 262143,
-) -> Optional[tuple[int, int]]:
-    async with create_async_http_client(
-        headers={
-            "User-Agent": HTTPX_USER_AGENT,
-            "Accept": "*/*",
-            "Range": f"bytes=0-{probe_bytes}",
-        },
-        timeout=timeout,
-        follow_redirects=True,
-        proxy_policy=proxy_policy,
-    ) as client:
-        response = await client.get(url)
-        DanbooruResponseInspector.raise_for_status(response)
-        return probe_image_size_from_bytes(response.content)
-
-
 class DanbooruClient:
     base_url = DANBOORU_BASE_URL
 
-    def __init__(self, *, timeout: float = 30.0, runtime_config: Optional[DanbooruRuntimeConfig] = None):
+    def __init__(self, *, timeout: float = 30.0, proxy_policy: str = "proxy", runtime_config: Optional[DanbooruRuntimeConfig] = None):
+        self.timeout = float(timeout)
+        self.proxy_policy = str(proxy_policy or "proxy")
         self.runtime_config = runtime_config or DanbooruRuntimeConfig.from_conf()
-        self.session = create_async_http_client(
-            base_url=self.base_url,
-            headers={
-                "User-Agent": HTTPX_USER_AGENT,
-                "Accept": "application/json",
-            },
-            timeout=timeout,
-            follow_redirects=True,
-            runtime_config=self.runtime_config,
-        )
         self.page_size = DANBOORU_PAGE_SIZE
+        self._lock = threading.Lock()
+        self._session_revision: Optional[int] = None
+        self._client: Optional[httpx.Client] = None
+        self._retired_clients: list[httpx.Client] = []
 
-    async def __aenter__(self):
+    def __enter__(self):
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.aclose()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
-    async def aclose(self):
-        await self.session.aclose()
+    def close(self):
+        with self._lock:
+            clients = [client for client in [self._client, *self._retired_clients] if client is not None]
+            self._client = None
+            self._retired_clients = []
+            self._session_revision = None
+        for client in clients:
+            client.close()
 
-    async def _get_json(self, path: str, *, params: Optional[dict] = None):
-        response = await self.session.get(path, params=params)
-        DanbooruResponseInspector.log(f"json path={path} params={params}", response)
+    def set_runtime_config(self, runtime_config: Optional[DanbooruRuntimeConfig] = None):
+        next_config = runtime_config or DanbooruRuntimeConfig.from_conf()
+        with self._lock:
+            if next_config == self.runtime_config:
+                return
+            self.runtime_config = next_config
+            self._retire_current_client_locked()
+
+    def _retire_current_client_locked(self):
+        if self._client is not None:
+            self._retired_clients.append(self._client)
+            self._client = None
+        self._session_revision = None
+
+    def _get_client(self) -> httpx.Client:
+        session_revision, _browser_session = danbooru_browser_session_store.current_with_revision()
+        with self._lock:
+            if self._client is None or self._session_revision != session_revision:
+                self._retire_current_client_locked()
+                self._client = create_client(
+                    mode="sync", base_url=self.base_url, headers={"User-Agent": HTTPX_USER_AGENT}, timeout=self.timeout,
+                    follow_redirects=True, proxy_policy=self.proxy_policy, runtime_config=self.runtime_config,
+                )
+                self._session_revision = session_revision
+            return self._client
+
+    def _request(
+        self,
+        url: str,
+        *,
+        params: Optional[dict] = None,
+        headers: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        log_scope: Optional[str] = None,
+    ) -> httpx.Response:
+        response = self._get_client().get(url, params=params, headers=headers, timeout=timeout or self.timeout)
+        if log_scope:
+            DanbooruResponseInspector.log(log_scope, response)
         DanbooruResponseInspector.raise_for_status(response)
+        return response
+
+    def _get_json(self, path: str, *, params: Optional[dict] = None, timeout: Optional[float] = None):
+        response = self._request(
+            path, params=params, headers={"Accept": "application/json"}, timeout=timeout,
+            log_scope=f"json path={path} params={params}",
+        )
         return response.json()
 
-    async def search_posts(
+    def search_posts(
         self,
         tags: str,
         *,
         order: Optional[str] = None,
         page: int = 1,
         limit: Optional[int] = None,
+        timeout: Optional[float] = None,
     ) -> list[DanbooruPost]:
         search_query = DanbooruSearchQuery(tags, order or "")
-        payload = await self._get_json(
-            "/posts.json",
-            params=search_query.params(page=page, limit=limit or self.page_size),
-        )
+        params = search_query.params(page=page, limit=limit or self.page_size)
+        payload = self._get_json("/posts.json", timeout=timeout, params=params)
         return [DanbooruPost.from_api_payload(item, canonical_term=search_query.folder_term) for item in payload]
 
-    async def get_post(self, post_id: int) -> DanbooruPost:
-        payload = await self._get_json(f"/posts/{post_id}.json")
-        return DanbooruPost.from_api_payload(payload)
+    def get_post(self, post_id: int, *, timeout: Optional[float] = None) -> DanbooruPost:
+        return DanbooruPost.from_api_payload(self._get_json(f"/posts/{post_id}.json", timeout=timeout))
+
+    def autocomplete_tags(
+        self,
+        term: str,
+        *,
+        timeout: float = 15.0,
+        limit: int = DANBOORU_AUTOCOMPLETE_LIMIT,
+    ) -> DanbooruAutocompleteResult:
+        canonical_term = DanbooruSearchQuery.normalize(term)
+        if not canonical_term:
+            return DanbooruAutocompleteResult(canonical_term=canonical_term, reason="empty_term")
+        response = self._request(
+            AUTOCOMPLETE_PATH,
+            params={
+                "search[query]": canonical_term,
+                "search[type]": "tag",
+                "version": 3,
+                "limit": limit,
+            },
+            headers={"Accept": "text/html, */*;q=0.9"}, timeout=timeout, log_scope=f"autocomplete term={canonical_term} limit={limit}",
+        )
+        matches = extract_danbooru_autocomplete_candidates(response.text)
+        return DanbooruAutocompleteResult(canonical_term=canonical_term, matches=matches, reason=None if matches else "no_match")
+
+    def fetch_remote_bytes(self, url: str, *, timeout: float = 20.0, headers: Optional[dict] = None) -> bytes:
+        response = self._request(url, headers=headers or {"Accept": "*/*"}, timeout=timeout)
+        return response.content
+
+    def fetch_remote_image_size(self, url: str, *, timeout: float = 12.0, probe_bytes: int = 262143) -> Optional[tuple[int, int]]:
+        response = self._request(url, headers={"Accept": "*/*", "Range": f"bytes=0-{probe_bytes}"}, timeout=timeout)
+        return probe_image_size_from_bytes(response.content)
 
 
 def _parse_danbooru_autocomplete_category(value: Optional[str]) -> Optional[int]:
@@ -160,84 +214,16 @@ def extract_danbooru_autocomplete_candidates(payload: str) -> list[DanbooruAutoc
         if not value or value in seen_values:
             continue
         candidates.append(
-            DanbooruAutocompleteCandidate(
-                value=value,
-                antecedent=DanbooruSearchQuery.normalize(
-                    "".join(item.xpath(".//span[contains(@class, 'autocomplete-antecedent')]//text()"))
-                ),
-                autocomplete_type=DanbooruSearchQuery.normalize(item.get("data-autocomplete-type") or ""),
-                category=_parse_danbooru_autocomplete_category(item.get("data-autocomplete-category")),
-                proper_name=DanbooruSearchQuery.normalize(item.get("data-autocomplete-proper-name") or ""),
-                post_count_text=DanbooruSearchQuery.normalize(
-                    "".join(item.xpath(".//span[contains(@class, 'post-count')]//text()"))
-                ),
+                DanbooruAutocompleteCandidate(
+                    value=value,
+                    antecedent=DanbooruSearchQuery.normalize(
+                        "".join(item.xpath(".//span[contains(@class, 'autocomplete-antecedent')]//text()"))
+                    ),
+                    autocomplete_type=DanbooruSearchQuery.normalize(item.get("data-autocomplete-type") or ""),
+                    category=_parse_danbooru_autocomplete_category(item.get("data-autocomplete-category")),
+                    proper_name=DanbooruSearchQuery.normalize(item.get("data-autocomplete-proper-name") or ""),
+                post_count_text=DanbooruSearchQuery.normalize("".join(item.xpath(".//span[contains(@class, 'post-count')]//text()"))),
             )
         )
         seen_values.add(value)
     return candidates
-
-
-async def autocomplete_danbooru_tags(
-    term: str,
-    *,
-    timeout: float = 15.0,
-    limit: int = DANBOORU_AUTOCOMPLETE_LIMIT,
-) -> DanbooruAutocompleteResult:
-    canonical_term = DanbooruSearchQuery.normalize(term)
-    if not canonical_term:
-        return DanbooruAutocompleteResult(canonical_term=canonical_term, reason="empty_term")
-    async with create_async_http_client(
-        base_url=DANBOORU_BASE_URL,
-        headers={"User-Agent": HTTPX_USER_AGENT, "Accept": "text/html, */*;q=0.9"},
-        timeout=timeout,
-        follow_redirects=True,
-        runtime_config=DanbooruRuntimeConfig.from_conf(),
-    ) as client:
-        response = await client.get(
-            AUTOCOMPLETE_PATH,
-            params={
-                "search[query]": canonical_term,
-                "search[type]": "tag",
-                "version": 3,
-                "limit": limit,
-            },
-        )
-        DanbooruResponseInspector.log(f"autocomplete term={canonical_term} limit={limit}", response)
-        DanbooruResponseInspector.raise_for_status(response)
-    matches = extract_danbooru_autocomplete_candidates(response.text)
-    return DanbooruAutocompleteResult(
-        canonical_term=canonical_term,
-        matches=matches,
-        reason=None if matches else "no_match",
-    )
-
-
-async def search_danbooru_posts(
-    tags: str,
-    *,
-    order: Optional[str] = None,
-    page: int = 1,
-    limit: Optional[int] = None,
-    timeout: float = 30.0,
-) -> list[DanbooruPost]:
-    async with DanbooruClient(timeout=timeout) as client:
-        return await client.search_posts(tags, order=order, page=page, limit=limit)
-
-
-async def fetch_remote_bytes(
-    url: str,
-    *,
-    timeout: float = 20.0,
-    headers: Optional[dict] = None,
-    proxy_policy: str = "proxy",
-) -> bytes:
-    async with create_async_http_client(
-        headers=headers or {"User-Agent": HTTPX_USER_AGENT, "Accept": "*/*"},
-        timeout=timeout,
-        follow_redirects=True,
-        proxy_policy=proxy_policy,
-        runtime_config=DanbooruRuntimeConfig.from_conf(),
-    ) as client:
-        response = await client.get(url)
-        DanbooruResponseInspector.raise_for_status(response)
-        return response.content
