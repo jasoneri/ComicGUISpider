@@ -45,12 +45,8 @@ class ProviderDescriptor:
     @classmethod
     def create(cls, provider_cls, *, site_index: int | None = None, spider_name: str | None = None) -> "ProviderDescriptor":
         provider_name = str(getattr(provider_cls, "name", "") or spider_name or "")
-        return cls(
-            provider_cls=provider_cls,
-            provider_name=provider_name,
-            spider_name=str(spider_name or provider_name),
-            site_index=site_index,
-        )
+        return cls(provider_cls=provider_cls, provider_name=provider_name, spider_name=str(spider_name or provider_name),
+            site_index=site_index)
 
     def get_uuid(self, *args, **kwargs):
         return self.provider_cls.get_uuid(*args, **kwargs)
@@ -121,11 +117,8 @@ class _ProviderRuntimeBase:
         return normalized
 
     def _require_runtime_domain(self) -> str:
-        domain = _pick_bound_domain(
-            getattr(self.provider, "domain", None),
-            getattr(self.reqer, "domain", None),
-            getattr(self.provider_cls, "domain", None),
-        )
+        domain = _pick_bound_domain(getattr(self.provider, "domain", None), getattr(self.reqer, "domain", None),
+            getattr(self.provider_cls, "domain", None))
         if domain is None:
             raise RuntimeError(
                 f"{self.provider_cls.__name__} spider runtime requires a bound domain on provider/reqer runtime state "
@@ -250,12 +243,7 @@ class GuiSiteRuntime:
         if domain := cls._peek_cached_domain_for(provider_descriptor):
             domains[provider_descriptor.provider_name] = domain
         runtime_context = replace(runtime_context, cookies_by_site=cookies_by_site, domains=domains)
-        return cls(
-            provider_descriptor=provider_descriptor,
-            site_index=site_index,
-            runtime_context=runtime_context,
-            conf_state=conf_state,
-        )
+        return cls(provider_descriptor=provider_descriptor, site_index=site_index, runtime_context=runtime_context, conf_state=conf_state)
 
     @property
     def provider_cls(self):
@@ -299,12 +287,8 @@ class GuiSiteRuntime:
         return temp_p.joinpath(f"{self.name}_domain.txt")
 
     def build_site_config(self) -> PreviewSiteConfig:
-        return PreviewSiteConfig(
-            cookies=self.runtime_context.site_cookies(self.name),
-            domain=self._require_bound_gui_domain(),
-            custom_map=copy.deepcopy(self.runtime_context.custom_map),
-            transport=self.runtime_context.transport,
-        )
+        return PreviewSiteConfig(cookies=self.runtime_context.site_cookies(self.name), domain=self._require_bound_gui_domain(),
+            custom_map=copy.deepcopy(self.runtime_context.custom_map), transport=self.runtime_context.transport)
 
     def build_cover_headers(self, tasks_obj) -> dict[str, str]:
         site_config = self.build_site_config()
@@ -320,12 +304,8 @@ class GuiSiteRuntime:
         return headers
 
     def create_thread_site_runtime(self, *, preview_client: httpx.AsyncClient | None = None) -> ThreadSiteRuntime:
-        return ThreadSiteRuntime(
-            self.provider_descriptor,
-            site_config=self.build_site_config(),
-            conf_state=self.conf_state,
-            preview_client=preview_client,
-        )
+        return ThreadSiteRuntime(self.provider_descriptor, site_config=self.build_site_config(), conf_state=self.conf_state,
+            preview_client=preview_client)
 
     def with_domain(self, domain: str | None) -> "GuiSiteRuntime":
         if not domain:
@@ -337,12 +317,8 @@ class GuiSiteRuntime:
         if next_domains.get(self.name) == normalized:
             return self
         next_domains[self.name] = normalized
-        return GuiSiteRuntime(
-            provider_descriptor=self.provider_descriptor,
-            site_index=self.site_index,
-            runtime_context=replace(self.runtime_context, domains=next_domains),
-            conf_state=self.conf_state,
-        )
+        return GuiSiteRuntime(provider_descriptor=self.provider_descriptor, site_index=self.site_index,
+            runtime_context=replace(self.runtime_context, domains=next_domains), conf_state=self.conf_state)
 
     def persist_domain(self, domain: str) -> "GuiSiteRuntime":
         normalized = _normalize_domain_value(domain)
@@ -351,8 +327,10 @@ class GuiSiteRuntime:
         self.domain_cache_path().write_text(normalized, encoding="utf-8")
         return self.with_domain(normalized)
 
-    def preprocess(self, *, conf_state=conf, data_client=None, progress_callback=None) -> PreprocessResult:
-        return run_site_preprocess(
+    async def preprocess(
+        self, *, conf_state=conf, data_client: httpx.AsyncClient | None = None, progress_callback=None
+    ) -> PreprocessResult:
+        return await run_site_preprocess(
             self.site_index, gui_site_runtime=self, conf_state=conf_state, data_client=data_client, progress_callback=progress_callback
         )
 

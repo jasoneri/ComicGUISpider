@@ -95,7 +95,9 @@ def _preprocess_jm_like(gui_site_runtime: "GuiSiteRuntime") -> PreprocessResult:
         domain = gui_site_runtime.get_domain()
     except (httpx.HTTPError, RuntimeError, ValueError) as exc:
         return PreprocessResult(
-            ready=False, block_search=True, messages=(_message("error", "<br>❌ 域名获取/测试失效，按内置浏览器引导操作"),), actions=(_action("open_publish_flow"),),
+            ready=False, block_search=True, 
+            messages=(_message("error", "<br>❌ 域名获取/测试失效，按内置浏览器引导操作"),),
+            actions=(_action("open_publish_flow"),),
             state_flags={"cache_hit": cache_hit, "domain_ready": False, "error": str(exc)},
         )
     message = ("<br>➖ 缓存处于有效期内，跳过测试" if cache_hit else "<br>✅ 已设置有效域名")
