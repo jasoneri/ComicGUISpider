@@ -79,6 +79,12 @@ class PreviewWorker(QThread):
                 _ = CoverTask
         self._task_queue.put(_(*args, **kw))
 
+    async def _do_search(self, keyword, site_index, page=1):
+        return await self.thread_site_runtime.preview_search(keyword, page=page)
+
+    async def _do_fetch_episodes(self, book, site_index):
+        return await self.thread_site_runtime.preview_fetch_episodes(book)
+
     async def _do_fetch_episodes_batch(self, items):
         semaphore = asyncio.Semaphore(self.thread_site_runtime.preview_batch_limit("episodes", 4))
 
@@ -127,13 +133,13 @@ class PreviewWorker(QThread):
                 match task:
                     case SearchTask(keyword=kw, page=pg):
                         try:
-                            books = self._loop.run_until_complete(self.thread_site_runtime.preview_search(kw, page=pg))
+                            books = self._loop.run_until_complete(self._do_search(kw, self.site_index, page=pg))
                         except Exception as exc:
                             self.search_error.emit(f"{exc}")
                         else:
                             self.search_done.emit(self._generation, kw, self.site_index, books)
                     case EpisodesTask(session_id=sid, book_key=bk, book=b):
-                        episodes = self._loop.run_until_complete(self.thread_site_runtime.preview_fetch_episodes(b))
+                        episodes = self._loop.run_until_complete(self._do_fetch_episodes(b, self.site_index))
                         self.episodes_done.emit(self._generation, sid, bk, episodes)
                     case EpisodesBatchTask(items=its):
                         self._loop.run_until_complete(self._do_fetch_episodes_batch(its))
