@@ -13,10 +13,12 @@ from .constants import (
     DANBOORU_OFFICIAL_ORDER_VALUES,
     DANBOORU_PAGE_SIZE,
     DANBOORU_SAVE_TYPE_SEARCH_TAG,
+    DOWNLOADABLE_MEDIA_EXTENSIONS,
     DEFAULT_DANBOORU_SAVE_PATH,
     DEFAULT_DOWNLOAD_CONCURRENCY,
     SUPPORTED_MEDIA_EXTENSIONS,
     UNSUPPORTED_MEDIA_EXTENSIONS,
+    VIEWER_VIDEO_MEDIA_EXTENSIONS,
     _ORDER_TOKEN_CAPTURE_RE,
     _ORDER_TOKEN_STRIP_RE,
     _WHITESPACE_RE,
@@ -112,12 +114,28 @@ class DanbooruPost:
         return cls.normalize_file_ext(file_ext) in SUPPORTED_MEDIA_EXTENSIONS
 
     @classmethod
+    def is_downloadable_file_ext(cls, file_ext: Optional[str]) -> bool:
+        return cls.normalize_file_ext(file_ext) in DOWNLOADABLE_MEDIA_EXTENSIONS
+
+    @classmethod
     def is_unsupported_file_ext(cls, file_ext: Optional[str]) -> bool:
         return cls.normalize_file_ext(file_ext) in UNSUPPORTED_MEDIA_EXTENSIONS
+
+    @classmethod
+    def is_video_file_ext(cls, file_ext: Optional[str]) -> bool:
+        return cls.normalize_file_ext(file_ext) in VIEWER_VIDEO_MEDIA_EXTENSIONS
 
     @property
     def is_supported(self) -> bool:
         return self.is_supported_file_ext(self.file_ext)
+
+    @property
+    def is_downloadable(self) -> bool:
+        return self.is_downloadable_file_ext(self.file_ext)
+
+    @property
+    def is_video(self) -> bool:
+        return self.is_video_file_ext(self.file_ext)
 
     @property
     def filename(self) -> str:
@@ -183,11 +201,12 @@ class DanbooruRuntimeConfig:
     @classmethod
     def from_mapping(cls, raw: Optional[dict], *, doh_url: object = None, proxies: object = None) -> "DanbooruRuntimeConfig":
         data = raw or {}
+        resolved_doh_url = cgs_cfg.doh.get_url() if doh_url is None else doh_url
+        resolved_proxies = getattr(script_conf, "proxies", None) if proxies is None else proxies
         return cls(
             save_path=data.get("save_path", DEFAULT_DANBOORU_SAVE_PATH), save_type=data.get("save_type"),
-            download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY), doh_url=cgs_cfg.doh.get_url() if doh_url is None else doh_url,
-            motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""),
-            proxies=getattr(script_conf, "proxies", None) if proxies is None else proxies,
+            download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY), doh_url=resolved_doh_url,
+            motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""), proxies=resolved_proxies,
         )
 
     @classmethod

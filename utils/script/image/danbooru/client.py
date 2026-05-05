@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import threading
 from typing import Optional
 
@@ -194,6 +195,23 @@ class DanbooruClient:
     def fetch_remote_image_size(self, url: str, *, timeout: float = 12.0, probe_bytes: int = 262143) -> Optional[tuple[int, int]]:
         response = self._request(url, headers={"Accept": "*/*", "Range": f"bytes=0-{probe_bytes}"}, timeout=timeout)
         return probe_image_size_from_bytes(response.content)
+
+    @contextmanager
+    def stream_remote(
+        self,
+        url: str,
+        *,
+        method: str = "GET",
+        timeout: float = 90.0,
+        headers: Optional[dict] = None,
+        log_scope: Optional[str] = None,
+    ):
+        request_method = str(method or "GET").upper()
+        with self._get_client().stream(request_method, url, headers=headers or {"Accept": "*/*"}, timeout=timeout) as response:
+            if log_scope:
+                DanbooruResponseInspector.log(log_scope, response)
+            DanbooruResponseInspector.raise_for_status(response)
+            yield response
 
 
 def _parse_danbooru_autocomplete_category(value: Optional[str]) -> Optional[int]:

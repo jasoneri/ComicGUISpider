@@ -155,6 +155,21 @@ QLabel#DanbooruImageHint {
     background: transparent;
     padding: 0 18px;
 }
+QWidget#DanbooruVideoPanel {
+    background: ${VIEWER_IMAGE};
+    border-radius: 16px;
+}
+QWidget#DanbooruVideoSurface,
+QFrame#DanbooruVideoSurface,
+QGraphicsView#DanbooruVideoSurface {
+    background: black;
+    border-radius: 16px;
+}
+QLabel#DanbooruVideoHint {
+    color: ${MUTED_TEXT};
+    background: transparent;
+    padding: 0 18px;
+}
 QWidget#DanbooruTagsContainer {
     background: transparent;
 }

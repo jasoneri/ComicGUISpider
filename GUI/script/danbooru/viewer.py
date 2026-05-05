@@ -6,8 +6,10 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, FluentIcon as FIF, PrimaryToolButton, PushButton, ScrollArea, TransparentToggleToolButton, TransparentToolButton
+from qfluentwidgets.multimedia import VideoWidget, SimpleMediaPlayBar
 from qframelesswindow.utils import startSystemMove
 
+from utils.config.qc import danbooru_cfg
 from GUI.core.timer import safe_single_shot
 from GUI.uic.qfluent.components import FlexImageLabel
 from utils.script.image.danbooru.models import DanbooruPost
@@ -106,13 +108,19 @@ class DanbooruImageViewer(QWidget):
         self.topHintBox.setIcon(FIF.PIN)
         self.topHintBox.setChecked(self._keep_on_top)
         self.topHintBox.clicked.connect(self.keep_top_hint)
+        self.playBar = SimpleMediaPlayBar(self.top_bar)
+        self.playBar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.playBar.setVisible(False)
+        self.topBarSpacer = QWidget(self.top_bar)
+        self.topBarSpacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         top_bar.addWidget(self.topHintBox)
-        top_bar.addStretch(1)
+        top_bar.addWidget(self.playBar)
+        top_bar.addWidget(self.topBarSpacer, 1)
         top_bar.addWidget(self.previous_btn)
         top_bar.addWidget(self.next_btn)
         top_bar.addWidget(self.download_btn)
         top_bar.addWidget(self.close_btn)
-        self.top_bar.setFixedHeight(34)
+        self._update_top_bar_height()
         self.right_panel_layout.addWidget(self.top_bar, 0, Qt.AlignTop)
 
         self.image_label = FlexImageLabel(self.frame)
@@ -121,10 +129,12 @@ class DanbooruImageViewer(QWidget):
         self.image_label.setWordWrap(True)
         self.image_label.setBorderRadius(16, 16, 16, 16)
         self.image_label.setFixedSize(self._default_image_size)
+        self.image_label.installEventFilter(self)
         self.image_hint_label = QLabel("No Preview", self.image_label)
         self.image_hint_label.setObjectName("DanbooruImageHint")
         self.image_hint_label.setAlignment(Qt.AlignCenter)
         self.image_hint_label.setWordWrap(True)
+        self.image_hint_label.installEventFilter(self)
         self._sync_image_hint_geometry()
         self.image_label.mousePressEvent = self._image_mouse_press_event
         self.image_label.mouseMoveEvent = self._image_mouse_move_event
@@ -151,11 +161,20 @@ class DanbooruImageViewer(QWidget):
             if event.button() == Qt.LeftButton and obj.childAt(event.pos()) is None:
                 startSystemMove(self, event.globalPosition().toPoint())
                 return True
+        if self.video_frame is not None and self.video_surface is not None and obj in (self.video_frame, self.video_surface) and event_type == QtCore.QEvent.MouseButtonPress:
+            if event.button() == Qt.LeftButton and self._current_media_kind == "video":
+                self._toggle_video_playback()
+                event.accept()
+                return True
         return super().eventFilter(obj, event)
 
     def _emit_download(self):
         if self.post is not None:
             self.download_requested.emit(self.post)
+
+    @staticmethod
+    def _is_close_gesture(event) -> bool:
+        return event.type() == QtCore.QEvent.MouseButtonRelease and event.button() == Qt.MiddleButton
 
     def _window_flags(self, keep_on_top: bool):
         flags = Qt.Window | Qt.FramelessWindowHint
@@ -443,6 +462,7 @@ class DanbooruImageViewer(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._sync_image_hint_geometry()
+        self._sync_video_hint_geometry()
         if self._applying_layout:
             return
         self._schedule_loaded_settlement()
@@ -451,6 +471,8 @@ class DanbooruImageViewer(QWidget):
         key = event.key()
         if key == Qt.Key_Escape:
             self.hide()
+        elif key == Qt.Key_Space and self._current_media_kind == "video":
+            self._toggle_video_playback()
         elif key == Qt.Key_Left and self.previous_btn.isEnabled():
             self.previous_btn.click()
         elif key == Qt.Key_Right and self.next_btn.isEnabled():
@@ -466,6 +488,7 @@ class DanbooruImageViewer(QWidget):
 
     def hideEvent(self, event):
         self._drag_offset = None
+        self._clear_video_payload()
         self.closed.emit()
         super().hideEvent(event)
 
@@ -477,4 +500,8 @@ class DanbooruImageViewer(QWidget):
 
     def _image_mouse_release_event(self, event):
         self._drag_offset = None
+        if self._is_close_gesture(event):
+            self.hide()
+            event.accept()
+            return
         QLabel.mouseReleaseEvent(self.image_label, event)

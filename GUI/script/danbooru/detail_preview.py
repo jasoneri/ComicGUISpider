@@ -15,20 +15,20 @@ if t.TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
-class _DanbooruDetailRequestSpec:
+class _DetailRequestSpec:
     task_prefix: str
     retry_prefix: str
     challenge_placeholder: str = ""
     discard_prefetch: bool = False
 
 
-_PREFETCH_REQUEST = _DanbooruDetailRequestSpec(
+_PREFETCH_REQUEST = _DetailRequestSpec(
     task_prefix="danbooru-detail-prefetch", retry_prefix="detail-prefetch", discard_prefetch=True,
 )
-_PREVIEW_REQUEST = _DanbooruDetailRequestSpec(
+_PREVIEW_REQUEST = _DetailRequestSpec(
     task_prefix="danbooru-detail-preview", retry_prefix="detail-preview", challenge_placeholder="需要验证",
 )
-_SIZE_REQUEST = _DanbooruDetailRequestSpec(task_prefix="danbooru-detail-size", retry_prefix="detail-size")
+_SIZE_REQUEST = _DetailRequestSpec(task_prefix="danbooru-detail-size", retry_prefix="detail-size")
 
 
 class DanbooruDetailPreviewController(QtCore.QObject):

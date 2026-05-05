@@ -193,7 +193,7 @@ class DanbooruCardWidget(QFrame):
 
         self.preview_button = _DanbooruCardPreviewButton(self.preview_frame)
         self.preview_button.setObjectName("DanbooruCardPreview")
-        self.preview_button.setProperty("unsupported", DanbooruPost.is_unsupported_file_ext(self.post.file_ext))
+        self.preview_button.setProperty("unsupported", not self.post.is_supported)
         self.preview_button.setCursor(Qt.PointingHandCursor)
         self.preview_button.clicked.connect(lambda: self.open_detail_requested.emit(self.post))
         self.preview_button.setText("Loading..." if self.post.preview_file_url else "No Preview")
@@ -209,11 +209,6 @@ class DanbooruCardWidget(QFrame):
         self.checkbox.raise_()
         self.checkbox.toggled.connect(self._on_checkbox_toggled)
         layout.addWidget(self.preview_frame, 0, Qt.AlignLeft | Qt.AlignTop)
-
-        if DanbooruPost.is_unsupported_file_ext(self.post.file_ext):
-            self.checkbox.setDisabled(True)
-            self.checkbox.setChecked(False)
-            self.preview_button.setText(f"Unsupported: {self.post.file_ext}")
 
         self._sync_geometry()
         self._apply_checkbox_availability()
@@ -265,9 +260,8 @@ class DanbooruCardWidget(QFrame):
         )
 
     def _apply_checkbox_availability(self):
-        unsupported = DanbooruPost.is_unsupported_file_ext(self.post.file_ext)
         self.checkbox.setVisible(not self.already_downloaded)
-        self.checkbox.setDisabled(unsupported or self.already_downloaded)
+        self.checkbox.setDisabled((not self.post.is_downloadable) or self.already_downloaded)
 
     def _is_selected(self) -> bool:
         return bool(self.property("selected"))
@@ -320,8 +314,9 @@ class DanbooruCardWidget(QFrame):
         return QtCore.QSize(max(1, self.preview_width - inset), max(1, self.preview_height - inset))
 
     def _default_preview_text(self) -> str:
-        if DanbooruPost.is_unsupported_file_ext(self.post.file_ext):
-            return f"Unsupported: {self.post.file_ext}"
+        if not self.post.is_supported:
+            ext = DanbooruPost.normalize_file_ext(self.post.file_ext).upper() or "UNKNOWN"
+            return f"Non-renderable preview: {ext}"
         return "Loading..." if self.post.preview_file_url else "No Preview"
 
     def _build_preview_icon(self) -> QPixmap:

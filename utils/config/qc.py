@@ -121,6 +121,7 @@ class DanbooruConfig(QConfig):
     searchExtra = ConfigItem("Search", "SearchExtra", [], restart=False)
     searchFavorites = ConfigItem("Search", "Favorites", {}, restart=False)
     view_ratio = RangeConfigItem("Viewer", "ViewRatio", _default_danbooru_view_ratio(), RangeValidator(30, 85), restart=False)
+    player = ConfigItem("Viewer", "Player", {}, restart=False)
 
     @staticmethod
     def canonicalize_term(term: str) -> str:
@@ -135,6 +136,29 @@ class DanbooruConfig(QConfig):
 
     def get_view_ratio(self) -> float:
         return self.get_view_ratio_percent() / 100
+
+    def get_player(self) -> dict:
+        player = self.player.value if isinstance(self.player.value, dict) else {}
+        muted = player.get("muted", True)
+        volume = player.get("volume", 30)
+        normalized = {
+            "muted": muted if isinstance(muted, bool) else True,
+            "volume": max(0, min(100, volume if isinstance(volume, int) else 30)),
+        }
+        if normalized != self.player.value:
+            self.player.value = dict(normalized)
+        return dict(normalized)
+
+    def save_player(self, *, muted=None, volume=None) -> dict:
+        player = self.get_player()
+        if muted is not None:
+            player["muted"] = bool(muted)
+        if volume is not None:
+            player["volume"] = max(0, min(100, int(volume)))
+        if player != self.player.value:
+            self.player.value = dict(player)
+            self.save()
+        return dict(player)
 
     def get_history(self):
         return list(self.searchHistory.value)

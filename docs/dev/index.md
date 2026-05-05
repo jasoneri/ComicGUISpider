@@ -8,21 +8,30 @@
 
 ## 爬虫开发
 
-#### 前期准备
+开始开发的准备：`git` 克隆本项目到本地  
+使用主流模型 / CLI（`claudecode` / `codex` / `cursor`） 等等，纯对话模型不要参与
 
-目标网站搜索 url (`search_url`)、搜索页面 html (`search.html`)，  
-书页 url (`book_url`)、书页 html (`book.html`)
+### 前期准备
+
+目标网站
+
+- 搜索接口 curl请求/响应
+- 翻页接口 curl请求/响应
+- 首页/更新接口 curl请求/响应
+- (表漫)书详情 > 章节列表 curl请求/响应
+- 书详情/章节详情 > 页数 curl请求/响应
 
 如已知，也建议一并准备：
 
 - 是否需要代理 / cookies
 - 网站属于普通漫画还是 🔞
 - 是否支持 aggr / clip
-- 是否存在动态 domain / 发布页 / 特殊 referer / `verify=False`
+- 是否存在动态 domain / 发布页 / 特殊 referer
 
-开始开发的准备：`git` 克隆本项目到本地，使用主流模型 / CLI（`claudecode` / `codex`）
-
-> 以下 prompt 用于让 ai 协助捕获并验证上述素材的真实请求响应夹具，产出可直接衔接 prompt-dev。
+> 保存上述的 curl 资料后，资料本地路径指向给 ai 并让它读 docs\dev\index.md 的 prompt-prepare 和 prompt-dev  
+> 主 agent 自身作为任务分发和监督审核，串行起 subagnet1 按 prompt-prepare 进行测试矩阵，生成 transport_matrix.py 这种能跑通各维度的测试脚本  
+> subagnet1 完成并审核网络可行后，启动 subagnet1 按 prompt-dev 进行实际开发  
+> 最后主 agent 自身再做一轮审核，断定是否需要回归处理
 
 ::: details prompt-prepare ⇩
 
@@ -96,7 +105,7 @@ dynamic_domain: 是/否
 
 #### 实际开发
 
-将上一步的 url、html 和已知站点特征/夹具准备等补进下面的 prompt，发给 ai 执行
+将上一步的 curl资料 和已知站点特征/夹具准备等补进下面的 prompt，发给 ai 执行
 
 ::: details prompt-dev ⇩
 
