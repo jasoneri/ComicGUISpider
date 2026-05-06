@@ -17,13 +17,14 @@ from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
 from GUI.uic.qfluent.components import CountBadge, CustomInfoBar
 from utils.script.image.danbooru.client import DanbooruClient
 from utils.config.qc import danbooru_cfg
-from utils.script.image.danbooru.constants import DANBOORU_SQL_TABLE
+from utils.script.image.danbooru.constants import DANBOORU_SAVE_TYPE_SEARCH_TAG, DANBOORU_SQL_TABLE
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig, DanbooruSearchQuery
+from utils.script import folder_sub
 from utils.sql import SqlRecorder
 
 from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
-from .detail_preview import DanbooruDetailPreviewController
+from .detail_preview import DetailPreviewController
 from .favorites import DanbooruFavoriteManagerDialog
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_CARD_ZOOM_INDEX, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
@@ -31,6 +32,7 @@ from .style import (
     format_tip_rich_text as _format_tip_rich_text, qcolor_from_css,
 )
 from .tab import DanbooruTabWidget
+from .video_proxy import VideoProxy
 from .viewer import DanbooruImageViewer
 
 class DanbooruInterface(QFrame):
@@ -47,8 +49,9 @@ class DanbooruInterface(QFrame):
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
         self.request_client = DanbooruClient(runtime_config=self._runtime_config)
         self.sql_recorder = SqlRecorder(table=DANBOORU_SQL_TABLE)
+        self.video_proxy = VideoProxy(self.request_client, self)
         self.image_viewer = DanbooruImageViewer(parent)
-        self.detail_preview_controller = DanbooruDetailPreviewController(self, self.image_viewer)
+        self.detail_preview_controller = DetailPreviewController(self, self.image_viewer)
         self.search_controller = DanbooruSearchController(self)
         self.download_controller = DanbooruDownloadController(self)
         self.challenge_controller = DanbooruChallengeController(self)
@@ -188,7 +191,7 @@ class DanbooruInterface(QFrame):
     class _ZoomMgr:
         def __init__(self, interface: "DanbooruInterface"):
             self.interface = interface
-            self.zoom_index = DEFAULT_CARD_ZOOM_INDEX
+            self.zoom_index = int(danbooru_cfg.zoom_index.value)
             self.generation = 0
 
         def current_metrics(self) -> DanbooruCardMetrics:
@@ -198,6 +201,8 @@ class DanbooruInterface(QFrame):
             if self.zoom_index >= len(CARD_ZOOM_METRICS) - 1:
                 return
             self.zoom_index += 1
+            danbooru_cfg.zoom_index.value = self.zoom_index
+            danbooru_cfg.save()
             self.apply_current()
             self.sync_buttons()
 
@@ -205,6 +210,8 @@ class DanbooruInterface(QFrame):
             if self.zoom_index <= 0:
                 return
             self.zoom_index -= 1
+            danbooru_cfg.zoom_index.value = self.zoom_index
+            danbooru_cfg.save()
             self.apply_current()
             self.sync_buttons()
 
@@ -444,7 +451,17 @@ class DanbooruInterface(QFrame):
             QtCore.QTimer.singleShot(0, self.sync_scroll_controls)
 
     def _open_save_path(self):
-        curr_os.open_folder(Path(self._runtime_config.save_path))
+        base_path = Path(self._runtime_config.save_path)
+        tab_id = self.tab_mgr.active_tab_id()
+        state = self.tab_states.get(tab_id) if tab_id else None
+        open_path = base_path
+        if state is not None and self._runtime_config.save_type == DANBOORU_SAVE_TYPE_SEARCH_TAG:
+            folder_term = DanbooruSearchQuery(state.query).folder_term
+            if folder_term:
+                tab_save_path = base_path.joinpath(folder_sub.sub("-", folder_term))
+                if tab_save_path.exists():
+                    open_path = tab_save_path
+        curr_os.open_folder(open_path)
 
     def _update_batch_button(self, tab_id: str):
         if self.tab_mgr.active_tab_id() != tab_id:
@@ -581,6 +598,7 @@ class DanbooruInterface(QFrame):
         try:
             theme_mgr.unsubscribe(self._apply_theme)
             self.image_viewer.hide()
+            self.video_proxy.close()
             self.sql_recorder.close()
             self.zoom_mgr.shutdown()
         finally:

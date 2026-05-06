@@ -442,7 +442,11 @@ class ScriptWindow(ScriptWindowBase):
         return super().addSubInterface(interface, icon, text, position)
 
     def initWindow(self):
-        if self.gui:
+        if cgs_cfg.scriptWinRect.value:
+            x, y, w, h = (int(v) for v in cgs_cfg.scriptWinRect.value)
+            self.move(x, y)
+            self.resize(w, h)
+        elif self.gui:
             self.resize(max(850, self.gui.width()), self.gui.height())
         else:
             self.resize(850, 600)
@@ -454,6 +458,8 @@ class ScriptWindow(ScriptWindowBase):
         
     def closeEvent(self, event):
         event.accept()
+        cgs_cfg.scriptWinRect.value = [self.x(), self.y(), self.width(), self.height()]
+        cgs_cfg.save()
         self.danbooruInterface.image_viewer.hide()
         if self.gui is not None:
             safe_single_shot(10, self.gui.close)

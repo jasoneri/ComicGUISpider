@@ -24,6 +24,7 @@ class CgsConfig(QConfig):
     proxyHistory = ConfigItem("Proxy", "History", ["127.0.0.1:10809"], restart=False)
     dohUrl = ConfigItem("DoH", "Url", "", restart=False)
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
+    scriptWinRect = ConfigItem("ScriptWindow", "Rect", [], restart=False)
     doh: "CgsConfig.DoH"
 
     class DoH:
@@ -122,6 +123,7 @@ class DanbooruConfig(QConfig):
     searchFavorites = ConfigItem("Search", "Favorites", {}, restart=False)
     view_ratio = RangeConfigItem("Viewer", "ViewRatio", _default_danbooru_view_ratio(), RangeValidator(30, 85), restart=False)
     player = ConfigItem("Viewer", "Player", {}, restart=False)
+    zoom_index = ConfigItem("Viewer", "ZoomIndex", 2, restart=False)
 
     @staticmethod
     def canonicalize_term(term: str) -> str:
