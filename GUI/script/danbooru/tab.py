@@ -7,7 +7,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCompleter, QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     Action, ComboBox, EditableComboBox, FluentIcon as FIF, FlowLayout, PrimaryToolButton, ToolButton, 
-    RoundMenu, ScrollArea, SearchLineEdit, TeachingTipTailPosition, TransparentToolButton
+    RoundMenu, ScrollArea, SearchLineEdit, TeachingTipTailPosition, TransparentToggleToolButton, TransparentToolButton
 )
 from qfluentwidgets.components.widgets.line_edit import CompleterMenu
 
@@ -15,11 +15,11 @@ from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch
 from GUI.uic.qfluent.components import CustomTeachingTip
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru.constants import DANBOORU_SORT_OPTIONS
-from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, DanbooruPost
+from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, DanbooruPost, DanbooruSearchQuery
 
 from .card import DanbooruCardWidget
 from .core import DanbooruTabSelectionController, DanbooruTabState, delete_flow_item as _delete_flow_item
-from .favorite_groups import build_tag_groups, visible_usage_groups
+from .favorite_groups import build_favorite_groups_state
 from .style import DanbooruCardMetrics, DanbooruUiPalette, DEFAULT_CARD_METRICS, build_tab_stylesheet
 
 
@@ -169,9 +169,11 @@ class DanbooruTabWidget(QFrame):
         self.search_edit.searchSignal.connect(lambda text: self.request_search.emit(text))
         self.search_edit.searchButton.clicked.connect(self._submit_empty_search_if_needed)
         self.search_edit.textChanged.connect(self._sync_extra_search_btn_visibility)
+        self.search_edit.textChanged.connect(self.sync_favorite_button_state)
         self.set_search_menu()
-        self.favorite_btn = TransparentToolButton(FIF.HEART, self)
+        self.favorite_btn = TransparentToggleToolButton(FIF.HEART, self)
         self.favorite_btn.setFixedSize(38, 38)
+        self.favorite_btn.setDisabled(True)
         self.convert_btn = ToolButton(QIcon(':/script/translate.svg'), self)
         self.convert_btn.setIconSize(QtCore.QSize(24,24))
         self.convert_btn.setMinimumHeight(38)
@@ -209,10 +211,24 @@ class DanbooruTabWidget(QFrame):
     def _sync_extra_search_btn_visibility(self):
         self.extraSearchBtn.setVisible(bool(self.search_edit.text().strip()))
 
+    def sync_favorite_button_state(self):
+        term = DanbooruSearchQuery.normalize(self.search_edit.text())
+        self.favorite_btn.blockSignals(True)
+        self.favorite_btn.setEnabled(bool(term))
+        self.favorite_btn.setChecked(bool(term) and self._favorite_groups_state().contains(term))
+        self.favorite_btn.blockSignals(False)
+
+    def _favorite_groups_state(self):
+        return build_favorite_groups_state(
+            danbooru_cfg.searchFavorites.value,
+            canonicalize_term=danbooru_cfg.canonicalize_term,
+        )
+
     def _set_search_edit_value(self, value: str):
         self.search_edit.setText(value)
         self.search_edit.setFocus()
         self.search_edit.setCursorPosition(len(value))
+        self.sync_favorite_button_state()
 
     def _submit_search_from_keyboard(self):
         if self.search_edit.text().strip():
@@ -237,14 +253,17 @@ class DanbooruTabWidget(QFrame):
                 self._show_search_edit_completer("")
             submenu = RoundMenu("收藏组", self)
             submenu.setIcon(FIF.HEART)
-            groups = visible_usage_groups(
-                build_tag_groups(
-                    sorted(danbooru_cfg.fav.get()),
-                    danbooru_cfg.fav.get_grouped()))
-            actions = [Action(text=group.display,
-                triggered=lambda _=False, current=list(group.tags): _show_group_completer(current))
-            for group in groups]
-            submenu.addActions(actions)
+            groups = self._favorite_groups_state().visible_groups()
+            if not groups:
+                empty_action = Action(text="暂无收藏")
+                empty_action.setEnabled(False)
+                submenu.addAction(empty_action)
+                return submenu
+            submenu.addActions([
+                Action(text=group.display,
+                    triggered=lambda _=False, current=list(group.tags): _show_group_completer(current),
+                )
+                for group in groups])
             return submenu
         FluentMonkeyPatch.rbutton_menu_lineEdit(
             self.search_edit,
@@ -286,6 +305,7 @@ class DanbooruTabWidget(QFrame):
                 self.sort_box.setCurrentIndex(idx)
                 self.sort_box.blockSignals(False)
                 break
+        self.sync_favorite_button_state()
 
     def _on_sort_changed(self):
         _, value = self.SORT_OPTIONS[self.sort_box.currentIndex()]

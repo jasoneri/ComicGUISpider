@@ -25,9 +25,10 @@ from utils.sql import SqlRecorder
 from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
 from .detail_preview import DetailPreviewController
+from .favorite_groups import build_favorite_groups_state
 from .favorites import DanbooruFavoriteManagerDialog
 from .style import (
-    CARD_ZOOM_METRICS, DEFAULT_CARD_ZOOM_INDEX, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
+    CARD_ZOOM_METRICS, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
     build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
     format_tip_rich_text as _format_tip_rich_text, qcolor_from_css,
 )
@@ -497,9 +498,20 @@ class DanbooruInterface(QFrame):
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
         self.request_client.set_runtime_config(self._runtime_config)
 
+    def _favorite_groups_state(self):
+        return build_favorite_groups_state(
+            danbooru_cfg.searchFavorites.value,
+            canonicalize_term=danbooru_cfg.canonicalize_term,
+        )
+
+    @staticmethod
+    def _save_favorite_groups_state(groups_state):
+        danbooru_cfg.fav.save_payload(groups_state.to_payload())
+
     def _refresh_completer(self, tab: DanbooruTabWidget):
         history = danbooru_cfg.get_history()
-        favorites = sorted(danbooru_cfg.fav.get() - set(history))
+        favorites_state = self._favorite_groups_state()
+        favorites = sorted(favorites_state.all_terms() - set(history))
         tab.update_completer(history + favorites)
 
     def _show_info(self, factory, content: str, duration: int = 3000):
@@ -522,13 +534,16 @@ class DanbooruInterface(QFrame):
             return
         term = DanbooruSearchQuery.normalize(tab.search_edit.text())
         if not term:
+            tab.sync_favorite_button_state()
             return
-        is_favorited = danbooru_cfg.fav.toggle(term)
+        favorites_state = self._favorite_groups_state()
+        is_favorited = favorites_state.toggle(term)
+        self._save_favorite_groups_state(favorites_state)
         self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         if not is_favorited:
             return self._show_info(InfoBar.error, content)
-        custom_groups = danbooru_cfg.fav.get_grouped()
+        custom_groups = favorites_state.custom_groups
         if not custom_groups:
             return self._show_info(InfoBar.success, content)
         tmpFavMgrBtn = PrimaryToolButton(QIcon(':/script/favMgr.svg'))
@@ -539,7 +554,7 @@ class DanbooruInterface(QFrame):
         def _open_group_picker():
             first_ib.close()
             combo = ComboBox()
-            combo.addItems([name for name, _ in custom_groups])
+            combo.addItems([group.name for group in custom_groups])
             combo.setMinimumWidth(100)
             accept_btn = PrimaryToolButton(FIF.ACCEPT)
             picker_ib = CustomInfoBar.show_custom(
@@ -548,7 +563,9 @@ class DanbooruInterface(QFrame):
             )
             def _move_tag():
                 group_name = combo.currentText()
-                danbooru_cfg.fav.move_to_group(term, group_name)
+                move_state = self._favorite_groups_state()
+                move_state.move_to_group(term, group_name)
+                self._save_favorite_groups_state(move_state)
                 self._refresh_all_favorites_ui()
                 picker_ib.close()
                 self._show_info(InfoBar.success, f"moved to「{group_name}」")
@@ -559,11 +576,13 @@ class DanbooruInterface(QFrame):
         for tab in self.tabs.values():
             tab.set_search_menu()
             self._refresh_completer(tab)
+            tab.sync_favorite_button_state()
 
     def _open_favorite_manager(self):
-        dialog = DanbooruFavoriteManagerDialog(self)
-        dialog.favorites_changed.connect(self._refresh_all_favorites_ui)
-        dialog.exec()
+        dialog = DanbooruFavoriteManagerDialog(self._favorite_groups_state(), self)
+        if dialog.exec():
+            self._save_favorite_groups_state(dialog.groups_state)
+            self._refresh_all_favorites_ui()
 
     def _open_tag_jump_tab(self, tag: str):
         self.image_viewer.hide()
