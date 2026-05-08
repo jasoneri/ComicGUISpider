@@ -1,5 +1,3 @@
-import asyncio
-import httpx
 from PySide6.QtCore import Qt, QObject
 from qfluentwidgets import InfoBar, InfoBarPosition
 
@@ -11,11 +9,8 @@ from GUI.uic.qfluent.components import CustomInfoBar
 from utils import conf
 from utils.website.contracts import PreprocessResult
 from utils.website.site_runtime import GuiSiteRuntime
-from utils.website.preprocess import run_site_preprocess
+from utils.website.preprocess import run_script_preprocess
 from variables import SPIDERS, VER, Spider
-
-
-data_cli: httpx.AsyncClient | None = None
 
 
 class PreprocessManager(QObject):
@@ -33,19 +28,8 @@ class PreprocessManager(QObject):
         self.task_manager.cancel_all_tasks()
         return self._switch_generation
 
-    def _reset_data_cli(self, proxies: list[str]):
-        global data_cli
-        if data_cli is not None:
-            asyncio.run(data_cli.aclose())
-        transport = dict(proxy=f"http://{proxies[0]}", retries=2) if proxies else dict(retries=2)
-        data_cli = httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(**transport))
-
     def handle_choosebox_changed(self, index: int, gui_site_runtime: GuiSiteRuntime | None):
         generation = self._next_generation()
-        proxies = ()
-        if gui_site_runtime is not None:
-            proxies = gui_site_runtime.runtime_context.transport.proxies
-        self._reset_data_cli(list(proxies))
         self._active_preprocess = (index, generation)
         self._queued_search = None
         self._sync_preview_runtime(index, gui_site_runtime, runtime_ready=False)
@@ -63,16 +47,13 @@ class PreprocessManager(QObject):
         self.gui.preview_mgr.handle_choosebox_changed(index, gui_site_runtime)
 
     def _start_preprocess(self, index: int, generation: int):
-        current_data_client = data_cli
-
         def task(progress_callback=None):
             if index == 7:
-                return run_site_preprocess(index, gui_site_runtime=None, conf_state=conf, data_client=current_data_client,
-                    progress_callback=progress_callback)
+                return run_script_preprocess(conf_state=conf, progress_callback=progress_callback)
             gui_site_runtime = self.gui.gui_site_runtime
             if gui_site_runtime is None:
                 raise RuntimeError("gui_site_runtime unavailable for preprocess flow")
-            return gui_site_runtime.preprocess(conf_state=conf, data_client=current_data_client, progress_callback=progress_callback)
+            return gui_site_runtime.preprocess(conf_state=conf, progress_callback=progress_callback)
 
         site_name = "Script" if index == 7 else SPIDERS.get(index, str(index))
         self.task_manager.execute_simple_task(
@@ -100,11 +81,7 @@ class PreprocessManager(QObject):
             for action in result.actions:
                 self._apply_action(action)
 
-            self._dispatch_queued_search(
-                index,
-                generation,
-                ready=bool(result.runtime_ready and not result.block_search),
-            )
+            self._dispatch_queued_search(index, generation, ready=bool(result.runtime_ready and not result.block_search))
         finally:
             self._clear_active_preprocess(index, generation)
 
@@ -179,10 +156,7 @@ class PreprocessManager(QObject):
         self.gui.aggrBtn.setVisible(True)
 
     def sync_gui_site_runtime(self, gui_site_runtime: GuiSiteRuntime | None):
-        proxies = ()
-        if gui_site_runtime is not None:
-            proxies = gui_site_runtime.runtime_context.transport.proxies
-        self._reset_data_cli(list(proxies))
+        _ = gui_site_runtime
 
     def queue_search_after_preprocess(self, index: int, keyword: str) -> bool:
         active_preprocess = self._active_preprocess
@@ -195,14 +169,10 @@ class PreprocessManager(QObject):
         return True
 
     def cleanup(self):
-        global data_cli
         self._next_generation()
         self._active_preprocess = None
         self._queued_search = None
         self.task_manager.reset()
-        if data_cli is not None:
-            asyncio.run(data_cli.aclose())
-            data_cli = None
 
     def _refresh_runtime_domain(self, index: int, domain: str | None):
         if not domain:

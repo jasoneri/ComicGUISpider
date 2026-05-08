@@ -330,9 +330,7 @@ class GuiSiteRuntime:
     async def preprocess(
         self, *, conf_state=conf, data_client: httpx.AsyncClient | None = None, progress_callback=None
     ) -> PreprocessResult:
-        return await run_site_preprocess(
-            self.site_index, gui_site_runtime=self, conf_state=conf_state, data_client=data_client, progress_callback=progress_callback
-        )
+        return await run_site_preprocess(self, conf_state=conf_state, data_client=data_client, progress_callback=progress_callback)
 
     def build_browser_environment(self, *, lang: str, cn_proxy_indexes: t.Container[int]) -> BrowserEnvironmentPayload:
         def _browser_domain_required() -> bool:

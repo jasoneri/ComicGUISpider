@@ -17,7 +17,50 @@ class NhentaiParseError(ValueError):
     pass
 
 
+class NhentaiTagCatalog:
+    _tag_types = ("language", "category", "artist")
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.loaded = False
+        self.db_path = None
+        self.by_type = {tag_type: {} for tag_type in self._tag_types}
+        self.valid_ids_by_type = {tag_type: set() for tag_type in self._tag_types}
+
+    def load(self, db_path: str | Path | None = None, *, default_db_path: str | Path, excluded_language_names: set[str]) -> dict[str, int]:
+        resolved_db_path = Path(db_path) if db_path is not None else Path(default_db_path)
+        if not resolved_db_path.exists():
+            raise NhentaiParseError(f"nhentai tag db not found: {resolved_db_path}")
+        with closing(sqlite3.connect(resolved_db_path)) as conn:
+            rows = conn.execute("SELECT id, name, type FROM tags WHERE type IN ('language', 'category', 'artist')").fetchall()
+        catalog = {tag_type: {} for tag_type in self._tag_types}
+        for tag_id, name, tag_type in rows:
+            if tag_type in catalog:
+                catalog[tag_type][int(tag_id)] = str(name)
+        valid_ids_by_type = {
+            tag_type: {
+                tag_id for tag_id, tag_name in mapping.items()
+                if tag_type != "language" or tag_name not in excluded_language_names
+            }
+            for tag_type, mapping in catalog.items()
+        }
+        self.by_type = catalog
+        self.valid_ids_by_type = valid_ids_by_type
+        self.db_path = resolved_db_path
+        self.loaded = True
+        return {tag_type: len(mapping) for tag_type, mapping in catalog.items()}
+
+    def preload(self, db_path: str | Path | None = None, *, default_db_path: str | Path, excluded_language_names: set[str]) -> dict[str, int]:
+        return self.load(db_path=db_path, default_db_path=default_db_path, excluded_language_names=excluded_language_names)
+
+
+NHENTAI_TAG_CATALOG = NhentaiTagCatalog()
+
+
 class _NhentaiContract:
+    _language_excluded_names = {"translated"}
     name = "nhentai"
     proxy_policy = "proxy"
     domain = "nhentai.net"
@@ -47,9 +90,6 @@ class _NhentaiContract:
     tag_db_path = ori_path.joinpath("__temp/nhentai.db")
     gallery_url_template = f"{index}g/%s/"
     gallery_api_url_template = f"{api_index}/galleries/%s?include=comments%%2Crelated"
-    _tag_catalog_loaded = False
-    _tag_catalog_db_path = None
-    _tag_catalog_by_type = {"language": {}, "category": {}, "artist": {}}
 
     @classmethod
     def build_search_url(cls, keyword: str, *, page: int = 1, sort: str = "date") -> str:
@@ -63,55 +103,10 @@ class _NhentaiContract:
             headers["Referer"] = referer
         return headers
 
-    @classmethod
-    def _tag_catalog_owner(cls):
-        return _NhentaiContract
-
-    @classmethod
-    def reset_tag_catalog(cls):
-        owner = cls._tag_catalog_owner()
-        owner._tag_catalog_loaded = False
-        owner._tag_catalog_db_path = None
-        owner._tag_catalog_by_type = {"language": {}, "category": {}, "artist": {}}
-
-    @classmethod
-    def load_tag_catalog(cls, db_path: str | Path | None = None) -> dict[str, int]:
-        owner = cls._tag_catalog_owner()
-        resolved_db_path = Path(db_path) if db_path is not None else Path(owner.tag_db_path)
-        if not resolved_db_path.exists():
-            raise NhentaiParseError(f"nhentai tag db not found: {resolved_db_path}")
-        with closing(sqlite3.connect(resolved_db_path)) as conn:
-            rows = conn.execute("SELECT id, name, type FROM tags WHERE type IN ('language', 'category', 'artist')").fetchall()
-        catalog = {"language": {}, "category": {}, "artist": {}}
-        for tag_id, name, tag_type in rows:
-            if tag_type in catalog:
-                catalog[tag_type][int(tag_id)] = str(name)
-        owner._tag_catalog_by_type = catalog
-        owner._tag_catalog_db_path = resolved_db_path
-        owner._tag_catalog_loaded = True
-        return {tag_type: len(mapping) for tag_type, mapping in catalog.items()}
-
-    @classmethod
-    def ensure_tag_catalog_loaded(cls) -> dict[str, dict[int, str]]:
-        owner = cls._tag_catalog_owner()
-        if not owner._tag_catalog_loaded:
-            cls.load_tag_catalog()
-        return owner._tag_catalog_by_type
-
-    @classmethod
-    def preload_tag_catalog(cls, db_path: str | Path | None = None) -> dict[str, int]:
-        return cls.load_tag_catalog(db_path=db_path)
-
-    @classmethod
-    def tag_catalog(cls) -> dict[str, dict[int, str]]:
-        return cls.ensure_tag_catalog_loaded()
-
-    @classmethod
-    def tag_name_by_type(cls, tag_type: str) -> dict[int, str]:
-        return cls.ensure_tag_catalog_loaded().get(str(tag_type), {})
-
 
 class NhentaiParser(_NhentaiContract):
+    catalog: NhentaiTagCatalog = NHENTAI_TAG_CATALOG
+
     @classmethod
     def _json_payload(cls, resp_text):
         try:
@@ -157,32 +152,22 @@ class NhentaiParser(_NhentaiContract):
     def _tag_name_from_ids(cls, tag_ids: list[int], tag_type: str, *, excluded_names: set[str] | None = None) -> str | None:
         if not tag_ids:
             return None
-        catalog = cls.ensure_tag_catalog_loaded()
-        mapping = catalog.get(tag_type, {})
+        mapping = cls.catalog.by_type.get(tag_type, {})
+        valid_ids = cls.catalog.valid_ids_by_type.get(tag_type, set())
         excluded = excluded_names or set()
         for tag_id in tag_ids:
-            name = mapping.get(int(tag_id))
-            if name is not None and name not in excluded:
+            resolved_tag_id = int(tag_id)
+            if resolved_tag_id not in valid_ids:
+                continue
+            name = mapping[resolved_tag_id]
+            if name not in excluded:
                 return name
         return None
-
-    @classmethod
-    def _language_from_tag_ids(cls, tag_ids: list[int]) -> str | None:
-        return cls._tag_name_from_ids(tag_ids, "language", excluded_names={"translated"})
-
-    @classmethod
-    def _category_from_tag_ids(cls, tag_ids: list[int]) -> str | None:
-        return cls._tag_name_from_ids(tag_ids, "category")
-
-    @classmethod
-    def _artist_from_tag_ids(cls, tag_ids: list[int]) -> str | None:
-        return cls._tag_name_from_ids(tag_ids, "artist")
 
     @classmethod
     def parse_search_item(cls, target: dict):
         if not isinstance(target, dict):
             raise NhentaiParseError("nhentai 搜索条目不是对象")
-        cls.ensure_tag_catalog_loaded()
         gallery_id = str(cls._required(target, "id"))
         media_id = str(cls._required(target, "media_id"))
         tag_ids = target.get("tag_ids") or []
@@ -195,8 +180,8 @@ class NhentaiParser(_NhentaiContract):
             id=gallery_id, media_id=media_id, name=cls._select_title(english_title=english_title, japanese_title=japanese_title),
             english_title=english_title, japanese_title=japanese_title, preview_url=cls.gallery_url_template % gallery_id,
             url=cls.gallery_api_url_template % gallery_id, pages=int(cls._required(target, "num_pages")),
-            img_preview=cls.build_thumbnail_url(thumbnail), lang=cls._language_from_tag_ids(tag_ids),
-            btype=cls._category_from_tag_ids(tag_ids),
+            img_preview=cls.build_thumbnail_url(thumbnail), lang=cls._tag_name_from_ids(tag_ids, "language"),
+            btype=cls._tag_name_from_ids(tag_ids, "category"),
         )
 
     @classmethod
@@ -205,7 +190,6 @@ class NhentaiParser(_NhentaiContract):
         targets = payload.get("result")
         if not isinstance(targets, list):
             raise NhentaiParseError("nhentai 搜索 API 缺少 result 列表")
-        cls.ensure_tag_catalog_loaded()
         return [cls.parse_search_item(target) for target in targets]
 
     @classmethod
@@ -233,24 +217,27 @@ class NhentaiParser(_NhentaiContract):
         tags = payload.get("tags") or []
         if not isinstance(tags, list):
             raise NhentaiParseError("nhentai gallery detail tags 不是列表")
-        cls.ensure_tag_catalog_loaded()
         pics = cls._parse_page_assets(payload.get("pages"), media_id=media_id)
         thumbnail_path = (payload.get("thumbnail") or {}).get("path")
         cover_path = (payload.get("cover") or {}).get("path")
         english_title = title.get("english")
         japanese_title = title.get("japanese")
         pretty_title = title.get("pretty")
-        language_tag_ids = [tag["id"] for tag in tags if tag.get("type") == "language" and tag.get("id")]
-        category_tag_ids = [tag["id"] for tag in tags if tag.get("type") == "category" and tag.get("id")]
-        artist_tag_ids = [tag["id"] for tag in tags if tag.get("type") == "artist" and tag.get("id")]
+        tag_ids_by_type = {"language": [], "category": [], "artist": []}
+        for tag in tags:
+            tag_type = tag.get("type")
+            tag_id = tag.get("id")
+            if tag_type in tag_ids_by_type and tag_id:
+                tag_ids_by_type[tag_type].append(tag_id)
         return NhentaiBookInfo(
             id=gallery_id, media_id=media_id,
             name=cls._select_title(english_title=english_title, japanese_title=japanese_title, pretty_title=pretty_title),
             english_title=english_title, japanese_title=japanese_title, pretty_title=pretty_title,
             preview_url=cls.gallery_url_template % gallery_id, url=cls.gallery_api_url_template % gallery_id,
             pages=int(cls._required(payload, "num_pages")), img_preview=cls.build_thumbnail_url(thumbnail_path or cover_path),
-            lang=cls._language_from_tag_ids(language_tag_ids), artist=cls._artist_from_tag_ids(artist_tag_ids),
-            btype=cls._category_from_tag_ids(category_tag_ids),
+            lang=cls._tag_name_from_ids(tag_ids_by_type["language"], "language"),
+            artist=cls._tag_name_from_ids(tag_ids_by_type["artist"], "artist"),
+            btype=cls._tag_name_from_ids(tag_ids_by_type["category"], "category"),
             tags=[tag.get("name") for tag in tags if tag.get("type") != "language" and tag.get("name")], pics=pics,
         )
 
@@ -341,11 +328,24 @@ class NhentaiUtils(_NhentaiContract, EroUtils, Cookies, Previewer):
     parser = NhentaiParser
     reqer_cls = NhentaiReqer
     browser_referer_mode = "provider_index"
+    catalog = NHENTAI_TAG_CATALOG
 
     def __init__(self, _conf):
         self.reqer = self.reqer_cls(_conf)
         self.parser = self.__class__.parser
-        self.ensure_tag_catalog_loaded()
+        self.parser.catalog = self.catalog
+
+    @classmethod
+    def reset_tag_catalog(cls):
+        cls.catalog.reset()
+
+    @classmethod
+    def load_tag_catalog(cls, db_path: str | Path | None = None) -> dict[str, int]:
+        return cls.catalog.load(db_path=db_path, default_db_path=cls.tag_db_path, excluded_language_names=cls._language_excluded_names)
+
+    @classmethod
+    def preload_tag_catalog(cls, db_path: str | Path | None = None) -> dict[str, int]:
+        return cls.catalog.preload(db_path=db_path, default_db_path=cls.tag_db_path, excluded_language_names=cls._language_excluded_names)
 
     @classmethod
     def preview_client_config(cls, **context):
