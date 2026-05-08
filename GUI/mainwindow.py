@@ -62,6 +62,8 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
         self.chooseBox.addItem("")
         self.chooseBox.setItemText(9, _translate("MainWindow", "9、jestful"))
+        self.chooseBox.addItem("")
+        self.chooseBox.setItemText(10, _translate("MainWindow", "10、nhentai🔞"))
         self.chooseBox.setCurrentIndex(0)
         self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
         self.domainBtn.setVisible(False)

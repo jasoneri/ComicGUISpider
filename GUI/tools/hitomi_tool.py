@@ -18,7 +18,7 @@ from assets import res
 from variables import DEFAULT_COMPLETER
 from utils import ori_path, conf
 
-hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
+hitomi_db_path = ori_path.joinpath("__temp/hitomi.db")
 
 
 class CustomComboBox(QComboBox):
@@ -48,7 +48,7 @@ class HitomiTools(QWidget):
         self.output_type = ''
         self.output_mgr = self.OutputMgr(self)
         self.tmp_map = {}
-        self.conn = sqlite3.connect(ori_path.joinpath('assets/hitomi.db'))
+        self.conn = sqlite3.connect(hitomi_db_path)
         self.init_ui()
         self.set_dataset()
         self.update_entries()  # Initial update

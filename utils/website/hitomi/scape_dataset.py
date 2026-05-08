@@ -10,9 +10,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import httpx
 from lxml import html
-
+# TODO[0](2026-05-05): ratelimit
 from assets import res
-from utils import ori_path, temp_p, conf
+from utils import temp_p, conf
 
 
 BASE_URL = "https://hitomi.la/all{category}-{letter}.html"
@@ -39,10 +39,11 @@ def _get_paths(db_path_override=None):
     if db_path_override:
         p = Path(db_path_override)
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.parent / '__temp'
-        tmp.mkdir(exist_ok=True)
+        tmp = p.parent / 'hitomi'
+        tmp.mkdir(parents=True, exist_ok=True)
         return p, tmp
-    return ori_path.joinpath('assets/hitomi.db'), temp_p
+    db_path = temp_p.joinpath('hitomi.db')
+    return db_path
 
 
 def _get_proxy():
@@ -129,9 +130,9 @@ def _save_one(db_conn, table_name, items, rewrite_flag):
         print(f"[SUCCESS] {table_name} written {cursor.rowcount}")
 
 
-def scrape_and_save(db_p, temp_p, workers=2, max_retries=3, timeout=10):
+def scrape_and_save(db_p, workers=2, max_retries=3, timeout=10):
     client = _make_client(_get_proxy())
-    init_err_f = temp_p.joinpath('hitomi_db_init_err.json') if hasattr(temp_p, 'joinpath') else Path(temp_p) / 'hitomi_db_init_err.json'
+    init_err_f = temp_p.joinpath('hitomi_db_init_err.json')
     tb_rewrite_flag = False
     tasks = []
 
@@ -186,14 +187,10 @@ def main():
     parser.add_argument('--db-path', type=str, default=None, help='override hitomi.db path (for CI)')
     args = parser.parse_args()
 
-    db_p, temp_p = _get_paths(args.db_path)
-
+    db_p = _get_paths(args.db_path)
     Db.create_tables(db_p)
     success = scrape_and_save(
-        db_p, temp_p,
-        workers=args.workers,
-        max_retries=args.max_retries,
-        timeout=args.timeout,
+        db_p, workers=args.workers, max_retries=args.max_retries, timeout=args.timeout,
     )
     exit(0 if success else 1)
 
