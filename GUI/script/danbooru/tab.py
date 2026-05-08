@@ -390,6 +390,7 @@ class DanbooruTabWidget(QFrame):
             item = self.flow_layout.takeAt(0)
             widget = item if isinstance(item, QWidget) else item.widget() if item is not None else None
             if isinstance(widget, DanbooruCardWidget):
+                widget.set_pagination_bar(False)
                 self.card_widgets.pop(widget.post.md5, None)
             _delete_flow_item(item)
         self.state.retain_current_page_as_buffer_start()
@@ -420,12 +421,14 @@ class DanbooruTabWidget(QFrame):
             self.search_edit.setText(self.state.query)
         while self.flow_layout.count():
             _delete_flow_item(self.flow_layout.takeAt(0))
+        for card in self.card_widgets.values():
+            card.set_pagination_bar(False)
         self.card_widgets.clear()
         self._refresh_grid_layout()
 
     def append_results(self, posts: list[DanbooruPost], downloaded_md5s: set[str]) -> list[DanbooruCardWidget]:
         appended_cards: list[DanbooruCardWidget] = []
-        for post in posts:
+        for idx, post in enumerate(posts):
             card = DanbooruCardWidget(
                 post,
                 already_downloaded=post.md5 in downloaded_md5s,
@@ -436,6 +439,7 @@ class DanbooruTabWidget(QFrame):
             self.selection_controller.bind_card(card)
             self.flow_layout.addWidget(card)
             self.card_widgets[post.md5] = card
+            card.set_pagination_bar(idx == 0)
             appended_cards.append(card)
         self.state.result_list.extend(posts)
         self.selection_controller.sync_selection_count()

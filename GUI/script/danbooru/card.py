@@ -1,7 +1,7 @@
 from PySide6 import QtCore, QtGui
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QPushButton, QSizePolicy, QStyle, QStyleOptionButton, QStylePainter, QToolButton, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QPushButton, QSizePolicy, QStyle, QStyleOptionButton, QStylePainter, QToolButton, QVBoxLayout, QWidget
 
 from utils.script.image.danbooru.models import DanbooruPost
 
@@ -22,6 +22,13 @@ _CARD_SELECTOR_HOVER_INNER_RATIO = 0.55
 _CARD_CONTENT_MARGIN = 4
 _CARD_PREVIEW_BORDER_INSET = 1
 _CARD_PREVIEW_RADIUS = 16.0
+_VIDEO_BADGE_H_PADDING = 6
+_VIDEO_BADGE_V_PADDING = 3
+_VIDEO_BADGE_RADIUS = 6.0
+_VIDEO_BADGE_MARGIN = 8
+_VIDEO_PLAY_TRIANGLE_SIZE = 5
+_PAGE_BAR_WIDTH = 4
+_PAGE_BAR_MARGIN = 3
 
 
 class _DanbooruCardSelectorButton(QToolButton):
@@ -153,6 +160,37 @@ class _DanbooruCardPreviewButton(QPushButton):
         painter.restore()
 
 
+class _PageBarAnchor(QObject):
+    """Tracks card widget position and repositions page bar via mapTo."""
+    def __init__(self, card: "DanbooruCardWidget", bar: QFrame, container: QWidget):
+        super().__init__(bar)
+        self._card = card
+        self._bar = bar
+        self._container = container
+        card.installEventFilter(self)
+        parent = card.parentWidget()
+        if parent:
+            parent.installEventFilter(self)
+
+    def eventFilter(self, obj, e):
+        if e.type() in (QEvent.Resize, QEvent.Move):
+            self._reposition()
+        return False
+
+    def _reposition(self):
+        top_left = self._card.mapTo(self._container, QtCore.QPoint(0, 0))
+        bar_x = top_left.x() - _PAGE_BAR_MARGIN - _PAGE_BAR_WIDTH
+        bar_y = top_left.y()
+        self._bar.move(bar_x, bar_y)
+        self._bar.setFixedHeight(self._card.height())
+
+    def detach(self):
+        self._card.removeEventFilter(self)
+        parent = self._card.parentWidget()
+        if parent:
+            parent.removeEventFilter(self)
+
+
 class DanbooruCardWidget(QFrame):
     open_detail_requested = Signal(object)
     selection_changed = Signal(object, bool)
@@ -172,6 +210,8 @@ class DanbooruCardWidget(QFrame):
         self._preview_pixmap = QPixmap()
         self._preview_size = self._derive_preview_size()
         self.preview_height = self._preview_size.height()
+        self._page_bar: QFrame | None = None
+        self._page_bar_anchor: _PageBarAnchor | None = None
         self.setObjectName(f"DanbooruCard_{post.post_id}")
         self._setup_ui()
         self.apply_theme()
@@ -331,6 +371,8 @@ class DanbooruCardWidget(QFrame):
             preview = self._apply_downloaded_preview_effect(preview, self._card_theme)
         if self._is_selected():
             preview = self._apply_selection_overlay(preview, self._card_theme)
+        if self.post.is_video:
+            preview = self._apply_video_badge(preview, self._card_theme, self.post.file_ext)
         return preview
 
     def _apply_preview_icon(self):
@@ -384,6 +426,45 @@ class DanbooruCardWidget(QFrame):
         painter.end()
         return QPixmap.fromImage(image)
 
+    @staticmethod
+    def _apply_video_badge(pixmap: QPixmap, card_theme: DanbooruCardTheme, file_ext: str = "") -> QPixmap:
+        ext = DanbooruPost.normalize_file_ext(file_ext).upper() or "VIDEO"
+        image = pixmap.toImage().convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
+        painter = QtGui.QPainter(image)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        font = painter.font()
+        font.setPointSize(8)
+        font.setWeight(QtGui.QFont.Weight.Bold)
+        painter.setFont(font)
+        metrics = painter.fontMetrics()
+        text_width = metrics.horizontalAdvance(ext)
+        text_height = metrics.height()
+        badge_w = text_width + _VIDEO_BADGE_H_PADDING * 2 + _VIDEO_PLAY_TRIANGLE_SIZE + 4
+        badge_h = text_height + _VIDEO_BADGE_V_PADDING * 2
+        badge_x = image.width() - badge_w - _VIDEO_BADGE_MARGIN
+        badge_y = image.height() - badge_h - _VIDEO_BADGE_MARGIN
+        badge_rect = QtCore.QRectF(badge_x, badge_y, badge_w, badge_h)
+        bg_color = qcolor_from_css(card_theme.video_badge_bg)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(bg_color)
+        painter.drawRoundedRect(badge_rect, _VIDEO_BADGE_RADIUS, _VIDEO_BADGE_RADIUS)
+        text_color = qcolor_from_css(card_theme.video_badge_text)
+        painter.setPen(text_color)
+        tri_cx = badge_x + _VIDEO_BADGE_H_PADDING + _VIDEO_PLAY_TRIANGLE_SIZE / 2
+        tri_cy = badge_y + badge_h / 2
+        tri = QtGui.QPolygonF([
+            QtCore.QPointF(tri_cx - _VIDEO_PLAY_TRIANGLE_SIZE / 2, tri_cy - _VIDEO_PLAY_TRIANGLE_SIZE / 2),
+            QtCore.QPointF(tri_cx + _VIDEO_PLAY_TRIANGLE_SIZE / 2, tri_cy),
+            QtCore.QPointF(tri_cx - _VIDEO_PLAY_TRIANGLE_SIZE / 2, tri_cy + _VIDEO_PLAY_TRIANGLE_SIZE / 2),
+        ])
+        painter.setBrush(text_color)
+        painter.drawPolygon(tri)
+        text_x = badge_x + _VIDEO_BADGE_H_PADDING + _VIDEO_PLAY_TRIANGLE_SIZE + 2
+        text_y = badge_y + (badge_h - text_height) / 2
+        painter.drawText(QtCore.QPointF(text_x, text_y + metrics.ascent()), ext)
+        painter.end()
+        return QPixmap.fromImage(image)
+
     def _sync_geometry(self):
         self._preview_size = self._derive_preview_size()
         self.preview_height = self._preview_size.height()
@@ -414,3 +495,30 @@ class DanbooruCardWidget(QFrame):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._position_overlay_widgets()
+        if self._page_bar_anchor:
+            self._page_bar_anchor._reposition()
+
+    def set_pagination_bar(self, is_first: bool):
+        if is_first:
+            if self._page_bar is not None:
+                return
+            container = self.parentWidget()
+            if container is None:
+                return
+            palette = DanbooruUiPalette.current()
+            bar = QFrame(container)
+            bar.setFixedWidth(_PAGE_BAR_WIDTH)
+            bar.setStyleSheet(
+                f"QFrame {{ background: {palette.page_border_color}; border: none; border-radius: 2px; }}"
+            )
+            bar.show()
+            self._page_bar = bar
+            self._page_bar_anchor = _PageBarAnchor(self, bar, container)
+            self._page_bar_anchor._reposition()
+        else:
+            if self._page_bar_anchor:
+                self._page_bar_anchor.detach()
+                self._page_bar_anchor = None
+            if self._page_bar:
+                self._page_bar.deleteLater()
+                self._page_bar = None

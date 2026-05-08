@@ -95,6 +95,7 @@ class DanbooruUiPalette:
     pivot_selected: str
     pivot_button_hover: str
     pivot_button_pressed: str
+    page_border_color: str
 
     @classmethod
     def current(cls) -> "DanbooruUiPalette":
@@ -124,6 +125,7 @@ class DanbooruUiPalette:
             pivot_selected=tokens["PIVOT_SELECTED"],
             pivot_button_hover=tokens["PIVOT_BUTTON_HOVER"],
             pivot_button_pressed=tokens["PIVOT_BUTTON_PRESSED"],
+            page_border_color=tokens["CARD_PAGE_BORDER_COLOR"],
         )
 
 
@@ -145,6 +147,8 @@ class DanbooruCardTheme:
     preview_downloaded_grayscale: float
     preview_downloaded_opacity: float
     glow_color: str
+    video_badge_bg: str
+    video_badge_text: str
 
 
 def get_danbooru_card_theme(already_downloaded: bool) -> DanbooruCardTheme:
@@ -166,6 +170,8 @@ def get_danbooru_card_theme(already_downloaded: bool) -> DanbooruCardTheme:
         preview_downloaded_grayscale=max(0.0, min(1.0, float(tokens["CARD_PREVIEW_DOWNLOADED_GRAYSCALE"]))),
         preview_downloaded_opacity=max(0.0, min(1.0, float(tokens["CARD_PREVIEW_DOWNLOADED_OPACITY"]))),
         glow_color=tokens["CARD_GLOW_COLOR"],
+        video_badge_bg=tokens["CARD_VIDEO_BADGE_BG"],
+        video_badge_text=tokens["CARD_VIDEO_BADGE_TEXT"],
     )
 
 
