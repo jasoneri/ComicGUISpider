@@ -3,16 +3,32 @@ from __future__ import annotations
 
 from utils.website.providers import *
 from utils.website.providers.hcomic import HComicParseError  
+from variables import Spider
 
 from . import registry
 from .site_runtime import ProviderDescriptor
 
-provider_map = {
-    1: KaobeiUtils, 2: JmUtils, 3: WnacgUtils, 4: EHentaiKits, 5: MangabzUtils,
-    6: HitomiUtils, 8: HComicUtils, 9: JestfulUtils, 10: NhentaiUtils,
-    'manga_copy': KaobeiUtils, 'kaobei': KaobeiUtils, 'jm': JmUtils, 'wnacg': WnacgUtils, 'ehentai': EHentaiKits, 'mangabz': MangabzUtils,
-    'hitomi': HitomiUtils, 'h_comic': HComicUtils, 'jestful': JestfulUtils, 'jf': JestfulUtils, 'nhentai': NhentaiUtils
-}
+
+def _build_provider_map():
+    _PROVIDER_BINDINGS = {
+        Spider.MANGA_COPY: KaobeiUtils, Spider.JM: JmUtils, Spider.WNACG: WnacgUtils, 
+        Spider.EHENTAI: EHentaiKits, Spider.MANGABZ: MangabzUtils, Spider.HITOMI: HitomiUtils, 
+        Spider.H_COMIC: HComicUtils, Spider.NHENTAI: NhentaiUtils, Spider.JESTFUL: JestfulUtils,
+    }
+    _PROVIDER_ALIASES = {
+        Spider.MANGA_COPY: ("kaobei",), Spider.JESTFUL: ("jf",),
+    }
+    binding_map = {}
+    for spider in sorted(Spider, key=int):
+        provider_cls = _PROVIDER_BINDINGS[spider]
+        binding_map[spider.value] = provider_cls
+        binding_map[spider.spider_name] = provider_cls
+        for alias in _PROVIDER_ALIASES.get(spider, ()):
+            binding_map[alias] = provider_cls
+    return binding_map
+
+
+provider_map = _build_provider_map()
 
 
 def _provider_site_indexes() -> dict[type, int]:

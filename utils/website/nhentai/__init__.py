@@ -8,6 +8,7 @@ from urllib.parse import quote, urlencode
 
 import httpx
 
+from assets import res
 from utils import ori_path
 from utils.website.core import Cookies, EroUtils, Previewer, Req
 from utils.website.info import NhentaiBookInfo
@@ -71,7 +72,7 @@ class _NhentaiContract:
     search_url_head = f"{api_index}/search?query="
     turn_page_info = (r"page=\d+",)
     mappings = {
-        "更新": f"{api_index}/galleries?page=1",
+        res.SPIDER.Completer.update: f"{api_index}/galleries?page=1",
     }
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0",

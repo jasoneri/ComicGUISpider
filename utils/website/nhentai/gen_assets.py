@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 
 from assets import res
-from utils import conf, ori_path
+from utils import conf, temp_p
 
 
 API_URL = "https://nhentai.net/api/v2"
@@ -43,15 +43,11 @@ def _get_paths(db_path_override=None):
         db_p = Path(db_path_override)
         db_p.parent.mkdir(parents=True, exist_ok=True)
         return db_p
-    return ori_path.joinpath("__temp/nhentai.db")
+    return temp_p.joinpath("nhentai.db")
 
 
 def _get_proxy():
     return (conf.proxies or [None])[0]
-
-
-def _default_seed_path():
-    return ori_path.joinpath("test/analyze/nhentai/tags.json")
 
 
 class Db:
@@ -163,7 +159,7 @@ def _save_tags(db_conn, rows):
 def seed_and_scrape(db_p, seed_path=None, skip_online=False, per_page=100, delay=2, timeout=10, max_retries=3):
     total_written = 0
     with closing(sqlite3.connect(db_p)) as db_conn:
-        seed_rows = load_seed_tags(seed_path or _default_seed_path())
+        seed_rows = load_seed_tags(seed_path)
         if seed_rows:
             total_written += _save_tags(db_conn, seed_rows)
             print(f"[SEED] written {len(seed_rows)} rows")

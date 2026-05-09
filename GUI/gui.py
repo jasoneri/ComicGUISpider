@@ -241,7 +241,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
         self.sut = None
-        if index in (2,3) and not conf.proxies:
+        if index in (Spider.JM, Spider.WNACG) and not conf.proxies:
             self.domainBtn.setVisible(True)
         if self.web_is_r18:
             self.rv_tools.ero = 1

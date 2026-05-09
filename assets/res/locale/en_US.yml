@@ -52,14 +52,11 @@ GUI:
   ui_lang_need_reboot: "⚠️ui-language settings will take effect when save config and reboot"
   local_fav: "Local Favorites"
   SearchInputStatusTip:
+    common: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     wnacg: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
-    ehentai: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
-    mangabz: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
-    jestful: Enter keyword directly; pagination is supported, and selected episodes resolve page URLs dynamically
     hitomi: Temp only supports using presets or `hitomi-tools` generated words
-    h_comic: Enter keyword directly, e.g. NTR / Chinese / artist name
   Clip:
     process_warning: "Search process already started - reset the current search context before using this feature"
     db_not_found_guide: "Clipboard db not found - check related guides"
@@ -164,6 +161,10 @@ SPIDER:
     frame_book_print_extra: " →_→ Hover over number field for input rules"
     frame_book_print_retry_tip: "No results found. Possible causes:<br>1. Server blocking 2. End of results 3. Verify URL in browser"
     frame_section_print_extra: " ←_← Click【Start Crawling!】"
+  Completer:
+    index: "index"
+    popular: "popular"
+    update: "update"
   sectionInput_flag: "Start Crawling"
   search_url_head_NotImplementedError: "Custom search URL required"
   choice_list_before_turn_page: "Previous page selections pending"

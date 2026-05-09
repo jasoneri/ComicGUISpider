@@ -10,7 +10,7 @@ from utils import conf
 from utils.website.contracts import PreprocessResult
 from utils.website.site_runtime import GuiSiteRuntime
 from utils.website.preprocess import run_script_preprocess
-from variables import SPIDERS, VER, Spider
+from variables import SCRIPT_SITE_INDEX, SCRIPT_SITE_NAME, SPIDERS, VER, Spider
 
 
 class PreprocessManager(QObject):
@@ -48,14 +48,14 @@ class PreprocessManager(QObject):
 
     def _start_preprocess(self, index: int, generation: int):
         def task(progress_callback=None):
-            if index == 7:
+            if index == SCRIPT_SITE_INDEX:
                 return run_script_preprocess(conf_state=conf, progress_callback=progress_callback)
             gui_site_runtime = self.gui.gui_site_runtime
             if gui_site_runtime is None:
                 raise RuntimeError("gui_site_runtime unavailable for preprocess flow")
             return gui_site_runtime.preprocess(conf_state=conf, progress_callback=progress_callback)
 
-        site_name = "Script" if index == 7 else SPIDERS.get(index, str(index))
+        site_name = SCRIPT_SITE_NAME if index == SCRIPT_SITE_INDEX else SPIDERS.get(index, str(index))
         self.task_manager.execute_simple_task(
             task_func=task, success_callback=lambda result: self._on_preprocess_success(index, generation, result),
             error_callback=lambda error: self._on_preprocess_error(index, generation, error), show_error_info=self.show_err,

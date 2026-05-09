@@ -33,7 +33,7 @@ async def fetch_kemono_creators_payload(*, data_client: httpx.AsyncClient, timeo
 async def generate_kemono_db():
     resolved_db_path = temp_p.joinpath("kemono.db")
     resolved_db_path.parent.mkdir(parents=True, exist_ok=True)
-    with _build_data_client() as data_client:
+    async with _build_data_client() as data_client:
         payload = await fetch_kemono_creators_payload(data_client=data_client)
     return await asyncio.to_thread(build_kemono_db_from_creators_bytes, resolved_db_path, payload)
 

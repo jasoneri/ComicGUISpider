@@ -4,11 +4,13 @@
 
 ### 🎁 Features
 
++ 🌐支持 `nhentai`
 + Danbooru 支持 视频播放下载，zip下载
 
 ### 🐞 Fix/Upd
 
-+ Danbooru 优化性能，viewer 鼠标右键直接关闭
++ jestful 序号调整为 9 , 关注预设, jestful 预设词 `更新` 失效需要改为 `首页`
++ Danbooru 优化性能，多个细节体验优化(分页标识,视频标识,已收藏标识等)
 
 > CGSMid 暂时关闭
 

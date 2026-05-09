@@ -3,6 +3,7 @@ from PySide6.QtGui import QPixmap, QDesktopServices
 from qfluentwidgets import ImageLabel, TextBrowser, TextEdit
 
 from GUI.core.timer import safe_single_shot
+from variables import Spider
 
 class TextBrowserLite(TextBrowser):
     def __init__(self, parent=None):
@@ -18,7 +19,7 @@ class TextBrowserLite(TextBrowser):
     def _open_source_url(self, url):
         if url.isEmpty():
             return
-        if self.gui.chooseBox.currentIndex() == 2:
+        if self.gui.chooseBox.currentIndex() == Spider.JM:
             QDesktopServices.openUrl(url)
         else:
             self.gui.open_url_by_browser(url.toString())

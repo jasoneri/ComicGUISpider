@@ -37,9 +37,9 @@ Please complete the development in the following four parts:
 4. Reference the existing [WnacgSpider](ComicSpider/spiders/wnacg.py) implementation
 5. Discuss with the user whether the target website requires a proxy to access, to determine if custom_settings should include ComicDlProxyMiddleware / ComicDlAllProxyMiddleware
 
-**Part 2: Utils Class Development (Parsing)**
+**Part 2: Provider Development (Parsing/Preview)**
 
-1. Implement the corresponding Utils parsing class in the `utils/website/` directory, using PascalCase naming: AbcdefgUtils
+1. Implement the corresponding provider file in `utils/website/providers/`, using PascalCase naming such as `AbcdefgUtils`
 2. Inherit from the correct base class depending on website type (regular comic sites and 18+ sites have different base classes)
 3. Implement the following required attributes and methods:
    - name: abcdefg
@@ -47,25 +47,24 @@ Please complete the development in the following four parts:
    - parse_search: Method to parse search.html, locate elements, and call parse_search_item to get a list of BookInfo objects
    - parse_search_item: Takes a single located element as parameter, returns a BookInfo object
    - parse_book: Method to parse book.html into a BookInfo object
-4. After completion, register the Utils class in `provider_map` inside `utils/website/ins.py`; the runtime will populate `site_gateway_map` and `spider_adapter_map` automatically
+4. After completion, export the provider in `utils/website/providers/__init__.py`, then bind it to the matching `Spider.*` member in `_PROVIDER_BINDINGS` inside `utils/website/ins.py`; `provider_map` will expand numeric keys and canonical spider-name keys automatically
 
 **Part 3: UI Configuration**
 
 1. Add configuration in `variables/__init__.py`:
-   - SPIDERS: Add new index and spider name
+   - Spider: Add the enum member
+   - SPIDERS: Verify the generated numeric/index mapping
+   - CHOOSE_BOX_LABELS / display-name mapping: Add the dropdown label source entry
    - DEFAULT_COMPLETER: Add index and default preset mapping (can be empty list)
    - STATUS_TIP: Add index and status bar tip text (can be empty string)
-   - For 18+ websites: Add spider name to SPECIAL_WEBSITES, add index to SPECIAL_WEBSITES_IDXES
-   - If preview images require proxy access: Add index to CN_PREVIEW_NEED_PROXIES_IDXES
+   - For 18+ websites or other capability groups: update the relevant `Spider` classmethods such as `specials()` / `mangas()` / `cn_proxy()` / `aggr()` / `clip()`
 
-2. Add dropdown option in the setupUi method of `GUI/mainwindow.py`:
-self.chooseBox.addItem("")
-self.chooseBox.setItemText(index, _translate("MainWindow", "index, website_name"))
+2. `GUI/mainwindow.py` rebuilds `chooseBox` from `CHOOSE_BOX_LABELS` automatically, so new sites should normally update variables metadata instead of hand-editing `setItemText()`
 
 **Part 4: Testing**
 
-1. Non-GUI test: Run `python crawl_only.py -w index -k keyword -i 1` to verify basic spider functionality
-2. GUI test: Run `python CGS.py` for complete testing:
+1. Non-GUI test: Run `uv run crawl_only.py -w index -k keyword -i 1` to verify basic spider functionality
+2. GUI test: Run `uv run CGS.py` for complete testing:
    - Test the full workflow for the new website (search, download, etc.)
 3. Note the log configuration: LOG_FILE in `ComicSpider/settings.py`
 

@@ -12,6 +12,7 @@ from urllib.parse import urlencode, urlparse
 import httpx
 from scrapy import Selector
 
+from assets import res
 from utils.website.core import Previewer, Req, Utils
 from utils.website.info import Episode, JestfulBookInfo
 
@@ -23,7 +24,7 @@ class _JestfulContract:
     proxy_policy = "direct"
     domain = "jestful.net"
     index = f"https://{domain}/"
-    update_keyword = "更新"
+    mappings = {res.SPIDER.Completer.index: index}
     pop_concurrency = 6
     ua = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
@@ -526,9 +527,6 @@ class JestfulReqer(_JestfulContract, Req):
         self.cli = self.get_cli(_conf)
         self.preview_requests = PreviewRequestSession(self)
 
-    def _is_update_keyword(self, keyword: str) -> bool:
-        return keyword.strip() == self.update_keyword
-
     async def _enrich_book_from_pop(self, book: JestfulBookInfo):
         book_id = str(book.id or "").strip()
         if not book_id:
@@ -571,49 +569,40 @@ class JestfulReqer(_JestfulContract, Req):
             return False
         return True
 
+    async def _fetch_parse(self, url, parse_fn, *, domain, headers=None):
+        resp = await self.ensure_preview_client().get(
+            url, headers=headers or self.ua, follow_redirects=True, timeout=12,
+        )
+        resp.raise_for_status()
+        return await asyncio.to_thread(parse_fn, resp.text, domain=domain)
+
     async def preview_search(self, keyword: str, *, page: int = 1):
         owner = self._require_preview_owner()
-        preview_client = self.ensure_preview_client()
+        owner_type = type(owner)
         session = self.preview_requests
         domain = session.site_context.host
         page = max(1, int(page or 1))
         keyword = keyword.strip()
+        parse = owner.parser
 
-        if self._is_update_keyword(keyword):
-            if page <= 1:
-                resp = await preview_client.get(session.home_url(), headers=self.ua, follow_redirects=True, timeout=12)
-                resp.raise_for_status()
-                books = await asyncio.to_thread(owner.parser.parse_index_books, resp.text, domain=domain)
-            else:
-                resp = await preview_client.get(
-                    session.listing_url(page=page, update=True),
-                    headers=self.ua,
-                    follow_redirects=True,
-                    timeout=12,
-                )
-                resp.raise_for_status()
-                books = await asyncio.to_thread(owner.parser.parse_search_document, resp.text, domain=domain)
+        mappings = owner_type.merge_search_mappings(self.mappings, self.preview_site_kwargs().get("custom_map"))
+        # Mapping extends the search URL space (index shortcut)
+        if keyword in mappings and page <= 1:
+            url = owner_type.normalize_mapping_url(domain, mappings[keyword])
+            books = await self._fetch_parse(url, parse.parse_index_books, domain=domain)
             return await self._enrich_books_from_pop(books)
-
-        resp = await preview_client.get(
-            session.listing_url(keyword=keyword, page=page),
-            headers=self.ua,
-            follow_redirects=True,
-            timeout=12,
-        )
-        resp.raise_for_status()
-        books = await asyncio.to_thread(owner.parser.parse_search_document, resp.text, domain=domain)
+        # Listing search (mapping page>1 falls through to update listing)
+        url = session.listing_url(page=page, update=True) if keyword in mappings else session.listing_url(keyword=keyword, page=page)
+        books = await self._fetch_parse(url, parse.parse_search_document, domain=domain)
         if books or page > 1:
             return await self._enrich_books_from_pop(books)
-
-        suggest_resp = await preview_client.get(
+        # Fallback to suggest
+        return await self._fetch_parse(
             session.controller_url("search.single", q=keyword),
+            parse.parse_search_suggest,
+            domain=domain,
             headers=session.headers(xhr=True),
-            follow_redirects=True,
-            timeout=12,
         )
-        suggest_resp.raise_for_status()
-        return await asyncio.to_thread(owner.parser.parse_search_suggest, suggest_resp.text, domain=domain)
 
     async def preview_fetch_episodes(self, book):
         owner = self._require_preview_owner()
