@@ -1,5 +1,6 @@
 import html
 
+from assets import res
 from utils import PresetHtmlEl
 
 
@@ -62,13 +63,13 @@ class MangaEl(ElMinix):
         meta = []
         meta_badges = []
         if artist := getattr(book, "artist", None):
-            meta_badges.append(f"作者: {artist}")
+            meta_badges.append(f"{res.Terms.author}: {artist}")
         if popular := getattr(book, "popular", None):
-            meta_badges.append(f"热度: {popular}")
+            meta_badges.append(f"{res.Terms.popularity}: {popular}")
         if last_chapter := getattr(book, "last_chapter_name", None):
-            meta.append(f"最新: {last_chapter}")
+            meta.append(f"{res.Terms.latest}: {last_chapter}")
         if updated := getattr(book, "datetime_updated", None):
-            meta.append(f"更新: {updated}")
+            meta.append(f"{res.Terms.update}: {updated}")
         return cls.create(
             getattr(book, "idx", ""),
             getattr(book, "img_preview", None) or "",
@@ -107,8 +108,9 @@ class MangaEl(ElMinix):
 
         favorite_html = ""
         if with_favorite:
+            favorite_tip = html.escape(res.GUI.card_favorite_toggle, quote=True)
             favorite_html = f'''
-                <label class="card-favorite-btn ui-bookmark" data-book-key="{idx}" role="button" tabindex="0" aria-pressed="false" aria-label="收藏/取消收藏" title="收藏/取消收藏">
+                <label class="card-favorite-btn ui-bookmark" data-book-key="{idx}" role="button" tabindex="0" aria-pressed="false" aria-label="{favorite_tip}" title="{favorite_tip}">
                     <input class="card-favorite-input" type="checkbox" tabindex="-1" aria-hidden="true">
                     <div class="bookmark" aria-hidden="true">
                         <svg viewBox="0 0 32 32"><g><path d="M27 4v27a1 1 0 0 1-1.625.781L16 24.281l-9.375 7.5A1 1 0 0 1 5 31V4a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4z"></path></g></svg>

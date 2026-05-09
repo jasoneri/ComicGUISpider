@@ -14,6 +14,7 @@ def _build_provider_map():
         Spider.MANGA_COPY: KaobeiUtils, Spider.JM: JmUtils, Spider.WNACG: WnacgUtils, 
         Spider.EHENTAI: EHentaiKits, Spider.MANGABZ: MangabzUtils, Spider.HITOMI: HitomiUtils, 
         Spider.H_COMIC: HComicUtils, Spider.NHENTAI: NhentaiUtils, Spider.JESTFUL: JestfulUtils,
+        Spider.MANHUAGUI: ManhuaguiUtils,
     }
     _PROVIDER_ALIASES = {
         Spider.MANGA_COPY: ("kaobei",), Spider.JESTFUL: ("jf",),

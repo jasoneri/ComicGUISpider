@@ -1,6 +1,13 @@
 Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
   hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
+Terms:
+  index: &term_index "首页"
+  popular: &term_popular "热门"
+  update: &term_update "更新"
+  author: "作者"
+  popularity: "热度"
+  latest: "最新"
 GUI:
   DESC1: "1、首次使用点击<img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\">按钮，看配置窗口左下的`使用手册`"
   DESC2: "2、使用出现问题时先查阅 <a href='https://cgs.101114105.xyz/faq/'>📖FAQ/额外说明</a> 文档排查 "
@@ -43,6 +50,7 @@ GUI:
   WorkThread_finish_flag: "后台已下载"
   WorkThread_empty_flag: "后台正常退出没有"
   manga_fav_tip: "点击卡片右上角 ★ 加进本地收藏"
+  card_favorite_toggle: "收藏/取消收藏"
   copymaga_tips: "拷贝已解锁章节，例如福利连<br>可用 rvTool 的 `显示记录` 进行快速操作"
   copymaga_page_status_tip: "拷贝漫画的翻页数使用的offset/序号，一页30条，想翻到第3页就填60(输出60-89)，类推"
   global_err_hook: "刚才操作导致 GUI 发生异常, 详细查阅 GUI 日志"
@@ -162,9 +170,9 @@ SPIDER:
     frame_book_print_retry_tip: "什么意思？唔……就是你搜的在放✈(飞机)<br>翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没 / 重开换种姿势再搜"
     frame_section_print_extra: " ←_← 点击【开始爬取！】"
   Completer:
-    index: "首页"
-    popular: "热门"
-    update: "更新"
+    index: *term_index
+    popular: *term_popular
+    update: *term_update
   sectionInput_flag: "开始爬取"
   search_url_head_NotImplementedError: "需要自定义搜索网址"
   choice_list_before_turn_page: "此前页面已选择(待结算)"

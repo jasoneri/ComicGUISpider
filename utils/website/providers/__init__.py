@@ -5,6 +5,7 @@ from .ehentai import *
 from .kaobei import *
 from .mangabz import *
 from .jestful import *
+from .manhuagui import *
 from ..hitomi import *
 from .hcomic import *
 from ..nhentai import *

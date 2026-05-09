@@ -20,6 +20,7 @@ class Spider(IntEnum):
     H_COMIC = 8      # 🌎 🔞
     NHENTAI = 9     # 🌎 🔞
     JESTFUL = 10      # 🌎
+    MANHUAGUI = 11    # 🇨🇳
 
     @property
     def spider_name(self): return self.name.lower()
@@ -27,9 +28,9 @@ class Spider(IntEnum):
     @classmethod
     def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI})
     @classmethod
-    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL})
+    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI})
     @classmethod
-    def cn_proxy(cls):  return frozenset({cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI})
+    def cn_proxy(cls):  return frozenset({cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI})
     @classmethod
     def aggr(cls):      return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.H_COMIC, cls.NHENTAI})   # AggrSearchThread._async_run
     @classmethod
@@ -56,7 +57,7 @@ SPIDERS_LABELS = dict(sorted({
     SCRIPT_SITE_INDEX: f"{SCRIPT_SITE_INDEX}、{SCRIPT_SITE_NAME}",
 }.items()))
 
-COOKIES_SUPPORT = {
+COOKIES_SUPPORT = {     # only when login required
     'jm': set(),
     'ehentai': {"igneous","ipb_member_id","ipb_pass_hash"}
 }
@@ -76,6 +77,7 @@ DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[comp
         Spider.H_COMIC: ['更新'],
         Spider.NHENTAI: [res.SPIDER.Completer.update],
         Spider.JESTFUL: [res.SPIDER.Completer.index],
+        Spider.MANHUAGUI: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
     }),
     SCRIPT_SITE_INDEX: [],
 }.items()))
@@ -91,6 +93,7 @@ STATUS_TIP = dict(sorted({
         Spider.H_COMIC: f"h_comic: {res.GUI.SearchInputStatusTip.common}",
         Spider.NHENTAI: f"nhentai: {res.GUI.SearchInputStatusTip.common}",
         Spider.JESTFUL: f"jestful: {res.GUI.SearchInputStatusTip.common}",
+        Spider.MANHUAGUI: f"manhuagui: {res.GUI.SearchInputStatusTip.common}",
     }),
 }.items()))
 

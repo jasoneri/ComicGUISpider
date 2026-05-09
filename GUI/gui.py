@@ -86,6 +86,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         return self.bg_mgr.bg_f
 
     def setupUi(self, MainWindow):
+        conf.sv_path.mkdir(parents=True, exist_ok=True)
         super(SpiderGUI, self).setupUi(MainWindow)
         self.splashScreen = CustomSplashScreen(self)
         self.setup_sleep_widget(self._pick_sleep_widget_image(allow_random=False))

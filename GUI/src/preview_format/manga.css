@@ -2,7 +2,7 @@
 html,body{margin:0;background:var(--preview-body-bg)}
 body{min-height:100vh;box-sizing:border-box;padding:18px;color:var(--preview-text);}
 .preview-shell{max-width:90%;margin:0 auto}
-.preview-manga-card{max-width:min(100%,165px);display:flex}
+.preview-manga-card{align-self:flex-start;max-width:min(100%,165px);display:flex}
 
 
 .book-card{position:relative;display:flex;flex-direction:column;width:100%;min-width:0;overflow:hidden;border:1px solid rgba(15,23,42,0.08);border-radius:22px;background:linear-gradient(180deg,rgba(var(--preview-surface-rgb),0.985),rgba(var(--preview-surface-strong-rgb),0.95));box-shadow:var(--preview-shadow-soft),0 2px 6px rgba(15,23,42,0.05);cursor:pointer;transition:transform 0.2s ease,box-shadow 0.2s ease,border-color 0.2s ease}
@@ -14,7 +14,7 @@ body{min-height:100vh;box-sizing:border-box;padding:18px;color:var(--preview-tex
     backdrop-filter:blur(10px);
     box-shadow:0 12px 30px -24px rgba(15,23,42,0.9)}
 .book-card-cover{position:relative;z-index:0;display:block;width:100%;aspect-ratio:3 / 4;object-fit:cover;background:rgba(148,163,184,0.18);border-bottom:1px solid rgba(15,23,42,0.06);filter:saturate(0.94) contrast(0.985) brightness(0.992);transition:filter 0.24s ease,opacity 0.24s ease}
-.book-card-body{position:relative;z-index:1;display:flex;flex:1 1 auto;flex-direction:column;gap:0.42rem;min-width:0;padding:1rem 0.95rem 0.78rem}
+.book-card-body{position:relative;z-index:1;display:flex;flex:0 0 auto;flex-direction:column;gap:0.42rem;min-width:0;padding:1rem 0.95rem 0.78rem}
 .book-card-title{display:-webkit-box;margin:0;overflow:hidden;color:var(--preview-text);font-size:0.93rem;font-weight:700;line-height:1.32;letter-spacing:0.005em;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .book-card-meta-item{margin:0;overflow:hidden;color:var(--preview-text-soft);font-size:0.735rem;line-height:1.15rem;text-overflow:ellipsis;white-space:nowrap}
 .book-card-status{display:flex;flex-wrap:nowrap;align-items:center;gap:0.35rem;min-width:0;padding:0 0.3rem 0.5rem;background:rgba(var(--preview-surface-strong-rgb),0)}
