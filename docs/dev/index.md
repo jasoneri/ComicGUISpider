@@ -126,9 +126,9 @@ supports_clip=
 
 当前站点接入遵循 provider-first contract：
 
-- MUST：请求、解析、preview、cookies/domain/proxy、章节与图片 URL 定位放在 `utils/website/providers/`
-- MUST：spider 仅承担 Scrapy 下载装配
-- DO NOT：在 provider 和 spider 中重复实现同一站点规则
+- 请求、解析、preview、cookies/domain/proxy、章节与图片 URL 定位放在 `utils/website/providers/`
+- spider 承担 Scrapy 下载装配
+- provider 和 spider 各司其职，避免重复实现同一站点规则
 
 ## 本地开发相关
 请按以下六个部分完成开发：
@@ -171,7 +171,7 @@ supports_clip=
    - `uuid_regex` 或 `get_uuid`
    - `parser` / `reqer_cls` / `__init__`（实例化 `self.reqer` 与 `self.parser`）
 4. `XxxParser` 负责解析方法（`parse_search` / `parse_book` / `parse_search_item` / 章节列表 / reader 解码 / 图片 URL 构建等）
-5. `XxxReqer` 负责请求与 preview 异步流程；复杂站点不要把所有逻辑堆进一个大类
+5. `XxxReqer` 负责请求与 preview 异步流程；复杂站点需要将逻辑拆分到合适的类中
 6. 按站点需要补充这些扩展点：
    - `build_preview_search_request()`（Parser 类方法，构建搜索 `PreviewRequestSpec`）
    - `preview_search()` / `preview_fetch_episodes()` / `preview_fetch_pages()`（Reqer 异步方法）
@@ -180,31 +180,35 @@ supports_clip=
    - `parse_publish_()`
    - 资源定位 / 响应适配辅助函数
    - 站点专用异常类型
-7. 保持异常直接暴露根因，不要吞异常、静默返回空值或做无说明的兼容补丁
+7. 已有全局捕获异常机制，业务代码不进行冗余捕获，静默返回空值或无说明的兼容补丁
 
 **三、spider 部分**
 
 1. 仅当站点需要进入 Scrapy 下载链路时，才新增或修改 `ComicSpider/spiders/<site>.py`
-2. 根据下载流程选择基类：
+2. provider-first 站点的下载路线：下载入口消费已由 provider preview 填充的下载对象
+   - `Spider.mangas()` 站点：提交 Scrapy 前，由 `preview_fetch_pages()` 填充 `Episode.page_urls`
+   - spider 侧专注于下载装配，书页、章节页、图片页解析收口在 provider
+   - 开发前确认章节与图片页解析已在 provider 内覆盖；spider 只消费 provider 的预览链路结果
+3. 根据下载流程选择基类：
    - `BaseComicSpider`
    - `BaseComicSpider2`
    - `BaseComicSpider3`
    - `FormReqBaseComicSpider`
-3. 只补基类要求的下载字段：
+4. 只补基类要求的下载字段：
    - `name`
    - `domain`
    - `search_url_head`
    - `book_id_url` / `transfer_url`（基类或跳转流程需要时）
-   - `mappings`（基类仍需要时）
+   - `mappings`（默认至少支持 `首页`或`更新`）
    - `turn_page_search` / `turn_page_info`（基类仍需要页码映射时）
-4. 只按下载 fan-out 缺口实现：
-   - `preready()`
-   - `frame_book()`
-   - `frame_section()`
-   - `parse_fin_page()`
+5. 只按下载 fan-out 缺口实现：
+   - `_process_episode()`：普通漫画站点消费 `Episode.page_urls` 并装配 item；未填充时抛出明确错误，作为 provider 预览链路的自检点
+   - `process_item()`：仅用于 fake request 转交已构造 item
+   - `image_request_meta()`（图片请求确实需要章节 referer 等元信息时）
    - `custom_settings`（最小且正确的 middleware / pipeline 组合）
-5. spider 必须通过 `self.spider_site_runtime` 消费 provider 的 reqer / parser；禁止在 spider 重写搜索、书页、章节、reader 或图片 URL 解析
-6. 需要代理、Referer 或 UA 时再装配：
+6. 将 `frame_section()` / `parse_fin_page()` 等解析逻辑收口在 provider，spider 内只走单一下载路线
+7. spider 通过下载对象消费 provider 预览结果；搜索、书页、章节、reader 与图片 URL 解析统一在 provider 完成
+8. 需要代理、Referer 或 UA 时再装配：
    - `ComicDlProxyMiddleware`
    - `ComicDlAllProxyMiddleware`
    - `RefererMiddleware`
@@ -219,7 +223,7 @@ supports_clip=
    - `Spider` 枚举
    - `DEFAULT_COMPLETER`
    - `STATUS_TIP`
-   - `COOKIES_SUPPORT`（需要登录状态的 cookies 时，非登录的短效令牌禁止写进其中）
+   - `COOKIES_SUPPORT`（需要登录状态的 cookies 时，非登录的短效令牌不得写入）
    - 能力集合：`specials()` / `mangas()` / `cn_proxy()` / `aggr()` / `clip()`
 4. 明确 `specials()` 与 `preview_fetch_episodes()` 的契约：
    - 属于 `specials()` 的站点通常不需要 CLI `-i2`
@@ -234,11 +238,12 @@ supports_clip=
 4. 先跑 CLI 链路：
    - `uv run crawl_only.py -w 序号 -k 关键词 -i 1`
    - 非 `specials()` 站点再补 `-i2 1`
+   - 普通漫画站点 CLI 在提交 Scrapy 前调用 `preview_fetch_pages()` 填充 `Episode.page_urls`
 5. 再跑 GUI 链路：
    - `uv run CGS.py`
 6. 需要时由 agent 自行执行对应的 `uv run python -m unittest ...`
 7. 检查搜索、预览、章节选择、下载、任务面板、`log/scrapy.log` 是否都正常
-8. 若发现兼容节点或职责边界冲突，先把冲突点明确列出并说明影响，再决定如何实现
+8. 遇到兼容节点或职责边界冲突时，先把冲突点明确列出并说明影响，再决定实现方式
 
 **六、输出要求**
 
@@ -247,7 +252,7 @@ supports_clip=
 - 默认使用 `uv`
 - 测试使用 `unittest`；若需补自动验证，由 agent 在 `test/` 下自行创建脚本
 - 注释非必要不添加
-- 禁止隐藏报错堆栈，异常直接暴露根因
+- 业务代码不进行冗余捕获，不隐藏报错堆栈
 - 代码完成后使用 `$style-refactor` 对本轮改动做一次结构清洗
 - 提醒用户 PR 应合并到当前最新的 `*-dev` 分支
 ```
@@ -319,12 +324,12 @@ ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，�
 &emsp;🔳 `book_id_url` / `transfer_url`  
 &emsp;🔳 `mappings` / `turn_page_search` / `turn_page_info`  
 &emsp;🔳 `preready`  
-&emsp;✅ `frame_book`  
-&emsp;✅ `frame_section`  
-&emsp;🔳 `parse_fin_page`  
+&emsp;✅ `_process_episode`（普通漫画站点只消费已填充 `page_urls` 的 Episode）  
+&emsp;🔳 `process_item`  
+&emsp;🔳 `image_request_meta`  
 &emsp;🔳 `custom_settings`（middleware / pipeline 组合）
 
-> [!tip] spider 负责下载装配，不应重复堆解析规则。当前代码通过 `self.spider_site_runtime` 消费 provider 的 reqer / parser 能力。
+> [!tip] spider 负责下载装配，解析规则统一收口 provider。普通漫画站点的章节与图片页数据应在 provider preview 链路完成，`Episode.page_urls` 空值时抛出明确错误，无需在 spider 侧补另一条请求路线。
 
 ### 3. 其他代码
 

@@ -175,8 +175,9 @@ class PreprocessRuntimeProbe:
     async def manga_copy_cache_hit(self) -> bool:
         runtime = self.gui_site_runtime.create_thread_site_runtime()
         try:
-            runtime.reqer.get_aes_key()
-            return runtime.reqer.aes_cache_hit()
+            reqer = runtime.reqer
+            await reqer.ensure_preview_aes_key()
+            return reqer.aes_cache_hit()
         finally:
             await runtime.aclose()
 
@@ -253,9 +254,9 @@ async def _preprocess_ehentai(gui_site_runtime: "GuiSiteRuntime", *, conf_state=
             messages=(_message("error", res.EHentai.ACCESS_FAIL, channel="custom", url=provider_index, url_name=gui_site_runtime.name),),
             state_flags={"cookies_ready": True, "access_ready": False})
 
+    attach_runtime_action = _action("attach_ehentai_runtime", runtime=verified_runtime)
     return PreprocessResult(ready=True, domain=provider_domain, runtime_ready=True,
-        messages=(_message("success", "<br>✅ exhentai access pass"),),
-        actions=(_action("attach_ehentai_runtime", runtime=verified_runtime),),
+        messages=(_message("success", "<br>✅ exhentai access pass"),), actions=(attach_runtime_action,),
         state_flags={"cookies_ready": True, "access_ready": True})
 
 async def _preprocess_hitomi(

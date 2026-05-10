@@ -226,9 +226,7 @@ class TitleAliasSession:
         preferred_title, preferred_reason = self._pick_preferred_title(aliases)
         self._result = TitleAliasResult(
             raw_other_name=self._raw_other_name,
-            aliases=aliases,
-            preferred_title=preferred_title,
-            preferred_reason=preferred_reason,
+            aliases=aliases, preferred_title=preferred_title, preferred_reason=preferred_reason,
         )
         return self._result
 
@@ -300,6 +298,38 @@ class JestfulParser(_JestfulContract, Previewer):
         return ""
 
     @classmethod
+    def _strip_title_prefix(cls, value: str, *, title: str | None) -> str:
+        normalized_title = cls._semantics.normalize_text(title)
+        if normalized_title and value.lower().startswith(normalized_title.lower()):
+            return cls._semantics.normalize_text(value[len(normalized_title):].lstrip(" :#-"))
+        return value
+
+    @classmethod
+    def clean_latest_chapter(cls, value: str | None, *, title: str | None = None) -> str:
+        cleaned = cls._semantics.normalize_text(value)
+        if not cleaned:
+            return ""
+        lowered = cleaned.lower()
+        for prefix in ("last chapter", "latest chapter"):
+            if lowered.startswith(prefix):
+                suffix = cls._semantics.normalize_text(cleaned[len(prefix):].lstrip(" :#-"))
+                return f"Chapter {suffix}" if suffix and not suffix.lower().startswith("chapter") else suffix
+        stripped = cls._strip_title_prefix(cleaned, title=title)
+        chapter_match = re.search(r"\bchapter\b\s*[:#-]?\s*(.+)$", stripped, re.I)
+        if chapter_match:
+            suffix = cls._semantics.normalize_text(chapter_match.group(1).strip(" :#-"))
+            return f"Chapter {suffix}" if suffix else "Chapter"
+        return stripped
+
+    @classmethod
+    def apply_latest_chapter(cls, book: JestfulBookInfo, value: str | None) -> str:
+        latest = cls.clean_latest_chapter(value, title=getattr(book, "name", None))
+        if latest:
+            book.latest_sec = latest
+            book.last_chapter_name = latest
+        return latest
+
+    @classmethod
     def _new_book(cls, *, idx: int, url: str) -> JestfulBookInfo:
         return JestfulBookInfo(idx=idx, render_keys=["name", "latest_sec"], url=url, preview_url=url)
 
@@ -321,7 +351,7 @@ class JestfulParser(_JestfulContract, Previewer):
             if not book.name:
                 raise ValueError(f"jestful search card missing title: idx={idx} href={href}")
             latest_text = cls._semantics.normalize_text(card.xpath(".//a[contains(@class,'btn-danger')]/text()").get())
-            book.latest_sec = latest_text
+            cls.apply_latest_chapter(book, latest_text)
             cover = cls._semantics.normalize_text(card.xpath(".//div[contains(@class,'content')]/@data-bg").get())
             book.img_preview = cls.normalize_preview_resource(cover, domain=domain) if cover else None
             books.append(book)
@@ -344,7 +374,7 @@ class JestfulParser(_JestfulContract, Previewer):
             ) or cls._semantics.normalize_text(card.xpath(".//a[contains(@class,'cover')]//img[1]/@alt").get())
             if not book.name:
                 continue
-            book.latest_sec = cls._semantics.normalize_text(card.xpath(".//a[contains(@class,'chapter')][1]/@title").get())
+            cls.apply_latest_chapter(book, card.xpath(".//a[contains(@class,'chapter')][1]/@title").get())
             cover = cls._semantics.normalize_text(
                 card.xpath(".//a[contains(@class,'cover')]//img[1]/@data-src").get()
                 or card.xpath(".//a[contains(@class,'cover')]//img[1]/@src").get()
@@ -384,7 +414,7 @@ class JestfulParser(_JestfulContract, Previewer):
                 book.name = cls._semantics.normalize_text(str(item.get("primary") or ""))
                 if not book.name:
                     raise ValueError(f"jestful suggest item missing primary: {item!r}")
-                book.latest_sec = cls._semantics.normalize_text(str(item.get("secondary") or ""))
+                cls.apply_latest_chapter(book, str(item.get("secondary") or ""))
                 cover = cls._semantics.normalize_text(str(item.get("image") or ""))
                 book.img_preview = cls.normalize_preview_resource(cover, domain=domain) if cover else None
                 books.append(book)
@@ -452,10 +482,10 @@ class JestfulParser(_JestfulContract, Previewer):
 
         sel = Selector(text=html_text)
         latest_href = sel.css("a.btn.btn-danger.btn-md[target='_blank']::attr(href)").get()
-        latest_sec = cls._semantics.normalize_text(sel.css("a.btn.btn-danger.btn-md[target='_blank']::text").get())
+        title = cls._semantics.normalize_text(sel.css("ul.manga-info > h3::text").get())
+        latest_sec = cls.clean_latest_chapter(sel.css("a.btn.btn-danger.btn-md[target='_blank']::text").get(), title=title)
         manga_id_match = re.search(r"cont\.pop\.php\?action=pop&id=(\d+)", html_text)
         fields = cls._semantics.parse_labeled_rows(sel.css("ul.manga-info li"), label_xpath="./b[1]//text()")
-        title = cls._semantics.normalize_text(sel.css("ul.manga-info > h3::text").get())
         alias_result = TitleAliasSession(
             base_title=title,
             raw_other_name=str(fields.get("other name (s)") or fields.get("other name") or ""),
@@ -536,9 +566,7 @@ class JestfulReqer(_JestfulContract, Req):
         domain = session.site_context.host
         pop_resp = await self.ensure_preview_client().get(
             session.controller_url("cont.pop", action="pop", id=book_id),
-            headers=session.headers(xhr=True),
-            follow_redirects=True,
-            timeout=12,
+            headers=session.headers(xhr=True), follow_redirects=True, timeout=12,
         )
         pop_resp.raise_for_status()
         pop_fields = await asyncio.to_thread(owner.parser.parse_book_pop_fields, pop_resp.text, request_url=str(pop_resp.url))
@@ -570,9 +598,7 @@ class JestfulReqer(_JestfulContract, Req):
         return True
 
     async def _fetch_parse(self, url, parse_fn, *, domain, headers=None):
-        resp = await self.ensure_preview_client().get(
-            url, headers=headers or self.ua, follow_redirects=True, timeout=12,
-        )
+        resp = await self.ensure_preview_client().get(url, headers=headers or self.ua, follow_redirects=True, timeout=12)
         resp.raise_for_status()
         return await asyncio.to_thread(parse_fn, resp.text, domain=domain)
 
@@ -599,9 +625,7 @@ class JestfulReqer(_JestfulContract, Req):
         # Fallback to suggest
         return await self._fetch_parse(
             session.controller_url("search.single", q=keyword),
-            parse.parse_search_suggest,
-            domain=domain,
-            headers=session.headers(xhr=True),
+            parse.parse_search_suggest, domain=domain, headers=session.headers(xhr=True),
         )
 
     async def preview_fetch_episodes(self, book):
@@ -619,7 +643,7 @@ class JestfulReqer(_JestfulContract, Req):
         book.loader_slug = owner_state["loader_slug"]
         book.manga_id = owner_state["manga_id"]
         if owner_state.get("latest_sec"):
-            book.latest_sec = owner_state["latest_sec"]
+            owner.parser.apply_latest_chapter(book, owner_state["latest_sec"])
         if owner_state.get("cover_url") and not book.img_preview:
             book.img_preview = owner.parser.normalize_preview_resource(owner_state["cover_url"], domain=domain)
         if owner_state.get("preferred_title"):
@@ -640,9 +664,7 @@ class JestfulReqer(_JestfulContract, Req):
 
         chapter_resp = await preview_client.get(
             session.tokenized_url("lstc", token_length=25, query_name="slug", value=owner_state["loader_slug"]),
-            headers=session.headers(referer=owner_url, xhr=True),
-            follow_redirects=True,
-            timeout=12,
+            headers=session.headers(referer=owner_url, xhr=True), follow_redirects=True, timeout=12,
         )
         chapter_resp.raise_for_status()
         return await asyncio.to_thread(owner.parser.parse_episodes_from_list_html, chapter_resp.text, book, domain=domain)
@@ -659,9 +681,7 @@ class JestfulReqer(_JestfulContract, Req):
 
         iog_resp = await preview_client.get(
             session.tokenized_url("iog", token_length=30, query_name="cid", value=cid),
-            headers=session.headers(referer=chapter_url),
-            follow_redirects=True,
-            timeout=12,
+            headers=session.headers(referer=chapter_url), follow_redirects=True, timeout=12,
         )
         iog_resp.raise_for_status()
         urls = await asyncio.to_thread(owner.parser.parse_iog_image_urls, iog_resp.text, request_url=str(iog_resp.url))

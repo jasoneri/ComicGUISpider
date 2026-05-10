@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from lxml import html
 
-from utils import conf, get_loop, temp_p
+from utils import conf, temp_p
 from utils.website.core import Cache, Previewer, Req, Utils, build_proxy_transport
 from utils.website.info import Episode, KbBookInfo
 
@@ -84,9 +84,7 @@ class KaobeiParser(_KaobeiContract):
         }
         book_path = rendered.pop("book_path")
         book = KbBookInfo(
-            idx=idx,
-            render_keys=render_keys,
-            url=f"https://{cls.pc_domain}/comicdetail/{book_path}/chapters",
+            idx=idx, render_keys=render_keys, url=f"https://{cls.pc_domain}/comicdetail/{book_path}/chapters",
             preview_url=f"https://{cls.pc_domain}/comic/{book_path}",
         )
         for key in render_keys:
@@ -96,11 +94,8 @@ class KaobeiParser(_KaobeiContract):
     @classmethod
     def parse_ep_item(cls, chapter_datum, comic_path_word, book, idx):
         return Episode(
-            from_book=book,
-            id=chapter_datum["id"],
-            idx=idx,
-            url=f"https://{cls.pc_domain}/comic/{comic_path_word}/chapter/{chapter_datum['id']}",
-            name=chapter_datum["name"],
+            from_book=book, id=chapter_datum["id"], idx=idx,
+            url=f"https://{cls.pc_domain}/comic/{comic_path_word}/chapter/{chapter_datum['id']}", name=chapter_datum["name"],
         )
 
     def parse_episodes(self, json_results, book, *, url, show_dhb=False):
@@ -295,11 +290,7 @@ class KaobeiReqer(_KaobeiContract, Req):
 
     async def _fetch_aes_key(self) -> str:
         resp = await self._preview_get(
-            f"https://{self.pc_domain}/comic/yiquanchaoren",
-            headers=self.headers,
-            stage="aes_key",
-            follow_redirects=True,
-            timeout=12,
+            f"https://{self.pc_domain}/comic/yiquanchaoren", headers=self.headers, stage="aes_key", follow_redirects=True, timeout=12,
         )
         return self._write_cached_key(self.extract_aes_key(resp.text))
 
@@ -319,11 +310,11 @@ class KaobeiReqer(_KaobeiContract, Req):
     def get_aes_key(self) -> str:
         if cached := self._read_cached_key():
             return cached
-        loop = get_loop()
         try:
-            return loop.run_until_complete(self.ensure_preview_aes_key())
-        finally:
-            loop.close()
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.ensure_preview_aes_key())
+        raise RuntimeError("kaobei get_aes_key cannot run inside a running event loop; await ensure_preview_aes_key()")
 
     async def preview_search(self, keyword: str, *, page: int = 1):
         url, frame = self.build_search_spec(keyword)
@@ -345,11 +336,7 @@ class KaobeiReqer(_KaobeiContract, Req):
             payload = self._parse_preview_json(resp, stage="preview_fetch_episodes", request_url=book.url)
             try:
                 return await asyncio.to_thread(
-                    self.parser.parse_episodes,
-                    payload["results"],
-                    book,
-                    url=book.url,
-                    show_dhb=parser_show_dhb,
+                    self.parser.parse_episodes, payload["results"], book, url=book.url, show_dhb=parser_show_dhb,
                 )
             except ValueError as exc:
                 last_exc = exc
