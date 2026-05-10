@@ -23,6 +23,7 @@ _ = None
 i18n = None
 Vars = None
 GUI = None
+Terms = None
 SPIDER = None
 EHentai = None
 Updater = None
@@ -72,7 +73,7 @@ def create_translation_namespaces():
     modules = {}
     
     # 顶级命名空间 (如 Vars, GUI, Updater)
-    for module_name in ['Vars', 'GUI', 'Updater', 'SPIDER', 'EHentai']:
+    for module_name in ['Vars', 'GUI', 'Terms', 'Updater', 'SPIDER', 'EHentai']:
         modules[module_name] = TranslationNamespace(module_name)
     return types.SimpleNamespace(**modules)
 
@@ -82,7 +83,7 @@ def set_language(new_lang: str):
     设置并加载新的语言翻译。
     这个函数会重新编译（如果需要），加载翻译文件，并更新所有模块级变量。
     """
-    global lang, _, i18n, Vars, GUI, SPIDER, EHentai, Updater
+    global lang, _, i18n, Vars, GUI, Terms, SPIDER, EHentai, Updater
 
     lang = new_lang
     if not is_compiled(lang):
@@ -101,6 +102,7 @@ def set_language(new_lang: str):
 
     Vars = i18n.Vars
     GUI = i18n.GUI
+    Terms = i18n.Terms
     SPIDER = i18n.SPIDER
     EHentai = i18n.EHentai
     Updater = i18n.Updater

@@ -28,7 +28,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
-
+      - name: Install Qt runtime libs for smoke test
+        uses: tlambert03/setup-qt-libs@v1
       - name: Install dependencies
         run: uv sync
 
@@ -37,7 +38,7 @@ jobs:
         continue-on-error: true
         run: |
           uv run python -m utils.website.hitomi.scape_dataset \
-            --db-path assets/hitomi.db \
+            --db-path __temp/hitomi.db \
             --workers 2 \
             --max-retries 5 \
             --timeout 15
@@ -47,20 +48,20 @@ jobs:
         if: steps.scrape.outcome == 'failure'
         run: |
           uv run python -m utils.website.hitomi.scape_dataset \
-            --db-path assets/hitomi.db \
+            --db-path __temp/hitomi.db \
             --workers 1 \
             --max-retries 8 \
             --timeout 20 \
             --only-failed
 
       - name: Quality gate
-        run: uv run python .github/scripts/hitomi_db_gate.py assets/hitomi.db
+        run: uv run python .github/scripts/hitomi_db_gate.py __temp/hitomi.db
 
       - name: Generate manifest
         run: |
           uv run python .github/scripts/generate_hitomi_manifest.py \
-            assets/hitomi.db \
-            --output assets/hitomi-manifest.json
+            __temp/hitomi.db \
+            --output __temp/hitomi-manifest.json
 
       - name: Upload to release
         env:
@@ -74,13 +75,13 @@ jobs:
             gh release delete-asset "$TAG" hitomi.db --yes 2>/dev/null || true
             gh release delete-asset "$TAG" hitomi-manifest.json --yes 2>/dev/null || true
             gh release upload "$TAG" \
-              assets/hitomi.db \
-              assets/hitomi-manifest.json
+              __temp/hitomi.db \
+              __temp/hitomi-manifest.json
           else
             gh release create "$TAG" \
               --title "Preset Assets" \
               --notes "Auto-managed preset assets (hitomi.db, etc.)" \
               --latest=false \
-              assets/hitomi.db \
-              assets/hitomi-manifest.json
+              __temp/hitomi.db \
+              __temp/hitomi-manifest.json
           fi

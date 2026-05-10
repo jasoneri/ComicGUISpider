@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -8,7 +8,6 @@ from loguru import logger as lg
 
 from utils import get_httpx_verify
 from utils.network.doh import build_http_transport
-from utils.script import conf as script_conf
 
 from .constants import DANBOORU_BASE_URL, DANBOORU_CHALLENGE_MARKERS
 from .debug import append_danbooru_debug_event, debug_shrink_text
@@ -100,18 +99,11 @@ class DanbooruResponseInspector:
         )
         append_danbooru_debug_event(
             "http.response",
-            scope=scope,
-            method=request.method,
-            url=str(request.url),
-            status=response.status_code,
-            content_type=response.headers.get("content-type", ""),
-            classification=cls.classify(response),
-            user_agent=request.headers.get("User-Agent", ""),
-            referer=request.headers.get("Referer", ""),
-            request_header_names=request_header_names,
-            request_cookie_names=request_cookie_names,
-            response_head=debug_shrink_text(getattr(response, "text", "") or ""),
-            browser_session=browser_session.summary(),
+            scope=scope, method=request.method, url=str(request.url), status=response.status_code,
+            content_type=response.headers.get("content-type", ""), classification=cls.classify(response),
+            user_agent=request.headers.get("User-Agent", ""), referer=request.headers.get("Referer", ""),
+            request_header_names=request_header_names, request_cookie_names=request_cookie_names,
+            response_head=debug_shrink_text(getattr(response, "text", "") or ""), browser_session=browser_session.summary(),
         )
 
     @classmethod
@@ -119,19 +111,18 @@ class DanbooruResponseInspector:
         if cls.is_challenge_response(response):
             append_danbooru_debug_event(
                 "http.challenge_detected",
-                verify_url=cls._verification_url(response),
-                status=response.status_code,
+                verify_url=cls._verification_url(response), status=response.status_code,
                 url=str(getattr(getattr(response, "request", None), "url", "")),
             )
             raise DanbooruChallengeRequired(
-                verify_url=cls._verification_url(response),
-                status_code=response.status_code,
+                verify_url=cls._verification_url(response), status_code=response.status_code,
                 detail=f"Danbooru request blocked by browser verification ({response.status_code})",
             )
         response.raise_for_status()
 
-def create_async_http_client(
+def create_client(
     *,
+    mode: Literal["sync", "async"] = "sync",
     base_url: str = "",
     headers: Optional[dict] = None,
     timeout: float = 30.0,
@@ -140,26 +131,20 @@ def create_async_http_client(
     retries: int = 2,
     runtime_config: Optional["DanbooruRuntimeConfig"] = None,
     **kwargs,
-) -> httpx.AsyncClient:
+) -> httpx.Client | httpx.AsyncClient:
     from .models import DanbooruRuntimeConfig
 
+    if mode not in {"sync", "async"}:
+        raise ValueError(f"Unsupported Danbooru client mode: {mode}")
     config = runtime_config or DanbooruRuntimeConfig.from_conf()
     transport, trust_env = build_http_transport(
-        proxy_policy,
-        getattr(script_conf, "proxies", None) or [],
-        doh_url=config.doh_url,
-        is_async=True,
-        retries=retries,
-        verify=get_httpx_verify(),
+        proxy_policy, list(config.proxies), doh_url=config.doh_url, is_async=mode == "async",
+        retries=retries, verify=get_httpx_verify(),
     )
-    client = httpx.AsyncClient(
-        base_url=base_url,
-        headers=headers,
-        timeout=timeout,
-        follow_redirects=follow_redirects,
-        transport=transport,
-        trust_env=trust_env,
-        **kwargs,
+    client_cls = httpx.AsyncClient if mode == "async" else httpx.Client
+    client = client_cls(
+        base_url=base_url, headers=headers, timeout=timeout, follow_redirects=follow_redirects,
+        transport=transport, trust_env=trust_env, **kwargs,
     )
     danbooru_browser_session_store.apply_to(client)
     return client

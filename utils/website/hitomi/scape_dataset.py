@@ -4,15 +4,14 @@ import time
 import random
 import sqlite3
 import argparse
-from pathlib import Path
 from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import httpx
 from lxml import html
-
+# TODO[0](2026-05-05): ratelimit
 from assets import res
-from utils import ori_path, temp_p, conf
+from utils import temp_p
 
 
 BASE_URL = "https://hitomi.la/all{category}-{letter}.html"
@@ -24,29 +23,8 @@ HEADERS = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
     "referer": "https://hitomi.la/"
 }
-regex = re.compile('.*/(.*?)-all')
-digit_regex = re.compile(r'\d+')
-
-
-def _make_client(proxy_addr=None):
-    kwargs = dict(http2=True, headers=HEADERS)
-    if proxy_addr:
-        kwargs["proxy"] = f"http://{proxy_addr}"
-    return httpx.Client(**kwargs)
-
-
-def _get_paths(db_path_override=None):
-    if db_path_override:
-        p = Path(db_path_override)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.parent / '__temp'
-        tmp.mkdir(exist_ok=True)
-        return p, tmp
-    return ori_path.joinpath('assets/hitomi.db'), temp_p
-
-
-def _get_proxy():
-    return (conf.proxies or [None])[0]
+count_regex = re.compile(r'\((\d+)\)\s*$')
+convention_tag_regex = re.compile(r'c\d+\Z', re.IGNORECASE)
 
 
 def lstrip(text):
@@ -92,7 +70,7 @@ def _request_with_retry(client, url, max_retries=3, base_delay=2, jitter=1, time
         try:
             resp = client.get(url, timeout=timeout)
             resp.raise_for_status()
-            return resp.content
+            return resp.text
         except (httpx.HTTPError, httpx.TimeoutException) as e:
             if attempt == max_retries:
                 raise
@@ -101,17 +79,36 @@ def _request_with_retry(client, url, max_retries=3, base_delay=2, jitter=1, time
             time.sleep(delay)
 
 
+def _parse_post_item(li, category):
+    def _normalize_content(content):
+        content = content.strip()
+        if category == "tags" and convention_tag_regex.fullmatch(content):
+            return content.upper()
+        return content
+    content = _normalize_content(li.xpath("normalize-space(string(./a))"))
+    if not content:
+        return None
+    count_match = count_regex.search(li.xpath("normalize-space(string(.))"))
+    if count_match is None:
+        href = li.xpath("./a/@href")
+        raise ValueError(f"missing trailing count in hitomi list item: {href[0] if href else content!r}")
+    return content, int(count_match.group(1))
+
+
+def _parse_posts_page(page_text, category):
+    tree = html.fromstring(page_text)
+    items = []
+    for li in tree.xpath('//ul[@class="posts"]/li'):
+        item = _parse_post_item(li, category)
+        if item is not None:
+            items.append(item)
+    return items
+
+
 def _scrape_one(client, category, letter, timeout=10, max_retries=3):
     url = BASE_URL.format(category=category, letter=letter)
-    content = _request_with_retry(client, url, max_retries=max_retries, timeout=timeout)
-    tree = html.fromstring(content)
-    lis = tree.xpath('//ul[@class="posts"]/li')
-    items = [
-        (regex.search(li.xpath('./a/@href')[0]).group(1),
-            int(''.join(digit_regex.findall(li.xpath('.//text()')[-1]))))
-        for li in lis
-    ]
-    return [item for item in items if item[0].strip()]
+    page_text = _request_with_retry(client, url, max_retries=max_retries, timeout=timeout)
+    return _parse_posts_page(page_text, category)
 
 
 def _save_one(db_conn, table_name, items, rewrite_flag):
@@ -121,17 +118,17 @@ def _save_one(db_conn, table_name, items, rewrite_flag):
         cursor.execute(Db.data_tb % table_name)
         db_conn.commit()
     with closing(db_conn.cursor()) as cursor:
-        cursor.executemany(
-            f"INSERT OR IGNORE INTO `{table_name}` (content,num) VALUES (?,?)",
-            items
-        )
+        cursor.executemany(f"INSERT OR IGNORE INTO `{table_name}` (content,num) VALUES (?,?)", items)
         db_conn.commit()
         print(f"[SUCCESS] {table_name} written {cursor.rowcount}")
 
 
-def scrape_and_save(db_p, temp_p, workers=2, max_retries=3, timeout=10):
-    client = _make_client(_get_proxy())
-    init_err_f = temp_p.joinpath('hitomi_db_init_err.json') if hasattr(temp_p, 'joinpath') else Path(temp_p) / 'hitomi_db_init_err.json'
+def scrape_and_save(db_p, workers=2, max_retries=3, timeout=10):
+    client = httpx.Client(
+        http2=True, headers=HEADERS,
+        # proxy="http://127.0.0.1:10809"
+    )
+    init_err_f = temp_p.joinpath('hitomi_db_init_err.json')
     tb_rewrite_flag = False
     tasks = []
 
@@ -159,7 +156,7 @@ def scrape_and_save(db_p, temp_p, workers=2, max_retries=3, timeout=10):
             for future in as_completed(futures):
                 task_key = futures[future]
                 try:
-                    key, table_name, items = future.result()
+                    _, table_name, items = future.result()
                     _save_one(db_conn, table_name, items, tb_rewrite_flag)
                 except Exception as e:
                     print(f"[ERROR] {task_key} {e}")
@@ -183,20 +180,12 @@ def main():
     parser.add_argument('--max-retries', type=int, default=3, help='max retries per request (default: 3)')
     parser.add_argument('--timeout', type=int, default=10, help='request timeout in seconds (default: 10)')
     parser.add_argument('--only-failed', action='store_true', help='only retry previously failed tasks')
-    parser.add_argument('--db-path', type=str, default=None, help='override hitomi.db path (for CI)')
     args = parser.parse_args()
 
-    db_p, temp_p = _get_paths(args.db_path)
-
+    db_p = temp_p.joinpath("hitomi.db")
     Db.create_tables(db_p)
-    success = scrape_and_save(
-        db_p, temp_p,
-        workers=args.workers,
-        max_retries=args.max_retries,
-        timeout=args.timeout,
-    )
+    success = scrape_and_save(db_p, workers=args.workers, max_retries=args.max_retries, timeout=args.timeout)
     exit(0 if success else 1)
-
 
 if __name__ == "__main__":
     main()

@@ -15,21 +15,25 @@ from deploy import curr_os
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
 from GUI.uic.qfluent.components import CountBadge, CustomInfoBar
+from utils.script.image.danbooru.client import DanbooruClient
 from utils.config.qc import danbooru_cfg
-from utils.script.image.danbooru.constants import DANBOORU_SQL_TABLE
+from utils.script.image.danbooru.constants import DANBOORU_SAVE_TYPE_SEARCH_TAG, DANBOORU_SQL_TABLE
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig, DanbooruSearchQuery
+from utils.script import folder_sub
 from utils.sql import SqlRecorder
 
 from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
-from .detail_preview import DanbooruDetailPreviewController
+from .detail_preview import DetailPreviewController
+from .favorite_groups import build_favorite_groups_state
 from .favorites import DanbooruFavoriteManagerDialog
 from .style import (
-    CARD_ZOOM_METRICS, DEFAULT_CARD_ZOOM_INDEX, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
+    CARD_ZOOM_METRICS, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
     build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
     format_tip_rich_text as _format_tip_rich_text, qcolor_from_css,
 )
 from .tab import DanbooruTabWidget
+from .video_proxy import VideoProxy
 from .viewer import DanbooruImageViewer
 
 class DanbooruInterface(QFrame):
@@ -41,19 +45,19 @@ class DanbooruInterface(QFrame):
         self.gui = parent.gui
         self.setObjectName("DanbooruInterface")
         self.task_mgr = AsyncTaskManager(self.gui)
-        self.tab_counter = 0
         self.tabs: dict[str, DanbooruTabWidget] = {}
         self.tab_states: dict[str, DanbooruTabState] = {}
-        self._tab_tips: dict[str, tuple[str, str]] = {}
-        self._tab_httpx_status: dict[str, str] = {}
+        self._runtime_config = DanbooruRuntimeConfig.from_conf()
+        self.request_client = DanbooruClient(runtime_config=self._runtime_config)
         self.sql_recorder = SqlRecorder(table=DANBOORU_SQL_TABLE)
+        self.video_proxy = VideoProxy(self.request_client, self)
         self.image_viewer = DanbooruImageViewer(parent)
-        self.detail_preview_controller = DanbooruDetailPreviewController(self, self.image_viewer)
+        self.detail_preview_controller = DetailPreviewController(self, self.image_viewer)
         self.search_controller = DanbooruSearchController(self)
         self.download_controller = DanbooruDownloadController(self)
         self.challenge_controller = DanbooruChallengeController(self)
         self.zoom_mgr = self._ZoomMgr(self)
-        self._runtime_config = DanbooruRuntimeConfig.from_conf()
+        self.tab_mgr = self._TabMgr(self)
         self.download_result_signal.connect(self.download_controller.on_download_result)
         self.image_viewer.tag_clicked.connect(self._open_tag_jump_tab)
         self.image_viewer.download_requested.connect(self.download_controller.submit_single)
@@ -61,59 +65,9 @@ class DanbooruInterface(QFrame):
         self.image_viewer.next_requested.connect(lambda: self.detail_preview_controller.open_adjacent(1))
         self.image_viewer.closed.connect(self.detail_preview_controller.clear_context)
         theme_mgr.subscribe(self._apply_theme)
-        self.destroyed.connect(lambda *_args: self.task_mgr.cleanup())
         self.setupUi()
         self._apply_theme()
-        self.create_tab()
-
-    class _ZoomMgr:
-        def __init__(self, interface: "DanbooruInterface"):
-            self.interface = interface
-            self.zoom_index = DEFAULT_CARD_ZOOM_INDEX
-            self.generation = 0
-
-        def current_metrics(self) -> DanbooruCardMetrics:
-            return CARD_ZOOM_METRICS[self.zoom_index]
-
-        def zoom_in(self):
-            if self.zoom_index >= len(CARD_ZOOM_METRICS) - 1:
-                return
-            self.zoom_index += 1
-            self.apply_current()
-            self.sync_buttons()
-
-        def zoom_out(self):
-            if self.zoom_index <= 0:
-                return
-            self.zoom_index -= 1
-            self.apply_current()
-            self.sync_buttons()
-
-        def sync_buttons(self):
-            self.interface.zoomIn.setEnabled(self.zoom_index < len(CARD_ZOOM_METRICS) - 1)
-            self.interface.zoomOut.setEnabled(self.zoom_index > 0)
-
-        def apply_current(self, *, active_tab_id: t.Optional[str] = None):
-            self.generation += 1
-            metrics = self.current_metrics()
-            active_tab_id = self.interface._active_tab_id() if active_tab_id is None else active_tab_id
-            for tab_id, tab in self.interface.tabs.items():
-                if tab_id == active_tab_id:
-                    tab.zoom_mgr.apply_active(metrics=metrics)
-                else:
-                    tab.zoom_mgr.mark_hidden_target(metrics=metrics)
-
-        def sync_tab(self, tab_id: str):
-            tab = self.interface.tabs.get(tab_id)
-            if tab is None:
-                return
-            tab.zoom_mgr.sync_to(metrics=self.current_metrics())
-
-        def forget(self, tab_id: str):
-            return
-
-        def shutdown(self):
-            return
+        self.tab_mgr.create()
 
     def setupUi(self):
         self.main_layout = QVBoxLayout(self)
@@ -207,13 +161,13 @@ class DanbooruInterface(QFrame):
         self.favMgrBtn.clicked.connect(self._open_favorite_manager)
         self.openBtn.clicked.connect(self._open_save_path)
         self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
-        self.tab_bar.currentChanged.connect(self._on_tabbar_index_changed)
-        self.pivot_back_btn.clicked.connect(lambda: self._scroll_pivot_tabs(-1))
-        self.pivot_forward_btn.clicked.connect(lambda: self._scroll_pivot_tabs(1))
-        self.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
-        pivot_scroll_bar.rangeChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
-        pivot_scroll_bar.valueChanged.connect(lambda *_args: self._sync_pivot_scroll_controls())
-        self.stacked_widget.currentChanged.connect(self._on_current_tab_changed)
+        self.tab_bar.currentChanged.connect(self.tab_mgr.on_tabbar_index_changed)
+        self.pivot_back_btn.clicked.connect(lambda: self.tab_mgr.scroll_tabs(-1))
+        self.pivot_forward_btn.clicked.connect(lambda: self.tab_mgr.scroll_tabs(1))
+        self.tab_bar.tabCloseRequested.connect(self.tab_mgr.on_tab_close_requested)
+        pivot_scroll_bar.rangeChanged.connect(lambda *_args: self.tab_mgr.sync_scroll_controls())
+        pivot_scroll_bar.valueChanged.connect(lambda *_args: self.tab_mgr.sync_scroll_controls())
+        self.stacked_widget.currentChanged.connect(self.tab_mgr.on_current_tab_changed)
         
         self.main_layout.addWidget(self.pivot_shell)
         self.main_layout.addWidget(self.content_shell, 1)
@@ -229,205 +183,289 @@ class DanbooruInterface(QFrame):
         self.image_viewer.apply_theme()
         for tab in self.tabs.values():
             tab.apply_theme()
-        self._update_tab_chrome()
-        self._sync_tip_line()
+        self.tab_mgr.update_chrome()
+        self.tab_mgr.sync_tip_line()
         self.refresh_runtime_settings()
         self.zoom_mgr.sync_buttons()
-        self._sync_tab_bar_width()
+        self.tab_mgr.sync_bar_width()
 
-    def create_tab(self, initial_query: str = "", auto_search: bool = False):
-        self.tab_counter += 1
-        tab_id = f"danbooru-tab-{self.tab_counter}"
-        state = DanbooruTabState(
-            tab_id=tab_id,
-            title=self._display_title_for_query(initial_query, self.tab_counter),
-            query=DanbooruSearchQuery.normalize(initial_query),
-        )
-        tab = DanbooruTabWidget(state, self)
-        tab.setObjectName(tab_id)
-        tab.zoom_mgr.apply_immediate(metrics=self.zoom_mgr.current_metrics(), refresh_preview=True)
-        tab.request_search.connect(lambda query, tid=tab_id: self.search_controller.start_search(tid, query))
-        tab.request_conversion.connect(lambda tid=tab_id: self.search_controller.convert_term(tid))
-        tab.request_single_download.connect(lambda post, tid=tab_id: self.download_controller.submit_single(post, tid))
-        tab.request_tag_jump.connect(self._open_tag_jump_tab)
-        tab.request_next_page.connect(lambda tid=tab_id: self.search_controller.load_next_page(tid))
-        tab.request_close.connect(self.close_current_tab)
-        tab.request_extra_search.connect(lambda term, tid=tab_id: self._on_extra_search(tid, term))
-        tab.detail_opened.connect(lambda post, tid=tab_id: self.detail_preview_controller.open_viewer(tid, post))
-        tab.selection_count_changed.connect(lambda _count, tid=tab_id: self._update_batch_button(tid))
-        tab.favorite_btn.clicked.connect(lambda _=False, tid=tab_id: self._toggle_favorite(tid))
-        self.tabs[tab_id] = tab
-        self.tab_states[tab_id] = state
-        self._tab_tips[tab_id] = (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS)
-        self._tab_httpx_status[tab_id] = ""
-        self.stacked_widget.addWidget(tab)
-        self.tab_bar.addTab(routeKey=tab_id, text=state.title)
-        self._sync_tab_bar_width()
-        self._set_current_tab(tab_id)
-        self._update_tab_chrome()
-        self._refresh_completer(tab)
-        if state.query:
-            tab.search_edit.setText(state.query)
-            if auto_search:
-                self.search_controller.start_search(tab_id, state.query)
-        if self._active_tab_id() == tab_id:
-            self._sync_tip_line(tab_id)
-        return tab_id
+    class _ZoomMgr:
+        def __init__(self, interface: "DanbooruInterface"):
+            self.interface = interface
+            self.zoom_index = int(danbooru_cfg.zoom_index.value)
+            self.generation = 0
 
-    def close_current_tab(self):
-        self._close_tab_by_id(self._active_tab_id())
+        def current_metrics(self) -> DanbooruCardMetrics:
+            return CARD_ZOOM_METRICS[self.zoom_index]
 
-    def _close_tab_by_id(self, tab_id: t.Optional[str]):
-        if len(self.tabs) <= 1:
+        def zoom_in(self):
+            if self.zoom_index >= len(CARD_ZOOM_METRICS) - 1:
+                return
+            self.zoom_index += 1
+            danbooru_cfg.zoom_index.value = self.zoom_index
+            danbooru_cfg.save()
+            self.apply_current()
+            self.sync_buttons()
+
+        def zoom_out(self):
+            if self.zoom_index <= 0:
+                return
+            self.zoom_index -= 1
+            danbooru_cfg.zoom_index.value = self.zoom_index
+            danbooru_cfg.save()
+            self.apply_current()
+            self.sync_buttons()
+
+        def sync_buttons(self):
+            self.interface.zoomIn.setEnabled(self.zoom_index < len(CARD_ZOOM_METRICS) - 1)
+            self.interface.zoomOut.setEnabled(self.zoom_index > 0)
+
+        def apply_current(self, *, active_tab_id: t.Optional[str] = None):
+            self.generation += 1
+            metrics = self.current_metrics()
+            active_tab_id = self.interface.tab_mgr.active_tab_id() if active_tab_id is None else active_tab_id
+            for tab_id, tab in self.interface.tabs.items():
+                if tab_id == active_tab_id:
+                    tab.zoom_mgr.apply_active(metrics=metrics)
+                else:
+                    tab.zoom_mgr.mark_hidden_target(metrics=metrics)
+
+        def sync_tab(self, tab_id: str):
+            tab = self.interface.tabs.get(tab_id)
+            if tab is None:
+                return
+            tab.zoom_mgr.sync_to(metrics=self.current_metrics())
+
+        def forget(self, tab_id: str):
             return
-        if not tab_id:
+
+        def shutdown(self):
             return
-        tab = self.tabs.pop(tab_id, None)
-        self.tab_states.pop(tab_id, None)
-        self._tab_tips.pop(tab_id, None)
-        self._tab_httpx_status.pop(tab_id, None)
-        self.zoom_mgr.forget(tab_id)
-        if tab is None:
-            return
-        if self.detail_preview_controller.current_tab_id == tab_id and self.image_viewer.isVisible():
-            self.image_viewer.hide()
-            self.detail_preview_controller.clear_context()
-        self.tab_bar.removeTabByKey(tab_id)
-        self.stacked_widget.removeWidget(tab)
-        tab.deleteLater()
-        gc.collect()
-        if self.stacked_widget.count():
-            self._set_current_tab(self.stacked_widget.widget(0).objectName())
-        self._update_tab_chrome()
-        self._sync_tab_bar_width()
 
-    def _set_current_tab(self, tab_id: str):
-        tab = self.tabs.get(tab_id)
-        if tab is None:
-            return
-        previous_widget = self.stacked_widget.currentWidget()
-        previous_tab_id = previous_widget.objectName() if previous_widget is not None else None
-        if previous_tab_id and previous_tab_id != tab_id:
-            previous_tab = self.tabs.get(previous_tab_id)
-            if previous_tab is not None:
-                previous_tab.zoom_mgr.suspend_hidden()
-        self.stacked_widget.setCurrentWidget(tab)
-        self.tab_bar.setCurrentTab(tab_id)
-        self._update_batch_button(tab_id)
+    class _TabMgr:
+        def __init__(self, interface: "DanbooruInterface"):
+            self.interface = interface
+            self.counter = 0
+            self.tips: dict[str, tuple[str, str]] = {}
+            self.httpx_status: dict[str, str] = {}
+            self.activation_order: list[str] = []
 
-    def _on_current_tab_changed(self, _index: int):
-        widget = self.stacked_widget.currentWidget()
-        if widget is None:
-            return
-        tab_id = widget.objectName()
-        self.tab_bar.setCurrentTab(tab_id)
-        self._update_batch_button(tab_id)
-        self._update_tab_chrome()
-        self._sync_tip_line(tab_id)
-        self.zoom_mgr.sync_tab(tab_id)
+        def create(self, initial_query: str = "", auto_search: bool = False) -> str:
+            self.counter += 1
+            tab_id = f"danbooru-tab-{self.counter}"
+            state = DanbooruTabState(
+                tab_id=tab_id, title=self.display_title_for_query(initial_query, self.counter),
+                query=DanbooruSearchQuery.normalize(initial_query),
+            )
+            tab = DanbooruTabWidget(state, self.interface)
+            tab.setObjectName(tab_id)
+            tab.zoom_mgr.apply_immediate(metrics=self.interface.zoom_mgr.current_metrics(), refresh_preview=True)
+            tab.request_search.connect(lambda query, tid=tab_id: self.interface.search_controller.start_search(tid, query))
+            tab.request_conversion.connect(lambda tid=tab_id: self.interface.search_controller.convert_term(tid))
+            tab.request_single_download.connect(lambda post, tid=tab_id: self.interface.download_controller.submit_single(post, tid))
+            tab.request_tag_jump.connect(self.interface._open_tag_jump_tab)
+            tab.request_next_page.connect(lambda tid=tab_id: self.interface.search_controller.load_next_page(tid))
+            tab.request_close.connect(self.close_current)
+            tab.request_extra_search.connect(lambda term, tid=tab_id: self.interface._on_extra_search(tid, term))
+            tab.detail_opened.connect(lambda post, tid=tab_id: self.interface.detail_preview_controller.open_viewer(tid, post))
+            tab.selection_count_changed.connect(lambda _count, tid=tab_id: self.interface._update_batch_button(tid))
+            tab.favorite_btn.clicked.connect(lambda _=False, tid=tab_id: self.interface._toggle_favorite(tid))
+            self.interface.tabs[tab_id] = tab
+            self.interface.tab_states[tab_id] = state
+            self.tips[tab_id] = (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS)
+            self.httpx_status[tab_id] = ""
+            self.interface.stacked_widget.addWidget(tab)
+            self.interface.tab_bar.addTab(routeKey=tab_id, text=state.title)
+            self.sync_bar_width()
+            self.set_current(tab_id)
+            self.update_chrome()
+            self.interface._refresh_completer(tab)
+            if state.query:
+                tab.search_edit.setText(state.query)
+                if auto_search:
+                    self.interface.search_controller.start_search(tab_id, state.query)
+            if self.active_tab_id() == tab_id:
+                self.sync_tip_line(tab_id)
+            return tab_id
 
-    def _on_tabbar_index_changed(self, index: int):
-        tab_id = self._tab_id_at(index)
-        if tab_id:
-            self._set_current_tab(tab_id)
+        def close_current(self):
+            self.close_by_id(self.active_tab_id())
 
-    def _on_tab_close_requested(self, index: int):
-        self._close_tab_by_id(self._tab_id_at(index))
+        def close_by_id(self, tab_id: t.Optional[str]):
+            if len(self.interface.tabs) <= 1 or not tab_id:
+                return
+            is_active_tab = self.active_tab_id() == tab_id
+            next_tab_id = self.previous_live_tab_id(tab_id) if is_active_tab else None
+            tab = self.interface.tabs.pop(tab_id, None)
+            self.interface.tab_states.pop(tab_id, None)
+            self.tips.pop(tab_id, None)
+            self.httpx_status.pop(tab_id, None)
+            self.drop_activation(tab_id)
+            self.interface.zoom_mgr.forget(tab_id)
+            if tab is None:
+                return
+            if self.interface.detail_preview_controller.current_tab_id == tab_id and self.interface.image_viewer.isVisible():
+                self.interface.image_viewer.hide()
+                self.interface.detail_preview_controller.clear_context()
+            self.interface.tab_bar.removeTabByKey(tab_id)
+            self.interface.stacked_widget.removeWidget(tab)
+            tab.deleteLater()
+            gc.collect()
+            if is_active_tab and next_tab_id:
+                self.set_current(next_tab_id)
+            elif self.interface.stacked_widget.count():
+                fallback_widget = self.interface.stacked_widget.currentWidget() or self.interface.stacked_widget.widget(0)
+                if fallback_widget is not None:
+                    self.set_current(fallback_widget.objectName())
+            self.update_chrome()
+            self.sync_bar_width()
 
-    def _tab_id_at(self, index: int) -> t.Optional[str]:
-        if not 0 <= index < self.tab_bar.count():
+        def set_current(self, tab_id: str):
+            tab = self.interface.tabs.get(tab_id)
+            if tab is None:
+                return
+            previous_widget = self.interface.stacked_widget.currentWidget()
+            previous_tab_id = previous_widget.objectName() if previous_widget is not None else None
+            if previous_tab_id and previous_tab_id != tab_id:
+                previous_tab = self.interface.tabs.get(previous_tab_id)
+                if previous_tab is not None:
+                    previous_tab.zoom_mgr.suspend_hidden()
+            self.interface.stacked_widget.setCurrentWidget(tab)
+            self.interface.tab_bar.setCurrentTab(tab_id)
+            self.record_activation(tab_id)
+            self.interface._update_batch_button(tab_id)
+
+        def record_activation(self, tab_id: str):
+            if tab_id in self.activation_order:
+                self.activation_order.remove(tab_id)
+            self.activation_order.append(tab_id)
+
+        def drop_activation(self, tab_id: str):
+            if tab_id in self.activation_order:
+                self.activation_order.remove(tab_id)
+
+        def previous_live_tab_id(self, closing_tab_id: str) -> t.Optional[str]:
+            for candidate in reversed(self.activation_order):
+                if candidate != closing_tab_id and candidate in self.interface.tabs:
+                    return candidate
             return None
-        return self.tab_bar.tabItem(index).routeKey()
 
-    def _tab_index(self, tab_id: str) -> int:
-        item = self.tab_bar.tab(tab_id)
-        return self.tab_bar.items.index(item) if item is not None else -1
+        def on_current_tab_changed(self, _index: int):
+            widget = self.interface.stacked_widget.currentWidget()
+            if widget is None:
+                return
+            tab_id = widget.objectName()
+            self.interface.tab_bar.setCurrentTab(tab_id)
+            self.interface._update_batch_button(tab_id)
+            self.update_chrome()
+            self.sync_tip_line(tab_id)
+            self.interface.zoom_mgr.sync_tab(tab_id)
 
-    @staticmethod
-    def _display_title_for_query(query: str, tab_index: int) -> str:
-        canonical = DanbooruSearchQuery.normalize(query)
-        if not canonical:
-            return f"工作区 {tab_index}"
-        if len(canonical) <= 18:
-            return canonical
-        return canonical[:16].rstrip() + ".."
+        def on_tabbar_index_changed(self, index: int):
+            tab_id = self.tab_id_at(index)
+            if tab_id:
+                self.set_current(tab_id)
 
-    def _update_tab_title(self, tab_id: str, query: str):
-        state = self.tab_states.get(tab_id)
-        if state is None:
-            return
-        title = self._display_title_for_query(query, int(tab_id.rsplit("-", 1)[-1]))
-        if title == state.title:
-            return
-        state.title = title
-        index = self._tab_index(tab_id)
-        if index >= 0:
-            self.tab_bar.setTabText(index, state.title)
-        self._update_tab_chrome()
-        self._sync_tab_bar_width()
+        def on_tab_close_requested(self, index: int):
+            self.close_by_id(self.tab_id_at(index))
 
-    def _update_tab_chrome(self):
-        palette = DanbooruUiPalette.current()
-        current_tab_id = self._active_tab_id()
-        active_text_color = qcolor_from_css(palette.text)
-        inactive_text_color = qcolor_from_css(palette.muted_text)
-        self.tab_bar.setTabsClosable(len(self.tabs) > 1)
-        for index in range(self.tab_bar.count()):
-            item = self.tab_bar.tabItem(index)
-            if item is None:
-                continue
-            tab_id = item.routeKey()
-            item.setBorderRadius(12)
-            self.tab_bar.setTabTextColor(index, active_text_color if tab_id == current_tab_id else inactive_text_color)
+        def tab_id_at(self, index: int) -> t.Optional[str]:
+            if not 0 <= index < self.interface.tab_bar.count():
+                return None
+            return self.interface.tab_bar.tabItem(index).routeKey()
 
-    def _active_tab_id(self) -> t.Optional[str]:
-        widget = self.stacked_widget.currentWidget()
-        return widget.objectName() if widget is not None else None
+        def tab_index(self, tab_id: str) -> int:
+            item = self.interface.tab_bar.tab(tab_id)
+            return self.interface.tab_bar.items.index(item) if item is not None else -1
 
-    def _set_tab_tip(self, tab_id: str, text: str, cls: str = DEFAULT_TAB_STATUS_CLASS):
-        self._tab_tips[tab_id] = (text, cls or DEFAULT_TAB_STATUS_CLASS)
-        if self._active_tab_id() == tab_id:
-            self.tip_line.setText(_format_tip_rich_text(*self._tab_tips[tab_id]))
+        @staticmethod
+        def display_title_for_query(query: str, tab_index: int) -> str:
+            canonical = DanbooruSearchQuery.normalize(query)
+            if not canonical:
+                return f"工作区 {tab_index}"
+            if len(canonical) <= 18:
+                return canonical
+            return canonical[:16].rstrip() + ".."
 
-    def set_tab_httpx_status(self, tab_id: str, status: str, cls: str = DEFAULT_TAB_STATUS_CLASS):
-        self._tab_httpx_status[tab_id] = str(status or "")
-        self._set_tab_tip(tab_id, self._tab_httpx_status[tab_id], cls=cls)
+        def update_title(self, tab_id: str, query: str):
+            state = self.interface.tab_states.get(tab_id)
+            if state is None:
+                return
+            title = self.display_title_for_query(query, int(tab_id.rsplit("-", 1)[-1]))
+            if title == state.title:
+                return
+            state.title = title
+            index = self.tab_index(tab_id)
+            if index >= 0:
+                self.interface.tab_bar.setTabText(index, state.title)
+            self.update_chrome()
+            self.sync_bar_width()
 
-    def tab_httpx_status(self, tab_id: str) -> str:
-        return self._tab_httpx_status.get(tab_id, "")
+        def update_chrome(self):
+            palette = DanbooruUiPalette.current()
+            current_tab_id = self.active_tab_id()
+            active_text_color = qcolor_from_css(palette.text)
+            inactive_text_color = qcolor_from_css(palette.muted_text)
+            self.interface.tab_bar.setTabsClosable(len(self.interface.tabs) > 1)
+            for index in range(self.interface.tab_bar.count()):
+                item = self.interface.tab_bar.tabItem(index)
+                if item is None:
+                    continue
+                tab_id = item.routeKey()
+                item.setBorderRadius(12)
+                self.interface.tab_bar.setTabTextColor(index, active_text_color if tab_id == current_tab_id else inactive_text_color)
 
-    def _sync_tip_line(self, tab_id: t.Optional[str] = None):
-        effective_tab_id = tab_id or self._active_tab_id()
-        text, cls = self._tab_tips.get(effective_tab_id, (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS))
-        self.tip_line.setText(_format_tip_rich_text(text, cls))
+        def active_tab_id(self) -> t.Optional[str]:
+            widget = self.interface.stacked_widget.currentWidget()
+            return widget.objectName() if widget is not None else None
 
-    def _scroll_pivot_tabs(self, direction: int):
-        bar = self.pivot_scroll.horizontalScrollBar()
-        if bar.maximum() <= bar.minimum():
-            return
-        step = max(72, int(self.pivot_scroll.viewport().width() * 0.72))
-        bar.setValue(bar.value() + direction * step)
+        def set_tip(self, tab_id: str, text: str, cls: str = DEFAULT_TAB_STATUS_CLASS):
+            self.tips[tab_id] = (text, cls or DEFAULT_TAB_STATUS_CLASS)
+            if self.active_tab_id() == tab_id:
+                self.interface.tip_line.setText(_format_tip_rich_text(*self.tips[tab_id]))
 
-    def _sync_pivot_scroll_controls(self):
-        if not hasattr(self, "pivot_scroll"):
-            return
-        bar = self.pivot_scroll.horizontalScrollBar()
-        has_overflow = bar.maximum() > bar.minimum()
-        self.pivot_back_btn.setEnabled(has_overflow and bar.value() > bar.minimum())
-        self.pivot_forward_btn.setEnabled(has_overflow and bar.value() < bar.maximum())
+        def set_httpx_status(self, tab_id: str, status: str, cls: str = DEFAULT_TAB_STATUS_CLASS):
+            self.httpx_status[tab_id] = str(status or "")
+            self.set_tip(tab_id, self.httpx_status[tab_id], cls=cls)
 
-    def _sync_tab_bar_width(self):
-        if not hasattr(self, "tab_bar"):
-            return
-        self.tab_bar.view.adjustSize()
-        self.tab_bar.updateGeometry()
-        QtCore.QTimer.singleShot(0, self._sync_pivot_scroll_controls)
+        def sync_tip_line(self, tab_id: t.Optional[str] = None):
+            effective_tab_id = tab_id or self.active_tab_id()
+            text, cls = self.tips.get(effective_tab_id, (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS))
+            self.interface.tip_line.setText(_format_tip_rich_text(text, cls))
+
+        def scroll_tabs(self, direction: int):
+            bar = self.interface.pivot_scroll.horizontalScrollBar()
+            if bar.maximum() <= bar.minimum():
+                return
+            step = max(72, int(self.interface.pivot_scroll.viewport().width() * 0.72))
+            bar.setValue(bar.value() + direction * step)
+
+        def sync_scroll_controls(self):
+            bar = self.interface.pivot_scroll.horizontalScrollBar()
+            has_overflow = bar.maximum() > bar.minimum()
+            self.interface.pivot_back_btn.setEnabled(has_overflow and bar.value() > bar.minimum())
+            self.interface.pivot_forward_btn.setEnabled(has_overflow and bar.value() < bar.maximum())
+
+        def sync_bar_width(self):
+            self.interface.tab_bar.view.adjustSize()
+            self.interface.tab_bar.updateGeometry()
+            QtCore.QTimer.singleShot(0, self.sync_scroll_controls)
 
     def _open_save_path(self):
-        curr_os.open_folder(Path(self._runtime_config.save_path))
+        base_path = Path(self._runtime_config.save_path)
+        tab_id = self.tab_mgr.active_tab_id()
+        state = self.tab_states.get(tab_id) if tab_id else None
+        open_path = base_path
+        if state is not None and self._runtime_config.save_type == DANBOORU_SAVE_TYPE_SEARCH_TAG:
+            folder_term = DanbooruSearchQuery(state.query).folder_term
+            if folder_term:
+                tab_save_path = base_path.joinpath(folder_sub.sub("-", folder_term))
+                if tab_save_path.exists():
+                    open_path = tab_save_path
+        curr_os.open_folder(open_path)
 
     def _update_batch_button(self, tab_id: str):
-        if self._active_tab_id() != tab_id:
+        if self.tab_mgr.active_tab_id() != tab_id:
             return
         state = self.tab_states.get(tab_id)
         count = len(state.selected_md5_set) if state else 0
@@ -458,10 +496,22 @@ class DanbooruInterface(QFrame):
 
     def refresh_runtime_settings(self):
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
+        self.request_client.set_runtime_config(self._runtime_config)
+
+    def _favorite_groups_state(self):
+        return build_favorite_groups_state(
+            danbooru_cfg.searchFavorites.value,
+            canonicalize_term=danbooru_cfg.canonicalize_term,
+        )
+
+    @staticmethod
+    def _save_favorite_groups_state(groups_state):
+        danbooru_cfg.fav.save_payload(groups_state.to_payload())
 
     def _refresh_completer(self, tab: DanbooruTabWidget):
         history = danbooru_cfg.get_history()
-        favorites = sorted(danbooru_cfg.fav.get() - set(history))
+        favorites_state = self._favorite_groups_state()
+        favorites = sorted(favorites_state.all_terms() - set(history))
         tab.update_completer(history + favorites)
 
     def _show_info(self, factory, content: str, duration: int = 3000):
@@ -484,13 +534,16 @@ class DanbooruInterface(QFrame):
             return
         term = DanbooruSearchQuery.normalize(tab.search_edit.text())
         if not term:
+            tab.sync_favorite_button_state()
             return
-        is_favorited = danbooru_cfg.fav.toggle(term)
+        favorites_state = self._favorite_groups_state()
+        is_favorited = favorites_state.toggle(term)
+        self._save_favorite_groups_state(favorites_state)
         self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         if not is_favorited:
             return self._show_info(InfoBar.error, content)
-        custom_groups = danbooru_cfg.fav.get_grouped()
+        custom_groups = favorites_state.custom_groups
         if not custom_groups:
             return self._show_info(InfoBar.success, content)
         tmpFavMgrBtn = PrimaryToolButton(QIcon(':/script/favMgr.svg'))
@@ -501,7 +554,7 @@ class DanbooruInterface(QFrame):
         def _open_group_picker():
             first_ib.close()
             combo = ComboBox()
-            combo.addItems([name for name, _ in custom_groups])
+            combo.addItems([group.name for group in custom_groups])
             combo.setMinimumWidth(100)
             accept_btn = PrimaryToolButton(FIF.ACCEPT)
             picker_ib = CustomInfoBar.show_custom(
@@ -510,7 +563,9 @@ class DanbooruInterface(QFrame):
             )
             def _move_tag():
                 group_name = combo.currentText()
-                danbooru_cfg.fav.move_to_group(term, group_name)
+                move_state = self._favorite_groups_state()
+                move_state.move_to_group(term, group_name)
+                self._save_favorite_groups_state(move_state)
                 self._refresh_all_favorites_ui()
                 picker_ib.close()
                 self._show_info(InfoBar.success, f"moved to「{group_name}」")
@@ -521,11 +576,13 @@ class DanbooruInterface(QFrame):
         for tab in self.tabs.values():
             tab.set_search_menu()
             self._refresh_completer(tab)
+            tab.sync_favorite_button_state()
 
     def _open_favorite_manager(self):
-        dialog = DanbooruFavoriteManagerDialog(self)
-        dialog.favorites_changed.connect(self._refresh_all_favorites_ui)
-        dialog.exec()
+        dialog = DanbooruFavoriteManagerDialog(self._favorite_groups_state(), self)
+        if dialog.exec():
+            self._save_favorite_groups_state(dialog.groups_state)
+            self._refresh_all_favorites_ui()
 
     def _open_tag_jump_tab(self, tag: str):
         self.image_viewer.hide()
@@ -535,31 +592,32 @@ class DanbooruInterface(QFrame):
             return
         for tab_id, state in self.tab_states.items():
             if DanbooruSearchQuery.normalize(state.query) == canonical_tag:
-                self._set_current_tab(tab_id)
+                self.tab_mgr.set_current(tab_id)
                 tab = self.tabs.get(tab_id)
                 if tab is not None and not state.result_list and not state.loading:
                     self.search_controller.start_search(tab_id, canonical_tag)
                 return
-        active_tab_id = self._active_tab_id()
+        active_tab_id = self.tab_mgr.active_tab_id()
         active_state = self.tab_states.get(active_tab_id) if active_tab_id else None
         if active_tab_id and active_state and not active_state.query and not active_state.result_list and not active_state.loading:
             active_state.query = canonical_tag
             self.tabs[active_tab_id].search_edit.setText(canonical_tag)
             self.search_controller.start_search(active_tab_id, canonical_tag)
             return
-        self.create_tab(initial_query=canonical_tag, auto_search=True)
+        self.tab_mgr.create(initial_query=canonical_tag, auto_search=True)
 
     def notify_download_result(self, md5_value: str, success: bool):
         self.download_result_signal.emit(md5_value, success)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._sync_tab_bar_width()
+        self.tab_mgr.sync_bar_width()
 
     def closeEvent(self, event):
         try:
             theme_mgr.unsubscribe(self._apply_theme)
             self.image_viewer.hide()
+            self.video_proxy.close()
             self.sql_recorder.close()
             self.zoom_mgr.shutdown()
         finally:

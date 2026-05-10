@@ -62,6 +62,9 @@ class PreviewRuntime:
     async def fetch_episodes(self, book):
         return await self.thread_site_runtime.preview_fetch_episodes(book)
 
+    async def fetch_pages(self, episode):
+        return await self.thread_site_runtime.preview_fetch_pages(episode)
+
 
 @dataclass
 class DownloadQuantityRecord:
@@ -189,6 +192,18 @@ async def _fetch_episode_choices(site_index: int, books: list) -> dict:
     return episode_choices
 
 
+async def _fetch_selected_pages(site_index: int, episodes: list):
+    async with PreviewRuntime(site_index) as preview:
+        for ep in episodes:
+            if getattr(ep, "page_urls", None):
+                continue
+            page_urls = await preview.fetch_pages(ep)
+            if not isinstance(page_urls, list):
+                raise TypeError(f"preview_fetch_pages must return list, got {type(page_urls).__name__}")
+            ep.pages = len(page_urls)
+            ep.page_urls = list(page_urls)
+
+
 def _build_download_payload(site_index: int, selected_books: list, selected_eps: list | None):
     if site_index in Spider.specials():
         return selected_books[0] if len(selected_books) == 1 else selected_books
@@ -306,6 +321,7 @@ def main():
             if not selected_eps:
                 logger.error("selected episode indexes resolved to empty set")
                 return 1
+            asyncio.run(_fetch_selected_pages(args.website, selected_eps))
 
         payload = _build_download_payload(args.website, selected_books, selected_eps)
         return 0 if _submit_and_wait(args.website, payload) else 1

@@ -43,6 +43,24 @@ class Cache:
         self.cache_f = cache_f
         self.flag = None
         self.val = None
+        self.state = None
+
+    @staticmethod
+    def _is_expired(cache_path, expiry_time: t.Union[int, datetime, str, callable]) -> bool:
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        file_time = datetime.fromtimestamp(cache_path.stat().st_mtime)
+        match expiry_time:
+            case int():
+                return now - file_time > timedelta(hours=expiry_time)
+            case datetime():
+                return now > expiry_time
+            case str() if expiry_time == "daily":
+                return file_time < today_start
+            case _ if callable(expiry_time):
+                dynamic_expiry = expiry_time()
+                return now > dynamic_expiry
+        return True
 
     def with_expiry(self, expiry_time: t.Union[int, datetime, str, callable]=168, write_in=False):
         """缓存有效期装饰器
@@ -61,6 +79,8 @@ class Cache:
                     if cache_path.suffix == '.pkl':
                         with open(cache_path, 'rb') as f:
                             cached_data = pickle.load(f)
+                    elif cache_path.suffix in {'.db', '.sqlite', '.sqlite3'}:
+                        cached_data = cache_path
                     else:
                         with open(cache_path, 'r', encoding='utf-8') as f:
                             cached_data = f.read().strip()
@@ -68,11 +88,13 @@ class Cache:
                     if cached_data:
                         self.flag = "validate"
                         self.val = cached_data
+                        self.state = "validate"
                         return cached_data
                     else:
                         os.remove(cache_path)
 
                 result = func(*args, **kwargs)
+                self.state = "expired" if cache_exists_flag else "missing"
                 if result is not None and write_in:
                     if cache_path.exists():
                         os.remove(cache_path)  # remark: 解决相同内容写入却不更新最后访问时间导致的缓存失效恶性循环
@@ -82,7 +104,10 @@ class Cache:
                     else:
                         with open(cache_path, 'w', encoding='utf-8') as f:
                             f.write(str(result))
-                self.flag = "new"
+                    self.flag = "new"
+                    self.state = "new"
+                else:
+                    self.flag = "new"
                 self.val = result
                 return result
             return wrapper
@@ -93,20 +118,7 @@ class Cache:
         if not cache_exists_flag:
             return decorator
 
-        # 计算过期标志
-        now = datetime.now()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        file_time = datetime.fromtimestamp(cache_path.stat().st_mtime)
-        match expiry_time:
-            case int():
-                expiry_flag = now - file_time > timedelta(hours=expiry_time)
-            case datetime():
-                expiry_flag = now > expiry_time
-            case str() if expiry_time == "daily":
-                expiry_flag = file_time < today_start
-            case _ if callable(expiry_time):
-                dynamic_expiry = expiry_time()
-                expiry_flag = now > dynamic_expiry
+        expiry_flag = self._is_expired(cache_path, expiry_time)
         return decorator
 
     def run(self, func, expiry_time=168, write_in=False):

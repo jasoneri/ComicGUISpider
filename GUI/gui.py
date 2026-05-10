@@ -86,6 +86,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         return self.bg_mgr.bg_f
 
     def setupUi(self, MainWindow):
+        conf.sv_path.mkdir(parents=True, exist_ok=True)
         super(SpiderGUI, self).setupUi(MainWindow)
         self.splashScreen = CustomSplashScreen(self)
         self.setup_sleep_widget(self._pick_sleep_widget_image(allow_random=False))
@@ -241,7 +242,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
         self.sut = None
-        if index in (2,3) and not conf.proxies:
+        if index in (Spider.JM, Spider.WNACG) and not conf.proxies:
             self.domainBtn.setVisible(True)
         if self.web_is_r18:
             self.rv_tools.ero = 1

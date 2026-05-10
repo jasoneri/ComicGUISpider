@@ -5,6 +5,7 @@
 import asyncio
 from dataclasses import dataclass, field
 import inspect
+import math
 import time
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -33,6 +34,86 @@ def summarize_error_message(message: object, *, max_length: int = 180) -> str:
     has_hidden_detail = clipped or len(text.splitlines()) > 1
     return f"{first_line}。详情见日志" if has_hidden_detail else first_line
 
+
+class AsyncTaskProgressReporter:
+    def __init__(self, emit: Callable[[str], None], *, throttle_seconds: float = 0.2, min_percent_step: int = 1):
+        self._emit = emit
+        self._throttle_seconds = throttle_seconds
+        self._min_percent_step = min_percent_step
+        self._label = ""
+        self._bytes_downloaded = 0
+        self._total_bytes: Optional[int] = None
+        self._last_emit_at = 0.0
+        self._last_percent = -1
+
+    def __call__(self, message: str):
+        self._emit(message)
+
+    def download_reset(self, *, label: Optional[str] = None):
+        self._label = label or self._label
+        self._bytes_downloaded = 0
+        self._total_bytes = None
+        self._last_emit_at = 0.0
+        self._last_percent = -1
+
+    def download_start(self, *, label: str, total_bytes: Optional[int] = None):
+        self.download_reset(label=label)
+        self._total_bytes = total_bytes if total_bytes is not None and total_bytes > 0 else None
+        if self._total_bytes is None:
+            self._emit(f"{self._label} 0B")
+            return
+        self._emit(f"{self._label} 0% {self._format_ratio(0, self._total_bytes)}")
+
+    def download_advance(self, chunk_size: int, *, label: Optional[str] = None, total_bytes: Optional[int] = None):
+        if chunk_size < 0:
+            raise ValueError("chunk_size must be >= 0")
+        if label:
+            self._label = label
+        if total_bytes is not None:
+            self._total_bytes = total_bytes if total_bytes > 0 else None
+        self._bytes_downloaded += chunk_size
+        now = time.monotonic()
+        if self._total_bytes is None:
+            if now - self._last_emit_at < self._throttle_seconds:
+                return
+            self._last_emit_at = now
+            self._emit(f"{self._label} {self._format_bytes(self._bytes_downloaded)}")
+            return
+
+        percent = min(100, math.floor((self._bytes_downloaded * 100) / self._total_bytes))
+        should_emit = percent >= self._last_percent + self._min_percent_step or now - self._last_emit_at >= self._throttle_seconds
+        if not should_emit:
+            return
+        self._last_emit_at = now
+        self._last_percent = percent
+        self._emit(f"{self._label} {percent}% {self._format_ratio(self._bytes_downloaded, self._total_bytes)}")
+
+    def download_finish(self, *, label: Optional[str] = None):
+        if label:
+            self._label = label
+        if self._total_bytes is None:
+            self._emit(f"{self._label} done {self._format_bytes(self._bytes_downloaded)}")
+            return
+        done_bytes = max(self._bytes_downloaded, self._total_bytes)
+        self._emit(f"{self._label} done {self._format_bytes(done_bytes)}")
+
+    @staticmethod
+    def _format_bytes(size_bytes: int) -> str:
+        if size_bytes < 1024:
+            return f"{size_bytes}B"
+        if size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f}K"
+        return f"{size_bytes / 1024 / 1024:.1f}M"
+
+    @classmethod
+    def _format_ratio(cls, downloaded_bytes: int, total_bytes: int) -> str:
+        if total_bytes < 1024:
+            return f"{downloaded_bytes}/{total_bytes}B"
+        if total_bytes < 1024 * 1024:
+            return f"{downloaded_bytes / 1024:.1f}/{total_bytes / 1024:.1f}K"
+        return f"{downloaded_bytes / 1024 / 1024:.1f}/{total_bytes / 1024 / 1024:.1f}M"
+
+
 class AsyncTaskThread(QThread):
     success_signal = Signal(object)
     error_signal = Signal(str)
@@ -52,7 +133,7 @@ class AsyncTaskThread(QThread):
                 return
             code_obj = getattr(self.task_func, "__code__", None)
             if code_obj is not None and "progress_callback" in code_obj.co_varnames:
-                self.kwargs["progress_callback"] = self.emit_progress
+                self.kwargs["progress_callback"] = AsyncTaskProgressReporter(self.emit_progress)
             result = self.task_func(*self.args, **self.kwargs)
             if inspect.isawaitable(result):
                 result = asyncio.run(result)
@@ -201,13 +282,8 @@ class TaskInfoBarCenter:
         if self._gui is None:
             return None
         infobar = factory(
-            title=title,
-            content=content,
-            orient=Qt.Horizontal,
-            isClosable=True,
-            position=InfoBarPosition.TOP,
-            duration=duration,
-            parent=self._gui,
+            title=title, content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
+            duration=duration, parent=self._gui,
         )
         if infobar is None:
             return None
@@ -263,11 +339,7 @@ class AsyncTaskManager(QObject):
             )
             if config.show_tooltip:
                 self._tooltip_stack.show(
-                    task_id,
-                    config.tooltip_title,
-                    config.tooltip_content,
-                    config.tooltip_position,
-                    config.tooltip_parent,
+                    task_id, config.tooltip_title, config.tooltip_content, config.tooltip_position, config.tooltip_parent
                 )
             thread.start()
             return True
@@ -301,21 +373,11 @@ class AsyncTaskManager(QObject):
         return self.execute_task(
             task_id,
             TaskConfig(
-                task_func=task_func,
-                success_callback=success_callback,
-                error_callback=error_callback,
-                progress_callback=progress_callback,
-                tooltip_title=tooltip_title,
-                tooltip_content=tooltip_content,
-                show_success_info=show_success_info,
-                show_error_info=show_error_info,
-                success_message=success_message,
-                auto_hide_tooltip=auto_hide_tooltip,
-                show_tooltip=show_tooltip,
-                tooltip_position=tooltip_position,
-                tooltip_parent=tooltip_parent,
-                args=args,
-                kwargs=kwargs,
+                task_func=task_func, success_callback=success_callback, error_callback=error_callback,
+                progress_callback=progress_callback, tooltip_title=tooltip_title, tooltip_content=tooltip_content,
+                show_success_info=show_success_info, show_error_info=show_error_info, success_message=success_message,
+                auto_hide_tooltip=auto_hide_tooltip, show_tooltip=show_tooltip, tooltip_position=tooltip_position,
+                tooltip_parent=tooltip_parent, args=args, kwargs=kwargs,
             ),
         )
 

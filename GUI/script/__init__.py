@@ -172,16 +172,9 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.pathButton.clicked.connect(self._onSelectFolder)
 
         self.pathCard = self.addGroup(FIF.DOWNLOAD, uic_res.sv_path_desc, self.current_path, self.pathButton)
+        self.addGroup(FIF.FOLDER, script_res.danbooru_save_mode, script_res.danbooru_save_mode_desc, self.saveTypeBox)
         self.addGroup(
-            FIF.FOLDER,
-            script_res.danbooru_save_mode,
-            script_res.danbooru_save_mode_desc,
-            self.saveTypeBox,
-        )
-        self.addGroup(
-            FIF.SPEED_HIGH,
-            script_res.danbooru_download_concurrency,
-            script_res.danbooru_download_concurrency_desc,
+            FIF.SPEED_HIGH, script_res.danbooru_download_concurrency, script_res.danbooru_download_concurrency_desc,
             self.downloadConcurrencyEdit,
         )
         self.viewRatioCard = RangeSettingCard(
@@ -248,8 +241,7 @@ class SettingInterface(QFrame):
         proxies_label = StrongBodyLabel("代理/Proxy", self)
         self.imgProxiesEdit = LineEdit(self)
         self.imgProxiesEdit.setToolTip(_translate("SettingInterface", "proxies"))
-        self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", 
-                                                          "example-of-v2rayN 127.0.0.1:10809"))
+        self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", "example-of-v2rayN 127.0.0.1:10809"))
         completer = QCompleter(['127.0.0.1:10809'])
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
@@ -258,9 +250,7 @@ class SettingInterface(QFrame):
 
         self.dohBtn = PushButton("DoH", self)
         self.dohBtn.setMaximumSize(QSize(80, 16777215))
-        self.dohController = DoHButtonController(
-            self.dohBtn, parent=self, on_saved=self._save_doh_config,
-        )
+        self.dohController = DoHButtonController(self.dohBtn, parent=self, on_saved=self._save_doh_config)
         first_row.addWidget(proxies_label)
         first_row.addWidget(self.imgProxiesEdit)
         first_row.addWidget(self.dohBtn)
@@ -290,10 +280,7 @@ class SettingInterface(QFrame):
         kemono_config = config_data.get('kemono', {})
         self.kemono_group_card.setCookieText(kemono_config.get('cookie', ''))
         self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))
-        runtime_config = DanbooruRuntimeConfig.from_mapping(
-            config_data.get('danbooru', {}),
-            doh_url=cgs_cfg.doh.get_url(),
-        )
+        runtime_config = DanbooruRuntimeConfig.from_mapping(config_data.get('danbooru', {}), doh_url=cgs_cfg.doh.get_url())
         self.danbooru_group_card.setCurrentPath(runtime_config.save_path)
         self.danbooru_group_card.setSaveType(runtime_config.save_type)
         self.danbooru_group_card.setDownloadConcurrency(runtime_config.download_concurrency)
@@ -380,13 +367,7 @@ class ScriptWindow(ScriptWindowBase):
 
     def _setup_offscreen_shell(self):
         self.setObjectName("OffscreenScriptWindow")
-        self.setStyleSheet(
-            """
-            QFrame#OffscreenScriptWindow {
-                background: #f6f6f7;
-            }
-            """
-        )
+        self.setStyleSheet("QFrame#OffscreenScriptWindow { background: #f6f6f7; }")
         self._offscreen_nav_buttons = {}
         self.main_layout = QHBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -433,13 +414,7 @@ class ScriptWindow(ScriptWindowBase):
         self._add_script_entry(self.kemonoInterface, ':/script/kemono.ico', 'Kemono', show_in_pure_mode=False)
         self._add_script_entry(self.cbgInterface, ':/script/cbg.svg', 'Cbg', show_in_pure_mode=True)
         self.navigationInterface.addSeparator()
-        self._add_script_entry(
-            self.settingInterface,
-            FIF.SETTING,
-            'Settings',
-            NavigationItemPosition.BOTTOM,
-            show_in_pure_mode=True,
-        )
+        self._add_script_entry(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM, show_in_pure_mode=True)
 
     def apply_pure_entry_mode(self):
         for interface, show_in_pure_mode in self._script_entry_specs:
@@ -467,7 +442,11 @@ class ScriptWindow(ScriptWindowBase):
         return super().addSubInterface(interface, icon, text, position)
 
     def initWindow(self):
-        if self.gui:
+        if cgs_cfg.scriptWinRect.value:
+            x, y, w, h = (int(v) for v in cgs_cfg.scriptWinRect.value)
+            self.move(x, y)
+            self.resize(w, h)
+        elif self.gui:
             self.resize(max(850, self.gui.width()), self.gui.height())
         else:
             self.resize(850, 600)
@@ -479,8 +458,9 @@ class ScriptWindow(ScriptWindowBase):
         
     def closeEvent(self, event):
         event.accept()
+        cgs_cfg.scriptWinRect.value = [self.x(), self.y(), self.width(), self.height()]
+        cgs_cfg.save()
         self.danbooruInterface.image_viewer.hide()
-        self.danbooruInterface.task_mgr.cleanup()
         if self.gui is not None:
             safe_single_shot(10, self.gui.close)
 

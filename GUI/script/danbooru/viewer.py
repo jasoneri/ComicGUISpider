@@ -1,19 +1,26 @@
 import sys
 import typing as t
+from dataclasses import dataclass
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from qfluentwidgets import BodyLabel, FluentIcon as FIF, PrimaryToolButton, PushButton, ScrollArea, TransparentToggleToolButton, TransparentToolButton
+from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtWidgets import QApplication, QFrame, QGraphicsView, QHBoxLayout, QLabel, QVBoxLayout, QWidget, QSizePolicy
+from qfluentwidgets import (
+    BodyLabel, FluentIcon as FIF, IndeterminateProgressRing, PrimaryToolButton, PushButton, ScrollArea,
+    Slider, TransparentToggleToolButton, TransparentToolButton,
+)
+from qfluentwidgets.multimedia import VideoWidget, SimpleMediaPlayBar
 from qframelesswindow.utils import startSystemMove
 
+from utils.config.qc import danbooru_cfg
 from GUI.core.timer import safe_single_shot
 from GUI.uic.qfluent.components import FlexImageLabel
 from utils.script.image.danbooru.models import DanbooruPost
 
 from .core import DanbooruViewerFitCalculator, DanbooruViewerFitResult, delete_flow_item as _delete_flow_item
-from .style import DanbooruUiPalette, build_viewer_stylesheet
+from .style import DanbooruUiPalette, build_viewer_stylesheet, get_danbooru_qss_tokens, qcolor_from_css
+
 
 def _iter_tag_groups(post: DanbooruPost) -> list[tuple[str, list[str]]]:
     groups = [
@@ -23,6 +30,121 @@ def _iter_tag_groups(post: DanbooruPost) -> list[tuple[str, list[str]]]:
         ("General", list(filter(None, post.tag_string_general.split(" ")))),
     ]
     return [(label, tags) for label, tags in groups if tags]
+
+
+@dataclass(frozen=True, slots=True)
+class _PlaybackPolicy:
+    autoplay: bool = True
+    muted: bool = True
+    loop: bool = False
+
+    @classmethod
+    def default(cls) -> "_PlaybackPolicy":
+        return cls(autoplay=True, muted=True, loop=False)
+
+class BufferedProgressSlider(Slider):
+    def __init__(self, orientation=Qt.Horizontal, parent=None):
+        super().__init__(orientation, parent)
+        self._buffered_ratio = 0.0
+        self.apply_theme()
+        self.setObjectName("BufferedProgressSlider")
+
+    def bufferedRatio(self) -> float:
+        return self._buffered_ratio
+
+    def setBufferedRatio(self, ratio: float):
+        normalized = max(0.0, min(1.0, float(ratio)))
+        if abs(normalized - self._buffered_ratio) < 0.001:
+            return
+        self._buffered_ratio = normalized
+        self.update()
+
+    def setBufferedRange(self, loaded: int, total: int):
+        self.setBufferedRatio(0.0 if total <= 0 else loaded / total)
+
+    def apply_theme(self):
+        tokens = get_danbooru_qss_tokens()
+        self._track_color = qcolor_from_css(tokens["VIEWER_PROGRESS_TRACK"])
+        self._buffer_color = qcolor_from_css(tokens["VIEWER_PROGRESS_BUFFER"])
+        self._played_color = qcolor_from_css(tokens["VIEWER_PROGRESS_PLAYED"])
+        self.update()
+
+    def _drawHorizonGroove(self, painter: QPainter):
+        width, radius = self.width(), self.handle.width() / 2
+        groove_width = max(0.0, width - radius * 2)
+        groove = QtCore.QRectF(radius, radius - 2, groove_width, 4)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self._track_color)
+        painter.drawRoundedRect(groove, 2, 2)
+        if groove_width <= 0:
+            return
+        buffered_width = groove_width * self._buffered_ratio
+        if buffered_width > 0:
+            painter.setBrush(self._buffer_color)
+            painter.drawRoundedRect(QtCore.QRectF(radius, radius - 2, buffered_width, 4), 2, 2)
+        total = self.maximum() - self.minimum()
+        if total <= 0:
+            return
+        played_width = (self.value() - self.minimum()) / total * groove_width
+        if played_width > 0:
+            painter.setBrush(self._played_color)
+            painter.drawRoundedRect(QtCore.QRectF(radius, radius - 2, played_width, 4), 2, 2)
+
+
+class _BufferedMediaPlayBar(SimpleMediaPlayBar):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        legacy_slider = self.progressSlider
+        self.hBoxLayout.removeWidget(legacy_slider)
+        legacy_slider.hide()
+        self.progressSlider = BufferedProgressSlider(Qt.Horizontal, self)
+        self.hBoxLayout.insertWidget(1, self.progressSlider, 1)
+        self.player.durationChanged.connect(self.progressSlider.setMaximum)
+        self.progressSlider.sliderMoved.connect(self.player.setPosition)
+        self.progressSlider.clicked.connect(self.player.setPosition)
+        self.progressSlider.setMaximum(max(0, self.player.duration()))
+        self.progressSlider.setValue(max(0, self.player.position()))
+        legacy_slider.deleteLater()
+
+    def setBufferedRatio(self, ratio: float):
+        self.progressSlider.setBufferedRatio(ratio)
+
+    def setBufferedRange(self, loaded: int, total: int):
+        self.progressSlider.setBufferedRange(loaded, total)
+
+    def apply_theme(self):
+        self.progressSlider.apply_theme()
+
+
+class _BufferingIndicator(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("DanbooruVideoBufferingIndicator")
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.ring = IndeterminateProgressRing(self, start=False)
+        self.ring.setFixedSize(42, 42)
+        self.ring.setStrokeWidth(4)
+        self.label = BodyLabel("Loading...", self)
+        self.label.setObjectName("DanbooruVideoBufferingLabel")
+        self.label.setAlignment(Qt.AlignCenter)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.ring, 0, Qt.AlignCenter)
+        layout.addWidget(self.label, 0, Qt.AlignCenter)
+        self.hide()
+
+    def setActive(self, active: bool, text: str = "Loading..."):
+        self.label.setText(text)
+        if active:
+            self.show()
+            self.raise_()
+            self.ring.start()
+            return
+        self.ring.stop()
+        self.hide()
+
 
 class DanbooruImageViewer(QWidget):
     tag_clicked = Signal(str)
@@ -46,7 +168,10 @@ class DanbooruImageViewer(QWidget):
         self._pending_loaded_settle_post_id: t.Optional[int] = None
         self._loaded_settle_revision = 0
         self._loaded_settle_scheduled = False
+        self._current_media_kind = "image"
+        self.video_mgr = self._InnerVideoMgr(self)
         self._setup_ui()
+        self.video_mgr.setup_backend(self.playBar)
         self.apply_theme()
 
     def _setup_ui(self):
@@ -106,13 +231,19 @@ class DanbooruImageViewer(QWidget):
         self.topHintBox.setIcon(FIF.PIN)
         self.topHintBox.setChecked(self._keep_on_top)
         self.topHintBox.clicked.connect(self.keep_top_hint)
+        self.playBar = _BufferedMediaPlayBar(self.top_bar)
+        self.playBar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.playBar.setVisible(False)
+        self.topBarSpacer = QWidget(self.top_bar)
+        self.topBarSpacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         top_bar.addWidget(self.topHintBox)
-        top_bar.addStretch(1)
+        top_bar.addWidget(self.playBar)
+        top_bar.addWidget(self.topBarSpacer, 1)
         top_bar.addWidget(self.previous_btn)
         top_bar.addWidget(self.next_btn)
         top_bar.addWidget(self.download_btn)
         top_bar.addWidget(self.close_btn)
-        self.top_bar.setFixedHeight(34)
+        self._update_top_bar_height()
         self.right_panel_layout.addWidget(self.top_bar, 0, Qt.AlignTop)
 
         self.image_label = FlexImageLabel(self.frame)
@@ -121,22 +252,28 @@ class DanbooruImageViewer(QWidget):
         self.image_label.setWordWrap(True)
         self.image_label.setBorderRadius(16, 16, 16, 16)
         self.image_label.setFixedSize(self._default_image_size)
+        self.image_label.installEventFilter(self)
         self.image_hint_label = QLabel("No Preview", self.image_label)
         self.image_hint_label.setObjectName("DanbooruImageHint")
         self.image_hint_label.setAlignment(Qt.AlignCenter)
         self.image_hint_label.setWordWrap(True)
+        self.image_hint_label.installEventFilter(self)
         self._sync_image_hint_geometry()
         self.image_label.mousePressEvent = self._image_mouse_press_event
         self.image_label.mouseMoveEvent = self._image_mouse_move_event
         self.image_label.mouseReleaseEvent = self._image_mouse_release_event
         self.right_panel_layout.addWidget(self.image_label, 0, Qt.AlignHCenter | Qt.AlignTop)
+
+        self.video_mgr.setup_widgets(self.frame, self._default_image_size)
+        self.right_panel_layout.addWidget(self.video_mgr.frame, 0, Qt.AlignHCenter | Qt.AlignTop)
         self.right_panel_layout.addStretch(1)
 
         self.right_panel_widget.setFixedWidth(self._default_image_size.width())
         self.main_layout.addWidget(self.right_panel_widget, 0, Qt.AlignTop)
         self.setFocusPolicy(Qt.StrongFocus)
         for w in (self.previous_btn, self.next_btn, self.download_btn, self.tags_scroll,
-                  self.close_btn, self.topHintBox, self.image_label, self.image_hint_label):
+                  self.close_btn, self.topHintBox, self.image_label, self.image_hint_label,
+                  self.video_mgr.frame, self.video_mgr.surface, self.video_mgr.hint_label):
             w.setFocusPolicy(Qt.NoFocus)
         self._update_download_button()
         self._clear_tags()
@@ -145,17 +282,251 @@ class DanbooruImageViewer(QWidget):
     def apply_theme(self):
         palette = DanbooruUiPalette.current()
         self.setStyleSheet(build_viewer_stylesheet(palette))
+        self.playBar.apply_theme()
+
+    class _InnerVideoMgr:
+        class _VideoWidget(VideoWidget):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self._using_external_play_bar = False
+
+            def bind_external_play_bar(self, play_bar: SimpleMediaPlayBar):
+                if self._using_external_play_bar and self.playBar is play_bar:
+                    return
+                legacy_play_bar = self.playBar
+                legacy_play_bar.hide()
+                self.playBar = play_bar
+                self._using_external_play_bar = True
+                self.player.setVideoOutput(self.videoItem)
+                legacy_play_bar.deleteLater()
+
+            def enterEvent(self, e):
+                if not self._using_external_play_bar:
+                    super().enterEvent(e)
+
+            def leaveEvent(self, e):
+                if not self._using_external_play_bar:
+                    super().leaveEvent(e)
+
+            def resizeEvent(self, e):
+                if not self._using_external_play_bar:
+                    super().resizeEvent(e)
+                    return
+                QGraphicsView.resizeEvent(self, e)
+                self.videoItem.setSize(QtCore.QSizeF(self.size()))
+                self.fitInView(self.videoItem, Qt.KeepAspectRatio)
+
+        def __init__(self, viewer: "DanbooruImageViewer"):
+            self.viewer = viewer
+            self.policy = self._initial_policy()
+            self.player: t.Any = None
+            self.frame: t.Optional[QFrame] = None
+            self.surface: t.Optional[DanbooruImageViewer._InnerVideoMgr._VideoWidget] = None
+            self.hint_label: t.Optional[QLabel] = None
+            self.buffering_indicator: t.Optional[_BufferingIndicator] = None
+            self.source_url = ""
+            self.total_bytes = 0
+            self.cached_bytes = 0
+            self.cached_ratio = 0.0
+            self.cache_complete = False
+            self.active_segment_index = 0
+            self.loading_visible = False
+            self.loading_reason = ""
+            self.buffer_guard_ms = 280
+
+        @staticmethod
+        def _player_state() -> dict:
+            return danbooru_cfg.get_player()
+
+        def _initial_policy(self) -> _PlaybackPolicy:
+            player_state = self._player_state()
+            default_policy = _PlaybackPolicy.default()
+            return _PlaybackPolicy(autoplay=default_policy.autoplay, muted=player_state["muted"], loop=default_policy.loop)
+
+        def setup_widgets(self, parent: QFrame, default_size: QtCore.QSize):
+            self.frame = QFrame(parent)
+            self.frame.setObjectName("DanbooruVideoPanel")
+            self.frame.setFixedSize(default_size)
+            layout = QVBoxLayout(self.frame)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+            self.surface = self._VideoWidget(self.frame)
+            self.surface.setObjectName("DanbooruVideoSurface")
+            layout.addWidget(self.surface)
+            self.hint_label = QLabel("No Preview", self.frame)
+            self.hint_label.setObjectName("DanbooruVideoHint")
+            self.hint_label.setAlignment(Qt.AlignCenter)
+            self.hint_label.setWordWrap(True)
+            self.frame.installEventFilter(self.viewer)
+            self.surface.installEventFilter(self.viewer)
+            self.buffering_indicator = _BufferingIndicator(self.frame)
+            self.sync_hint_geometry()
+            self.frame.hide()
+
+        def setup_backend(self, play_bar: _BufferedMediaPlayBar):
+            self.surface.bind_external_play_bar(play_bar)
+            self.player = self.surface.player
+            self.apply_saved_player_state()
+            self.player.mediaStatusChanged.connect(self._on_media_status_changed)
+            self.player.positionChanged.connect(self._on_position_changed)
+            self.player.durationChanged.connect(self._on_duration_changed)
+            self.player.volumeChanged.connect(self._on_volume_changed)
+            self.player.mutedChanged.connect(self._on_muted_changed)
+
+        def apply_saved_player_state(self):
+            player_state = self._player_state()
+            self.policy = _PlaybackPolicy(autoplay=self.policy.autoplay, muted=player_state["muted"], loop=self.policy.loop)
+            if self.player is None:
+                return
+            self.player.setVolume(player_state["volume"])
+            self.player.setMuted(player_state["muted"])
+
+        def set_media_visible(self, media_kind: str, play_bar: _BufferedMediaPlayBar, top_bar_spacer: QWidget):
+            is_video_mode = media_kind == "video" and self.player is not None
+            self.frame.setVisible(media_kind == "video")
+            play_bar.setVisible(is_video_mode)
+            top_bar_spacer.setVisible(not is_video_mode)
+
+        def sync_hint_geometry(self):
+            self.hint_label.setGeometry(0, 0, self.frame.width(), self.frame.height())
+            self.buffering_indicator.setGeometry(0, 0, self.frame.width(), self.frame.height())
+
+        def set_display_size(self, display_size: QtCore.QSize):
+            self.frame.setFixedSize(display_size)
+            self.sync_hint_geometry()
+
+        def set_hint(self, text: str, *, visible: bool = True):
+            self.hint_label.setText(text)
+            self.hint_label.setVisible(visible)
+            self.sync_hint_geometry()
+
+        def clear_payload(self, play_bar: _BufferedMediaPlayBar):
+            self.source_url = ""
+            self.total_bytes = 0
+            self.cached_bytes = 0
+            self.cached_ratio = 0.0
+            self.cache_complete = False
+            self.active_segment_index = 0
+            play_bar.setBufferedRatio(0.0)
+            self._set_buffering_indicator(False, "")
+            if self.player is not None:
+                self.player.stop()
+                self.player.setSource(QtCore.QUrl())
+            self.hint_label.hide()
+
+        def toggle_playback(self, media_kind: str) -> bool:
+            if media_kind != "video":
+                return False
+            if self.player is None:
+                raise RuntimeError("Danbooru viewer video player was not initialized")
+            if self.player.isPlaying():
+                self.player.pause()
+            else:
+                self.player.play()
+            return True
+
+        def set_video(self, post_id: int, source_url: str):
+            self.source_url = str(source_url or "")
+            if self.player is None:
+                raise RuntimeError("Danbooru viewer video player was not initialized")
+            if not self.source_url:
+                raise ValueError(f"Danbooru viewer video source url is required: post_id={post_id}")
+            self.player.setSource(QtCore.QUrl(self.source_url))
+            self.apply_saved_player_state()
+            if self.policy.autoplay:
+                self.player.play()
+            self.refresh_buffering_state(self.viewer._current_media_kind)
+
+        def set_cache_progress(self, *, cached_bytes: int, total_bytes: int, cached_ratio: float,
+                               active_segment_index: int, complete: bool, play_bar: _BufferedMediaPlayBar):
+            self.cached_bytes = max(0, int(cached_bytes))
+            self.total_bytes = max(0, int(total_bytes))
+            self.cached_ratio = max(0.0, min(1.0, float(cached_ratio)))
+            self.active_segment_index = max(0, int(active_segment_index))
+            self.cache_complete = bool(complete)
+            play_bar.setBufferedRatio(self.cached_ratio)
+            self.refresh_buffering_state(self.viewer._current_media_kind)
+
+        def is_click_target(self, obj) -> bool:
+            frame = self.frame
+            surface = self.surface
+            return (frame is not None and obj is frame) or (surface is not None and obj is surface)
+
+        def _on_volume_changed(self, volume: int):
+            danbooru_cfg.save_player(volume=volume)
+
+        def _on_muted_changed(self, muted: bool):
+            danbooru_cfg.save_player(muted=muted)
+            self.policy = _PlaybackPolicy(autoplay=self.policy.autoplay, muted=muted, loop=self.policy.loop)
+
+        def _on_media_status_changed(self, status):
+            if self.player is None or not self.source_url:
+                return
+            player_type = type(self.player)
+            end_of_media = getattr(player_type.MediaStatus, "EndOfMedia", None)
+            loaded_states = {
+                getattr(player_type.MediaStatus, "LoadedMedia", None),
+                getattr(player_type.MediaStatus, "BufferedMedia", None),
+            }
+            if status == end_of_media and self.policy.loop:
+                self.player.setPosition(0)
+                self.player.play()
+                return
+            if status in loaded_states:
+                self.hint_label.hide()
+                if self.policy.autoplay:
+                    self.player.play()
+                self.refresh_buffering_state(self.viewer._current_media_kind)
+
+        def _on_position_changed(self, _position_ms: int):
+            self.refresh_buffering_state(self.viewer._current_media_kind)
+
+        def _on_duration_changed(self, _duration_ms: int):
+            self.refresh_buffering_state(self.viewer._current_media_kind)
+
+        def _set_buffering_indicator(self, visible: bool, reason: str):
+            self.loading_visible = bool(visible)
+            self.loading_reason = str(reason or "")
+            self.buffering_indicator.setActive(self.loading_visible, self.loading_reason or "Loading...")
+
+        def refresh_buffering_state(self, media_kind: str):
+            if media_kind != "video" or self.player is None:
+                self._set_buffering_indicator(False, "")
+                return
+            duration_ms = max(0, int(self.player.duration()))
+            position_ms = max(0, int(self.player.position()))
+            if duration_ms <= 0 or self.total_bytes <= 0:
+                self._set_buffering_indicator(False, "")
+                return
+            playback_ratio = max(0.0, min(1.0, position_ms / duration_ms))
+            projected_ratio = min(1.0, playback_ratio + (self.buffer_guard_ms / max(1, duration_ms)))
+            waiting = (not self.cache_complete) and projected_ratio >= self.cached_ratio
+            self._set_buffering_indicator(waiting, "Buffering...")
 
     def eventFilter(self, obj, event):
-        if obj is self.top_bar and event.type() == QtCore.QEvent.MouseButtonPress:
+        event_type = event.type()
+        if obj is self.top_bar and event_type == QtCore.QEvent.MouseButtonPress:
             if event.button() == Qt.LeftButton and obj.childAt(event.pos()) is None:
                 startSystemMove(self, event.globalPosition().toPoint())
+                return True
+        if self._is_close_gesture(event):
+            self.hide()
+            event.accept()
+            return True
+        if self.video_mgr.is_click_target(obj) and event_type == QtCore.QEvent.MouseButtonPress:
+            if event.button() == Qt.LeftButton and self._current_media_kind == "video":
+                self.video_mgr.toggle_playback(self._current_media_kind)
+                event.accept()
                 return True
         return super().eventFilter(obj, event)
 
     def _emit_download(self):
         if self.post is not None:
             self.download_requested.emit(self.post)
+
+    @staticmethod
+    def _is_close_gesture(event) -> bool:
+        return event.type() == QtCore.QEvent.MouseButtonRelease and event.button() == Qt.MiddleButton
 
     def _window_flags(self, keep_on_top: bool):
         flags = Qt.Window | Qt.FramelessWindowHint
@@ -173,11 +544,7 @@ class DanbooruImageViewer(QWidget):
             return
         hwnd = int(self.winId())
         insert_after = win32con.HWND_TOPMOST if keep_on_top else win32con.HWND_NOTOPMOST
-        win32gui.SetWindowPos(
-            hwnd,
-            insert_after, 0, 0, 0, 0,
-            win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE,
-        )
+        win32gui.SetWindowPos(hwnd, insert_after, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE)
 
     def _apply_window_mode(self):
         geometry = self.geometry()
@@ -227,6 +594,26 @@ class DanbooruImageViewer(QWidget):
 
     def _clone_size(self, size: QtCore.QSize) -> QtCore.QSize:
         return QtCore.QSize(size.width(), size.height())
+
+    def _show_media_widget(self, media_kind: str):
+        self._current_media_kind = media_kind
+        self.image_label.setVisible(media_kind != "video")
+        self.video_mgr.set_media_visible(media_kind, self.playBar, self.topBarSpacer)
+        self._update_top_bar_height()
+
+    def _update_top_bar_height(self):
+        self.top_bar.setFixedHeight(max(34, self.playBar.height() if not self.playBar.isHidden() else 0))
+
+    def set_video_cache_progress(
+        self, *, post_id: int, cached_bytes: int, total_bytes: int, cached_ratio: float, 
+        active_segment_index: int, complete: bool,
+    ):
+        if self.post is None or self.post.post_id != int(post_id):
+            return
+        self.video_mgr.set_cache_progress(
+            cached_bytes=cached_bytes, total_bytes=total_bytes, cached_ratio=cached_ratio,
+            active_segment_index=active_segment_index, complete=complete, play_bar=self.playBar,
+        )
 
     def _update_display_source_size(self, source_size: t.Optional[QtCore.QSize], *, replace: bool = False) -> bool:
         if not self._is_valid_size(source_size):
@@ -293,10 +680,7 @@ class DanbooruImageViewer(QWidget):
 
     def _image_display_bounds(self) -> QtCore.QSize:
         geometry = self._screen_geometry()
-        return QtCore.QSize(
-            self._max_right_panel_width(),
-            max(1, geometry.height() - self._panel_chrome_height()),
-        )
+        return QtCore.QSize(self._max_right_panel_width(), max(1, geometry.height() - self._panel_chrome_height()))
 
     def _calculate_fit_result(self, source_size: t.Optional[QtCore.QSize]) -> DanbooruViewerFitResult:
         return DanbooruViewerFitCalculator.calculate(self._image_display_bounds(), source_size)
@@ -307,6 +691,7 @@ class DanbooruImageViewer(QWidget):
     def _apply_image_display_size(self, display_size: QtCore.QSize):
         panel_width = min(self._max_right_panel_width(), max(display_size.width(), self._top_bar_min_width()))
         self.image_label.setFixedSize(display_size)
+        self.video_mgr.set_display_size(display_size)
         self.right_panel_widget.setFixedWidth(panel_width)
         self._sync_image_hint_geometry()
 
@@ -363,13 +748,21 @@ class DanbooruImageViewer(QWidget):
     def _sync_image_hint_geometry(self):
         self.image_hint_label.setGeometry(0, 0, self.image_label.width(), self.image_label.height())
 
+    def _display_media_kind_for_post(self, post: t.Optional[DanbooruPost]) -> str:
+        return "video" if post is not None and post.is_video else "image"
+
     def set_placeholder(self, text: str):
+        if self._current_media_kind == "video":
+            self.video_mgr.clear_payload(self.playBar)
+            self.video_mgr.set_hint(text, visible=True)
+            return
         self.image_label.setPixmap(QPixmap())
         self.image_hint_label.setText(text)
         self.image_hint_label.show()
         self._sync_image_hint_geometry()
 
     def set_placeholder_for_post(self, post: DanbooruPost, text: str):
+        self._show_media_widget(self._display_media_kind_for_post(post))
         self._update_display_source_size(self._post_size_hint(post), replace=True)
         self._last_fit_result = self._calculate_fit_result(self._effective_display_source_size())
         self._apply_image_display_size(self._last_fit_result.display_size)
@@ -397,7 +790,7 @@ class DanbooruImageViewer(QWidget):
         self.tags_layout.addStretch(1)
 
     def _update_download_button(self):
-        downloadable = self.post is not None and DanbooruPost.is_supported_file_ext(self.post.file_ext) and not self._already_downloaded
+        downloadable = self.post is not None and self.post.is_downloadable and not self._already_downloaded
         self.download_btn.setDisabled(not downloadable)
 
     def set_download_state(self, downloaded: bool):
@@ -413,6 +806,7 @@ class DanbooruImageViewer(QWidget):
         self._already_downloaded = already_downloaded
         self._display_source_size = None
         self._loaded_pixmap_size = None
+        self.video_mgr.clear_payload(self.playBar)
         self._last_fit_result = None
         self._pending_loaded_settle_post_id = None
         self._loaded_settle_revision += 1
@@ -420,7 +814,8 @@ class DanbooruImageViewer(QWidget):
         self._update_display_source_size(self._post_size_hint(post), replace=True)
         self._populate_tags(post)
         self._update_download_button()
-        self.set_placeholder_for_post(post, "Loading..." if (post.large_file_url or post.file_url or post.preview_file_url) else "No Preview")
+        placeholder_text = "Loading..." if (post.large_file_url or post.file_url or post.preview_file_url) else "No Preview"
+        self.set_placeholder_for_post(post, placeholder_text)
         self.show()
         self._settle_viewer_layout()
         self.raise_()
@@ -432,6 +827,8 @@ class DanbooruImageViewer(QWidget):
             return
         if pixmap.width() == 0 or pixmap.height() == 0:
             return
+        self._show_media_widget("image")
+        self.video_mgr.clear_payload(self.playBar)
         pixmap_size = QtCore.QSize(pixmap.width(), pixmap.height())
         self._loaded_pixmap_size = self._clone_size(pixmap_size)
         self._update_display_source_size(pixmap_size)
@@ -440,9 +837,20 @@ class DanbooruImageViewer(QWidget):
         self._settle_viewer_layout()
         self._arm_loaded_settlement(post_id)
 
+    def set_video(self, post_id: int, source_url: str):
+        if self.post is None or self.post.post_id != post_id:
+            return
+        self._show_media_widget("video")
+        self.video_mgr.clear_payload(self.playBar)
+        self.image_label.setPixmap(QPixmap())
+        self.image_hint_label.hide()
+        self.video_mgr.set_video(post_id, source_url)
+        self._settle_viewer_layout()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._sync_image_hint_geometry()
+        self.video_mgr.sync_hint_geometry()
         if self._applying_layout:
             return
         self._schedule_loaded_settlement()
@@ -451,6 +859,8 @@ class DanbooruImageViewer(QWidget):
         key = event.key()
         if key == Qt.Key_Escape:
             self.hide()
+        elif key == Qt.Key_Space and self._current_media_kind == "video":
+            self.video_mgr.toggle_playback(self._current_media_kind)
         elif key == Qt.Key_Left and self.previous_btn.isEnabled():
             self.previous_btn.click()
         elif key == Qt.Key_Right and self.next_btn.isEnabled():
@@ -466,6 +876,7 @@ class DanbooruImageViewer(QWidget):
 
     def hideEvent(self, event):
         self._drag_offset = None
+        self.video_mgr.clear_payload(self.playBar)
         self.closed.emit()
         super().hideEvent(event)
 
@@ -477,4 +888,8 @@ class DanbooruImageViewer(QWidget):
 
     def _image_mouse_release_event(self, event):
         self._drag_offset = None
+        if self._is_close_gesture(event):
+            self.hide()
+            event.accept()
+            return
         QLabel.mouseReleaseEvent(self.image_label, event)

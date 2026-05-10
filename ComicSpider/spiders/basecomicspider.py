@@ -234,19 +234,18 @@ class BaseComicSpider(scrapy.Spider):
             callback = self.parse_fin_page if self._enable_episode_dispatch else self.parse_section
             yield scrapy.Request(
                 url=final_url,
-                callback=callback,
-                headers={**self.ua, 'Referer': self.request_referer(final_url)},
-                meta=meta,
-                dont_filter=True,
+                callback=callback, headers={**self.ua, 'Referer': self.request_referer(final_url)},
+                meta=meta, dont_filter=True,
             )
 
     def _process_book(self, book: BookInfo):
         url = book.url if book.url and book.url.startswith("http") else self.book_id_url % book.id
         final_url = self.transfer_url(url)
         yield scrapy.Request(
-            url=final_url, callback=self.parse_section,
-            headers={**self.ua, 'Referer': self.request_referer(final_url)},
-            meta={'book': book}, dont_filter=True)
+            url=final_url,
+            callback=self.parse_section, headers={**self.ua, 'Referer': self.request_referer(final_url)},
+            meta={'book': book}, dont_filter=True,
+        )
 
     def start_requests(self):
         self.preready()

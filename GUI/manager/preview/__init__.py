@@ -226,11 +226,6 @@ class PreviewMgr:
         self.gui.say(f"<br>{'✈' * 15}<br>{font_color(ori_res.SPIDER.SayToGui.frame_book_print_retry_tip, cls='theme-err', size=4)}", 
                      ignore_http=True)
 
-    def _on_search_error(self, message):
-        self.gui.flow_stage = GUIFlowStage.IDLE
-        self.gui.update_search_ui(request=PreviewRequestState.Idle)
-        self.gui.say(f"<br>{font_color(message, cls='theme-err', size=4)}", ignore_http=True)
-
     def _on_search_done(self, generation, _keyword, site_index, books):
         if generation != self._generation or site_index != self.site_index:
             return
@@ -253,7 +248,6 @@ class PreviewMgr:
             generation=self._generation,
         )
         self._worker.search_done.connect(self._on_search_done)
-        self._worker.search_error.connect(self._on_search_error)
         ep_handler = self._fix if self.is_fix else self._manga
         self._worker.episodes_done.connect(ep_handler.on_episodes_done)
         self._worker.pages_done.connect(ep_handler.on_pages_done)
@@ -266,7 +260,6 @@ class PreviewMgr:
     def _disconnect_worker_signals(worker: PreviewWorker):
         for signal in (
             worker.search_done,
-            worker.search_error,
             worker.episodes_done,
             worker.pages_done,
             worker.cover_done,

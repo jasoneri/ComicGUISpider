@@ -454,7 +454,7 @@ class MangaPreviewFeature:
             book = self.mgr.books_cache.get(book_key)
             if book is None or not selected_eps:
                 continue
-            needs_pages = [ep for ep in selected_eps if ep.pages is None]
+            needs_pages = [ep for ep in selected_eps if not getattr(ep, "page_urls", None)]
             if not needs_pages:
                 book.episodes = list(selected_eps)
                 self.gui.sel_mgr.submit_decision("EP", book)

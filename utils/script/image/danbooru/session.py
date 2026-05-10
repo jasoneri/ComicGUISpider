@@ -57,10 +57,8 @@ class DanbooruBrowserSession:
         if not name:
             raise ValueError("Danbooru browser cookie name is required")
         return DanbooruBrowserCookie(
-            name=name,
-            value=str(cookie.get("value") or ""),
-            domain=str(cookie.get("domain") or "").strip(),
-            path=str(cookie.get("path") or "/").strip() or "/",
+            name=name, value=str(cookie.get("value") or ""),
+            domain=str(cookie.get("domain") or "").strip(), path=str(cookie.get("path") or "/").strip() or "/",
         )
 
     @classmethod
@@ -78,12 +76,7 @@ class DanbooruBrowserSession:
         return tuple(normalized.values())
 
     @classmethod
-    def _cookies_from_header(
-        cls,
-        cookie_header: object,
-        *,
-        source_url: str = "",
-    ) -> tuple[DanbooruBrowserCookie, ...]:
+    def _cookies_from_header(cls, cookie_header: object, *, source_url: str = "") -> tuple[DanbooruBrowserCookie, ...]:
         host = cls._source_host(source_url)
         cookies: list[DanbooruBrowserCookie] = []
         for chunk in str(cookie_header or "").split(";"):
@@ -93,14 +86,7 @@ class DanbooruBrowserSession:
             normalized_name = cls._normalize_text(name)
             if not normalized_name:
                 continue
-            cookies.append(
-                DanbooruBrowserCookie(
-                    name=normalized_name,
-                    value=value.strip(),
-                    domain=host,
-                    path="/",
-                )
-            )
+            cookies.append(DanbooruBrowserCookie(name=normalized_name, value=value.strip(), domain=host, path="/"))
         return tuple(cookies)
 
     @classmethod
@@ -123,26 +109,15 @@ class DanbooruBrowserSession:
     ) -> "DanbooruBrowserSession":
         normalized_headers = cls._normalize_headers(headers)
         effective_source_url = cls._normalize_text(source_url)
-        cookie_header = next(
-            (value for name, value in normalized_headers if name.casefold() == "cookie"),
-            "",
-        )
+        cookie_header = next((value for name, value in normalized_headers if name.casefold() == "cookie"), "")
         return cls(
-            cookies=cls.merge_cookies(
-                cookies,
-                cls._cookies_from_header(cookie_header, source_url=effective_source_url),
-            ),
-            user_agent=cls._normalize_text(user_agent),
-            headers=normalized_headers,
-            source_url=effective_source_url,
+            cookies=cls.merge_cookies(cookies, cls._cookies_from_header(cookie_header, source_url=effective_source_url)),
+            user_agent=cls._normalize_text(user_agent), headers=normalized_headers, source_url=effective_source_url,
         )
 
     def header_value(self, name: str, default: str = "") -> str:
         normalized_name = str(name or "").casefold()
-        return next(
-            (value for current_name, value in self.headers if current_name.casefold() == normalized_name),
-            default,
-        )
+        return next((value for current_name, value in self.headers if current_name.casefold() == normalized_name), default)
 
     @property
     def cookie_names(self) -> list[str]:
@@ -193,7 +168,7 @@ class DanbooruBrowserSession:
             headers.append(f"Cookie: {cookie_header}")
         return headers
 
-    def apply_to_client(self, client: httpx.AsyncClient) -> "DanbooruBrowserSession":
+    def apply_to_client(self, client: httpx.Client | httpx.AsyncClient) -> "DanbooruBrowserSession":
         if self.user_agent:
             client.headers["User-Agent"] = self.user_agent
         for name, value in self.headers:
@@ -201,12 +176,7 @@ class DanbooruBrowserSession:
                 continue
             client.headers[name] = value
         for cookie in self.cookies:
-            client.cookies.set(
-                cookie.name,
-                cookie.value,
-                domain=cookie.domain or None,
-                path=cookie.path or "/",
-            )
+            client.cookies.set(cookie.name, cookie.value, domain=cookie.domain or None, path=cookie.path or "/")
         return self
 
 
@@ -214,14 +184,20 @@ class DanbooruBrowserSessionStore:
     def __init__(self):
         self._lock = threading.Lock()
         self._session = DanbooruBrowserSession()
+        self._revision = 0
 
     def current(self) -> DanbooruBrowserSession:
         with self._lock:
             return self._session
 
+    def current_with_revision(self) -> tuple[int, DanbooruBrowserSession]:
+        with self._lock:
+            return self._revision, self._session
+
     def clear(self) -> None:
         with self._lock:
             self._session = DanbooruBrowserSession()
+            self._revision += 1
 
     def update(
         self,
@@ -232,35 +208,25 @@ class DanbooruBrowserSessionStore:
         source_url: object = "",
     ) -> DanbooruBrowserSession:
         session = DanbooruBrowserSession.from_browser_capture(
-            cookies=cookies,
-            user_agent=user_agent,
-            headers=headers,
-            source_url=source_url,
+            cookies=cookies, user_agent=user_agent, headers=headers, source_url=source_url,
         )
         with self._lock:
             self._session = session
+            self._revision += 1
         append_danbooru_debug_event(
             "session.set",
-            cookies=len(session.cookies),
-            cookie_names=session.cookie_names,
-            user_agent=session.user_agent,
-            header_names=session.header_names,
-            cookie_header_names=session.cookie_header_names(),
-            source_url=session.source_url,
+            cookies=len(session.cookies), cookie_names=session.cookie_names, user_agent=session.user_agent,
+            header_names=session.header_names, cookie_header_names=session.cookie_header_names(), source_url=session.source_url,
         )
         return session
 
-    def apply_to(self, client: httpx.AsyncClient) -> DanbooruBrowserSession:
+    def apply_to(self, client: httpx.Client | httpx.AsyncClient) -> DanbooruBrowserSession:
         session = self.current().apply_to_client(client)
         append_danbooru_debug_event(
             "session.apply",
-            cookies=len(session.cookies),
-            cookie_names=session.cookie_names,
-            user_agent=client.headers.get("User-Agent", ""),
-            base_url=str(getattr(client, "base_url", "")),
-            header_names=session.header_names,
-            cookie_header_names=session.cookie_header_names(),
-            source_url=session.source_url,
+            cookies=len(session.cookies), cookie_names=session.cookie_names, user_agent=client.headers.get("User-Agent", ""),
+            base_url=str(getattr(client, "base_url", "")), header_names=session.header_names,
+            cookie_header_names=session.cookie_header_names(), source_url=session.source_url,
         )
         return session
 

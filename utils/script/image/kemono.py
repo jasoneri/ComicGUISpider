@@ -8,7 +8,6 @@ import os
 import sys
 import shutil
 import asyncio
-import pickle
 import pathlib as p
 from dataclasses import dataclass, asdict
 
@@ -26,10 +25,12 @@ from utils.network.doh import build_http_transport, dns_stub_server
 from utils.script import conf as script_conf, AioRClient, BlackList, folder_sub
 from utils.script.motrix import MotrixRPC, build_motrix_dns_options
 from utils.script.image.expander import FilterMgr, format_naming
+from utils.website.kemono.db import load_kemono_authors
 
 conf = script_conf
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
+kemono_db_path = temp_p.joinpath("kemono.db")
 
 
 kemono_topic = """
@@ -43,19 +44,6 @@ headers = {
     "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
     'Accept': 'text/css',
 }
-
-
-@dataclass
-class KemonoAuthor:
-    id: str
-    name: str
-    service: str
-    updated: int
-    favorited: int
-    
-    @property
-    def avatar(self):
-        return f"https://img.{domain}/icons/{self.service}/{self.id}"
 
 
 class OverSizeErr(Exception):
@@ -205,7 +193,7 @@ class Kemono:
         )
 
     class Creator:
-        cache_path = temp_p.joinpath("kemono_data.pkl")
+        db_path = kemono_db_path
         
         def __init__(self, parent, **ckw):
             self.k = parent
@@ -342,12 +330,7 @@ class Kemono:
         @logger.catch
         async def by_creatorid(self, order_creatorids=None):
             order_creatorids = set(map(str, order_creatorids))
-            all_creators = None
-            if self.cache_path.exists():
-                with open(self.cache_path, 'rb') as f:
-                    all_creators = pickle.load(f)
-            else:
-                all_creators = await self._download_and_cache_kemono_data()
+            all_creators = await asyncio.to_thread(load_kemono_authors, self.db_path)
 
             found_ids = set()
             for creator_id in order_creatorids:
@@ -359,47 +342,6 @@ class Kemono:
             not_found = order_creatorids - found_ids
             if not_found:
                 logger.warning(f"not found creatorid: {not_found}")
-
-        async def _download_and_cache_kemono_data(self):
-            """下载kemono创作者数据并转换为KemonoAuthor映射字典"""
-            creators_txt = temp_p.joinpath("creators.txt")
-            if not creators_txt.exists():
-                _data = [[Api.creators_txt], {"dir": str(temp_p), **self.k.motrix_add_uri_options()}]
-                resp = await self.k.rpc.sess.request(
-                    "POST", self.k.rpc.url, headers={"Content-Type": "application/json"},
-                    json=MotrixRPC.format_data(_data, _id="creators.txt"))
-                add_result = resp.json()
-                gid = add_result.get('result')
-                
-                run_flag = True
-                while run_flag:
-                    status_tasks = [self.k.rpc.check_gid_status(gid)]
-                    results = await asyncio.gather(*status_tasks)
-                    for gid, result in results:
-                        if 'error' in result:
-                            result = {'result': {'status': 'error'}}
-                        status = result.get('result', {}).get('status')
-                        if status == 'complete':
-                            run_flag = False
-                        elif status == 'error':
-                            raise ValueError(f"""Download creators.txt failed,\n
-                                you can download it from {Api.creators_txt},\n
-                            then put it into {creators_txt}""")
-                    await asyncio.sleep(1.5)
-            with open(creators_txt, 'r', encoding='utf-8') as f:
-                json_data = json.load(f)
-            author_dict = {}
-            for item in json_data:
-                author_id = item['id']
-                author = KemonoAuthor(
-                    id=author_id, name=item['name'], service=item['service'],
-                    updated=item['updated'], favorited=item['favorited']
-                )
-                author_dict[author_id] = author
-            with open(self.cache_path, 'wb') as f:
-                pickle.dump(author_dict, f)
-
-            return author_dict
 
     def run_filter(self, u_s, p_t, _task) -> bool:
         """

@@ -3,7 +3,7 @@ import asyncio
 import httpx
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 from lxml import etree
 from scrapy import Selector
@@ -12,6 +12,10 @@ from assets import res
 from utils import conf, ori_path
 from utils.website.core import DomainUtils, EroUtils, Previewer, Req, build_proxy_transport
 from utils.website.info import WnacgBookInfo
+
+
+_HTTP_URL_RE = re.compile(r'''https?://[^\s\"'<>]+''', re.IGNORECASE)
+_PARKLOGIC_HOST = "router.parklogic.com"
 
 
 class _WnacgContract:
@@ -95,18 +99,8 @@ class WnacgParser(_WnacgContract, Previewer):
         )))
 
     @classmethod
-    def normalize_preview_resource(
-        cls,
-        value: str | None,
-        *,
-        domain: str | None = None,
-        default_scheme: str = "https",
-    ) -> str | None:
-        normalized = super().normalize_preview_resource(
-            value,
-            domain=domain,
-            default_scheme=default_scheme,
-        )
+    def normalize_preview_resource(cls, value: str | None, *, domain: str | None = None, default_scheme: str = "https") -> str | None:
+        normalized = super().normalize_preview_resource(value, domain=domain, default_scheme=default_scheme)
         if not normalized:
             return normalized
         parsed = urlparse(normalized)
@@ -127,12 +121,9 @@ class WnacgParser(_WnacgContract, Previewer):
             else None
         )
         return WnacgBookInfo(
-            name=item_elem.xpath("./@title").get(),
-            preview_url=pre_url,
-            url=pre_url.replace("index", "gallery"),
-            pages=re.search(r"(\d+)[張张]", page_text.strip()).group(1) if page_text else 0,
-            btype=cls.cate_mappings.get(cate, ""),
-            img_preview=cls.normalize_preview_resource(item_elem.xpath("./img/@src").get()),
+            name=item_elem.xpath("./@title").get(), preview_url=pre_url,
+            url=pre_url.replace("index", "gallery"), pages=re.search(r"(\d+)[張张]", page_text.strip()).group(1) if page_text else 0,
+            btype=cls.cate_mappings.get(cate, ""), img_preview=cls.normalize_preview_resource(item_elem.xpath("./img/@src").get()),
             public_date=public_date,
         ).get_id(pre_url)
 
@@ -166,9 +157,7 @@ class WnacgParser(_WnacgContract, Previewer):
         url = thumb_el.xpath("./a/@href").get().replace("slide", "gallery")
         info_el = html_doc.xpath('//div[contains(@class, "uwconn")]')[0]
         label_texts = info_el.xpath("./label/text()").getall()
-        cate_hrefs = html_doc.xpath(
-            '//div[contains(@class, "bread")]//a[contains(@href, "albums-index-cate-")]/@href'
-        ).getall()
+        cate_hrefs = html_doc.xpath('//div[contains(@class, "bread")]//a[contains(@href, "albums-index-cate-")]/@href').getall()
         btype = (
             cls.cate_mappings.get(f"cate-{match.group(1)}", "")
             if cate_hrefs and (match := re.search(r"cate-(\d+)", cate_hrefs[-1]))
@@ -177,15 +166,11 @@ class WnacgParser(_WnacgContract, Previewer):
         date_text = html_doc.xpath('//div[@class="grid"]//li[1]//div[@class="info_col"]/text()').get()
         public_date = re.search(r"\d{4}-\d{2}-\d{2}", date_text).group() if date_text else None
         book = WnacgBookInfo(
-            name=html_doc.xpath("//body/div/h2/text()").get(),
-            url=url,
-            preview_url=url.replace("gallery", "index"),
+            name=html_doc.xpath("//body/div/h2/text()").get(), url=url, preview_url=url.replace("gallery", "index"),
             tags=info_el.xpath('.//a[@class="tagshow"]/text()').getall(),
             img_preview=cls.normalize_preview_resource(thumb_el.xpath("./img/@src").get(), domain=domain),
-            pages=re.search(r"\d+", next(filter(lambda text: "頁數" in text, label_texts))).group(0),
-            btype=btype,
-            public_date=public_date,
-            episodes=[],
+            pages=re.search(r"\d+", next(filter(lambda text: "頁數" in text, label_texts))).group(0), btype=btype,
+            public_date=public_date, episodes=[],
         ).get_id(url)
         if domain:
             cls.normalize_preview_fields(book, domain=domain)
@@ -205,18 +190,10 @@ class WnacgReqer(_WnacgContract, Req):
             raise ValueError("preview domain is required for wnacg")
         spec = WnacgUtils.build_basic_search_request(
             keyword,
-            page=page,
-            domain=domain,
-            search_url_head=f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=",
-            turn_page_info=self.turn_page_info,
-            turn_page_search=self.turn_page_search,
-            mappings=self.mappings,
+            page=page, domain=domain, search_url_head=f"https://{domain}/search/?f=_all&s=create_time_DESC&syn=yes&q=",
+            turn_page_info=self.turn_page_info, turn_page_search=self.turn_page_search, mappings=self.mappings,
             custom_map=site_kw.get("custom_map"),
-            headers=WnacgUtils.build_site_headers(
-                domain,
-                self.headers,
-                referer_url=WnacgUtils.preview_origin(domain),
-            ),
+            headers=WnacgUtils.build_site_headers(domain, self.headers, referer_url=WnacgUtils.preview_origin(domain)),
             state={"domain": domain},
         )
         resp = await WnacgUtils.perform_preview_request(self.ensure_preview_client(), spec)
@@ -248,12 +225,18 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
 
     @staticmethod
     def _is_redirect_challenge(html_text: str) -> bool:
-        lowered = str(html_text or "").casefold()
-        return (
-            "<title>redirecting...</title>" in lowered
-            or "router.parklogic.com" in lowered
-            or "adblockingdetected" in lowered
-        )
+        text = str(html_text or "")
+        lowered = text.casefold()
+        if "<title>redirecting...</title>" in lowered or "adblockingdetected" in lowered:
+            return True
+        for url in _HTTP_URL_RE.findall(text):
+            try:
+                host = urlsplit(url.replace("\\", "/")).hostname
+            except ValueError:
+                continue
+            if host and host.casefold().rstrip(".") == _PARKLOGIC_HOST:
+                return True
+        return False
 
     @classmethod
     def _probe_search_url(cls, domain: str) -> str:
@@ -263,17 +246,10 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
     async def test_aviable_domain(cls, domain):
         url = cls._probe_search_url(domain)
         try:
-            transport, trust_env = build_proxy_transport(
-                cls.proxy_policy,
-                conf.proxies,
-                retries=1,
-                verify=False,
-            )
+            transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies, retries=1, verify=False)
             async with httpx.AsyncClient(
-                headers=cls.build_site_headers(domain, cls.headers, referer_url=cls.preview_origin(domain)),
-                transport=transport,
-                trust_env=trust_env,
-                follow_redirects=True,
+                headers=cls.build_site_headers(domain, cls.headers, referer_url=cls.preview_origin(domain)), transport=transport,
+                trust_env=trust_env, follow_redirects=True,
             ) as cli:
                 resp = await cli.get(url, timeout=6)
                 resp.raise_for_status()
@@ -287,16 +263,8 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
         return None
 
     @classmethod
-    def normalize_preview_resource(
-        cls,
-        value: str | None,
-        *,
-        domain: str | None = None,
-        default_scheme: str = "https",
-    ) -> str | None:
-        return cls.parser.normalize_preview_resource(value, domain=domain,
-            default_scheme=default_scheme,
-        )
+    def normalize_preview_resource(cls, value: str | None, *, domain: str | None = None, default_scheme: str = "https") -> str | None:
+        return cls.parser.normalize_preview_resource(value, domain=domain, default_scheme=default_scheme)
 
     @classmethod
     def preview_client_config(cls, **context):
@@ -304,9 +272,7 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
         if not domain:
             raise ValueError("preview domain is required for wnacg")
         return {
-            "headers": cls.build_site_headers(domain, cls.headers,
-                referer_url=cls.preview_origin(domain),
-            ),
+            "headers": cls.build_site_headers(domain, cls.headers, referer_url=cls.preview_origin(domain)),
         }
 
     @classmethod

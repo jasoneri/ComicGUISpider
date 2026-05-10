@@ -20,6 +20,9 @@ STATUS_TEXT = rgba(39, 39, 42, 0.80);
 VIEWER_FRAME = rgba(255, 255, 255, 1.0);
 VIEWER_BORDER = rgba(39, 39, 42, 0.50);
 VIEWER_IMAGE = rgba(39, 39, 42, 0.04);
+VIEWER_PROGRESS_TRACK = rgba(39, 39, 42, 0.32);
+VIEWER_PROGRESS_BUFFER = rgba(39, 39, 42, 0.56);
+VIEWER_PROGRESS_PLAYED = rgba(24, 24, 27, 0.88);
 VIEWER_TAG = rgba(255, 255, 255, 0.92);
 VIEWER_TAG_HOVER = rgba(244, 244, 245, 0.98);
 SELECTION_BORDER = rgba(24, 24, 27, 0.88);
@@ -47,6 +50,9 @@ CARD_CHECKBOX_SHADOW = rgba(255, 190, 184, 144);
 CARD_CHECKBOX_INNER = rgba(255, 255, 255, 252);
 CARD_CHECKBOX_OFFSET_X = 12;
 CARD_CHECKBOX_OFFSET_Y = 12;
+CARD_VIDEO_BADGE_BG = rgba(0, 0, 0, 0.62);
+CARD_VIDEO_BADGE_TEXT = rgba(255, 255, 255, 0.92);
+CARD_PAGE_BORDER_COLOR = rgba(123, 90, 206, 0.68);
 /* @endtokens */
 
 /* @tokens dark */
@@ -69,6 +75,9 @@ STATUS_TEXT = rgba(228, 228, 231, 0.82);
 VIEWER_FRAME = rgba(15, 15, 17, 1.0);
 VIEWER_BORDER = rgba(244, 244, 245, 0.50);
 VIEWER_IMAGE = rgba(244, 244, 245, 0.05);
+VIEWER_PROGRESS_TRACK = rgba(244, 244, 245, 0.18);
+VIEWER_PROGRESS_BUFFER = rgba(244, 244, 245, 0.42);
+VIEWER_PROGRESS_PLAYED = rgba(226, 232, 240, 0.92);
 VIEWER_TAG = rgba(255, 255, 255, 0.04);
 VIEWER_TAG_HOVER = rgba(255, 255, 255, 0.08);
 SELECTION_BORDER = rgba(226, 232, 240, 0.92);
@@ -96,6 +105,9 @@ CARD_CHECKBOX_SHADOW = rgba(255, 190, 184, 112);
 CARD_CHECKBOX_INNER = rgba(255, 255, 255, 244);
 CARD_CHECKBOX_OFFSET_X = 12;
 CARD_CHECKBOX_OFFSET_Y = 12;
+CARD_VIDEO_BADGE_BG = rgba(0, 0, 0, 0.68);
+CARD_VIDEO_BADGE_TEXT = rgba(255, 255, 255, 0.94);
+CARD_PAGE_BORDER_COLOR = rgba(160, 134, 232, 0.72);
 /* @endtokens */
 
 /* @section card */
@@ -151,6 +163,21 @@ QLabel#DanbooruImageLabel {
     border-radius: 16px;
 }
 QLabel#DanbooruImageHint {
+    color: ${MUTED_TEXT};
+    background: transparent;
+    padding: 0 18px;
+}
+QWidget#DanbooruVideoPanel {
+    background: ${VIEWER_IMAGE};
+    border-radius: 16px;
+}
+QWidget#DanbooruVideoSurface,
+QFrame#DanbooruVideoSurface,
+QGraphicsView#DanbooruVideoSurface {
+    background: black;
+    border-radius: 16px;
+}
+QLabel#DanbooruVideoHint {
     color: ${MUTED_TEXT};
     background: transparent;
     padding: 0 18px;

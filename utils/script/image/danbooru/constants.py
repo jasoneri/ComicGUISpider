@@ -4,6 +4,8 @@ import re
 
 SUPPORTED_MEDIA_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
 UNSUPPORTED_MEDIA_EXTENSIONS = {"mp4", "webm", "zip"}
+DOWNLOADABLE_MEDIA_EXTENSIONS = SUPPORTED_MEDIA_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS
+VIEWER_VIDEO_MEDIA_EXTENSIONS = frozenset({"mp4", "webm"})
 DANBOORU_SQL_TABLE = "danbooru_md5_table"
 DANBOORU_BASE_URL = "https://danbooru.donmai.us"
 AUTOCOMPLETE_PATH = "/autocomplete"

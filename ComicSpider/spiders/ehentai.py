@@ -24,8 +24,8 @@ class EHentaiSpider(BaseComicSpider3):
     domain = domain
     search_url_head = f'https://{domain}/?f_search='
     mappings = {
-        res.EHentai.MAPPINGS_INDEX: f'https://{domain}',
-        res.EHentai.MAPPINGS_POPULAR: f'https://{domain}/popular'
+        res.SPIDER.Completer.index: f'https://{domain}',
+        res.SPIDER.Completer.popular: f'https://{domain}/popular'
     }
     frame_book_format = ['title', 'book_pages', 'preview_url']  # , 'book_idx']
     turn_page_info = (r"page=\d+",)

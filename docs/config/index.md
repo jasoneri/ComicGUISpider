@@ -121,12 +121,28 @@ maccy(macOS): [issue 搜索相关得知](https://github.com/p0deje/Maccy/issues/
 
 ### 映射 / `custom_map`
 
-搜索输入映射  
-当搜索与预设不满足使用时，先在此加入键值对，重启后在搜索框输入自定义键就会将对应网址结果输出，`🎥视频使用指南3`有介绍用法  
+搜索输入映射，`🎥视频使用指南3`有粗略介绍用法  
+
+最大作用是让 CGS 根据自定义映射的 `站点预设导航页` 获得 `翻页` 能力  
+可参考 [assets\conf_sample.yml](https://github.com/jasoneri/ComicGUISpider/blob/GUI/assets/conf_sample.yml) 的 `custom_map` 进行调整  
+响应类型为 html 的站点复制 url 即可，json 类型的需要 F12 抓包真正的 xhr-url
+
+| 站点 | 响应类型 | key |
+| --- | --- | --- |
+| wnacg | html | cate-(key).html |
+| jm | html | promotes/(key) |
+| nhentai | json | tag_id=(key) |
+| jestful | html | genre=(key) |
+
+以上没列出的站点还没测试，可自行尝试
+
+::: tip 注意事项
 
 1. 映射无需理会域名，前提是用在当前网站，只要满足 `不用映射时能访问` 和 `填入的不是无效的url`，
 程序会内置替换成可用的域名，如非代理下映射的`wnacg.com`会自动被替换掉  
 2. 注意自制的映射有可能超出翻页规则范围，此时可通知开发者进行扩展
+
+:::
 
 ### ui语言选择 / `lang`
 

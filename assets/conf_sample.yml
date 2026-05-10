@@ -1,8 +1,9 @@
 ## 配置文件，使用方法详情至readme.md了解
 
 custom_map:
-  杂志: https://wnacg.com/albums-index-cate-10.html
+  wn杂志: https://wnacg.com/albums-index-cate-10.html
   禁漫去码: https://18comic-cnye.org/promotes/30
+  nhfgo: https://nhentai.net/api/v2/galleries/tagged?tag_id=2937&sort=date&page=1
+  jfa: https://jestful.net/manga-list.html?listType=pagination&page=1&genre=Adult&sort=views&sort_type=DESC
 log_level: WARNING
 proxies: null
-sv_path: D:\Comic

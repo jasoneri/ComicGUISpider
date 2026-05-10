@@ -1,7 +1,6 @@
 import sys
 import subprocess
 import pathlib as p
-import pickle
 import typing as t
 from datetime import datetime
 
@@ -23,8 +22,9 @@ from qframelesswindow import FramelessWindow
 from variables import CGS_DOC
 from deploy import curr_os
 from utils import ori_path, temp_p
-from utils.script.image.kemono import kemono_topic, conf, KemonoAuthor
+from utils.script.image.kemono import kemono_topic, conf
 from utils.config.qc import kemono_cfg
+from utils.website.kemono.db import KemonoAuthor, load_kemono_authors
 from GUI.core.font import font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
@@ -711,8 +711,7 @@ class KemonoInterface(QFrame):
         self.table_window.show()
 
     def _set_kemono_table(self):
-        with open(temp_p.joinpath("kemono_data.pkl"), 'rb') as f:
-            data = pickle.load(f)
+        data = load_kemono_authors(temp_p.joinpath("kemono.db"))
         self.table_window = KemonoTableView(data, self)
         self.table_window.closeBtn.clicked.connect(self.table_window.close)
         self.table_window.closed.connect(self.table_window.hide)

@@ -25,7 +25,7 @@ class DanbooruDownloadPlanner:
             return plan
         duplicated = self.sql_recorder.batch_check_dupe([post.md5 for post in post_list if post.md5])
         for post in post_list:
-            if not post.file_url or not post.md5 or not post.is_supported:
+            if not post.file_url or not post.md5 or not post.is_downloadable:
                 plan.failed_pre_submit.append(post)
             elif post.md5 in duplicated:
                 plan.deduped_skipped.append(post)

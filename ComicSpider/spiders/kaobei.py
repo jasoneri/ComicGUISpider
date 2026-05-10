@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
-import re
-
 import scrapy
 
-from utils.processed_class import Url
 from utils.website import KaobeiUtils
 from utils.website.schema import KbFrameBook as FrameBook
-from .basecomicspider import BaseComicSpider, ComicspiderItem, conf
+from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 
 class KaobeiSpider(BaseComicSpider):
@@ -28,25 +25,12 @@ class KaobeiSpider(BaseComicSpider):
     preset_book_frame = FrameBook(domain)
     turn_page_info = (r"offset=\d+", None, 30)
     section_limit = 300
-    _enable_episode_dispatch = True
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super().from_crawler(crawler, *args, **kwargs)
         spider.spider_site_runtime.reqer.get_aes_key()
         return spider
-
-    def frame_section(self, response):
-        book = response.meta.get("book")
-        episodes = self.spider_site_runtime.parser.parse_episodes(
-            response.json()['results'], book, url=response.url,
-            show_dhb=conf.kbShowDhb,
-        )
-        frame_results = {ep.idx: ep for ep in episodes}
-        self.say.frame_section_print(frame_results)
-
-    def mk_page_tasks(self, **kw):
-        return [kw['url']]
 
     def _build_episode_items(self, ep, page_urls):
         book = ep.from_book
@@ -75,19 +59,9 @@ class KaobeiSpider(BaseComicSpider):
         self._emit_process('fin')
 
     def _process_episode(self, ep):
-        if getattr(ep, 'page_urls', None):
-            yield from self._yield_episode_items(ep, list(ep.page_urls))
-            return
-        yield from super()._process_episode(ep)
-
-    def parse_fin_page(self, response):
-        ep = response.meta['ep']
-        imageData = self.spider_site_runtime.parser.parse_page_urls_from_html(
-            response.text, url=response.url,
-        )
-        for item in self._build_episode_items(ep, [url_item['url'] for url_item in imageData]):
-            yield item
-        self._emit_process('fin')
+        if not getattr(ep, 'page_urls', None):
+            raise ValueError(f"kaobei episode requires page_urls: {ep!r}")
+        yield from self._yield_episode_items(ep, list(ep.page_urls))
 
     def process_item(self, response):
         item = response.meta['item']

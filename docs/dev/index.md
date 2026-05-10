@@ -8,21 +8,30 @@
 
 ## 爬虫开发
 
-#### 前期准备
+开始开发的准备：`git` 克隆本项目到本地  
+使用主流模型 / CLI（`claudecode` / `codex` / `cursor`） 等等，纯对话模型不要参与
 
-目标网站搜索 url (`search_url`)、搜索页面 html (`search.html`)，  
-书页 url (`book_url`)、书页 html (`book.html`)
+### 前期准备
+
+目标网站
+
+- 搜索接口 curl请求/响应
+- 翻页接口 curl请求/响应
+- 首页/更新接口 curl请求/响应
+- (表漫)书详情 > 章节列表 curl请求/响应
+- 书详情/章节详情 > 页数 curl请求/响应
 
 如已知，也建议一并准备：
 
 - 是否需要代理 / cookies
 - 网站属于普通漫画还是 🔞
 - 是否支持 aggr / clip
-- 是否存在动态 domain / 发布页 / 特殊 referer / `verify=False`
+- 是否存在动态 domain / 发布页 / 特殊 referer
 
-开始开发的准备：`git` 克隆本项目到本地，使用主流模型 / CLI（`claudecode` / `codex`）
-
-> 以下 prompt 用于让 ai 协助捕获并验证上述素材的真实请求响应夹具，产出可直接衔接 prompt-dev。
+> 保存上述 curl 资料后，把资料路径交给主 agent，并要求它读取 docs\dev\index.md 的 prompt-prepare 和 prompt-dev
+> 主 agent 作为调度与审核 owner，先串行派发 prepare agent：按 prompt-prepare 验证请求矩阵，并输出可供 prompt-dev 消费的素材摘要
+> 主 agent 审核网络链路可行后，再串行派发 dev agent：基于素材摘要按 prompt-dev 实际开发
+> 最后由主 agent 审核 diff、验证结果与是否需要回归处理
 
 ::: details prompt-prepare ⇩
 
@@ -96,7 +105,7 @@ dynamic_domain: 是/否
 
 #### 实际开发
 
-将上一步的 url、html 和已知站点特征/夹具准备等补进下面的 prompt，发给 ai 执行
+将上一步的 curl资料 和已知站点特征/夹具准备等补进下面的 prompt，发给 ai 执行
 
 ::: details prompt-dev ⇩
 
@@ -115,6 +124,12 @@ supports_clip=
 
 先阅读仓库现状再编码，以当前代码结构为准。
 
+当前站点接入遵循 provider-first contract：
+
+- 请求、解析、preview、cookies/domain/proxy、章节与图片 URL 定位放在 `utils/website/providers/`
+- spider 承担 Scrapy 下载装配
+- provider 和 spider 各司其职，避免重复实现同一站点规则
+
 ## 本地开发相关
 请按以下六个部分完成开发：
 
@@ -123,7 +138,7 @@ supports_clip=
 1. 先在仓库中找 1 到 2 个最像的现有站点做基线，至少同时阅读：
    - `utils/website/providers/_template.py`
    - `utils/website/providers/<baseline>.py`
-   - `ComicSpider/spiders/<baseline>.py`
+   - `ComicSpider/spiders/<baseline>.py`（仅参考下载装配）
    - `ComicSpider/spiders/basecomicspider.py`
    - `utils/website/ins.py`
    - `utils/website/registry.py`
@@ -132,30 +147,32 @@ supports_clip=
    - `GUI/mainwindow.py`
    - `GUI/manager/preprocess.py`
 2. 先判断新站点属于“常规接入”还是“扩展接入”：
-   - 常规接入：主要是节点抽取、常规搜索 URL 组织
-   - 扩展接入：还需要请求层扩展、响应适配、资源定位规则、middleware 组合、动态 domain / cookies / 发布页等能力
+   - 常规接入：provider 完成节点抽取、搜索 URL、书页、章节、图片页解析
+   - 扩展接入：provider 还需要请求层扩展、响应适配、资源定位、动态 domain / cookies / 发布页等能力
 3. 命名时先统一以下标识：
-   - provider / spider `name`
+   - provider `name`
+   - 下载 spider `name`（确需 spider 时）
    - `variables.Spider` 枚举名
-   - `utils.website.ins.py` 的注册 key
-   - GUI 下拉展示名
+   - `utils.website.ins.py` 的 `_PROVIDER_BINDINGS` 键（挂到对应 `Spider.*`，不要手写数字 key）
+   - `variables/__init__.py` 的站点展示名映射（`GUI/mainwindow.py` 会自动生成下拉文案）
 4. 若当前代码里已有同类站点实现，不要跳过对照，先抽能力矩阵再开发
 
-**二、provider 部分（站点能力主体）**
+**二、provider 部分**
 
 1. 在 `utils/website/providers/` 下创建新 provider 文件，优先以 `_template.py` 为起点
 2. 视站点能力组合正确的 mixin / 结构：
    - 每个 provider 文件通常包含三个类：`XxxParser`（继承 `Previewer`，负责解析）、`XxxReqer`（继承 `Req`，负责请求与 preview 流程）、`XxxUtils`（继承 `Utils` + `Previewer`，组合 `parser` 与 `reqer_cls`）
    - `R18` 站点通常围绕 `EroUtils`
-   - 需要动态 domain 时使用 `DomainUtils`
+   - 发布页类型的动态 domain 参考 `wnacg`、`jm` 的 `DomainUtils` 模式
    - 需要 cookies 时补 `Cookies`
 3. `XxxUtils` 里至少明确这些静态配置：
    - `name` / `domain` / `index`
    - `headers` / `book_hea`
    - `uuid_regex` 或 `get_uuid`
    - `parser` / `reqer_cls` / `__init__`（实例化 `self.reqer` 与 `self.parser`）
-4. `XxxParser` 负责解析方法（`parse_search` / `parse_book` / `parse_search_item` 等），`XxxReqer` 负责请求与 preview 异步流程；复杂站点不要把所有逻辑都堆进一个大类里
-5. 按站点需要补充这些扩展点：
+4. `XxxParser` 负责解析方法（`parse_search` / `parse_book` / `parse_search_item` / 章节列表 / reader 解码 / 图片 URL 构建等）
+5. `XxxReqer` 负责请求与 preview 异步流程；复杂站点需要将逻辑拆分到合适的类中
+6. 按站点需要补充这些扩展点：
    - `build_preview_search_request()`（Parser 类方法，构建搜索 `PreviewRequestSpec`）
    - `preview_search()` / `preview_fetch_episodes()` / `preview_fetch_pages()`（Reqer 异步方法）
    - `preview_client_config()` / `preview_transport_config()`（Utils 类方法）
@@ -163,31 +180,35 @@ supports_clip=
    - `parse_publish_()`
    - 资源定位 / 响应适配辅助函数
    - 站点专用异常类型
-6. 保持异常直接暴露根因，不要吞异常、静默返回空值或做无说明的兼容补丁
+7. 已有全局捕获异常机制，业务代码不进行冗余捕获，静默返回空值或无说明的兼容补丁
 
-**三、spider 部分（下载装配）**
+**三、spider 部分**
 
-1. 在 `ComicSpider/spiders/` 下创建站点 spider 文件
-2. 根据真实流程选择合适基类：
+1. 仅当站点需要进入 Scrapy 下载链路时，才新增或修改 `ComicSpider/spiders/<site>.py`
+2. provider-first 站点的下载路线：下载入口消费已由 provider preview 填充的下载对象
+   - `Spider.mangas()` 站点：提交 Scrapy 前，由 `preview_fetch_pages()` 填充 `Episode.page_urls`
+   - spider 侧专注于下载装配，书页、章节页、图片页解析收口在 provider
+   - 开发前确认章节与图片页解析已在 provider 内覆盖；spider 只消费 provider 的预览链路结果
+3. 根据下载流程选择基类：
    - `BaseComicSpider`
    - `BaseComicSpider2`
    - `BaseComicSpider3`
    - `FormReqBaseComicSpider`
-3. spider 至少要明确这些契约：
+4. 只补基类要求的下载字段：
    - `name`
    - `domain`
    - `search_url_head`
-   - `book_id_url` / `transfer_url`（需要时）
-   - `mappings`
-   - `turn_page_search` / `turn_page_info`
-4. 按站点需要实现：
-   - `preready()`
-   - `frame_book()`
-   - `frame_section()`
-   - `parse_fin_page()`
+   - `book_id_url` / `transfer_url`（基类或跳转流程需要时）
+   - `mappings`（默认至少支持 `首页`或`更新`）
+   - `turn_page_search` / `turn_page_info`（基类仍需要页码映射时）
+5. 只按下载 fan-out 缺口实现：
+   - `_process_episode()`：普通漫画站点消费 `Episode.page_urls` 并装配 item；未填充时抛出明确错误，作为 provider 预览链路的自检点
+   - `process_item()`：仅用于 fake request 转交已构造 item
+   - `image_request_meta()`（图片请求确实需要章节 referer 等元信息时）
    - `custom_settings`（最小且正确的 middleware / pipeline 组合）
-5. spider 侧不要重复写解析规则；优先通过 `self.spider_site_runtime` 消费 provider 的 reqer / parser 能力
-6. 需要代理时再决定是否装配：
+6. 将 `frame_section()` / `parse_fin_page()` 等解析逻辑收口在 provider，spider 内只走单一下载路线
+7. spider 通过下载对象消费 provider 预览结果；搜索、书页、章节、reader 与图片 URL 解析统一在 provider 完成
+8. 需要代理、Referer 或 UA 时再装配：
    - `ComicDlProxyMiddleware`
    - `ComicDlAllProxyMiddleware`
    - `RefererMiddleware`
@@ -197,19 +218,17 @@ supports_clip=
 **四、注册、GUI 与运行时接线**
 
 1. 在 `utils/website/providers/__init__.py` 导出新 provider
-2. 在 `utils/website/ins.py` 的 `provider_map` 注册站点；运行时会通过 `registry` 生成 `provider_descriptor_map` 与 `provider_descriptor_spider_map`
+2. 在 `utils/website/ins.py` 的 `_PROVIDER_BINDINGS` 里把 provider 绑定到对应 `Spider` 成员；`provider_map` 会自动处理剩下的展开
 3. 在 `variables/__init__.py` 中同步：
    - `Spider` 枚举
-   - `SPIDERS`
    - `DEFAULT_COMPLETER`
    - `STATUS_TIP`
-   - `COOKIES_SUPPORT`（需要 cookies 时）
+   - `COOKIES_SUPPORT`（需要登录状态的 cookies 时，非登录的短效令牌不得写入）
    - 能力集合：`specials()` / `mangas()` / `cn_proxy()` / `aggr()` / `clip()`
-4. 在 `GUI/mainwindow.py` 的 `apply_translations()` 中补 `chooseBox` 下拉文案，不是旧的 `setupUi()`
-5. 只有站点确实需要专门预处理时，才修改 `GUI/manager/preprocess.py`
-6. 明确 `specials()` 与 `preview_fetch_episodes()` 的契约：
+4. 明确 `specials()` 与 `preview_fetch_episodes()` 的契约：
    - 属于 `specials()` 的站点通常不需要 CLI `-i2`
    - 非 `specials()` 站点需要保证章节选择链路正常
+5. 只有站点确实需要专门预处理时，才修改 `GUI/manager/preprocess.py`
 
 **五、测试与回归**
 
@@ -219,11 +238,12 @@ supports_clip=
 4. 先跑 CLI 链路：
    - `uv run crawl_only.py -w 序号 -k 关键词 -i 1`
    - 非 `specials()` 站点再补 `-i2 1`
+   - 普通漫画站点 CLI 在提交 Scrapy 前调用 `preview_fetch_pages()` 填充 `Episode.page_urls`
 5. 再跑 GUI 链路：
    - `uv run CGS.py`
 6. 需要时由 agent 自行执行对应的 `uv run python -m unittest ...`
 7. 检查搜索、预览、章节选择、下载、任务面板、`log/scrapy.log` 是否都正常
-8. 若发现兼容节点或职责边界冲突，先把冲突点明确列出并说明影响，再决定如何实现
+8. 遇到兼容节点或职责边界冲突时，先把冲突点明确列出并说明影响，再决定实现方式
 
 **六、输出要求**
 
@@ -232,7 +252,7 @@ supports_clip=
 - 默认使用 `uv`
 - 测试使用 `unittest`；若需补自动验证，由 agent 在 `test/` 下自行创建脚本
 - 注释非必要不添加
-- 禁止隐藏报错堆栈，异常直接暴露根因
+- 业务代码不进行冗余捕获，不隐藏报错堆栈
 - 代码完成后使用 `$style-refactor` 对本轮改动做一次结构清洗
 - 提醒用户 PR 应合并到当前最新的 `*-dev` 分支
 ```
@@ -304,12 +324,12 @@ ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，�
 &emsp;🔳 `book_id_url` / `transfer_url`  
 &emsp;🔳 `mappings` / `turn_page_search` / `turn_page_info`  
 &emsp;🔳 `preready`  
-&emsp;✅ `frame_book`  
-&emsp;✅ `frame_section`  
-&emsp;🔳 `parse_fin_page`  
+&emsp;✅ `_process_episode`（普通漫画站点只消费已填充 `page_urls` 的 Episode）  
+&emsp;🔳 `process_item`  
+&emsp;🔳 `image_request_meta`  
 &emsp;🔳 `custom_settings`（middleware / pipeline 组合）
 
-> [!tip] spider 负责下载装配，不应重复堆解析规则。当前代码通过 `self.spider_site_runtime` 消费 provider 的 reqer / parser 能力。
+> [!tip] spider 负责下载装配，解析规则统一收口 provider。普通漫画站点的章节与图片页数据应在 provider preview 链路完成，`Episode.page_urls` 空值时抛出明确错误，无需在 spider 侧补另一条请求路线。
 
 ### 3. 其他代码
 
@@ -322,9 +342,10 @@ ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，�
    - `aggr()`
    - `clip()`
 2. `SPIDERS` - 由 `Spider` 枚举自动生成
-3. `DEFAULT_COMPLETER` - 新序号的默认预设
-4. `STATUS_TIP` - 新序号的状态栏提示
-5. `COOKIES_SUPPORT` - 需要 cookies 的站点补支持字段
+3. `SPIDERS_LABELS` / 站点展示名映射 - `chooseBox` 文案由此自动生成
+4. `DEFAULT_COMPLETER` - 新序号的默认预设
+5. `STATUS_TIP` - 新序号的状态栏提示
+6. `COOKIES_SUPPORT` - 需要 cookies 的站点补支持字段
 
 > [!TIP] `specials()` 不只是分类文案，它会直接影响 GUI / CLI 下载契约；非 `specials()` 站点的 CLI 需要 `-i2/--indexes2`。
 
@@ -332,12 +353,7 @@ ai 作为手段并不一定可靠，ai 开发流程中出现预期偏差时，�
 
 #### [`GUI/mainwindow.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/GUI/mainwindow.py)
 
-在 `apply_translations()` 里加入如下类似代码
-
-```python
-self.chooseBox.addItem("")
-self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
-```
+`apply_translations()` 会按 `variables.__init__.py` 的 `SPIDERS_LABELS` 自动重建 `chooseBox`。新增站点时应维护变量侧展示名映射，而不是在这里手写 `setItemText()`。
 
 只有站点需要额外预处理时，再看 [`GUI/manager/preprocess.py`](https://github.com/jasoneri/ComicGUISpider/blob/GUI/GUI/manager/preprocess.py) 是否需要专门分支。  
 仅有 `test_index()` 的站点通常可以走通用预处理路径。

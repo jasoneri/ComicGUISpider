@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import typing as t
-from dataclasses import dataclass, field
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon
@@ -19,52 +18,12 @@ from qfluentwidgets import (
 from GUI.uic.qfluent.components import AcceptEdit
 from utils.config.qc import danbooru_cfg
 
-from .favorite_groups import DefaultTagGroup, TagGroup, build_tag_groups
+from .favorite_groups import FavoriteGroupsState, RESERVED_GROUP_NAMES, TagGroup
 from .style import build_favorites_tree_item_stylesheet
 
 _ROLE_DATA = Qt.UserRole
 _TREE_ROW_SIDE_MARGIN = 6
 _TREE_ROW_VERTICAL_MARGIN = 1
-
-
-@dataclass(slots=True)
-class FavoriteDialogSnapshot:
-    default_group: DefaultTagGroup = field(default_factory=DefaultTagGroup)
-    custom_groups: list[TagGroup] = field(default_factory=list)
-
-    @property
-    def default_tags(self) -> list[str]:
-        return list(self.default_group.tags)
-
-    @property
-    def groups(self) -> list[TagGroup]:
-        return [self.default_group, *self.custom_groups]
-
-    @property
-    def output(self) -> dict[str, list[str]]:
-        payload: dict[str, list[str]] = {}
-        for group in self.groups:
-            payload.update(group.output)
-        return payload
-
-    def ensure_custom_group(self) -> str:
-        if not self.custom_groups:
-            self.custom_groups.append(TagGroup("custom1", []))
-        return self.custom_groups[0].name
-
-    def group_names(self) -> list[str]:
-        return [group.name for group in self.custom_groups]
-
-    def group(self, group_name: str) -> TagGroup:
-        if group_name == self.default_group.name:
-            return self.default_group
-        for group in self.custom_groups:
-            if group.name == group_name:
-                return group
-        raise ValueError(f"收藏组不存在: {group_name}")
-
-    def set_default_tags(self, tags: t.Iterable[str]):
-        self.default_group.set_tags(sorted(tag for tag in tags if tag))
 
 
 def _readonly_table_item(text: str, role_data: object) -> QTableWidgetItem:
@@ -200,15 +159,13 @@ class FavTagRow(_SelectableTreeRow):
 
 
 class DanbooruFavoriteManagerDialog(FramelessDialog):
-    favorites_changed = Signal()
-
-    def __init__(self, parent=None):
+    def __init__(self, groups_state: FavoriteGroupsState, parent=None):
         super().__init__(parent)
         self._loading = False
         self._syncing_custom_selection = False
         self._editing_group: str | None = None
-        self._snapshot = self._load_snapshot()
-        self._current_group = self._snapshot.ensure_custom_group()
+        self._groups_state = groups_state
+        self._current_group = self._groups_state.ensure_custom_group()
         self.setupUi(self)
         self._configure_tables()
         self.refresh_view()
@@ -321,17 +278,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         setCustomStyleSheet(self.custom_tree, tree_item_qss, tree_item_qss)
         self.custom_tree.itemSelectionChanged.connect(self._handle_custom_selection_changed)
 
-    def _load_snapshot(self) -> FavoriteDialogSnapshot:
-        groups = build_tag_groups(
-            sorted(danbooru_cfg.fav.get()),
-            danbooru_cfg.fav.get_grouped(),
-        )
-        return FavoriteDialogSnapshot(
-            default_group=t.cast(DefaultTagGroup, groups[0]),
-            custom_groups=[t.cast(TagGroup, group) for group in groups[1:]],
-        )
-
-    def _apply_snapshot_change(self, change: t.Callable[[], None]):
+    def _apply_groups_change(self, change: t.Callable[[], None]):
         try:
             change()
         except ValueError as exc:
@@ -342,9 +289,9 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
 
     def refresh_view(self):
         def delete_default_tag(tag: str):
-            self._apply_snapshot_change(
-                lambda: self._snapshot.set_default_tags(
-                    current for current in self._snapshot.default_tags if current != tag
+            self._apply_groups_change(
+                lambda: self._groups_state.set_default_tags(
+                    current for current in self._groups_state.default_tags if current != tag
                 )
             )
 
@@ -391,47 +338,47 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             def change():
                 if not new_name:
                     raise ValueError("收藏组名称不能为空")
-                if new_name in danbooru_cfg.RESERVED_SEARCH_KEYS:
+                if new_name in RESERVED_GROUP_NAMES:
                     raise ValueError(f"收藏组名称不能是 {new_name}")
-                if new_name in self._snapshot.group_names() and new_name != group_name:
+                if new_name in self._groups_state.group_names() and new_name != group_name:
                     raise ValueError(f"收藏组已存在: {new_name}")
-                group = self._snapshot.group(group_name)
+                group = self._groups_state.group(group_name)
                 group.name = new_name
                 if self._current_group == group_name:
                     self._current_group = new_name
                 if self._editing_group == group_name:
                     self._editing_group = None
 
-            self._apply_snapshot_change(change)
+            self._apply_groups_change(change)
 
         def delete_group_tag(group_name: str, tag: str):
             def change():
-                group = self._snapshot.group(group_name)
+                group = self._groups_state.group(group_name)
                 group.set_tags(current for current in group.tags if current != tag)
                 self._current_group = group.name
 
-            self._apply_snapshot_change(change)
+            self._apply_groups_change(change)
 
         def delete_group(group_name: str):
             def change():
-                self._snapshot.custom_groups = [
+                self._groups_state.custom_groups = [
                     group
-                    for group in self._snapshot.custom_groups
+                    for group in self._groups_state.custom_groups
                     if group.name != group_name
                 ]
-                self._snapshot.ensure_custom_group()
+                self._groups_state.ensure_custom_group()
                 if self._editing_group == group_name:
                     self._editing_group = None
                 if (
                     self._current_group == group_name
-                    or self._current_group not in self._snapshot.group_names()
+                    or self._current_group not in self._groups_state.group_names()
                 ):
-                    self._current_group = self._snapshot.group_names()[0]
+                    self._current_group = self._groups_state.group_names()[0]
 
-            self._apply_snapshot_change(change)
+            self._apply_groups_change(change)
 
-        self._snapshot.ensure_custom_group()
-        group_names = self._snapshot.group_names()
+        self._groups_state.ensure_custom_group()
+        group_names = self._groups_state.group_names()
         if self._current_group not in group_names:
             self._current_group = group_names[0]
         if self._editing_group not in group_names:
@@ -441,7 +388,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         try:
             self.default_table.clearContents()
             self.default_table.setRowCount(0)
-            for row, tag in enumerate(self._snapshot.default_tags):
+            for row, tag in enumerate(self._groups_state.default_tags):
                 self.default_table.insertRow(row)
                 self.default_table.setItem(row, 0, _readonly_table_item(tag, tag))
                 self.default_table.setCellWidget(row, 1,
@@ -451,7 +398,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
                 )
 
             self.custom_tree.clear()
-            for group in self._snapshot.custom_groups:
+            for group in self._groups_state.custom_groups:
                 group_row_widget = FavTagGpRow(group.name, self.custom_tree)
                 group_item = _tree_item(
                     {"kind": "group", "group": group.name},
@@ -611,12 +558,12 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
     def _create_group(self):
         def change():
             index = 1
-            while f"custom{index}" in self._snapshot.group_names():
+            while f"custom{index}" in self._groups_state.group_names():
                 index += 1
             self._current_group = f"custom{index}"
-            self._snapshot.custom_groups.append(TagGroup(self._current_group, []))
+            self._groups_state.custom_groups.append(TagGroup(self._current_group, []))
 
-        self._apply_snapshot_change(change)
+        self._apply_groups_change(change)
 
     def _move_default_selection_to_current_group(self):
         tags = self._selected_default_tags()
@@ -624,14 +571,14 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             return
 
         def change():
-            group = self._snapshot.group(self._current_group)
+            group = self._groups_state.group(self._current_group)
             selected = set(tags)
             group.add_tags(tags)
-            self._snapshot.set_default_tags(
-                tag for tag in self._snapshot.default_tags if tag not in selected
+            self._groups_state.set_default_tags(
+                tag for tag in self._groups_state.default_tags if tag not in selected
             )
 
-        self._apply_snapshot_change(change)
+        self._apply_groups_change(change)
 
     def _move_custom_selection_to_default(self):
         selected_groups = self._selected_group_names()
@@ -639,25 +586,25 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             def change1():
                 moved_tags = []
                 remaining_groups = []
-                for group in self._snapshot.custom_groups:
+                for group in self._groups_state.custom_groups:
                     if group.name in selected_groups:
                         moved_tags.extend(group.tags)
                         continue
                     remaining_groups.append(group)
-                self._snapshot.custom_groups = remaining_groups
-                self._snapshot.ensure_custom_group()
-                self._snapshot.set_default_tags(
-                    [*self._snapshot.default_tags, *moved_tags]
+                self._groups_state.custom_groups = remaining_groups
+                self._groups_state.ensure_custom_group()
+                self._groups_state.set_default_tags(
+                    [*self._groups_state.default_tags, *moved_tags]
                 )
                 if self._editing_group in selected_groups:
                     self._editing_group = None
                 if (
                     self._current_group in selected_groups
-                    or self._current_group not in self._snapshot.group_names()
+                    or self._current_group not in self._groups_state.group_names()
                 ):
-                    self._current_group = self._snapshot.group_names()[0]
+                    self._current_group = self._groups_state.group_names()[0]
 
-            self._apply_snapshot_change(change1)
+            self._apply_groups_change(change1)
             return
 
         group_name, tags = self._selected_group_tags()
@@ -665,15 +612,17 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             return
 
         def change():
-            group = self._snapshot.group(group_name)
+            group = self._groups_state.group(group_name)
             selected = set(tags)
             group.set_tags(tag for tag in group.tags if tag not in selected)
-            self._snapshot.set_default_tags([*self._snapshot.default_tags, *tags])
+            self._groups_state.set_default_tags([*self._groups_state.default_tags, *tags])
             self._current_group = group.name
 
-        self._apply_snapshot_change(change)
+        self._apply_groups_change(change)
 
     def _accept_changes(self):
-        danbooru_cfg.fav.save_grouped(self._snapshot.output)
-        self.favorites_changed.emit()
         self.accept()
+
+    @property
+    def groups_state(self) -> FavoriteGroupsState:
+        return self._groups_state

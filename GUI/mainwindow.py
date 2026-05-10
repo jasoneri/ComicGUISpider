@@ -12,7 +12,7 @@ from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
 from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
-from variables import VER
+from variables import SPIDERS_LABELS, VER, Spider
 from utils import ori_path
 
 res = ori_res.GUI.Uic
@@ -42,27 +42,16 @@ class MitmMainWindow(Ui_MainWindow):
         """依赖 res 翻译的文案设置，延迟到 set_language 之后调用"""
         _translate = QtCore.QCoreApplication.translate
         self.searchinput.setClearButtonEnabled(1)
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(0, _translate("MainWindow", res.chooseBoxDefault))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(1, _translate("MainWindow", "1、拷贝漫画"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(2, _translate("MainWindow", "2、jm🔞"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(3, _translate("MainWindow", "3、wnacg🔞"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(4, _translate("MainWindow", "4、ehentai🔞"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(5, _translate("MainWindow", "5、Māngabz"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(6, _translate("MainWindow", "6、hitomi🔞"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(7, _translate("MainWindow", "7、Script"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(8, _translate("MainWindow", "8、h-comic🔞"))
-        self.chooseBox.addItem("")
-        self.chooseBox.setItemText(9, _translate("MainWindow", "9、jestful"))
-        self.chooseBox.setCurrentIndex(0)
+        current_index = self.chooseBox.currentIndex()
+        blocker = QtCore.QSignalBlocker(self.chooseBox)
+        self.chooseBox.clear()
+        self.chooseBox.addItem(_translate("MainWindow", res.chooseBoxDefault))
+        for index, label in SPIDERS_LABELS.items():
+            if index in Spider and Spider(index) in Spider.specials():
+                label += "🔞"
+            self.chooseBox.insertItem(index, _translate("MainWindow", label))
+        self.chooseBox.setCurrentIndex(current_index if 0 <= current_index < self.chooseBox.count() else 0)
+        del blocker
         self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
         self.domainBtn.setVisible(False)
         self.domainBtn.setIconSize(QtCore.QSize(24, 20))

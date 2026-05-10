@@ -15,10 +15,10 @@ from qfluentwidgets import (
 )
 
 from assets import res
-from variables import DEFAULT_COMPLETER
+from variables import DEFAULT_COMPLETER, Spider
 from utils import ori_path, conf
 
-hitomi_db_path = ori_path.joinpath("assets/hitomi.db")
+hitomi_db_path = ori_path.joinpath("__temp/hitomi.db")
 
 
 class CustomComboBox(QComboBox):
@@ -48,7 +48,7 @@ class HitomiTools(QWidget):
         self.output_type = ''
         self.output_mgr = self.OutputMgr(self)
         self.tmp_map = {}
-        self.conn = sqlite3.connect(ori_path.joinpath('assets/hitomi.db'))
+        self.conn = sqlite3.connect(hitomi_db_path)
         self.init_ui()
         self.set_dataset()
         self.update_entries()  # Initial update
@@ -248,11 +248,11 @@ class HitomiTools(QWidget):
         )
     
     def save(self):
-        hitomi_completer = conf.completer.get(6, DEFAULT_COMPLETER.get(6))
+        hitomi_completer = conf.completer.get(Spider.HITOMI, DEFAULT_COMPLETER.get(Spider.HITOMI))
         if self.output_mgr.actual in hitomi_completer:
             hitomi_completer.remove(self.output_mgr.actual)
         hitomi_completer.insert(0, self.output_mgr.actual)
-        conf.completer[6] = hitomi_completer
+        conf.completer[Spider.HITOMI] = hitomi_completer
         conf.update()
         InfoBar.success(
             title='', content=res.GUI.Tools.hitomi_info_sved,

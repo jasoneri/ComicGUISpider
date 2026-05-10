@@ -6,7 +6,7 @@ import { markdownUrlReplacePlugin } from './plugins/markdown-url-replace';
 import { createDocsUrlConfig } from './shared/urls';
 
 
-const version = `v2.10.0`
+const version = `v2.10.1-beta`
 const docsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const docsEnv = loadEnv('', docsRoot, '')
 const { URLS, PLACEHOLDER_MAP } = createDocsUrlConfig(docsEnv)

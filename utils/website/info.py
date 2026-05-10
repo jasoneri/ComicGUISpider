@@ -143,6 +143,9 @@ class MangabzBookInfo(Manga):
 class JestfulBookInfo(Manga):
     source = "jestful"
 
+class ManhuaguiBookInfo(Manga):
+    source = "manhuagui"
+
 # ---
 
 class JmBookInfo(Ero):
@@ -178,3 +181,17 @@ class HitomiBookInfo(Ero):
 
 class HComicBookInfo(Ero):
     source = "h_comic"
+
+
+class NhentaiBookInfo(Ero):
+    source = "nhentai"
+    media_id: str = None
+    lang: str = None
+    english_title: str = None
+    japanese_title: str = None
+    pretty_title: str = None
+    pics: list = []
+
+    @property
+    def say(self):
+        return str(self.idx), self.lang or "-", self.pages, self.name, chr(12288)

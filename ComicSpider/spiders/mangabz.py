@@ -1,50 +1,46 @@
 # -*- coding: utf-8 -*-
 import re
 
-from utils.website import MangabzUtils
-from utils.website.schema import MbBody as Body, MbSearchBody as SearchBody, mb_curr_time_format as curr_time_format
-from .basecomicspider import FormReqBaseComicSpider, ComicspiderItem
+import scrapy
 
-domain = MangabzUtils.domain
+from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 
-class MangabzSpider(FormReqBaseComicSpider):
+class MangabzSpider(BaseComicSpider):
     name = 'mangabz'
-    ua = MangabzUtils.ua
-    num_of_row = 50
-    domain = domain
     custom_settings = {
-        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.MangabzUAMiddleware': 5,
-                                   'ComicSpider.middlewares.ComicDlAllProxyMiddleware': 6},
+        "DOWNLOADER_MIDDLEWARES": {'ComicSpider.middlewares.ComicDlAllProxyMiddleware': 6,
+                                   'ComicSpider.middlewares.FakeMiddleware': 30},
         "ITEM_PIPELINES": {'ComicSpider.pipelines.MangabzComicPipeline': 50}
     }
-    search_url_head = f"https://{domain}/pager.ashx"
-    mappings = {"更新": ["manga-list-0-0-2", "2"],
-                "人气": ["manga-list", "10"],
-                }
-    body = Body()
-    _enable_episode_dispatch = True
 
-    def frame_section(self, response):
-        book = response.meta.get("book")
-        episodes = self.spider_site_runtime.parser.parse_episodes(response, book, domain)
-        frame_results = {ep.idx: ep for ep in episodes}
-        return self.say.frame_section_print(frame_results)
-
-    def parse_fin_page(self, response):
-        ep = response.meta['ep']
+    def _build_episode_items(self, ep, page_urls):
         book = ep.from_book
         uid, u_md5 = ep.id_and_md5()
-        img_list = self.spider_site_runtime.parser.parse_page_urls_from_html(response.text)
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
-        ep.pages = len(img_list)
+        ep.pages = len(page_urls)
         self.set_task(ep)
-        for img_url in img_list:
+        for idx, img_url in enumerate(page_urls, start=1):
             item = ComicspiderItem()
             item.update(**group_infos)
-            page = int(re.search(r'/(\d+)_\d+\.', img_url).group(1))
+            matched = re.search(r'/(\d+)_\d+\.', img_url)
+            page = int(matched.group(1)) if matched else idx
             item['page'] = page
             item['image_urls'] = [img_url]
+            if self.job_context:
+                self.job_context.total += 1
             self.total += 1
             yield item
+
+    def _process_episode(self, ep):
+        if not getattr(ep, 'page_urls', None):
+            raise ValueError(f"mangabz episode requires page_urls: {ep!r}")
+        for item in self._build_episode_items(ep, list(ep.page_urls)):
+            yield scrapy.Request(
+                url=f'https://fakefakefa.com/{item["image_urls"][0]}', callback=self.process_item,
+                meta={'item': item}, dont_filter=True,
+            )
         self._emit_process('fin')
+
+    def process_item(self, response):
+        yield response.meta['item']

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pathlib as p
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Iterable, Optional
 
 from utils.config.qc import cgs_cfg
 from utils.network.doh import dns_stub_endpoint, dns_stub_server, normalize_doh_url
@@ -13,10 +13,12 @@ from .constants import (
     DANBOORU_OFFICIAL_ORDER_VALUES,
     DANBOORU_PAGE_SIZE,
     DANBOORU_SAVE_TYPE_SEARCH_TAG,
+    DOWNLOADABLE_MEDIA_EXTENSIONS,
     DEFAULT_DANBOORU_SAVE_PATH,
     DEFAULT_DOWNLOAD_CONCURRENCY,
     SUPPORTED_MEDIA_EXTENSIONS,
     UNSUPPORTED_MEDIA_EXTENSIONS,
+    VIEWER_VIDEO_MEDIA_EXTENSIONS,
     _ORDER_TOKEN_CAPTURE_RE,
     _ORDER_TOKEN_STRIP_RE,
     _WHITESPACE_RE,
@@ -112,12 +114,28 @@ class DanbooruPost:
         return cls.normalize_file_ext(file_ext) in SUPPORTED_MEDIA_EXTENSIONS
 
     @classmethod
+    def is_downloadable_file_ext(cls, file_ext: Optional[str]) -> bool:
+        return cls.normalize_file_ext(file_ext) in DOWNLOADABLE_MEDIA_EXTENSIONS
+
+    @classmethod
     def is_unsupported_file_ext(cls, file_ext: Optional[str]) -> bool:
         return cls.normalize_file_ext(file_ext) in UNSUPPORTED_MEDIA_EXTENSIONS
+
+    @classmethod
+    def is_video_file_ext(cls, file_ext: Optional[str]) -> bool:
+        return cls.normalize_file_ext(file_ext) in VIEWER_VIDEO_MEDIA_EXTENSIONS
 
     @property
     def is_supported(self) -> bool:
         return self.is_supported_file_ext(self.file_ext)
+
+    @property
+    def is_downloadable(self) -> bool:
+        return self.is_downloadable_file_ext(self.file_ext)
+
+    @property
+    def is_video(self) -> bool:
+        return self.is_video_file_ext(self.file_ext)
 
     @property
     def filename(self) -> str:
@@ -129,31 +147,36 @@ class DanbooruPost:
     @classmethod
     def from_api_payload(cls, payload: dict, canonical_term: str = "") -> "DanbooruPost":
         return cls(
-            post_id=int(payload["id"]),
-            md5=payload.get("md5") or "",
-            canonical_term=canonical_term,
-            file_url=payload.get("file_url"),
-            large_file_url=payload.get("large_file_url"),
-            preview_file_url=payload.get("preview_file_url"),
-            source=payload.get("source"),
-            rating=payload.get("rating"),
-            file_ext=cls.normalize_file_ext(payload.get("file_ext")),
-            tag_string=payload.get("tag_string") or "",
-            tag_string_general=payload.get("tag_string_general") or "",
-            tag_string_character=payload.get("tag_string_character") or "",
-            tag_string_copyright=payload.get("tag_string_copyright") or "",
-            tag_string_artist=payload.get("tag_string_artist") or "",
-            tag_string_meta=payload.get("tag_string_meta") or "",
-            image_width=int(payload.get("image_width") or 0),
-            image_height=int(payload.get("image_height") or 0),
-            preview_width=int(payload.get("preview_width") or 0),
-            preview_height=int(payload.get("preview_height") or 0),
-            score=int(payload.get("score") or 0),
+            post_id=int(payload["id"]), md5=payload.get("md5") or "", canonical_term=canonical_term,
+            file_url=payload.get("file_url"), large_file_url=payload.get("large_file_url"),
+            preview_file_url=payload.get("preview_file_url"), source=payload.get("source"), rating=payload.get("rating"),
+            file_ext=cls.normalize_file_ext(payload.get("file_ext")), tag_string=payload.get("tag_string") or "",
+            tag_string_general=payload.get("tag_string_general") or "", tag_string_character=payload.get("tag_string_character") or "",
+            tag_string_copyright=payload.get("tag_string_copyright") or "", tag_string_artist=payload.get("tag_string_artist") or "",
+            tag_string_meta=payload.get("tag_string_meta") or "", image_width=int(payload.get("image_width") or 0),
+            image_height=int(payload.get("image_height") or 0), preview_width=int(payload.get("preview_width") or 0),
+            preview_height=int(payload.get("preview_height") or 0), score=int(payload.get("score") or 0),
         )
 
     def with_canonical_term(self, canonical_term: str) -> "DanbooruPost":
         self.canonical_term = DanbooruSearchQuery.normalize(canonical_term)
         return self
+
+
+def _normalize_proxy_values(values: object) -> tuple[str, ...]:
+    if values is None:
+        return ()
+    source: Iterable[object]
+    if isinstance(values, str):
+        source = values.split(",")
+    else:
+        source = values
+    normalized = []
+    for raw_value in source:
+        proxy = str(raw_value or "").strip()
+        if proxy:
+            normalized.append(proxy)
+    return tuple(normalized)
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,6 +186,7 @@ class DanbooruRuntimeConfig:
     download_concurrency: int = DEFAULT_DOWNLOAD_CONCURRENCY
     doh_url: str = ""
     motrix_aria2_conf_path: str = ""
+    proxies: tuple[str, ...] = ()
 
     def __post_init__(self):
         if self.save_type not in {None, DANBOORU_SAVE_TYPE_SEARCH_TAG}:
@@ -172,24 +196,22 @@ class DanbooruRuntimeConfig:
         raw_doh_url = str(self.doh_url or "").strip()
         object.__setattr__(self, "doh_url", normalize_doh_url(raw_doh_url) if raw_doh_url else "")
         object.__setattr__(self, "motrix_aria2_conf_path", str(self.motrix_aria2_conf_path or "").strip())
+        object.__setattr__(self, "proxies", _normalize_proxy_values(self.proxies))
 
     @classmethod
-    def from_mapping(cls, raw: Optional[dict], *, doh_url: object = None) -> "DanbooruRuntimeConfig":
+    def from_mapping(cls, raw: Optional[dict], *, doh_url: object = None, proxies: object = None) -> "DanbooruRuntimeConfig":
         data = raw or {}
+        resolved_doh_url = cgs_cfg.doh.get_url() if doh_url is None else doh_url
+        resolved_proxies = getattr(script_conf, "proxies", None) if proxies is None else proxies
         return cls(
-            save_path=data.get("save_path", DEFAULT_DANBOORU_SAVE_PATH),
-            save_type=data.get("save_type"),
-            download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY),
-            doh_url=cgs_cfg.doh.get_url() if doh_url is None else doh_url,
-            motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""),
+            save_path=data.get("save_path", DEFAULT_DANBOORU_SAVE_PATH), save_type=data.get("save_type"),
+            download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY), doh_url=resolved_doh_url,
+            motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""), proxies=resolved_proxies,
         )
 
     @classmethod
     def from_conf(cls) -> "DanbooruRuntimeConfig":
-        return cls.from_mapping(
-            getattr(script_conf, "danbooru", {}) or {},
-            doh_url=cgs_cfg.doh.get_url(),
-        )
+        return cls.from_mapping(getattr(script_conf, "danbooru", {}) or {}, doh_url=cgs_cfg.doh.get_url())
 
     def is_doh_enabled(self) -> bool:
         return bool(self.doh_url)
