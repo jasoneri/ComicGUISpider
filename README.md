@@ -47,7 +47,7 @@
 | [ExHentai](https://exhentai.org/)     | 🌏 |     代理     |
 | [Hitomi](https://hitomi.la/)     | 🌏 |          |
 | Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)    |
-| [HComic](https://kemono.cr)     | 🌏 |     代理     |
+| [HComic](https://h-comic.com/)     | 🌏 |     代理     |
 | [jestful](https://jestful.net/)     | 🌏 |     灰测/表漫/生肉     |
 
 点进网站前先判断 NSFW , 不了解就勿点  
