@@ -1,6 +1,13 @@
 Vars:
   ua_accept_language: "en-US,en;q=0.9"
   hitomiDb_tmp_url: "https://github.com/jasoneri/imgur/releases/download/preset/hitomi.db"
+Terms:
+  index: &term_index "index"
+  popular: &term_popular "popular"
+  update: &term_update "update"
+  author: "Author"
+  popularity: "Popularity"
+  latest: "Latest"
 GUI:
   DESC1: "1. First-time users, click <img src=\"%s\" height=\"25\" style=\"background-color: rgb(0, 255, 255);border-radius: 7px;\"> button. Then read `Doc(Document)` at the bottom-left corner"
   DESC2: "2. If encountering issues, check the <a href='https://cgs.101114105.xyz/faq/'>📖FAQ/Extra Notes</a> document before seeking help."
@@ -43,6 +50,7 @@ GUI:
   WorkThread_finish_flag: "Backend downloaded"
   WorkThread_empty_flag: "Backend exited normally without"
   manga_fav_tip: "Click right-top corner ★ of card, add to local favorites"
+  card_favorite_toggle: "Add/remove favorite"
   copymaga_tips: "Copy unlocked chapters (e.g. Frieren)"
   copymaga_page_status_tip: "Page offset: Each page contains 30 items. For page 3, enter 60 (outputs 60-89), etc."
   global_err_hook: "Last operation caused GUI exception - check GUI logs for details"
@@ -52,14 +60,11 @@ GUI:
   ui_lang_need_reboot: "⚠️ui-language settings will take effect when save config and reboot"
   local_fav: "Local Favorites"
   SearchInputStatusTip:
+    common: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     wnacg: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
-    ehentai: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
-    mangabz: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
-    jestful: Enter keyword directly; pagination is supported, and selected episodes resolve page URLs dynamically
     hitomi: Temp only supports using presets or `hitomi-tools` generated words
-    h_comic: Enter keyword directly, e.g. NTR / Chinese / artist name
   Clip:
     process_warning: "Search process already started - reset the current search context before using this feature"
     db_not_found_guide: "Clipboard db not found - check related guides"
@@ -164,6 +169,10 @@ SPIDER:
     frame_book_print_extra: " →_→ Hover over number field for input rules"
     frame_book_print_retry_tip: "No results found. Possible causes:<br>1. Server blocking 2. End of results 3. Verify URL in browser"
     frame_section_print_extra: " ←_← Click【Start Crawling!】"
+  Completer:
+    index: *term_index
+    popular: *term_popular
+    update: *term_update
   sectionInput_flag: "Start Crawling"
   search_url_head_NotImplementedError: "Custom search URL required"
   choice_list_before_turn_page: "Previous page selections pending"
