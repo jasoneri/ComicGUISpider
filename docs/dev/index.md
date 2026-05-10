@@ -163,7 +163,7 @@ supports_clip=
 2. 视站点能力组合正确的 mixin / 结构：
    - 每个 provider 文件通常包含三个类：`XxxParser`（继承 `Previewer`，负责解析）、`XxxReqer`（继承 `Req`，负责请求与 preview 流程）、`XxxUtils`（继承 `Utils` + `Previewer`，组合 `parser` 与 `reqer_cls`）
    - `R18` 站点通常围绕 `EroUtils`
-   - 需要动态 domain 时使用 `DomainUtils`
+   - 发布页类型的动态 domain 参考 `wnacg`、`jm` 的 `DomainUtils` 模式
    - 需要 cookies 时补 `Cookies`
 3. `XxxUtils` 里至少明确这些静态配置：
    - `name` / `domain` / `index`

@@ -1,43 +1,74 @@
 """Provider template for new owner-bound site implementations.
 
-Copy this file, rename the classes, then only fill the site-specific hooks.
+Copy this file, rename the classes, then fill the site-specific plan and parser hooks.
 Do not import GUI classes or runtime-only side effects here.
 """
 
-from utils.website.core import PreviewRequestSpec, Previewer, Req, Utils
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass
+
+from assets import res
+from utils.website.core import Previewer, Req, Utils
 
 
 class TemplateParser(Previewer):
     @classmethod
-    def parse_preview_search_response(cls, text: str, spec: PreviewRequestSpec) -> list:
+    def parse_home_books(cls, text: str) -> list:
         raise NotImplementedError
+
+    @classmethod
+    def parse_list_books(cls, text: str) -> list:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True, slots=True)
+class TemplatePreviewPlan:
+    kind: str
+    first_page_url: str
+    parser_name: str
+    params: tuple[tuple[str, str], ...] = ()
+
+    def has_page(self, page: int) -> bool:
+        return self.kind != "home" or page <= 1
+
+    def url_for_page(self, owner_type: type[TemplateUtils], *, page: int) -> str:
+        if page <= 1 or self.kind == "home":
+            return self.first_page_url
+        return owner_type.build_list_page_url(dict(self.params), page=page)
+
+    def parse_func(self, parser_cls: type[TemplateParser]):
+        return getattr(parser_cls, self.parser_name)
 
 
 class TemplateReqer(Req):
     def __init__(self, _conf):
         self.cli = self.get_cli(_conf)
 
+    async def _fetch_parse(self, url, parse_fn):
+        resp = await self.ensure_preview_client().get(url, headers=self._require_preview_owner().headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        return await asyncio.to_thread(parse_fn, resp.text)
+
     async def preview_search(self, keyword: str, *, page: int = 1):
         owner = self._require_preview_owner()
         owner_type = type(owner)
-        site_kw = self.preview_site_kwargs()
-        spec = owner_type.build_preview_search_request(
-            keyword,
-            page=max(1, int(page or 1)),
-            **site_kw,
-        )
-        resp = await owner_type.perform_preview_request(self.ensure_preview_client(), spec)
-        return await owner.parser.parse_preview_search_response(resp.text, spec)
+        plan = owner_type.resolve_preview_plan(keyword, custom_map=self.preview_site_kwargs().get("custom_map"))
+        page = max(1, int(page or 1))
+        if not plan.has_page(page):
+            return []
+        return await self._fetch_parse(plan.url_for_page(owner_type, page=page), plan.parse_func(owner.parser))
 
 
 class TemplateUtils(Utils, Previewer):
     name = "template"
     domain = "example.com"
-    index = f"https://{domain}"
+    index = f"https://{domain}/"
     search_url_head = f"https://{domain}/search?q="
+    list_url = f"https://{domain}/list"
     headers = {}
-    mappings = {}
-    turn_page_info = None
+    mappings = {res.SPIDER.Completer.index: index}
     parser = TemplateParser
     reqer_cls = TemplateReqer
 
@@ -54,22 +85,34 @@ class TemplateUtils(Utils, Previewer):
         return {}
 
     @classmethod
-    def build_preview_search_request(
-        cls,
-        keyword: str,
-        *,
-        page: int = 1,
-        domain: str,
-        custom_map: dict | None = None,
-        **_,
-    ) -> PreviewRequestSpec:
-        return cls.build_basic_search_request(
-            keyword,
-            page=page,
-            domain=domain,
-            search_url_head=cls.search_url_head,
-            turn_page_info=cls.turn_page_info,
-            mappings=cls.mappings,
-            custom_map=custom_map,
-            headers=cls.headers,
+    def normalize_site_resource(cls, value: str | None) -> str | None:
+        return cls.normalize_preview_resource(value, domain=cls.domain)
+
+    @classmethod
+    def build_list_page_url(cls, params: dict[str, str], *, page: int) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def plan_from_mapping(cls, mapping_value) -> TemplatePreviewPlan:
+        url = cls.normalize_site_resource(str(mapping_value or ""))
+        if not url:
+            raise ValueError("template mapping URL is required")
+        if url.rstrip("/") == cls.index.rstrip("/"):
+            return TemplatePreviewPlan(kind="home", first_page_url=cls.index, parser_name="parse_home_books")
+        return TemplatePreviewPlan(kind="list", first_page_url=url, parser_name="parse_list_books")
+
+    @classmethod
+    def search_plan(cls, keyword: str) -> TemplatePreviewPlan:
+        keyword = keyword.strip()
+        return TemplatePreviewPlan(
+            kind="search", first_page_url=f"{cls.search_url_head}{keyword}", parser_name="parse_list_books",
+            params=(("keyword", keyword),),
         )
+
+    @classmethod
+    def resolve_preview_plan(cls, keyword: str, *, custom_map: dict | None = None, **_) -> TemplatePreviewPlan:
+        keyword = keyword.strip()
+        mappings = cls.merge_search_mappings(cls.mappings, custom_map)
+        if keyword not in mappings:
+            return cls.search_plan(keyword)
+        return cls.plan_from_mapping(mappings[keyword])

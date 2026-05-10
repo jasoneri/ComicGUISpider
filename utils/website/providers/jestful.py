@@ -7,7 +7,7 @@ import secrets
 import string
 import unicodedata
 from dataclasses import dataclass
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, unquote
 
 import httpx
 from scrapy import Selector
@@ -24,7 +24,6 @@ class _JestfulContract:
     proxy_policy = "direct"
     domain = "jestful.net"
     index = f"https://{domain}/"
-    mappings = {res.SPIDER.Completer.index: index}
     pop_concurrency = 6
     ua = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
@@ -43,13 +42,32 @@ class _JestfulContract:
     _search_sort_type = "DESC"
     _update_sort = "last_update"
     _update_sort_type = "DESC"
+    update = f"{index}manga-list.html?listType=pagination&sort={_update_sort}&sort_type={_update_sort_type}"
+    mappings = {res.SPIDER.Completer.index: index, res.SPIDER.Completer.update: update}
     _random_alphabet = string.ascii_letters + string.digits
 
 
 @dataclass(frozen=True, slots=True)
-class _JestfulSiteContext:
-    host: str
-    origin: str
+class _JestfulPreviewPlan:
+    kind: str
+    first_page_url: str
+    parser_name: str
+    params: tuple[tuple[str, str], ...] = ()
+    fallback_keyword: str = ""
+
+    def has_page(self, page: int) -> bool:
+        return self.kind != "home" or page <= 1
+
+    def url_for_page(self, session: PreviewRequestSession, *, page: int) -> str:
+        if page <= 1 or self.kind == "home":
+            return self.first_page_url
+        return session.list_url(params=dict(self.params), page=page)
+
+    def parse_func(self, parser_cls: type[JestfulParser]):
+        return getattr(parser_cls, self.parser_name)
+
+    def should_fetch_suggest(self, *, books: list[JestfulBookInfo], page: int) -> bool:
+        return self.kind == "search" and not books and page <= 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,52 +250,95 @@ class TitleAliasSession:
 
 
 class PreviewRequestSession:
+    _list_filter_fields = ("artist", "author", "group", "m_status", "name", "genre", "ungenre")
+    _list_path_fields = {"artist", "author", "group", "genre", "ungenre", "m_status", "name"}
+
     def __init__(self, reqer: JestfulReqer):
         self._reqer = reqer
 
     @property
-    def site_context(self) -> _JestfulSiteContext:
-        candidate = str(getattr(self._reqer, "domain", None) or type(self._reqer).domain or "").strip()
-        parsed = urlparse(candidate if "://" in candidate else f"https://{candidate}")
-        host = (parsed.netloc or parsed.path).strip().rstrip("/")
-        if not host:
-            raise ValueError("jestful domain is required")
-        return _JestfulSiteContext(host=host, origin=f"{parsed.scheme or 'https'}://{host}")
+    def origin(self) -> str:
+        return type(self._reqer).index.rstrip("/")
 
     def home_url(self) -> str:
-        return f"{self.site_context.origin}/"
+        return f"{self.origin}/"
 
     def random_token(self, length: int) -> str:
         return "".join(secrets.choice(self._reqer._random_alphabet) for _ in range(length))
 
-    def listing_url(self, *, keyword: str = "", page: int = 1, update: bool = False) -> str:
-        params = {
-            "listType": "pagination",
-            "sort": self._reqer._update_sort if update else self._reqer._search_sort,
-            "sort_type": self._reqer._update_sort_type if update else self._reqer._search_sort_type,
-        }
-        if not update and page <= 1:
-            return f"{self.site_context.origin}/manga-list.html?name={keyword}"
+    def list_url(self, path: str = "/manga-list.html", *, params: dict[str, str] | None = None, page: int = 1) -> str:
+        query = self._list_query_params(params or {}, page=page)
+        prefix = "" if path.startswith("/") else "/"
+        return f"{self.origin}{prefix}{path}?{urlencode(query)}"
+
+    def _list_query_params(self, params: dict[str, str], *, page: int) -> dict[str, str]:
+        query = {"listType": params.get("listType") or "pagination"}
         if page > 1:
-            params["page"] = str(page)
-        if page > 1 or not update:
-            params.update(
-                {"artist": "","author": "","group": "","m_status": "",
-                 "name": "" if update else keyword,"genre": "","ungenre": "",}
-            )
-        return f"{self.site_context.origin}/manga-list.html?{urlencode(params)}"
+            query["page"] = str(page)
+            for field in self._list_filter_fields:
+                query[field] = params.get(field, "")
+        else:
+            query.update((key, value) for key, value in params.items() if key != "listType" and value != "")
+        query["sort"] = params.get("sort") or self._reqer._update_sort
+        query["sort_type"] = params.get("sort_type") or self._reqer._update_sort_type
+        return query
+
+    def _mapping_list_params(self, path: str, query: str) -> dict[str, str]:
+        params = dict(parse_qsl(query, keep_blank_values=True))
+        matched = re.fullmatch(r"/?manga-list-([a-z_]+)-(.+)\.html", path)
+        if not matched:
+            return params
+        field, value = matched.groups()
+        if field in self._list_path_fields:
+            params.setdefault(field, unquote(value))
+        return params
+
+    def plan_from_mapping(self, mapping_value) -> _JestfulPreviewPlan:
+        raw_value = str(mapping_value or "").strip()
+        if not raw_value:
+            raise ValueError("jestful mapping URL is required")
+        origin = self.origin
+        normalized = Previewer.normalize_preview_resource(raw_value, domain=type(self._reqer).domain)
+        parsed = urlparse(normalized)
+        path = (parsed.path or "").rstrip("/")
+        url = f"{origin}{parsed.path or '/'}"
+        if parsed.query:
+            url = f"{url}?{parsed.query}"
+        if not path:
+            return _JestfulPreviewPlan(kind="home", first_page_url=url, parser_name="parse_index_books")
+        params = self._mapping_list_params(path, parsed.query)
+        return _JestfulPreviewPlan(kind="list", first_page_url=url, parser_name="parse_search_document", params=tuple(params.items()))
+
+    def search_plan(self, keyword: str) -> _JestfulPreviewPlan:
+        keyword = keyword.strip()
+        params = {"name": keyword, "sort": self._reqer._search_sort, "sort_type": self._reqer._search_sort_type}
+        return _JestfulPreviewPlan(
+            kind="search", first_page_url=self.search_url(keyword=keyword), parser_name="parse_search_document",
+            params=tuple(params.items()), fallback_keyword=keyword,
+        )
+
+    def resolve_preview_plan(self, keyword: str, mappings: dict) -> _JestfulPreviewPlan:
+        if keyword in mappings:
+            return self.plan_from_mapping(mappings[keyword])
+        return self.search_plan(keyword)
+
+    def search_url(self, *, keyword: str = "", page: int = 1) -> str:
+        if page <= 1:
+            return f"{self.origin}/manga-list.html?name={keyword}"
+        params = {"name": keyword, "sort": self._reqer._search_sort, "sort_type": self._reqer._search_sort_type}
+        return self.list_url(params=params, page=page)
+
+    def update_url(self, *, page: int = 1) -> str:
+        return self.list_url(params={"sort": self._reqer._update_sort, "sort_type": self._reqer._update_sort_type}, page=page)
 
     def controller_url(self, controller: str, **params: str) -> str:
-        return f"{self.site_context.origin}/app/manga/controllers/{controller}.php?{urlencode(params)}"
+        return f"{self.origin}/app/manga/controllers/{controller}.php?{urlencode(params)}"
 
     def tokenized_url(self, suffix: str, *, token_length: int, query_name: str, value: str) -> str:
-        return f"{self.site_context.origin}/{self.random_token(token_length)}.{suffix}?{query_name}={value}"
+        return f"{self.origin}/{self.random_token(token_length)}.{suffix}?{query_name}={value}"
 
     def headers(self, *, referer: str | None = None, xhr: bool = False) -> dict[str, str]:
-        headers = {
-            **self._reqer.ua,
-            "Accept": "*/*",
-        }
+        headers = {**self._reqer.ua, "Accept": "*/*"}
         if xhr:
             headers["X-Requested-With"] = "XMLHttpRequest"
         if referer is None and xhr:
@@ -291,6 +352,10 @@ class JestfulParser(_JestfulContract, Previewer):
     _semantics = TextSemantics()
 
     @classmethod
+    def normalize_site_resource(cls, value: str | None) -> str | None:
+        return cls.normalize_preview_resource(value, domain=cls.domain)
+
+    @classmethod
     def _extract_hover_id(cls, node: Selector) -> str:
         for raw_attr in node.xpath(".//@onmouseenter").getall():
             if matched := SHOW_ID_RE.search(raw_attr or ""):
@@ -298,14 +363,12 @@ class JestfulParser(_JestfulContract, Previewer):
         return ""
 
     @classmethod
-    def _strip_title_prefix(cls, value: str, *, title: str | None) -> str:
-        normalized_title = cls._semantics.normalize_text(title)
-        if normalized_title and value.lower().startswith(normalized_title.lower()):
-            return cls._semantics.normalize_text(value[len(normalized_title):].lstrip(" :#-"))
-        return value
-
-    @classmethod
     def clean_latest_chapter(cls, value: str | None, *, title: str | None = None) -> str:
+        def _strip_title_prefix():
+            normalized_title = cls._semantics.normalize_text(title)
+            if normalized_title and value.lower().startswith(normalized_title.lower()):
+                return cls._semantics.normalize_text(value[len(normalized_title):].lstrip(" :#-"))
+            return value
         cleaned = cls._semantics.normalize_text(value)
         if not cleaned:
             return ""
@@ -314,7 +377,7 @@ class JestfulParser(_JestfulContract, Previewer):
             if lowered.startswith(prefix):
                 suffix = cls._semantics.normalize_text(cleaned[len(prefix):].lstrip(" :#-"))
                 return f"Chapter {suffix}" if suffix and not suffix.lower().startswith("chapter") else suffix
-        stripped = cls._strip_title_prefix(cleaned, title=title)
+        stripped = _strip_title_prefix()
         chapter_match = re.search(r"\bchapter\b\s*[:#-]?\s*(.+)$", stripped, re.I)
         if chapter_match:
             suffix = cls._semantics.normalize_text(chapter_match.group(1).strip(" :#-"))
@@ -334,7 +397,7 @@ class JestfulParser(_JestfulContract, Previewer):
         return JestfulBookInfo(idx=idx, render_keys=["name", "latest_sec"], url=url, preview_url=url)
 
     @classmethod
-    def parse_search_document(cls, html_text: str, *, domain: str) -> list[JestfulBookInfo]:
+    def parse_search_document(cls, html_text: str) -> list[JestfulBookInfo]:
         sel = Selector(text=html_text)
         cards = sel.css("div.thumb-wrapper[data-id]")
         books = []
@@ -342,7 +405,7 @@ class JestfulParser(_JestfulContract, Previewer):
             href = card.xpath("./a[@href][1]/@href").get()
             if not href:
                 raise ValueError(f"jestful search card missing owner href: idx={idx}")
-            book_url = cls.normalize_preview_resource(href, domain=domain)
+            book_url = cls.normalize_site_resource(href)
             book = cls._new_book(idx=idx, url=book_url)
             book.id = cls._semantics.normalize_text(card.xpath("./@data-id").get()) or cls._extract_hover_id(card)
             book.name = cls._semantics.normalize_text(
@@ -353,12 +416,12 @@ class JestfulParser(_JestfulContract, Previewer):
             latest_text = cls._semantics.normalize_text(card.xpath(".//a[contains(@class,'btn-danger')]/text()").get())
             cls.apply_latest_chapter(book, latest_text)
             cover = cls._semantics.normalize_text(card.xpath(".//div[contains(@class,'content')]/@data-bg").get())
-            book.img_preview = cls.normalize_preview_resource(cover, domain=domain) if cover else None
+            book.img_preview = cls.normalize_site_resource(cover) if cover else None
             books.append(book)
         return books
 
     @classmethod
-    def parse_index_books(cls, html_text: str, *, domain: str) -> list[JestfulBookInfo]:
+    def parse_index_books(cls, html_text: str) -> list[JestfulBookInfo]:
         sel = Selector(text=html_text)
         cards = sel.css("div#contentstory div.itemupdate")
         books = []
@@ -366,7 +429,7 @@ class JestfulParser(_JestfulContract, Previewer):
             href = cls._semantics.normalize_text(card.xpath("./a[contains(@class,'cover')][1]/@href").get())
             if not href:
                 continue
-            book_url = cls.normalize_preview_resource(href, domain=domain)
+            book_url = cls.normalize_site_resource(href)
             book = cls._new_book(idx=len(books) + 1, url=book_url)
             book.id = cls._extract_hover_id(card)
             book.name = cls._semantics.normalize_text(
@@ -379,14 +442,14 @@ class JestfulParser(_JestfulContract, Previewer):
                 card.xpath(".//a[contains(@class,'cover')]//img[1]/@data-src").get()
                 or card.xpath(".//a[contains(@class,'cover')]//img[1]/@src").get()
             )
-            book.img_preview = cls.normalize_preview_resource(cover, domain=domain) if cover else None
+            book.img_preview = cls.normalize_site_resource(cover) if cover else None
             books.append(book)
         if not books:
             raise ValueError("jestful index page returned no update-lane cards")
         return books
 
     @classmethod
-    def parse_search_suggest(cls, payload: str, *, domain: str) -> list[JestfulBookInfo]:
+    def parse_search_suggest(cls, payload: str) -> list[JestfulBookInfo]:
         try:
             data = json.loads(payload)
         except json.JSONDecodeError as exc:
@@ -409,14 +472,14 @@ class JestfulParser(_JestfulContract, Previewer):
                 if not matched:
                     raise ValueError(f"jestful suggest item onclick missing owner path: onclick={onclick_text!r}")
                 book_path = matched.group(1)
-                book_url = cls.normalize_preview_resource(book_path, domain=domain)
+                book_url = cls.normalize_site_resource(book_path)
                 book = cls._new_book(idx=len(books) + 1, url=book_url)
                 book.name = cls._semantics.normalize_text(str(item.get("primary") or ""))
                 if not book.name:
                     raise ValueError(f"jestful suggest item missing primary: {item!r}")
                 cls.apply_latest_chapter(book, str(item.get("secondary") or ""))
                 cover = cls._semantics.normalize_text(str(item.get("image") or ""))
-                book.img_preview = cls.normalize_preview_resource(cover, domain=domain) if cover else None
+                book.img_preview = cls.normalize_site_resource(cover) if cover else None
                 books.append(book)
         return books
 
@@ -446,7 +509,7 @@ class JestfulParser(_JestfulContract, Previewer):
         }
 
     @classmethod
-    def apply_pop_fields(cls, book: JestfulBookInfo, pop_fields: dict, *, domain: str) -> JestfulBookInfo:
+    def apply_pop_fields(cls, book: JestfulBookInfo, pop_fields: dict) -> JestfulBookInfo:
         preferred_title = cls._semantics.normalize_text(pop_fields.get("preferred_title") or pop_fields.get("title") or book.name)
         if preferred_title:
             book.name = preferred_title
@@ -468,7 +531,7 @@ class JestfulParser(_JestfulContract, Previewer):
             book.public_date = pop_fields["public_date"]
         cover_url = cls._semantics.normalize_text(pop_fields.get("cover_url"))
         if cover_url:
-            book.img_preview = cls.normalize_preview_resource(cover_url, domain=domain)
+            book.img_preview = cls.normalize_site_resource(cover_url)
         return book
 
     @classmethod
@@ -508,7 +571,7 @@ class JestfulParser(_JestfulContract, Previewer):
         }
 
     @classmethod
-    def parse_episodes_from_list_html(cls, html_text: str, book: JestfulBookInfo, *, domain: str) -> list[Episode]:
+    def parse_episodes_from_list_html(cls, html_text: str, book: JestfulBookInfo) -> list[Episode]:
         sel = Selector(text=html_text)
         rows = list(sel.css("a.chapter[href]"))
         if not rows:
@@ -518,7 +581,7 @@ class JestfulParser(_JestfulContract, Previewer):
             href = cls._semantics.normalize_text(row.xpath("./@href").get())
             if not href:
                 raise ValueError(f"jestful chapter-list row missing href: idx={idx} book={book.url}")
-            ep_url = cls.normalize_preview_resource(href, domain=domain)
+            ep_url = cls.normalize_site_resource(href)
             name = cls._semantics.normalize_text("".join(row.xpath(".//text()").getall())) or cls._semantics.normalize_text(
                 row.xpath("./@title").get()
             )
@@ -563,14 +626,13 @@ class JestfulReqer(_JestfulContract, Req):
             return book
         owner = self._require_preview_owner()
         session = self.preview_requests
-        domain = session.site_context.host
         pop_resp = await self.ensure_preview_client().get(
             session.controller_url("cont.pop", action="pop", id=book_id),
             headers=session.headers(xhr=True), follow_redirects=True, timeout=12,
         )
         pop_resp.raise_for_status()
         pop_fields = await asyncio.to_thread(owner.parser.parse_book_pop_fields, pop_resp.text, request_url=str(pop_resp.url))
-        owner.parser.apply_pop_fields(book, pop_fields, domain=domain)
+        owner.parser.apply_pop_fields(book, pop_fields)
         return book
 
     async def _enrich_books_from_pop(self, books: list[JestfulBookInfo]):
@@ -597,42 +659,34 @@ class JestfulReqer(_JestfulContract, Req):
             return False
         return True
 
-    async def _fetch_parse(self, url, parse_fn, *, domain, headers=None):
+    async def _fetch_parse(self, url, parse_fn, *, headers=None):
         resp = await self.ensure_preview_client().get(url, headers=headers or self.ua, follow_redirects=True, timeout=12)
         resp.raise_for_status()
-        return await asyncio.to_thread(parse_fn, resp.text, domain=domain)
+        return await asyncio.to_thread(parse_fn, resp.text)
 
     async def preview_search(self, keyword: str, *, page: int = 1):
         owner = self._require_preview_owner()
         owner_type = type(owner)
         session = self.preview_requests
-        domain = session.site_context.host
         page = max(1, int(page or 1))
         keyword = keyword.strip()
         parse = owner.parser
-
         mappings = owner_type.merge_search_mappings(self.mappings, self.preview_site_kwargs().get("custom_map"))
-        # Mapping extends the search URL space (index shortcut)
-        if keyword in mappings and page <= 1:
-            url = owner_type.normalize_mapping_url(domain, mappings[keyword])
-            books = await self._fetch_parse(url, parse.parse_index_books, domain=domain)
-            return await self._enrich_books_from_pop(books)
-        # Listing search (mapping page>1 falls through to update listing)
-        url = session.listing_url(page=page, update=True) if keyword in mappings else session.listing_url(keyword=keyword, page=page)
-        books = await self._fetch_parse(url, parse.parse_search_document, domain=domain)
-        if books or page > 1:
-            return await self._enrich_books_from_pop(books)
-        # Fallback to suggest
-        return await self._fetch_parse(
-            session.controller_url("search.single", q=keyword),
-            parse.parse_search_suggest, domain=domain, headers=session.headers(xhr=True),
-        )
+        plan = session.resolve_preview_plan(keyword, mappings)
+        if not plan.has_page(page):
+            return []
+        books = await self._fetch_parse(plan.url_for_page(session, page=page), plan.parse_func(parse))
+        if plan.should_fetch_suggest(books=books, page=page):
+            return await self._fetch_parse(
+                session.controller_url("search.single", q=plan.fallback_keyword),
+                parse.parse_search_suggest, headers=session.headers(xhr=True),
+            )
+        return await self._enrich_books_from_pop(books)
 
     async def preview_fetch_episodes(self, book):
         owner = self._require_preview_owner()
         preview_client = self.ensure_preview_client()
         session = self.preview_requests
-        domain = session.site_context.host
 
         owner_resp = await preview_client.get(book.url, headers=self.ua, follow_redirects=True, timeout=12)
         owner_resp.raise_for_status()
@@ -645,7 +699,7 @@ class JestfulReqer(_JestfulContract, Req):
         if owner_state.get("latest_sec"):
             owner.parser.apply_latest_chapter(book, owner_state["latest_sec"])
         if owner_state.get("cover_url") and not book.img_preview:
-            book.img_preview = owner.parser.normalize_preview_resource(owner_state["cover_url"], domain=domain)
+            book.img_preview = owner.parser.normalize_site_resource(owner_state["cover_url"])
         if owner_state.get("preferred_title"):
             owner.parser.apply_pop_fields(
                 book,
@@ -657,7 +711,6 @@ class JestfulReqer(_JestfulContract, Req):
                     "other_names": owner_state.get("other_names"),
                     "cover_url": owner_state.get("cover_url"),
                 },
-                domain=domain,
             )
         if book.id:
             await self._enrich_book_from_pop(book)
@@ -667,7 +720,7 @@ class JestfulReqer(_JestfulContract, Req):
             headers=session.headers(referer=owner_url, xhr=True), follow_redirects=True, timeout=12,
         )
         chapter_resp.raise_for_status()
-        return await asyncio.to_thread(owner.parser.parse_episodes_from_list_html, chapter_resp.text, book, domain=domain)
+        return await asyncio.to_thread(owner.parser.parse_episodes_from_list_html, chapter_resp.text, book)
 
     async def preview_fetch_pages(self, episode) -> list[str]:
         owner = self._require_preview_owner()
