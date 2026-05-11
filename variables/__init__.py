@@ -76,7 +76,7 @@ DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[comp
         Spider.HITOMI: ['index-all', 'popular/week-all', 'popular/month-all'],
         Spider.H_COMIC: ['更新'],
         Spider.NHENTAI: [res.SPIDER.Completer.update],
-        Spider.JESTFUL: [res.SPIDER.Completer.index],
+        Spider.JESTFUL: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
         Spider.MANHUAGUI: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
     }),
     SCRIPT_SITE_INDEX: [],

@@ -23,6 +23,7 @@ from variables import COOKIES_SUPPORT
 
 class _JmContract:
     name = "jm"
+    domain = "18comic.vip"  # REMARK(CG001): Keep a static fallback domain so GUI/runtime can bind before jm_domain.txt is rebuilt.
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     publish_url2 = "https://jmcomicne.net/"
