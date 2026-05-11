@@ -1,15 +1,23 @@
 import type {
+  MonitorBoardIspKey,
   MonitorBoardLiveStatus,
   MonitorBoardRuntimeData,
   MonitorBoardUptimes,
+  MonitorBoardVoteMatrix,
   MonitorBoardVoteKey,
-  MonitorBoardVotes,
+} from './monitorStatusBoardSource'
+import {
+  createEmptyMonitorBoardVoteMatrix,
+  monitorBoardIspKeys,
+  monitorBoardVoteKeys,
+  monitorBoardVoteMatrixKeys,
 } from './monitorStatusBoardSource'
 import { normalizeMonitorApiBaseUrl } from '../../shared/urls'
 
 export type MonitorBoardVoteSubmission = {
   siteId: string
   action: MonitorBoardVoteKey
+  state_isp: MonitorBoardIspKey
   delta: number
 }
 
@@ -31,6 +39,10 @@ function isVoteKey(value: unknown): value is MonitorBoardVoteKey {
   return value === 'up' || value === 'neutral' || value === 'down'
 }
 
+function isIspKey(value: unknown): value is MonitorBoardIspKey {
+  return typeof value === 'string' && monitorBoardIspKeys.includes(value as MonitorBoardIspKey)
+}
+
 function readJsonErrorMessage(payload: unknown, fallback: string): string {
   if (!isRecord(payload)) {
     return fallback
@@ -40,20 +52,30 @@ function readJsonErrorMessage(payload: unknown, fallback: string): string {
   return typeof message === 'string' && message.trim() !== '' ? message : fallback
 }
 
-function normalizeVotes(value: unknown): MonitorBoardVotes {
+function normalizeVotes(value: unknown): MonitorBoardVoteMatrix {
   if (!isRecord(value)) {
     throw new TypeError('Monitor board votes payload must be an object.')
   }
 
-  const up = value.up
-  const neutral = value.neutral
-  const down = value.down
-
-  if (![up, neutral, down].every((entry) => typeof entry === 'number' && Number.isFinite(entry))) {
-    throw new TypeError('Monitor board votes payload must contain finite numeric up/neutral/down fields.')
+  const legacyVoteValues = monitorBoardVoteKeys.map((key) => value[key])
+  const hasLegacyVotes = legacyVoteValues.some((entry) => typeof entry === 'number' && Number.isFinite(entry))
+  const hasMatrixVotes = monitorBoardVoteMatrixKeys.some((key) => key in value)
+  if (hasLegacyVotes && !hasMatrixVotes) {
+    return {
+      ...createEmptyMonitorBoardVoteMatrix(),
+      ...Object.fromEntries(monitorBoardVoteKeys.map((key) => [`${key}-telecom`, value[key] ?? 0])),
+    } as MonitorBoardVoteMatrix
   }
 
-  return { up, neutral, down }
+  return Object.fromEntries(
+    monitorBoardVoteMatrixKeys.map((key) => {
+      const entry = value[key]
+      if (typeof entry !== 'number' || !Number.isFinite(entry)) {
+        throw new TypeError(`Monitor board votes payload must contain finite numeric ${key} field.`)
+      }
+      return [key, entry]
+    }),
+  ) as MonitorBoardVoteMatrix
 }
 
 function normalizeUptimes(value: unknown): MonitorBoardUptimes {
@@ -149,12 +171,15 @@ export async function submitMonitorBoardVote(
   submission: MonitorBoardVoteSubmission,
   apiBaseUrl?: string,
 ): Promise<void> {
-  const { siteId, action, delta } = submission
+  const { siteId, action, state_isp, delta } = submission
   if (typeof siteId !== 'string' || siteId.trim() === '') {
     throw new TypeError('Monitor vote submission requires a non-empty siteId string.')
   }
   if (!isVoteKey(action)) {
     throw new TypeError('Monitor vote submission action must be one of up/neutral/down.')
+  }
+  if (!isIspKey(state_isp)) {
+    throw new TypeError('Monitor vote submission state_isp must be one of telecom/mobile/unicom.')
   }
   if (!Number.isInteger(delta) || delta <= 0) {
     throw new TypeError('Monitor vote submission delta must be a positive integer.')
@@ -169,6 +194,7 @@ export async function submitMonitorBoardVote(
     body: JSON.stringify({
       siteId,
       action,
+      state_isp,
       delta,
     }),
   })

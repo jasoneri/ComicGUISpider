@@ -3,13 +3,20 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   createEmptyMonitorBoardRuntimeData,
   emptyMonitorBoardLiveStatus,
+  getMonitorBoardVoteMatrixKey,
+  monitorBoardIsps,
   monitorBoardCopy,
+  monitorBoardVoteKeys,
+  sumMonitorBoardVoteMatrixByVote,
   type MonitorBoardLocale,
   type MonitorBoardRuntimeData,
   monitorBoardSites,
+  type MonitorBoardIsp,
+  type MonitorBoardIspKey,
   type MonitorBoardLiveStatus,
   type MonitorBoardStatusMap,
   type MonitorBoardUptimes,
+  type MonitorBoardVoteMatrix,
   type MonitorBoardVoteKey,
   type MonitorBoardVotes,
 } from './monitorStatusBoardSource'
@@ -37,10 +44,16 @@ const props = withDefaults(defineProps<{
 
 type MonitorBoardLocalStageEntry = {
   action: MonitorBoardVoteKey
+  state_isp: MonitorBoardIspKey
   completedAt: string
 }
 
 type MonitorBoardLocalStageMap = Partial<Record<string, MonitorBoardLocalStageEntry>>
+
+type MonitorBoardPendingIspSelection = {
+  cardId: string
+  action: MonitorBoardVoteKey
+}
 
 type MonitorBoardLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -76,7 +89,21 @@ type MonitorBoardSegment = {
   percent: number
 }
 
+type MonitorBoardIspSignalCell = {
+  key: MonitorBoardVoteKey
+  value: number
+  color: string
+  glow: string
+  strength: number
+}
+
+type MonitorBoardIspSignalRow = {
+  isp: MonitorBoardIsp
+  cells: MonitorBoardIspSignalCell[]
+}
+
 const MONITOR_VOTE_DISABLED_STORAGE_KEY = 'monitor-board-vote-disabled:v1'
+const MONITOR_SELECTED_ISP_STORAGE_KEY = 'monitor-board-selected-isp:v1'
 const MONITOR_CHART_MIN_VALUE = 0
 const MONITOR_CHART_LAYER_OFFSETS = [20, 40, 60] as const
 const MONITOR_CHART_EMA_DECAY = 0.75
@@ -114,8 +141,9 @@ function buildChartLines(cumulativeUptimes: MonitorBoardUptimes): MonitorBoardCh
     return []
   }
 
-  const len = cumulativeUptimes.length - 1
-  let prev = cumulativeUptimes[0]
+  const cumulativeVotes = cumulativeUptimes.map((sample) => sumMonitorBoardVoteMatrixByVote(sample))
+  const len = cumulativeVotes.length - 1
+  let prev = cumulativeVotes[0]
   let chartMax = 1
   const emaSamples: MonitorBoardVotes[] = new Array(len)
   let emaUp = 0
@@ -123,7 +151,7 @@ function buildChartLines(cumulativeUptimes: MonitorBoardUptimes): MonitorBoardCh
   let emaDown = 0
 
   for (let i = 0; i < len; i++) {
-    const curr = cumulativeUptimes[i + 1]
+    const curr = cumulativeVotes[i + 1]
     const diffUp = curr.up - prev.up
     const diffNeutral = curr.neutral - prev.neutral
     const diffDown = curr.down - prev.down
@@ -173,11 +201,13 @@ function cloneStatusMap(statusMap: MonitorBoardStatusMap): Record<string, Monito
 const text = computed(() => monitorBoardCopy[props.locale])
 const completedToastLabel = computed(() => props.locale === 'zh' ? '已投票' : 'Voted')
 const boardRoot = ref<HTMLElement | null>(null)
+const selectedIsp = ref<MonitorBoardIspKey | null>(null)
 const remoteRuntimeData = ref<MonitorBoardRuntimeData | null>(null)
 const loadState = ref<MonitorBoardLoadState>('idle')
 const loadErrorMessage = ref<string | null>(null)
 const localStageMap = ref<MonitorBoardLocalStageMap>({})
 const pendingStageMap = ref<MonitorBoardLocalStageMap>({})
+const pendingIspSelection = ref<MonitorBoardPendingIspSelection | null>(null)
 const voteDisabledDetail = ref<string | null>(null)
 const activeCardId = ref<string | null>(null)
 const toastMessage = ref<string | null>(null)
@@ -212,6 +242,7 @@ const effectiveApiBaseUrl = computed(() => {
 })
 const localStageStorageKey = computed(() => `monitor-board-local-stage:${resetStartedAt.value ?? 'default'}`)
 const hasActiveCard = computed(() => activeCardId.value !== null)
+const hasIspFocus = computed(() => pendingIspSelection.value !== null)
 const hasPendingSubmission = computed(() => Object.keys(pendingStageMap.value).length > 0)
 const voteDisabledToastLabel = computed(() => (
   voteDisabledDetail.value ? buildSubmitFailedToast(voteDisabledDetail.value) : null
@@ -246,7 +277,7 @@ const MONITOR_PREVIEW_APEX_Y_PX = -1
 const MONITOR_PREVIEW_REBOUND_Y_PX = 4
 const MONITOR_PREVIEW_SETTLE_Y_PX = -1
 const MONITOR_PREVIEW_END_Y_PX = 0
-const monitorVoteKeys: MonitorBoardVoteKey[] = ['up', 'neutral', 'down']
+const monitorVoteKeys = monitorBoardVoteKeys
 
 const monitorPreviewMotionStyle = {
   '--monitor-card-layer': `${MONITOR_CARD_LAYER}`,
@@ -313,10 +344,40 @@ function buildVoteSegments(votes: MonitorBoardVotes): MonitorBoardSegment[] {
   })
 }
 
+function buildIspSignalRows(votes: MonitorBoardVoteMatrix): MonitorBoardIspSignalRow[] {
+  const maxValue = Math.max(
+    1,
+    ...monitorBoardIsps.flatMap((isp) => (
+      monitorVoteKeys.map((key) => votes[getMonitorBoardVoteMatrixKey(key, isp.id)])
+    )),
+  )
+
+  return monitorBoardIsps.reduce<MonitorBoardIspSignalRow[]>((rows, isp) => {
+    const cells = monitorVoteKeys.map((key) => {
+      const meta = monitorVoteMetaMap[key]
+      const value = votes[getMonitorBoardVoteMatrixKey(key, isp.id)]
+      return {
+        key,
+        value,
+        color: meta.color,
+        glow: meta.glow,
+        strength: value === 0 ? 0 : Math.max(0.24, value / maxValue),
+      }
+    })
+    const total = cells.reduce((sum, cell) => sum + cell.value, 0)
+    if (total > 0) rows.push({ isp, cells })
+    return rows
+  }, [])
+}
+
 let toastTimer: number | null = null
 
 function isMonitorBoardVoteKey(value: unknown): value is MonitorBoardVoteKey {
   return value === 'up' || value === 'neutral' || value === 'down'
+}
+
+function isMonitorBoardIspKey(value: unknown): value is MonitorBoardIspKey {
+  return value === 'telecom' || value === 'mobile' || value === 'unicom'
 }
 
 function readLocalStageMap(storageKey: string): MonitorBoardLocalStageMap {
@@ -342,12 +403,17 @@ function readLocalStageMap(storageKey: string): MonitorBoardLocalStageMap {
         }
 
         const action = (stage as { action?: unknown }).action
+        const state_isp = (stage as { state_isp?: unknown }).state_isp
         const completedAt = (stage as { completedAt?: unknown }).completedAt
         if (!isMonitorBoardVoteKey(action) || typeof completedAt !== 'string') {
           return []
         }
 
-        return [[siteId, { action, completedAt }]]
+        return [[siteId, {
+          action,
+          state_isp: isMonitorBoardIspKey(state_isp) ? state_isp : 'telecom',
+          completedAt,
+        }]]
       }),
     ) as MonitorBoardLocalStageMap
   } catch (error) {
@@ -362,6 +428,23 @@ function writeLocalStageMap(storageKey: string, stageMap: MonitorBoardLocalStage
   }
 
   window.localStorage.setItem(storageKey, JSON.stringify(stageMap))
+}
+
+function readSelectedIsp(storageKey: string): MonitorBoardIspKey | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const rawValue = window.localStorage.getItem(storageKey)
+  return isMonitorBoardIspKey(rawValue) ? rawValue : null
+}
+
+function writeSelectedIsp(storageKey: string, _ispKey: MonitorBoardIspKey): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(storageKey, _ispKey)
 }
 
 function readVoteDisabledDetail(storageKey: string): string | null {
@@ -383,6 +466,10 @@ function writeVoteDisabledDetail(storageKey: string, detail: string): void {
 
 function syncLocalStageMap(): void {
   localStageMap.value = readLocalStageMap(localStageStorageKey.value)
+}
+
+function syncSelectedIsp(): void {
+  selectedIsp.value = readSelectedIsp(MONITOR_SELECTED_ISP_STORAGE_KEY)
 }
 
 function syncVoteDisabledDetail(): void {
@@ -532,7 +619,7 @@ function handleCardKeydown(cardId: string, event: KeyboardEvent): void {
   handleCardActivate(cardId)
 }
 
-function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
+function submitVote(cardId: string, action: MonitorBoardVoteKey, _stateIsp: MonitorBoardIspKey): void {
   if (voteDisabledToastLabel.value) {
     clearActiveCard()
     showToast(voteDisabledToastLabel.value)
@@ -541,6 +628,7 @@ function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
 
   const stageEntry: MonitorBoardLocalStageEntry = {
     action,
+    state_isp: _stateIsp,
     completedAt: new Date().toISOString(),
   }
 
@@ -550,6 +638,7 @@ function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
   void submitMonitorBoardVote({
     siteId: cardId,
     action,
+    state_isp: _stateIsp,
     delta: 1,
   }, effectiveApiBaseUrl.value)
     .then(() => {
@@ -557,6 +646,7 @@ function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
         const currentRuntimeData = remoteRuntimeData.value
           ?? createEmptyMonitorBoardRuntimeData(resetDate.value, resetStartedAt.value)
         const currentLiveStatus = currentRuntimeData.statusMap[cardId] ?? emptyMonitorBoardLiveStatus
+        const matrixKey = getMonitorBoardVoteMatrixKey(action, _stateIsp)
 
         remoteRuntimeData.value = {
           resetDate: currentRuntimeData.resetDate,
@@ -567,7 +657,7 @@ function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
               uptimes: currentLiveStatus.uptimes.map((sample) => ({ ...sample })),
               votes: {
                 ...currentLiveStatus.votes,
-                [action]: currentLiveStatus.votes[action] + 1,
+                [matrixKey]: currentLiveStatus.votes[matrixKey] + 1,
               },
             },
           },
@@ -591,8 +681,45 @@ function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
     })
 }
 
+function closeIspFocus(): void {
+  pendingIspSelection.value = null
+}
+
+function handleIspFocusDismiss(): void {
+  closeIspFocus()
+  clearActiveCard()
+}
+
+function handleIspSelect(_ispKey: MonitorBoardIspKey): void {
+  const pendingVote = pendingIspSelection.value
+  if (!pendingVote) {
+    return
+  }
+
+  selectedIsp.value = _ispKey
+  writeSelectedIsp(MONITOR_SELECTED_ISP_STORAGE_KEY, _ispKey)
+  closeIspFocus()
+  submitVote(pendingVote.cardId, pendingVote.action, _ispKey)
+}
+
+function handleBubbleVote(cardId: string, action: MonitorBoardVoteKey): void {
+  if (voteDisabledToastLabel.value) {
+    clearActiveCard()
+    showToast(voteDisabledToastLabel.value)
+    return
+  }
+
+  const _selectedIsp = selectedIsp.value
+  if (!_selectedIsp) {
+    pendingIspSelection.value = { cardId, action }
+    return
+  }
+
+  submitVote(cardId, action, _selectedIsp)
+}
+
 function handleDocumentPointerDown(event: PointerEvent): void {
-  if (!activeCardId.value || !boardRoot.value) {
+  if (hasIspFocus.value || !activeCardId.value || !boardRoot.value) {
     return
   }
 
@@ -611,12 +738,17 @@ function handleDocumentPointerDown(event: PointerEvent): void {
 
 function handleDocumentKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
+    if (hasIspFocus.value) {
+      handleIspFocusDismiss()
+      return
+    }
     clearActiveCard()
   }
 }
 
 onMounted(() => {
   syncLocalStageMap()
+  syncSelectedIsp()
   syncVoteDisabledDetail()
   document.addEventListener('pointerdown', handleDocumentPointerDown)
   document.addEventListener('keydown', handleDocumentKeydown)
@@ -638,6 +770,7 @@ type MonitorBoardCardWithChart = {
   chartLines: MonitorBoardChartLine[]
   isCompleted: boolean
   completedBorderColor: string
+  ispSignalRows: MonitorBoardIspSignalRow[]
   segments: MonitorBoardSegment[]
 } & typeof monitorBoardSites[number]
 
@@ -650,21 +783,20 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
     const liveStatus: MonitorBoardLiveStatus = statusMap[site.id] ?? emptyMonitorBoardLiveStatus
     const stagedVote = displayStage[site.id]
     const pendingVote = pendingStage[site.id]
-    const effectiveVotes: MonitorBoardVotes = {
-      up: liveStatus.votes.up,
-      neutral: liveStatus.votes.neutral,
-      down: liveStatus.votes.down,
-    }
+    const effectiveVoteMatrix: MonitorBoardVoteMatrix = { ...liveStatus.votes }
 
     if (pendingVote) {
-      effectiveVotes[pendingVote.action] += 1
+      const matrixKey = getMonitorBoardVoteMatrixKey(pendingVote.action, pendingVote.state_isp)
+      effectiveVoteMatrix[matrixKey] += 1
     }
+    const effectiveVotes = sumMonitorBoardVoteMatrixByVote(effectiveVoteMatrix)
 
     return {
       ...site,
       chartLines: buildChartLines(liveStatus.uptimes),
       isCompleted: stagedVote != null,
       completedBorderColor: stagedVote ? monitorVoteMetaMap[stagedVote.action].color : 'transparent',
+      ispSignalRows: buildIspSignalRows(effectiveVoteMatrix),
       segments: buildVoteSegments(effectiveVotes),
     }
   })
@@ -673,7 +805,7 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 </script>
 
 <template>
-  <section ref="boardRoot" class="monitor-board">
+  <section ref="boardRoot" class="monitor-board" :class="{ 'has-isp-focus': hasIspFocus }">
     <div class="board-shell">
       <header class="board-header">
         <div class="board-copy">
@@ -796,21 +928,37 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 
             <div class="card-bottom">
               <div class="metric-row">
-                <div class="segment-list">
-                  <span
-                    v-for="segment in card.segments"
-                    :key="segment.key"
-                    class="segment-pill"
+                  
+                  <div
+                    class="isp-broadcast"
                   >
-                    <span
-                      class="segment-dot"
-                      :style="{
-                        backgroundColor: segment.color,
-                        boxShadow: segment.glow,
-                      }"
-                    />
-                    {{ segment.value }}
-                  </span>
+                    <div
+                      v-for="row in card.ispSignalRows"
+                      :key="`${card.id}-${row.isp.id}`"
+                      class="isp-broadcast-row"
+                    >
+                      <img
+                        class="isp-broadcast-icon"
+                        :src="row.isp.iconSrc"
+                        :alt="row.isp.name"
+                      >
+                      <div class="isp-broadcast-cells">
+                        <template v-for="(cell, cellIndex) in row.cells" :key="`${card.id}-${row.isp.id}-${cell.key}`">
+                          <span
+                            class="isp-broadcast-value"
+                            :style="{
+                              color: cell.color,
+                              textShadow: cell.glow,
+                            }"
+                          >{{ cell.value }}</span>
+                          <span
+                            v-if="cellIndex < row.cells.length - 1"
+                            class="isp-broadcast-separator"
+                            aria-hidden="true"
+                          >/</span>
+                        </template>
+                      </div>
+                  </div>
                 </div>
               </div>
 
@@ -831,6 +979,28 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
       </div>
     </div>
 
+    <div
+      v-if="pendingIspSelection"
+      class="isp-focus-layer"
+      role="dialog"
+      aria-modal="true"
+      @click.self="handleIspFocusDismiss"
+    >
+      <div class="isp-focus-panel">
+        <button
+          v-for="(isp, ispIndex) in monitorBoardIsps"
+          :key="isp.id"
+          type="button"
+          class="isp-focus-option"
+          :style="{ '--isp-focus-delay': `${ispIndex * 70}ms` }"
+          :aria-label="isp.name"
+          @click="handleIspSelect(isp.id)"
+        >
+          <img class="isp-focus-icon" :src="isp.iconSrc" :alt="isp.name">
+        </button>
+      </div>
+    </div>
+
     <div class="board-toast-stack" aria-live="polite" aria-atomic="true">
       <div v-if="toastMessage" class="board-toast" role="status">
         {{ toastMessage }}
@@ -841,11 +1011,11 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 
 <style scoped>
 .monitor-board{--monitor-panel:rgba(12,12,14,0.96);--monitor-border:rgba(255,255,255,0.08);--monitor-border-strong:rgba(255,255,255,0.14);--monitor-copy:rgba(245,245,246,0.96);--monitor-muted:rgba(163,163,168,0.78);color:var(--monitor-copy)}
-.board-shell{position:relative;overflow:visible;border:1px solid var(--monitor-border);border-radius:32px;padding:28px;background:radial-gradient(circle at top right,rgba(255,255,255,0.08),transparent 26%),radial-gradient(circle at left center,rgba(88,28,135,0.24),transparent 32%),linear-gradient(180deg,rgba(10,10,11,0.98),rgba(5,5,5,0.98));box-shadow:0 24px 100px rgba(0,0,0,0.48),inset 0 1px 0 rgba(255,255,255,0.04)}
+.board-shell{position:relative;overflow:visible;border:1px solid var(--monitor-border);border-radius:32px;padding:28px;background:radial-gradient(circle at top right,rgba(255,255,255,0.08),transparent 26%),radial-gradient(circle at left center,rgba(88,28,135,0.24),transparent 32%),linear-gradient(180deg,rgba(10,10,11,0.98),rgba(5,5,5,0.98));box-shadow:0 24px 100px rgba(0,0,0,0.48),inset 0 1px 0 rgba(255,255,255,0.04);transition:filter 220ms ease,transform 220ms ease}
 .board-shell::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(180deg,rgba(0,0,0,0.55),transparent 88%);pointer-events:none}
 .board-header,.card-grid{position:relative;z-index:1}
 .board-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:24px;margin-bottom:28px}
-.board-copy{max-width:680px}
+.board-copy{display:flex;max-width:680px;align-items:center}
 .board-copy h1{margin:0;border:0;padding:0;color:#fafafa;font-size:clamp(2rem,4vw,2.75rem);line-height:1.08;letter-spacing:-0.04em}
 .board-summary{display:flex;flex-wrap:wrap;gap:12px;align-self:flex-start}
 .summary-chip{min-width:124px;display:grid;gap:6px;padding:14px 16px;border:1px solid rgba(255,255,255,0.09);border-radius:18px;background:rgba(255,255,255,0.04);backdrop-filter:blur(14px)}
@@ -854,6 +1024,25 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 .summary-chip.is-pending{border-color:rgba(96,165,250,0.28);background:rgba(30,41,59,0.72)}
 .board-alert{position:relative;z-index:1;margin:-6px 0 20px;padding:12px 14px;border:1px solid rgba(248,113,113,0.24);border-radius:16px;background:rgba(127,29,29,0.18);color:rgba(254,226,226,0.94);font-size:0.84rem;line-height:1.4}
 .card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.monitor-board.has-isp-focus .board-shell{filter:blur(18px) saturate(0.52);transform:scale(0.985)}
+.isp-focus-layer{position:fixed;inset:0;z-index:1400;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,0.28);backdrop-filter:blur(18px)}
+.isp-focus-panel{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: min(2vw,22px);
+}
+.isp-focus-option{
+  position:relative;display:grid;width:10vw;max-width:136px;max-height:136px;place-items:center;border-radius:38px;cursor:pointer;opacity:0;animation:isp-focus-option-in 320ms cubic-bezier(0.22,1,0.36,1) both;
+}
+.isp-focus-option::before{content:'';position:absolute;inset:0;border:1px solid rgba(255,255,255,0.14);border-radius:inherit;background:rgba(255,255,255,0.06);box-shadow:0 14px 34px rgba(0,0,0,0.34),inset 0 1px 0 rgba(255,255,255,0.08);transition:transform 180ms ease,border-color 180ms ease,background 180ms ease,box-shadow 180ms ease}
+.isp-focus-option:hover::before{transform:translateY(-2px) scale(1.02);border-color:rgba(255,255,255,0.22);background:rgba(255,255,255,0.1)}
+.isp-focus-option:focus-visible{outline:none}
+.isp-focus-option:focus-visible::before{border-color:rgba(255,255,255,0.28);box-shadow:0 0 0 4px rgba(255,255,255,0.08),0 14px 34px rgba(0,0,0,0.34),inset 0 1px 0 rgba(255,255,255,0.08)}
+.isp-focus-option:active::before{transform:scale(0.97)}
+.isp-focus-icon{
+  position:relative;z-index:1;display:block;width:100%;height:100%;padding:10%;object-fit:contain;filter:drop-shadow(0 10px 16px rgba(0,0,0,0.24))
+}
 .status-card{--monitor-avatar-left:50%;--monitor-avatar-bottom:calc(100% - 5px);--monitor-avatar-width:180px;--monitor-card-border-color:var(--monitor-border);--monitor-card-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 12px 40px rgba(0,0,0,0.3);--monitor-guide-width:92px;--monitor-guide-height:54px;--monitor-action-width:88px;--monitor-action-height:52px;--monitor-pop-start-scale:0.88;--monitor-pop-peak-scale:1.03;--monitor-pop-rebound-scale:0.99;--monitor-pop-settle-scale:1.01;position:relative;overflow:visible;border:1px solid transparent;border-radius:26px;padding:20px 22px;background:transparent;box-shadow:none;animation:card-in 560ms cubic-bezier(0.22,1,0.36,1) both;animation-delay:var(--monitor-delay);isolation:isolate;transition:transform 220ms ease,opacity 220ms ease,filter 220ms ease}
 .status-card::before{content:'';position:absolute;inset:0;z-index:var(--monitor-card-layer);border:1px solid var(--monitor-card-border-color);border-radius:inherit;background:var(--monitor-panel);box-shadow:var(--monitor-card-shadow);pointer-events:none;transition:border-color 220ms ease,box-shadow 220ms ease}
 .status-card.is-clickable{cursor:pointer}
@@ -892,9 +1081,12 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 .sparkline-line{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .card-bottom{display:flex;min-width:0;flex-direction:column;gap:12px}
 .metric-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
-.segment-list{display:flex;flex-wrap:wrap;gap:8px 12px;color:rgba(255,255,255,0.7);font-size:0.78rem;line-height:1}
-.segment-pill{display:inline-flex;align-items:center;gap:6px}
-.segment-dot{width:7px;height:7px;border-radius:999px}
+.isp-broadcast{display:inline-flex;align-items:center;flex-wrap:nowrap;gap:8px;min-width:0;max-width:100%;white-space:nowrap;overflow-x:auto}
+.isp-broadcast-row{display:inline-flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.isp-broadcast-icon{display:block;width:18px;height:18px;flex:0 0 auto;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.24))}
+.isp-broadcast-cells{display:inline-flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}
+.isp-broadcast-value{font-size:0.72rem;font-weight:700;line-height:1}
+.isp-broadcast-separator{color:rgba(255,255,255,0.28);font-size:0.72rem;font-weight:600}
 .stacked-bar{display:flex;height:14px;overflow:hidden;border-radius:22px;background:rgba(255,255,255,0.05);box-shadow:inset 0 1px 2px rgba(0,0,0,0.45)}
 .stack-segment{position:relative;min-width:0}
 .stack-segment::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0.22),transparent)}
@@ -902,6 +1094,9 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 .board-toast{display:inline-flex;align-items:center;justify-content:center;min-width:88px;padding:0.72rem 0.96rem;border:1px solid rgba(255,255,255,0.1);border-radius:999px;background:rgba(9,9,11,0.88);color:rgba(250,250,250,0.96);font-size:0.82rem;font-weight:600;letter-spacing:0.01em;box-shadow:0 18px 42px rgba(0,0,0,0.34);backdrop-filter:blur(16px);animation:toast-in 180ms ease both}
 @keyframes card-in{from{opacity:0;transform:translateY(20px)}
 to{opacity:1;transform:translateY(0)}
+}
+@keyframes isp-focus-option-in{from{opacity:0;transform:translateY(18px) scale(0.84)}
+to{opacity:1;transform:translateY(0) scale(1)}
 }
 @keyframes card-monitor-pop{0%{opacity:0;transform:translateX(-50%) translateY(var(--monitor-pop-start-y)) scale(var(--monitor-pop-start-scale))}
 38%{opacity:1;transform:translateX(-50%) translateY(var(--monitor-pop-apex-y)) scale(var(--monitor-pop-peak-scale))}
@@ -936,6 +1131,8 @@ to{opacity:1;transform:translateY(0) scale(1)}
 }
 @media (prefers-reduced-motion:reduce){.status-card{animation:none}
 .status-card:hover{transform:none}
+.monitor-board.has-isp-focus .board-shell{transform:none}
+.isp-focus-option{animation:none;opacity:1;transform:none}
 .card-monitor-shell{transition:opacity 120ms ease}
 .status-card:not(.is-completed):not(.is-dimmed):is(:hover,:focus-within) .card-monitor-shell,.status-card.is-locked .card-monitor-shell{animation:none;z-index:var(--monitor-preview-layer-over);opacity:1;transform:translateX(-50%) translateY(var(--monitor-pop-end-y)) scale(1)}
 .status-card.is-completed:not(.is-dimmed):is(:hover,:focus-within) .card-monitor-shell{animation:none;z-index:var(--monitor-preview-layer-over);opacity:0.72;transform:translateX(-50%) translateY(2px) scale(0.94)}
