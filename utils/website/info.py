@@ -151,6 +151,10 @@ class JestfulBookInfo(Manga):
 class ManhuaguiBookInfo(Manga):
     source = "manhuagui"
 
+
+class Dm5BookInfo(Manga):
+    source = "dm5"
+
 # ---
 
 class JmBookInfo(Ero):

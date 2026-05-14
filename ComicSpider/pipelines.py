@@ -65,7 +65,13 @@ class ComicPipeline(ImagesPipeline):
                     raise TypeError(f"{type(spider).__name__}.image_request_meta() must return dict or None")
                 else:
                     meta = dict(meta)
-            requests.append(Request(url,callback=NO_CALLBACK,headers=dict(headers),meta=meta))
+            request_headers = dict(headers)
+            extra_headers = meta.get("headers") if isinstance(meta, dict) else None
+            if extra_headers is not None:
+                if not isinstance(extra_headers, dict):
+                    raise TypeError(f"{type(spider).__name__}.image_request_meta()['headers'] must return dict when provided")
+                request_headers.update(dict(extra_headers))
+            requests.append(Request(url,callback=NO_CALLBACK,headers=request_headers,meta=meta))
         return requests
 
     # 图片存储前调用

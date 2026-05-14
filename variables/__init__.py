@@ -21,6 +21,7 @@ class Spider(IntEnum):
     NHENTAI = 9     # 🌎 🔞
     JESTFUL = 10      # 🌎
     MANHUAGUI = 11    # 🇨🇳
+    DM5 = 12          # 🇨🇳
 
     @property
     def spider_name(self): return self.name.lower()
@@ -28,7 +29,7 @@ class Spider(IntEnum):
     @classmethod
     def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI})
     @classmethod
-    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI})
+    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5})
     @classmethod
     def cn_proxy(cls):  return frozenset({cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI})
     @classmethod
@@ -49,6 +50,8 @@ def _label(s: Spider) -> str:
     match s.spider_name:
         case "manga_copy":
             return f"{s.value}、拷贝漫画"
+        case "dm5":
+            return f"{s.value}、动漫屋"
         case _:
             return f"{s.value}、{s.spider_name}"
 
@@ -78,6 +81,7 @@ DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[comp
         Spider.NHENTAI: [res.SPIDER.Completer.update],
         Spider.JESTFUL: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
         Spider.MANHUAGUI: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
+        Spider.DM5: [res.SPIDER.Completer.update],
     }),
     SCRIPT_SITE_INDEX: [],
 }.items()))
@@ -94,6 +98,7 @@ STATUS_TIP = dict(sorted({
         Spider.NHENTAI: f"nhentai: {res.GUI.SearchInputStatusTip.common}",
         Spider.JESTFUL: f"jestful: {res.GUI.SearchInputStatusTip.common}",
         Spider.MANHUAGUI: f"manhuagui: {res.GUI.SearchInputStatusTip.common}",
+        Spider.DM5: f"dm5: {res.GUI.SearchInputStatusTip.common}",
     }),
 }.items()))
 
