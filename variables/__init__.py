@@ -104,3 +104,4 @@ PYPI_SOURCE = {
     3: "https://repo.huaweicloud.com/repository/pypi/simple/",
 }
 CGS_DOC = "https://cgs.101114105.xyz"
+CGS_DISCORD_SHARE_API = "https://cgs-share.101114105.xyz"

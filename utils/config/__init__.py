@@ -167,6 +167,7 @@ class Conf(BaseConf):
     active_workflow: str = ''
     skipDev: bool = False
     skipped_version: str = ''
+    discord_share_user_token: str = ''
 
     def __init__(self, path=None, iname=None):
         self.init_conf()

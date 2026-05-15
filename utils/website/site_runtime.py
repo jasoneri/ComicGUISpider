@@ -365,9 +365,4 @@ class GuiSiteRuntime:
     def _peek_cached_domain_for(provider_descriptor: ProviderDescriptor) -> str | None:
         if not issubclass(provider_descriptor.provider_cls, DomainUtils):
             return None
-        cache_path = temp_p.joinpath(f"{provider_descriptor.provider_name}_domain.txt")
-        if cache_path.exists():
-            cached_text = cache_path.read_text(encoding="utf-8").strip()
-            if cached_text:
-                return cached_text
-        return None
+        return _normalize_domain_value(provider_descriptor.provider_cls.peek_cached_domain())

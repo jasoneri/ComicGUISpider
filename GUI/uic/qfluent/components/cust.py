@@ -8,7 +8,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, Q
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene, QCompleter
 
 from qfluentwidgets import (
-    TransparentToolButton, HyperlinkButton, PrimaryPushButton, 
+    TransparentToolButton, HyperlinkButton, PrimaryPushButton, ToolButton,
     FluentIcon, FluentIconBase, Theme, LineEdit, LineEditButton,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
@@ -18,6 +18,7 @@ from qfluentwidgets import (
 
 from assets import res
 from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, ContentTarget
+from utils import conf
 from utils.redViewer_tools import BookShow
 from utils.config.qc import cgs_cfg
 from utils.network.doh import DEFAULT_DOH_URL
@@ -403,12 +404,24 @@ class SupportView(FlyoutViewBase):
         self.layout = VBoxLayout(self)
         self.titleLayout = QtWidgets.QHBoxLayout()
         self.qqGroupBtn = HyperlinkButton(CustomIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
-        self.discordBtn = HyperlinkButton(CustomIcon.DISCORD, "https://discord.gg/znD4p2fpSE", "Discord")
+        self.discordBtn = PrimaryToolButton(CustomIcon.DISCORD, self)
+        self.discordBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://discord.gg/BRx5xPpEYe")))
+        discordTokenEdit = AcceptEdit(self)
+        discordTokenEdit.setMinimumWidth(320)
+        discordTokenEdit.setPlaceholderText("前往 discord 向 bot 获取..")
+        discordTokenEdit.setText(str(getattr(conf, "discord_share_user_token", "") or ""))
+        discordTokenEdit.setClearButtonEnabled(True)
+        def _save():
+            conf.update(discord_share_user_token=str(discordTokenEdit.text() or "").strip())
+            self.close()
+        discordTokenEdit.returnPressed.connect(_save)
+        discordTokenEdit.custSignal.connect(_save)
         spacerItem = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
         self.closeBtn.clicked.connect(self.closed)
-        self.titleLayout.addWidget(self.qqGroupBtn)
+        self.titleLayout.addWidget(self.qqGroupBtn) 
         self.titleLayout.addWidget(self.discordBtn)
+        self.titleLayout.addWidget(discordTokenEdit)
         self.titleLayout.addItem(spacerItem)
         self.titleLayout.addWidget(self.closeBtn)
         

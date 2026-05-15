@@ -133,6 +133,24 @@ class PreviewMgr:
         self._bind_page_interactive(browser)
         return browser
 
+    def publish_share_books(self, books):
+        if not books:
+            raise ValueError("share books is empty")
+        first = books[0]
+        site_index = next(
+            (idx for idx, spider_name in SPIDERS.items() if spider_name == getattr(first, "source", "")),
+            None,
+        )
+        if site_index is None:
+            raise ValueError(f"unsupported share source: {getattr(first, 'source', '')}")
+        if self.gui.chooseBox.currentIndex() != site_index:
+            self.gui.chooseBox.setCurrentIndex(site_index)
+        self.begin_preview_session()
+        self.gui.flow_stage = GUIFlowStage.SEARCHED
+        self._current_page = 1
+        self._target_page = None
+        self._active.publish(books)
+
     def _legacy_run_js(self, js, session_id):
         if session_id != self._session_id:
             return False
