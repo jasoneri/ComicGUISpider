@@ -274,10 +274,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
                 if self.gui_site_runtime is not None:
-                    self.say(
-                        font_color(getattr(self.res, f"{self.gui_site_runtime.name}_desc", ""), cls='theme-highlight'),
-                        ignore_http=True,
-                    )
+                    desc = getattr(self.res, f"{self.gui_site_runtime.name}_desc", None)
+                    if isinstance(desc, str) and desc:
+                        self.say(font_color(desc, cls='theme-highlight'), ignore_http=True)
         if index in Spider.mangas():
             self.say(font_color(self.res.manga_fav_tip, cls='theme-tip'))
 

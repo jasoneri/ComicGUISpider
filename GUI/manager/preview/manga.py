@@ -377,12 +377,14 @@ class MangaPreviewFeature:
         if generation != self.mgr._generation:
             if not self._inflight_pages:
                 self.mgr.send_command("preview.scan.hide", {})
+                self._stop_submit_loading()
             return
         book, selected_eps = pending
         book.episodes = list(selected_eps)
         self.gui.sel_mgr.submit_decision("EP", book)
         if not self._inflight_pages:
             self.mgr.send_command("preview.scan.hide", {})
+            self._stop_submit_loading()
 
     def on_pages_error(self, generation, book_key, error):
         self._inflight_pages.pop(book_key, None)
@@ -390,6 +392,7 @@ class MangaPreviewFeature:
             self.mgr.send_command("manga.episodes.error", {"bookKey": str(book_key), "code": "pages_fetch_failed"})
         if not self._inflight_pages:
             self.mgr.send_command("preview.scan.hide", {})
+            self._stop_submit_loading()
 
     # ------------------------------------------------------------------
     # Selection / ensure
@@ -474,4 +477,10 @@ class MangaPreviewFeature:
         self._submit_payload(self._current_submit_payload())
 
     def _handle_submit_request(self):
+        self.gui.BrowserWindow.start_submit_loading()
         self._submit_payload(self._current_submit_payload())
+        if not self._inflight_pages:
+            self._stop_submit_loading()
+
+    def _stop_submit_loading(self):
+        self.gui.BrowserWindow.stop_submit_loading()
