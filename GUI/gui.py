@@ -539,21 +539,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         kw = self.searchinput.text().strip()
         if kw.startswith("dc:"):
             share_id = kw[3:].strip()
-            if not share_id:
-                InfoBar.info(
-                    title='', content='请输入 dc:shareID', isClosable=True,
-                    position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser
-                )
-                return
             self.shares.download(share_id)
             return
         if not kw:
-            InfoBar.info(
-                title='', content='先输入搜索词吧', isClosable=True,
-                position=InfoBarPosition.BOTTOM, duration=2000,
-                parent=self.textBrowser
-            )
-            return
+            return InfoBar.info(title='', content='先输入搜索词吧', isClosable=True, position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
         site = self.chooseBox.currentIndex()
         if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
             self.refresh_lifecycle_state()

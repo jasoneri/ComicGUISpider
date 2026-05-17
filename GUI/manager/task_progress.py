@@ -5,7 +5,7 @@ from copy import deepcopy
 
 from PySide6.QtCore import Qt, QEvent, QObject, QRect, QSize, QUrl
 from PySide6.QtWidgets import QWidget, QLabel, QFrame
-from PySide6.QtGui import QGuiApplication, QPixmap, QDesktopServices
+from PySide6.QtGui import QGuiApplication, QPixmap, QDesktopServices, QIcon
 from qfluentwidgets import (
     ProgressBar, VBoxLayout, PrimaryToolButton, TransparentToolButton,
     TransparentToggleToolButton, InfoBar, InfoBarPosition,
@@ -105,14 +105,15 @@ class ProgressClass(QFrame):
         for attr, icon, btn_cls, callback in (
             ("folder_btn", FIF.FOLDER, TransparentToolButton, self._open_task_folder),
             ("link_btn", FIF.LINK, TransparentToolButton, self._open_task_link),
-            ("share_btn", FIF.SHARE, TransparentToggleToolButton, self._share_task),
+            ("share_btn", QIcon(':/main/add.svg'), TransparentToggleToolButton, self._share_task),
         ):
             btn_parent = self if attr == "share_btn" else self.cover_label
             btn = btn_cls(icon, btn_parent)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setFixedSize(self.ACTION_BUTTON_SIZE, self.ACTION_BUTTON_SIZE)
             btn.setIconSize(QSize(12, 12))
-            btn.setStyleSheet("background: rgba(20, 20, 20, 0.4);")
+            if attr != "share_btn":
+                btn.setStyleSheet("background: rgba(20, 20, 20, 0.4);")
             btn.clicked.connect(callback)
             setattr(self, attr, btn)
         self.page_badge = QLabel(self.cover_label)

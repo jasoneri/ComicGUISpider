@@ -50,14 +50,6 @@ class DiscordShareAPI:
             raise DiscordShareApiError(f"网络错误，请稍后重试: {exc}") from exc
 
     async def upload_share(self, *, payload_bytes: bytes, covers: list[tuple[str, bytes]], site: str, book_names: list[str]) -> str:
-        if not self.user_token:
-            raise DiscordShareApiError("discord_share_user_token 未配置")
-        if not covers:
-            raise DiscordShareApiError("covers 不能为空")
-        if len(covers) > 10:
-            raise DiscordShareApiError(f"covers 上限 10，当前 {len(covers)}")
-        if len(book_names) != len(covers):
-            raise DiscordShareApiError(f"book_names ({len(book_names)}) 与 covers ({len(covers)}) 数量不一致")
         files = [("pkl_file", ("share.pkl", payload_bytes, "application/octet-stream"))]
         for idx, (_name, cover_bytes) in enumerate(covers):
             files.append((f"cover_{idx}", (f"cover_{idx}.jpg", cover_bytes, "image/jpeg")))
@@ -72,8 +64,6 @@ class DiscordShareAPI:
         return self._parse_upload_response(response)
 
     async def download_share(self, share_id: str) -> bytes:
-        if not share_id:
-            raise DiscordShareApiError("shareID 不能为空")
         response = await self._request(
             "GET", f"{self.api_url}/api/download/{share_id}", headers=self._headers(), follow_redirects=True, timeout=30.0,
         )
