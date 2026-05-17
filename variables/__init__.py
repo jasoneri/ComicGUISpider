@@ -98,7 +98,7 @@ STATUS_TIP = dict(sorted({
         Spider.NHENTAI: f"nhentai: {res.GUI.SearchInputStatusTip.common}",
         Spider.JESTFUL: f"jestful: {res.GUI.SearchInputStatusTip.common}",
         Spider.MANHUAGUI: f"manhuagui: {res.GUI.SearchInputStatusTip.common}",
-        Spider.DM5: f"dm5: {res.GUI.SearchInputStatusTip.common}",
+        Spider.DM5: f"dm5: {res.GUI.SearchInputStatusTip.dm5}",
     }),
 }.items()))
 

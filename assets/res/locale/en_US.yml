@@ -61,6 +61,7 @@ GUI:
   SearchInputStatusTip:
     common: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     manga_copy: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
+    dm5: Rank types can be exposed by `conf.custom_map` URLs with `t=1~13`; builtin period suffixes support `week/month/total`, and omitted suffix defaults to week
     jm: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     wnacg: (1)Enter `Keyword` show results. (2)Enter Space show Preset-Completer
     hitomi: Temp only supports using presets or `hitomi-tools` generated words
