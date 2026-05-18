@@ -6,6 +6,10 @@ const jmSiteAvatarSrc = new URL('../../../assets/img/icons/website/jm.png', impo
 const mangabzSiteAvatarSrc = new URL('../../../assets/img/icons/website/mangabz.png', import.meta.url).href
 const wnacgSiteAvatarSrc = new URL('../../../assets/img/icons/website/wnacg.png', import.meta.url).href
 const danbooruSiteAvatarSrc = new URL('../../../assets/img/icons/website/danbooru.svg', import.meta.url).href
+const nhentaiSiteAvatarSrc = new URL('../../../assets/img/icons/website/nhentai.svg', import.meta.url).href
+const jestfulSiteAvatarSrc = new URL('../../../assets/img/icons/website/jf.svg', import.meta.url).href
+const manhuaguiSiteAvatarSrc = new URL('../../../assets/img/icons/website/mhg.png', import.meta.url).href
+const dm5SiteAvatarSrc = new URL('../../../assets/img/icons/website/dm5.png', import.meta.url).href
 
 export type MonitorBoardLocale = 'zh' | 'en'
 
@@ -87,6 +91,30 @@ export const monitorBoardSites: MonitorBoardSite[] = [
     name: 'Danbooru',
     href: 'https://danbooru.domain.us',
     avatarSrc: danbooruSiteAvatarSrc,
+  },
+  {
+    id: 'nhentai',
+    name: 'Nhentai',
+    href: 'https://nhentai.net/',
+    avatarSrc: nhentaiSiteAvatarSrc,
+  },
+  {
+    id: 'jestful',
+    name: 'jestful',
+    href: 'https://jestful.net/',
+    avatarSrc: jestfulSiteAvatarSrc,
+  },
+  {
+    id: 'manhuagui',
+    name: '漫画柜',
+    href: 'https://www.manhuagui.com/',
+    avatarSrc: manhuaguiSiteAvatarSrc,
+  },
+  {
+    id: 'dm5',
+    name: 'dm5',
+    href: 'https://tel.dm5.com/',
+    avatarSrc: dm5SiteAvatarSrc,
   },
 ]
 
