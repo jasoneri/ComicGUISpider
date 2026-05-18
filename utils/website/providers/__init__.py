@@ -9,3 +9,4 @@ from .manhuagui import *
 from ..hitomi import *
 from .hcomic import *
 from ..nhentai import *
+from ..dm5 import *

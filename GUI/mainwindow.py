@@ -170,6 +170,7 @@ class MitmMainWindow(Ui_MainWindow):
 
     def task_init(self):
         self.expandBtn = ExpandButton(self)
+        self.shareBtn = TransparentToolButton(FIF.SHARE, self)
         self.clearBtn = TransparentToolButton(FIF.BROOM)
         self.repairBtn = TransparentToolButton(QIcon(':/main/repair.svg'), self)
         self.repairBtn.setStatusTip("Patch missing page/补漏页")
@@ -185,10 +186,12 @@ class MitmMainWindow(Ui_MainWindow):
         self.scroll_area.setWidgetResizable(True)
 
         self.barHLayout.insertWidget(0, self.expandBtn)
+        self.barHLayout.addWidget(self.shareBtn)
         self.barHLayout.addWidget(self.repairBtn)
         self.barHLayout.addWidget(self.clearBtn)
         self.barVLayout.addWidget(self.scroll_area)
 
+        self.shareBtn.setVisible(False)
         self.expandBtn.setVisible(False)
         self.repairBtn.setVisible(False)
         self.clearBtn.setVisible(False)

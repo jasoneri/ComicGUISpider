@@ -86,6 +86,7 @@ class TasksObj:
         self.downloaded = []
         self.meta_info = meta_info
         self.local_path = None
+        self.share_payload = None
 
     @property
     def display_title(self) -> str:

@@ -6,6 +6,7 @@ from typing import Union
 
 from PySide6.QtCore import QThread, Signal
 
+from utils.website.core.err import SiteBusinessError
 from utils.website.info import Episode
 from utils.website import ThreadSiteRuntime
 
@@ -46,6 +47,7 @@ PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask, PagesBatchTask,
 class PreviewWorker(QThread):
     search_done = Signal(int, str, int, object)
     episodes_done = Signal(int, int, str, object)
+    episodes_error = Signal(int, int, str, str)
     pages_done = Signal(int, str, object)
     cover_done = Signal(int, str, object)
     cover_error = Signal(int, str, str)
@@ -89,7 +91,10 @@ class PreviewWorker(QThread):
 
         async def _fetch_one(session_id, book_key, book):
             async with semaphore:
-                episodes = await self.thread_site_runtime.preview_fetch_episodes(book)
+                try:
+                    episodes = await self.thread_site_runtime.preview_fetch_episodes(book)
+                except SiteBusinessError as exc:
+                    return self.episodes_error.emit(self._generation, session_id, book_key, str(exc))
                 self.episodes_done.emit(self._generation, session_id, book_key, episodes)
 
         await asyncio.gather(*[_fetch_one(sid, bk, b) for sid, bk, b in items])
@@ -134,7 +139,11 @@ class PreviewWorker(QThread):
                         books = self._loop.run_until_complete(self._do_search(kw, self.site_index, page=pg))
                         self.search_done.emit(self._generation, kw, self.site_index, books)
                     case EpisodesTask(session_id=sid, book_key=bk, book=b):
-                        episodes = self._loop.run_until_complete(self._do_fetch_episodes(b, self.site_index))
+                        try:
+                            episodes = self._loop.run_until_complete(self._do_fetch_episodes(b, self.site_index))
+                        except SiteBusinessError as exc:
+                            self.episodes_error.emit(self._generation, sid, bk, str(exc))
+                            continue
                         self.episodes_done.emit(self._generation, sid, bk, episodes)
                     case EpisodesBatchTask(items=its):
                         self._loop.run_until_complete(self._do_fetch_episodes_batch(its))

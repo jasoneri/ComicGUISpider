@@ -80,6 +80,10 @@ class DownloadRuntimeManager(QObject):
         site_index, task_info = self._submitted_task_infos[task_id]
         self.submit_download(deepcopy(task_info), site_index=site_index)
 
+    def build_share_payload(self, task_id: str) -> dict:
+        site_index, task_info = self._submitted_task_infos[task_id]
+        return self.gui.shares.build_share_payload(deepcopy(task_info))
+
     def ensure_work_thread(self) -> WorkThread:
         if self.b_thread and self.b_thread.isRunning():
             return self.b_thread

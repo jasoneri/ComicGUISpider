@@ -9,17 +9,18 @@ kemono / danbooru / cbg / saucenao
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
 :::
-::: tip 源码使用 `uv` 安装脚本集依赖（GUI下的程序内站点切到 script 时已自动化处理了）
-> [!info] 仅 2.10.0-beta 前需要，后续强制统一安装所有依赖
-```bash
-uv tool install ComicGUISpider[script] --force --index-url https://pypi.tuna.tsinghua.edu.cn/simple
-```
-⚠️ win绿色包自动安装依赖失败时则用以下命令  
-（基于`_pystand_static.int` 的 `version` 大于等于 `v2`）
-```cmd
-.\CGS.exe -v 2.9.11 -s -i https://pypi.tuna.tsinghua.edu.cn/simple
-```
+::: tip 指引
+Redis-windows: 下载 *-cygwin-with-Service.zip  
+查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
+
+Motrix 在进入Script 前时保持启动即可
 :::
+
+| 前置矩阵 | redis-service | Motrix |
+| --- |  :---: | :---: |
+| Kemono | ⭕️ | ⭕️ |
+| Danbooru | ⭕️<br>实际不需要，后续将解耦脱离 | ⭕️ |
+| Cbg | ➖ | ➖ |
 
 ::: details 脚本目录树: `script`目录 (非 GUI 相关)
 ```shell
@@ -42,9 +43,7 @@ utils
 
 ## 3. Cbg (CornerBackground)
 
-> [!Tip] 无需通用前置
-
-入口为 rvTool 橙色按钮 Cbg
+快捷入口为 rvTool 橙色按钮 Cbg
 
 ::: details 功能为油猴脚本，让立绘资源在浏览器右下角常驻展示（当前仅本地资源，火狐暂不支持 ¹）  
 > [!Tip] 需要进扩展管理油猴权限设 `允许访问文件网址` (火狐没有所以不支持)

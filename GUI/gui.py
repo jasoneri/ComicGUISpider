@@ -28,7 +28,7 @@ from GUI.tools import ToolWindow, TextUtils
 from GUI.manager import (
     TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager,
     CGSMidManagerGUI, PreviewMgr, UpdateNotifier, PublishDomainManager,
-    SelectionFlowManager, DownloadRuntimeManager
+    SelectionFlowManager, DownloadRuntimeManager, Shares
 )
 from utils.config.qc import cgs_cfg
 from GUI.manager.preprocess import PreprocessManager
@@ -134,6 +134,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.ags_mgr = AggrSearchManager(self)
         self.preview_mgr = PreviewMgr(self)
         self.publish_mgr = PublishDomainManager(self)
+        self.shares = Shares(self)
         self.download_state = DownloadStateStore()
         self.dl_mgr = DownloadRuntimeManager(self)
         self.sel_mgr = SelectionFlowManager(self)
@@ -273,10 +274,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.say(font_color(res.EHentai.GUIDE, cls='theme-highlight'))
             case _:
                 if self.gui_site_runtime is not None:
-                    self.say(
-                        font_color(getattr(self.res, f"{self.gui_site_runtime.name}_desc", ""), cls='theme-highlight'),
-                        ignore_http=True,
-                    )
+                    desc = getattr(self.res, f"{self.gui_site_runtime.name}_desc", None)
+                    if isinstance(desc, str) and desc:
+                        self.say(font_color(desc, cls='theme-highlight'), ignore_http=True)
         if index in Spider.mangas():
             self.say(font_color(self.res.manga_fav_tip, cls='theme-tip'))
 
@@ -346,12 +346,18 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.aggrBtn.clicked.connect(lambda: self.show_toolWin("ags"))
         self.htBtn.clicked.connect(lambda: self.show_toolWin("hitomi"))
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
+        self.shareBtn.clicked.connect(self.shares.upload)
+        self.shares.changed.connect(self._sync_share_btn_visible)
+        self._sync_share_btn_visible()
         self.domainBtn.clicked.connect(self.do_publish)
 
         _safe_disconnect(self.mpreviewBtn.clicked)
         self.mpreviewBtn.clicked.connect(self.show_preview)
 
         self.page_turn_frame()
+
+    def _sync_share_btn_visible(self):
+        self.shareBtn.setVisible(not self.shares.is_empty())
 
     def page_turn_frame(self):
         def page_turn(_p):
@@ -530,13 +536,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if keyword:
             self.searchinput.setText(keyword)
         kw = self.searchinput.text().strip()
-        if not kw:
-            InfoBar.info(
-                title='', content='先输入搜索词吧', isClosable=True,
-                position=InfoBarPosition.BOTTOM, duration=2000,
-                parent=self.textBrowser
-            )
+        if kw.startswith("dc:"):
+            share_id = kw[3:].strip()
+            self.shares.download(share_id)
             return
+        if not kw:
+            return InfoBar.info(title='', content='先输入搜索词吧', isClosable=True, position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
         site = self.chooseBox.currentIndex()
         if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
             self.refresh_lifecycle_state()
@@ -682,5 +687,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             tips.append(f"已下载 {skip_info['downloaded']}")
         if tips:
             self.say(font_color(f"已跳过：{'，'.join(tips)}", cls='theme-tip'), ignore_http=True)
+
+    def publish_share_books(self, books):
+        self.preview_mgr.publish_share_books(books)
 
 # ---

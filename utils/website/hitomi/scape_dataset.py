@@ -9,7 +9,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import httpx
 from lxml import html
-# TODO[0](2026-05-05): ratelimit
 from assets import res
 from utils import temp_p
 

@@ -5,9 +5,10 @@ from copy import deepcopy
 
 from PySide6.QtCore import Qt, QEvent, QObject, QRect, QSize, QUrl
 from PySide6.QtWidgets import QWidget, QLabel, QFrame
-from PySide6.QtGui import QGuiApplication, QPixmap, QDesktopServices
+from PySide6.QtGui import QGuiApplication, QPixmap, QDesktopServices, QIcon
 from qfluentwidgets import (
     ProgressBar, VBoxLayout, PrimaryToolButton, TransparentToolButton,
+    TransparentToggleToolButton, InfoBar, InfoBarPosition,
     FluentIcon as FIF, TeachingTipTailPosition, ImageLabel
 )
 
@@ -20,7 +21,7 @@ from utils.sql import SqlRecorder
 
 class TaskProgress:
     """任务进度状态（不依赖 Qt）"""
-    __slots__ = ("tasks_obj", "_downloaded_count", "last_percent", "completed")
+    __slots__ = ("tasks_obj", "_downloaded_count", "last_percent", "completed", "job_successful")
 
     def __init__(self, tasks_obj: TasksObj):
         self.tasks_obj = tasks_obj
@@ -30,6 +31,7 @@ class TaskProgress:
             if tasks_obj.tasks_count > 0 else 0
         )
         self.completed = self.last_percent >= 100
+        self.job_successful = self.completed
 
     @property
     def taskid(self) -> str:
@@ -43,6 +45,10 @@ class TaskProgress:
     def downloaded(self) -> int:
         return self._downloaded_count
 
+    @property
+    def share_ready(self) -> bool:
+        return self.completed and self.job_successful
+
     def apply(self, event: TaskObj) -> int:
         """接收一个下载事件，更新进度，返回百分比"""
         self._downloaded_count += 1
@@ -52,10 +58,14 @@ class TaskProgress:
         return self.last_percent
 
     def record_job_result(self, *, success: bool, error: str | None = None) -> bool:
-        was_completed = self.completed
+        was_share_ready = self.share_ready
+        if success:
+            self.job_successful = self.completed
+            return was_share_ready != self.share_ready
         if not success:
             self.completed = False
-        return was_completed != self.completed
+            self.job_successful = False
+        return was_share_ready != self.share_ready
 
 
 class ProgressClass(QFrame):
@@ -73,10 +83,13 @@ class ProgressClass(QFrame):
         "border-radius: 3px;"
     )
 
-    def __init__(self, parent: QWidget, progress: TaskProgress):
+    def __init__(self, parent: QWidget, progress: TaskProgress, gui):
         super().__init__(parent)
+        self.gui = gui
+        self.progress = progress
         self.taskid = progress.taskid
         self._cover_source = None
+        self._share_book_url: str | None = None
         self.tasks_obj = progress.tasks_obj
 
         layout = VBoxLayout(self)
@@ -89,15 +102,18 @@ class ProgressClass(QFrame):
         self.cover_label.setPixmap(QPixmap())
         self.cover_label.setFixedSize(self.DEFAULT_COVER_WIDTH, self.COVER_HEIGHT)
 
-        for attr, icon, callback in (
-            ("folder_btn", FIF.FOLDER, self._open_task_folder),
-            ("link_btn", FIF.LINK, self._open_task_link),
+        for attr, icon, btn_cls, callback in (
+            ("folder_btn", FIF.FOLDER, TransparentToolButton, self._open_task_folder),
+            ("link_btn", FIF.LINK, TransparentToolButton, self._open_task_link),
+            ("share_btn", QIcon(':/main/add.svg'), TransparentToggleToolButton, self._share_task),
         ):
-            btn = TransparentToolButton(icon, self.cover_label)
+            btn_parent = self if attr == "share_btn" else self.cover_label
+            btn = btn_cls(icon, btn_parent)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setFixedSize(self.ACTION_BUTTON_SIZE, self.ACTION_BUTTON_SIZE)
             btn.setIconSize(QSize(12, 12))
-            btn.setStyleSheet("background: rgba(20, 20, 20, 0.4);")
+            if attr != "share_btn":
+                btn.setStyleSheet("background: rgba(20, 20, 20, 0.4);")
             btn.clicked.connect(callback)
             setattr(self, attr, btn)
         self.page_badge = QLabel(self.cover_label)
@@ -113,6 +129,7 @@ class ProgressClass(QFrame):
         layout.addWidget(self.progress_bar)
 
         self.setFixedWidth(self.DEFAULT_COVER_WIDTH + 8)
+        self.gui.shares.changed.connect(self._sync_share_checked)
         self.set_tasks_obj(progress.tasks_obj)
 
     @classmethod
@@ -136,9 +153,17 @@ class ProgressClass(QFrame):
         self.title_label.setToolTip(task_name)
         self.folder_btn.setEnabled(bool(tasks_obj.local_path))
         self.link_btn.setEnabled(bool(tasks_obj.title_url))
+        self.refresh_share_button_visibility()
         self.page_badge.setText(f"{tasks_obj.tasks_count}P")
         self.page_badge.adjustSize()
         self._relocate_badge()
+
+    def refresh_share_button_visibility(self):
+        token_configured = bool(str(getattr(conf, "discord_share_user_token", "") or "").strip())
+        share_visible = self.progress.share_ready and bool(self.tasks_obj.local_path) and token_configured
+        self.share_btn.setVisible(share_visible)
+        if share_visible:
+            self._sync_share_checked()
 
     def _relocate_badge(self):
         self.page_badge.adjustSize()
@@ -147,12 +172,44 @@ class ProgressClass(QFrame):
         for widget in (self.folder_btn, self.link_btn, self.page_badge):
             widget.move(curr_x, badge_y)
             curr_x += widget.width() + self.BADGE_SPACING
+        self.share_btn.move(self.BADGE_MARGIN, self.BADGE_MARGIN)
 
     def _open_task_folder(self):
         curr_os.open_folder(self.tasks_obj.local_path)
 
     def _open_task_link(self):
         QDesktopServices.openUrl(QUrl(self.tasks_obj.title_url))
+
+    def _share_task(self, checked: bool):
+        if checked:
+            payload = self.gui.dl_mgr.build_share_payload(self.taskid)
+            book = self.gui.shares.rebuild_from_share_payload(payload)
+            book.local_path = self.tasks_obj.local_path
+            try:
+                self.gui.shares.add(book)
+            except ValueError as exc:
+                self._set_share_checked(False)
+                InfoBar.warning(
+                    title='', content=str(exc), orient=Qt.Horizontal, isClosable=True,
+                    position=InfoBarPosition.BOTTOM, duration=2500, parent=self.gui,
+                )
+                return
+            self._share_book_url = self.gui.shares._normalize_url(book.url)
+            return
+        if self._share_book_url:
+            self.gui.shares.remove_by_url(self._share_book_url)
+
+    def _sync_share_checked(self):
+        if not self.share_btn.isVisible() or not self._share_book_url:
+            return
+        in_batch = self.gui.shares.contains_url(self._share_book_url)
+        if self.share_btn.isChecked() != in_batch:
+            self._set_share_checked(in_batch)
+
+    def _set_share_checked(self, checked: bool):
+        self.share_btn.blockSignals(True)
+        self.share_btn.setChecked(checked)
+        self.share_btn.blockSignals(False)
 
     def _apply_cover_pixmap(self, pixmap: QPixmap) -> bool:
         if pixmap.isNull() or pixmap.height() <= 0:
@@ -177,6 +234,7 @@ class ProgressClass(QFrame):
         self.progress_bar.setValue(percent)
         if percent >= 100:
             self.progress_bar.setCustomBarColor(light="#00ff00", dark="#00cc00")
+        self.refresh_share_button_visibility()
 
     def dispose(self):
         self.deleteLater()
@@ -223,7 +281,7 @@ class TaskProgressEntry:
         if self.view is not None:
             return
         gui = self.owner.gui
-        self.view = ProgressClass(gui.scroll_content, self.progress)
+        self.view = ProgressClass(gui.scroll_content, self.progress, gui)
         gui.flow_layout.addWidget(self.view)
         self.refresh_view()
 
@@ -766,6 +824,7 @@ class TaskProgressManager:
             self._completed_entries += 1
             self.sync_progress_badge()
         if changed:
+            entry.refresh_view()
             self.display_ctrl.request_refresh()
 
     def on_cover_preload_success(self, generation: int, task_id: str, data: bytes):

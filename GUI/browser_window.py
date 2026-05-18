@@ -8,7 +8,7 @@ from PySide6 import QtNetwork
 from PySide6.QtCore import Qt, QUrl, QEvent, QSize, Signal, QLoggingCategory
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
-from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, ToolTipFilter, ToolTipPosition
+from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon as FIF, IndeterminateProgressBar, ToolTipFilter, ToolTipPosition
 from qframelesswindow import FramelessMainWindow
 from qframelesswindow.webengine import FramelessWebEngineView
 from qframelesswindow.utils import startSystemMove
@@ -192,6 +192,11 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.zoomOutBtn.setIcon(FIF.ZOOM_OUT)
         self.closeBtn.setIconSize(QSize(20, 20))
         self.closeBtn.setIcon(QIcon(':/close.svg'))
+
+        self.submitLoadingBar = IndeterminateProgressBar(self.groupBox, start=False)
+        self.submitLoadingBar.setFixedWidth(120)
+        self.submitLoadingBar.hide()
+        self.horizontalLayout_2.insertWidget(self.horizontalLayout_2.count() - 3, self.submitLoadingBar)
 
         self.homeBtn.clicked.connect(self.load_home)
         self.backBtn.clicked.connect(self.view.back)
@@ -424,6 +429,16 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def show_task_added_toast(self, title: str):
         js_code = f"window.showTaskAddedToast && window.showTaskAddedToast({json.dumps(title)});"
         self.page_runtime.run_js(js_code)
+
+    def start_submit_loading(self):
+        self.submitLoadingBar.show()
+        if not self.submitLoadingBar.isStarted():
+            self.submitLoadingBar.start()
+
+    def stop_submit_loading(self):
+        if self.submitLoadingBar.isStarted():
+            self.submitLoadingBar.stop()
+        self.submitLoadingBar.hide()
 
     def closeEvent(self, event):
         self.page_runtime.shutdown()

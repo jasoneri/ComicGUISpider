@@ -25,13 +25,14 @@ from GUI.manager.task_progress import TaskProgressManager
 from GUI.manager.publish import PublishDomainManager
 from GUI.manager.selection import SelectionFlowManager
 from GUI.manager.download import DownloadRuntimeManager
+from GUI.manager.share import Shares
 
 __all__ = [
     'Updater', 'UpdateNotifier', 'TaskConfig',
     'RVManager', 'TaskProgressManager','AsyncTaskManager',
     'ClipGUIManager', 'AggrSearchManager', 'CGSMidManagerGUI',
     'PreviewMgr', 'PublishDomainManager',
-    'SelectionFlowManager', 'DownloadRuntimeManager'
+    'SelectionFlowManager', 'DownloadRuntimeManager', 'Shares'
 ]
 
 

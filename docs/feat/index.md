@@ -5,13 +5,18 @@
 
 ## 适用性
 
-> [!Info] 没列出的功能全网适用，一眼独占的工具如 hitomiTool 也不会列出  
+::: info 没列出的功能全网适用，一眼独占的工具如 hitomiTool 也不会列出  
+表漫站点没以下矩阵功能
+:::
 
-|  |  [拷贝](https://www.2026copy.com/) |    [Māngabz](https://mangabz.com)     | [禁漫](https://18comic.vip/) |    [wnacg](https://www.wnacg.com/)    | [ExHentai](https://exhentai.org/) | [hitomi](https://hitomi.la/) | [hcomic](https://h-comic.com) |
-|:--------------------------------------|:-------------:|:---------:|:----:|:----------:|:----------:|:----------:|:----------:|
-| 📋读剪贴板 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ❌ |
-| 🔎聚合搜索 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ✔️ |
-| 以图搜索 | ❌ | ❌ | ✔️ | ✔️ | ✔️ | 🚧 | ✔️ |
+|  | 📋读剪贴板 | 🔎聚合搜索 | 以图搜索 |
+|:---|:---:|:---:|:---:|
+| [禁漫](https://18comic.vip/) | ✔️ | ✔️ | ✔️ |
+| [wnacg](https://www.wnacg.com/) | ✔️ | ✔️ | ✔️ |
+| [ExHentai](https://exhentai.org/) | ✔️ | ✔️ | ✔️ |
+| [hitomi](https://hitomi.la/) | 🚧 | 🚧 | 🚧 |
+| [hcomic](https://h-comic.com) | ❌ | ✔️ | ✔️ |
+| [nhentai](https://nhentai.net) | ❌ | ✔️ | ✔️ |
 
 ## 1. 主界面
 

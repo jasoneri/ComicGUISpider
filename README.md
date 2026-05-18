@@ -10,7 +10,7 @@
     <img src="https://img-cgs.101114105.xyz/file/cgs/1777735134939_fake-danbooru.png" alt="logo" height="135">
   </a>
   <a href="https://cgs.101114105.xyz" target="_blank">
-    <img src="https://img-cgs.101114105.xyz/file/cgs/1777726123167_cgs-logo.png" alt="logo" height="160">
+    <img src="https://img-cgs.101114105.xyz/file/cgs/1779095744969_cgs-logo.png" alt="logo" height="160">
   </a>
 <br clear="center">
   <img src="https://img.shields.io/github/license/jasoneri/ComicGUISpider" alt="tag">
@@ -48,7 +48,10 @@
 | [Hitomi](https://hitomi.la/)     | 🌏 |          |
 | Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)    |
 | [HComic](https://h-comic.com/)     | 🌏 |     代理     |
-| [jestful](https://jestful.net/)     | 🌏 |     灰测/表漫/生肉     |
+| [Nhentai](https://nhentai.net/)     | 🌏 |     代理/ `>=2.10.1-beta`     |
+| [jestful](https://jestful.net/)     | 🌏 |     表漫/生肉     |
+| [漫画柜](https://www.manhuagui.com/)     | :cn: |     代理/ `>=2.10.1-beta`     |
+| [dm5(动漫屋)](https://tel.dm5.com/)     | :cn: |     代理?/`>=2.10.1-beta.2`     |
 
 点进网站前先判断 NSFW , 不了解就勿点  
 使用请适度，以免加重对方服务器负担，也减少被封ip风险

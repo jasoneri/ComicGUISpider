@@ -133,6 +133,17 @@ class PreviewMgr:
         self._bind_page_interactive(browser)
         return browser
 
+    def publish_share_books(self, books):
+        first = books[0]
+        site_index = next((idx for idx, spider_name in SPIDERS.items() if spider_name == getattr(first, "source", "")), None)
+        if self.gui.chooseBox.currentIndex() != site_index:
+            self.gui.chooseBox.setCurrentIndex(site_index)
+        self.begin_preview_session()
+        self.gui.flow_stage = GUIFlowStage.SEARCHED
+        self._current_page = 1
+        self._target_page = None
+        self._active.publish(books)
+
     def _legacy_run_js(self, js, session_id):
         if session_id != self._session_id:
             return False
@@ -250,6 +261,7 @@ class PreviewMgr:
         self._worker.search_done.connect(self._on_search_done)
         ep_handler = self._fix if self.is_fix else self._manga
         self._worker.episodes_done.connect(ep_handler.on_episodes_done)
+        self._worker.episodes_error.connect(ep_handler.on_episodes_error)
         self._worker.pages_done.connect(ep_handler.on_pages_done)
         self._worker.cover_done.connect(self.gui.task_mgr.on_cover_preload_success)
         self._worker.cover_error.connect(self.gui.task_mgr.on_cover_preload_error)

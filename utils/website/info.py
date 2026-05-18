@@ -55,9 +55,14 @@ class BookInfo(InfoMinix):
 
 class Manga(BookInfo):
     episodes: list = []
-    img_preview: str = None  
+    img_preview: str = None
     latest_sec: str = None
     render_keys: list = []
+    popular: t.Any = None
+    datetime_updated: str = None
+    last_chapter_name: str = None
+    other_names: list = None
+    other_name_raw: str = None
 
     @property
     def say(self):
@@ -145,6 +150,10 @@ class JestfulBookInfo(Manga):
 
 class ManhuaguiBookInfo(Manga):
     source = "manhuagui"
+
+
+class Dm5BookInfo(Manga):
+    source = "dm5"
 
 # ---
 

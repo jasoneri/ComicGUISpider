@@ -163,6 +163,11 @@ maccy(macOS): [issue 搜索相关得知](https://github.com/p0deje/Maccy/issues/
 
 勾选并生效后，章节选择时会额外增加展示单行本栏和其他栏目
 
+### DiscordToken
+
+位于 `配置窗口 > 潘多拉之盒 > discord 旁边的编辑框`  
+分享相关，进 discord 的 welcome 频道 bot 点按钮获取，这是 `分享功能的上传下载` 凭证
+
 ## 其他 `yml` 字段
 
 ::: info 此类字段没提供配置窗口便捷修改（或以后支持），不设时使用默认值

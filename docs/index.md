@@ -56,6 +56,20 @@ hero:
       </a></div></td>
   </tr>
   <tr>
+    <td><div align="center"><a href="https://nhentai.net/" target="_blank">
+      <img src="./assets/img/icons/website/nhentai.svg" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://jestful.net/" target="_blank">
+      <img src="./assets/img/icons/website/jf.svg" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://www.manhuagui.com/" target="_blank">
+      <img src="./assets/img/icons/website/mhg.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://tel.dm5.com/" target="_blank">
+      <img src="./assets/img/icons/website/dm5.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+  </tr>
+  <tr>
     <td colspan="7" style="width:100%;height:100%;text-align:center;vertical-align:middle;"><a href="/deploy/monitor/">站点状态</a></td>
   </tr>
 </tbody></table>
