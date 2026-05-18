@@ -225,10 +225,11 @@ supports_clip=
    - `STATUS_TIP`
    - `COOKIES_SUPPORT`（需要登录状态的 cookies 时，非登录的短效令牌不得写入）
    - 能力集合：`specials()` / `mangas()` / `cn_proxy()` / `aggr()` / `clip()`
-4. 明确 `specials()` 与 `preview_fetch_episodes()` 的契约：
+4. 开发中必定新增的 `utils.website.info.XxxBookInfo` 类型，默认仅 cgs-share 流程，需要更新 `utils/share/serializer.py` 的 pickle 反序列化白名单
+5. 明确 `specials()` 与 `preview_fetch_episodes()` 的契约：
    - 属于 `specials()` 的站点通常不需要 CLI `-i2`
    - 非 `specials()` 站点需要保证章节选择链路正常
-5. 只有站点确实需要专门预处理时，才修改 `GUI/manager/preprocess.py`
+6. 只有站点确实需要专门预处理时，才修改 `GUI/manager/preprocess.py`
 
 **五、测试与回归**
 

@@ -134,15 +134,8 @@ class PreviewMgr:
         return browser
 
     def publish_share_books(self, books):
-        if not books:
-            raise ValueError("share books is empty")
         first = books[0]
-        site_index = next(
-            (idx for idx, spider_name in SPIDERS.items() if spider_name == getattr(first, "source", "")),
-            None,
-        )
-        if site_index is None:
-            raise ValueError(f"unsupported share source: {getattr(first, 'source', '')}")
+        site_index = next((idx for idx, spider_name in SPIDERS.items() if spider_name == getattr(first, "source", "")), None)
         if self.gui.chooseBox.currentIndex() != site_index:
             self.gui.chooseBox.setCurrentIndex(site_index)
         self.begin_preview_session()

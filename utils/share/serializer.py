@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from utils.website.info import (
     BookInfo,
+    Dm5BookInfo,
     Ero,
     Episode,
     HComicBookInfo,
@@ -38,6 +39,7 @@ _ALLOWED_CLASSES = {
         "NhentaiBookInfo",
         "JestfulBookInfo",
         "ManhuaguiBookInfo",
+        "Dm5BookInfo",
     },
 }
 _ALLOWED_BOOK_TYPES = (
@@ -53,6 +55,7 @@ _ALLOWED_BOOK_TYPES = (
     NhentaiBookInfo,
     JestfulBookInfo,
     ManhuaguiBookInfo,
+    Dm5BookInfo,
 )
 _PAYLOAD_PREFIX = b"CGS_SHARE_V1\n"
 

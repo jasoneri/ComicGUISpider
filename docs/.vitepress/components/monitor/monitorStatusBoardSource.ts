@@ -159,32 +159,6 @@ export const monitorBoardIsps: MonitorBoardIsp[] = [
   },
 ]
 
-export const monitorBoardVoteKeys: MonitorBoardVoteKey[] = ['up', 'neutral', 'down']
-
-export const monitorBoardIspKeys: MonitorBoardIspKey[] = ['telecom', 'mobile', 'unicom']
-
-export const monitorBoardVoteMatrixKeys: MonitorBoardVoteMatrixKey[] = monitorBoardVoteKeys.flatMap((voteKey) => (
-  monitorBoardIspKeys.map((ispKey) => `${voteKey}-${ispKey}` as MonitorBoardVoteMatrixKey)
-))
-
-export const monitorBoardIsps: MonitorBoardIsp[] = [
-  {
-    id: 'telecom',
-    name: 'Telecom',
-    iconSrc: telecomIspIconSrc,
-  },
-  {
-    id: 'mobile',
-    name: 'Mobile',
-    iconSrc: mobileIspIconSrc,
-  },
-  {
-    id: 'unicom',
-    name: 'Unicom',
-    iconSrc: unicomIspIconSrc,
-  },
-]
-
 export const monitorBoardCopy = {
   zh: {
     title: '站点状态',

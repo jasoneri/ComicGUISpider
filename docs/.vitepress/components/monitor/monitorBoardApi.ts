@@ -7,9 +7,7 @@ import type {
   MonitorBoardVoteKey,
 } from './monitorStatusBoardSource'
 import {
-  createEmptyMonitorBoardVoteMatrix,
   monitorBoardIspKeys,
-  monitorBoardVoteKeys,
   monitorBoardVoteMatrixKeys,
 } from './monitorStatusBoardSource'
 import { normalizeMonitorApiBaseUrl } from '../../shared/urls'
@@ -55,16 +53,6 @@ function readJsonErrorMessage(payload: unknown, fallback: string): string {
 function normalizeVotes(value: unknown): MonitorBoardVoteMatrix {
   if (!isRecord(value)) {
     throw new TypeError('Monitor board votes payload must be an object.')
-  }
-
-  const legacyVoteValues = monitorBoardVoteKeys.map((key) => value[key])
-  const hasLegacyVotes = legacyVoteValues.some((entry) => typeof entry === 'number' && Number.isFinite(entry))
-  const hasMatrixVotes = monitorBoardVoteMatrixKeys.some((key) => key in value)
-  if (hasLegacyVotes && !hasMatrixVotes) {
-    return {
-      ...createEmptyMonitorBoardVoteMatrix(),
-      ...Object.fromEntries(monitorBoardVoteKeys.map((key) => [`${key}-telecom`, value[key] ?? 0])),
-    } as MonitorBoardVoteMatrix
   }
 
   return Object.fromEntries(

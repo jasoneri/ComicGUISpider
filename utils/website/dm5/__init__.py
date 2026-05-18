@@ -20,7 +20,9 @@ class _Dm5Contract:
     name = "dm5"
     proxy_policy = "direct"
     domain = "www.dm5.com"
+    reader_domain = "tel.dm5.com"
     index = f"https://{domain}/"
+    reader_index = f"https://{reader_domain}/"
     search_path = "/search"
     search_url_head = f"{index.rstrip('/')}{search_path}?"
     update_page = f"https://{domain}/manhua-new/"
@@ -127,19 +129,24 @@ class Dm5Parser(_Dm5Contract, Previewer):
         return Dm5BookInfo(idx=idx, render_keys=["name", "latest_sec"], url=url, preview_url=url)
 
     @classmethod
-    def _book_url(cls, slug_or_url: str, *, domain: str) -> str:
+    def _book_url(cls, slug_or_url: str) -> str:
         raw_value = cls._normalize_text(slug_or_url)
         if not raw_value:
             raise ValueError("dm5 book slug/url is required")
-        if raw_value.startswith("http") or raw_value.startswith("/"):
-            normalized = cls.normalize_preview_resource(raw_value, domain=domain)
+        if raw_value.startswith("https://"):
+            parsed = urlparse(raw_value)
+            raw_value = parsed.path or "/"
+            if parsed.query:
+                raw_value = f"{raw_value}?{parsed.query}"
+        if raw_value.startswith("/"):
+            normalized = cls.normalize_preview_resource(raw_value, domain=cls.domain)
             if not normalized:
                 raise ValueError(f"dm5 book url normalization failed: {slug_or_url!r}")
             return normalized
         slug = raw_value.strip("/")
         if slug.startswith("manhua-"):
-            return f"https://{domain}/{slug}/"
-        return f"https://{domain}/manhua-{slug}/"
+            return f"https://{cls.domain}/{slug}/"
+        return f"https://{cls.domain}/manhua-{slug}/"
 
     @classmethod
     def _extract_book_mid(cls, node) -> str | None:
@@ -184,7 +191,7 @@ class Dm5Parser(_Dm5Contract, Previewer):
         books.append(book)
 
     @classmethod
-    def _parse_html_card(cls, node, *, idx: int, domain: str) -> Dm5BookInfo | None:
+    def _parse_html_card(cls, node, *, idx: int) -> Dm5BookInfo | None:
         title_link = node.xpath(cls._title_link_xpath)
         href = cls._normalize_text(
             title_link.xpath("./@href").get()
@@ -193,7 +200,7 @@ class Dm5Parser(_Dm5Contract, Previewer):
         title = cls._normalize_text(title_link.xpath("./@title").get() or title_link.xpath("normalize-space(string())").get())
         if not href or not title:
             return None
-        book_url = cls._book_url(href, domain=domain)
+        book_url = cls._book_url(href)
         book = cls._new_book(idx=idx, url=book_url)
         book.name = title
         book.id = cls._extract_book_mid(node) or ""
@@ -206,44 +213,44 @@ class Dm5Parser(_Dm5Contract, Previewer):
         )
         cover = cls._extract_style_url(node.xpath(".//p[contains(@class,'mh-cover')][1]/@style").get())
         if cover:
-            book.img_preview = cls.normalize_preview_resource(cover, domain=domain)
+            book.img_preview = cls.normalize_preview_resource(cover, domain=cls.domain)
         return book
 
     @classmethod
-    def _parse_featured_search_card(cls, node, *, idx: int, domain: str) -> Dm5BookInfo | None:
+    def _parse_featured_search_card(cls, node, *, idx: int) -> Dm5BookInfo | None:
         title_link = node.xpath(cls._title_link_xpath)
         href = cls._normalize_text(title_link.xpath("./@href").get())
         title = cls._normalize_text(title_link.xpath("./@title").get() or title_link.xpath("normalize-space(string())").get())
         if not href or not title:
             return None
-        book = cls._new_book(idx=idx, url=cls._book_url(href, domain=domain))
+        book = cls._new_book(idx=idx, url=cls._book_url(href))
         book.name = title
         book.id = cls._extract_book_mid(node) or ""
         cls._apply_artists(book, node.xpath(".//p[contains(@class,'subtitle')]//a/text()").getall())
         cls._apply_latest(book, node.xpath("(.//a[contains(@class,'btn-2')][1]/@title | .//a[contains(@class,'btn-2')][1]/text())[1]").get())
         cover = cls._normalize_text(node.xpath(".//div[contains(@class,'cover')]//img[1]/@src").get())
         if cover:
-            book.img_preview = cls.normalize_preview_resource(cover, domain=domain)
+            book.img_preview = cls.normalize_preview_resource(cover, domain=cls.domain)
         return book
 
     @classmethod
-    def parse_html_books(cls, html_text: str, *, domain: str) -> list[Dm5BookInfo]:
+    def parse_html_books(cls, html_text: str) -> list[Dm5BookInfo]:
         sel = Selector(text=html_text)
         books: list[Dm5BookInfo] = []
         seen_urls: set[str] = set()
 
         for node in sel.css("div.banner_detail_form"):
-            cls._append_unique_book(books, seen_urls, cls._parse_featured_search_card(node, idx=len(books) + 1, domain=domain))
+            cls._append_unique_book(books, seen_urls, cls._parse_featured_search_card(node, idx=len(books) + 1))
         for node in sel.css("div.mh-item"):
-            cls._append_unique_book(books, seen_urls, cls._parse_html_card(node, idx=len(books) + 1, domain=domain))
+            cls._append_unique_book(books, seen_urls, cls._parse_html_card(node, idx=len(books) + 1))
         return books
 
     @classmethod
-    def parse_rank_books(cls, html_text: str, *, domain: str, period: str | None = None) -> list[Dm5BookInfo]:
+    def parse_rank_books(cls, html_text: str, *, period: str | None = None) -> list[Dm5BookInfo]:
         sel = Selector(text=html_text)
         panels = list(sel.css("ul.mh-list.top-cat"))
         if not panels:
-            return cls.parse_html_books(html_text, domain=domain)
+            return cls.parse_html_books(html_text)
 
         labels = cls.parse_rank_periods(html_text)
         requested_period = cls._normalize_text(period) or cls.parse_active_rank_period(html_text) or cls.rank_default_period
@@ -259,15 +266,15 @@ class Dm5Parser(_Dm5Contract, Previewer):
         books: list[Dm5BookInfo] = []
         seen_urls: set[str] = set()
         for node in panels[period_index].css("div.mh-item"):
-            cls._append_unique_book(books, seen_urls, cls._parse_html_card(node, idx=len(books) + 1, domain=domain))
+            cls._append_unique_book(books, seen_urls, cls._parse_html_card(node, idx=len(books) + 1))
         return books
 
     @classmethod
-    def parse_search_document(cls, html_text: str, *, domain: str) -> list[Dm5BookInfo]:
-        return cls.parse_html_books(html_text, domain=domain)
+    def parse_search_document(cls, html_text: str) -> list[Dm5BookInfo]:
+        return cls.parse_html_books(html_text)
 
     @classmethod
-    def parse_update_payload(cls, payload, *, domain: str) -> list[Dm5BookInfo]:
+    def parse_update_payload(cls, payload) -> list[Dm5BookInfo]:
         if not isinstance(payload, dict):
             raise TypeError(f"dm5 update payload must be object, got {type(payload).__name__}")
         items = payload.get("UpdateComicItems")
@@ -281,7 +288,7 @@ class Dm5Parser(_Dm5Contract, Previewer):
             title = cls._normalize_text(item.get("Title"))
             if not slug or not title:
                 continue
-            book = cls._new_book(idx=idx, url=cls._book_url(slug, domain=domain))
+            book = cls._new_book(idx=idx, url=cls._book_url(slug))
             book.id = cls._normalize_text(str(item.get("ID") or ""))
             book.name = title
             cls._apply_latest(book, item.get("ShowLastPartName"))
@@ -290,7 +297,7 @@ class Dm5Parser(_Dm5Contract, Previewer):
             book.public_date = cls._normalize_text(item.get("LastUpdateTime")) or None
             cover = cls._normalize_text(item.get("ShowPicUrlB") or item.get("ShowConver") or item.get("Logo"))
             if cover:
-                book.img_preview = cls.normalize_preview_resource(cover, domain=domain)
+                book.img_preview = cls.normalize_preview_resource(cover, domain=cls.domain)
             books.append(book)
         return books
 
@@ -328,14 +335,14 @@ class Dm5Parser(_Dm5Contract, Previewer):
         }
 
     @classmethod
-    def apply_book_details(cls, book: Dm5BookInfo, details: dict, *, domain: str) -> None:
+    def apply_book_details(cls, book: Dm5BookInfo, details: dict) -> None:
         if details.get("id"):
             book.id = str(details["id"])
         if details.get("title"):
             book.name = cls._normalize_text(details["title"])
         cover = cls._normalize_text(details.get("cover"))
         if cover:
-            book.img_preview = cls.normalize_preview_resource(cover, domain=domain)
+            book.img_preview = cls.normalize_preview_resource(cover, domain=cls.reader_domain)
         artist = cls._normalize_text(details.get("artist"))
         if artist:
             book.artist = artist
@@ -352,7 +359,7 @@ class Dm5Parser(_Dm5Contract, Previewer):
         return matched.group("cid")
 
     @classmethod
-    def parse_episodes(cls, html_text: str, book: Dm5BookInfo, *, domain: str) -> list[Episode]:
+    def parse_episodes(cls, html_text: str, book: Dm5BookInfo) -> list[Episode]:
         sel = Selector(text=html_text)
         Dm5Resp.catch(html_text)
         rows = list(sel.css("div#chapterlistload a[href*='/m']"))
@@ -364,7 +371,7 @@ class Dm5Parser(_Dm5Contract, Previewer):
             href = cls._normalize_text(row.xpath("./@href").get())
             if not href:
                 continue
-            chapter_url = cls.normalize_preview_resource(href, domain=domain)
+            chapter_url = cls.normalize_preview_resource(href, domain=cls.reader_domain)
             if chapter_url in seen_urls:
                 continue
             seen_urls.add(chapter_url)
@@ -453,9 +460,8 @@ class _ChapterfunSession:
         image_count = int(parser._extract_js_var(html_text, "DM5_IMAGE_COUNT"))
         if image_count < 1:
             raise ValueError(f"dm5 chapter page returned invalid DM5_IMAGE_COUNT: url={chapter_url}")
-        request_domain = urlparse(chapter_url).netloc or parser.domain
         dm5_curl = str(parser._extract_js_var(html_text, "DM5_CURL"))
-        canonical_chapter_url = parser.normalize_preview_resource(dm5_curl, domain=request_domain) or chapter_url
+        canonical_chapter_url = parser.normalize_preview_resource(dm5_curl, domain=parser.reader_domain) or chapter_url
         sel = Selector(text=html_text)
         return cls(
             curl=dm5_curl,
@@ -587,18 +593,18 @@ class Dm5Reqer(_Dm5Contract, Req):
         self.cli = self.get_cli(_conf)
 
     @classmethod
-    def build_search_url(cls, keyword: str, *, domain: str, page: int = 1) -> str:
+    def build_search_url(cls, keyword: str, *, page: int = 1) -> str:
         query = {"title": keyword.strip(), "language": "1"}
         if page > 1:
             query["page"] = str(page)
-        return f"https://{domain}{cls.search_path}?{urlencode(query)}"
+        return f"{cls.index.rstrip('/')}{cls.search_path}?{urlencode(query)}"
 
     @classmethod
-    def build_rank_url(cls, rank_type: int, *, domain: str) -> str:
+    def build_rank_url(cls, rank_type: int) -> str:
         rank_type = int(rank_type)
         if rank_type not in cls.rank_types:
             raise ValueError(f"dm5 rank type must be in 1..13, got {rank_type}")
-        return f"https://{domain}{cls.rank_path}?t={rank_type}"
+        return f"{cls.rank_url_head}?t={rank_type}"
 
     @staticmethod
     def _normalize_keyword(keyword: str | None) -> str:
@@ -611,17 +617,14 @@ class Dm5Reqer(_Dm5Contract, Req):
         return str(mapping_value or "").strip()
 
     @classmethod
-    def rank_custom_map_examples(cls, *, domain: str) -> dict[str, str]:
-        return {
-            label: cls.build_rank_url(rank_type, domain=domain)
-            for rank_type, label in cls.rank_types.items()
-        }
+    def rank_custom_map_examples(cls) -> dict[str, str]:
+        return {label: cls.build_rank_url(rank_type) for rank_type, label in cls.rank_types.items()}
 
     @classmethod
-    def build_mapping_url(cls, mapping_value, *, domain: str) -> str:
+    def build_mapping_url(cls, mapping_value) -> str:
         raw_value = cls._mapping_raw_value(mapping_value)
         parsed = urlparse(raw_value)
-        normalized_path = Previewer.normalize_preview_resource(parsed.path or raw_value, domain=domain)
+        normalized_path = Previewer.normalize_preview_resource(parsed.path or raw_value, domain=cls.domain)
         if not normalized_path:
             raise ValueError("dm5 mapping URL is required")
         url = normalized_path
@@ -642,9 +645,9 @@ class Dm5Reqer(_Dm5Contract, Req):
         return max(0, int(mapping_value.get("day", 0) or 0))
 
     @classmethod
-    def parse_rank_type_from_mapping(cls, mapping_value, *, domain: str) -> int | None:
+    def parse_rank_type_from_mapping(cls, mapping_value) -> int | None:
         try:
-            url = cls.build_mapping_url(mapping_value, domain=domain)
+            url = cls.build_mapping_url(mapping_value)
         except ValueError:
             return None
         parsed = urlparse(url)
@@ -657,7 +660,7 @@ class Dm5Reqer(_Dm5Contract, Req):
         return rank_type if rank_type in cls.rank_types else None
 
     @classmethod
-    def resolve_rank_search_spec(cls, keyword: str, *, mappings: dict | None, domain: str) -> dict | None:
+    def resolve_rank_search_spec(cls, keyword: str, *, mappings: dict | None) -> dict | None:
         normalized_keyword = cls._normalize_keyword(keyword)
         if not normalized_keyword:
             return None
@@ -675,7 +678,7 @@ class Dm5Reqer(_Dm5Contract, Req):
             for rank_type, label in cls.rank_types.items()
         }
         for mapping_key, mapping_value in (mappings or {}).items():
-            rank_type = cls.parse_rank_type_from_mapping(mapping_value, domain=domain)
+            rank_type = cls.parse_rank_type_from_mapping(mapping_value)
             if rank_type is None:
                 continue
             normalized_key = cls._normalize_keyword(mapping_key)
@@ -687,20 +690,20 @@ class Dm5Reqer(_Dm5Contract, Req):
             return None
         return {
             "keyword": rank_keyword,"period": period,"rank_type": rank_type,"rank_label": cls.rank_types[rank_type],
-            "url": cls.build_rank_url(rank_type, domain=domain),
+            "url": cls.build_rank_url(rank_type),
         }
 
     @classmethod
-    def build_update_request(cls, *, domain: str, page: int, day: int = 0) -> tuple[str, dict[str, str], dict[str, str]]:
+    def build_update_request(cls, *, page: int, day: int = 0) -> tuple[str, dict[str, str], dict[str, str]]:
         stamp = int(time.time() * 1000)
-        url = f"https://{domain}/manhua-new/dm5.ashx?action=getupdatecomics&d={stamp}"
+        url = f"{cls.update_api}&d={stamp}"
         headers = {
             **cls.ua,
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "X-Requested-With": "XMLHttpRequest",
-            "Origin": f"https://{domain}",
-            "Referer": f"https://{domain}/manhua-new/",
+            "Origin": cls.index.rstrip("/"),
+            "Referer": cls.update_page,
         }
         preview_page = max(1, int(page or 1))
         request_day = max(0, int(day or 0)) + (preview_page - 1)
@@ -708,12 +711,12 @@ class Dm5Reqer(_Dm5Contract, Req):
         return url, headers, data
 
     @classmethod
-    def resolve_preview_route(cls, keyword: str, *, page: int, domain: str, mappings: dict | None) -> _Dm5PreviewRoute:
+    def resolve_preview_route(cls, keyword: str, *, page: int, mappings: dict | None) -> _Dm5PreviewRoute:
         normalized_keyword = keyword.strip()
         if normalized_keyword in (mappings or {}):
             mapping_value = mappings[normalized_keyword]
             if cls.is_update_mapping(mapping_value):
-                url, headers, data = cls.build_update_request(domain=domain, page=page, day=cls.mapping_update_day(mapping_value))
+                url, headers, data = cls.build_update_request(page=page, day=cls.mapping_update_day(mapping_value))
                 return _Dm5PreviewRoute(
                     kind="update",
                     method="POST",
@@ -724,7 +727,7 @@ class Dm5Reqer(_Dm5Contract, Req):
                     response_format="json",
                 )
 
-        rank_spec = cls.resolve_rank_search_spec(normalized_keyword, mappings=mappings, domain=domain)
+        rank_spec = cls.resolve_rank_search_spec(normalized_keyword, mappings=mappings)
         if rank_spec is not None:
             return _Dm5PreviewRoute(
                 kind="rank",
@@ -739,7 +742,7 @@ class Dm5Reqer(_Dm5Contract, Req):
             return _Dm5PreviewRoute(
                 kind="mapping",
                 method="GET",
-                url=cls.build_mapping_url(mappings[normalized_keyword], domain=domain),
+                url=cls.build_mapping_url(mappings[normalized_keyword]),
                 headers=dict(cls.ua),
                 parser_name="parse_html_books",
             )
@@ -747,7 +750,7 @@ class Dm5Reqer(_Dm5Contract, Req):
         return _Dm5PreviewRoute(
             kind="search",
             method="GET",
-            url=cls.build_search_url(normalized_keyword, domain=domain, page=page),
+            url=cls.build_search_url(normalized_keyword, page=page),
             headers=dict(cls.ua),
             parser_name="parse_search_document",
         )
@@ -764,10 +767,9 @@ class Dm5Reqer(_Dm5Contract, Req):
         owner = self._require_preview_owner()
         owner_type = type(owner)
         site_kw = self.preview_site_kwargs()
-        domain = site_kw.get("domain") or getattr(self, "domain", None) or owner_type.domain
         mappings = owner_type.merge_search_mappings(self.mappings, site_kw.get("custom_map"))
         page = max(1, int(page or 1))
-        route = self.resolve_preview_route(keyword, page=page, domain=domain, mappings=mappings)
+        route = self.resolve_preview_route(keyword, page=page, mappings=mappings)
         request_kw = {"headers": route.headers, "follow_redirects": True, "timeout": 12}
         if route.data is not None:
             request_kw["data"] = route.data
@@ -776,28 +778,21 @@ class Dm5Reqer(_Dm5Contract, Req):
         parser = getattr(owner.parser, route.parser_name)
         if route.response_format == "json":
             payload = resp.json()
-            parse_domain = domain
         else:
             payload = resp.text
-            parse_domain = urlparse(str(resp.url)).netloc or domain
-        return await asyncio.to_thread(parser, payload, domain=parse_domain, **route.parser_kwargs)
+        return await asyncio.to_thread(parser, payload, **route.parser_kwargs)
 
     async def preview_fetch_episodes(self, book):
         owner = self._require_preview_owner()
-        site_kw = self.preview_site_kwargs()
-        domain = site_kw.get("domain") or getattr(self, "domain", None) or type(owner).domain
         resp = await self.ensure_preview_client().get(book.url, headers=self.ua, follow_redirects=True, timeout=12)
         resp.raise_for_status()
         book.url = str(resp.url)
-        actual_domain = urlparse(book.url).netloc or domain
         details = await asyncio.to_thread(owner.parser.parse_book_details, resp.text, request_url=book.url)
-        owner.parser.apply_book_details(book, details, domain=actual_domain)
-        return await asyncio.to_thread(owner.parser.parse_episodes, resp.text, book, domain=actual_domain)
+        owner.parser.apply_book_details(book, details)
+        return await asyncio.to_thread(owner.parser.parse_episodes, resp.text, book)
 
     async def preview_fetch_pages(self, episode) -> list[str]:
         owner = self._require_preview_owner()
-        site_kw = self.preview_site_kwargs()
-        domain = site_kw.get("domain") or getattr(self, "domain", None) or type(owner).domain
         resp = await self.ensure_preview_client().get(episode.url, headers=self.ua, follow_redirects=True, timeout=12)
         resp.raise_for_status()
         episode.url = str(resp.url)

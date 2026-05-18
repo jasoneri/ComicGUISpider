@@ -166,7 +166,7 @@ maccy(macOS): [issue 搜索相关得知](https://github.com/p0deje/Maccy/issues/
 ### DiscordToken
 
 位于 `配置窗口 > 潘多拉之盒 > discord 旁边的编辑框`  
-分享相关，进 discord 的 welcome 频道 bot 点按钮获取，这是上传下载的凭证
+分享相关，进 discord 的 welcome 频道 bot 点按钮获取，这是 `分享功能的上传下载` 凭证
 
 ## 其他 `yml` 字段
 
