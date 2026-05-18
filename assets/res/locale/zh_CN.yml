@@ -18,9 +18,9 @@ GUI:
   jm_desc: "支持多车号输入，例如`123456，654321，114514`（逗号分隔）<br>支持章节下载，点击下方区域卡片即可<br>设置cookies能解锁游客隐藏，解决无效车号等，但CGS暂不会自动更新cookie，按需时粘贴curl用"
   wnacg_desc: "wancg 国内源偶尔会很慢抽风，报错的优先排查日志 <br>网络问题重启重试几次后还是一直出现同一种错误的话 加群反映/提issue<br>蓝色的`域名管理`按钮可换域名"
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
-  jestful_desc: "jestful 章节列表与页图列表均由站点 JS 动态加载；建议优先使用作品名关键词搜索并按章节号核对选话"
-  hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://img-cgs.101114105.xyz/file/1764957586207_hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
+  hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://img-cgs.101114105.xyz/file/1764957586207_hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 <br>2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
   h_comic_desc: "h-comic 为前端渲染站，建议优先使用简短关键词（如作品名核心词）进行搜索；搜索结果为空时可换同义词重试"
+  dm5_desc: "dm5 热门版权漫画几率不提供阅读"
   Script:
     site_name: "Script"
     service_check_success: "✅ 后台服务检测"
@@ -62,6 +62,7 @@ GUI:
   SearchInputStatusTip:
     common: '直接输入关键词搜索 或 预设'
     manga_copy: '搜索规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"'
+    dm5: '搜索规则补充：综合榜+周/月/总，默认"周"，榜单可前往官网获取自行查看例如 人气榜'
     jm: '搜索规则补充：时间维度可选 日/周/月/总，例如"收藏总" Ⅱ. 翻页规则："&page=\d+"'
     wnacg: '翻页规则：搜索是"&p=\d+" 导航页是"-page-\d+" 如不满足请联系开发者'
     hitomi: '暂时仅支持使用预设 或 `hitomi-tools`生成的词'
@@ -156,8 +157,6 @@ EHentai:
   ACCESS_FAIL: "当前`cookies-eh`或`配置代理`或`全局代理`等环境无法访问<br>请前往网站访问排查（尚不支持该网站墙内直连）"
   GUIDE: "exhentai使用指引（里站，非表站）<br>1. 确保你有一个能访问`exhentai.org`的账号<br> - 配置需设置`cookies-eh`的值，值生成参考配置详情里该字段说明。<br>2. (国内)确保你有一个可以使用的代理（不支持无代理直连）<br> - 可使用全局代理，或者配置代理"
   JUMP_TIP: "ehentai跳页情况特殊，没想好应用，暂时设限制取消`跳页`功能"
-  MAPPINGS_INDEX: "首页"
-  MAPPINGS_POPULAR: "热门"
 
 SPIDER:
   SayToGui:
