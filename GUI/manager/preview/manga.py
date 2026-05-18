@@ -348,12 +348,8 @@ class MangaPreviewFeature:
             for episode in episodes
             if episode.id_and_md5()[1] in downloaded_md5s
         }
-        ep_data = [
-            {
-                "idx": ep.idx,
-                "name": ep.name,
-                "downloaded": f"ep{book_key}-{ep.idx}" in downloaded_episode_ids,
-            }
+        ep_data = [{"idx": ep.idx, "name": ep.name,
+            "downloaded": f"ep{book_key}-{ep.idx}" in downloaded_episode_ids}
             for ep in episodes
         ]
         self.mgr.send_command("manga.episodes.loaded", {"bookKey": str(book_key), "episodes": ep_data}, session_id=session_id)
@@ -364,7 +360,9 @@ class MangaPreviewFeature:
         self._inflight_books.discard((session_id, book_key))
         if generation != self.mgr._generation or session_id != self.mgr._session_id:
             return
-        self.mgr.send_command("manga.episodes.error", {"bookKey": str(book_key), "code": "fetch_failed"}, session_id=session_id)
+        self.mgr.send_command("manga.episodes.error", {"bookKey": str(book_key), "code": "fetch_failed", "message": str(error or "")},
+            session_id=session_id,
+        )
 
     # ------------------------------------------------------------------
     # Pages fetch

@@ -20,6 +20,7 @@ GUI:
   mangabz_desc: "Māngabz 使用源为iphone网页版，逆天章节只有数字，例如第一卷和第一话都是1，需要根据相邻章节自己鉴别"
   hitomi_desc: "除预设外，输入请使用 hitomi-tools ，<a href='https://img-cgs.101114105.xyz/file/1764957586207_hitomi-tools-usage.gif'>📹参考用法</a><br>1.不建议使用搜索，你的关键字极大可能无效 <br>2.hitomi无法使用映射<br>【国内Tip】不用代理也能跑哦(￣﹃￣)震惊吧，不过预览时访问链接涉及官网域名的就不行了"
   h_comic_desc: "h-comic 为前端渲染站，建议优先使用简短关键词（如作品名核心词）进行搜索；搜索结果为空时可换同义词重试"
+  dm5_desc: "dm5 热门版权漫画几率不提供阅读"
   Script:
     site_name: "Script"
     service_check_success: "✅ 后台服务检测"

@@ -268,6 +268,7 @@ class PreviewMgr:
         self._worker.search_done.connect(self._on_search_done)
         ep_handler = self._fix if self.is_fix else self._manga
         self._worker.episodes_done.connect(ep_handler.on_episodes_done)
+        self._worker.episodes_error.connect(ep_handler.on_episodes_error)
         self._worker.pages_done.connect(ep_handler.on_pages_done)
         self._worker.cover_done.connect(self.gui.task_mgr.on_cover_preload_success)
         self._worker.cover_error.connect(self.gui.task_mgr.on_cover_preload_error)

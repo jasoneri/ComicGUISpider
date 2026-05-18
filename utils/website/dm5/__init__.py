@@ -11,6 +11,7 @@ from scrapy import Selector
 
 from assets import res
 from utils.website.core import Previewer, Req, Utils
+from utils.website.core.err import Dm5Resp
 from utils.website.info import Dm5BookInfo, Episode
 
 from .reader_decoder import Dm5ReaderDecoder
@@ -353,6 +354,7 @@ class Dm5Parser(_Dm5Contract, Previewer):
     @classmethod
     def parse_episodes(cls, html_text: str, book: Dm5BookInfo, *, domain: str) -> list[Episode]:
         sel = Selector(text=html_text)
+        Dm5Resp.catch(html_text)
         rows = list(sel.css("div#chapterlistload a[href*='/m']"))
         if not rows:
             raise ValueError(f"dm5 book page returned no chapter rows: book={book.url}")

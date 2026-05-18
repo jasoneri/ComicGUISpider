@@ -55,8 +55,8 @@
           window.previewRuntime.markDownloaded(bookIds, []);
         }
       });
-      previewCommandBus.register('manga.episodes.error', ({ bookKey, code }) => {
-        this.showEpisodeFetchError(bookKey, code);
+      previewCommandBus.register('manga.episodes.error', ({ bookKey, code, message }) => {
+        this.showEpisodeFetchError(bookKey, code, message);
       });
       previewCommandBus.register('preview.scan.show', ({ message }) => {
         this.showScanNotification(message);
@@ -203,6 +203,7 @@
         return;
       }
       if (!bridge || typeof bridge.fetchEpisodes !== 'function') {
+        this.clearPendingTimer();
         this.showEpisodeError(this.buildEpisodeErrorMessage('bridge_not_ready'));
         return;
       }
@@ -445,11 +446,12 @@
       this.renderError(message || this.buildEpisodeErrorMessage('fetch_failed'));
     }
 
-    showEpisodeFetchError(bookKey, code = 'fetch_failed') {
+    showEpisodeFetchError(bookKey, code = 'fetch_failed', message = '') {
       if (String(bookKey) !== this.activeBookKey) {
         return;
       }
-      this.showEpisodeError(this.buildEpisodeErrorMessage(code));
+      this.clearPendingTimer();
+      this.showEpisodeError(message || this.buildEpisodeErrorMessage(code));
     }
 
     applyDlScanResult(badges) {
