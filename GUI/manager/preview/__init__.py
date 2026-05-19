@@ -251,6 +251,12 @@ class PreviewMgr:
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
         self._active.publish(books)
 
+    def _on_search_error(self, generation, _keyword, site_index, error):
+        if generation != self._generation or site_index != self.site_index:
+            return
+        self.gui.log.error(error)
+        self._on_empty_search_done()
+
     def create_worker(self, gui_site_runtime: GuiSiteRuntime):
         self._stop_worker()
         self._worker = PreviewWorker(
@@ -259,6 +265,7 @@ class PreviewMgr:
             generation=self._generation,
         )
         self._worker.search_done.connect(self._on_search_done)
+        self._worker.search_error.connect(self._on_search_error)
         ep_handler = self._fix if self.is_fix else self._manga
         self._worker.episodes_done.connect(ep_handler.on_episodes_done)
         self._worker.episodes_error.connect(ep_handler.on_episodes_error)
@@ -272,6 +279,7 @@ class PreviewMgr:
     def _disconnect_worker_signals(worker: PreviewWorker):
         for signal in (
             worker.search_done,
+            worker.search_error,
             worker.episodes_done,
             worker.pages_done,
             worker.cover_done,

@@ -46,6 +46,7 @@ PreviewTask = Union[SearchTask, EpisodesTask, EpisodesBatchTask, PagesBatchTask,
 
 class PreviewWorker(QThread):
     search_done = Signal(int, str, int, object)
+    search_error = Signal(int, str, int, str)
     episodes_done = Signal(int, int, str, object)
     episodes_error = Signal(int, int, str, str)
     pages_done = Signal(int, str, object)
@@ -79,12 +80,6 @@ class PreviewWorker(QThread):
             case 'cover': 
                 _ = CoverTask
         self._task_queue.put(_(*args, **kw))
-
-    async def _do_search(self, keyword, site_index, page=1):
-        return await self.thread_site_runtime.preview_search(keyword, page=page)
-
-    async def _do_fetch_episodes(self, book, site_index):
-        return await self.thread_site_runtime.preview_fetch_episodes(book)
 
     async def _do_fetch_episodes_batch(self, items):
         semaphore = asyncio.Semaphore(self.thread_site_runtime.preview_batch_limit("episodes", 4))
@@ -120,9 +115,6 @@ class PreviewWorker(QThread):
 
         await asyncio.gather(*[_fetch_book(bk, eps) for bk, eps in grouped.items()])
 
-    async def _close_runtimes(self):
-        await self.thread_site_runtime.aclose()
-
     def run(self):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
@@ -136,11 +128,15 @@ class PreviewWorker(QThread):
                     continue
                 match task:
                     case SearchTask(keyword=kw, page=pg):
-                        books = self._loop.run_until_complete(self._do_search(kw, self.site_index, page=pg))
+                        try:
+                            books = self._loop.run_until_complete(self.thread_site_runtime.preview_search(kw, page=pg))
+                        except Exception as exc:
+                            self.search_error.emit(self._generation, kw, self.site_index, f"任务执行 > {exc}\n{traceback.format_exc()}")
+                            continue
                         self.search_done.emit(self._generation, kw, self.site_index, books)
                     case EpisodesTask(session_id=sid, book_key=bk, book=b):
                         try:
-                            episodes = self._loop.run_until_complete(self._do_fetch_episodes(b, self.site_index))
+                            episodes = self._loop.run_until_complete(self.thread_site_runtime.preview_fetch_episodes(b))
                         except SiteBusinessError as exc:
                             self.episodes_error.emit(self._generation, sid, bk, str(exc))
                             continue
@@ -160,6 +156,6 @@ class PreviewWorker(QThread):
                             self.cover_done.emit(self._generation, tid, data)
         finally:
             try:
-                self._loop.run_until_complete(self._close_runtimes())
+                self._loop.run_until_complete(self.thread_site_runtime.aclose())
             finally:
                 self._loop.close()

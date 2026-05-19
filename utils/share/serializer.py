@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from utils.website.info import (
     BookInfo,
+    ComicabcBookInfo,
     Dm5BookInfo,
     Ero,
     Episode,
@@ -40,6 +41,7 @@ _ALLOWED_CLASSES = {
         "JestfulBookInfo",
         "ManhuaguiBookInfo",
         "Dm5BookInfo",
+        "ComicabcBookInfo",
     },
 }
 _ALLOWED_BOOK_TYPES = (
@@ -56,6 +58,7 @@ _ALLOWED_BOOK_TYPES = (
     JestfulBookInfo,
     ManhuaguiBookInfo,
     Dm5BookInfo,
+    ComicabcBookInfo,
 )
 _PAYLOAD_PREFIX = b"CGS_SHARE_V1\n"
 
