@@ -22,7 +22,7 @@ class CGSInstaller:
         self.installer = self.runtime / "installer.exe"
         self.cgs = self.toolbin / "cgs.exe"
         self.env = self._build_env()
-        self.args = self._parse_args()
+        self.args = None
 
     def _build_env(self):
         env = os.environ.copy()
@@ -112,6 +112,10 @@ class CGSInstaller:
         input(r"安装失败，参考换源安装 \n https://cgs.101114105.xyz/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
 
     def main(self):
+        # Fast path: no args, cgs exists → skip argparse entirely
+        if not sys.argv[1:] and self.cgs.exists():
+            return self.run()
+        self.args = self._parse_args()
         a = self.args
         if not self.cgs.exists() or a.index is not None or a.version is not None or a.conf:
             self.install()

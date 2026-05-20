@@ -21,25 +21,11 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
 from GUI.core.anim import PopupAnimator
-from utils.sql.download_state import DownloadStateStore
-from GUI.conf_dialog import ConfDialog
-from GUI.browser_window import BrowserWindow as BrowserWindowCls
-from GUI.tools import ToolWindow, TextUtils
-from GUI.manager import (
-    TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager,
-    CGSMidManagerGUI, PreviewMgr, UpdateNotifier, PublishDomainManager,
-    SelectionFlowManager, DownloadRuntimeManager, Shares
-)
-from utils.config.qc import cgs_cfg
-from GUI.manager.preprocess import PreprocessManager
 from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState, SearchUiState
-from utils.middleware.timeline import EventSource, TimelineStage
+from utils.config.qc import cgs_cfg
 from variables import *
 from assets import res
 from utils import conf, p, curr_os, select, bs_theme
-from utils.processed_class import TmpFormatHtml
-from utils.redViewer_tools import Handler as rVtools
-from utils.website.registry import create_gui_site_runtime
 _UNSET = object()
 
 
@@ -57,7 +43,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
     setup_finished = Signal()
     exception_feedback_requested = Signal(str, str)
-    BrowserWindow: BrowserWindowCls = None  # CG001 browser init/show flow
+    BrowserWindow = None  # CG001 browser init/show flow
     toolWin = None
     web_is_r18 = False
     gui_site_runtime = None  # CG001 choose-box site flow
@@ -65,7 +51,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     bsm: dict = None  # books show max
     flow_stage: GUIFlowStage = GUIFlowStage.IDLE
     sv_path = None
-    rv_tools: rVtools = None
+    rv_tools = None
     splashWait = 3
 
     def __init__(self, parent=None):
@@ -93,13 +79,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.show()
         res.set_language(conf.lang)
         self.apply_translations()
-        self.task_init()
-        self.task_mgr = TaskProgressManager(self)
-        self.task_mgr.init_native_panel()
         setupTheme(self)
         safe_single_shot(10, self.setupUi_)
 
     def setupUi_(self):
+        from utils.redViewer_tools import Handler as rVtools
+        from GUI.manager import TaskProgressManager, RVManager
+        self.task_init()
+        self.task_mgr = TaskProgressManager(self)
+        self.task_mgr.init_native_panel()
         self.rv_tools = rVtools()
         self.rv_mgr = RVManager(self)
         self.rv_mgr.start_scan(show_progress=False)
@@ -114,17 +102,28 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self._startup_completed = True
 
     def _restore_feedback_panel(self):
+        from GUI.tools import TextUtils
         self.textBrowser.clear()
         self.textBrowser.append(TextUtils.description())
         self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
 
     def startup_only(self):
+        from GUI.manager import UpdateNotifier
         self.update_notifier = UpdateNotifier(self)
         self.update_notifier.check_on_startup()
         past = time.time() - self.st
         safe_single_shot(int((0 if past >= self.splashWait else self.splashWait-past)*1000), self.splashScreen.finish)
 
     def generation_bind(self):
+        from utils.sql.download_state import DownloadStateStore
+        from GUI.conf_dialog import ConfDialog
+        from GUI.tools import TextUtils
+        from GUI.manager import (
+            ClipGUIManager, AggrSearchManager,
+            CGSMidManagerGUI, PreviewMgr, PublishDomainManager,
+            SelectionFlowManager, DownloadRuntimeManager, Shares
+        )
+        from GUI.manager.preprocess import PreprocessManager
         self.flow_stage = GUIFlowStage.IDLE
         self.pageFrameClickCnt = 0
         self.conf_dia = ConfDialog(self)
@@ -215,6 +214,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageFrame.setStyleSheet(f"QToolButton {{ background-color: {color}; }}")
 
     def _create_gui_site_runtime(self, site_index: int):
+        from utils.website.registry import create_gui_site_runtime
         if site_index in SPIDERS:
             return create_gui_site_runtime(site_index, conf_state=conf, default_doh_url=cgs_cfg.doh.get_url())
 
@@ -314,6 +314,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         script_window.show()
 
     def set_tool_win(self):
+        from GUI.tools import ToolWindow
         self.toolWin = ToolWindow(self)
         # self.toolWin.addMidTool()  # TODO[2](2026-03-07): 下个稳定版本恢复
 
@@ -383,6 +384,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
     
     def set_preview(self, rect=None, *, skip_env_mode: bool = False):
+        from GUI.browser_window import BrowserWindow as BrowserWindowCls
         if self.BrowserWindow:
             self._destroy_browser_window()
         sb = self.BrowserWindow = BrowserWindowCls(self, skip_env_mode=skip_env_mode)
@@ -495,6 +497,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preview_mgr.handle_choosebox_changed(0, None)
         self.clean_temp_file()
         self._destroy_browser_window()
+        from GUI.browser_window import BrowserWindow as BrowserWindowCls
         BrowserWindowCls.clear_proxies()
         self.clip_mgr.reset()
         self.ags_mgr.reset()
@@ -632,6 +635,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.exception_feedback_requested.emit(headline, guidance)
 
     def do_publish(self):
+        from utils.processed_class import TmpFormatHtml
         gui_site_runtime = self.gui_site_runtime
         if gui_site_runtime is None:
             raise RuntimeError("gui_site_runtime unavailable for publish flow")
@@ -673,6 +677,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         """.discard()"""
 
     def _on_decision_made(self, lane: str, indexes: list):
+        from utils.middleware.timeline import EventSource, TimelineStage
         mgr = getattr(self, "mid_mgr", None)
         if mgr and mgr.enabled:
             stage_map = {"BOOK": TimelineStage.BOOK_SENT, "EP": TimelineStage.EP_SENT}
