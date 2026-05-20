@@ -35,10 +35,11 @@ class PreviewMgr:
         self._page_channel_page = None
         self._page_bridge = None
         self._interactive_browser = None
+        self._retired_workers = []
         self._manga = MangaPreviewFeature(self)
         self._ero = EroPreviewFeature(self)
         self._fix = FixPreviewFeature(self)
-        self.gui.destroyed.connect(self._stop_worker)
+        self.gui.destroyed.connect(self._stop_workers_blocking)
 
     @property
     def is_manga(self):
@@ -79,7 +80,7 @@ class PreviewMgr:
         self._manga.shutdown()
         self._ero.shutdown()
         self._fix.shutdown()
-        self._stop_worker()
+        self._stop_workers_blocking()
 
     def handle_choosebox_changed(self, index, gui_site_runtime: GuiSiteRuntime | None):
         self._generation += 1
@@ -101,7 +102,6 @@ class PreviewMgr:
         self.gui.pageEdit.setValue(1)
         if index in SPIDERS and gui_site_runtime is not None:
             self.create_worker(gui_site_runtime)    # REMARK[260501]: preprocessMgr 没处理好暂时没法删除
-            self.gui.schedule_preview_warmup()
         else:
             self._stop_worker()
             if getattr(self.gui, 'BrowserWindow', None):
@@ -293,14 +293,49 @@ class PreviewMgr:
         if worker is None:
             return
         self._disconnect_worker_signals(worker)
-        worker.stop()
-        deadline = time.monotonic() + 5.0
-        while worker.isRunning() and time.monotonic() < deadline:
-            worker.wait(100)
-            QApplication.processEvents()
-        if worker.isRunning():
-            raise RuntimeError("preview worker failed to stop within 5 seconds")
         self._worker = None
+        self._retire_worker(worker)
+
+    def _retire_worker(self, worker: PreviewWorker):
+        if worker in self._retired_workers:
+            return
+        if not worker.isRunning():
+            worker.deleteLater()
+            return
+        self._retired_workers.append(worker)
+        worker.finished.connect(lambda w=worker: self._release_retired_worker(w))
+        worker.stop()
+
+    def _release_retired_worker(self, worker: PreviewWorker):
+        with contextlib.suppress(ValueError):
+            self._retired_workers.remove(worker)
+        with contextlib.suppress(RuntimeError):
+            worker.deleteLater()
+
+    def _stop_workers_blocking(self, *_):
+        workers = []
+        if self._worker is not None:
+            workers.append(self._worker)
+            self._worker = None
+        workers.extend(self._retired_workers)
+        self._retired_workers.clear()
+        if not workers:
+            return
+
+        seen = set()
+        workers = [worker for worker in workers if not (id(worker) in seen or seen.add(id(worker)))]
+        for worker in workers:
+            self._disconnect_worker_signals(worker)
+            worker.stop()
+        deadline = time.monotonic() + 5.0
+        for worker in workers:
+            while worker.isRunning() and time.monotonic() < deadline:
+                worker.wait(100)
+                QApplication.processEvents()
+            if worker.isRunning():
+                raise RuntimeError("preview worker failed to stop within 5 seconds")
+            with contextlib.suppress(RuntimeError):
+                worker.deleteLater()
 
     def _log_page_debug(self, message: str):
         logger = getattr(self.gui, "log", None)
