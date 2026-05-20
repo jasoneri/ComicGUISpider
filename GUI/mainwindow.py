@@ -10,6 +10,7 @@ from qfluentwidgets import (
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
+from GUI.uic.qfluent.components.site_choice_combo import SiteChoiceComboController
 from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
 from variables import SPIDERS_LABELS, VER, Spider
@@ -34,6 +35,7 @@ class MitmMainWindow(Ui_MainWindow):
         _translate = QtCore.QCoreApplication.translate
         super(MitmMainWindow, self).setupUi(_mainWindow)
         _mainWindow.setWindowTitle(_translate("MainWindow", f"ComicGUISpider {VER}"))
+        self.site_choice_combo = SiteChoiceComboController(self.chooseBox)
         self.preset()
         self._sleep_widget_resize_filter = _SleepWidgetResizeFilter(self)
         self.sleepWidget.installEventFilter(self._sleep_widget_resize_filter)
@@ -51,6 +53,7 @@ class MitmMainWindow(Ui_MainWindow):
                 label += "🔞"
             self.chooseBox.insertItem(index, _translate("MainWindow", label))
         self.chooseBox.setCurrentIndex(current_index if 0 <= current_index < self.chooseBox.count() else 0)
+        self.site_choice_combo.apply_configured_choices()
         del blocker
         self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
         self.domainBtn.setVisible(False)

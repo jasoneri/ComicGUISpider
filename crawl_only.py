@@ -208,17 +208,7 @@ def _build_download_payload(site_index: int, selected_books: list, selected_eps:
     if site_index in Spider.specials():
         return selected_books[0] if len(selected_books) == 1 else selected_books
 
-    books_by_key = {}
-    for ep in selected_eps or []:
-        book = getattr(ep, "from_book", None)
-        if book is None:
-            continue
-        key = id(book)
-        if key not in books_by_key:
-            book.episodes = []
-            books_by_key[key] = book
-        books_by_key[key].episodes.append(ep)
-    payload = list(books_by_key.values())
+    payload = list(selected_eps or [])
     if not payload:
         raise ValueError("no episodes selected for download")
     return payload[0] if len(payload) == 1 else payload

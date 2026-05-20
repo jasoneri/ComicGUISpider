@@ -25,7 +25,43 @@ class CgsConfig(QConfig):
     dohUrl = ConfigItem("DoH", "Url", "", restart=False)
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
     scriptWinRect = ConfigItem("ScriptWindow", "Rect", [], restart=False)
+    hiddenSiteChoices = ConfigItem("MainWindow", "HiddenSiteChoices", [], restart=False)
     doh: "CgsConfig.DoH"
+    site_choices: "CgsConfig.SiteChoices"
+
+    class SiteChoices:
+        def __init__(self, cfg: "CgsConfig"):
+            self._cfg = cfg
+
+        @staticmethod
+        def _normalize(value: object, valid_indexes) -> list[int]:
+            valid = {int(index) for index in valid_indexes}
+            normalized = []
+            for raw_index in list(value or []):
+                index = int(raw_index)
+                if index in valid and index not in normalized:
+                    normalized.append(index)
+            return sorted(normalized)
+
+        def hidden(self, valid_indexes) -> set[int]:
+            normalized = self._normalize(self._cfg.hiddenSiteChoices.value, valid_indexes)
+            if normalized != self._cfg.hiddenSiteChoices.value:
+                self._cfg.hiddenSiteChoices.value = normalized
+            return set(normalized)
+
+        def set_hidden(self, site_index: int, is_hidden: bool, valid_indexes) -> set[int]:
+            valid = {int(index) for index in valid_indexes}
+            index = int(site_index)
+            if index not in valid:
+                raise ValueError(f"invalid site index: {site_index}")
+            hidden = self.hidden(valid)
+            if is_hidden:
+                hidden.add(index)
+            else:
+                hidden.discard(index)
+            self._cfg.hiddenSiteChoices.value = sorted(hidden)
+            self._cfg.save()
+            return hidden
 
     class DoH:
         def __init__(self, cfg: "CgsConfig"):
@@ -63,6 +99,7 @@ class CgsConfig(QConfig):
 
 cgs_cfg = CgsConfig()
 qconfig.load(_qconfig_path("qc.json"), cgs_cfg)
+cgs_cfg.site_choices = CgsConfig.SiteChoices(cgs_cfg)
 cgs_cfg.doh = CgsConfig.DoH(cgs_cfg)
 
 
