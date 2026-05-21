@@ -118,10 +118,10 @@ class BaseConf:
             for h in lg._core.handlers.values()
         )
         if not already_exists:
-            lg.add(log_file,
-                filter=lambda record, _n=name: _n in record["extra"],
-                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}",
-                level=level or getattr(self, 'log_level', 'WARNING'), retention='5 days', encoding='utf-8')
+            lg.add(
+                log_file, filter=lambda record, _n=name: _n in record["extra"],
+                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | [{name}]: {message}", level=level or getattr(self, 'log_level', 'WARNING'),
+                retention='5 days', encoding='utf-8')
         logger = lg.bind(**{name: True})
         self.__class__._loggers[name] = logger
         return logger
@@ -221,6 +221,7 @@ class Conf(BaseConf):
 class ScriptConf(BaseConf):
     kemono: dict = field(default_factory=dict)
     danbooru: dict = field(default_factory=dict)
+    jsoneri_server_status: dict = field(default_factory=dict)
     proxies: list = field(default_factory=list)
     redis: dict = field(default_factory=dict)
 
@@ -243,6 +244,11 @@ class ScriptConf(BaseConf):
         for key, value in danbooru_defaults.items():
             danbooru_config.setdefault(key, value)
         yml_config["danbooru"] = danbooru_config
+        jsoneri_server_status_defaults = (sample_config.get("jsoneri_server_status") or {}).copy()
+        jsoneri_server_status_config = (yml_config.get("jsoneri_server_status") or {}).copy()
+        for key, value in jsoneri_server_status_defaults.items():
+            jsoneri_server_status_config.setdefault(key, value)
+        yml_config["jsoneri_server_status"] = jsoneri_server_status_config
         for k, v in yml_config.items():
             setattr(self, k, v or getattr(self, k, None))
 

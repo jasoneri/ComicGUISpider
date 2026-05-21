@@ -30,6 +30,7 @@ from GUI.manager.async_task import summarize_error_message
 from GUI.script.cbg import CbgInterface
 from GUI.script.danbooru import DanbooruInterface
 from GUI.script.kemono import KemonoInterface
+from GUI.script.jsoneri import JsoneriServicesStatusInterface
 
 
 script_res = res.GUI.Script
@@ -358,6 +359,7 @@ class ScriptWindow(ScriptWindowBase):
         self.danbooruInterface = DanbooruInterface(self)
         self.kemonoInterface = KemonoInterface(self)
         self.cbgInterface = CbgInterface(self)
+        self.jsoneriServicesStatusInterface = JsoneriServicesStatusInterface(self)
         self.settingInterface = SettingInterface(self)
         self.doh_stub_runtime.ensure_from_config()
 
@@ -413,6 +415,7 @@ class ScriptWindow(ScriptWindowBase):
         self._add_script_entry(self.danbooruInterface, ':/script/danbooru.svg', 'Danbooru', show_in_pure_mode=False)
         self._add_script_entry(self.kemonoInterface, ':/script/kemono.ico', 'Kemono', show_in_pure_mode=False)
         self._add_script_entry(self.cbgInterface, ':/script/cbg.svg', 'Cbg', show_in_pure_mode=True)
+        self._add_script_entry(self.jsoneriServicesStatusInterface, FIF.CLOUD, 'Jsoneri Server Status', show_in_pure_mode=True)
         self.navigationInterface.addSeparator()
         self._add_script_entry(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM, show_in_pure_mode=True)
 
@@ -461,6 +464,7 @@ class ScriptWindow(ScriptWindowBase):
         cgs_cfg.scriptWinRect.value = [self.x(), self.y(), self.width(), self.height()]
         cgs_cfg.save()
         self.danbooruInterface.image_viewer.hide()
+        self.jsoneriServicesStatusInterface.close_service_window()
         if self.gui is not None:
             safe_single_shot(10, self.gui.close)
 
