@@ -47,6 +47,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     toolWin = None
     web_is_r18 = False
     gui_site_runtime = None  # CG001 choose-box site flow
+    dl_mgr = None
     sut = None
     bsm: dict = None  # books show max
     flow_stage: GUIFlowStage = GUIFlowStage.IDLE
@@ -544,7 +545,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.shares.download(share_id)
             return
         if not kw:
-            return InfoBar.info(title='', content='先输入搜索词吧', isClosable=True, position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
+            return InfoBar.info(
+                title='', content='先输入搜索词吧', isClosable=True,
+                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser,
+            )
         site = self.chooseBox.currentIndex()
         if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
             self.refresh_lifecycle_state()
@@ -618,7 +622,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preview_mgr.shutdown()
         event.accept()
         self.destroy()  # 窗口关闭销毁
-        if getattr(self, "dl_mgr", None):
+        if self.dl_mgr is not None:
             self.dl_mgr.close_runtime()
         sys.exit(0)
 
@@ -641,10 +645,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             raise RuntimeError("gui_site_runtime unavailable for publish flow")
         cached = gui_site_runtime.peek_cached_domain() or ""
         publish_url = getattr(gui_site_runtime.provider_cls, "publish_url", "")
-        self.tf = TmpFormatHtml.created_temp_html("publish",
-            bs_theme=bs_theme(), publish_url=publish_url, __cached_domain__=cached
-        )
-        self.set_preview(skip_env_mode=not bool(gui_site_runtime.peek_cached_domain() or getattr(gui_site_runtime.provider_cls, "domain", None)))
+        self.tf = TmpFormatHtml.created_temp_html("publish", bs_theme=bs_theme(), publish_url=publish_url, __cached_domain__=cached)
+        provider_domain = getattr(gui_site_runtime.provider_cls, "domain", None)
+        self.set_preview(skip_env_mode=not bool(cached or provider_domain))
         self.publish_mgr.setup_channel(self.BrowserWindow.view.page())
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
         o_h = self.BrowserWindow.height()
@@ -655,8 +658,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
-        rect = QRect(self.x(), int(screen_height*0.05),
-            self.width(), int(screen_height*0.9))
+        rect = QRect(self.x(), int(screen_height*0.05), self.width(), int(screen_height*0.9))
         if not getattr(self, 'BrowserWindow'):
             site_index = (
                 self.gui_site_runtime.site_index

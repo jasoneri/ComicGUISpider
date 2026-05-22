@@ -21,17 +21,24 @@ from utils.sql import SqlRecorder
 
 class TaskProgress:
     """任务进度状态（不依赖 Qt）"""
-    __slots__ = ("tasks_obj", "_downloaded_count", "last_percent", "completed", "job_successful")
+    __slots__ = (
+        "tasks_obj", "_downloaded_count", "_downloaded_keys", "_downloaded_list_size",
+        "last_percent", "completed", "job_successful",
+    )
 
     def __init__(self, tasks_obj: TasksObj):
         self.tasks_obj = tasks_obj
-        self._downloaded_count = len(tasks_obj.downloaded)
+        self._sync_downloaded_state()
         self.last_percent = (
-            int(self._downloaded_count / tasks_obj.tasks_count * 100)
-            if tasks_obj.tasks_count > 0 else 0
+            int(self._downloaded_count / self.tasks_count * 100)
+            if self.tasks_count > 0 else 0
         )
         self.completed = self.last_percent >= 100
         self.job_successful = self.completed
+
+    @staticmethod
+    def total_pages(tasks_obj: TasksObj) -> int:
+        return int(getattr(tasks_obj, "page_name_count", None) or tasks_obj.tasks_count)
 
     @property
     def taskid(self) -> str:
@@ -39,7 +46,7 @@ class TaskProgress:
 
     @property
     def tasks_count(self) -> int:
-        return self.tasks_obj.tasks_count
+        return self.total_pages(self.tasks_obj)
 
     @property
     def downloaded(self) -> int:
@@ -49,10 +56,51 @@ class TaskProgress:
     def share_ready(self) -> bool:
         return self.completed and self.job_successful
 
+    @staticmethod
+    def _downloaded_key(task_obj: TaskObj) -> tuple:
+        page = getattr(task_obj, "page", None)
+        page_number = TaskProgressEntry.page_number(page)
+        if page_number is not None:
+            return "page", page_number
+        return "raw", page, getattr(task_obj, "url", None)
+
+    @classmethod
+    def _build_downloaded_keys(cls, task_objs: list[TaskObj]) -> set[tuple]:
+        return {
+            cls._downloaded_key(task_obj) for task_obj in task_objs
+            if getattr(task_obj, "success", True)
+        }
+
+    def _sync_downloaded_state(self):
+        self._downloaded_keys = self._build_downloaded_keys(self.tasks_obj.downloaded)
+        self._downloaded_count = len(self._downloaded_keys)
+        self._downloaded_list_size = len(self.tasks_obj.downloaded)
+
+    def replace_tasks_obj(self, tasks_obj: TasksObj):
+        self.tasks_obj = tasks_obj
+        self._sync_downloaded_state()
+        self.last_percent = (
+            int(self._downloaded_count / self.tasks_count * 100)
+            if self.tasks_count > 0 else 0
+        )
+        self.completed = self.last_percent >= 100
+        self.job_successful = self.completed
+
     def apply(self, event: TaskObj) -> int:
         """接收一个下载事件，更新进度，返回百分比"""
-        self._downloaded_count += 1
-        self.last_percent = int(self._downloaded_count / self.tasks_obj.tasks_count * 100)
+        if len(self.tasks_obj.downloaded) != self._downloaded_list_size:
+            self._sync_downloaded_state()
+        if not getattr(event, "success", True):
+            self.completed = False
+            self.job_successful = False
+            return self.last_percent
+        key = self._downloaded_key(event)
+        if key not in self._downloaded_keys:
+            self.tasks_obj.downloaded.append(event)
+            self._downloaded_keys.add(key)
+            self._downloaded_count += 1
+            self._downloaded_list_size += 1
+        self.last_percent = int(self._downloaded_count / self.tasks_count * 100)
         if self.last_percent >= 100:
             self.completed = True
         return self.last_percent
@@ -154,7 +202,7 @@ class ProgressClass(QFrame):
         self.folder_btn.setEnabled(bool(tasks_obj.local_path))
         self.link_btn.setEnabled(bool(tasks_obj.title_url))
         self.refresh_share_button_visibility()
-        self.page_badge.setText(f"{tasks_obj.tasks_count}P")
+        self.page_badge.setText(f"{TaskProgress.total_pages(tasks_obj)}P")
         self.page_badge.adjustSize()
         self._relocate_badge()
 
@@ -259,17 +307,21 @@ class TaskProgressEntry:
         return self.progress.tasks_obj
 
     @staticmethod
-    def is_page_one(page) -> bool:
+    def page_number(page) -> t.Optional[int]:
         if page is None:
-            return False
+            return None
         page_str = str(page).strip()
         if not page_str:
-            return False
+            return None
         stem, _ext = os.path.splitext(page_str)
         stem = stem.lower()
         if stem.isdigit():
-            return int(stem.lstrip("0") or "0") == 1
-        return stem in {"cover", "front", "first"}
+            return int(stem.lstrip("0") or "0")
+        return 1 if stem in {"cover", "front", "first"} else None
+
+    @classmethod
+    def is_page_one(cls, page) -> bool:
+        return cls.page_number(page) == 1
 
     @staticmethod
     def cover_pixmap(data: bytes) -> QPixmap:
@@ -296,7 +348,11 @@ class TaskProgressEntry:
         next_tasks_obj = deepcopy(tasks_obj)
         if next_tasks_obj.cover_bytes is None:
             next_tasks_obj.cover_bytes = self.tasks_obj.cover_bytes
-        self.progress.tasks_obj = next_tasks_obj
+        if next_tasks_obj.local_path is None:
+            next_tasks_obj.local_path = self.tasks_obj.local_path
+        if not next_tasks_obj.downloaded:
+            next_tasks_obj.downloaded = list(self.tasks_obj.downloaded)
+        self.progress.replace_tasks_obj(next_tasks_obj)
         self.refresh_view()
 
     def apply_task(self, task_obj: TaskObj) -> bool:
@@ -333,6 +389,8 @@ class TaskProgressEntry:
             return None
         filename = None
         for task_obj in self.tasks_obj.downloaded:
+            if not getattr(task_obj, "success", True):
+                continue
             page = getattr(task_obj, "page", None)
             if not self.is_page_one(page):
                 continue
@@ -349,6 +407,32 @@ class TaskProgressEntry:
             filename = f"{'1'.zfill(digits)}.{getattr(conf, 'img_sv_type', 'jpg')}"
         path = os.path.join(self.tasks_obj.local_path, filename)
         return path if os.path.isfile(path) else None
+
+    def repair_page_count(self) -> int:
+        page_name_count = getattr(self.tasks_obj, "page_name_count", None)
+        return int(page_name_count or self.tasks_obj.tasks_count)
+
+    def repair_candidate_pages(self) -> tuple[int, ...]:
+        if download_pages := getattr(self.tasks_obj, "download_pages", None):
+            return tuple(int(page) for page in download_pages)
+        return tuple(range(1, self.repair_page_count() + 1))
+
+    def downloaded_page_numbers(self) -> set[int]:
+        pages = {
+            page_number for task_obj in self.tasks_obj.downloaded
+            if (
+                getattr(task_obj, "success", True)
+                and (page_number := self.page_number(getattr(task_obj, "page", None))) is not None
+            )
+        }
+        local_path = self.tasks_obj.local_path
+        if local_path and os.path.isdir(local_path):
+            pages.update(page_number for filename in os.listdir(local_path) if (page_number := self.page_number(filename)) is not None)
+        return pages
+
+    def missing_pages(self) -> tuple[int, ...]:
+        downloaded_pages = self.downloaded_page_numbers()
+        return tuple(page for page in self.repair_candidate_pages() if page not in downloaded_pages)
 
     def on_cover_preload_success(self, data: bytes):
         self.tasks_obj.cover_bytes = data
@@ -503,11 +587,8 @@ class ExpandPanelController(QObject):
         self.orchestrator = ExpandCollapseOrchestrator(
             window_target=gui,
             content_targets=[ContentTarget(widget=gui.scroll_area, measure_height=lambda _widget: self._panel_target_height())],
-            window_target_height_getter=self._window_target_height,
-            can_expand_window=self._can_expand_window,
-            before_expand=self._before_expand,
-            after_expand=self._after_expand,
-            after_collapse=self._after_collapse,
+            window_target_height_getter=self._window_target_height, can_expand_window=self._can_expand_window,
+            before_expand=self._before_expand, after_expand=self._after_expand, after_collapse=self._after_collapse,
         )
         self._transitioning = False
 
@@ -604,18 +685,26 @@ class TaskRepairActionController(QObject):
         self._visible = None
         self.button.clicked.connect(self.submit_repairable_tasks)
 
-    def repairable_task_ids(self) -> list[str]:
-        dl_mgr = getattr(self.owner.gui, "dl_mgr", None)
-        running_ids = dl_mgr.get_running_task_ids() if dl_mgr is not None else set()
+    def download_manager(self):
+        return self.owner.gui.dl_mgr
+
+    def repair_candidate_entries(self) -> list[tuple[str, TaskProgressEntry]]:
+        dl_mgr = self.download_manager()
+        if dl_mgr is None:
+            return []
+        running_ids = dl_mgr.get_running_task_ids()
         return [
-            task_id for task_id, entry in self.owner._entries.items()
+            (task_id, entry) for task_id, entry in self.owner._entries.items()
             if task_id not in running_ids and not entry.progress.completed
         ]
+
+    def repairable_task_ids(self) -> list[str]:
+        return [task_id for task_id, _entry in self.repair_candidate_entries()]
 
     def sync(self):
         if self.button is None:
             return
-        visible = bool(self.repairable_task_ids())
+        visible = bool(self.repair_candidate_entries())
         if visible == self._visible:
             return
         self._visible = visible
@@ -623,15 +712,19 @@ class TaskRepairActionController(QObject):
         self.button.setEnabled(visible)
 
     def submit_repairable_tasks(self):
-        task_ids = self.repairable_task_ids()
-        if not task_ids:
+        dl_mgr = self.download_manager()
+        if dl_mgr is None:
             return
-        self.owner.drop_entries(task_ids)
+        repairs = []
+        for task_id, entry in self.repair_candidate_entries():
+            if pages := entry.missing_pages():
+                repairs.append((task_id, pages, entry.repair_page_count()))
+        if not repairs:
+            return
+        for task_id, pages, page_count in repairs:
+            dl_mgr.resubmit_download(task_id, download_pages=pages, page_name_count=page_count)
         self.owner.sync_progress_badge()
         self.owner.sync_toolbar_state()
-        self.owner.display_ctrl.request_refresh()
-        for task_id in task_ids:
-            self.owner.gui.dl_mgr.resubmit_download(task_id)
 
 
 class TaskProgressManager:
@@ -685,11 +778,8 @@ class TaskProgressManager:
     def _on_clear_btn_clicked(self):
         accept_btn = PrimaryToolButton(FIF.ACCEPT)
         tip = CustomTeachingTip.create(
-            [accept_btn],
-            target=self.gui.clearBtn,
-            parent=self.gui.clearBtn,
-            content="清空任务列表",
-            tailPosition=TeachingTipTailPosition.RIGHT,
+            [accept_btn], target=self.gui.clearBtn, parent=self.gui.clearBtn,
+            content="清空任务列表", tailPosition=TeachingTipTailPosition.RIGHT,
         )
         accept_btn.clicked.connect(self.zero_task_state)
         accept_btn.clicked.connect(tip.close)
@@ -775,6 +865,12 @@ class TaskProgressManager:
             if entry.progress.completed:
                 self._completed_entries += 1
 
+        def _unregister_entry(entry: TaskProgressEntry):
+            self._total_tasks -= entry.progress.tasks_count
+            self._total_downloaded -= entry.progress.downloaded
+            if entry.progress.completed:
+                self._completed_entries -= 1
+
         if isinstance(task, TasksObj):
             entry = self._entries.get(task.taskid)
             if entry is None:
@@ -789,7 +885,10 @@ class TaskProgressManager:
                 self.sync_progress_badge()
                 self.display_ctrl.request_refresh(stick_to_bottom=True)
                 return
+            _unregister_entry(entry)
             entry.replace_tasks_obj(task)
+            _register_entry(entry)
+            self.sync_progress_badge()
             self.display_ctrl.request_refresh()
             return
 
@@ -799,8 +898,9 @@ class TaskProgressManager:
                 print(f"{task.taskid}: {task.page}")
                 return
             was_completed = entry.progress.completed
+            before_downloaded = entry.progress.downloaded
             layout_changed = entry.apply_task(task)
-            self._total_downloaded += 1
+            self._total_downloaded += entry.progress.downloaded - before_downloaded
             if not was_completed and entry.progress.completed:
                 self._completed_entries += 1
                 self.sync_progress_badge()

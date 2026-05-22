@@ -69,6 +69,7 @@ class SayToGui:
 class BaseComicSpider(scrapy.Spider):
     """ComicSpider基类"""
 
+    image_file_suffixes = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".avif", ".svg"}
     res = ori_res.SPIDER
     text_browser_state = TextBrowserState(text='')
     process_state = ProcessState(process='init')
@@ -270,7 +271,7 @@ class BaseComicSpider(scrapy.Spider):
         if not frame_eps_result:
             self.logger.warning("frame_section returned empty results")
             return
-        for page, url_or_ep in frame_eps_result.items():
+        for page, url_or_ep in self._filter_page_results(book, frame_eps_result).items():
             if isinstance(url_or_ep, Episode):
                 yield from self._process_episode(url_or_ep)
             elif isinstance(url_or_ep, str):
@@ -282,6 +283,27 @@ class BaseComicSpider(scrapy.Spider):
     @abstractmethod
     def frame_section(self, response) -> dict:
         pass
+
+    @staticmethod
+    def _page_number(page) -> int:
+        stem, _ext = os.path.splitext(str(page).strip())
+        return int(stem)
+
+    def _download_pages(self, task_info: t.Union[BookInfo, Episode]) -> set[int]:
+        return {int(page) for page in (getattr(task_info, "download_pages", None) or [])}
+
+    def _should_download_page(self, task_info: t.Union[BookInfo, Episode], page) -> bool:
+        return not (download_pages := self._download_pages(task_info)) or self._page_number(page) in download_pages
+
+    def _filter_page_results(self, task_info: t.Union[BookInfo, Episode], results: dict) -> dict:
+        if not self._download_pages(task_info):
+            return results
+        return {page: url for page, url in results.items() if self._should_download_page(task_info, page)}
+
+    def _iter_target_page_urls(self, task_info: t.Union[BookInfo, Episode], page_urls: list):
+        for page, image_url in enumerate(page_urls, start=1):
+            if self._should_download_page(task_info, page):
+                yield page, image_url
 
     def parse_fin_page(self, response):
         pass
@@ -298,7 +320,7 @@ class BaseComicSpider(scrapy.Spider):
         return task_info.to_tasks_obj().taskid
 
     def _assert_task_not_downloaded(self, task_info: t.Union[BookInfo, Episode]):
-        if conf.isDeduplicate:
+        if conf.isDeduplicate and not self._download_pages(task_info):
             taskid = self._task_md5(task_info)
             assert not self.record_sql.check_dupe(taskid), (
                 f"duplicate task reached spider runtime: {taskid} / {task_info.display_title}"
@@ -315,9 +337,25 @@ class BaseComicSpider(scrapy.Spider):
         canonical = task_info.to_tasks_obj()
         ctx = self._task_store()
         tasks_obj = ctx.tasks.get(canonical.taskid)
+        if tasks_obj is None:
+            tasks_obj = canonical
+            ctx.tasks[canonical.taskid] = tasks_obj
+        else:
+            for attr in ("title", "title_url", "episode_name", "cover_url", "source"):
+                setattr(tasks_obj, attr, getattr(canonical, attr))
+            if not getattr(tasks_obj, "download_pages", None):
+                tasks_obj.tasks_count = canonical.tasks_count
+        if download_pages := getattr(task_info, "download_pages", None):
+            tasks_obj.download_pages = tuple(int(page) for page in download_pages)
+            tasks_obj.tasks_count = int(getattr(task_info, "page_name_count", 0) or canonical.tasks_count)
+            tasks_obj.page_name_count = tasks_obj.tasks_count
         tasks_obj.meta_info = self.mr.toMetaInfo(task_info)
 
         self.rv_sql.write_meta(**book.to_sql())
+
+    @classmethod
+    def _downloaded_file_count(cls, task_path) -> int:
+        return sum(1 for child in task_path.iterdir() if child.is_file() and child.suffix.lower() in cls.image_file_suffixes)
 
     def makesure_tasks_status(self):
         if conf.isDeduplicate:
@@ -325,7 +363,7 @@ class BaseComicSpider(scrapy.Spider):
             for taskid, _ in ctx.tasks.items():
                 if self.record_sql.check_dupe(taskid):
                     continue
-                elif ctx.tasks_path.get(taskid) and len(tuple(ctx.tasks_path.get(taskid).iterdir())) >= ctx.tasks[taskid].tasks_count:
+                elif ctx.tasks_path.get(taskid) and self._downloaded_file_count(ctx.tasks_path[taskid]) >= ctx.tasks[taskid].tasks_count:
                     self.record_sql.add(taskid)
 
     @classmethod
@@ -464,7 +502,7 @@ class BaseComicSpider2(BaseComicSpider):
         results = self.frame_section(response)
         this_info.pages = len(results)
         self.set_task(this_info)
-        for page, url in results.items():
+        for page, url in self._filter_page_results(this_info, results).items():
             item = ComicspiderItem()
             item['title'] = book.name
             item['page'] = str(page)
@@ -500,7 +538,7 @@ class BaseComicSpider3(BaseComicSpider):
             book.name = PresetHtmlEl.sub(book.name)
             book.pages = len(results)
             self.set_task(book)
-            for page, url in results.items():
+            for page, url in self._filter_page_results(book, results).items():
                 meta = {'book': book, 'page': page}
                 yield scrapy.Request(url=url, callback=self.parse_fin_page, meta=meta)
 

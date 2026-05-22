@@ -24,7 +24,7 @@ class JestfulSpider(BaseComicSpider):
         if not hasattr(self, "_chapter_referers"):
             self._chapter_referers = {}
         self._chapter_referers[u_md5] = chapter_referer
-        for page, image_url in enumerate(page_urls, start=1):
+        for page, image_url in self._iter_target_page_urls(ep, page_urls):
             item = ComicspiderItem()
             item.update(**group_infos)
             item["page"] = page
@@ -37,10 +37,8 @@ class JestfulSpider(BaseComicSpider):
     def _yield_episode_items(self, ep, page_urls, *, chapter_referer):
         for item in self._build_episode_items(ep, page_urls, chapter_referer=chapter_referer):
             yield scrapy.Request(
-                url=f'https://fakefakefa.com/{item["image_urls"][0]}',
-                callback=self.process_item,
-                meta={'item': item, 'referer': chapter_referer},
-                dont_filter=True,
+                url=f'https://fakefakefa.com/{item["image_urls"][0]}', callback=self.process_item,
+                meta={'item': item, 'referer': chapter_referer}, dont_filter=True,
             )
         self._emit_process("fin")
 

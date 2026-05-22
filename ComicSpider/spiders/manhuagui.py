@@ -21,7 +21,7 @@ class ManhuaguiSpider(BaseComicSpider):
         group_infos = {"title": book.name, "section": ep.name, "uuid": uid, "uuid_md5": u_md5}
         ep.pages = len(page_urls)
         self.set_task(ep)
-        for page, image_url in enumerate(page_urls, start=1):
+        for page, image_url in self._iter_target_page_urls(ep, page_urls):
             item = ComicspiderItem()
             item.update(**group_infos)
             item["page"] = page

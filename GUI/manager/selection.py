@@ -100,8 +100,8 @@ class SelectionFlowManager(QObject):
         if not indexes:
             return indexes, skip_info
 
-        dl_mgr = getattr(self.gui, "dl_mgr", None)
-        running_ids = dl_mgr.get_running_task_ids() if dl_mgr else set()
+        dl_mgr = self.gui.dl_mgr
+        running_ids = dl_mgr.get_running_task_ids() if dl_mgr is not None else set()
         if lane in ("BOOK", "EP") and isinstance(indexes, list):
             return self.gui.download_state.filter_pending(indexes, running_ids=running_ids)
 

@@ -25,7 +25,7 @@ class ComicabcSpider(BaseComicSpider):
         if not hasattr(self, "_chapter_referers"):
             self._chapter_referers = {}
         self._chapter_referers[u_md5] = chapter_referer
-        for page, image_url in enumerate(page_urls, start=1):
+        for page, image_url in self._iter_target_page_urls(ep, page_urls):
             item = ComicspiderItem()
             item.update(**group_infos)
             item["page"] = page

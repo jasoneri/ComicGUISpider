@@ -110,7 +110,7 @@ class HitomiSpider(BaseComicSpider):
         # cached bucket still looks "same-hour" by local heuristic. Refresh once per
         # download section before materializing image URLs.
         provider.refresh_gg_if_needed(force=True)
-        for index, pic_info in enumerate(book.pics, 1):
+        for index, pic_info in self._iter_target_page_urls(book, book.pics):
             item = ComicspiderItem()
             item['title'] = book.name
             item['page'] = str(index)

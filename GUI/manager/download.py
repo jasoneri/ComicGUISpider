@@ -46,39 +46,51 @@ class DownloadRuntimeManager(QObject):
         self.spider_runtime.start()
         self.spider_runtime.wait_ready()
 
-    def submit_download(self, task_info, site_index: int | None = None):
+    @staticmethod
+    def _compile_tasks_obj(task_info):
+        tasks_obj = task_info.to_tasks_obj()
+        if download_pages := getattr(task_info, "download_pages", None):
+            tasks_obj.download_pages = tuple(int(page) for page in download_pages)
+            tasks_obj.page_name_count = int(getattr(task_info, "page_name_count", 0) or tasks_obj.tasks_count or max(download_pages))
+        return tasks_obj
+
+    def _submit_download(self, task_info, site_index: int | None = None, *, store_snapshot: bool):
         effective_site_index = self.gui.chooseBox.currentIndex() if site_index is None else site_index
         if not self.has_active_download():
             self._batch_had_failures = False
         if not self.spider_runtime:
             self.start_runtime(effective_site_index)
 
-        tasks_obj = task_info.to_tasks_obj()
+        tasks_obj = self._compile_tasks_obj(task_info)
         job_id = tasks_obj.taskid
         if job_id in self.session_job_ids:
             raise ValueError(f"duplicate runtime submission detected for task {job_id}")
 
         job = SpiderDownloadJob(
-            job_id=job_id,
-            spider_name=SPIDERS[effective_site_index],
-            site_index=effective_site_index,
-            payload=task_info,
-            options={},
-            tasks_obj=tasks_obj,
+            job_id=job_id, spider_name=SPIDERS[effective_site_index], site_index=effective_site_index,
+            payload=task_info, options={}, tasks_obj=tasks_obj,
         )
 
         self.session_job_ids.add(job_id)
         self._job_task_ids[job_id] = {tasks_obj.taskid}
         self.session_job_task_ids.add(tasks_obj.taskid)
-        self._submitted_task_infos[job_id] = (effective_site_index, deepcopy(task_info))
+        if store_snapshot:
+            self._submitted_task_infos[job_id] = (effective_site_index, deepcopy(task_info))
         self.gui.task_mgr.handle(tasks_obj)
         self.ensure_work_thread()
         self._submission_queue.append(job)
         self._submit_queued_jobs()
 
-    def resubmit_download(self, task_id: str):
+    def submit_download(self, task_info, site_index: int | None = None):
+        self._submit_download(task_info, site_index=site_index, store_snapshot=True)
+
+    def resubmit_download(self, task_id: str, *, download_pages: tuple[int, ...] | None = None, page_name_count: int | None = None):
         site_index, task_info = self._submitted_task_infos[task_id]
-        self.submit_download(deepcopy(task_info), site_index=site_index)
+        repair_task_info = deepcopy(task_info)
+        if download_pages is not None:
+            repair_task_info.download_pages = tuple(int(page) for page in download_pages)
+            repair_task_info.page_name_count = int(page_name_count or max(repair_task_info.download_pages))
+        self._submit_download(repair_task_info, site_index=site_index, store_snapshot=False)
 
     def build_share_payload(self, task_id: str) -> dict:
         site_index, task_info = self._submitted_task_infos[task_id]
