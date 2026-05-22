@@ -155,6 +155,9 @@ class Dm5BookInfo(Manga):
 class ComicabcBookInfo(Manga):
     source = "comicabc"
 
+class Mh1234BookInfo(Manga):
+    source = "mh1234"
+
 # ---
 
 class JmBookInfo(Ero):
