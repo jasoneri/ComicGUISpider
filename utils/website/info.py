@@ -199,6 +199,11 @@ class HComicBookInfo(Ero):
     source = "h_comic"
 
 
+class JComicBookInfo(Ero):
+    source = "jcomic"
+    page_links: list = None
+
+
 class NhentaiBookInfo(Ero):
     source = "nhentai"
     media_id: str = None

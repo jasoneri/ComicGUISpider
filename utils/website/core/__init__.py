@@ -6,7 +6,7 @@ import pickle
 import copy
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 import httpx
 import asyncio
@@ -217,11 +217,8 @@ class Req:
         client_kw = dict(type(owner).preview_client_config(**site_kw) or {})
         transport_kw = dict(type(owner).preview_transport_config() or {})
         transport, trust_env = build_http_transport(
-            getattr(type(owner), "proxy_policy", "proxy"),
-            list(site_config.transport.proxies),
-            doh_url=site_config.transport.doh_url,
-            is_async=True,
-            **transport_kw,
+            getattr(type(owner), "proxy_policy", "proxy"), list(site_config.transport.proxies),
+            doh_url=site_config.transport.doh_url, is_async=True, **transport_kw,
         )
         base_kwargs = {
             "transport": transport,
@@ -280,10 +277,7 @@ class Req:
             normalized = dict(headers.items())
             return {k: v for k, v in normalized.items() if k.casefold() != "host"}
         def _cover_request_referer(tasks_obj) -> str | None:
-            return Previewer.build_referer_url(
-                getattr(tasks_obj, "title_url", None),
-                request_url=getattr(tasks_obj, "cover_url", None),
-            )
+            return Previewer.build_referer_url(getattr(tasks_obj, "title_url", None), request_url=getattr(tasks_obj, "cover_url", None))
         def build_cover_headers() -> httpx.Headers:
             preview_client = _require_preview_client()
             owner = _require_cover_request_owner()
@@ -305,7 +299,8 @@ class Req:
         def _cover_request_transport() -> str:
             return str(getattr(type(_require_cover_request_owner()), "cover_preload_transport", "httpx") or "httpx")
         def _cover_request_timeout() -> float:
-            return float(getattr(type(_require_cover_request_owner()), "cover_preload_timeout", cover_request_timeout) or cover_request_timeout)
+            configured_timeout = getattr(type(_require_cover_request_owner()), "cover_preload_timeout", cover_request_timeout)
+            return float(configured_timeout or cover_request_timeout)
         def _cover_request_via_curl(headers: dict[str, str], timeout: float) -> bytes:
             owner_cls = type(_require_cover_request_owner())
             request_headers = dict(headers)
@@ -446,8 +441,9 @@ class Previewer:
             return None
         referer_scheme = str(referer_parts.scheme or "").strip().casefold()
         final_scheme = referer_scheme if referer_scheme in {"http", "https"} else final_default_scheme
-        referer_path = str(referer_parts.path or "").strip() or "/"
-        return urlunparse((final_scheme, referer_host, referer_path, "", str(referer_parts.query or "").strip(), ""))
+        referer_path = quote(str(referer_parts.path or "").strip() or "/", safe="/%")
+        referer_query = quote(str(referer_parts.query or "").strip(), safe="=&?/:;+,%")
+        return urlunparse((final_scheme, referer_host, referer_path, "", referer_query, ""))
 
     @classmethod
     def build_site_headers(
@@ -534,11 +530,7 @@ class Previewer:
         else:
             base_url = f"{search_url_head}{keyword}"
             page_info = (turn_page_search,) if turn_page_search else turn_page_info
-        return PreviewRequestSpec(
-            url=cls.build_page_url(base_url, page, page_info),
-            headers=dict(headers or {}),
-            state=dict(state or {}),
-        )
+        return PreviewRequestSpec(url=cls.build_page_url(base_url, page, page_info), headers=dict(headers or {}), state=dict(state or {}))
 
     @classmethod
     async def perform_preview_request(cls, client, spec: PreviewRequestSpec):

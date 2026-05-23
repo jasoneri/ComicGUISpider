@@ -24,17 +24,20 @@ class Spider(IntEnum):
     DM5 = 12          # 🇨🇳
     COMICABC = 13      # 🇨🇳
     MH1234 = 14        # 🇨🇳
-    RUMANHUA = 15      # 🇨🇳
+    JCOMIC = 15        # 🌎 🔞
+    RUMANHUA = 16      # 🇨🇳
 
     @property
     def spider_name(self): return self.name.lower()
 
     @classmethod
-    def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI})
+    def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.JCOMIC})
     @classmethod
     def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5, cls.COMICABC, cls.MH1234, cls.RUMANHUA})
     @classmethod
-    def cn_proxy(cls):  return frozenset({cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI, cls.COMICABC})
+    def cn_proxy(cls):  return frozenset({
+        cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI, cls.COMICABC, cls.JCOMIC,
+    })
     @classmethod
     def aggr(cls):      return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.H_COMIC, cls.NHENTAI})   # AggrSearchThread._async_run
     @classmethod
@@ -59,6 +62,8 @@ def _label(s: Spider) -> str:
             return f"{s.value}、無限動漫"
         case "mh1234":
             return f"{s.value}、漫画1234"
+        case "jcomic":
+            return f"{s.value}、JComic"
         case "rumanhua":
             return f"{s.value}、如漫画"
         case _:
@@ -93,6 +98,7 @@ DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[comp
         Spider.DM5: [res.SPIDER.Completer.update],
         Spider.COMICABC: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
         Spider.MH1234: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
+        Spider.JCOMIC: [res.SPIDER.Completer.index, res.SPIDER.Completer.update, '隨機', '最近更新'],
         Spider.RUMANHUA: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
     }),
     SCRIPT_SITE_INDEX: [],
@@ -113,6 +119,7 @@ STATUS_TIP = dict(sorted({
         Spider.DM5: f"dm5: {res.GUI.SearchInputStatusTip.dm5}",
         Spider.COMICABC: f"comicabc: {res.GUI.SearchInputStatusTip.common}",
         Spider.MH1234: f"mh1234: {res.GUI.SearchInputStatusTip.common}",
+        Spider.JCOMIC: f"jcomic: {res.GUI.SearchInputStatusTip.common}",
         Spider.RUMANHUA: f"rumanhua: {res.GUI.SearchInputStatusTip.common}",
     }),
 }.items()))

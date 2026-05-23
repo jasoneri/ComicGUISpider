@@ -11,5 +11,6 @@ from .jestful import *
 from .manhuagui import *
 from ..hitomi import *
 from .hcomic import *
+from .jcomic import *
 from ..nhentai import *
 from ..dm5 import *
