@@ -19,6 +19,7 @@ from utils.website.info import (
     MangabzBookInfo,
     ManhuaguiBookInfo,
     Mh1234BookInfo,
+    RumanhuaBookInfo,
     NhentaiBookInfo,
     WnacgBookInfo,
     EhBookInfo,
@@ -44,6 +45,7 @@ _ALLOWED_CLASSES = {
         "Dm5BookInfo",
         "ComicabcBookInfo",
         "Mh1234BookInfo",
+        "RumanhuaBookInfo",
     },
 }
 _ALLOWED_BOOK_TYPES = (
@@ -62,6 +64,7 @@ _ALLOWED_BOOK_TYPES = (
     Dm5BookInfo,
     ComicabcBookInfo,
     Mh1234BookInfo,
+    RumanhuaBookInfo,
 )
 _PAYLOAD_PREFIX = b"CGS_SHARE_V1\n"
 
