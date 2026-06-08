@@ -10,8 +10,8 @@ from .models import StatusSnapshot, normalize_api_base_url, normalize_status_pay
 
 
 class JsoneriServicesStatusApiClient(QObject):
-    status_received = Signal(object)
-    status_unreachable = Signal(str)
+    status_received = Signal(int, object)
+    status_unreachable = Signal(int, str)
     route_received = Signal(str, object)
     route_failed = Signal(str, str)
     suspect_reported = Signal(str, str)
@@ -29,19 +29,24 @@ class JsoneriServicesStatusApiClient(QObject):
     def is_configured(self) -> bool:
         return bool(self._base_url)
 
+    @property
+    def status_in_flight(self) -> bool:
+        return self._status_in_flight
+
     def configure(self, *, base_url: str, token: str) -> None:
         self._base_url = normalize_api_base_url(base_url)
         self._token = str(token or "").strip()
 
-    def fetch_status(self) -> None:
+    def fetch_status(self, generation: int) -> bool:
         if not self._base_url:
-            self.status_unreachable.emit("Jsoneri Server Status API URL is not configured.")
-            return
+            self.status_unreachable.emit(generation, "Jsoneri Server Status API URL is not configured.")
+            return True
         if self._status_in_flight:
-            return
+            return False
         self._status_in_flight = True
         reply = self._manager.get(self._request("/api/status"))
-        reply.finished.connect(lambda reply=reply: self._handle_status_reply(reply))
+        reply.finished.connect(lambda reply=reply, generation=generation: self._handle_status_reply(generation, reply))
+        return True
 
     def fetch_route(self, service_name: str) -> None:
         service = str(service_name or "").strip()
@@ -79,15 +84,15 @@ class JsoneriServicesStatusApiClient(QObject):
             request.setRawHeader(b"Authorization", f"Bearer {self._token}".encode("utf-8"))
         return request
 
-    def _handle_status_reply(self, reply: QNetworkReply) -> None:
+    def _handle_status_reply(self, generation: int, reply: QNetworkReply) -> None:
         self._status_in_flight = False
         try:
             payload = self._read_json_reply(reply)
             snapshot: StatusSnapshot = normalize_status_payload(payload)
         except Exception as error:
-            self.status_unreachable.emit(str(error))
+            self.status_unreachable.emit(generation, str(error))
         else:
-            self.status_received.emit(snapshot)
+            self.status_received.emit(generation, snapshot)
         finally:
             reply.deleteLater()
 
