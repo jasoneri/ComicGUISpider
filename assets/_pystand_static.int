@@ -8,7 +8,7 @@ import subprocess
 from importlib.machinery import SourceFileLoader
 from types import ModuleType
 
-VER = "2.10.0"
+VER = "2.11.0-beta"
 DEFAULT_INDEX = r'https://pypi.tuna.tsinghua.edu.cn/simple/'
 
 
@@ -34,12 +34,26 @@ class CGSInstaller:
         return env
 
     @staticmethod
-    def _parse_args():
-        parser = argparse.ArgumentParser(description="cgs", formatter_class=argparse.RawDescriptionHelpFormatter)
+    def _split_argv(argv):
+        if "--" not in argv:
+            return argv, []
+        sep = argv.index("--")
+        return argv[:sep], argv[sep + 1:]
+
+    @classmethod
+    def _parse_args(cls):
+        cgs_args, uv_args = cls._split_argv(sys.argv[1:])
+        parser = argparse.ArgumentParser(
+            description="cgs",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="uv passthrough: append '-- <uv tool install args>' after CGS.exe args.",
+        )
         parser.add_argument('-i', '--index', type=str, nargs='?', default=None, help=f'pypi source (default: {DEFAULT_INDEX})')
         parser.add_argument('-v', '--version', type=str, default=None, help='specify ComicGUISpider version to install, e.g. 2.8.0')
         parser.add_argument('-c', '--conf', type=str, default=None, help='uv.toml')
-        return parser.parse_args()
+        args = parser.parse_args(cgs_args)
+        args.uv_args = uv_args
+        return args
 
     def clean(self):
         for p in (self.toolbin, self.root / "comicguispider"):
@@ -49,28 +63,40 @@ class CGSInstaller:
     def run(self):
         subprocess.Popen([str(self.cgs)], env=self.env, text=True)
 
-    def _build_install_cmd(self):
-        # Omitting --version keeps the historical "install latest stable" semantics.
-        if self.args.version is None or self.args.conf:
-            pkg_spec = "ComicGUISpider" if self.args.version is None else f"ComicGUISpider=={self.args.version}"
-            if self.args.conf:
-                return [
-                    str(self.uv), "--config-file", str(self.root / self.args.conf),
-                    "tool", "install", pkg_spec, "--force", "--reinstall",
-                ]
+    def _build_direct_install_cmd(self, pkg_spec, uv_args):
+        if self.args.conf:
             return [
-                str(self.uv), "tool", "install", pkg_spec, "--force", "--reinstall",
-                "--index-url", self.args.index or DEFAULT_INDEX,
+                str(self.uv), "--config-file", str(self.root / self.args.conf),
+                "tool", "install", pkg_spec, "--force", "--reinstall",
+                *uv_args,
             ]
-        if not self.installer.exists():
-            raise RuntimeError(f"installer missing: {self.installer}")
         return [
+            str(self.uv), "tool", "install", pkg_spec, "--force", "--reinstall",
+            "--index-url", self.args.index or DEFAULT_INDEX,
+            *uv_args,
+        ]
+
+    def _build_installer_cmd(self, uv_args):
+        cmd = [
             str(self.installer),
-            "--version", self.args.version,
+            "--cgs-ver", self.args.version,
             "--uv-exc", str(self.uv),
             "--index-url", self.args.index or DEFAULT_INDEX,
             "--uv-tool-dir", str(self.root), "--uv-tool-bin-dir", str(self.toolbin),
         ]
+        if uv_args:
+            cmd.extend(["--", *uv_args])
+        return cmd
+
+    def _build_install_cmd(self):
+        # Omitting --version keeps the historical "install latest stable" semantics.
+        pkg_spec = "ComicGUISpider" if self.args.version is None else f"ComicGUISpider=={self.args.version}"
+        uv_args = list(self.args.uv_args)
+        if self.args.version is None or self.args.conf:
+            return self._build_direct_install_cmd(pkg_spec, uv_args), False
+        if not self.installer.exists():
+            raise RuntimeError(f"installer missing: {self.installer}")
+        return self._build_installer_cmd(uv_args), True
 
     def _update_int(self):
         new_int = self.root / "comicguispider/Lib/site-packages/assets/_pystand_static.int"
@@ -99,8 +125,7 @@ class CGSInstaller:
 
     def install(self):
         self.clean()
-        uses_installer = self.args.version is not None and self.args.conf is None
-        cmd = self._build_install_cmd()
+        cmd, uses_installer = self._build_install_cmd()
         print(cmd)
         exit_code = subprocess.Popen(cmd, env=self.env, text=True).wait()
         self._update_int()
@@ -117,7 +142,7 @@ class CGSInstaller:
             return self.run()
         self.args = self._parse_args()
         a = self.args
-        if not self.cgs.exists() or a.index is not None or a.version is not None or a.conf:
+        if not self.cgs.exists() or a.index is not None or a.version is not None or a.conf or a.uv_args:
             self.install()
         else:
             self.run()

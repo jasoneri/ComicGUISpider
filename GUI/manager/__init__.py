@@ -209,7 +209,7 @@ class _UpdateLauncher:
     def _run_installer(self):
         args = [
             str(self.installer_exe),
-            "--version", self.ver,
+            "--cgs-ver", self.ver,
             "--uv-exc", uv_exc,
             "--index-url", self.index_url,
             "--parent-pid", str(os.getpid()),

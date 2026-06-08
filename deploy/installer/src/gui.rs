@@ -45,7 +45,7 @@ pub(crate) fn run_gui(config: InstallerConfig) -> i32 {
         ..Default::default()
     };
 
-    let ver = config.version.clone();
+    let ver = config.cgs_ver.clone();
     let result = eframe::run_native(
         "CGS Updater",
         options,

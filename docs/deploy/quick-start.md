@@ -96,6 +96,14 @@ uv tool install ComicGUISpider==2.9.11 --force --reinstall --index-url https://p
 .\CGS.exe -v 2.9.11 -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
+::: warning
+uv 额外命令：可加 `--` 然后追加 `uv tool install` 的参数，例如临时指定依赖版本：
+
+```cmd
+.\CGS.exe -v 2.9.11 -i https://pypi.tuna.tsinghua.edu.cn/simple -- --with Scrapy==2.15.1
+```
+:::
+
 ## 5. 搭配阅读器
 
 欢迎尝试使用 redViewer ，最适 CGS ！也希望能提供有创意的功能想法给 rV ！💑
