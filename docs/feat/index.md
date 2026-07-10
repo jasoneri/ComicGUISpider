@@ -18,14 +18,18 @@
 | [hcomic](https://h-comic.com) | ❌ | ✔️ | ✔️ |
 | [nhentai](https://nhentai.net) | ❌ | ✔️ | ✔️ |
 
+---
+
+![mainBtnGroup]({{URL_IMG}}/file/cgs/1783624759721_mainBtnGroup.png)
+
 ## 1. 主界面
 
 | 功能项 | 说明 |
 |:-------------:|:---------|
 | 搜索框预设 | 搜索框区域按 `空格` 或右键点`展开预设`即可弹出预设项 （序号输入框同理）<br>主界面选中文本右键可快速加进预设 |
 | 翻页按钮组 | 当列表结果出来后开启使用 |
-| 读剪贴板 | ![clipBtn](../assets/img/feat/clipBtn.png)[📋跳转阅读 > 使用](/feat/clip) |
-| 重置搜索 | ![rebootBtn](../assets/img/feat/reboot.png)选择站点后开启使用   |
+| 读剪贴板 | 如图，参阅 [📋跳转阅读 > 使用](/feat/clip) |
+| 重置搜索 | 如图，选择站点后开启使用 |
 
 ## 2. 预览/内置浏览器
 
@@ -71,7 +75,11 @@
     </tr>
     <tr>
       <td style="text-align: center;">聚合搜索<br><small>aggrSearch</small></td>
-      <td style="text-align: left;"><a href="/feat/ags">🔎跳转阅读 > 使用</a></td>
+      <td style="text-align: left;">如图，<a href="/feat/ags">🔎跳转阅读 > 使用</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">域名管理<br></td>
+      <td style="text-align: left;">如图，仅 jm 和 wnacg 在无代理状态下出现</td>
     </tr>
     <tr>
       <td style="text-align: center;">hitomiTool</td>

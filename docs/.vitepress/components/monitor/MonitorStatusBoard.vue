@@ -8,6 +8,7 @@ import {
   monitorBoardCopy,
   monitorBoardVoteKeys,
   sumMonitorBoardVoteMatrixByVote,
+  needProxySites,
   type MonitorBoardLocale,
   type MonitorBoardRuntimeData,
   monitorBoardSites,
@@ -270,6 +271,7 @@ const TOAST_TIMEOUT_MS = 2400
 const MONITOR_BUBBLE_RADIUS_PX = 120
 const MONITOR_NEUTRAL_BUBBLE_ANGLE_DEG = 30
 const MONITOR_CARD_LAYER = 400
+const MONITOR_CARD_OVERLAY_LAYER = MONITOR_CARD_LAYER + 1
 const MONITOR_PREVIEW_LAYER_UNDER = 200
 const MONITOR_PREVIEW_LAYER_OVER = 600
 const MONITOR_PREVIEW_START_Y_PX = 100
@@ -281,6 +283,7 @@ const monitorVoteKeys = monitorBoardVoteKeys
 
 const monitorPreviewMotionStyle = {
   '--monitor-card-layer': `${MONITOR_CARD_LAYER}`,
+  '--monitor-card-overlay-layer': `${MONITOR_CARD_OVERLAY_LAYER}`,
   '--monitor-preview-layer-under': `${MONITOR_PREVIEW_LAYER_UNDER}`,
   '--monitor-preview-layer-over': `${MONITOR_PREVIEW_LAYER_OVER}`,
   '--monitor-pop-start-y': `${MONITOR_PREVIEW_START_Y_PX}px`,
@@ -771,6 +774,7 @@ type MonitorBoardCardWithChart = {
   isCompleted: boolean
   completedBorderColor: string
   ispSignalRows: MonitorBoardIspSignalRow[]
+  needsProxy: boolean
   segments: MonitorBoardSegment[]
 } & typeof monitorBoardSites[number]
 
@@ -797,6 +801,7 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
       isCompleted: stagedVote != null,
       completedBorderColor: stagedVote ? monitorVoteMetaMap[stagedVote.action].color : 'transparent',
       ispSignalRows: buildIspSignalRows(effectiveVoteMatrix),
+      needsProxy: needProxySites.includes(site.id),
       segments: buildVoteSegments(effectiveVotes),
     }
   })
@@ -896,6 +901,18 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
               </button>
             </div>
           </div>
+
+          <span
+            v-if="card.needsProxy"
+            class="vpnBadge"
+            role="img"
+            aria-label="VPN"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M0 0h32v32H0z" fill="none" />
+              <path fill="currentColor" d="M14 23h-2V9h6a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-4Zm0-7h4v-5h-4Zm14 3L24.32 9H22v14h2V13l3.68 10H30V9h-2zM8 9L6 22L4 9H2l2.52 14h2.96L10 9z" stroke-width="1" stroke="currentColor" />
+            </svg>
+          </span>
 
           <div class="card-layout">
             <a
@@ -1072,6 +1089,8 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 .bubble-action:focus-visible{--bubble-interaction-y:6px;--bubble-scale:1.04}
 .bubble-action:focus-visible{outline:none}
 .bubble-action:active{--bubble-interaction-y:8px;--bubble-scale:0.98}
+.vpnBadge{position:absolute;left:14px;top:14px;z-index:var(--monitor-card-overlay-layer);display:inline-flex;width:2rem;height:2rem;align-items:center;justify-content:center;border:0;padding:0;background:transparent;color:rgba(250,250,250,0.7);font-size:1rem;line-height:1;pointer-events:none}
+.vpnBadge svg{display:block;width:1em;height:1em}
 .card-layout{position:relative;z-index:var(--monitor-card-layer);display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:52px minmax(56px,auto);align-items:center;column-gap:20px;row-gap:12px}
 .site-link{display:flex;grid-row:1 / span 2;width:104px;height:104px;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;transition:transform 180ms ease,opacity 180ms ease}
 .site-link:hover{transform:translateY(-1px);opacity:0.92}
@@ -1081,8 +1100,8 @@ const cardsWithCharts = computed<MonitorBoardCardWithChart[]>(() => {
 .sparkline-line{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .card-bottom{display:flex;min-width:0;flex-direction:column;gap:12px}
 .metric-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
-.isp-broadcast{display:inline-flex;align-items:center;flex-wrap:nowrap;gap:8px;min-width:0;max-width:100%;white-space:nowrap;overflow-x:auto}
-.isp-broadcast-row{display:inline-flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.isp-broadcast{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}
+.isp-broadcast-row{display:inline-flex;flex:0 0 auto;align-items:center;gap:6px;white-space:nowrap}
 .isp-broadcast-icon{display:block;width:18px;height:18px;flex:0 0 auto;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.24))}
 .isp-broadcast-cells{display:inline-flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}
 .isp-broadcast-value{font-size:0.72rem;font-weight:700;line-height:1}

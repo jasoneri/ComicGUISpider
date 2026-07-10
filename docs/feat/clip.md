@@ -14,8 +14,6 @@ macOS: [🌐Maccy](https://github.com/p0deje/Maccy)
 
 ## 使用
 
-![clipBtn](../assets/img/feat/clipBtn.png)
-
 选择 符合[适用性](/feat/#%E9%80%82%E7%94%A8%E6%80%A7) 的网站即可开启使用，点击按钮即触发流程  
 动图为老版本，关注操作与大概位置即可  
 

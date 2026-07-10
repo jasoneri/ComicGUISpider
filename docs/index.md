@@ -76,15 +76,19 @@ hero:
 
 <table><tbody>
   <tr>
-    <td style="text-align: center; vertical-align: middle;" rowspan="5">
+    <td style="text-align: center; vertical-align: middle;" rowspan="4">
       <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1777320602636_normal.webm" title="AGS demo"></HomeDemoVideo>
     </td>
-  </tr>
-  <tr><td style="text-align: left;"><strong>🎮Script:<br>
+    <td style="text-align: left;"><strong>🎮Script:<br>
     <a href="/script/kemono/">Kemono</a><br>
     <a href="/script/danbooru/">Danbooru</a><br>
     <a href="/script/#_3-cbg-cornerbackground">Cbg</a><br>
-    </strong></td></tr>
+    </strong></td>
+    <td style="text-align: center; vertical-align: middle;" rowspan="4"><div align="center"><a href="{{URL_IMG}}/file/rv/1783171021752_app.webm" target="_blank">
+      <img src="{{URL_IMG}}/file/rv/1783000491990_app_cover.png" alt="rV app demo" style="height: 350px; width: auto; max-width: none; display: block;">
+      </a></div></td>
+  </tr>
+  <tr><td style="text-align: left;"><a href="/feat/server/"><strong>server/mcp</strong></a><br>1:50 左右开始👉</td></tr>
   <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜索</strong></a></td></tr>
 </tbody></table>
@@ -94,14 +98,14 @@ hero:
 - 多种使用方式，多开同时操作不同网站，各站点特有功能，任务面板等
 - 无感翻页提交，已下载记录等提示
 - 预设，去重，加标识符等各种自定义配置
-- 漫画外其他二次元工具箱 scriptWin
+- 漫画外其他工具集 scriptWin
 
 ## 食用搭配(阅读器)
 
 <table><tbody>  
   <tr>
     <td><div align="center"><a href="https://github.com/jasoneri/redViewer" target="_blank">
-      <img src="{{URL_IMG}}/file/1766904566021_rv.png" alt="logo" height="60" style="max-height:60px;">
+      <img src="{{URL_IMG}}/file/rv/1783438655018_rv-new-logo.png" alt="logo" height="120" style="max-height:120px;">
       </a></div></td>
     <td><div align="center"><a href="https://github.com/gotson/komga" target="_blank">
       <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" style="min-height:60px;">

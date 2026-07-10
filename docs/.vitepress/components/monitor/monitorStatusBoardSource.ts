@@ -58,6 +58,14 @@ export type MonitorBoardRuntimeData = {
   statusMap: Record<string, MonitorBoardLiveStatus>
 }
 
+export const needProxySites: readonly string[] = [
+  'copy-manga',
+  'ehentai',
+  'h-comic',
+  'nhentai',
+  'manhuagui',
+]
+
 export const monitorBoardSites: MonitorBoardSite[] = [
   {
     id: 'copy-manga',
