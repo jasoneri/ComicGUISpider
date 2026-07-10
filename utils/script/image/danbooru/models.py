@@ -3,6 +3,7 @@ from __future__ import annotations
 import pathlib as p
 from dataclasses import dataclass, field
 from typing import Iterable, Optional
+from urllib.parse import urlsplit
 
 from utils.config.qc import cgs_cfg
 from utils.network.doh import dns_stub_endpoint, dns_stub_server, normalize_doh_url
@@ -16,6 +17,7 @@ from .constants import (
     DOWNLOADABLE_MEDIA_EXTENSIONS,
     DEFAULT_DANBOORU_SAVE_PATH,
     DEFAULT_DOWNLOAD_CONCURRENCY,
+    ARCHIVE_MEDIA_EXTENSIONS,
     SUPPORTED_MEDIA_EXTENSIONS,
     UNSUPPORTED_MEDIA_EXTENSIONS,
     VIEWER_VIDEO_MEDIA_EXTENSIONS,
@@ -110,6 +112,13 @@ class DanbooruPost:
         return str(file_ext or "").strip().lower().lstrip(".")
 
     @classmethod
+    def file_ext_from_url(cls, url: Optional[str]) -> str:
+        path = urlsplit(str(url or "")).path.rsplit("/", 1)[-1]
+        if "." not in path:
+            return ""
+        return cls.normalize_file_ext(path.rsplit(".", 1)[-1])
+
+    @classmethod
     def is_supported_file_ext(cls, file_ext: Optional[str]) -> bool:
         return cls.normalize_file_ext(file_ext) in SUPPORTED_MEDIA_EXTENSIONS
 
@@ -125,6 +134,10 @@ class DanbooruPost:
     def is_video_file_ext(cls, file_ext: Optional[str]) -> bool:
         return cls.normalize_file_ext(file_ext) in VIEWER_VIDEO_MEDIA_EXTENSIONS
 
+    @classmethod
+    def is_archive_file_ext(cls, file_ext: Optional[str]) -> bool:
+        return cls.normalize_file_ext(file_ext) in ARCHIVE_MEDIA_EXTENSIONS
+
     @property
     def is_supported(self) -> bool:
         return self.is_supported_file_ext(self.file_ext)
@@ -136,6 +149,44 @@ class DanbooruPost:
     @property
     def is_video(self) -> bool:
         return self.is_video_file_ext(self.file_ext)
+
+    @property
+    def is_archive(self) -> bool:
+        return self.is_archive_file_ext(self.file_ext)
+
+    @property
+    def has_renderable_preview_asset(self) -> bool:
+        return bool(self.preview_file_url)
+
+    @property
+    def preview_asset_file_ext(self) -> str:
+        return self.file_ext_from_url(self.preview_file_url)
+
+    @property
+    def preview_asset_is_video(self) -> bool:
+        return self.is_video_file_ext(self.preview_asset_file_ext)
+
+    @property
+    def uses_viewer_video(self) -> bool:
+        return self.is_video or self.preview_asset_is_video
+
+    @property
+    def viewer_video_media_ext(self) -> str:
+        if self.is_video:
+            return self.normalize_file_ext(self.file_ext)
+        if self.preview_asset_is_video:
+            return self.preview_asset_file_ext
+        return ""
+
+    @property
+    def viewer_video_source_url(self) -> str:
+        if self.is_video:
+            if self.large_file_url or self.file_url:
+                return str(self.large_file_url or self.file_url)
+            return str(self.preview_file_url or "") if self.preview_asset_is_video else ""
+        if self.preview_asset_is_video:
+            return str(self.preview_file_url or "")
+        return ""
 
     @property
     def filename(self) -> str:
