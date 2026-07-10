@@ -26,8 +26,7 @@ body{min-height:100vh;padding:1rem;background:var(--preview-body-bg)}
 body.preview-dialog-open{overflow:hidden}
 .preview-shell{display:flex;flex-direction:column;gap:18px}
 .book-grid{display:flex;flex-wrap:wrap;align-items:stretch;gap:16px}
-.book-grid-empty{flex:1 1 100%;display:grid;place-items:center;min-height:180px;padding:28px 20px;border:1px dashed var(--preview-border-strong);border-radius:20px;background:rgba(var(--preview-surface-rgb),0.52);color:var(--preview-text-muted);text-align:center}
-.book-grid-empty p{margin:0;font-size:0.95rem}
+.book-grid-empty{flex:1 1 100%;display:grid;place-items:center;min-height:calc(100dvh - 2rem);margin:0;color:var(--preview-text-muted);font-size:0.95rem;text-align:center}
 .card-extra-info{margin-top:0.4rem;color:var(--preview-text-muted);font-size:0.8rem;line-height:1.4}
 
 .preview-dialog{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:var(--preview-body-bg);z-index:2000}

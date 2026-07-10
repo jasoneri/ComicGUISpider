@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QMainWindow, QSizePolicy, QStatusBar,
     QToolButton, QVBoxLayout, QWidget)
 from qfluentwidgets import CheckBox, ComboBox, CompactSpinBox, LineEdit, ProgressBar, TextBrowser, TextEdit
+from GUI.uic.qfluent.components.icons import CgsIcon
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -364,9 +365,7 @@ class Ui_MainWindow(object):
 "	background-color: rgb(208, 208, 156);\n"
 "    border-radius: 7px;\n"
 "}")
-        icon9 = QIcon()
-        icon9.addFile(u":/tools/reboot_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.retrybtn.setIcon(icon9)
+        self.retrybtn.setIcon(CgsIcon.REBOOT.fixed_light_surface_icon())
         self.retrybtn.setIconSize(QSize(18, 18))
         self.retrybtn.setPopupMode(QToolButton.InstantPopup)
         self.retrybtn.setAutoRaise(True)
@@ -541,4 +540,3 @@ class Ui_MainWindow(object):
         self.previewBtn.setText(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u5e76\u9884\u89c8", None))
         self.mpreviewBtn.setText(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u5e76\u9884\u89c8", None))
     # retranslateUi
-

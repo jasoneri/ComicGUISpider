@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from PySide6 import QtNetwork
 from PySide6.QtCore import QUrl
 
-from utils.network.extra import ensure_doh_webengine_proxy_started
 from .runtime import (
     BrowserCookieSnapshotCollector,
     BrowserLiveCookieTracker,
@@ -32,6 +31,8 @@ class BrowserDoHProxyRuntime:
         normalized_url = str(doh_url or "").strip()
         if not normalized_url:
             return None
+        from utils.network.extra import ensure_doh_webengine_proxy_started
+
         previous_proxy = QtNetwork.QNetworkProxy.applicationProxy()
         cls._set_application_http_proxy(ensure_doh_webengine_proxy_started(normalized_url))
         return BrowserDoHProxyBootstrap(doh_url=normalized_url, previous_application_proxy=previous_proxy)
@@ -40,6 +41,8 @@ class BrowserDoHProxyRuntime:
         normalized_url = str(doh_url or "").strip()
         if self._managed_proxy and self._doh_url == normalized_url:
             return
+        from utils.network.extra import ensure_doh_webengine_proxy_started
+
         proxy_str = ensure_doh_webengine_proxy_started(normalized_url)
         if not self._managed_proxy:
             self._previous_application_proxy = QtNetwork.QNetworkProxy.applicationProxy()

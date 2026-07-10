@@ -5,7 +5,7 @@ import re
 import typing as t
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
-from urllib.parse import urlencode
+from urllib.parse import quote_plus, urlencode
 
 import httpx
 from PIL import Image
@@ -23,7 +23,7 @@ from variables import COOKIES_SUPPORT
 
 class _JmContract:
     name = "jm"
-    domain = "18comic.vip"  # REMARK(CG001): Keep a static fallback domain so GUI/runtime can bind before jm_domain.txt is rebuilt.
+    domain = "18comic.vip"  # REMARK(CGS001): Keep a static fallback domain so GUI/runtime can bind before jm_domain.txt is rebuilt.
     forever_url = "https://jm365.work/3YeBdF"
     publish_url = "https://jm365.work/mJ8rWd"
     publish_url2 = "https://jmcomicne.net/"
@@ -349,6 +349,15 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
                     url += keyword[4:]
         return cls.build_page_url(url, page, cls.turn_page_info)
 
+    @classmethod
+    def build_preview_feature_search_url(cls, *, kind: str, value: str, domain: str, page: int = 1) -> str:
+        if kind != "artist":
+            raise ValueError(f"jm preview_feature_search only supports artist, got {kind!r}")
+        query = quote_plus(convert_punctuation(value).replace(" ", ""))
+        if not query:
+            raise ValueError("jm preview_feature_search artist value is required")
+        return cls.build_page_url(f"https://{domain}/search/photos?main_tag=2&search_query={query}", page, cls.turn_page_info)
+
     async def preview_search(self, keyword: str, *, page: int = 1):
         owner = self._require_preview_owner()
         site_kw = self.preview_site_kwargs()
@@ -357,6 +366,18 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
             raise ValueError("preview domain is required for jm")
         headers = self.preview_headers(domain, site_kw.get("cookies"))
         url = self.build_preview_search_url(keyword, domain=domain, custom_map=site_kw.get("custom_map"), page=max(1, int(page or 1)))
+        resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
+        resp.raise_for_status()
+        return await asyncio.to_thread(owner.parser.parse_preview_search_response, resp.text, domain)
+
+    async def preview_feature_search(self, *, kind: str, value: str, page: int = 1):
+        owner = self._require_preview_owner()
+        site_kw = self.preview_site_kwargs()
+        domain = site_kw.get("domain") or getattr(self, "domain", None)
+        if not domain:
+            raise ValueError("preview domain is required for jm")
+        headers = self.preview_headers(domain, site_kw.get("cookies"))
+        url = self.build_preview_feature_search_url(kind=kind, value=value, domain=domain, page=max(1, int(page or 1)))
         resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
         resp.raise_for_status()
         return await asyncio.to_thread(owner.parser.parse_preview_search_response, resp.text, domain)

@@ -10,7 +10,6 @@ import yaml
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtWidgets import QSizePolicy, QFileDialog, QCompleter
 from PySide6.QtCore import Qt, QRect, QStringListModel
-from PySide6.QtGui import QIcon
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, TransparentToolButton,
@@ -28,6 +27,7 @@ from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater
 from GUI.core.anim import PopupAnimator
 from GUI.uic.qfluent.components import DoHButtonController
+from GUI.uic.qfluent.components.icons import CgsIcon
 from GUI.core.theme import theme_mgr
 from utils.config.qc import cgs_cfg
 from GUI.uic.qfluent.components import (
@@ -181,7 +181,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
-        self.logPathBtn = TransparentToolButton(QIcon(':/configDialog/log.svg'))
+        self.logPathBtn = TransparentToolButton(CgsIcon.CONFIG_LOG)
         self.logPathBtn.setIconSize(QtCore.QSize(24, 24))
         self.dohBtn = PrimaryPushButton("DoH", self)
         self.dohBtn.setMaximumSize(QtCore.QSize(80, 16777215))
@@ -199,15 +199,17 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.updateBtn = PushButton(FIF.UPDATE, res.GUI.Uic.confDia_updateBtn)
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
-        self.monitorBtn = PushButton(QIcon(':/configDialog/monitor.svg'), res.GUI.Uic.confDia_monitorBtn)
+        self.monitorBtn = PushButton(CgsIcon.CONFIG_MONITOR, res.GUI.Uic.confDia_monitorBtn)
         self.supportBtn = TransparentPushButton(FIF.GAME, res.GUI.Uic.confDia_supportBtn)
         self.siteChoiceBtn = TransparentPushButton(FIF.VIEW, res.GUI.Uic.confDia_siteChoiceBtn)
+        self.serverModeBtn = TransparentPushButton(CgsIcon.CONFIG_TRAY, "CGS Server")
 
         self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.monitorBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
         self.bottom_btn_horizontalLayout.insertWidget(4, self.siteChoiceBtn)
+        self.bottom_btn_horizontalLayout.insertWidget(5, self.serverModeBtn)
 
         self.isDeduplicate = TransparentToggleToolButton(FIF.FILTER)
         self.addUuid = TransparentToggleToolButton(FIF.FLAG)
@@ -254,6 +256,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.clipDbBtn.clicked.connect(set_clipDb)
         self.supportBtn.clicked.connect(lambda: CustomFlyout.make(view=SupportView(self), target=self.supportBtn, parent=self))
         self.siteChoiceBtn.clicked.connect(self._show_site_choice_tip)
+        self.serverModeBtn.clicked.connect(lambda: self.gui.request_server_mode_switch(self))
         def _tip_lang_change(idx):
             if self.langBox.itemData(idx) != conf.lang:
                 InfoBar.success(
@@ -372,15 +375,17 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         else:
             return str(val)
 
-    def save_conf(self):
+    def save_conf(self, _checked=False, *, raise_on_invalid=False):
         sv_path = self.sv_path_card.contentLabel.text()
         n_dledHandle = self.dledHandleBox.currentText()
         
         is_valid, _msg = CgsRuleMgr.validate(pathlib.Path(sv_path), n_dledHandle)
         if not is_valid:
+            if raise_on_invalid:
+                raise ValueError(f"{_msg}\nconf save fail")
             InfoBar.error(title="", content=f"{_msg}\n❌conf save fail", duration=-1, parent=self.gui.showArea,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM)
-            return
+            return False
         
         self.format_cookie()
 
@@ -415,6 +420,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         
         if sv_path != str(conf.sv_path):  # after conf.update(sv_path)
             self._trigger_rv_scan()
+        return True
 
     def _trigger_rv_scan(self):
         self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self.gui.showArea)

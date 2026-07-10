@@ -613,6 +613,10 @@ class DomainUtils(Utils):
         return None
 
     @classmethod
+    def remove_domain_cache(cls):
+        temp_p.joinpath(f"{cls.name}_domain.txt").unlink(missing_ok=True)
+
+    @classmethod
     def get_domain(cls):
         def _():
             try:

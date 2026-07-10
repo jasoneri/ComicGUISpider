@@ -251,3 +251,9 @@ class AggrSearchManager:
         self._run = None
         if run is not None:
             run.stop()
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        thread = self.aggrSearchThread
+        if thread is not None and thread.isRunning():
+            return ["aggregate search"]
+        return []

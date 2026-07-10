@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, QEvent, QObject
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QStackedLayout, QWidget, QVBoxLayout, QSizePolicy
 from qfluentwidgets import (
     FluentIcon as FIF, ToolButton, ImageLabel, TransparentToolButton, ScrollArea, FlowLayout
@@ -10,6 +9,7 @@ from qfluentwidgets import (
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
+from GUI.uic.qfluent.components.icons import CgsIcon
 from GUI.uic.qfluent.components.site_choice_combo import SiteChoiceComboController
 from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
@@ -55,7 +55,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.chooseBox.setCurrentIndex(current_index if 0 <= current_index < self.chooseBox.count() else 0)
         self.site_choice_combo.apply_configured_choices()
         del blocker
-        self.domainBtn = TransparentToolButton(QIcon(':/main/publish.svg'), self)
+        self.domainBtn = TransparentToolButton(CgsIcon.MAIN_PUBLISH, self)
         self.domainBtn.setVisible(False)
         self.domainBtn.setIconSize(QtCore.QSize(24, 20))
         self.domainBtn.setStatusTip(_translate("MainWindow", "domainHandler/域名管理"))
@@ -157,6 +157,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.tbWidgetLayout.addWidget(self.textBrowser)
 
     def preset(self):
+        self.retrybtn.setIcon(CgsIcon.REBOOT.fixed_light_surface_icon())
         self.retrybtn.setDisabled(True)
         self.clipBtn.setDisabled(1)
         self.clipBtn.setVisible(False)
@@ -175,7 +176,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.expandBtn = ExpandButton(self)
         self.shareBtn = TransparentToolButton(FIF.SHARE, self)
         self.clearBtn = TransparentToolButton(FIF.BROOM)
-        self.repairBtn = TransparentToolButton(QIcon(':/main/repair.svg'), self)
+        self.repairBtn = TransparentToolButton(CgsIcon.MAIN_REPAIR, self)
         self.repairBtn.setStatusTip("Patch missing page/补漏页")
 
         self.scroll_content = QWidget()

@@ -21,10 +21,10 @@ class PreviewMgr:
     def __init__(self, gui):
         self.gui = gui
         self.site_index = 0
-        self.gui_site_runtime: GuiSiteRuntime | None = None  # CG001 choose-box preview flow
+        self.gui_site_runtime: GuiSiteRuntime | None = None  # CGS001 choose-box preview flow
         self.books_cache = {}
         self.downloaded_book_ids = set()
-        self._worker = None  # CG001 create_worker()
+        self._worker = None  # CGS001 create_worker()
         self._generation = 0
         self._session_id = 0
         self._current_page = 1

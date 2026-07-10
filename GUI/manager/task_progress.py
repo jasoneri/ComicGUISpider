@@ -123,6 +123,7 @@ class ProgressClass(QFrame):
     BADGE_MARGIN = 4
     BADGE_SPACING = 3
     ACTION_BUTTON_SIZE = 18
+    PROGRESS_BAR_HEIGHT = 4
     PAGE_BADGE_STYLE = (
         "background: rgba(0, 0, 0, 0.6);"
         "color: white;"
@@ -170,11 +171,14 @@ class ProgressClass(QFrame):
         self.title_label = QLabel(self)
         self.title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.title_label.setWordWrap(False)
-        self.progress_bar = ProgressBar(self)
+        self.progress_bar = ProgressBar(self.cover_label)
+        self.progress_bar.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(self.PROGRESS_BAR_HEIGHT)
+        self.progress_bar.raise_()
 
         layout.addWidget(self.cover_label)
         layout.addWidget(self.title_label)
-        layout.addWidget(self.progress_bar)
 
         self.setFixedWidth(self.DEFAULT_COVER_WIDTH + 8)
         self.gui.shares.changed.connect(self._sync_share_checked)
@@ -204,7 +208,7 @@ class ProgressClass(QFrame):
         self.refresh_share_button_visibility()
         self.page_badge.setText(f"{TaskProgress.total_pages(tasks_obj)}P")
         self.page_badge.adjustSize()
-        self._relocate_badge()
+        self._relocate_cover_overlays()
 
     def refresh_share_button_visibility(self):
         token_configured = bool(str(getattr(conf, "discord_share_user_token", "") or "").strip())
@@ -213,14 +217,30 @@ class ProgressClass(QFrame):
         if share_visible:
             self._sync_share_checked()
 
-    def _relocate_badge(self):
+    def _relocate_cover_overlays(self):
         self.page_badge.adjustSize()
-        badge_y = self.cover_label.height() - self.page_badge.height() - self.BADGE_MARGIN
+        progress_bar_y = self._relocate_progress_bar()
+        badge_y = max(
+            self.BADGE_MARGIN,
+            progress_bar_y - self.page_badge.height() - self.BADGE_SPACING,
+        )
         curr_x = self.BADGE_MARGIN
         for widget in (self.folder_btn, self.link_btn, self.page_badge):
             widget.move(curr_x, badge_y)
             curr_x += widget.width() + self.BADGE_SPACING
         self.share_btn.move(self.BADGE_MARGIN, self.BADGE_MARGIN)
+        self.progress_bar.raise_()
+
+    def _relocate_progress_bar(self) -> int:
+        progress_bar_height = max(1, self.progress_bar.height())
+        progress_bar_y = max(0, self.cover_label.height() - progress_bar_height)
+        self.progress_bar.setGeometry(
+            0,
+            progress_bar_y,
+            self.cover_label.width(),
+            progress_bar_height,
+        )
+        return progress_bar_y
 
     def _open_task_folder(self):
         curr_os.open_folder(self.tasks_obj.local_path)
@@ -265,7 +285,7 @@ class ProgressClass(QFrame):
         new_w = round(self.COVER_HEIGHT * pixmap.width() / pixmap.height())
         self.cover_label.setImage(pixmap)
         self.cover_label.setFixedSize(new_w, self.COVER_HEIGHT)
-        self._relocate_badge()
+        self._relocate_cover_overlays()
         margins = self.layout().contentsMargins()
         self.setFixedWidth(self.cover_label.width() + margins.left() + margins.right())
         return True

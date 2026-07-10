@@ -51,7 +51,9 @@ class DownloadRuntimeManager(QObject):
         tasks_obj = task_info.to_tasks_obj()
         if download_pages := getattr(task_info, "download_pages", None):
             tasks_obj.download_pages = tuple(int(page) for page in download_pages)
-            tasks_obj.page_name_count = int(getattr(task_info, "page_name_count", 0) or tasks_obj.tasks_count or max(download_pages))
+            page_name_count = int(getattr(task_info, "page_name_count", 0) or len(tasks_obj.download_pages))
+            tasks_obj.tasks_count = page_name_count
+            tasks_obj.page_name_count = page_name_count
         return tasks_obj
 
     def _submit_download(self, task_info, site_index: int | None = None, *, store_snapshot: bool):

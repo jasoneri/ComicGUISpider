@@ -7,11 +7,11 @@ import contextlib
 import warnings
 from PySide6.QtGui import QKeySequence, QGuiApplication, QShortcut, QTextCursor
 from PySide6.QtCore import (
-    QThread, Qt, QCoreApplication, QUrl, QRect,
+    QThread, Qt, QCoreApplication, QUrl, QRect, QObject,
     Signal,
 )
 from GUI.core.timer import safe_single_shot
-from PySide6.QtWidgets import QMainWindow, QCompleter
+from PySide6.QtWidgets import QApplication, QMainWindow, QCompleter
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.uic.qfluent import (
@@ -43,10 +43,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
     setup_finished = Signal()
     exception_feedback_requested = Signal(str, str)
-    BrowserWindow = None  # CG001 browser init/show flow
+    BrowserWindow = None  # CGS001 browser init/show flow
     toolWin = None
     web_is_r18 = False
-    gui_site_runtime = None  # CG001 choose-box site flow
+    gui_site_runtime = None  # CGS001 choose-box site flow
     dl_mgr = None
     sut = None
     bsm: dict = None  # books show max
@@ -62,8 +62,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.debug(f"{conf.settings=}")
         self.log.debug(f"{cgs_cfg.doh.get_url()=}")
         self._preview_warmup_pending = False
+        self._post_first_paint_setup_requested = False
+        self._post_first_paint_setup_started = False
+        self._server_mode_switch_requested = False
+        self._closing = False
+        self.script_window = None
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
-        # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
         self.exception_feedback_requested.connect(self._show_exception_feedback, Qt.QueuedConnection)
 
@@ -81,9 +85,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         res.set_language(conf.lang)
         self.apply_translations()
         setupTheme(self)
+
+    def start_post_first_paint_setup(self):
+        if self._post_first_paint_setup_requested or self._post_first_paint_setup_started:
+            return
+        self._post_first_paint_setup_requested = True
         safe_single_shot(10, self.setupUi_)
 
     def setupUi_(self):
+        if self._post_first_paint_setup_started:
+            return
+        self._post_first_paint_setup_started = True
         from utils.redViewer_tools import Handler as rVtools
         from GUI.manager import TaskProgressManager, RVManager
         self.task_init()
@@ -297,22 +309,92 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             shortcut.activated.connect(slot)
 
     def show_toolWin(self, win_type):
-        _map = {"ags": "asInterface", "hitomi": "htInterface"}
+        _map = {"ags": "asInterface", "hitomi": "htInterface", "subscribe": "subscribeInterface"}
         self.rvBtn.click()
         def _jump():
             self.toolWin.stackedWidget.setCurrentWidget(getattr(self.toolWin, _map[win_type]))
         safe_single_shot(10, _jump)
 
-    def open_scriptWin(self, *, pure_only: bool = False):
+    def push_books_to_subscribe(self, books):
+        """Open SubscribeInterface and hand over BookInfo seeds pushed from preview (G3 entry)."""
+        self.show_toolWin("subscribe")
+        safe_single_shot(20, lambda: self.toolWin.subscribeInterface.receive_pushed_books(list(books)))
+
+    def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
         from GUI.script import ScriptWindow
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
         self.hide()
-        script_window = ScriptWindow(self)
-        setupTheme(script_window.kemonoInterface)
+        self.script_window = ScriptWindow(self, script_entry_state=script_entry_state)
+        self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
+        setupTheme(self.script_window.kemonoInterface)
         if pure_only:
-            script_window.apply_pure_entry_mode()
-        script_window.show()
+            self.script_window.apply_pure_entry_mode()
+        self.script_window.show()
+
+    @property
+    def server_mode_switch_requested(self) -> bool:
+        return self._server_mode_switch_requested
+
+    def request_server_mode_switch(self, conf_dialog):
+        blockers = self.server_mode_switch_blockers()
+        if blockers:
+            InfoBar.warning(
+                title="", content=f"请先停止或完成当前任务：{', '.join(blockers)}",
+                isClosable=True, position=InfoBarPosition.TOP, duration=5000, parent=conf_dialog,
+            )
+            return False
+        conf_dialog.save_conf(raise_on_invalid=True)
+        self._server_mode_switch_requested = True
+        conf_dialog.hide()
+        self.close()
+        return True
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        blockers = []
+        if self.dl_mgr.has_active_download():
+            blockers.append("download")
+        if self.search_ui_state.request is PreviewRequestState.Running:
+            blockers.append("preview/search")
+        blockers.extend(self.preprocess_mgr.server_mode_switch_blockers())
+        blockers.extend(self.shares.server_mode_switch_blockers())
+        blockers.extend(self._tool_window_switch_blockers())
+        blockers.extend(self.publish_mgr.server_mode_switch_blockers())
+        blockers.extend(self.clip_mgr.server_mode_switch_blockers())
+        blockers.extend(self.ags_mgr.server_mode_switch_blockers())
+        return list(dict.fromkeys(blockers))
+
+    def _tool_window_switch_blockers(self) -> list[str]:
+        blockers = []
+        for root in (self.toolWin, self.script_window):
+            for owner_name, owner in self._iter_task_owners(root):
+                running = owner.get_running_tasks()
+                if running:
+                    blockers.append(owner_name)
+            kemono = getattr(root, "kemonoInterface", None)
+            if kemono is not None and kemono.backend_thread is not None and kemono.backend_thread.isRunning():
+                blockers.append("kemono script")
+        return blockers
+
+    @staticmethod
+    def _iter_task_owners(root):
+        if root is None:
+            return
+        seen = set()
+        stack = [root]
+        while stack:
+            current = stack.pop()
+            if current is None or id(current) in seen:
+                continue
+            seen.add(id(current))
+            for attr in ("task_mgr", "task_manager"):
+                manager = getattr(current, attr, None)
+                if manager is not None and hasattr(manager, "get_running_tasks"):
+                    yield current.__class__.__name__, manager
+            if not isinstance(current, QObject):
+                continue
+            for child in current.findChildren(QObject):
+                stack.append(child)
 
     def set_tool_win(self):
         from GUI.tools import ToolWindow
@@ -612,6 +694,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.progressBar.setValue(i)
 
     def closeEvent(self, event):
+        self._closing = True
+        if self.script_window is not None:
+            self.script_window.close()
+        if self.toolWin is not None:
+            self.toolWin.close()
         if hasattr(self, 'rv_mgr'):
             self.rv_mgr.stop_scan()
         if hasattr(self, 'task_mgr'):
@@ -624,7 +711,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.destroy()  # 窗口关闭销毁
         if self.dl_mgr is not None:
             self.dl_mgr.close_runtime()
-        sys.exit(0)
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     def hook_exception(self, exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):

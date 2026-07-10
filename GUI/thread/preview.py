@@ -102,8 +102,7 @@ class PreviewWorker(QThread):
                 page_urls = await self.thread_site_runtime.preview_fetch_pages(item)
                 if isinstance(page_urls, list):
                     item.pages = len(page_urls)
-                    if isinstance(item, Episode):
-                        item.page_urls = list(page_urls)
+                    item.page_urls = list(page_urls)
 
         grouped = {}
         for book_key, episode in items:
@@ -131,6 +130,7 @@ class PreviewWorker(QThread):
                         try:
                             books = self._loop.run_until_complete(self.thread_site_runtime.preview_search(kw, page=pg))
                         except Exception as exc:
+                            self.thread_site_runtime.invalidate_domain_cache(exc)
                             self.search_error.emit(self._generation, kw, self.site_index, f"任务执行 > {exc}\n{traceback.format_exc()}")
                             continue
                         self.search_done.emit(self._generation, kw, self.site_index, books)

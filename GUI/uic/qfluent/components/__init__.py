@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 from .splash_screen import *
 from .text_componet import *
+from .icons import *
+from .flyout_kit import *
 from .cust import *
 from .badge import *
 
