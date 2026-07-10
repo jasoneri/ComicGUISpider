@@ -15,6 +15,19 @@ class AutoSelectLatest:
             return default
         return max(1, num)
 
+    @staticmethod
+    def _episode_idx(ep):
+        try:
+            return int(getattr(ep, "idx", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    @classmethod
+    def select_episodes(cls, episodes, num=1):
+        selected = list(episodes)
+        selected.sort(key=cls._episode_idx, reverse=True)
+        return selected[:cls._to_num(num)]
+
     def on_event(self, stage: TimelineStage, ctx):
         if stage != TimelineStage.WAIT_EP_DECISION:
             return None
@@ -24,9 +37,7 @@ class AutoSelectLatest:
         if not eps:
             return None
         episodes = list(eps.values())
-        episodes.sort(key=lambda ep: getattr(ep, "idx", 0), reverse=True)
-        num = self._to_num(self.params.get("num", 1))
-        selected = episodes[:num]
+        selected = self.select_episodes(episodes, self.params.get("num", 1))
         if not selected:
             return None
         ctx.input_state.indexes = selected
