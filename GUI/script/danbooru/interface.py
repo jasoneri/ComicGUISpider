@@ -1,20 +1,25 @@
 import gc
+import shutil
 import typing as t
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from threading import Lock
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLineEdit, QPlainTextEdit, QStackedWidget, QTextEdit, QVBoxLayout, QWidget
 from qfluentwidgets import (
-    ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition, PrimaryToolButton,
-    StrongBodyLabel, SubtitleLabel, TabBar, TabCloseButtonDisplayMode, ToolButton, TransparentToolButton
+    Action, ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition, PrimaryToolButton, ProgressBar, RoundMenu,
+    StrongBodyLabel, SubtitleLabel, TabBar, TabCloseButtonDisplayMode, TeachingTipTailPosition, ToolButton,
+    TransparentToolButton
     )
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
-from GUI.uic.qfluent.components import CountBadge, CustomInfoBar
+from GUI.uic.qfluent.components import CountBadge, CustomInfoBar, CustomTeachingTip
+from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.script.image.danbooru.client import DanbooruClient
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru.constants import DANBOORU_SAVE_TYPE_SEARCH_TAG, DANBOORU_SQL_TABLE
@@ -36,6 +41,106 @@ from .tab import DanbooruTabWidget
 from .video_proxy import VideoProxy
 from .viewer import DanbooruImageViewer
 
+
+class DanbooruFuncs:
+    def __init__(self, parentInterface: "DanbooruInterface"):
+        self.parentInterface = parentInterface
+        self.func_menu = None
+        self._merge_floder_tip = None
+
+    def open_menu(self):
+        func_menu = RoundMenu(parent=self.parentInterface.funcBtn)
+        merge_floder_action = Action(CgsIcon.SCRIPT_MERGE_FLODER.icon(), text='整合目录')
+        merge_floder_action.triggered.connect(lambda *_: self.merge_floder())
+        func_menu.addAction(merge_floder_action)
+        self.func_menu = func_menu
+        func_menu.exec(self.parentInterface.funcBtn.mapToGlobal(self.parentInterface.funcBtn.rect().bottomLeft()))
+
+    def merge_floder(self):
+        merge_floder_queue = self._build_merge_floder_queue()
+        if not merge_floder_queue:
+            return
+        progress_bar = ProgressBar(self.parentInterface)
+        progress_bar.setRange(0, len(merge_floder_queue))
+        progress_bar.setValue(0)
+        if self._merge_floder_tip is not None:
+            self._merge_floder_tip.close()
+        tip = CustomTeachingTip.create(
+            [progress_bar], target=self.parentInterface.funcBtn, parent=self.parentInterface, tailPosition=TeachingTipTailPosition.RIGHT
+        )
+        self._merge_floder_tip = tip
+        tip.destroyed.connect(lambda *_args, current_tip=tip: self._clear_merge_floder_tip(current_tip))
+
+        def update_progress(value: str):
+            done = int(value)
+            progress_bar.setValue(done)
+            if done >= progress_bar.maximum():
+                progress_bar.setCustomBarColor(light="#00ff00", dark="#00cc00")
+
+        self.parentInterface.task_mgr.execute_simple_task(
+            self._process_merge_floder_queue,
+            progress_callback=update_progress, show_success_info=False, show_error_info=True, show_tooltip=False,
+            task_id="danbooru-merge-floder", merge_floder_queue=merge_floder_queue,
+        )
+
+    def _clear_merge_floder_tip(self, tip):
+        if self._merge_floder_tip is tip:
+            self._merge_floder_tip = None
+
+    def _build_merge_floder_queue(self) -> list[tuple[Path, Path]]:
+        base_path = Path(self.parentInterface._runtime_config.save_path)
+        search_extras = [
+            folder_sub.sub("-", danbooru_cfg.canonicalize_term(extra))
+            for extra in danbooru_cfg.get_search_extra()
+            if danbooru_cfg.canonicalize_term(extra)
+        ]
+        suffixes = sorted({f" {extra}" for extra in search_extras if extra}, key=len, reverse=True)
+        merge_floder_queue = []
+        for source_path in base_path.iterdir():
+            if not source_path.is_dir():
+                continue
+            for suffix in suffixes:
+                if source_path.name.endswith(suffix):
+                    target_name = source_path.name[:-len(suffix)]
+                    if target_name:
+                        merge_floder_queue.append((source_path, base_path.joinpath(target_name)))
+                    break
+        return merge_floder_queue
+
+    def _process_merge_floder_queue(self, merge_floder_queue: list[tuple[Path, Path]], progress_callback=None) -> int:
+        done = 0
+        target_locks = {target_path: Lock() for _, target_path in merge_floder_queue}
+
+        def merge_one(source_path: Path, target_path: Path) -> None:
+            with target_locks[target_path]:
+                self._merge_one_floder(source_path, target_path)
+
+        with ThreadPoolExecutor(max_workers=min(8, len(merge_floder_queue))) as executor:
+            futures = [
+                executor.submit(merge_one, source_path, target_path)
+                for source_path, target_path in merge_floder_queue
+            ]
+            for future in as_completed(futures):
+                future.result()
+                done += 1
+                if progress_callback is not None:
+                    progress_callback(str(done))
+        return done
+
+    @staticmethod
+    def _merge_one_floder(source_path: Path, target_path: Path) -> None:
+        target_path.mkdir(parents=True, exist_ok=True)
+        for child in list(source_path.iterdir()):
+            target_child = target_path.joinpath(child.name)
+            if target_child.exists():
+                if target_child.is_dir():
+                    shutil.rmtree(target_child)
+                else:
+                    target_child.unlink()
+            shutil.move(str(child), str(target_child))
+        source_path.rmdir()
+
+
 class DanbooruInterface(QFrame):
     download_result_signal = Signal(str, bool)
 
@@ -45,6 +150,7 @@ class DanbooruInterface(QFrame):
         self.gui = parent.gui
         self.setObjectName("DanbooruInterface")
         self.task_mgr = AsyncTaskManager(self.gui)
+        self.funcs = DanbooruFuncs(self)
         self.tabs: dict[str, DanbooruTabWidget] = {}
         self.tab_states: dict[str, DanbooruTabState] = {}
         self._runtime_config = DanbooruRuntimeConfig.from_conf()
@@ -58,16 +164,23 @@ class DanbooruInterface(QFrame):
         self.challenge_controller = DanbooruChallengeController(self)
         self.zoom_mgr = self._ZoomMgr(self)
         self.tab_mgr = self._TabMgr(self)
+        self._infobars_by_key = {}
         self.download_result_signal.connect(self.download_controller.on_download_result)
         self.image_viewer.tag_clicked.connect(self._open_tag_jump_tab)
         self.image_viewer.download_requested.connect(self.download_controller.submit_single)
         self.image_viewer.previous_requested.connect(lambda: self.detail_preview_controller.open_adjacent(-1))
         self.image_viewer.next_requested.connect(lambda: self.detail_preview_controller.open_adjacent(1))
         self.image_viewer.closed.connect(self.detail_preview_controller.clear_context)
+        self._install_key_event_filter()
         theme_mgr.subscribe(self._apply_theme)
         self.setupUi()
         self._apply_theme()
         self.tab_mgr.create()
+
+    def _install_key_event_filter(self):
+        application = QApplication.instance()
+        if application is not None:
+            application.installEventFilter(self)
 
     def setupUi(self):
         self.main_layout = QVBoxLayout(self)
@@ -97,7 +210,10 @@ class DanbooruInterface(QFrame):
         self.zoomOut.setMaximumHeight(22)
         zoomBtnGroup.addWidget(self.zoomIn)
         zoomBtnGroup.addWidget(self.zoomOut)
-        self.favMgrBtn = ToolButton(QIcon(':/script/favMgr.svg'), self)
+        self.funcBtn = ToolButton(CgsIcon.SCRIPT_FUNC, self)
+        self.funcBtn.setIconSize(QSize(20, 20))
+        self.funcBtn.setMinimumHeight(50)
+        self.favMgrBtn = ToolButton(CgsIcon.SCRIPT_FAV_MGR, self)
         self.favMgrBtn.setObjectName("FavMgrBtn")
         self.favMgrBtn.setIconSize(QSize(20, 20))
         self.favMgrBtn.setMinimumHeight(50)
@@ -112,6 +228,7 @@ class DanbooruInterface(QFrame):
         self.batch_download_badge.hide()
         title_row.addWidget(self.title_block, 1)
         title_row.addLayout(zoomBtnGroup)
+        title_row.addWidget(self.funcBtn)
         title_row.addWidget(self.favMgrBtn)
         title_row.addWidget(self.openBtn)
         title_row.addWidget(self.batch_download_btn)
@@ -158,6 +275,7 @@ class DanbooruInterface(QFrame):
         # binding
         self.zoomIn.clicked.connect(self.zoom_mgr.zoom_in)
         self.zoomOut.clicked.connect(self.zoom_mgr.zoom_out)
+        self.funcBtn.clicked.connect(self.funcs.open_menu)
         self.favMgrBtn.clicked.connect(self._open_favorite_manager)
         self.openBtn.clicked.connect(self._open_save_path)
         self.batch_download_btn.clicked.connect(self.download_controller.submit_selected)
@@ -188,6 +306,60 @@ class DanbooruInterface(QFrame):
         self.refresh_runtime_settings()
         self.zoom_mgr.sync_buttons()
         self.tab_mgr.sync_bar_width()
+
+    def eventFilter(self, obj, event):
+        if self._handle_interface_key_press(obj, event):
+            return True
+        return super().eventFilter(obj, event)
+
+    def _handle_interface_key_press(self, obj, event) -> bool:
+        if event.type() != QtCore.QEvent.KeyPress:
+            return False
+        if not self._is_active_interface_key_target():
+            return False
+        if self._is_editable_key_target(obj):
+            return False
+        if not event.modifiers() & Qt.KeypadModifier:
+            return False
+        active_tab = self._active_tab_widget()
+        if active_tab is None:
+            return False
+        key = event.key()
+        if key in (Qt.Key_4, Qt.Key_Left):
+            active_tab.apply_first_extra_search()
+        elif key in self._keypad_num5_keys():
+            if active_tab.favorite_btn.isEnabled():
+                active_tab.favorite_btn.click()
+        elif key in (Qt.Key_6, Qt.Key_Right):
+            active_tab.apply_score_sort_search()
+        else:
+            return False
+        event.accept()
+        return True
+
+    def _is_active_interface_key_target(self) -> bool:
+        if not self.isVisible():
+            return False
+        active_window = QApplication.activeWindow()
+        return active_window is not None and active_window is self.window()
+
+    @staticmethod
+    def _is_editable_key_target(obj) -> bool:
+        editable_widgets = (QLineEdit, QTextEdit, QPlainTextEdit)
+        focus_widget = QApplication.focusWidget()
+        return isinstance(focus_widget, editable_widgets) or isinstance(obj, editable_widgets)
+
+    def _active_tab_widget(self) -> t.Optional[DanbooruTabWidget]:
+        tab_id = self.tab_mgr.active_tab_id()
+        return self.tabs.get(tab_id) if tab_id else None
+
+    @staticmethod
+    def _keypad_num5_keys() -> set:
+        keys = {Qt.Key_5}
+        key_clear = getattr(Qt, "Key_Clear", None)
+        if key_clear is not None:
+            keys.add(key_clear)
+        return keys
 
     class _ZoomMgr:
         def __init__(self, interface: "DanbooruInterface"):
@@ -249,6 +421,7 @@ class DanbooruInterface(QFrame):
             self.tips: dict[str, tuple[str, str]] = {}
             self.httpx_status: dict[str, str] = {}
             self.activation_order: list[str] = []
+            self._zoom_sync_generation = 0
 
         def create(self, initial_query: str = "", auto_search: bool = False) -> str:
             self.counter += 1
@@ -355,10 +528,22 @@ class DanbooruInterface(QFrame):
             if widget is None:
                 return
             tab_id = widget.objectName()
-            self.interface.tab_bar.setCurrentTab(tab_id)
+            current_tab = self.interface.tab_bar.currentTab()
+            if current_tab is None or current_tab.routeKey() != tab_id:
+                self.interface.tab_bar.setCurrentTab(tab_id)
             self.interface._update_batch_button(tab_id)
             self.update_chrome()
             self.sync_tip_line(tab_id)
+            self.schedule_zoom_sync(tab_id)
+
+        def schedule_zoom_sync(self, tab_id: str):
+            self._zoom_sync_generation += 1
+            generation = self._zoom_sync_generation
+            QtCore.QTimer.singleShot(0, lambda tid=tab_id, gen=generation: self._run_deferred_zoom_sync(tid, gen))
+
+        def _run_deferred_zoom_sync(self, tab_id: str, generation: int):
+            if generation != self._zoom_sync_generation or self.active_tab_id() != tab_id:
+                return
             self.interface.zoom_mgr.sync_tab(tab_id)
 
         def on_tabbar_index_changed(self, index: int):
@@ -468,7 +653,7 @@ class DanbooruInterface(QFrame):
         if self.tab_mgr.active_tab_id() != tab_id:
             return
         state = self.tab_states.get(tab_id)
-        count = len(state.selected_md5_set) if state else 0
+        count = len(state.selected_post_ids) if state else 0
         self.batch_download_btn.setDisabled(count == 0)
         if count <= 0:
             self.batch_download_badge.hide()
@@ -499,10 +684,7 @@ class DanbooruInterface(QFrame):
         self.request_client.set_runtime_config(self._runtime_config)
 
     def _favorite_groups_state(self):
-        return build_favorite_groups_state(
-            danbooru_cfg.searchFavorites.value,
-            canonicalize_term=danbooru_cfg.canonicalize_term,
-        )
+        return build_favorite_groups_state(danbooru_cfg.searchFavorites.value, canonicalize_term=danbooru_cfg.canonicalize_term)
 
     @staticmethod
     def _save_favorite_groups_state(groups_state):
@@ -515,9 +697,22 @@ class DanbooruInterface(QFrame):
         tab.update_completer(history + favorites)
 
     def _show_info(self, factory, content: str, duration: int = 3000):
-        factory(
+        key = (getattr(factory, "__name__", repr(factory)), str(content or ""))
+        existing = self._infobars_by_key.get(key)
+        if existing is not None:
+            return existing
+        infobar = factory(
             title="", content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP, duration=duration, parent=self,
         )
+        if infobar is None:
+            return None
+        self._infobars_by_key[key] = infobar
+        infobar.closedSignal.connect(lambda bar=infobar, current_key=key: self._forget_infobar(current_key, bar))
+        return infobar
+
+    def _forget_infobar(self, key, infobar):
+        if self._infobars_by_key.get(key) is infobar:
+            self._infobars_by_key.pop(key, None)
 
     def _on_extra_search(self, tab_id: str, extra_term: str):
         tab = self.tabs.get(tab_id)
@@ -546,7 +741,7 @@ class DanbooruInterface(QFrame):
         custom_groups = favorites_state.custom_groups
         if not custom_groups:
             return self._show_info(InfoBar.success, content)
-        tmpFavMgrBtn = PrimaryToolButton(QIcon(':/script/favMgr.svg'))
+        tmpFavMgrBtn = PrimaryToolButton(CgsIcon.SCRIPT_FAV_MGR)
         first_ib = CustomInfoBar.show_custom(
             title="", content=content, parent=self, _type="SUCCESS",
             ib_pos=InfoBarPosition.TOP, duration=3000, widgets=[tmpFavMgrBtn],

@@ -91,7 +91,8 @@ class DanbooruViewerFitCalculator:
         display_size = cls._fit_size_within_bounds(source_size, max_display_bounds)
         return DanbooruViewerFitResult(
             available_bounds=normalized_available, max_display_bounds=max_display_bounds, display_size=display_size,
-            target_area=max(1, int(round(normalized_available.width() * normalized_available.height() * area_ratio))), axis_scale=axis_scale,
+            target_area=max(1, int(round(normalized_available.width() * normalized_available.height() * area_ratio))),
+            axis_scale=axis_scale,
         )
 
 
@@ -129,7 +130,7 @@ class DanbooruTabState:
     page_cursor: int = 1
     buffer_start_page: int = 1
     result_list: list[DanbooruPost] = field(default_factory=list)
-    selected_md5_set: set[str] = field(default_factory=set)
+    selected_post_ids: set[int] = field(default_factory=set)
     request_token: int = 0
     has_more_results: bool = True
     loading: bool = False
@@ -145,7 +146,7 @@ class DanbooruTabState:
         self.page_cursor = 1
         self.buffer_start_page = 1
         self.result_list.clear()
-        self.selected_md5_set.clear()
+        self.selected_post_ids.clear()
         self.has_more_results = True
         self.has_loaded_once = False
 
@@ -202,7 +203,7 @@ class DanbooruTabSelectionController(QtCore.QObject):
         self._drag_select_origin: t.Optional[QtCore.QPoint] = None
         self._drag_select_active = False
         self._drag_select_source: t.Optional[QWidget] = None
-        self._drag_select_seed: set[str] = set()
+        self._drag_select_seed: set[int] = set()
         self._install_drag_select_source(self.tab.scroll_area.viewport())
         self._install_drag_select_source(self.tab.scroll_content)
 
@@ -211,7 +212,7 @@ class DanbooruTabSelectionController(QtCore.QObject):
 
     def bind_card(self, card: "DanbooruCardWidget"):
         card.selection_changed.connect(self._on_card_selection_changed)
-        self._apply_card_selection(card, card.post.md5 in self.tab.state.selected_md5_set, emit_count=False)
+        self._apply_card_selection(card, card.post.post_id in self.tab.state.selected_post_ids, emit_count=False)
         self._install_drag_select_source(card)
         self._install_drag_select_source(card.preview_frame)
         self._install_drag_select_source(card.preview_button)
@@ -220,23 +221,26 @@ class DanbooruTabSelectionController(QtCore.QObject):
         self._apply_card_selection(card, selected)
 
     def sync_selection_count(self):
-        self.selection_count_changed.emit(len(self.tab.state.selected_md5_set))
+        self.selection_count_changed.emit(len(self.tab.state.selected_post_ids))
 
     def selection_count(self) -> int:
-        return len(self.tab.state.selected_md5_set)
+        return len(self.tab.state.selected_post_ids)
 
     def has_selection(self) -> bool:
-        return bool(self.tab.state.selected_md5_set)
+        return bool(self.tab.state.selected_post_ids)
 
     def clear(self):
         self._reset_drag_select_state()
-        self._set_selected_md5s(set())
+        self._set_selected_post_ids(set())
 
     def mark_downloaded(self, md5_value: str):
-        card = self.tab.card_widgets.get(md5_value)
-        if card is not None:
+        downloaded_post_ids = set()
+        for card in self.tab.card_widgets.values():
+            if card.post.md5 != md5_value:
+                continue
             card.set_already_downloaded(True)
-        self.tab.state.selected_md5_set.discard(md5_value)
+            downloaded_post_ids.add(card.post.post_id)
+        self.tab.state.selected_post_ids.difference_update(downloaded_post_ids)
         self.sync_selection_count()
 
     def _apply_card_selection(self, card: "DanbooruCardWidget", selected: bool, *, sync_widget: bool = True, emit_count: bool = True):
@@ -244,9 +248,9 @@ class DanbooruTabSelectionController(QtCore.QObject):
             card.set_selected(selected)
             selected = card.checkbox.isChecked()
         if selected:
-            self.tab.state.selected_md5_set.add(card.post.md5)
+            self.tab.state.selected_post_ids.add(card.post.post_id)
         else:
-            self.tab.state.selected_md5_set.discard(card.post.md5)
+            self.tab.state.selected_post_ids.discard(card.post.post_id)
         if emit_count:
             self.sync_selection_count()
 
@@ -257,23 +261,23 @@ class DanbooruTabSelectionController(QtCore.QObject):
         widget.setProperty("danbooruDragSelectSource", True)
         widget.installEventFilter(self)
 
-    def _set_selected_md5s(self, md5_values: t.Iterable[str], *, emit_count: bool = True):
-        target_md5s = {
-            md5
-            for md5 in md5_values
-            if (card := self.tab.card_widgets.get(md5)) is not None and card.checkbox.isEnabled()
+    def _set_selected_post_ids(self, post_ids: t.Iterable[int], *, emit_count: bool = True):
+        target_post_ids = {
+            post_id
+            for post_id in post_ids
+            if (card := self.tab.card_widgets.get(post_id)) is not None and card.checkbox.isEnabled()
         }
-        current_md5s = set(self.tab.state.selected_md5_set)
-        if current_md5s == target_md5s:
+        current_post_ids = set(self.tab.state.selected_post_ids)
+        if current_post_ids == target_post_ids:
             return
-        for md5 in current_md5s - target_md5s:
-            card = self.tab.card_widgets.get(md5)
+        for post_id in current_post_ids - target_post_ids:
+            card = self.tab.card_widgets.get(post_id)
             if card is None:
-                self.tab.state.selected_md5_set.discard(md5)
+                self.tab.state.selected_post_ids.discard(post_id)
                 continue
             self._apply_card_selection(card, False, emit_count=False)
-        for md5 in target_md5s - current_md5s:
-            card = self.tab.card_widgets.get(md5)
+        for post_id in target_post_ids - current_post_ids:
+            card = self.tab.card_widgets.get(post_id)
             if card is not None:
                 self._apply_card_selection(card, True, emit_count=False)
         if emit_count:
@@ -312,21 +316,21 @@ class DanbooruTabSelectionController(QtCore.QObject):
             QtCore.QRect(self._drag_select_origin, self._viewport_point_from_global(global_pos)).normalized()
         )
 
-    def _selected_md5s_for_rect(self, selection_rect: QtCore.QRect) -> set[str]:
+    def _selected_post_ids_for_rect(self, selection_rect: QtCore.QRect) -> set[int]:
         if selection_rect.width() < 5 and selection_rect.height() < 5:
             return set(self._drag_select_seed)
         viewport = self.tab.scroll_area.viewport()
-        hit_md5s = set(self._drag_select_seed)
+        hit_post_ids = set(self._drag_select_seed)
         for card in self.tab.card_widgets.values():
             if not card.checkbox.isEnabled():
                 continue
             card_rect = QtCore.QRect(card.mapTo(viewport, QtCore.QPoint(0, 0)), card.size())
             if selection_rect.intersects(card_rect):
-                hit_md5s.add(card.post.md5)
-        return hit_md5s
+                hit_post_ids.add(card.post.post_id)
+        return hit_post_ids
 
     def _preview_drag_selection(self, selection_rect: QtCore.QRect):
-        self._set_selected_md5s(self._selected_md5s_for_rect(selection_rect))
+        self._set_selected_post_ids(self._selected_post_ids_for_rect(selection_rect))
 
     def eventFilter(self, obj, event):
         if not bool(getattr(obj, "property", lambda *_args: False)("danbooruDragSelectSource")):
@@ -338,7 +342,7 @@ class DanbooruTabSelectionController(QtCore.QObject):
             self._drag_select_origin = self._viewport_point_from_global(event.globalPosition().toPoint())
             self._drag_select_active = False
             self._drag_select_source = obj
-            self._drag_select_seed = set(self.tab.state.selected_md5_set)
+            self._drag_select_seed = set(self.tab.state.selected_post_ids)
             return False
         if event_type == QtCore.QEvent.MouseMove:
             if self._drag_select_origin is None:
@@ -362,10 +366,10 @@ class DanbooruTabSelectionController(QtCore.QObject):
                 return super().eventFilter(obj, event)
             selection_rect = self._selection_band.geometry()
             drag_was_active = self._drag_select_active
-            target_md5s = self._selected_md5s_for_rect(selection_rect) if drag_was_active else set()
+            target_post_ids = self._selected_post_ids_for_rect(selection_rect) if drag_was_active else set()
             self._reset_drag_select_state()
             if drag_was_active:
-                self._set_selected_md5s(target_md5s)
+                self._set_selected_post_ids(target_post_ids)
                 return True
             return False
         return super().eventFilter(obj, event)
@@ -383,6 +387,7 @@ class DanbooruSearchController:
         canonical_term = DanbooruSearchQuery.normalize(query)
         token = state.begin_request()
         tab.clear_results(query=canonical_term)
+        self.interface.detail_preview_controller.cancel_page_continuation(tab_id)
         if order is not None:
             state.sort_mode = str(order or "")
         tab.set_loading(True)
@@ -391,18 +396,20 @@ class DanbooruSearchController:
             token=token, replace=True, task_prefix="search",
         )
 
-    def load_next_page(self, tab_id: str):
+    def load_next_page(self, tab_id: str) -> bool:
         tab = self.interface.tabs.get(tab_id)
         state = self.interface.tab_states.get(tab_id)
         if tab is None or state is None or not state.can_load_next_page():
-            return
+            return False
         token = state.begin_request()
         next_page = state.page_cursor + 1
         tab.set_loading(True)
+        self.interface.tab_mgr.set_tip(tab_id, f"loading page {next_page}...", cls="theme-tip")
         self._submit_search_request(
             tab_id=tab_id, query=state.query, order=state.sort_mode, page=next_page,
             token=token, replace=False, task_prefix="page",
         )
+        return True
 
     def _submit_search_request(
         self,
@@ -431,6 +438,7 @@ class DanbooruSearchController:
 
     def handle_search_result(self, dispatch: _DanbooruSearchDispatch, result: DanbooruReqResult):
         if result.challenge is not None:
+            self.interface.detail_preview_controller.handle_page_load_failed(dispatch.tab_id, "Need browser verification")
             self.handle_search_challenge(dispatch, result.challenge)
             return
         self.handle_search_success(dispatch, result.value or [])
@@ -440,21 +448,37 @@ class DanbooruSearchController:
         state = self.interface.tab_states.get(dispatch.tab_id)
         if tab is None or state is None or dispatch.token != state.request_token:
             return
-        tab.set_loading(False)
         state.mark_loaded_page(posts, dispatch.page)
         self.interface.tab_mgr.update_title(dispatch.tab_id, state.query)
         self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, f"httpx 200/{len(posts)}", cls="theme-success")
         if not posts and dispatch.replace:
+            tab.set_loading(False)
             self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, "httpx 200/0", cls="theme-tip")
+            return
+        if not posts:
+            tab.set_loading(False)
+            self.interface.detail_preview_controller.handle_page_load_empty(dispatch.tab_id)
+            self.interface.tab_mgr.set_tip(dispatch.tab_id, "empty", cls="theme-err")
+            return
+        self.interface.tab_mgr.set_tip(dispatch.tab_id, f"rendering {len(posts)} posts...", cls="theme-tip")
+        QtCore.QTimer.singleShot(0, lambda current=dispatch, payload=list(posts): self._append_search_success(current, payload))
+
+    def _append_search_success(self, dispatch: _DanbooruSearchDispatch, posts: list[DanbooruPost]):
+        tab = self.interface.tabs.get(dispatch.tab_id)
+        state = self.interface.tab_states.get(dispatch.tab_id)
+        if tab is None or state is None or dispatch.token != state.request_token:
             return
         downloaded_md5s = self.interface.sql_recorder.batch_check_dupe([post.md5 for post in posts if post.md5])
         appended_cards = tab.append_results(posts, downloaded_md5s)
+        tab.set_loading(False)
         danbooru_cfg.add_history(state.query)
         self.interface._refresh_completer(tab)
-        for card in appended_cards:
-            self.load_card_preview(tab, card)
+        self.interface.detail_preview_controller.handle_page_appended(dispatch.tab_id, posts)
+        self.queue_card_previews(tab, appended_cards)
         if not state.has_more_results:
             self.interface.tab_mgr.set_tip(dispatch.tab_id, "empty", cls="theme-err")
+        else:
+            self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, f"httpx 200/{len(posts)}", cls="theme-success")
 
     def handle_search_challenge(self, dispatch: _DanbooruSearchDispatch, challenge: DanbooruChallengeRequired):
         tab = self.interface.tabs.get(dispatch.tab_id)
@@ -473,12 +497,17 @@ class DanbooruSearchController:
             return
         tab.set_loading(False)
         if DANBOORU_CHALLENGE_ERROR_MARKER in str(error or ""):
+            self.interface.detail_preview_controller.handle_page_load_failed(dispatch.tab_id, "Need browser verification")
             self.handle_search_challenge(dispatch, DanbooruChallengeRequired(verify_url=DANBOORU_BASE_URL, status_code=403))
             return
         self.interface.tab_mgr.set_tip(dispatch.tab_id, DANBOORU_SEARCH_ERROR_STATUS, cls="theme-err")
+        self.interface.detail_preview_controller.handle_page_load_failed(dispatch.tab_id, DANBOORU_SEARCH_ERROR_STATUS)
         self.interface._show_task_error(error, 6000)
 
     def load_card_preview(self, tab: "DanbooruTabWidget", card: "DanbooruCardWidget"):
+        if card.post.preview_asset_is_video:
+            card.preview_button.setText("Video Preview")
+            return
         preview_url = card.post.preview_file_url or card.post.file_url
         if not preview_url:
             return
@@ -491,8 +520,26 @@ class DanbooruSearchController:
                 tid, pid, payload
             ),
             error_callback=lambda _err, current_card=card: current_card.preview_button.setText("Preview Error"),
-            task_id=f"danbooru-card-preview-{tab.state.tab_id}-{card.post.md5}",
+            task_id=f"danbooru-card-preview-{tab.state.tab_id}-{card.post.post_id}",
         )
+
+    def queue_card_previews(self, tab: "DanbooruTabWidget", cards: list["DanbooruCardWidget"]):
+        visible_ids = tab.visible_card_post_ids()
+        ordered_cards = [card for card in cards if card.post.post_id in visible_ids] + [
+            card for card in cards if card.post.post_id not in visible_ids
+        ]
+        self._queue_card_preview_batch(tab, ordered_cards, 0)
+
+    def _queue_card_preview_batch(self, tab: "DanbooruTabWidget", cards: list["DanbooruCardWidget"], index: int):
+        if index >= len(cards):
+            return
+        end = min(len(cards), index + 6)
+        for card in cards[index:end]:
+            self.load_card_preview(tab, card)
+        if end < len(cards):
+            QtCore.QTimer.singleShot(16, lambda current_tab=tab, current_cards=cards, current_index=end: (
+                self._queue_card_preview_batch(current_tab, current_cards, current_index)
+            ))
 
     def handle_card_preview_result(self, tab_id: str, post_id: int, payload: DanbooruReqResult):
         tab = self.interface.tabs.get(tab_id)
@@ -586,7 +633,7 @@ class DanbooruDownloadController:
         state = self.interface.tab_states.get(tab_id)
         if state is None:
             return []
-        return [post for post in state.result_list if post.md5 in state.selected_md5_set]
+        return [post for post in state.result_list if post.post_id in state.selected_post_ids]
 
     def submit_selected(self):
         tab_id = self.interface.tab_mgr.active_tab_id()
@@ -623,12 +670,13 @@ class DanbooruDownloadController:
 
         execute_danbooru_task(
             self.interface.task_mgr,
-            submit_task, success_callback=success_callback, error_callback=lambda err: self.interface._show_task_error(err, 6000), task_id=task_id,
+            submit_task, success_callback=success_callback,
+            error_callback=lambda err: self.interface._show_task_error(err, 6000), task_id=task_id,
         )
 
     def handle_submission_result(self, tab_id: str, plan, batch: bool):
         content = f"{len(plan.deduped_skipped)} skipped, {len(plan.to_submit)} completed, {len(plan.failed_pre_submit)} failed"
-        self.interface._show_info(InfoBar.success, content, 4000)
+        self.interface.tab_mgr.set_tip(tab_id, content, cls="theme-success")
         if getattr(plan, "submission_errors", None):
             self.interface._show_info(InfoBar.warning, plan.submission_errors[0], 6000)
         for post in plan.deduped_skipped:

@@ -5,7 +5,6 @@ from pathlib import Path
 
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QIcon
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication, QFileDialog, QFrame, QHBoxLayout, QVBoxLayout, QRubberBand, QSizePolicy, QStackedWidget, QWidget
 from qfluentwidgets import (
@@ -19,6 +18,7 @@ from GUI.core.theme import CustTheme, theme_mgr
 from GUI.core.theme.qss_template import read_templated_qss_tokens, render_templated_qss_section
 from GUI.script.danbooru.style import DEFAULT_CARD_METRICS, DanbooruCardMetrics
 from GUI.uic.qfluent.components import CustomInfoBar, CustomTeachingTip
+from GUI.uic.qfluent.components.icons import CgsIcon
 from utils import ori_path, conf, conf_dir
 from utils.config.qc import cbg_cfg
 from utils.script.cbg import Api, ScriptMgr, StaticMgr
@@ -444,7 +444,7 @@ class CbgInterface(QFrame):
         self.path_card.path_selected.connect(self._scan_selected_root)
         card_height = self.path_card.height()
 
-        self.apiBtn = TransparentToolButton(QIcon(':/script/api.svg'), self)
+        self.apiBtn = TransparentToolButton(CgsIcon.SCRIPT_API, self)
         self.apiBtn.setIconSize(QtCore.QSize(30, 38))
         self.apiBtn.clicked.connect(self.api_tip_show)
 
@@ -464,7 +464,7 @@ class CbgInterface(QFrame):
         self.numBox.setMinimumHeight(36)
         self.numBox.valueChanged.connect(lambda value: cbg_cfg.set(cbg_cfg.randomCount, ScriptMgr.canonicalize_random_count(value)))
 
-        self.ensureBtn = ToolButton(QIcon(':/script/random.svg'), self.random_frame)
+        self.ensureBtn = ToolButton(CgsIcon.SCRIPT_RANDOM, self.random_frame)
         self.ensureBtn.setFixedSize(38, 38)
         self.ensureBtn.setIconSize(QtCore.QSize(24, 24))
         self.ensureBtn.clicked.connect(self._select_random_paths)
@@ -473,7 +473,7 @@ class CbgInterface(QFrame):
         random_layout.addWidget(self.numBox)
         random_layout.addWidget(self.ensureBtn)
 
-        self.genBtn = PrimaryToolButton(QIcon(':/script/generate.svg'), self)
+        self.genBtn = PrimaryToolButton(CgsIcon.SCRIPT_GENERATE, self)
         self.genBtn.setIconSize(QtCore.QSize(28, 28))
         self.genBtn.setObjectName("CbgGenerateButton")
         self.genBtn.setMinimumHeight(card_height)

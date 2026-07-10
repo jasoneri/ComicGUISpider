@@ -106,6 +106,9 @@ class DetailPreviewController(QtCore.QObject):
         self._pixmap_cache: dict[int, QPixmap] = {}
         self._size_cache: dict[int, QtCore.QSize] = {}
         self._prefetching_post_ids: set[int] = set()
+        self._pending_next_page_tab_id: t.Optional[str] = None
+        self._pending_next_page_anchor_post_id: t.Optional[int] = None
+        self._pending_next_page_token: int = 0
         self.video_preview = _DetailVideoPreview(self)
 
     @property
@@ -114,6 +117,7 @@ class DetailPreviewController(QtCore.QObject):
 
     def clear_context(self):
         self._tab_id = None
+        self.cancel_page_continuation()
 
     def matches(self, *, post_id: t.Optional[int] = None, md5: t.Optional[str] = None) -> bool:
         viewer_post = self.viewer.post
@@ -126,14 +130,15 @@ class DetailPreviewController(QtCore.QObject):
         return False
 
     def open_viewer(self, tab_id: str, post: DanbooruPost):
+        self._clear_pending_next_page()
         tab = self.interface.tabs.get(tab_id)
-        card = tab.card_widgets.get(post.md5) if tab is not None else None
+        card = tab.card_widgets.get(post.post_id) if tab is not None else None
         already_downloaded = card.already_downloaded if card is not None else self.interface.sql_recorder.check_dupe(post.md5)
         self._tab_id = tab_id
         self._apply_cached_size(post)
         self.viewer.show_post(post, already_downloaded)
         self.sync_navigation()
-        if post.is_video:
+        if self._uses_video_preview(post):
             cached_video = self.video_preview.cached_url(post.post_id)
             if cached_video is not None:
                 return self.viewer.set_video(post.post_id, cached_video)
@@ -149,16 +154,91 @@ class DetailPreviewController(QtCore.QObject):
     def sync_navigation(self):
         posts = self._current_posts()
         index = self._current_post_index(posts)
-        self.viewer.set_navigation_enabled(index > 0, 0 <= index < len(posts) - 1)
+        self.viewer.set_navigation_enabled(index > 0, 0 <= index < len(posts) - 1 or self._can_load_next_page_from_viewer(index, posts))
 
     def open_adjacent(self, step: int):
         posts = self._current_posts()
         index = self._current_post_index(posts)
         target_index = index + step
-        if index < 0 or target_index < 0 or target_index >= len(posts):
+        if index < 0 or target_index < 0:
+            return
+        if target_index >= len(posts):
+            if step > 0 and self._can_load_next_page_from_viewer(index, posts):
+                self._request_next_page_from_viewer(posts[index])
             return
         assert self._tab_id is not None
         self.open_viewer(self._tab_id, posts[target_index])
+
+    def handle_page_appended(self, tab_id: str, posts: list[DanbooruPost]):
+        if not self._is_pending_next_page(tab_id):
+            return
+        target = posts[0] if posts else None
+        self._clear_pending_next_page()
+        if target is None:
+            self.viewer.set_page_loading(False)
+            self.viewer.set_status_hint("No more posts")
+            self.sync_navigation()
+            return
+        self.open_viewer(tab_id, target)
+
+    def handle_page_load_empty(self, tab_id: str):
+        if not self._is_pending_next_page(tab_id):
+            return
+        self._clear_pending_next_page()
+        self.viewer.set_page_loading(False)
+        self.viewer.set_status_hint("No more posts")
+        self.sync_navigation()
+
+    def handle_page_load_failed(self, tab_id: str, message: str):
+        if not self._is_pending_next_page(tab_id):
+            return
+        self._clear_pending_next_page()
+        self.viewer.set_page_loading(False)
+        self.viewer.set_status_hint(message)
+        self.sync_navigation()
+
+    def cancel_page_continuation(self, tab_id: t.Optional[str] = None):
+        if tab_id is not None and self._pending_next_page_tab_id != tab_id:
+            return
+        if self._pending_next_page_tab_id is None:
+            return
+        self._clear_pending_next_page()
+        self.viewer.set_page_loading(False)
+        self.viewer.set_status_hint("")
+        self.sync_navigation()
+
+    def _can_load_next_page_from_viewer(self, index: int, posts: t.Sequence[DanbooruPost]) -> bool:
+        if not self._tab_id or index < 0 or index != len(posts) - 1:
+            return False
+        state = self.interface.tab_states.get(self._tab_id)
+        return bool(state is not None and state.can_load_next_page())
+
+    def _request_next_page_from_viewer(self, anchor: DanbooruPost):
+        assert self._tab_id is not None
+        state = self.interface.tab_states.get(self._tab_id)
+        if state is None:
+            return
+        self._pending_next_page_tab_id = self._tab_id
+        self._pending_next_page_anchor_post_id = anchor.post_id
+        self._pending_next_page_token = state.request_token + 1
+        self.viewer.set_page_loading(True, f"Loading page {state.page_cursor + 1}...")
+        if self.interface.search_controller.load_next_page(self._tab_id):
+            self.sync_navigation()
+            return
+        self._clear_pending_next_page()
+        self.viewer.set_page_loading(False)
+        self.sync_navigation()
+
+    def _is_pending_next_page(self, tab_id: str) -> bool:
+        if self._pending_next_page_tab_id != tab_id:
+            return False
+        state = self.interface.tab_states.get(tab_id)
+        return bool(state is not None and state.request_token == self._pending_next_page_token)
+
+    def _clear_pending_next_page(self):
+        self._pending_next_page_tab_id = None
+        self._pending_next_page_anchor_post_id = None
+        self._pending_next_page_token = 0
 
     def _current_posts(self) -> list[DanbooruPost]:
         if not self._tab_id:
@@ -176,7 +256,7 @@ class DetailPreviewController(QtCore.QObject):
         viewer_post = self.viewer.post
         if viewer_post is None:
             return -1
-        return next((index for index, post in enumerate(posts) if post.md5 == viewer_post.md5), -1)
+        return next((index for index, post in enumerate(posts) if post.post_id == viewer_post.post_id), -1)
 
     def _preload_next(self, current_post: t.Optional[DanbooruPost] = None):
         if not self._tab_id:
@@ -187,7 +267,7 @@ class DetailPreviewController(QtCore.QObject):
         anchor = current_post or self.viewer.post
         if anchor is None:
             return
-        current_index = next((index for index, post in enumerate(posts) if post.md5 == anchor.md5), -1)
+        current_index = next((index for index, post in enumerate(posts) if post.post_id == anchor.post_id), -1)
         target_index = current_index + 1
         if current_index < 0 or target_index >= len(posts):
             return
@@ -198,14 +278,34 @@ class DetailPreviewController(QtCore.QObject):
         return post.large_file_url or post.file_url or post.preview_file_url
 
     @staticmethod
+    def _video_preview_url(post: DanbooruPost) -> t.Optional[str]:
+        return post.viewer_video_source_url or None
+
+    @staticmethod
+    def _image_preview_url(post: DanbooruPost) -> t.Optional[str]:
+        if post.is_supported:
+            return post.large_file_url or post.file_url or post.preview_file_url
+        if post.has_renderable_preview_asset and not post.preview_asset_is_video:
+            return post.preview_file_url
+        return None
+
+    @staticmethod
+    def _uses_video_preview(post: DanbooruPost) -> bool:
+        return post.uses_viewer_video
+
+    @staticmethod
     def _detail_preview_error_message(post: DanbooruPost, error: str) -> str:
         first_line = (error or "").splitlines()[0].strip()
         ext = DanbooruPost.normalize_file_ext(post.file_ext)
-        if post.is_video:
-            media_hint = ext.upper() if ext else "VIDEO"
+        if DetailPreviewController._uses_video_preview(post):
+            media_hint = post.viewer_video_media_ext.upper() or "VIDEO"
             if first_line:
                 return f"{media_hint} 预览失败：{first_line}"
             return f"{media_hint} 预览失败"
+        if post.is_archive:
+            if post.has_renderable_preview_asset and first_line != "no preview url":
+                return f"ZIP 原文件，可显示预览图；原文件仍需下载 / ZIP original, preview asset"
+            return "ZIP archive, download original"
         if not post.is_supported:
             media_hint = ext.upper() if ext else "UNKNOWN"
             return f"{media_hint} 无法渲染预览，可下载原文件 / non-renderable preview"
@@ -226,37 +326,37 @@ class DetailPreviewController(QtCore.QObject):
         post.preview_height = cached_size.height()
 
     def _prefetch(self, tab_id: str, post: DanbooruPost):
-        if not post.is_supported or post.post_id in self._pixmap_cache or \
-            post.post_id in self._prefetching_post_ids or not self._detail_preview_url(post):
+        if not (post.is_supported or post.has_renderable_preview_asset) or post.post_id in self._pixmap_cache or \
+            post.post_id in self._prefetching_post_ids or not self._image_preview_url(post):
             return
         self._prefetching_post_ids.add(post.post_id)
         self._execute_request(_PREFETCH_REQUEST, tab_id, post)
 
     def _load_preview(self, tab_id: str, post: DanbooruPost):
-        preview_url = self._detail_preview_url(post)
+        preview_url = self._video_preview_url(post) if self._uses_video_preview(post) else self._image_preview_url(post)
         if not preview_url:
             if self.matches(post_id=post.post_id):
                 self.viewer.set_placeholder(self._detail_preview_error_message(post, "no preview url"))
             return
-        if not post.is_supported and not post.is_video:
+        if not post.is_supported and not self._uses_video_preview(post) and not post.has_renderable_preview_asset:
             if self.matches(post_id=post.post_id):
                 self.viewer.set_placeholder(self._detail_preview_error_message(post, "non-renderable preview"))
             return
         self._execute_request(_PREVIEW_REQUEST, tab_id, post)
 
     def _probe_size(self, tab_id: str, post: DanbooruPost):
-        if not post.is_supported or not self._detail_preview_url(post):
+        if not post.is_supported or not self._image_preview_url(post):
             return
         self._execute_request(_SIZE_REQUEST, tab_id, post)
 
     def _execute_request(self, spec: _DetailRequestSpec, tab_id: str, post: DanbooruPost):
-        preview_url = self._detail_preview_url(post)
+        preview_url = self._video_preview_url(post) if self._uses_video_preview(post) else self._image_preview_url(post)
         if not preview_url:
             raise ValueError(f"Danbooru detail request missing preview url: post_id={post.post_id}")
         request_client = self.interface.request_client
         if spec is _SIZE_REQUEST:
             task = lambda url=preview_url: capture_danbooru_request(request_client.fetch_remote_image_size, url)
-        elif post.is_video:
+        elif self._uses_video_preview(post):
             task = lambda current_post=post: capture_danbooru_request(self.video_proxy.register_post, current_post)
         else:
             task = lambda url=preview_url: capture_danbooru_request(fetch_pixmap, request_client, url, max_width=0)
@@ -290,7 +390,7 @@ class DetailPreviewController(QtCore.QObject):
             return _handle_challenge(payload.challenge)
         if spec is _SIZE_REQUEST:
             return self._apply_preview_size(post.post_id, payload.value)
-        if post.is_video:
+        if self._uses_video_preview(post):
             return self.video_preview.apply(post.post_id, payload.value)
         self._apply_preview(post.post_id, payload.value, post if spec is _PREVIEW_REQUEST else None)
         if spec is _PREFETCH_REQUEST:
