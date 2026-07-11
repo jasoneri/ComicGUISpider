@@ -7,7 +7,7 @@ from typing import Any
 
 from utils import conf
 from utils.share import DiscordShareAPI, WorkerIndexClient
-from utils.subscript import (
+from utils.subscription import (
     BookEntry,
     DEFAULT_CUSTOMNAME,
     FollowEntry,
@@ -16,9 +16,9 @@ from utils.subscript import (
     MODE_SUBSCRIBER,
     ScheduleSection,
     ShareCard,
-    SubscriptConfig,
-    load_subscript,
-    save_subscript,
+    SubscriptionConfig,
+    load_subscription,
+    save_subscription,
 )
 from variables import CGS_DISCORD_SHARE_API, CGS_METADATA_CHANNEL_ID
 
@@ -27,12 +27,12 @@ VALID_SUBSCRIPTION_MODES = frozenset({MODE_BROADCASTER, MODE_SUBSCRIBER})
 
 
 def load_subscription_config(customname: str = DEFAULT_CUSTOMNAME, *, base_dir: Path | None = None) -> dict[str, Any]:
-    return subscription_config_payload(load_subscript(_customname(customname), base_dir=base_dir))
+    return subscription_config_payload(load_subscription(_customname(customname), base_dir=base_dir))
 
 
 def save_subscription_config(payload: dict[str, Any], *, base_dir: Path | None = None) -> dict[str, Any]:
     cfg = _config_from_payload(payload)
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -45,9 +45,9 @@ def switch_subscription_mode(
     normalized_mode = str(mode or "").strip()
     if normalized_mode not in VALID_SUBSCRIPTION_MODES:
         raise ValueError(f"unsupported subscription mode: {mode!r}")
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     cfg.mode = normalized_mode
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -57,12 +57,12 @@ def add_broadcaster_book(
     customname: str = DEFAULT_CUSTOMNAME,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     entry = _book_from_payload(payload)
     if entry.url in {book.url for book in cfg.broadcaster.books}:
         raise ValueError(f"broadcaster book already exists: {entry.url}")
     cfg.broadcaster.books.append(entry)
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -73,7 +73,7 @@ def update_broadcaster_book(
     customname: str = DEFAULT_CUSTOMNAME,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     book = _indexed(cfg.broadcaster.books, index, "broadcaster book")
     next_book = BookEntry(
         site=_optional_text(payload, "site", book.site),
@@ -89,7 +89,7 @@ def update_broadcaster_book(
     if duplicate_index is not None:
         raise ValueError(f"broadcaster book already exists: {next_book.url}")
     cfg.broadcaster.books[index] = next_book
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -99,10 +99,10 @@ def remove_broadcaster_book(
     customname: str = DEFAULT_CUSTOMNAME,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     _indexed(cfg.broadcaster.books, index, "broadcaster book")
     del cfg.broadcaster.books[index]
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -112,9 +112,9 @@ def add_subscriber_follow(
     customname: str = DEFAULT_CUSTOMNAME,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     cfg.subscriber.follows.append(_follow_from_payload(payload))
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -125,7 +125,7 @@ def update_subscriber_follow(
     customname: str = DEFAULT_CUSTOMNAME,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     follow = _indexed(cfg.subscriber.follows, index, "subscriber follow")
     cfg.subscriber.follows[index] = FollowEntry(
         bid=_optional_text(payload, "bid", follow.bid),
@@ -133,7 +133,7 @@ def update_subscriber_follow(
         added_at=_utc_now(),
     )
     _validate_follow(cfg.subscriber.follows[index])
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -143,10 +143,10 @@ def remove_subscriber_follow(
     customname: str = DEFAULT_CUSTOMNAME,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     _indexed(cfg.subscriber.follows, index, "subscriber follow")
     del cfg.subscriber.follows[index]
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     return load_subscription_config(cfg.customname, base_dir=base_dir)
 
 
@@ -155,7 +155,7 @@ async def publish_subscription_share_card(
     customname: str = DEFAULT_CUSTOMNAME,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    cfg = load_subscript(_customname(customname), base_dir=base_dir)
+    cfg = load_subscription(_customname(customname), base_dir=base_dir)
     broadcaster = cfg.broadcaster
     if broadcaster.share_card and broadcaster.share_card.posted_at:
         raise ValueError("share_card already published")
@@ -183,7 +183,7 @@ async def publish_subscription_share_card(
         discord_channel=result.discord_channel,
         discord_message_id=result.discord_message_id,
     )
-    save_subscript(cfg, base_dir=base_dir)
+    save_subscription(cfg, base_dir=base_dir)
     payload = load_subscription_config(cfg.customname, base_dir=base_dir)
     payload["publish_result"] = {
         "bid": registration.bid,
@@ -194,7 +194,7 @@ async def publish_subscription_share_card(
     return payload
 
 
-def subscription_config_payload(cfg: SubscriptConfig) -> dict[str, Any]:
+def subscription_config_payload(cfg: SubscriptionConfig) -> dict[str, Any]:
     return {
         "customname": cfg.customname,
         "mode": cfg.mode,
@@ -214,7 +214,7 @@ def subscription_config_payload(cfg: SubscriptConfig) -> dict[str, Any]:
     }
 
 
-def _config_from_payload(payload: dict[str, Any]) -> SubscriptConfig:
+def _config_from_payload(payload: dict[str, Any]) -> SubscriptionConfig:
     if not isinstance(payload, dict):
         raise ValueError("subscription config payload must be a mapping")
     customname = _customname(str(payload.get("customname") or DEFAULT_CUSTOMNAME))
@@ -223,7 +223,7 @@ def _config_from_payload(payload: dict[str, Any]) -> SubscriptConfig:
         raise ValueError(f"unsupported subscription mode: {mode!r}")
     broadcaster_payload = _mapping(payload.get("broadcaster"), "broadcaster")
     subscriber_payload = _mapping(payload.get("subscriber"), "subscriber")
-    cfg = SubscriptConfig(customname=customname, mode=mode)
+    cfg = SubscriptionConfig(customname=customname, mode=mode)
     cfg.broadcaster.publish_bid = _nullable_text(broadcaster_payload.get("publish_bid"))
     cfg.broadcaster.share_card = _share_card_from_payload(broadcaster_payload.get("share_card"))
     cfg.broadcaster.books = [_book_from_payload(item) for item in _list(broadcaster_payload.get("books"), "broadcaster.books")]

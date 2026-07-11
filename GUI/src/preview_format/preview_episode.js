@@ -217,6 +217,15 @@
         return;
       }
       const bookKey = card.dataset.bookKey;
+      if (document.body.classList.contains('subscribe-select-mode')) {
+        const checkbox = card.querySelector('.preview-checkbox > .preview-checkbox-input');
+        if (checkbox instanceof HTMLInputElement) {
+          event.preventDefault();
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return;
+      }
       const title = card.dataset.bookTitle || `Book ${bookKey}`;
       this.onBookClick(bookKey, title);
     }

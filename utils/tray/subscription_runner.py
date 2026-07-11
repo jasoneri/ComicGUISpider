@@ -24,8 +24,8 @@ from utils.protocol import ErrorEvent, JobFinishedEvent, SpiderDownloadJob
 from utils.redViewer_tools import Handler as RedViewerHandler
 from utils.share import DiscordShareAPI, IndexRecord, WorkerIndexClient, deserialize_books, serialize_books
 from utils.sql.download_state import DownloadStateStore
-from utils.subscript import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER, load_subscript
-from utils.subscript.schema import BookEntry, FeatureEntry, SubscriptConfig
+from utils.subscription import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER, load_subscription
+from utils.subscription.schema import BookEntry, FeatureEntry, SubscriptionConfig
 from utils.tray.feature_search import filter_feature_books, supported_features, unsupported_feature_summary, unsupported_features
 from utils.tray.schedule_presentation import ScheduleCacheState, write_bookinfo_cache, write_schedule_summary
 from utils.config.qc import cgs_cfg
@@ -56,7 +56,7 @@ DownloadSubmitter = Callable[[int, Any], bool | Awaitable[bool]]
 DiscordApiFactory = Callable[[str], DiscordShareAPI]
 WorkerClientFactory = Callable[[str], WorkerIndexClient]
 CdnFetcher = Callable[[str], Awaitable[bytes]]
-TokenProvider = Callable[[SubscriptConfig], str]
+TokenProvider = Callable[[SubscriptionConfig], str]
 DlMaxProvider = Callable[[Any], str]
 Md5sProvider = Callable[[Any, list], set[str]]
 ProgressCallback = Callable[[dict], None]
@@ -114,7 +114,7 @@ class SubscriptionRunner:
         *,
         customname: str = DEFAULT_CUSTOMNAME,
         base_dir=None,
-        config_loader: Optional[Callable[[], SubscriptConfig]] = None,
+        config_loader: Optional[Callable[[], SubscriptionConfig]] = None,
         site_runtime_factory: Optional[BookRuntimeFactory] = None,
         download_submitter: Optional[DownloadSubmitter] = None,
         discord_api_factory: Optional[DiscordApiFactory] = None,
@@ -143,7 +143,7 @@ class SubscriptionRunner:
     def run_once(self) -> SubscriptionRunSummary:
         return asyncio.run(self.run_once_async())
 
-    def load_config(self) -> SubscriptConfig:
+    def load_config(self) -> SubscriptionConfig:
         return self._load_config()
 
     def shutdown(self) -> None:
@@ -192,7 +192,7 @@ class SubscriptionRunner:
             }
         )
 
-    async def _run_broadcaster(self, cfg: SubscriptConfig) -> SubscriptionRunSummary:
+    async def _run_broadcaster(self, cfg: SubscriptionConfig) -> SubscriptionRunSummary:
         entries = [entry for entry in cfg.broadcaster.books if entry.enabled]
         feature_entries = supported_features(cfg.broadcaster.features)
         unsupported = unsupported_features(cfg.broadcaster.features)
@@ -245,7 +245,7 @@ class SubscriptionRunner:
             summary.cache = write_bookinfo_cache([item.metadata_book for item in pending_books])
         return summary
 
-    async def _run_subscriber(self, cfg: SubscriptConfig) -> SubscriptionRunSummary:
+    async def _run_subscriber(self, cfg: SubscriptionConfig) -> SubscriptionRunSummary:
         summary = SubscriptionRunSummary(mode=MODE_SUBSCRIBER, stage="Config")
         self._progress(summary, message="config loaded")
         if not cfg.subscriber.auto_download:
@@ -323,7 +323,7 @@ class SubscriptionRunner:
         if not result:
             raise RuntimeError(f"subscription download job failed for site_index={site_index}")
 
-    async def _publish_metadata(self, cfg: SubscriptConfig, books: list[BookInfo]) -> None:
+    async def _publish_metadata(self, cfg: SubscriptionConfig, books: list[BookInfo]) -> None:
         token = self._token_provider(cfg)
         if not token:
             raise ValueError("discord_share_user_token is required for broadcaster metadata publish")
@@ -353,10 +353,10 @@ class SubscriptionRunner:
         record = IndexRecord(message_id=upload.message_id, attachment_url=upload.attachment_url, updated_at=upload.updated_at)
         await worker.put_index(action.payload["bid"], record)
 
-    def _load_config(self) -> SubscriptConfig:
+    def _load_config(self) -> SubscriptionConfig:
         if self._config_loader is not None:
             return self._config_loader()
-        return load_subscript(self.customname, base_dir=self.base_dir)
+        return load_subscription(self.customname, base_dir=self.base_dir)
 
     def _write_schedule_summary(self, summary: SubscriptionRunSummary) -> None:
         write_schedule_summary(
@@ -443,7 +443,7 @@ async def _fetch_cdn_bytes(url: str) -> bytes:
         return response.content
 
 
-def _default_token(cfg: SubscriptConfig) -> str:
+def _default_token(cfg: SubscriptionConfig) -> str:
     return str(conf.discord_share_user_token or "").strip()
 
 

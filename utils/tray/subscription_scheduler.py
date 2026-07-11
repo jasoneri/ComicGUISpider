@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from utils import temp_p
-from utils.subscript import MODE_BROADCASTER, MODE_SUBSCRIBER, SubscriptConfig
+from utils.subscription import MODE_BROADCASTER, MODE_SUBSCRIBER, SubscriptionConfig
 
-ConfigLoader = Callable[[], SubscriptConfig]
+ConfigLoader = Callable[[], SubscriptionConfig]
 NowProvider = Callable[[], datetime]
 
 @dataclass(frozen=True)
@@ -86,7 +86,7 @@ class SubscriptionScheduler:
             )
         raise ValueError(f"unsupported subscription mode: {cfg.mode!r}")
 
-    def _broadcaster_decision(self, cfg: SubscriptConfig, now: datetime) -> Optional[ScheduleDecision]:
+    def _broadcaster_decision(self, cfg: SubscriptionConfig, now: datetime) -> Optional[ScheduleDecision]:
         schedule = cfg.broadcaster.schedule
         weekdays = _parse_weekdays(schedule.weekdays)
         if not weekdays or now.weekday() not in weekdays:
@@ -103,7 +103,7 @@ class SubscriptionScheduler:
             mode=MODE_BROADCASTER, reason=f"broadcaster schedule {schedule.time}", slot_key=slot_key, triggered_at=now
         )
 
-    def _subscriber_decision(self, cfg: SubscriptConfig, now: datetime) -> Optional[ScheduleDecision]:
+    def _subscriber_decision(self, cfg: SubscriptionConfig, now: datetime) -> Optional[ScheduleDecision]:
         subscriber = cfg.subscriber
         if not subscriber.auto_download or not subscriber.follows:
             return None
@@ -121,7 +121,7 @@ class SubscriptionScheduler:
             mode=MODE_SUBSCRIBER, reason=f"subscriber pull interval {interval_hours}h", slot_key=slot_key, triggered_at=now
         )
 
-    def _next_broadcaster_run_at(self, cfg: SubscriptConfig, now: datetime) -> Optional[datetime]:
+    def _next_broadcaster_run_at(self, cfg: SubscriptionConfig, now: datetime) -> Optional[datetime]:
         schedule = cfg.broadcaster.schedule
         weekdays = _parse_weekdays(schedule.weekdays)
         if not weekdays:
@@ -138,7 +138,7 @@ class SubscriptionScheduler:
             return candidate
         return None
 
-    def _next_subscriber_run_at(self, cfg: SubscriptConfig, now: datetime) -> Optional[datetime]:
+    def _next_subscriber_run_at(self, cfg: SubscriptionConfig, now: datetime) -> Optional[datetime]:
         subscriber = cfg.subscriber
         if not subscriber.auto_download or not subscriber.follows:
             return None

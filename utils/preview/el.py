@@ -117,8 +117,16 @@ class MangaEl(ElMinix):
                     </div>
                 </label>'''
 
+        subscribe_checkbox_html = f'''
+                <div class="preview-checkbox">
+                    <input class="preview-checkbox-input" type="checkbox" name="img" id="{idx}">
+                    <label class="preview-checkbox-label" for="{idx}">
+                        <span class="preview-checkbox-toggle" aria-hidden="true"><span class="preview-checkbox-tick"></span></span>
+                    </label>
+                </div>'''
+
         return f"""<article class="preview-manga-card singal-task">
-            <div class="book-card normal-book-card" data-book-key="{idx}" data-book-title="{safe_title}" role="button" aria-label="{safe_title}">{favorite_html}
+            <div class="book-card normal-book-card" data-book-key="{idx}" data-book-title="{safe_title}" role="button" aria-label="{safe_title}">{favorite_html}{subscribe_checkbox_html}
                 <div class="book-card-media">
                     <img src="{safe_img_src}" class="book-card-cover" alt="{safe_title}" title="{safe_title}" onerror="this.onerror=null;this.src='../GUI/src/preview_format/placeholder.svg';">{meta_badges_html}
                 </div>

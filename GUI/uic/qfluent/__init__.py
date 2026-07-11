@@ -11,6 +11,7 @@ from .components import *
 __all__ = [
     'MonkeyPatch',
     'CustomFlyout', 'CustomInfoBar', 'TableFlyoutView',
+    'CgsIcon',
 ]
 
 res = ori_res.GUI.Uic
@@ -123,6 +124,11 @@ class MonkeyPatch:
                                           triggered=lambda: route_turn("prev"), shortcut='Ctrl+,')
             fluent_menu.addAction(next_page_action)
             fluent_menu.addAction(previous_page_action)
+            fluent_menu.addSeparator()
+            subscribe_text = "退出订阅选择" if browserWindow.subscription.selection_active else "订阅选择模式"
+            subscribe_mode_action = Action(FluentIcon.SHARE, web_view.tr(subscribe_text),
+                                           triggered=browserWindow.subscription.toggle_selection)
+            fluent_menu.addAction(subscribe_mode_action)
             fluent_menu.addSeparator()
             return fluent_menu
             

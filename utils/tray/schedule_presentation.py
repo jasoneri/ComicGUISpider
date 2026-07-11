@@ -8,8 +8,8 @@ from typing import Any, Iterable, Optional
 
 from utils import temp_p
 from utils.share.serializer import deserialize_books, serialize_books
-from utils.subscript import MODE_BROADCASTER, MODE_SUBSCRIBER
-from utils.subscript.schema import BookEntry, FeatureEntry, FollowEntry, SubscriptConfig
+from utils.subscription import MODE_BROADCASTER, MODE_SUBSCRIBER
+from utils.subscription.schema import BookEntry, FeatureEntry, FollowEntry, SubscriptionConfig
 from utils.tray.feature_search import feature_status, supported_features, unsupported_feature_summary, unsupported_features
 
 SCHEDULE_PRESENTATION_SCHEMA = 1
@@ -201,7 +201,7 @@ def cache_state_from_summary(summary: Optional[dict[str, Any]], *, summary_path:
 
 
 def build_schedule_presentation(
-    cfg: SubscriptConfig,
+    cfg: SubscriptionConfig,
     *,
     status=None,
     cache_summary: Optional[dict[str, Any]] = None,
@@ -240,7 +240,7 @@ def presentation_to_dict(presentation: SchedulePresentation) -> dict[str, Any]:
     return asdict(presentation)
 
 
-def _build_plan(cfg: SubscriptConfig, *, status, blocker: str, config_owner: str) -> SchedulePlanView:
+def _build_plan(cfg: SubscriptionConfig, *, status, blocker: str, config_owner: str) -> SchedulePlanView:
     next_run = getattr(status, "next_run_at", None)
     next_run_at = next_run.isoformat(timespec="minutes") if next_run is not None else "-"
     broadcaster = cfg.broadcaster
@@ -276,7 +276,7 @@ def _build_plan(cfg: SubscriptConfig, *, status, blocker: str, config_owner: str
     )
 
 
-def _source_rows(cfg: SubscriptConfig) -> list[ScheduleSourceRow]:
+def _source_rows(cfg: SubscriptionConfig) -> list[ScheduleSourceRow]:
     rows: list[ScheduleSourceRow] = []
     for index, entry in enumerate(cfg.broadcaster.books, start=1):
         rows.append(_book_source_row(index, entry))
@@ -384,7 +384,7 @@ def _history_row(event: dict) -> dict[str, str]:
     }
 
 
-def _schedule_label(cfg: SubscriptConfig) -> str:
+def _schedule_label(cfg: SubscriptionConfig) -> str:
     if cfg.mode == MODE_BROADCASTER:
         weekdays = ",".join(cfg.broadcaster.schedule.weekdays) or "-"
         return f"{weekdays} {cfg.broadcaster.schedule.time}"
@@ -411,7 +411,7 @@ def _automation_label(state: str) -> str:
     return labels.get(str(state or ""), str(state or "-"))
 
 
-def _config_blocker(cfg: SubscriptConfig) -> tuple[str, str]:
+def _config_blocker(cfg: SubscriptionConfig) -> tuple[str, str]:
     if cfg.mode == MODE_BROADCASTER:
         enabled_books = len([entry for entry in cfg.broadcaster.books if entry.enabled])
         supported = supported_features(cfg.broadcaster.features)
@@ -429,7 +429,7 @@ def _config_blocker(cfg: SubscriptConfig) -> tuple[str, str]:
         if not cfg.subscriber.follows:
             return "没有订阅源 follow bid", "在主窗口订阅源配置里添加至少一个 follow bid。"
         return "", ""
-    return f"unsupported subscription mode: {cfg.mode!r}", "检查 subscript 配置里的 mode 字段。"
+    return f"unsupported subscription mode: {cfg.mode!r}", "检查 subscription 配置里的 mode 字段。"
 
 
 def _tail(value: str, limit: int = 28) -> str:

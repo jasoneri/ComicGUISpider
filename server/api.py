@@ -29,7 +29,7 @@ from server.surfaces import ServerSurface, mount_server_surfaces, server_surface
 from utils import conf, exc_p, temp_p
 from utils.config.rule import CgsRuleMgr
 from utils.server_control import is_authorized_header
-from utils.subscript import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER
+from utils.subscription import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER
 
 
 class SearchRequest(BaseModel):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from utils.subscript.schema import FEATURE_KIND_ARTIST, FEATURE_KIND_TAG, FeatureEntry
+from utils.subscription.schema import FEATURE_KIND_ARTIST, FEATURE_KIND_TAG, FeatureEntry
 
 
 @dataclass(frozen=True)

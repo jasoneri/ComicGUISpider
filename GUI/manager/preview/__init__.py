@@ -131,6 +131,7 @@ class PreviewMgr:
         page = browser.view.page()
         self._ensure_web_channel(page, bridge)
         self._bind_page_interactive(browser)
+        browser.subscription.configure_entry(is_manga_like=bool(self.is_manga or self.is_fix))
         return browser
 
     def publish_share_books(self, books):

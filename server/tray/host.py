@@ -41,7 +41,7 @@ from utils.server_control import (
     wait_for_server,
     write_server_record,
 )
-from utils.subscript import load_subscript
+from utils.subscription import load_subscription
 from utils.tray.event_log import TrayEventLog
 from utils.tray.notification_policy import (
     ScheduleNotification,
@@ -76,7 +76,7 @@ class ServerRuntimeDownloadSubmitter:
 class ServerScheduleController:
     def __init__(self) -> None:
         self.event_log = TrayEventLog()
-        self.scheduler = SubscriptionScheduler(load_subscript, state_path=default_scheduler_state_path())
+        self.scheduler = SubscriptionScheduler(load_subscription, state_path=default_scheduler_state_path())
         self.run_thread: threading.Thread | None = None
         self.last_result = "-"
         self.latest_summary: dict | None = None
@@ -95,7 +95,7 @@ class ServerScheduleController:
         return self.latest_summary
 
     def presentation(self, *, blocker: str = "") -> SchedulePresentation:
-        cfg = load_subscript()
+        cfg = load_subscription()
         return build_schedule_presentation(
             cfg, status=self.status(), cache_summary=self.refresh_summary(), events=self.events(20), blocker=blocker
         )

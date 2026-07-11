@@ -11,7 +11,7 @@ import typing as t
 
 from utils.middleware.executor import Action
 from utils.middleware.timeline import TimelineStage
-from utils.subscript.schema import MODE_BROADCASTER, MODE_SUBSCRIBER
+from utils.subscription.schema import MODE_BROADCASTER, MODE_SUBSCRIBER
 
 
 class E2PublishMetadata:
@@ -42,7 +42,7 @@ class E2PublishMetadata:
         if mode == MODE_SUBSCRIBER:
             return None
         if mode != MODE_BROADCASTER:
-            raise ValueError(f"E2: unknown subscript mode: {mode!r}")
+            raise ValueError(f"E2: unknown subscription mode: {mode!r}")
 
         bid = self._bid(ctx)
         if not bid:

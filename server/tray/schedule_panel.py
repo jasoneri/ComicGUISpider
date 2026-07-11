@@ -39,7 +39,7 @@ from server.tray.ui_common import (
     clear_layout,
     tray_mono_font,
 )
-from utils.subscript import MODE_SUBSCRIBER
+from utils.subscription import MODE_SUBSCRIBER
 from utils.tray.schedule_presentation import SchedulePresentation, presentation_to_dict
 
 if TYPE_CHECKING:

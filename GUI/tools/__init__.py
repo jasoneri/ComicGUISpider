@@ -14,6 +14,7 @@ from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
 from GUI.tools.ags import AggrSearchView
 from GUI.tools.mid_tool import MidToolInterface
+from GUI.tools.subscribe import SubscribeInterface
 from GUI.tools.chore import *
 
 
@@ -48,6 +49,8 @@ class ToolWindow(FramelessWindow):
         first_row = QHBoxLayout()
         self.rvInterface = rvTool(self)
         self.addSubInterface(self.rvInterface, 'rvInterface', 'rvTool')
+        self.subscribeInterface = SubscribeInterface(self)
+        self.addSubInterface(self.subscribeInterface, 'subscribeInterface', 'subscribe')
         # 连接信号并初始化当前标签页
         self.stackedWidget.currentChanged.connect(self.onCurrentIndexChanged)
         self.stackedWidget.setCurrentWidget(self.rvInterface)
@@ -101,6 +104,8 @@ class ToolWindow(FramelessWindow):
             self.resize(self.gui.width(), new_height)
         elif widget.objectName() == "midInterface":
             self.resize(self.gui.width(), min(370, self.gui.height()))
+        elif widget.objectName() == "subscribeInterface":
+            self.resize(self.gui.width(), min(520, self.gui.height()))
         else:
             self.resize(self.window_width, self.default_height)
         self.pivot.setCurrentItem(widget.objectName())

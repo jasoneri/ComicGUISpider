@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 from typing import Callable
 
-from utils.subscript.lock import TrayLock
+from utils.subscription.lock import TrayLock
 
 
 class LockWatcher:
