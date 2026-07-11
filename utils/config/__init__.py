@@ -182,8 +182,6 @@ class Conf(BaseConf):
         yml_config = yaml.load(cfg, Loader=yaml.FullLoader)
         yml_config['lang'] = yml_config.get('lang', res.lang)
         for k, v in yml_config.items():
-            if k == "sv_path" and v == r"D:\Comic":
-                v = curr_os.default_sv_path
             # 跳过cookie相关字段，由ConfCookie处理
             if k != "cookies":
                 setattr(self, k, v or getattr(self, k, None))
