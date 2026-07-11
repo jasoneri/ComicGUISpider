@@ -411,7 +411,7 @@ class CbgInterface(QFrame):
         super().__init__(parent=parent)
         self.parent_window = parent
         self.setObjectName("CbgInterface")
-        self.task_mgr = AsyncTaskManager(self.parent_window.gui)
+        self.task_mgr = AsyncTaskManager(self.parent_window.gui, self)
         self.card_metrics = DEFAULT_CARD_METRICS
         self.cards: dict[Path, CbgCardWidget] = {}
         self._scanned_paths: list[Path] = []

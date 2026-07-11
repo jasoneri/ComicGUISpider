@@ -14,7 +14,7 @@ danbooru:
   download_concurrency: 5
   view_ratio: 60
 
-jsoneri_server_status:
+jsoneriPalacesProbe:
   url: ""
   token: ""
 

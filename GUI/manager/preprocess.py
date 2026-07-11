@@ -18,7 +18,7 @@ class PreprocessManager(QObject):
         super().__init__()
         self.gui = gui
         self.show_err = conf.log_level.lower() == "debug"
-        self.task_manager = AsyncTaskManager(gui)
+        self.task_manager = AsyncTaskManager(gui, gui)
         self._switch_generation = 0
         self._active_preprocess: tuple[int, int] | None = None
         self._queued_search: tuple[int, int, str] | None = None

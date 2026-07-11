@@ -221,7 +221,7 @@ class Conf(BaseConf):
 class ScriptConf(BaseConf):
     kemono: dict = field(default_factory=dict)
     danbooru: dict = field(default_factory=dict)
-    jsoneri_server_status: dict = field(default_factory=dict)
+    jsoneriPalacesProbe: dict = field(default_factory=dict)
     proxies: list = field(default_factory=list)
     redis: dict = field(default_factory=dict)
 
@@ -244,11 +244,11 @@ class ScriptConf(BaseConf):
         for key, value in danbooru_defaults.items():
             danbooru_config.setdefault(key, value)
         yml_config["danbooru"] = danbooru_config
-        jsoneri_server_status_defaults = (sample_config.get("jsoneri_server_status") or {}).copy()
-        jsoneri_server_status_config = (yml_config.get("jsoneri_server_status") or {}).copy()
-        for key, value in jsoneri_server_status_defaults.items():
-            jsoneri_server_status_config.setdefault(key, value)
-        yml_config["jsoneri_server_status"] = jsoneri_server_status_config
+        jsoneriPalacesProbe_defaults = (sample_config.get("jsoneriPalacesProbe") or {}).copy()
+        jsoneriPalacesProbe_config = (yml_config.get("jsoneriPalacesProbe") or {}).copy()
+        for key, value in jsoneriPalacesProbe_defaults.items():
+            jsoneriPalacesProbe_config.setdefault(key, value)
+        yml_config["jsoneriPalacesProbe"] = jsoneriPalacesProbe_config
         for k, v in yml_config.items():
             setattr(self, k, v or getattr(self, k, None))
 

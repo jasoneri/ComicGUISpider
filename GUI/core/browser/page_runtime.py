@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import time
 
 from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
@@ -459,7 +460,7 @@ try {{
 
     def _handle_structured_js_error(self, description: str, error: Exception, raw_result=None):
         # message = f"[browser.js] {description} failed: {error}; raw={raw_result!r}"
-        self.gui.hook_exception(type(error), error, error.__traceback__)
+        sys.excepthook(type(error), error, error.__traceback__)
         append_browser_debug_event(
             "browser.js_error",
             description=description,

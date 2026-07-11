@@ -20,7 +20,7 @@ Motrix 在进入 Script 前保持启动即可
 | Kemono | ⭕️ | ⭕️ |
 | Danbooru | ➖ | ⭕️ |
 | Cbg | ➖ | ➖ |
-| Jsoneri-Services | ➖ | ➖ |
+| jsoneriPalaces | ➖ | ➖ |
 
 ::: tip 参考 `前置矩阵` 例如只装 Motrix 并进 Script 前启动就能使用 Danbooru
 :::

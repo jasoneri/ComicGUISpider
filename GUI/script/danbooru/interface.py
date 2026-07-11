@@ -149,7 +149,7 @@ class DanbooruInterface(QFrame):
         self.parent_window = parent
         self.gui = parent.gui
         self.setObjectName("DanbooruInterface")
-        self.task_mgr = AsyncTaskManager(self.gui)
+        self.task_mgr = AsyncTaskManager(self.gui, self)
         self.funcs = DanbooruFuncs(self)
         self.tabs: dict[str, DanbooruTabWidget] = {}
         self.tab_states: dict[str, DanbooruTabState] = {}

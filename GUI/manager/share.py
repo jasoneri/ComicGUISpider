@@ -38,7 +38,7 @@ class Shares(QObject):
         self._items: list[BookInfo] = []
         self.site = ""
         self._uploading = False
-        self.task_mgr = AsyncTaskManager(gui)
+        self.task_mgr = AsyncTaskManager(gui, gui)
 
     @property
     def items(self) -> list[BookInfo]:

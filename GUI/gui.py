@@ -325,7 +325,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
         self.hide()
-        self.script_window = ScriptWindow(self, script_entry_state=script_entry_state)
+        self.script_window = ScriptWindow(
+            self,
+            script_entry_state=script_entry_state,
+            feedback_dispatcher=self.exception_feedback_dispatcher,
+        )
         self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
         setupTheme(self.script_window.kemonoInterface)
         if pure_only:

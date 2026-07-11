@@ -359,7 +359,7 @@ class ScriptWindow(ScriptWindowBase):
         self.danbooruInterface = DanbooruInterface(self)
         self.kemonoInterface = KemonoInterface(self)
         self.cbgInterface = CbgInterface(self)
-        self.jsoneriServicesStatusInterface = JsoneriServicesStatusInterface(self)
+        self.jsoneriPalacesProbeInterface = JsoneriPalacesProbeInterface(self)
         self.settingInterface = SettingInterface(self)
         self.doh_stub_runtime.ensure_from_config()
 
@@ -461,11 +461,18 @@ class ScriptWindow(ScriptWindowBase):
         
     def closeEvent(self, event):
         event.accept()
+        if self._exception_feedback_scope is not None:
+            self._exception_feedback_scope.close()
+            self._exception_feedback_scope = None
         cgs_cfg.scriptWinRect.value = [self.x(), self.y(), self.width(), self.height()]
         cgs_cfg.save()
         self.danbooruInterface.image_viewer.hide()
-        self.jsoneriServicesStatusInterface.close_service_window()
-        if self.gui is not None:
+        self.jsoneriPalacesProbeInterface.close_service_window()
+        if (
+            self.gui is not None
+            and not getattr(self.gui, "_closing", False)
+            and not getattr(self.gui, "server_mode_switch_requested", False)
+        ):
             safe_single_shot(10, self.gui.close)
 
 
