@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import importlib
+import importlib.util
 import os
 from pathlib import Path
+import socket
 import typing as t
 
 import httpx
-import psutil
 
 from assets import res
 from utils import conf, ori_path
@@ -23,6 +23,12 @@ if t.TYPE_CHECKING:
 
 DB_CACHE_TTL_HOURS = 480
 SCRIPT_SERVICE_WARNING_DELAY_MS = 7000
+SCRIPT_SERVICE_PROBE_TIMEOUT_S = 0.15
+# Motrix 默认 JSON-RPC（utils.script.motrix.MOTRIX_RPC_URL）与 conf_sample_script.yml redis 约定
+SCRIPT_MOTRIX_RPC_HOST = "127.0.0.1"
+SCRIPT_MOTRIX_RPC_PORT = 16800
+SCRIPT_REDIS_DEFAULT_HOST = "127.0.0.1"
+SCRIPT_REDIS_DEFAULT_PORT = 6379
 KEMONO_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/kemono.db"
 NHENTAI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/nhentai.db"
 HITOMI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/hitomi.db"
@@ -31,8 +37,6 @@ HITOMI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download
 async def run_site_preprocess(
     gui_site_runtime: "GuiSiteRuntime", *, conf_state=conf, data_client: httpx.AsyncClient | None = None, progress_callback=None
 ) -> PreprocessResult:
-    if gui_site_runtime is None:
-        raise ValueError("run_site_preprocess requires gui_site_runtime")
     owns_data_client = data_client is None
     resolved_data_client = data_client
     site_key = gui_site_runtime.site_index
@@ -61,11 +65,21 @@ async def run_script_preprocess(
     *, conf_state=conf, data_client: httpx.AsyncClient | None = None, progress_callback=None
 ) -> PreprocessResult:
     owns_data_client = data_client is None
-    resolved_data_client = _ensure_data_client(data_client, conf_state=conf_state)
+    resolved_data_client = data_client
+
+    def ensure_data_client() -> httpx.AsyncClient:
+        nonlocal resolved_data_client
+        if resolved_data_client is None:
+            resolved_data_client = _ensure_data_client(None, conf_state=conf_state)
+        return resolved_data_client
+
     try:
-        return await _preprocess_script(data_client=resolved_data_client, progress_callback=progress_callback)
+        return await _preprocess_script(
+            ensure_data_client=ensure_data_client,
+            progress_callback=progress_callback,
+        )
     finally:
-        if owns_data_client:
+        if owns_data_client and resolved_data_client is not None:
             await resolved_data_client.aclose()
 
 
@@ -492,7 +506,11 @@ def _format_kemono_data_warning() -> str:
     return f"{script_res.data_cache_check_failed}<br>⚠️ Kemono 入口已隐藏，其他脚本入口仍可使用。"
 
 
-async def _preprocess_script(*, data_client: httpx.AsyncClient, progress_callback=None) -> PreprocessResult:
+async def _preprocess_script(
+    *,
+    ensure_data_client: t.Callable[[], httpx.AsyncClient],
+    progress_callback=None,
+) -> PreprocessResult:
     script_res = res.GUI.Script
     service_status = _check_script_services()
     script_entry_state = ScriptEntryState(service_status=service_status)
@@ -528,6 +546,7 @@ async def _preprocess_script(*, data_client: httpx.AsyncClient, progress_callbac
         state_flags["missing_dependencies"] = missing
 
     if script_entry_state.should_check_kemono_data:
+        data_client = ensure_data_client()
         kemono_asset = await KemonoReleaseAsset(data_client, progress_callback).ensure()
         script_entry_state = script_entry_state.with_kemono_asset_result(kemono_asset)
         state_flags["data_ready"] = kemono_asset.ready
@@ -549,16 +568,26 @@ async def _preprocess_script(*, data_client: httpx.AsyncClient, progress_callbac
     return PreprocessResult(ready=True, block_search=False, runtime_ready=False, messages=tuple(messages), actions=actions, state_flags=state_flags)
 
 
+def _probe_local_port(host: str, port: int, *, timeout_s: float = SCRIPT_SERVICE_PROBE_TIMEOUT_S) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout_s):
+            return True
+    except OSError:
+        return False
+
+
 def _check_script_services() -> ScriptServiceStatus:
-    running_processes = (proc.info["name"] for proc in psutil.process_iter(["name"]) if proc.info["name"])
-    return ScriptServiceStatus.from_process_names(running_processes)
+    # 端口 readiness 比 process_iter 全表扫更贴近“服务可用”，且在 Windows 上更稳更快。
+    return ScriptServiceStatus(
+        motrix_running=_probe_local_port(SCRIPT_MOTRIX_RPC_HOST, SCRIPT_MOTRIX_RPC_PORT),
+        redis_server_running=_probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT),
+    )
 
 
 def _check_script_dependencies() -> bool | list[str]:
-    missing = []
-    for package in ("redis", "pandas"):
-        try:
-            importlib.import_module(package)
-        except ImportError:
-            missing.append(package)
+    missing = [
+        package
+        for package in ("redis", "pandas")
+        if importlib.util.find_spec(package) is None
+    ]
     return True if not missing else missing

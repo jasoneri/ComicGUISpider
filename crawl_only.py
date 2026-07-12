@@ -1,141 +1,71 @@
 # -*- coding: utf-8 -*-
-"""CLI download entry using SpiderRuntimeThread + event_q."""
+"""Thin CLI downloader entry using the shared CGS Server runtime owner."""
 import argparse
 import asyncio
+import json
 import os
-import queue
 import sys
-from dataclasses import dataclass
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from loguru import logger
 
-from ComicSpider.runtime import SpiderRuntimeThread
-from utils import conf, select
-from utils.config.qc import cgs_cfg
-from utils.protocol import (
-    SpiderDownloadJob,
-    JobAcceptedEvent,
-    LogEvent,
-    ErrorEvent,
-    JobFinishedEvent,
-    BarProgressEvent,
-    ProcessStateEvent,
-    TasksObjEvent,
-)
-from utils.website.registry import resolve_provider_descriptor_by_site
-from utils.website.runtime_context import PreviewSiteConfig
-from utils.website.site_runtime import ThreadSiteRuntime
-from variables import Spider, SPIDERS
+from server.runtime import PreviewRuntime
+from server.runtime_download import serialize_protocol_event, submit_and_wait
+from utils import install_qfluentwidgets_notice_filter, select
+from variables import SPIDERS, Spider
+
+if "--structured-events" in sys.argv[1:]:
+    install_qfluentwidgets_notice_filter()
 
 is_debugging = os.getenv("CGS_DEBUG") == "1"
 
 
-class PreviewRuntime:
-    def __init__(self, site_index: int):
-        self.site_index = site_index
-        self.provider_descriptor = resolve_provider_descriptor_by_site(site_index)
-        self.site_config = PreviewSiteConfig.create(
-            self.provider_descriptor.provider_name,
-            cookies_by_site=conf.cookies,
-            domains=getattr(conf, "domains", None),
-            custom_map=conf.custom_map,
-            proxies=conf.proxies,
-            doh_url=cgs_cfg.doh.get_url(),
-        )
-        self.thread_site_runtime = ThreadSiteRuntime(
-            self.provider_descriptor,
-            site_config=self.site_config,
-            conf_state=conf,
-        )
+class CliArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, event_writer=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.event_writer = event_writer
 
-    async def __aenter__(self):
-        self.thread_site_runtime.get_async_preview_client()
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        await self.thread_site_runtime.aclose()
-
-    async def search(self, keyword: str, page: int = 1):
-        return await self.thread_site_runtime.preview_search(keyword, page=page)
-
-    async def fetch_episodes(self, book):
-        return await self.thread_site_runtime.preview_fetch_episodes(book)
-
-    async def fetch_pages(self, episode):
-        return await self.thread_site_runtime.preview_fetch_pages(episode)
+    def error(self, message):
+        if self.event_writer:
+            self.event_writer.error("argument_error", message)
+            self.event_writer.finished(False, message)
+        super().error(message)
 
 
-@dataclass
-class DownloadQuantityRecord:
-    expected_pages: int | None = None
-    registered_tasks_count: int | None = None
-    processed_events: int = 0
+class CliEventWriter:
+    def __init__(self, job_id: str, stream=None):
+        self.job_id = job_id
+        self.stream = stream or sys.stdout
 
-    @property
-    def is_aligned(self) -> bool:
-        return (
-            self.expected_pages is not None
-            and self.expected_pages == self.registered_tasks_count
-            and self.expected_pages == self.processed_events
-        )
+    def emit(self, event_type: str, **fields):
+        payload = {
+            "type": event_type,
+            "job_id": fields.pop("job_id", None) or self.job_id,
+            "timestamp": fields.pop("timestamp", None) or datetime.now(timezone.utc).isoformat(),
+            **fields,
+        }
+        self.stream.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+        self.stream.flush()
 
+    def error(self, stage: str, error):
+        self.emit("error", stage=stage, error=str(error))
 
-class DownloadQuantityProbe:
-    def __init__(self, payload):
-        self.records: dict[str, DownloadQuantityRecord] = {}
-        self._seed_from_payload(payload)
+    def finished(self, success: bool, error=None):
+        fields = {"success": bool(success)}
+        if error:
+            fields["error"] = str(error)
+        self.emit("finished", **fields)
 
-    @staticmethod
-    def _iter_payload_items(payload):
-        if payload is None:
-            return
-        if isinstance(payload, list):
-            for item in payload:
-                if hasattr(item, "to_tasks_obj"):
-                    yield item
-            return
-        if hasattr(payload, "to_tasks_obj"):
-            yield payload
-
-    def _seed_from_payload(self, payload):
-        for item in self._iter_payload_items(payload):
-            tasks_obj = item.to_tasks_obj()
-            record = self.records.setdefault(tasks_obj.taskid, DownloadQuantityRecord())
-            record.expected_pages = tasks_obj.tasks_count
-
-    def observe(self, event: TasksObjEvent):
-        task = getattr(event, "task_obj", None)
-        taskid = getattr(task, "taskid", None)
-        if not taskid:
-            return
-        record = self.records.setdefault(taskid, DownloadQuantityRecord())
-        if event.is_new:
-            record.registered_tasks_count = getattr(task, "tasks_count", None)
-            if record.expected_pages is None:
-                record.expected_pages = record.registered_tasks_count
-            return
-        record.processed_events += 1
-
-    def summarize(self) -> tuple[list[str], list[str]]:
-        aligned = []
-        drifted = []
-        for taskid, record in sorted(self.records.items()):
-            summary = (
-                f"{taskid}: expected={record.expected_pages}, "
-                f"registered={record.registered_tasks_count}, processed={record.processed_events}"
-            )
-            if record.is_aligned:
-                aligned.append(summary)
-            else:
-                drifted.append(summary)
-        return aligned, drifted
+    def protocol_event(self, event):
+        payload = serialize_protocol_event(event, default_job_id=self.job_id)
+        self.emit(payload.pop("type"), **payload)
 
 
-def _build_parser():
-    parser = argparse.ArgumentParser(
+def _build_parser(event_writer=None):
+    parser = CliArgumentParser(
         description=f"CGS CLI runtime downloader. 网站序号: {SPIDERS}",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=argparse.RawDescriptionHelpFormatter, event_writer=event_writer,
     )
     parser.add_argument("-w", "--website", type=int, default=1, help="选择网站序号")
     parser.add_argument("-k", "--keyword", required=True, help="关键字（作品名）")
@@ -145,14 +75,15 @@ def _build_parser():
     parser.add_argument("-tw", "--time_wait", default=None, help="保留兼容参数，当前未使用")
     parser.add_argument("-tp", "--turn_page", action="store_true", help="保留兼容参数，当前未使用")
     parser.add_argument("-dt", "--daily_test", action="store_true", help="保留兼容参数，当前未使用")
+    parser.add_argument("--structured-events", action="store_true", help="输出 JSON Lines 结构化事件到 stdout")
     return parser
 
 
 def _validate_args(parser, args):
+    if args.website not in SPIDERS:
+        parser.error(f"unknown website: {args.website}")
     if args.website not in Spider.specials() and not args.indexes2:
-        parser.error(
-            "the following argument is required when website is not in Spider.specials(): -i2/--indexes2"
-        )
+        parser.error("the following argument is required when website is not in Spider.specials(): -i2/--indexes2")
     if args.website in Spider.specials() and args.indexes2:
         parser.error("the argument -i2/--indexes2 is not allowed when website is in Spider.specials()")
 
@@ -192,92 +123,35 @@ async def _fetch_episode_choices(site_index: int, books: list) -> dict:
     return episode_choices
 
 
-async def _fetch_selected_pages(site_index: int, episodes: list):
+async def _fetch_selected_pages(site_index: int, items: list):
     async with PreviewRuntime(site_index) as preview:
-        for ep in episodes:
-            if getattr(ep, "page_urls", None):
+        for item in items:
+            if page_urls := getattr(item, "page_urls", None):
+                if getattr(item, "pages", None) is None:
+                    item.pages = len(page_urls)
                 continue
-            page_urls = await preview.fetch_pages(ep)
+            if getattr(item, "pages", None) is not None:
+                continue
+            page_urls = await preview.fetch_pages(item)
             if not isinstance(page_urls, list):
                 raise TypeError(f"preview_fetch_pages must return list, got {type(page_urls).__name__}")
-            ep.pages = len(page_urls)
-            ep.page_urls = list(page_urls)
+            item.pages = len(page_urls)
+            item.page_urls = list(page_urls)
 
 
 def _build_download_payload(site_index: int, selected_books: list, selected_eps: list | None):
     if site_index in Spider.specials():
         return selected_books[0] if len(selected_books) == 1 else selected_books
-
     payload = list(selected_eps or [])
     if not payload:
         raise ValueError("no episodes selected for download")
     return payload[0] if len(payload) == 1 else payload
 
 
-def _submit_and_wait(site_index: int, payload) -> bool:
-    runtime = SpiderRuntimeThread()
-    runtime.daemon = True
-    runtime.start()
-    runtime.wait_ready(timeout=30)
-    quantity_probe = DownloadQuantityProbe(payload)
-
-    job = SpiderDownloadJob(
-        job_id=uuid4().hex,
-        spider_name=SPIDERS[site_index],
-        site_index=site_index,
-        payload=payload,
-        options={},
-    )
-    logger.info(f"[submit] spider={job.spider_name} job={job.job_id}")
-    runtime.submit_job(job)
-
-    last_percent = None
-    success = False
-    try:
-        while True:
-            try:
-                event = runtime.event_q.get(timeout=0.2)
-            except queue.Empty:
-                continue
-
-            event_job_id = getattr(event, "job_id", None)
-            if event_job_id and event_job_id != job.job_id:
-                continue
-
-            if isinstance(event, JobAcceptedEvent):
-                logger.info(f"[accepted] {event.job_id}")
-            elif isinstance(event, LogEvent):
-                logger.info(str(event.message))
-            elif isinstance(event, ProcessStateEvent):
-                logger.debug(f"[stage] {event.process}")
-            elif isinstance(event, BarProgressEvent):
-                if event.percent != last_percent:
-                    last_percent = event.percent
-                    logger.info(f"[progress] {event.percent}%")
-            elif isinstance(event, TasksObjEvent):
-                quantity_probe.observe(event)
-                task = event.task_obj
-                if event.is_new:
-                    title = getattr(task, "display_title", None) or getattr(task, "taskid", "")
-                    logger.info(f"[task] {title}")
-            elif isinstance(event, ErrorEvent):
-                logger.error(event.error)
-            elif isinstance(event, JobFinishedEvent):
-                success = bool(event.success)
-                logger.info(f"[finished] success={success}")
-                return success
-    finally:
-        aligned, drifted = quantity_probe.summarize()
-        for summary in aligned:
-            logger.info(f"[quantity] aligned {summary}")
-        for summary in drifted:
-            logger.warning(f"[quantity] drift {summary}")
-        runtime.shutdown()
-        runtime.join(timeout=5)
-
-
 def main():
-    parser = _build_parser()
+    job_id = uuid4().hex
+    event_writer = CliEventWriter(job_id) if "--structured-events" in sys.argv[1:] else None
+    parser = _build_parser(event_writer=event_writer)
     args = parser.parse_args()
     logger.remove()
     logger.add(sys.stderr, level=args.log_level.upper())
@@ -286,36 +160,58 @@ def main():
     if args.turn_page:
         logger.warning("--turn_page is no longer supported in runtime CLI; ignoring")
     if args.daily_test or is_debugging:
-        logger.info("runtime CLI uses the same event_q flow in daily/debug mode")
+        logger.info("runtime CLI uses the same CGS Server runtime owner in daily/debug mode")
 
     try:
         books_map = asyncio.run(_search_books(args.website, args.keyword))
         if not books_map:
-            logger.error("search returned no books")
+            error = "search returned no books"
+            if event_writer:
+                event_writer.error("search", error)
+                event_writer.finished(False, error)
+            logger.error(error)
             return 1
         _render_books(books_map)
 
         selected_books = select(args.indexes, books_map)
         if not selected_books:
-            logger.error("selected book indexes resolved to empty set")
+            error = "selected book indexes resolved to empty set"
+            if event_writer:
+                event_writer.error("select_books", error)
+                event_writer.finished(False, error)
+            logger.error(error)
             return 1
 
         selected_eps = None
         if args.website not in Spider.specials():
             episode_choices = asyncio.run(_fetch_episode_choices(args.website, selected_books))
             if not episode_choices:
-                logger.error("episode fetch returned no episodes")
+                error = "episode fetch returned no episodes"
+                if event_writer:
+                    event_writer.error("fetch_episodes", error)
+                    event_writer.finished(False, error)
+                logger.error(error)
                 return 1
             _render_episodes(episode_choices)
             selected_eps = select(args.indexes2, episode_choices)
             if not selected_eps:
-                logger.error("selected episode indexes resolved to empty set")
+                error = "selected episode indexes resolved to empty set"
+                if event_writer:
+                    event_writer.error("select_episodes", error)
+                    event_writer.finished(False, error)
+                logger.error(error)
                 return 1
             asyncio.run(_fetch_selected_pages(args.website, selected_eps))
+        else:
+            asyncio.run(_fetch_selected_pages(args.website, selected_books))
 
         payload = _build_download_payload(args.website, selected_books, selected_eps)
-        return 0 if _submit_and_wait(args.website, payload) else 1
+        sink = event_writer if event_writer else None
+        return 0 if submit_and_wait(args.website, payload, job_id=job_id, event_sink=sink) else 1
     except Exception as exc:
+        if event_writer:
+            event_writer.error("cli", exc)
+            event_writer.finished(False, exc)
         logger.exception(exc)
         return 1
 
