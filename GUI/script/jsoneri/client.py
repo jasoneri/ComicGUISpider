@@ -9,7 +9,7 @@ from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequ
 from .models import StatusSnapshot, normalize_api_base_url, normalize_status_payload
 
 
-class JsoneriServicesStatusApiClient(QObject):
+class JsoneriPalacesProbeApiClient(QObject):
     status_received = Signal(int, object)
     status_unreachable = Signal(int, str)
     route_received = Signal(str, object)
@@ -39,7 +39,7 @@ class JsoneriServicesStatusApiClient(QObject):
 
     def fetch_status(self, generation: int) -> bool:
         if not self._base_url:
-            self.status_unreachable.emit(generation, "Jsoneri Server Status API URL is not configured.")
+            self.status_unreachable.emit(generation, "jsoneriPalacesProbe API URL is not configured.")
             return True
         if self._status_in_flight:
             return False
@@ -53,7 +53,7 @@ class JsoneriServicesStatusApiClient(QObject):
         if not service:
             raise ValueError("service_name must be a non-empty string.")
         if not self._base_url:
-            self.route_failed.emit(service, "Jsoneri Server Status API URL is not configured.")
+            self.route_failed.emit(service, "jsoneriPalacesProbe API URL is not configured.")
             return
         reply = self._manager.get(self._request(f"/api/route/{quote(service, safe='')}"))
         reply.finished.connect(lambda reply=reply, service=service: self._handle_route_reply(service, reply))
@@ -66,7 +66,7 @@ class JsoneriServicesStatusApiClient(QObject):
         if not target_url:
             raise ValueError("url must be a non-empty string.")
         if not self._base_url:
-            self.suspect_failed.emit(service, target_url, "Jsoneri Server Status API URL is not configured.")
+            self.suspect_failed.emit(service, target_url, "jsoneriPalacesProbe API URL is not configured.")
             return
         payload = {"service": service, "url": target_url, "token": self._token}
         body = QByteArray(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
@@ -89,7 +89,7 @@ class JsoneriServicesStatusApiClient(QObject):
         try:
             payload = self._read_json_reply(reply)
             snapshot: StatusSnapshot = normalize_status_payload(payload)
-        except Exception as error:
+        except (RuntimeError, TypeError, ValueError) as error:
             self.status_unreachable.emit(generation, str(error))
         else:
             self.status_received.emit(generation, snapshot)
@@ -99,11 +99,8 @@ class JsoneriServicesStatusApiClient(QObject):
     def _handle_route_reply(self, service: str, reply: QNetworkReply) -> None:
         try:
             payload = self._read_json_reply(reply)
-            if not isinstance(payload, dict):
-                raise TypeError("route response must be an object.")
-            raw_url = payload.get("url")
-            url = raw_url.strip() if isinstance(raw_url, str) and raw_url.strip() else None
-        except Exception as error:
+            url = self._route_url_from_payload(payload)
+        except (RuntimeError, TypeError, ValueError) as error:
             self.route_failed.emit(service, str(error))
         else:
             self.route_received.emit(service, url)
@@ -113,7 +110,7 @@ class JsoneriServicesStatusApiClient(QObject):
     def _handle_suspect_reply(self, service: str, url: str, reply: QNetworkReply) -> None:
         try:
             self._read_reply_or_raise(reply)
-        except Exception as error:
+        except RuntimeError as error:
             self.suspect_failed.emit(service, url, str(error))
         else:
             self.suspect_reported.emit(service, url)
@@ -125,7 +122,7 @@ class JsoneriServicesStatusApiClient(QObject):
         try:
             return json.loads(data.decode("utf-8"))
         except json.JSONDecodeError as error:
-            raise ValueError("Jsoneri Server Status API response must be valid JSON.") from error
+            raise ValueError("jsoneriPalacesProbe API response must be valid JSON.") from error
 
     @staticmethod
     def _read_reply_or_raise(reply: QNetworkReply) -> bytes:
@@ -135,4 +132,20 @@ class JsoneriServicesStatusApiClient(QObject):
         status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
         status_label = f"HTTP {status}" if status else "network error"
         detail = data.decode("utf-8", errors="replace").strip() or reply.errorString()
-        raise RuntimeError(f"Jsoneri Server Status API request failed: {status_label}: {detail}")
+        raise RuntimeError(f"jsoneriPalacesProbe API request failed: {status_label}: {detail}")
+
+    @staticmethod
+    def _route_url_from_payload(payload) -> str | None:
+        if not isinstance(payload, dict):
+            raise TypeError("route response must be an object.")
+        route_payload = payload.get("route")
+        if not isinstance(route_payload, dict):
+            raise TypeError("route response route must be an object.")
+        available = route_payload.get("available")
+        if not isinstance(available, bool):
+            raise TypeError("route response route.available must be a boolean.")
+        raw_url = route_payload.get("url")
+        url = raw_url.strip() if isinstance(raw_url, str) and raw_url.strip() else ""
+        if available and not url:
+            raise TypeError("route response route.url must be a non-empty string when route.available is true.")
+        return url if available else None

@@ -379,6 +379,7 @@ class ScriptWindow(ScriptWindowBase):
         self.doh_stub_runtime.ensure_from_config()
 
         self.initNavigation()
+        self._hide_unavailable_script_interfaces()
         self.initWindow()
         safe_single_shot(0, self.doh_stub_runtime.flush_warning)
 
@@ -438,6 +439,17 @@ class ScriptWindow(ScriptWindowBase):
         self.navigationInterface.addSeparator()
         if self._script_entry_visible("settings_visible"):
             self._add_script_entry(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM, show_in_pure_mode=True)
+
+    def _hide_unavailable_script_interfaces(self):
+        for interface, visibility_key in (
+            (self.danbooruInterface, "danbooru_visible"),
+            (self.kemonoInterface, "kemono_visible"),
+            (self.cbgInterface, "cbg_visible"),
+            (self.jsoneriPalacesProbeInterface, "jsoneri_palaces_probe_visible"),
+            (self.settingInterface, "settings_visible"),
+        ):
+            if not self._script_entry_visible(visibility_key):
+                interface.hide()
 
     def _script_entry_visible(self, visibility_key: str) -> bool:
         return bool(self.script_entry_state.get(visibility_key, True))

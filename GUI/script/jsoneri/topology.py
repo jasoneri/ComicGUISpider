@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QWidget
 from .dashboard import TopologyNodeViewModel
 
 
-class JsoneriServicesTopologyCanvas(QWidget):
+class JsoneriPalacesTopologyCanvas(QWidget):
     service_selected = Signal(str)
     service_open_requested = Signal(str)
 
@@ -21,7 +21,7 @@ class JsoneriServicesTopologyCanvas(QWidget):
         self._node_rects: dict[str, QRectF] = {}
         self.setMinimumHeight(260)
         self.setMouseTracking(True)
-        self.setObjectName("JsoneriServicesTopologyCanvas")
+        self.setObjectName("JsoneriPalacesTopologyCanvas")
 
     def set_view_model(self, nodes: tuple[TopologyNodeViewModel, ...], *, selected_service_name: str, state_message: str) -> None:
         self._nodes = nodes
@@ -122,7 +122,7 @@ class JsoneriServicesTopologyCanvas(QWidget):
 
         painter.setPen(muted_text_color)
         painter.drawText(QRectF(rect.left() + 14, rect.top() + 42, rect.width() - 28, 22), Qt.AlignmentFlag.AlignLeft, node.status_label)
-        painter.drawText(QRectF(rect.left() + 14, rect.top() + 66, rect.width() - 28, 22), Qt.AlignmentFlag.AlignLeft, node.online_ratio)
+        painter.drawText(QRectF(rect.left() + 14, rect.top() + 66, rect.width() - 28, 22), Qt.AlignmentFlag.AlignLeft, node.available_ratio)
         painter.drawText(QRectF(rect.left() + 14, rect.top() + 90, rect.width() - 28, 22), Qt.AlignmentFlag.AlignLeft, node.freshness_label)
 
     def _service_at(self, point: QPointF) -> str:

@@ -1,3 +1,3 @@
-from .interface import JsoneriServicesStatusInterface
+from .interface import JsoneriPalacesProbeInterface
 
-__all__ = ["JsoneriServicesStatusInterface"]
+__all__ = ["JsoneriPalacesProbeInterface"]

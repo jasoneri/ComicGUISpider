@@ -15,7 +15,6 @@ danbooru:
   view_ratio: 60
 
 jsoneriPalacesProbe:
-  url: ""
   token: ""
 
 proxies: null

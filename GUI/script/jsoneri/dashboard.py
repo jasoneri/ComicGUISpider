@@ -1,24 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 
-from .models import ServiceStatus, ServiceStatusEntry, StatusSnapshot
+from .models import ServiceCardState, ServiceStatusEntry, StatusSnapshot
 
+BEIJING_TZ = timezone(timedelta(hours=8), "Asia/Shanghai")
 
-STATUS_COLORS = {
-    ServiceStatus.ONLINE: "#10b981",
-    ServiceStatus.OFFLINE: "#ef4444",
-    ServiceStatus.UNKNOWN: "#9ca3af",
-    ServiceStatus.CHECKING: "#f59e0b",
-}
-
-STATUS_LABELS = {
-    ServiceStatus.ONLINE: "Online",
-    ServiceStatus.OFFLINE: "Offline",
-    ServiceStatus.UNKNOWN: "Unknown",
-    ServiceStatus.CHECKING: "Checking",
+CARD_COLORS = {
+    ServiceCardState.NORMAL: "#a3a3a3",
+    ServiceCardState.INVALID: "#ef4444",
+    ServiceCardState.SUCCESS: "#178d00",
+    ServiceCardState.PLACEHOLDER: "#737373",
 }
 
 
@@ -55,10 +49,10 @@ class DashboardEvent:
 @dataclass(frozen=True)
 class DashboardSummary:
     total: int
-    online: int
-    checking: int
-    offline: int
-    unknown: int
+    normal: int
+    invalid: int
+    success: int
+    placeholder: int
     last_refresh_label: str
 
 
@@ -66,7 +60,7 @@ class DashboardSummary:
 class InstanceViewModel:
     url: str
     host: str
-    alive_label: str
+    state_label: str
     freshness_label: str
 
 
@@ -75,10 +69,15 @@ class ServiceViewModel:
     name: str
     label: str
     description: str
-    status: ServiceStatus
-    status_label: str
+    icon: str
+    card_state: ServiceCardState
+    card_state_label: str
     color: str
-    online_ratio: str
+    response_code: str
+    response_message: str
+    response_detail: str
+    route_url: str
+    available_ratio: str
     freshness_label: str
     can_open: bool
     instances: tuple[InstanceViewModel, ...]
@@ -90,7 +89,7 @@ class TopologyNodeViewModel:
     label: str
     status_label: str
     color: str
-    online_ratio: str
+    available_ratio: str
     freshness_label: str
 
 
@@ -143,7 +142,7 @@ class _SuspectOperation:
     message: str = ""
 
 
-class JsoneriServicesDashboardStore:
+class JsoneriPalacesDashboardStore:
     def __init__(self, *, max_events: int = 30):
         self.configured = False
         self.connection = DashboardConnection.NOT_CONFIGURED
@@ -216,7 +215,7 @@ class JsoneriServicesDashboardStore:
 
     def set_filters(self, *, search_text: str, status_filter: str) -> None:
         self.search_text = search_text.strip()
-        self.status_filter = status_filter if status_filter in {"all", *[status.value for status in ServiceStatus]} else "all"
+        self.status_filter = status_filter if status_filter in {"all", *[state.value for state in ServiceCardState]} else "all"
         self._ensure_selection()
 
     def select_service(self, service_name: str) -> None:
@@ -287,8 +286,8 @@ class JsoneriServicesDashboardStore:
         selected_service = self._service_vm(selected_entry) if selected_entry is not None else None
         topology_nodes = tuple(
             TopologyNodeViewModel(
-                service_name=service.name, label=service.label, status_label=service.status_label, color=service.color,
-                online_ratio=service.online_ratio, freshness_label=service.freshness_label,
+                service_name=service.name, label=service.label, status_label=service.card_state_label, color=service.color,
+                available_ratio=service.available_ratio, freshness_label=service.freshness_label,
             )
             for service in services
         )
@@ -303,23 +302,26 @@ class JsoneriServicesDashboardStore:
     def _summary(self) -> DashboardSummary:
         entries = self._snapshot.services if self._snapshot is not None else ()
         return DashboardSummary(
-            total=len(entries), online=sum(1 for entry in entries if entry.status == ServiceStatus.ONLINE),
-            checking=sum(1 for entry in entries if entry.status == ServiceStatus.CHECKING),
-            offline=sum(1 for entry in entries if entry.status == ServiceStatus.OFFLINE),
-            unknown=sum(1 for entry in entries if entry.status == ServiceStatus.UNKNOWN), last_refresh_label=self._last_refresh_label(),
+            total=len(entries), normal=sum(1 for entry in entries if entry.card_state == ServiceCardState.NORMAL),
+            invalid=sum(1 for entry in entries if entry.card_state == ServiceCardState.INVALID),
+            success=sum(1 for entry in entries if entry.card_state == ServiceCardState.SUCCESS),
+            placeholder=sum(1 for entry in entries if entry.card_state == ServiceCardState.PLACEHOLDER),
+            last_refresh_label=self._last_refresh_label(),
         )
 
     def _service_vm(self, entry: ServiceStatusEntry) -> ServiceViewModel:
         instances = tuple(
             InstanceViewModel(
-                url=instance.url, host=instance.host, alive_label="alive" if instance.alive else "down",
+                url=instance.url, host=instance.host, state_label=instance.state,
                 freshness_label=_format_seen_age(self._snapshot.server_time if self._snapshot is not None else None, instance.last_seen),
             )
             for instance in entry.instances
         )
         return ServiceViewModel(
-            name=entry.name, label=entry.label or entry.name, description=entry.description or "No description", status=entry.status,
-            status_label=STATUS_LABELS[entry.status], color=STATUS_COLORS[entry.status], online_ratio=f"{entry.online_count}/{entry.total_count} online",
+            name=entry.name, label=entry.label or entry.name, description=entry.description, icon=entry.icon,
+            card_state=entry.card_state, card_state_label=entry.response.message, color=CARD_COLORS[entry.card_state],
+            response_code=entry.response.code, response_message=entry.response.message, response_detail=entry.response.detail,
+            route_url=entry.route.url if entry.can_open else "", available_ratio=f"{entry.available_count}/{entry.total_count} available",
             freshness_label=self._service_freshness_label(entry), can_open=entry.can_open, instances=instances,
         )
 
@@ -330,9 +332,9 @@ class JsoneriServicesDashboardStore:
         status_filter = self.status_filter
         entries = []
         for entry in self._snapshot.services:
-            if status_filter != "all" and entry.status.value != status_filter:
+            if status_filter != "all" and entry.card_state.value != status_filter:
                 continue
-            haystack = f"{entry.name} {entry.label} {entry.description}".casefold()
+            haystack = f"{entry.name} {entry.label} {entry.description} {entry.response.message} {entry.response.detail}".casefold()
             if search and search not in haystack:
                 continue
             entries.append(entry)
@@ -366,7 +368,7 @@ class JsoneriServicesDashboardStore:
     def _last_refresh_label(self) -> str:
         if self._snapshot is None:
             return "Never"
-        return datetime.fromtimestamp(self._snapshot.server_time).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.fromtimestamp(self._snapshot.server_time, tz=BEIJING_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
     def _connection_label(self) -> str:
         return {
@@ -388,11 +390,11 @@ class JsoneriServicesDashboardStore:
 
     def _state_message(self, services: tuple[ServiceViewModel, ...]) -> str:
         if not self.configured:
-            return "Configure Jsoneri Server Status API URL to begin."
+            return "jsoneriPalacesProbe API is not configured."
         if self.connection == DashboardConnection.CHECKING and self._snapshot is None:
-            return "Checking Jsoneri Server Status API..."
+            return "Checking jsoneriPalacesProbe API..."
         if self.connection == DashboardConnection.DISCONNECTED and self._snapshot is None:
-            return self.last_error or "Jsoneri Server Status API is unreachable."
+            return self.last_error or "jsoneriPalacesProbe API is unreachable."
         if self._snapshot is None:
             return "No status snapshot loaded."
         if not self._snapshot.services:
