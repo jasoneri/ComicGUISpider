@@ -112,92 +112,89 @@ class SchedulePresentation:
     debug_payload: dict[str, Any] = field(default_factory=dict)
 
 
-def default_schedule_cache_dir() -> Path:
-    return temp_p / "subscription_schedule"
+class ScheduleCache:
+    """Owns schedule cache paths and summary/pkl I/O under temp_p/subscription_schedule."""
 
+    def __init__(self, root: Path | None = None) -> None:
+        self.root = Path(root) if root is not None else temp_p / "subscription_schedule"
+        self.summary_path = self.root / "summary.json"
+        self.pkl_path = self.root / "bookinfo.pkl"
 
-def default_schedule_summary_path() -> Path:
-    return default_schedule_cache_dir() / "summary.json"
+    def read_summary(self) -> dict[str, Any]:
+        with open(self.summary_path, "r", encoding="utf-8") as fp:
+            payload = json.load(fp)
+        if not isinstance(payload, dict):
+            raise ScheduleCacheError(f"schedule summary must be a mapping: {self.summary_path}")
+        version = payload.get("schema_version")
+        if version != SCHEDULE_PRESENTATION_SCHEMA:
+            raise ScheduleCacheError(f"unsupported schedule summary schema {version!r}: {self.summary_path}")
+        return payload
 
+    def write_summary(self, payload: dict[str, Any]) -> None:
+        versioned = {"schema_version": SCHEDULE_PRESENTATION_SCHEMA, **payload}
+        self.summary_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.summary_path, "w", encoding="utf-8") as fp:
+            json.dump(versioned, fp, ensure_ascii=False, indent=2, sort_keys=True)
 
-def default_schedule_pkl_path() -> Path:
-    return default_schedule_cache_dir() / "bookinfo.pkl"
-
-
-def read_schedule_summary(path: Path | None = None) -> dict[str, Any]:
-    summary_path = Path(path) if path is not None else default_schedule_summary_path()
-    with open(summary_path, "r", encoding="utf-8") as fp:
-        payload = json.load(fp)
-    if not isinstance(payload, dict):
-        raise ScheduleCacheError(f"schedule summary must be a mapping: {summary_path}")
-    version = payload.get("schema_version")
-    if version != SCHEDULE_PRESENTATION_SCHEMA:
-        raise ScheduleCacheError(f"unsupported schedule summary schema {version!r}: {summary_path}")
-    return payload
-
-
-def write_schedule_summary(payload: dict[str, Any], path: Path | None = None) -> None:
-    summary_path = Path(path) if path is not None else default_schedule_summary_path()
-    versioned = {"schema_version": SCHEDULE_PRESENTATION_SCHEMA, **payload}
-    summary_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(summary_path, "w", encoding="utf-8") as fp:
-        json.dump(versioned, fp, ensure_ascii=False, indent=2, sort_keys=True)
-
-
-def write_bookinfo_cache(books: list, path: Path | None = None) -> ScheduleCacheState:
-    pkl_path = Path(path) if path is not None else default_schedule_pkl_path()
-    payload = serialize_books(books)
-    pkl_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(pkl_path, "wb") as fp:
-        fp.write(payload)
-    return ScheduleCacheState(
-        status="ready",
-        pkl_path=str(pkl_path),
-        updated_at=_utc_now(),
-        message="bookinfo cache ready",
-        book_count=len(books),
-    )
-
-
-def load_bookinfo_cache(path: Path | None = None) -> list:
-    pkl_path = Path(path) if path is not None else default_schedule_pkl_path()
-    try:
-        with open(pkl_path, "rb") as fp:
-            payload = fp.read()
-        return deserialize_books(payload)
-    except Exception as exc:
-        raise ScheduleCacheError(f"failed to load schedule pkl cache: {pkl_path}: {exc}") from exc
-
-
-def cache_state_from_summary(summary: Optional[dict[str, Any]], *, summary_path: Path | None = None, pkl_path: Path | None = None) -> ScheduleCacheState:
-    resolved_summary = Path(summary_path) if summary_path is not None else default_schedule_summary_path()
-    resolved_pkl = Path(pkl_path) if pkl_path is not None else default_schedule_pkl_path()
-    if summary is None:
-        if resolved_pkl.exists():
-            return ScheduleCacheState(status="summary missing", pkl_path=str(resolved_pkl), summary_path=str(resolved_summary), message="pkl exists but summary is missing")
-        return ScheduleCacheState(status="missing", pkl_path=str(resolved_pkl), summary_path=str(resolved_summary), message="cache summary and pkl are missing")
-
-    cache = summary.get("cache")
-    if not isinstance(cache, dict):
-        raise ScheduleCacheError("schedule summary missing cache mapping")
-    state = ScheduleCacheState(
-        status=str(cache.get("status") or "unknown"),
-        pkl_path=str(cache.get("pkl_path") or resolved_pkl),
-        summary_path=str(cache.get("summary_path") or resolved_summary),
-        updated_at=str(cache.get("updated_at") or ""),
-        message=str(cache.get("message") or ""),
-        book_count=int(cache.get("book_count") or 0),
-    )
-    if state.status == "ready" and state.pkl_path and not Path(state.pkl_path).exists():
+    def write_books(self, books: list) -> ScheduleCacheState:
+        payload = serialize_books(books)
+        self.pkl_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.pkl_path, "wb") as fp:
+            fp.write(payload)
         return ScheduleCacheState(
-            status="degraded",
-            pkl_path=state.pkl_path,
-            summary_path=state.summary_path,
-            updated_at=state.updated_at,
-            message="summary exists but pkl cache is missing",
-            book_count=state.book_count,
+            status="ready",
+            pkl_path=str(self.pkl_path),
+            summary_path=str(self.summary_path),
+            updated_at=_utc_now(),
+            message="bookinfo cache ready",
+            book_count=len(books),
         )
-    return state
+
+    def load_books(self) -> list:
+        try:
+            with open(self.pkl_path, "rb") as fp:
+                payload = fp.read()
+            return deserialize_books(payload)
+        except Exception as exc:
+            raise ScheduleCacheError(f"failed to load schedule pkl cache: {self.pkl_path}: {exc}") from exc
+
+    def state_from_summary(self, summary: Optional[dict[str, Any]]) -> ScheduleCacheState:
+        if summary is None:
+            if self.pkl_path.exists():
+                return ScheduleCacheState(
+                    status="summary missing",
+                    pkl_path=str(self.pkl_path),
+                    summary_path=str(self.summary_path),
+                    message="pkl exists but summary is missing",
+                )
+            return ScheduleCacheState(
+                status="missing",
+                pkl_path=str(self.pkl_path),
+                summary_path=str(self.summary_path),
+                message="cache summary and pkl are missing",
+            )
+
+        cache = summary.get("cache")
+        if not isinstance(cache, dict):
+            raise ScheduleCacheError("schedule summary missing cache mapping")
+        state = ScheduleCacheState(
+            status=str(cache.get("status") or "unknown"),
+            pkl_path=str(cache.get("pkl_path") or self.pkl_path),
+            summary_path=str(cache.get("summary_path") or self.summary_path),
+            updated_at=str(cache.get("updated_at") or ""),
+            message=str(cache.get("message") or ""),
+            book_count=int(cache.get("book_count") or 0),
+        )
+        if state.status == "ready" and state.pkl_path and not Path(state.pkl_path).exists():
+            return ScheduleCacheState(
+                status="degraded",
+                pkl_path=state.pkl_path,
+                summary_path=state.summary_path,
+                updated_at=state.updated_at,
+                message="summary exists but pkl cache is missing",
+                book_count=state.book_count,
+            )
+        return state
 
 
 def build_schedule_presentation(
@@ -209,19 +206,21 @@ def build_schedule_presentation(
     run: Optional[ScheduleRunView] = None,
     blocker: str = "",
     config_owner: str = "main application settings",
+    cache: ScheduleCache | None = None,
 ) -> SchedulePresentation:
     cfg.validate()
+    schedule_cache = cache or ScheduleCache()
     plan = _build_plan(cfg, status=status, blocker=blocker, config_owner=config_owner)
     sources = _source_rows(cfg)
     pending_items = _pending_rows(cache_summary)
     history = [_history_row(event) for event in events]
-    cache = cache_state_from_summary(cache_summary)
+    cache_state = schedule_cache.state_from_summary(cache_summary)
     run_view = run or _run_from_summary(cache_summary)
     return SchedulePresentation(
         schema_version=SCHEDULE_PRESENTATION_SCHEMA,
         generated_at=_utc_now(),
         plan=plan,
-        cache=cache,
+        cache=cache_state,
         run=run_view,
         sources=sources,
         pending_items=pending_items,
@@ -229,15 +228,11 @@ def build_schedule_presentation(
         stages=list(RUN_STAGES.get(cfg.mode, ())),
         debug_payload={
             "mode": cfg.mode,
-            "cache": asdict(cache),
+            "cache": asdict(cache_state),
             "run": asdict(run_view),
             "summary": cache_summary or {},
         },
     )
-
-
-def presentation_to_dict(presentation: SchedulePresentation) -> dict[str, Any]:
-    return asdict(presentation)
 
 
 def _build_plan(cfg: SubscriptionConfig, *, status, blocker: str, config_owner: str) -> SchedulePlanView:

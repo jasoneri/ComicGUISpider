@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from utils import conf
@@ -17,8 +16,7 @@ from utils.subscription import (
     ScheduleSection,
     ShareCard,
     SubscriptionConfig,
-    load_subscription,
-    save_subscription,
+    SubscriptionStore,
 )
 from variables import CGS_DISCORD_SHARE_API, CGS_METADATA_CHANNEL_ID
 
@@ -26,54 +24,38 @@ from variables import CGS_DISCORD_SHARE_API, CGS_METADATA_CHANNEL_ID
 VALID_SUBSCRIPTION_MODES = frozenset({MODE_BROADCASTER, MODE_SUBSCRIBER})
 
 
-def load_subscription_config(customname: str = DEFAULT_CUSTOMNAME, *, base_dir: Path | None = None) -> dict[str, Any]:
-    return subscription_config_payload(load_subscription(_customname(customname), base_dir=base_dir))
+def load_subscription_config(store: SubscriptionStore) -> dict[str, Any]:
+    return subscription_config_payload(store.load())
 
 
-def save_subscription_config(payload: dict[str, Any], *, base_dir: Path | None = None) -> dict[str, Any]:
-    cfg = _config_from_payload(payload)
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+def save_subscription_config(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
+    cfg = config_from_payload(payload, customname=store.customname)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-def switch_subscription_mode(
-    mode: str,
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
+def switch_subscription_mode(store: SubscriptionStore, mode: str) -> dict[str, Any]:
     normalized_mode = str(mode or "").strip()
     if normalized_mode not in VALID_SUBSCRIPTION_MODES:
         raise ValueError(f"unsupported subscription mode: {mode!r}")
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+    cfg = store.load()
     cfg.mode = normalized_mode
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-def add_broadcaster_book(
-    payload: dict[str, Any],
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+def add_broadcaster_book(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
+    cfg = store.load()
     entry = _book_from_payload(payload)
     if entry.url in {book.url for book in cfg.broadcaster.books}:
         raise ValueError(f"broadcaster book already exists: {entry.url}")
     cfg.broadcaster.books.append(entry)
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-def update_broadcaster_book(
-    index: int,
-    payload: dict[str, Any],
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+def update_broadcaster_book(store: SubscriptionStore, index: int, payload: dict[str, Any]) -> dict[str, Any]:
+    cfg = store.load()
     book = _indexed(cfg.broadcaster.books, index, "broadcaster book")
     next_book = BookEntry(
         site=_optional_text(payload, "site", book.site),
@@ -89,43 +71,27 @@ def update_broadcaster_book(
     if duplicate_index is not None:
         raise ValueError(f"broadcaster book already exists: {next_book.url}")
     cfg.broadcaster.books[index] = next_book
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-def remove_broadcaster_book(
-    index: int,
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+def remove_broadcaster_book(store: SubscriptionStore, index: int) -> dict[str, Any]:
+    cfg = store.load()
     _indexed(cfg.broadcaster.books, index, "broadcaster book")
     del cfg.broadcaster.books[index]
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-def add_subscriber_follow(
-    payload: dict[str, Any],
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+def add_subscriber_follow(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
+    cfg = store.load()
     cfg.subscriber.follows.append(_follow_from_payload(payload))
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-def update_subscriber_follow(
-    index: int,
-    payload: dict[str, Any],
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+def update_subscriber_follow(store: SubscriptionStore, index: int, payload: dict[str, Any]) -> dict[str, Any]:
+    cfg = store.load()
     follow = _indexed(cfg.subscriber.follows, index, "subscriber follow")
     cfg.subscriber.follows[index] = FollowEntry(
         bid=_optional_text(payload, "bid", follow.bid),
@@ -133,29 +99,20 @@ def update_subscriber_follow(
         added_at=_utc_now(),
     )
     _validate_follow(cfg.subscriber.follows[index])
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-def remove_subscriber_follow(
-    index: int,
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+def remove_subscriber_follow(store: SubscriptionStore, index: int) -> dict[str, Any]:
+    cfg = store.load()
     _indexed(cfg.subscriber.follows, index, "subscriber follow")
     del cfg.subscriber.follows[index]
-    save_subscription(cfg, base_dir=base_dir)
-    return load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    return subscription_config_payload(store.load())
 
 
-async def publish_subscription_share_card(
-    *,
-    customname: str = DEFAULT_CUSTOMNAME,
-    base_dir: Path | None = None,
-) -> dict[str, Any]:
-    cfg = load_subscription(_customname(customname), base_dir=base_dir)
+async def publish_subscription_share_card(store: SubscriptionStore) -> dict[str, Any]:
+    cfg = store.load()
     broadcaster = cfg.broadcaster
     if broadcaster.share_card and broadcaster.share_card.posted_at:
         raise ValueError("share_card already published")
@@ -183,8 +140,8 @@ async def publish_subscription_share_card(
         discord_channel=result.discord_channel,
         discord_message_id=result.discord_message_id,
     )
-    save_subscription(cfg, base_dir=base_dir)
-    payload = load_subscription_config(cfg.customname, base_dir=base_dir)
+    store.save(cfg)
+    payload = subscription_config_payload(store.load())
     payload["publish_result"] = {
         "bid": registration.bid,
         "posted_at": result.posted_at,
@@ -214,10 +171,9 @@ def subscription_config_payload(cfg: SubscriptionConfig) -> dict[str, Any]:
     }
 
 
-def _config_from_payload(payload: dict[str, Any]) -> SubscriptionConfig:
+def config_from_payload(payload: dict[str, Any], *, customname: str = DEFAULT_CUSTOMNAME) -> SubscriptionConfig:
     if not isinstance(payload, dict):
         raise ValueError("subscription config payload must be a mapping")
-    customname = _customname(str(payload.get("customname") or DEFAULT_CUSTOMNAME))
     mode = str(payload.get("mode") or MODE_BROADCASTER).strip()
     if mode not in VALID_SUBSCRIPTION_MODES:
         raise ValueError(f"unsupported subscription mode: {mode!r}")
@@ -231,7 +187,10 @@ def _config_from_payload(payload: dict[str, Any]) -> SubscriptionConfig:
         _feature_from_payload(item) for item in _list(broadcaster_payload.get("features"), "broadcaster.features")
     ]
     cfg.broadcaster.schedule = _schedule_from_payload(broadcaster_payload.get("schedule"))
-    cfg.subscriber.follows = [_follow_from_payload(item, keep_added_at=True) for item in _list(subscriber_payload.get("follows"), "subscriber.follows")]
+    cfg.subscriber.follows = [
+        _follow_from_payload(item, keep_added_at=True)
+        for item in _list(subscriber_payload.get("follows"), "subscriber.follows")
+    ]
     cfg.subscriber.pull_interval_hours = _positive_int(
         subscriber_payload.get("pull_interval_hours"), "pull_interval_hours", default=6
     )
@@ -316,10 +275,6 @@ def _share_card_from_payload(payload: Any) -> ShareCard | None:
         discord_channel=_nullable_text(data.get("discord_channel")),
         discord_message_id=_nullable_text(data.get("discord_message_id")),
     )
-
-
-def _customname(value: str) -> str:
-    return str(value or "").strip() or DEFAULT_CUSTOMNAME
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:

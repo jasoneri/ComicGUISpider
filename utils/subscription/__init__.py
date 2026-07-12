@@ -22,10 +22,7 @@ from utils.subscription.schema import (
 from utils.subscription.store import (
     DEFAULT_CUSTOMNAME,
     SubscriptionConfigPathConflictError,
-    legacy_subscription_path,
-    load_subscription,
-    save_subscription,
-    subscription_path,
+    SubscriptionStore,
 )
 
 __all__ = [
@@ -42,11 +39,8 @@ __all__ = [
     "SubscriberSection",
     "SubscriptionConfig",
     "SubscriptionConfigPathConflictError",
+    "SubscriptionStore",
     "VALID_FEATURE_KINDS",
     "VALID_MODES",
     "DEFAULT_CUSTOMNAME",
-    "legacy_subscription_path",
-    "load_subscription",
-    "save_subscription",
-    "subscription_path",
 ]

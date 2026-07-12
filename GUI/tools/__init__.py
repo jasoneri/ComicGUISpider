@@ -9,6 +9,7 @@ from qfluentwidgets import Pivot
 from qframelesswindow import FramelessWindow
 from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
 
+from GUI.core.timer import safe_single_shot
 from GUI.tools.hitomi_tool import HitomiTools, hitomi_db_path
 from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
@@ -109,6 +110,15 @@ class ToolWindow(FramelessWindow):
         else:
             self.resize(self.window_width, self.default_height)
         self.pivot.setCurrentItem(widget.objectName())
+
+    def open_subscribe_with_books(self, books):
+        """Open the subscribe tab and hand over preview BookInfo seeds to the wizard."""
+        self.gui.show_toolWin("subscribe")
+        payload = list(books)
+        safe_single_shot(20, lambda: self.subscribeInterface.receive_pushed_books(payload))
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        return self.subscribeInterface.server_mode_switch_blockers()
 
 
 def main():

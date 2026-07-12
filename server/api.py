@@ -29,7 +29,7 @@ from server.surfaces import ServerSurface, mount_server_surfaces, server_surface
 from utils import conf, exc_p, temp_p
 from utils.config.rule import CgsRuleMgr
 from utils.server_control import is_authorized_header
-from utils.subscription import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER
+from utils.subscription import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER, SubscriptionStore
 
 
 class SearchRequest(BaseModel):
@@ -187,7 +187,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return load_subscription_config(customname)
+            return load_subscription_config(SubscriptionStore(customname))
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
@@ -195,7 +195,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     async def put_subscription_config(req: SubscriptionConfigRequest, authorization: str | None = Header(default=None)):
         require_auth(authorization)
         try:
-            return save_subscription_config(req.model_dump())
+            return save_subscription_config(SubscriptionStore(req.customname), req.model_dump())
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
@@ -203,7 +203,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     async def post_subscription_mode(req: SubscriptionModeRequest, authorization: str | None = Header(default=None)):
         require_auth(authorization)
         try:
-            return switch_subscription_mode(req.mode, customname=req.customname)
+            return switch_subscription_mode(SubscriptionStore(req.customname), req.mode)
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
@@ -214,7 +214,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return add_broadcaster_book(req.model_dump(), customname=req.customname)
+            return add_broadcaster_book(SubscriptionStore(req.customname), req.model_dump())
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
@@ -227,7 +227,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return update_broadcaster_book(index, req.model_dump(exclude_none=True), customname=customname)
+            return update_broadcaster_book(SubscriptionStore(customname), index, req.model_dump(exclude_none=True))
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:
@@ -241,7 +241,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return remove_broadcaster_book(index, customname=customname)
+            return remove_broadcaster_book(SubscriptionStore(customname), index)
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:
@@ -254,7 +254,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return await publish_subscription_share_card(customname=customname)
+            return await publish_subscription_share_card(SubscriptionStore(customname))
         except (TypeError, ValueError, RuntimeError) as exc:
             _raise_subscription_error(exc)
 
@@ -265,7 +265,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return add_subscriber_follow(req.model_dump(), customname=req.customname)
+            return add_subscriber_follow(SubscriptionStore(req.customname), req.model_dump())
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
@@ -278,7 +278,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return update_subscriber_follow(index, req.model_dump(exclude_none=True), customname=customname)
+            return update_subscriber_follow(SubscriptionStore(customname), index, req.model_dump(exclude_none=True))
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:
@@ -292,7 +292,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return remove_subscriber_follow(index, customname=customname)
+            return remove_subscriber_follow(SubscriptionStore(customname), index)
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:

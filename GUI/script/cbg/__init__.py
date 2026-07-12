@@ -430,6 +430,11 @@ class CbgInterface(QFrame):
         self._restore_persisted_state()
         self._apply_theme()
 
+    def server_mode_switch_blockers(self) -> list[str]:
+        if self.task_mgr.get_running_tasks():
+            return ["cbg script"]
+        return []
+
     def _setup_ui(self) -> None:
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(14, 12, 14, 14)

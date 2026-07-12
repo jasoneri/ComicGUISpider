@@ -49,8 +49,7 @@ from utils.subscription import (
     MODE_BROADCASTER,
     MODE_SUBSCRIBER,
     ShareCard,
-    load_subscription,
-    save_subscription,
+    SubscriptionStore,
 )
 from variables import CGS_DISCORD_SHARE_API, CGS_METADATA_CHANNEL_ID
 
@@ -156,28 +155,26 @@ class SubscribeInterface(QWidget):
         self,
         parent,
         *,
-        customname: str = DEFAULT_CUSTOMNAME,
-        base_dir=None,
+        store: SubscriptionStore | None = None,
         share_api_factory=None,
         worker_client_factory=None,
     ):
         super().__init__(parent)
         self.gui = parent.gui
-        self.customname = customname
-        self.base_dir = base_dir
+        self.store = store or SubscriptionStore()
         self.task_mgr = AsyncTaskManager(self.gui, self)
         self._share_api_factory = share_api_factory or self._default_share_api_factory
         self._worker_client_factory = worker_client_factory or self._default_worker_client_factory
         self._loading = False
         self.pushed_books = []
-        self.config = load_subscription(customname, base_dir=base_dir)
+        self.config = self.store.load()
         self._build_ui()
         self._load_config_into_widgets()
 
     def save_current(self) -> None:
         self._sync_current_view_to_config(require_token=False)
-        save_subscription(self.config, base_dir=self.base_dir)
-        self.config = load_subscription(self.customname, base_dir=self.base_dir)
+        self.store.save(self.config)
+        self.config = self.store.load()
         self._load_config_into_widgets()
 
     def switch_mode(self, mode: str) -> None:
@@ -185,8 +182,8 @@ class SubscribeInterface(QWidget):
             raise ValueError(f"unsupported subscription mode: {mode!r}")
         self._sync_current_view_to_config(require_token=False)
         self.config.mode = mode
-        save_subscription(self.config, base_dir=self.base_dir)
-        self.config = load_subscription(self.customname, base_dir=self.base_dir)
+        self.store.save(self.config)
+        self.config = self.store.load()
         self._load_config_into_widgets()
 
     def _switch_mode_from_ui(self, mode: str) -> None:
@@ -220,8 +217,8 @@ class SubscribeInterface(QWidget):
             discord_channel=result.discord_channel,
             discord_message_id=result.discord_message_id,
         )
-        save_subscription(self.config, base_dir=self.base_dir)
-        self.config = load_subscription(self.customname, base_dir=self.base_dir)
+        self.store.save(self.config)
+        self.config = self.store.load()
         self._load_config_into_widgets()
         return result
 
@@ -265,6 +262,11 @@ class SubscribeInterface(QWidget):
             parent=self,
         )
 
+    def server_mode_switch_blockers(self) -> list[str]:
+        if self.task_mgr.get_running_tasks():
+            return ["subscribe task"]
+        return []
+
     def _run_ui_action(self, action) -> None:
         try:
             action()
@@ -294,7 +296,7 @@ class SubscribeInterface(QWidget):
 
         self.customname_edit = AcceptEdit(self)
         self.customname_edit.setPlaceholderText(DEFAULT_CUSTOMNAME)
-        self.customname_edit.setText(self.customname)
+        self.customname_edit.setText(self.store.customname)
         self.customname_edit.custSignal.connect(self._load_customname)
         header.addWidget(self.customname_edit, 2)
         self.main_layout.addLayout(header)
@@ -683,8 +685,8 @@ class SubscribeInterface(QWidget):
         broadcaster.schedule.time = self.wizard_time_picker.time.toString("HH:mm")
 
         self.config.validate()
-        save_subscription(self.config, base_dir=self.base_dir)
-        self.config = load_subscription(self.customname, base_dir=self.base_dir)
+        self.store.save(self.config)
+        self.config = self.store.load()
         self._load_config_into_widgets()
         self._close_wizard()
         InfoBar.success(
@@ -780,9 +782,9 @@ class SubscribeInterface(QWidget):
             self.follow_list.addItem(f"{follow.bid}{alias}")
 
     def _load_customname(self, customname: str) -> None:
-        customname = customname.strip() or DEFAULT_CUSTOMNAME
-        self.customname = customname
-        self.config = load_subscription(customname, base_dir=self.base_dir)
+        self.store = self.store.rebind(customname)
+        self.customname_edit.setText(self.store.customname)
+        self.config = self.store.load()
         self._load_config_into_widgets()
 
     def _save_from_button(self) -> None:
@@ -799,7 +801,7 @@ class SubscribeInterface(QWidget):
             tooltip_title="订阅分享",
             tooltip_content="发布分享卡片",
             success_message="分享链已发布",
-            task_id=f"subscription_share_card_{self.customname}",
+            task_id=f"subscription_share_card_{self.store.customname}",
             show_success_info=False,
         )
         if not started:

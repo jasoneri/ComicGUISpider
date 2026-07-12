@@ -591,6 +591,12 @@ class KemonoInterface(QFrame):
         self.setObjectName("KemonoInterface")
         self.setupUi()
 
+    def server_mode_switch_blockers(self) -> list[str]:
+        thread = self.backend_thread
+        if thread is not None and thread.isRunning():
+            return ["kemono script"]
+        return []
+
     def setupUi(self):
         self.main_layout = VBoxLayout(self)
 

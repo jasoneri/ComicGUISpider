@@ -177,6 +177,11 @@ class DanbooruInterface(QFrame):
         self._apply_theme()
         self.tab_mgr.create()
 
+    def server_mode_switch_blockers(self) -> list[str]:
+        if self.task_mgr.get_running_tasks():
+            return ["danbooru script"]
+        return []
+
     def _install_key_event_filter(self):
         application = QApplication.instance()
         if application is not None:

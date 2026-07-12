@@ -494,6 +494,13 @@ class ScriptWindow(ScriptWindowBase):
         # 初始化设置界面的内容
         self.settingInterface.show_self()
         
+    def server_mode_switch_blockers(self) -> list[str]:
+        blockers = []
+        blockers.extend(self.danbooruInterface.server_mode_switch_blockers())
+        blockers.extend(self.kemonoInterface.server_mode_switch_blockers())
+        blockers.extend(self.cbgInterface.server_mode_switch_blockers())
+        return list(dict.fromkeys(blockers))
+
     def closeEvent(self, event):
         event.accept()
         if self._exception_feedback_scope is not None:

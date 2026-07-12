@@ -7,7 +7,7 @@ import contextlib
 import warnings
 from PySide6.QtGui import QKeySequence, QGuiApplication, QShortcut, QTextCursor
 from PySide6.QtCore import (
-    QThread, Qt, QCoreApplication, QUrl, QRect, QObject,
+    QThread, Qt, QCoreApplication, QUrl, QRect,
     Signal,
 )
 from GUI.core.timer import safe_single_shot
@@ -315,11 +315,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.toolWin.stackedWidget.setCurrentWidget(getattr(self.toolWin, _map[win_type]))
         safe_single_shot(10, _jump)
 
-    def push_books_to_subscribe(self, books):
-        """Open SubscribeInterface and hand over BookInfo seeds pushed from preview (G3 entry)."""
-        self.show_toolWin("subscribe")
-        safe_single_shot(20, lambda: self.toolWin.subscribeInterface.receive_pushed_books(list(books)))
-
     def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
         from GUI.script import ScriptWindow
         if self.toolWin is not None and self.toolWin.isVisible():
@@ -362,43 +357,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             blockers.append("preview/search")
         blockers.extend(self.preprocess_mgr.server_mode_switch_blockers())
         blockers.extend(self.shares.server_mode_switch_blockers())
-        blockers.extend(self._tool_window_switch_blockers())
+        blockers.extend(self.toolWin.server_mode_switch_blockers())
+        if self.script_window is not None:
+            blockers.extend(self.script_window.server_mode_switch_blockers())
         blockers.extend(self.publish_mgr.server_mode_switch_blockers())
         blockers.extend(self.clip_mgr.server_mode_switch_blockers())
         blockers.extend(self.ags_mgr.server_mode_switch_blockers())
         return list(dict.fromkeys(blockers))
-
-    def _tool_window_switch_blockers(self) -> list[str]:
-        blockers = []
-        for root in (self.toolWin, self.script_window):
-            for owner_name, owner in self._iter_task_owners(root):
-                running = owner.get_running_tasks()
-                if running:
-                    blockers.append(owner_name)
-            kemono = getattr(root, "kemonoInterface", None)
-            if kemono is not None and kemono.backend_thread is not None and kemono.backend_thread.isRunning():
-                blockers.append("kemono script")
-        return blockers
-
-    @staticmethod
-    def _iter_task_owners(root):
-        if root is None:
-            return
-        seen = set()
-        stack = [root]
-        while stack:
-            current = stack.pop()
-            if current is None or id(current) in seen:
-                continue
-            seen.add(id(current))
-            for attr in ("task_mgr", "task_manager"):
-                manager = getattr(current, attr, None)
-                if manager is not None and hasattr(manager, "get_running_tasks"):
-                    yield current.__class__.__name__, manager
-            if not isinstance(current, QObject):
-                continue
-            for child in current.findChildren(QObject):
-                stack.append(child)
 
     def set_tool_win(self):
         from GUI.tools import ToolWindow

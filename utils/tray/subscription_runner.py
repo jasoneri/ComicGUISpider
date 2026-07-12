@@ -6,7 +6,7 @@ import inspect
 import queue
 import time
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any, Awaitable, Callable, Optional
@@ -24,10 +24,10 @@ from utils.protocol import ErrorEvent, JobFinishedEvent, SpiderDownloadJob
 from utils.redViewer_tools import Handler as RedViewerHandler
 from utils.share import DiscordShareAPI, IndexRecord, WorkerIndexClient, deserialize_books, serialize_books
 from utils.sql.download_state import DownloadStateStore
-from utils.subscription import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER, load_subscription
+from utils.subscription import MODE_BROADCASTER, MODE_SUBSCRIBER, SubscriptionStore
 from utils.subscription.schema import BookEntry, FeatureEntry, SubscriptionConfig
 from utils.tray.feature_search import filter_feature_books, supported_features, unsupported_feature_summary, unsupported_features
-from utils.tray.schedule_presentation import ScheduleCacheState, write_bookinfo_cache, write_schedule_summary
+from utils.tray.schedule_presentation import ScheduleCache, ScheduleCacheState
 from utils.config.qc import cgs_cfg
 from utils.website.info import (
     BookInfo,
@@ -97,6 +97,27 @@ class SubscriptionRunSummary:
             parts.append("metadata=published")
         return " ".join(parts)
 
+    def schedule_payload(self) -> dict[str, Any]:
+        return {
+            "cache": asdict(self.cache),
+            "run": {
+                "run_id": self.run_id,
+                "trigger": self.trigger,
+                "status": self.status,
+                "stage": self.stage,
+                "started_at": self.started_at,
+                "finished_at": self.finished_at,
+                "elapsed_sec": self.elapsed_sec,
+                "scanned_books": self.scanned_books,
+                "pending_episodes": self.pending_episodes,
+                "submitted_jobs": self.submitted_jobs,
+                "published_metadata": self.published_metadata,
+                "pulled_feeds": self.pulled_feeds,
+                "latest_message": self.latest_message,
+            },
+            "pending_items": self.pending_items,
+        }
+
 
 @dataclass
 class _PendingBook:
@@ -112,8 +133,7 @@ class SubscriptionRunner:
     def __init__(
         self,
         *,
-        customname: str = DEFAULT_CUSTOMNAME,
-        base_dir=None,
+        store: Optional[SubscriptionStore] = None,
         config_loader: Optional[Callable[[], SubscriptionConfig]] = None,
         site_runtime_factory: Optional[BookRuntimeFactory] = None,
         download_submitter: Optional[DownloadSubmitter] = None,
@@ -125,8 +145,8 @@ class SubscriptionRunner:
         md5s_provider: Optional[Md5sProvider] = None,
         progress_callback: Optional[ProgressCallback] = None,
     ) -> None:
-        self.customname = customname
-        self.base_dir = base_dir
+        self.store = store or SubscriptionStore()
+        self.cache = ScheduleCache()
         self._config_loader = config_loader
         self._site_runtime_factory = site_runtime_factory or _DefaultSiteRuntimeSession
         self._download_submitter = download_submitter or _RuntimeDownloadSubmitter()
@@ -144,7 +164,9 @@ class SubscriptionRunner:
         return asyncio.run(self.run_once_async())
 
     def load_config(self) -> SubscriptionConfig:
-        return self._load_config()
+        if self._config_loader is not None:
+            return self._config_loader()
+        return self.store.load()
 
     def shutdown(self) -> None:
         close = getattr(self._download_submitter, "close", None)
@@ -154,7 +176,7 @@ class SubscriptionRunner:
     async def run_once_async(self) -> SubscriptionRunSummary:
         started_at = _utc_ts()
         started = time.monotonic()
-        cfg = self._load_config()
+        cfg = self.load_config()
         cfg.validate()
         if cfg.mode == MODE_BROADCASTER:
             summary = await self._run_broadcaster(cfg)
@@ -166,7 +188,7 @@ class SubscriptionRunner:
         summary.finished_at = _utc_ts()
         summary.elapsed_sec = round(time.monotonic() - started, 3)
         summary.latest_message = summary.message
-        self._write_schedule_summary(summary)
+        self.cache.write_summary(summary.schedule_payload())
         return summary
 
     def _progress(self, summary: SubscriptionRunSummary, *, stage: Optional[str] = None, message: str = "") -> None:
@@ -242,7 +264,7 @@ class SubscriptionRunner:
         elif summary.submitted_jobs:
             self._progress(summary, message="metadata sync skipped: share card is not published")
         if pending_books:
-            summary.cache = write_bookinfo_cache([item.metadata_book for item in pending_books])
+            summary.cache = self.cache.write_books([item.metadata_book for item in pending_books])
         return summary
 
     async def _run_subscriber(self, cfg: SubscriptionConfig) -> SubscriptionRunSummary:
@@ -271,7 +293,7 @@ class SubscriptionRunner:
             pulled_books.extend(books)
             self._progress(summary, message=f"pulled {len(books)} books from {follow.bid}")
         if pulled_books:
-            summary.cache = write_bookinfo_cache(pulled_books)
+            summary.cache = self.cache.write_books(pulled_books)
 
         for site_key, site_books in _group_books_by_site(pulled_books).items():
             site_index = _site_index_for(site_key)
@@ -352,41 +374,6 @@ class SubscriptionRunner:
         worker = self._worker_client_factory(token)
         record = IndexRecord(message_id=upload.message_id, attachment_url=upload.attachment_url, updated_at=upload.updated_at)
         await worker.put_index(action.payload["bid"], record)
-
-    def _load_config(self) -> SubscriptionConfig:
-        if self._config_loader is not None:
-            return self._config_loader()
-        return load_subscription(self.customname, base_dir=self.base_dir)
-
-    def _write_schedule_summary(self, summary: SubscriptionRunSummary) -> None:
-        write_schedule_summary(
-            {
-                "cache": {
-                    "status": summary.cache.status,
-                    "pkl_path": summary.cache.pkl_path,
-                    "summary_path": summary.cache.summary_path,
-                    "updated_at": summary.cache.updated_at,
-                    "message": summary.cache.message,
-                    "book_count": summary.cache.book_count,
-                },
-                "run": {
-                    "run_id": summary.run_id,
-                    "trigger": summary.trigger,
-                    "status": summary.status,
-                    "stage": summary.stage,
-                    "started_at": summary.started_at,
-                    "finished_at": summary.finished_at,
-                    "elapsed_sec": summary.elapsed_sec,
-                    "scanned_books": summary.scanned_books,
-                    "pending_episodes": summary.pending_episodes,
-                    "submitted_jobs": summary.submitted_jobs,
-                    "published_metadata": summary.published_metadata,
-                    "pulled_feeds": summary.pulled_feeds,
-                    "latest_message": summary.latest_message,
-                },
-                "pending_items": summary.pending_items,
-            }
-        )
 
     def _dl_max_for(self, book: BookInfo) -> str:
         if self._dl_max_provider is not None:

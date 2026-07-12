@@ -118,4 +118,4 @@ class PreviewSubscriptionController:
             )
             return
         self._exit_selection()
-        self._browser.gui.push_books_to_subscribe(selected_books)
+        self._browser.gui.toolWin.open_subscribe_with_books(selected_books)

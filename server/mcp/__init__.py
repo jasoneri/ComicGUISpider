@@ -28,6 +28,7 @@ from server.subscription import (
     update_subscriber_follow,
 )
 from server.surfaces import ServerSurface
+from utils.subscription import SubscriptionStore
 
 
 JSONDict = dict[str, Any]
@@ -292,43 +293,44 @@ class RuntimeCgsMcpBackend:
         return self.owner.reset_work_state(origin="mcp")
 
     async def subscription_config(self, customname: str = "default") -> JSONDict:
-        return load_subscription_config(customname)
+        return load_subscription_config(SubscriptionStore(customname))
 
     async def update_subscription_config(self, config: Mapping[str, Any]) -> JSONDict:
-        return save_subscription_config(dict(config))
+        payload = dict(config)
+        return save_subscription_config(SubscriptionStore(str(payload.get("customname") or "default")), payload)
 
     async def set_subscription_mode(self, mode: str, customname: str = "default") -> JSONDict:
-        return switch_subscription_mode(mode, customname=customname)
+        return switch_subscription_mode(SubscriptionStore(customname), mode)
 
     async def add_subscription_book(
             self, site: str, url: str, title: str, enabled: bool = True, customname: str = "default"
     ) -> JSONDict:
         return add_broadcaster_book(
+            SubscriptionStore(customname),
             {"site": site, "url": url, "title": title, "enabled": enabled},
-            customname=customname,
         )
 
     async def update_subscription_book(
             self, index: int, patch: Mapping[str, Any], customname: str = "default"
     ) -> JSONDict:
-        return update_broadcaster_book(index, dict(patch), customname=customname)
+        return update_broadcaster_book(SubscriptionStore(customname), index, dict(patch))
 
     async def remove_subscription_book(self, index: int, customname: str = "default") -> JSONDict:
-        return remove_broadcaster_book(index, customname=customname)
+        return remove_broadcaster_book(SubscriptionStore(customname), index)
 
     async def publish_subscription_share_card(self, customname: str = "default") -> JSONDict:
-        return await publish_subscription_share_card(customname=customname)
+        return await publish_subscription_share_card(SubscriptionStore(customname))
 
     async def add_subscription_follow(self, bid: str, alias: str = "", customname: str = "default") -> JSONDict:
-        return add_subscriber_follow({"bid": bid, "alias": alias}, customname=customname)
+        return add_subscriber_follow(SubscriptionStore(customname), {"bid": bid, "alias": alias})
 
     async def update_subscription_follow(
             self, index: int, patch: Mapping[str, Any], customname: str = "default"
     ) -> JSONDict:
-        return update_subscriber_follow(index, dict(patch), customname=customname)
+        return update_subscriber_follow(SubscriptionStore(customname), index, dict(patch))
 
     async def remove_subscription_follow(self, index: int, customname: str = "default") -> JSONDict:
-        return remove_subscriber_follow(index, customname=customname)
+        return remove_subscriber_follow(SubscriptionStore(customname), index)
 
 
 class CgsMcpSurface:

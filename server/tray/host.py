@@ -41,7 +41,7 @@ from utils.server_control import (
     wait_for_server,
     write_server_record,
 )
-from utils.subscription import load_subscription
+from utils.subscription import SubscriptionStore
 from utils.tray.event_log import TrayEventLog
 from utils.tray.notification_policy import (
     ScheduleNotification,
@@ -51,7 +51,7 @@ from utils.tray.notification_policy import (
     notification_for_schedule_error,
     notification_for_schedule_result,
 )
-from utils.tray.schedule_presentation import SchedulePresentation, build_schedule_presentation, read_schedule_summary
+from utils.tray.schedule_presentation import ScheduleCache, SchedulePresentation, build_schedule_presentation
 from utils.tray.subscription_scheduler import ScheduleDecision, ScheduleStatus, SubscriptionScheduler, default_scheduler_state_path
 from server.tray.dialog import ManageDialogController
 from server.tray.mcp_panel import McpPanel
@@ -76,7 +76,9 @@ class ServerRuntimeDownloadSubmitter:
 class ServerScheduleController:
     def __init__(self) -> None:
         self.event_log = TrayEventLog()
-        self.scheduler = SubscriptionScheduler(load_subscription, state_path=default_scheduler_state_path())
+        self.store = SubscriptionStore()
+        self.cache = ScheduleCache()
+        self.scheduler = SubscriptionScheduler(self.store.load, state_path=default_scheduler_state_path())
         self.run_thread: threading.Thread | None = None
         self.last_result = "-"
         self.latest_summary: dict | None = None
@@ -89,15 +91,19 @@ class ServerScheduleController:
 
     def refresh_summary(self) -> dict | None:
         try:
-            self.latest_summary = read_schedule_summary()
+            self.latest_summary = self.cache.read_summary()
         except FileNotFoundError:
             self.latest_summary = None
         return self.latest_summary
 
     def presentation(self, *, blocker: str = "") -> SchedulePresentation:
-        cfg = load_subscription()
         return build_schedule_presentation(
-            cfg, status=self.status(), cache_summary=self.refresh_summary(), events=self.events(20), blocker=blocker
+            self.store.load(),
+            status=self.status(),
+            cache_summary=self.refresh_summary(),
+            events=self.events(20),
+            blocker=blocker,
+            cache=self.cache,
         )
 
 

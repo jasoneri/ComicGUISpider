@@ -3,7 +3,7 @@ from __future__ import annotations
 import gc
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
@@ -40,7 +40,7 @@ from server.tray.ui_common import (
     tray_mono_font,
 )
 from utils.subscription import MODE_SUBSCRIBER
-from utils.tray.schedule_presentation import SchedulePresentation, presentation_to_dict
+from utils.tray.schedule_presentation import SchedulePresentation
 
 if TYPE_CHECKING:
     from server.tray.host import ServerTrayHost
@@ -820,7 +820,7 @@ class SchedulePanel:
     def _debug_text_payload(self, presentation: SchedulePresentation) -> str:
         if not self.debug_enabled:
             return "Debug 已关闭。"
-        return self.host.ui.redact(json.dumps(presentation_to_dict(presentation), ensure_ascii=False, indent=2, default=str))
+        return self.host.ui.redact(json.dumps(asdict(presentation), ensure_ascii=False, indent=2, default=str))
 
     def _event_row(self, entry: dict) -> list[str]:
         return [
