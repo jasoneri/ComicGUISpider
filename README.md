@@ -55,9 +55,10 @@
 | [jestful](https://jestful.net/) | 🌏 | 表漫/生肉 |
 | [漫画柜](https://www.manhuagui.com/) | :cn: | 代理 |
 | [dm5(动漫屋)](https://tel.dm5.com/) | :cn: | 代理? |
-| [無限動漫(comicabc)](https://tel.dm5.com/) | :cn: | 代理? |
-| [mh1234](https://tel.dm5.com/) | :cn: | 代理? |
-| [JCOMIC](https://tel.dm5.com/) | 🌎 | 代理? |
+| [無限動漫(comicabc)](https://www.8comic.com/) | :cn: | 代理? |
+| [mh1234](https://m.wmh1234.com/) | :cn: | 代理? |
+| [JCOMIC](https://jcomic.net/) | 🌎 | 代理? |
+| [如漫画](https://www.rumanhua2.com/) | :cn: | |
 
 点进网站前先判断 NSFW , 不了解就勿点  
 使用请适度，以免加重对方服务器负担，也减少被封ip风险

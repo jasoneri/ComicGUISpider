@@ -8,7 +8,7 @@ import subprocess
 from importlib.machinery import SourceFileLoader
 from types import ModuleType
 
-VER = "2.11.0-beta"
+VER = "2.11.0"
 DEFAULT_INDEX = r'https://pypi.tuna.tsinghua.edu.cn/simple/'
 
 

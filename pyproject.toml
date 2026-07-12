@@ -1,6 +1,6 @@
 [project]
 name = "ComicGUISpider"
-version = "2.10.1-beta.2"
+version = "2.11.0"
 description = "GUI Comic Downloader"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -36,6 +36,9 @@ dependencies = [
     "retry>=0.9.2",
     "py7zr>=1.1.0",
     "py-lzstring>=0.1.1",
+    "fastapi",
+    "uvicorn",
+    "mcp>=1.27.1,<2",
 ]
 authors = [
     {name = "jsoneri", email = "jsoneri@outlook.com"},
@@ -66,6 +69,7 @@ include = [
     "GUI/",
     "utils/",
     "variables/",
+    "server/",
     "custom/",
     "docs/public/*.png",
     "CGS.py",
@@ -84,6 +88,8 @@ Releases = "https://github.com/jasoneri/ComicGUISpider/releases"
 
 [project.scripts]
 cgs-cli = "crawl_only:main"
+cgs-server = "server.main:main"
+cgs-mcp = "server.mcp.stdio:main"
 
 [project.gui-scripts]
 cgs = "CGS:start"
