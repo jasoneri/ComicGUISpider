@@ -132,11 +132,21 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
 
     @app.middleware("http")
     async def require_surface_auth(request: Request, call_next):
+        def _is_cover_request(path: str) -> bool:
+            normalized = "/" + path.strip("/")
+            return normalized == "/cover" or normalized.startswith("/cover/")
+        def _is_surface_request(path: str, surfaces: tuple[ServerSurface, ...]) -> bool:
+            normalized = "/" + path.strip("/")
+            for surface in surfaces:
+                mount_path = "/" + surface.mount_path.strip("/")
+                if normalized == mount_path or normalized.startswith(f"{mount_path}/"):
+                    return True
+            return False
         started = time.perf_counter()
         if auth_token and (_is_surface_request(request.url.path, mounted_surfaces) or _is_cover_request(request.url.path)):
             authorization = request.headers.get("authorization")
             if not is_authorized_header(authorization, auth_token):
-                response = _unauthorized_response()
+                response = JSONResponse(status_code=401, content={"detail": {"code": "invalid_token", "message": "invalid CGS Server token"}})
                 _record_request_diagnostic(request, started, response.status_code)
                 return response
         try:
@@ -493,11 +503,17 @@ def _normalize_proxies(value: list[str] | str | None) -> list[str]:
 
 
 def _normalize_sv_path(value: str, downloaded_handle: str) -> Path:
+    def _is_relative_to(path: Path, parent: Path) -> bool:
+        try:
+            path.relative_to(parent)
+        except ValueError:
+            return False
+        return True
     raw = str(value or "").strip()
     if not raw:
         raise HTTPException(400, {"code": "invalid_sv_path", "message": "sv_path is required"})
     sv_path = Path(raw).expanduser()
-    if _is_drive_root(sv_path):
+    if bool(sv_path.drive and len(sv_path.parts) == 1):
         raise HTTPException(400, {"code": "invalid_sv_path", "message": "sv_path cannot be a drive root"})
     resolved = sv_path.resolve(strict=False)
     cgs_root = Path(exc_p).resolve(strict=False)
@@ -511,36 +527,6 @@ def _normalize_sv_path(value: str, downloaded_handle: str) -> Path:
     except OSError as exc:
         raise HTTPException(400, {"code": "invalid_sv_path", "message": f"sv_path cannot be created: {exc}"}) from exc
     return resolved
-
-
-def _is_drive_root(path: Path) -> bool:
-    return bool(path.drive and len(path.parts) == 1)
-
-
-def _is_relative_to(path: Path, parent: Path) -> bool:
-    try:
-        path.relative_to(parent)
-    except ValueError:
-        return False
-    return True
-
-
-def _is_surface_request(path: str, surfaces: tuple[ServerSurface, ...]) -> bool:
-    normalized = "/" + path.strip("/")
-    for surface in surfaces:
-        mount_path = "/" + surface.mount_path.strip("/")
-        if normalized == mount_path or normalized.startswith(f"{mount_path}/"):
-            return True
-    return False
-
-
-def _is_cover_request(path: str) -> bool:
-    normalized = "/" + path.strip("/")
-    return normalized == "/cover" or normalized.startswith("/cover/")
-
-
-def _unauthorized_response() -> JSONResponse:
-    return JSONResponse(status_code=401, content={"detail": {"code": "invalid_token", "message": "invalid CGS Server token"}})
 
 
 app = create_app()

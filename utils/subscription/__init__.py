@@ -21,7 +21,7 @@ from utils.subscription.schema import (
 )
 from utils.subscription.store import (
     DEFAULT_CUSTOMNAME,
-    SubscriptionConfigPathConflictError,
+    SUBSCRIPTION_DIR,
     SubscriptionStore,
 )
 
@@ -38,9 +38,9 @@ __all__ = [
     "ShareCard",
     "SubscriberSection",
     "SubscriptionConfig",
-    "SubscriptionConfigPathConflictError",
     "SubscriptionStore",
     "VALID_FEATURE_KINDS",
     "VALID_MODES",
     "DEFAULT_CUSTOMNAME",
+    "SUBSCRIPTION_DIR",
 ]

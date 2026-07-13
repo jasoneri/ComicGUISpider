@@ -1,18 +1,17 @@
-"""YAML store for one subscription_<customname>.yml identity.
+"""YAML store for one subscription_<customname>.yml under conf_dir/subscription.
 
-SubscriptionStore owns customname + base_dir + paths.
-I1: save keeps the opposing-mode segment. Legacy subscript_*.yml migrates once.
+I1: save keeps the opposing-mode segment.
 """
 from __future__ import annotations
 
-import pathlib as p
 import re
 from dataclasses import fields
+from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 
-from utils import temp_p
+from utils.config import conf_dir
 from utils.subscription.schema import (
     BookEntry,
     BroadcasterSection,
@@ -25,12 +24,10 @@ from utils.subscription.schema import (
 )
 
 DEFAULT_CUSTOMNAME = "default"
+SUBSCRIPTION_DIR = conf_dir.joinpath("subscription")
+SUBSCRIPTION_DIR.mkdir(parents=True, exist_ok=True)
 _TOP_LEVEL_KEYS = frozenset({"customname", "mode", "broadcaster", "subscriber"})
 _CUSTOMNAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
-
-
-class SubscriptionConfigPathConflictError(FileExistsError):
-    """Both legacy and canonical subscription files exist for the same identity."""
 
 
 def _require_customname(value: str) -> str:
@@ -41,27 +38,21 @@ def _require_customname(value: str) -> str:
 
 
 class SubscriptionStore:
-    """One config-file identity: name, base, paths, load/save."""
-
-    def __init__(self, customname: str = DEFAULT_CUSTOMNAME, *, base_dir: Optional[p.Path] = None) -> None:
+    def __init__(self, customname: str = DEFAULT_CUSTOMNAME) -> None:
         self.customname = _require_customname(customname)
-        self.base_dir = p.Path(base_dir) if base_dir is not None else p.Path(temp_p)
-        self.path = self.base_dir / f"subscription_{self.customname}.yml"
-        self.legacy_path = self.base_dir / f"subscript_{self.customname}.yml"
+        self.path = SUBSCRIPTION_DIR / f"subscription_{self.customname}.yml"
 
     def rebind(self, customname: str) -> SubscriptionStore:
-        """Same base_dir, different profile identity."""
-        return SubscriptionStore(customname, base_dir=self.base_dir)
+        return SubscriptionStore(customname)
 
     def load(self) -> SubscriptionConfig:
-        path = self._resolved_path()
-        if not path.exists():
+        if not self.path.exists():
             cfg = SubscriptionConfig(customname=self.customname)
             cfg.validate()
-            _write_yaml(path, _to_dict(cfg))
+            _write_yaml(self.path, _to_dict(cfg))
             return cfg
 
-        with open(path, "r", encoding="utf-8") as fp:
+        with open(self.path, "r", encoding="utf-8") as fp:
             raw = yaml.safe_load(fp.read())
         if not isinstance(raw, dict):
             raise ValueError(f"subscription yaml root must be a mapping, got {type(raw).__name__}")
@@ -79,10 +70,9 @@ class SubscriptionStore:
     def save(self, cfg: SubscriptionConfig) -> None:
         cfg.customname = self.customname
         cfg.validate()
-        path = self._resolved_path()
         payload = _to_dict(cfg)
-        if path.exists():
-            with open(path, "r", encoding="utf-8") as fp:
+        if self.path.exists():
+            with open(self.path, "r", encoding="utf-8") as fp:
                 prior = yaml.safe_load(fp.read()) or {}
             if isinstance(prior, dict):
                 unknown = set(prior.keys()) - _TOP_LEVEL_KEYS
@@ -93,21 +83,10 @@ class SubscriptionStore:
                     builder = _build_subscriber if opposing == "subscriber" else _build_broadcaster
                     dumper = _subscriber_to_dict if opposing == "subscriber" else _broadcaster_to_dict
                     payload[opposing] = dumper(builder(prior[opposing]))
-        _write_yaml(path, payload)
-
-    def _resolved_path(self) -> p.Path:
-        if self.path.exists() and self.legacy_path.exists():
-            raise SubscriptionConfigPathConflictError(
-                "subscription config path conflict: both "
-                f"{self.path.name!r} and {self.legacy_path.name!r} exist under {self.path.parent}"
-            )
-        if self.legacy_path.exists() and not self.path.exists():
-            self.legacy_path.replace(self.path)
-        return self.path
+        _write_yaml(self.path, payload)
 
 
-def _write_yaml(path: p.Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def _write_yaml(path: Path, payload: dict) -> None:
     with open(path, "w", encoding="utf-8") as fp:
         yaml.safe_dump(payload, fp, allow_unicode=True, sort_keys=False)
 
