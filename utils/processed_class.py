@@ -1,5 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
+import subprocess
 import typing as t
 from dataclasses import dataclass
 import urllib.parse as up
@@ -96,11 +98,38 @@ class Url(str):
         return Url(_url).set_next(*self.info)
 
 
+def _execute_js_without_console_window(runtime, js_code, func, arg):
+    from execjs._external_runtime import ExternalRuntime
+
+    class HiddenWindowContext(ExternalRuntime.Context):
+        def _exec_with_pipe(self, source):
+            command = self._runtime._binary()
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=self._cwd,
+                universal_newlines=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            compiled_source = self._compile(source)
+            stdout_data, stderr_data = process.communicate(input=compiled_source)
+            return_code = process.wait()
+            self._fail_on_non_zero_status(return_code, stdout_data, stderr_data)
+            return stdout_data
+
+    return HiddenWindowContext(runtime, js_code).call(func, arg)
+
+
 def execute_js(js_code, func, arg):
     import execjs
-    _js = execjs.compile(js_code)
-    out = _js.call(func, arg)
-    return out
+    from execjs._external_runtime import ExternalRuntime
+
+    runtime = execjs.get()
+    if os.name == "nt" and isinstance(runtime, ExternalRuntime):
+        return _execute_js_without_console_window(runtime, js_code, func, arg)
+    return runtime.compile(js_code).call(func, arg)
 
 
 class ClipSqlHandler:

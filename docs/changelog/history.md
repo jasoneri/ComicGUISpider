@@ -1,6 +1,16 @@
 # 🕑 更新历史
 
-## `v2.11.0`
+## `v2.11.1`
+
+### 🎁 Features
+
+### 🐞 Fix/Upd
+
++ 修复托盘模式的日夜模式
++ 修复 mangabz 章节下载时的终端闪烁问题
+
+<details>
+<summary> v2.11.0 ⇩</summary>
 
 ### 🎁 Features
 
@@ -31,7 +41,7 @@
 + jestful 序号调整为 9 , 关注预设, jestful 预设词 `更新` 失效需要改为 `首页`
 + hitomi/Script(此前卡点在 Kemono)/nhentai 预处理改为 ci raleases/preset生成，使用时下载（带进度反馈）
 
-> CGSMid 暂时关闭
+</details>
 
 ::: tip 备用更新方法  
 win绿色包(exe): 先去 [对应版本的tag下载zip](https://github.com/jasoneri/ComicGUISpider/tags)  
