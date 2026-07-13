@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QFrame, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import SegmentedWidget, TableWidget, TextEdit
 
-from server.tray.ui_common import TRAY_BORDER, TRAY_PANEL_BG_ALT
-
 if TYPE_CHECKING:
     from server.tray.host import ServerTrayHost
 
@@ -34,7 +32,6 @@ class ServerDiagnosticsPanel:
     def build(self, parent) -> QWidget:
         panel = QFrame(parent)
         panel.setObjectName("ServerDiagnosticsPanel")
-        panel.setStyleSheet(f"#ServerDiagnosticsPanel{{background:{TRAY_PANEL_BG_ALT};border:1px solid {TRAY_BORDER};border-radius:6px;}}")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(6)

@@ -1,0 +1,370 @@
+/* CGS Server tray manage dialog — theme tokens + QSS sections */
+
+/* @tokens light */
+PANEL_BG = #ffffff;
+PANEL_BG_ALT = #f1f5f9;
+ROW_BG = #ffffff;
+BORDER = #e2e8f0;
+TEXT = #0f172a;
+MUTED = #64748b;
+COVER_BG = #e2e8f0;
+COVER_PLACEHOLDER = #64748b;
+MCP_BG = #f8fafc;
+MCP_PANEL_BG = #ffffff;
+MCP_PANEL_BG_ALT = #f1f5f9;
+MCP_BORDER = #e2e8f0;
+MCP_TEXT = #0f172a;
+MCP_MUTED = #64748b;
+MCP_DEBUG_BG = #f1f5f9;
+CARD_BG = #ffffff;
+CARD_BG_SEL = #e2e8f0;
+ACCENT_INFO = #2563eb;
+ACCENT_OK = #059669;
+DOT_PENDING = #94a3b8;
+BANNER_BG = #dbeafe;
+BANNER_TEXT = #1d4ed8;
+BANNER_BORDER = #93c5fd;
+ERROR_TEXT = #dc2626;
+PROGRESS_DONE = #16a34a;
+CHIP_READY_BG = #d1fae5;
+CHIP_READY_TEXT = #047857;
+CHIP_READY_BORDER = #6ee7b7;
+CHIP_RUNNING_BG = #dbeafe;
+CHIP_RUNNING_TEXT = #1d4ed8;
+CHIP_RUNNING_BORDER = #93c5fd;
+CHIP_STARTING_BG = #fef3c7;
+CHIP_STARTING_TEXT = #b45309;
+CHIP_STARTING_BORDER = #fcd34d;
+CHIP_FAILED_BG = #fee2e2;
+CHIP_FAILED_TEXT = #b91c1c;
+CHIP_FAILED_BORDER = #fca5a5;
+CHIP_NEUTRAL_BG = #f1f5f9;
+CHIP_NEUTRAL_TEXT = #475569;
+CHIP_NEUTRAL_BORDER = #cbd5e1;
+CHIP_IDLE_BG = #f8fafc;
+CHIP_IDLE_TEXT = #475569;
+CHIP_IDLE_BORDER = #cbd5e1;
+/* @endtokens */
+
+/* @tokens dark */
+PANEL_BG = #303030;
+PANEL_BG_ALT = #363636;
+ROW_BG = #34363a;
+BORDER = #474747;
+TEXT = #f1f5f9;
+MUTED = #cbd5e1;
+COVER_BG = #2b2b2b;
+COVER_PLACEHOLDER = #94a3b8;
+MCP_BG = #202124;
+MCP_PANEL_BG = #2b2d31;
+MCP_PANEL_BG_ALT = #303236;
+MCP_BORDER = #474a50;
+MCP_TEXT = #f1f5f9;
+MCP_MUTED = #cbd5e1;
+MCP_DEBUG_BG = #1b1c1f;
+CARD_BG = #34363a;
+CARD_BG_SEL = #3b3e44;
+ACCENT_INFO = #60a5fa;
+ACCENT_OK = #34d399;
+DOT_PENDING = #52525b;
+BANNER_BG = #172554;
+BANNER_TEXT = #60a5fa;
+BANNER_BORDER = #1d4ed8;
+ERROR_TEXT = #f87171;
+PROGRESS_DONE = #00cc00;
+CHIP_READY_BG = #064e3b;
+CHIP_READY_TEXT = #34d399;
+CHIP_READY_BORDER = #065f46;
+CHIP_RUNNING_BG = #172554;
+CHIP_RUNNING_TEXT = #60a5fa;
+CHIP_RUNNING_BORDER = #1d4ed8;
+CHIP_STARTING_BG = #422006;
+CHIP_STARTING_TEXT = #fbbf24;
+CHIP_STARTING_BORDER = #92400e;
+CHIP_FAILED_BG = #450a0a;
+CHIP_FAILED_TEXT = #f87171;
+CHIP_FAILED_BORDER = #991b1b;
+CHIP_NEUTRAL_BG = #3f3f46;
+CHIP_NEUTRAL_TEXT = #d4d4d8;
+CHIP_NEUTRAL_BORDER = #52525b;
+CHIP_IDLE_BG = #1f2937;
+CHIP_IDLE_TEXT = #cbd5e1;
+CHIP_IDLE_BORDER = #334155;
+/* @endtokens */
+
+/* @section dialog */
+QDialog#ServerManageDialog {
+    background: ${PANEL_BG_ALT};
+    color: ${TEXT};
+}
+QDialog#ServerManageDialog QLabel {
+    color: ${TEXT};
+}
+QLabel#TrayMutedLabel {
+    color: ${MUTED};
+}
+QLabel#TrayAccentInfoLabel {
+    color: ${ACCENT_INFO};
+}
+QLabel#TrayAccentOkLabel {
+    color: ${ACCENT_OK};
+}
+QLabel#TrayErrorLabel {
+    color: ${ERROR_TEXT};
+}
+QLabel#TraySiteBadge {
+    background: ${PANEL_BG};
+    color: ${MUTED};
+    border: 1px solid ${BORDER};
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 9px;
+    font-weight: 600;
+}
+QLabel#TrayRunIdChip {
+    background: ${PANEL_BG};
+    color: ${MUTED};
+    border: 1px solid ${BORDER};
+    border-radius: 3px;
+    padding: 1px 6px;
+}
+QLabel#TrayPklDetail {
+    background: ${PANEL_BG};
+    color: ${MUTED};
+    border: 1px solid ${BORDER};
+    border-radius: 4px;
+    padding: 4px;
+}
+QLabel#TrayLatestBanner {
+    background: ${BANNER_BG};
+    color: ${BANNER_TEXT};
+    border: 1px solid ${BANNER_BORDER};
+    border-radius: 4px;
+    padding: 3px 6px;
+}
+QLabel#TrayCoverPlaceholder {
+    background: ${COVER_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 4px;
+    color: ${COVER_PLACEHOLDER};
+    font-size: 10px;
+}
+QLabel#TrayCoverPlaceholderSmall {
+    background: ${COVER_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 4px;
+    color: ${MUTED};
+    font-size: 9px;
+}
+QFrame#TrayStageRailLine {
+    background: ${BORDER};
+    border: none;
+}
+QLabel#TrayStageDotDone {
+    background: ${ACCENT_OK};
+    border: 2px solid ${ACCENT_OK};
+    border-radius: 5px;
+}
+QLabel#TrayStageDotActive {
+    background: ${ACCENT_INFO};
+    border: 2px solid ${ACCENT_INFO};
+    border-radius: 5px;
+}
+QLabel#TrayStageDotPending {
+    background: ${PANEL_BG};
+    border: 2px solid ${DOT_PENDING};
+    border-radius: 5px;
+}
+QLabel#TrayStageTextDone {
+    color: ${ACCENT_OK};
+    font-size: 9px;
+}
+QLabel#TrayStageTextActive {
+    color: ${ACCENT_INFO};
+    font-size: 9px;
+}
+QLabel#TrayStageTextPending {
+    color: ${MUTED};
+    font-size: 9px;
+}
+QLabel#TrayStatusChip {
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+QScrollArea#TrayTransparentScroll {
+    background: transparent;
+    border: none;
+}
+QWidget#TrayTransparentBody {
+    background: transparent;
+}
+/* @endsection */
+
+/* @section schedule */
+QFrame#ScheduleHeaderPanel {
+    background: ${PANEL_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#SchedulePlanPanel,
+QFrame#ScheduleSourcesPanel,
+QFrame#ScheduleRunPanel,
+QFrame#ScheduleDetailPanel {
+    background: ${PANEL_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#SchedulePendingPanel,
+QFrame#ScheduleDebugDrawer {
+    background: ${PANEL_BG_ALT};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#ScheduleSourceCard {
+    background: ${CARD_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#ScheduleSourceCard:hover {
+    background: ${CARD_BG_SEL};
+}
+QFrame#SchedulePendingCard {
+    background: ${CARD_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#SchedulePendingCard:hover {
+    background: ${CARD_BG_SEL};
+}
+QFrame#SchedulePendingCard[selected="true"] {
+    background: ${CARD_BG_SEL};
+}
+/* @endsection */
+
+/* @section server */
+QFrame#ServerActiveJobPanel {
+    background: ${PANEL_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#ServerActiveJobPanel QLabel {
+    color: ${TEXT};
+}
+QFrame#ServerTasksPanel,
+QFrame#ServerDiagnosticsPanel {
+    background: ${PANEL_BG_ALT};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#ServerTaskProgressRow {
+    background: ${ROW_BG};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+}
+QFrame#ServerTaskProgressRow QLabel {
+    color: ${TEXT};
+}
+QLabel#ServerJobErrorLabel {
+    color: ${ERROR_TEXT};
+}
+/* @endsection */
+
+/* @section mcp */
+QWidget#McpMonitorTab {
+    background: ${MCP_BG};
+}
+QWidget#McpMonitorTab QLabel {
+    color: ${MCP_TEXT};
+}
+QFrame#McpStatusCard {
+    background: ${MCP_PANEL_BG_ALT};
+    border: 1px solid ${MCP_BORDER};
+    border-radius: 6px;
+}
+QFrame#McpCapabilityPanel,
+QFrame#McpCallStreamPanel,
+QFrame#McpCallDetailPanel {
+    background: ${MCP_PANEL_BG};
+    border: 1px solid ${MCP_BORDER};
+    border-radius: 6px;
+}
+QFrame#McpDebugDrawer {
+    background: ${MCP_DEBUG_BG};
+    border: 1px solid ${MCP_BORDER};
+    border-radius: 6px;
+}
+QLabel#McpMutedLabel {
+    color: ${MCP_MUTED};
+}
+QLabel#McpHeadingLabel {
+    font-weight: 600;
+    color: ${MCP_TEXT};
+}
+/* @endsection */
+
+/* @section chip_ready */
+QLabel#TrayStatusChip {
+    background: ${CHIP_READY_BG};
+    color: ${CHIP_READY_TEXT};
+    border: 1px solid ${CHIP_READY_BORDER};
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+/* @endsection */
+
+/* @section chip_running */
+QLabel#TrayStatusChip {
+    background: ${CHIP_RUNNING_BG};
+    color: ${CHIP_RUNNING_TEXT};
+    border: 1px solid ${CHIP_RUNNING_BORDER};
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+/* @endsection */
+
+/* @section chip_starting */
+QLabel#TrayStatusChip {
+    background: ${CHIP_STARTING_BG};
+    color: ${CHIP_STARTING_TEXT};
+    border: 1px solid ${CHIP_STARTING_BORDER};
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+/* @endsection */
+
+/* @section chip_failed */
+QLabel#TrayStatusChip {
+    background: ${CHIP_FAILED_BG};
+    color: ${CHIP_FAILED_TEXT};
+    border: 1px solid ${CHIP_FAILED_BORDER};
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+/* @endsection */
+
+/* @section chip_neutral */
+QLabel#TrayStatusChip {
+    background: ${CHIP_NEUTRAL_BG};
+    color: ${CHIP_NEUTRAL_TEXT};
+    border: 1px solid ${CHIP_NEUTRAL_BORDER};
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+/* @endsection */
+
+/* @section chip_idle */
+QLabel#TrayStatusChip {
+    background: ${CHIP_IDLE_BG};
+    color: ${CHIP_IDLE_TEXT};
+    border: 1px solid ${CHIP_IDLE_BORDER};
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+/* @endsection */

@@ -18,7 +18,8 @@ from qfluentwidgets import (
     TransparentToolButton,
 )
 
-from server.tray.ui_common import MCP_BG, MCP_BORDER, MCP_MUTED, MCP_PANEL_BG, MCP_PANEL_BG_ALT, MCP_TEXT, tray_mono_font
+from server.tray.style import chip_stylesheet, mcp_heading_stylesheet, mcp_muted_label_stylesheet
+from server.tray.ui_common import tray_mono_font
 from utils.server_control import DEFAULT_SERVER_MCP_PATH, server_launch_log_path
 from GUI.uic.qfluent.components.icons import CgsIcon
 
@@ -82,7 +83,6 @@ class McpPanel:
     def build_tab(self, parent) -> QWidget:
         tab = QWidget(parent)
         tab.setObjectName("McpMonitorTab")
-        tab.setStyleSheet(f"#McpMonitorTab{{background:{MCP_BG};}}" f"#McpMonitorTab QLabel{{color:{MCP_TEXT};}}")
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
@@ -240,8 +240,9 @@ class McpPanel:
         self.state_status_label = CaptionLabel("Status: starting", state_card)
         self.state_reason_label = CaptionLabel("Reason: starting", state_card)
         for label in (self.state_status_label, self.state_reason_label):
+            label.setObjectName("McpMutedLabel")
             label.setFont(tray_mono_font(8))
-            label.setStyleSheet(f"color:{MCP_MUTED};")
+            label.setStyleSheet(mcp_muted_label_stylesheet())
             state_layout.addWidget(label)
 
         transport_card = self._status_card(parent, "Transport")
@@ -261,8 +262,9 @@ class McpPanel:
         self.recent_slowest_label = CaptionLabel("Slowest: -", recent_card)
         self.recent_median_label = CaptionLabel("Median: -", recent_card)
         for label in (self.recent_fail_label, self.recent_slowest_label, self.recent_median_label):
+            label.setObjectName("McpMutedLabel")
             label.setFont(tray_mono_font(8))
-            label.setStyleSheet(f"color:{MCP_MUTED};")
+            label.setStyleSheet(mcp_muted_label_stylesheet())
             recent_layout.addWidget(label)
 
         for card in (state_card, transport_card, auth_card, recent_card):
@@ -272,13 +274,13 @@ class McpPanel:
     def _status_card(self, parent, title: str) -> QFrame:
         card = QFrame(parent)
         card.setObjectName("McpStatusCard")
-        card.setStyleSheet(f"#McpStatusCard{{background:{MCP_PANEL_BG_ALT};border:1px solid {MCP_BORDER};border-radius:6px;}}")
         card.setMinimumHeight(94)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(8, 6, 8, 7)
         layout.setSpacing(4)
         heading = CaptionLabel(title, card)
-        heading.setStyleSheet(f"font-weight:600;color:{MCP_TEXT};")
+        heading.setObjectName("McpHeadingLabel")
+        heading.setStyleSheet(mcp_heading_stylesheet())
         layout.addWidget(heading)
         return card
 
@@ -288,8 +290,9 @@ class McpPanel:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
         text = CaptionLabel(f"{label}: {value}", row)
+        text.setObjectName("McpMutedLabel")
         text.setFont(tray_mono_font(8))
-        text.setStyleSheet(f"color:{MCP_MUTED};")
+        text.setStyleSheet(mcp_muted_label_stylesheet())
         button = TransparentToolButton(FIF.COPY, row)
         button.setFixedSize(24, 24)
         button.setToolTip(f"复制 {label}")
@@ -302,7 +305,6 @@ class McpPanel:
         panel = QFrame(parent)
         panel.setObjectName("McpCapabilityPanel")
         panel.setMinimumWidth(220)
-        panel.setStyleSheet(f"#McpCapabilityPanel{{background:{MCP_PANEL_BG};border:1px solid {MCP_BORDER};border-radius:6px;}}")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(6)
@@ -310,7 +312,8 @@ class McpPanel:
         header.addWidget(StrongBodyLabel("Capabilities", panel))
         header.addStretch(1)
         count = CaptionLabel(f"{len(MCP_TOOL_NAMES)} tools / {len(MCP_RESOURCE_NAMES)} resources", panel)
-        count.setStyleSheet(f"color:{MCP_MUTED};")
+        count.setObjectName("McpMutedLabel")
+        count.setStyleSheet(mcp_muted_label_stylesheet())
         header.addWidget(count)
         layout.addLayout(header)
         self.tools_table = self.host.ui.create_log_table(panel, ["Name", "Kind"])
@@ -341,7 +344,6 @@ class McpPanel:
     def _build_call_stream_panel(self, parent) -> QWidget:
         panel = QFrame(parent)
         panel.setObjectName("McpCallStreamPanel")
-        panel.setStyleSheet(f"#McpCallStreamPanel{{background:{MCP_PANEL_BG};border:1px solid {MCP_BORDER};border-radius:6px;}}")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(6)
@@ -349,7 +351,8 @@ class McpPanel:
         header.addWidget(StrongBodyLabel("Call Stream", panel))
         header.addStretch(1)
         limit = CaptionLabel(f"Last {MCP_LOG_LIMIT}", panel)
-        limit.setStyleSheet(f"color:{MCP_MUTED};")
+        limit.setObjectName("McpMutedLabel")
+        limit.setStyleSheet(mcp_muted_label_stylesheet())
         header.addWidget(limit)
         layout.addLayout(header)
         self.log_table = self.host.ui.create_log_table(panel, ["Time", "Tool", "Result", "Elapsed", "Summary"])
@@ -366,7 +369,6 @@ class McpPanel:
         panel = QFrame(parent)
         panel.setObjectName("McpCallDetailPanel")
         panel.setMinimumWidth(270)
-        panel.setStyleSheet(f"#McpCallDetailPanel{{background:{MCP_PANEL_BG};border:1px solid {MCP_BORDER};border-radius:6px;}}")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(6)
@@ -382,7 +384,6 @@ class McpPanel:
     def _build_debug_drawer(self, parent) -> QWidget:
         drawer = QFrame(parent)
         drawer.setObjectName("McpDebugDrawer")
-        drawer.setStyleSheet(f"#McpDebugDrawer{{background:#1b1c1f;border:1px solid {MCP_BORDER};border-radius:6px;}}")
         drawer.setFixedHeight(126)
         layout = QVBoxLayout(drawer)
         layout.setContentsMargins(8, 6, 8, 8)
@@ -480,19 +481,21 @@ class McpPanel:
         if self.state_chip is None:
             return
         normalized = str(state or "unavailable")
-        text = {"ready": "Ready", "starting": "Starting", "blocked": "Blocked", "unavailable": "Unavailable"}.get(normalized, normalized)
-        palette = {
-            "ready": ("#12382c", "#7dd3ae", "#2d6a55"),
-            "starting": ("#3d3420", "#e6c270", "#756137"),
-            "blocked": ("#33363d", "#d1d5db", "#555a64"),
-            "unavailable": ("#3f2528", "#f2a4a7", "#7a3b41"),
-        }
-        background, color, border = palette.get(normalized, palette["unavailable"])
+        text = {
+            "ready": "Ready",
+            "starting": "Starting",
+            "blocked": "Blocked",
+            "unavailable": "Unavailable",
+        }.get(normalized, normalized)
+        chip_status = {
+            "ready": "ready",
+            "starting": "starting",
+            "blocked": "foreground-blocked",
+            "unavailable": "unavailable",
+        }.get(normalized, "unavailable")
+        self.state_chip.setObjectName("TrayStatusChip")
         self.state_chip.setText(text)
-        self.state_chip.setStyleSheet(
-            f"background:{background};color:{color};border:1px solid {border};"
-            "border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;"
-        )
+        self.state_chip.setStyleSheet(chip_stylesheet(chip_status) + "font-weight:600;")
 
     def _call_entries(self) -> list[dict]:
         return self.call_log.tail(MCP_LOG_LIMIT) if self.call_log is not None else []

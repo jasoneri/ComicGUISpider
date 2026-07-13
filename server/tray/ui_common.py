@@ -22,28 +22,17 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import CaptionLabel, TableWidget
 
+from server.tray.style import (
+    chip_stylesheet,
+    stage_dot_stylesheet,
+    stage_rail_line_stylesheet,
+    stage_text_stylesheet,
+)
+
 
 QT_FONTS_CONFIGURED = False
 TRAY_UI_FONT_FAMILIES = ("Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "Segoe UI")
 TRAY_MONO_FONT_FAMILIES = ("Hack Nerd Font", "Hack", "Cascadia Mono", "Consolas")
-TRAY_PANEL_BG = "#303030"
-TRAY_PANEL_BG_ALT = "#363636"
-TRAY_ROW_BG = "#34363a"
-TRAY_BORDER = "#474747"
-TRAY_TEXT = "#f1f5f9"
-TRAY_MUTED = "#cbd5e1"
-TRAY_COVER_BG = "#2b2b2b"
-MCP_BG = "#202124"
-MCP_PANEL_BG = "#2b2d31"
-MCP_PANEL_BG_ALT = "#303236"
-MCP_BORDER = "#474a50"
-MCP_TEXT = "#f1f5f9"
-MCP_MUTED = "#cbd5e1"
-SCHEDULE_CARD_BG = TRAY_ROW_BG
-SCHEDULE_CARD_BG_SEL = "#3b3e44"
-SCHEDULE_ACCENT_INFO = "#60a5fa"
-SCHEDULE_ACCENT_OK = "#34d399"
-SCHEDULE_DOT_PENDING = "#52525b"
 BEIJING_TZ = timezone(timedelta(hours=8), "Asia/Shanghai")
 HTML_TAG_RE = re.compile(r"<[^>]+>")
 
@@ -149,24 +138,9 @@ class TrayUiContext:
         if label is None:
             return
         normalized = str(status or "-")
+        label.setObjectName("TrayStatusChip")
         label.setText(normalized)
-        palette = {
-            "ready": ("#064e3b", "#34d399", "#065f46"),
-            "running": ("#172554", "#60a5fa", "#1d4ed8"),
-            "starting": ("#422006", "#fbbf24", "#92400e"),
-            "completed": ("#064e3b", "#34d399", "#065f46"),
-            "failed": ("#450a0a", "#f87171", "#991b1b"),
-            "error": ("#450a0a", "#f87171", "#991b1b"),
-            "unavailable": ("#3f3f46", "#d4d4d8", "#52525b"),
-            "foreground-blocked": ("#3f3f46", "#d4d4d8", "#52525b"),
-            "idle": ("#1f2937", "#cbd5e1", "#334155"),
-            "queued": ("#1f2937", "#cbd5e1", "#334155"),
-        }
-        background, color, border = palette.get(normalized, ("#1f2937", "#cbd5e1", "#334155"))
-        label.setStyleSheet(
-            f"background:{background};color:{color};border:1px solid {border};"
-            "border-radius:4px;padding:2px 6px;font-size:11px;"
-        )
+        label.setStyleSheet(chip_stylesheet(normalized))
 
     def coerce_int(self, value) -> int | None:
         try:
@@ -226,8 +200,9 @@ class StageRail(QWidget):
         for index, stage in enumerate(stages):
             if index > 0:
                 line = QFrame(self)
+                line.setObjectName("TrayStageRailLine")
                 line.setFixedHeight(1)
-                line.setStyleSheet(f"background:{TRAY_BORDER};border:none;")
+                line.setStyleSheet(stage_rail_line_stylesheet())
                 self._layout.addWidget(line, 1)
             if current_idx < 0:
                 state = "pending"
@@ -245,16 +220,22 @@ class StageRail(QWidget):
         box.setContentsMargins(4, 0, 4, 0)
         box.setSpacing(2)
         dot = QLabel(column)
-        dot.setFixedSize(10, 10)
         if state == "done":
-            dot.setStyleSheet(f"background:{SCHEDULE_ACCENT_OK};border:2px solid {SCHEDULE_ACCENT_OK};border-radius:5px;")
+            dot.setObjectName("TrayStageDotDone")
         elif state == "active":
-            dot.setStyleSheet(f"background:{SCHEDULE_ACCENT_INFO};border:2px solid {SCHEDULE_ACCENT_INFO};border-radius:5px;")
+            dot.setObjectName("TrayStageDotActive")
         else:
-            dot.setStyleSheet(f"background:{TRAY_PANEL_BG};border:2px solid {SCHEDULE_DOT_PENDING};border-radius:5px;")
+            dot.setObjectName("TrayStageDotPending")
+        dot.setFixedSize(10, 10)
+        dot.setStyleSheet(stage_dot_stylesheet(state))
         text = CaptionLabel(label, column)
-        text_color = SCHEDULE_ACCENT_OK if state == "done" else SCHEDULE_ACCENT_INFO if state == "active" else TRAY_MUTED
-        text.setStyleSheet(f"color:{text_color};font-size:9px;")
+        if state == "done":
+            text.setObjectName("TrayStageTextDone")
+        elif state == "active":
+            text.setObjectName("TrayStageTextActive")
+        else:
+            text.setObjectName("TrayStageTextPending")
+        text.setStyleSheet(stage_text_stylesheet(state))
         box.addWidget(dot, 0, Qt.AlignmentFlag.AlignHCenter)
         box.addWidget(text, 0, Qt.AlignmentFlag.AlignHCenter)
         return column
