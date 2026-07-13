@@ -79,20 +79,19 @@ maccy(macOS): [issue 搜索相关得知](https://github.com/p0deje/Maccy/issues/
 
 ---
 
+![confSwitchGroup.png]({{URL_IMG}}/file/cgs/1783625866120_confSwitchGroup.png)
+
 ### 去重 / `isDeduplicate`
 
-`「漏斗图标按钮」`  
 激活状态下，预览窗口会有已下载的样式提示  
 同时下载也会自动过滤已存在的记录  
 
 ### 增加标识 / `addUuid`
 
-`「旗图标按钮」`  
 存储时目录最后增加标识，用以处理同一命名的不同作品等（[对应逻辑](../faq/other.md#_1-去重，增加标识相关说明)）
 
 ### 夜间模式
 
-`「月亮图标按钮」`  
 主题状态由 `qconfig` 管理，不再写入 `conf.yml`  
 点击后会立即切换日间/夜间模式并实时保存
 

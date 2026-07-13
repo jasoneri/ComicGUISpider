@@ -27,7 +27,7 @@ class Dm5Spider(BaseComicSpider):
             self._image_request_headers = {}
         self._chapter_referers[u_md5] = chapter_referer
         self._image_request_headers[u_md5] = dict(getattr(ep, "dm5_image_headers", {}) or {})
-        for page, image_url in enumerate(page_urls, start=1):
+        for page, image_url in self._iter_target_page_urls(ep, page_urls):
             item = ComicspiderItem()
             item.update(**group_infos)
             item["page"] = page
@@ -40,10 +40,8 @@ class Dm5Spider(BaseComicSpider):
     def _yield_episode_items(self, ep, page_urls, *, chapter_referer):
         for item in self._build_episode_items(ep, page_urls, chapter_referer=chapter_referer):
             yield scrapy.Request(
-                url=f'https://fakefakefa.com/{item["image_urls"][0]}',
-                callback=self.process_item,
-                meta={'item': item, 'referer': chapter_referer},
-                dont_filter=True,
+                url=f'https://fakefakefa.com/{item["image_urls"][0]}', callback=self.process_item,
+                meta={'item': item, 'referer': chapter_referer}, dont_filter=True,
             )
         self._emit_process("fin")
 

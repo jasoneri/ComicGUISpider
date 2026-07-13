@@ -24,12 +24,14 @@ from utils.config.qc import danbooru_cfg, cgs_cfg
 from utils.script import conf as script_conf
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig
 from GUI.core.doh_runtime import ScriptDoHStubRuntime
+from GUI.core.exception_feedback import GuiExceptionFeedbackDispatcher, InfoBarExceptionPresenter
 from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import summarize_error_message
 from GUI.script.cbg import CbgInterface
 from GUI.script.danbooru import DanbooruInterface
 from GUI.script.kemono import KemonoInterface
+from GUI.script.jsoneri import JsoneriPalacesProbeInterface
 
 
 script_res = res.GUI.Script
@@ -348,9 +350,16 @@ class SettingInterface(QFrame):
 
 
 class ScriptWindow(ScriptWindowBase):
-    def __init__(self, parent=None):
+    def __init__(
+        self,
+        parent=None,
+        *,
+        script_entry_state: dict | None = None,
+        feedback_dispatcher: GuiExceptionFeedbackDispatcher | None = None,
+    ):
         super().__init__()
         self.gui = parent
+        self.script_entry_state = script_entry_state or {}
         if OFFSCREEN_FLUENT_FALLBACK:
             self._setup_offscreen_shell()
         self._script_entry_specs: list[tuple[QFrame, bool]] = []
@@ -358,10 +367,19 @@ class ScriptWindow(ScriptWindowBase):
         self.danbooruInterface = DanbooruInterface(self)
         self.kemonoInterface = KemonoInterface(self)
         self.cbgInterface = CbgInterface(self)
+        self.jsoneriPalacesProbeInterface = JsoneriPalacesProbeInterface(self)
         self.settingInterface = SettingInterface(self)
+        self._exception_feedback_scope = None
+        if feedback_dispatcher is not None:
+            self._exception_feedback_scope = feedback_dispatcher.register_scope(
+                owner=self,
+                surfaces=(self.danbooruInterface.image_viewer,),
+                presenter=InfoBarExceptionPresenter(),
+            )
         self.doh_stub_runtime.ensure_from_config()
 
         self.initNavigation()
+        self._hide_unavailable_script_interfaces()
         self.initWindow()
         safe_single_shot(0, self.doh_stub_runtime.flush_warning)
 
@@ -410,11 +428,31 @@ class ScriptWindow(ScriptWindowBase):
             button.setChecked(current_widget is widget)
 
     def initNavigation(self):
-        self._add_script_entry(self.danbooruInterface, ':/script/danbooru.svg', 'Danbooru', show_in_pure_mode=False)
-        self._add_script_entry(self.kemonoInterface, ':/script/kemono.ico', 'Kemono', show_in_pure_mode=False)
-        self._add_script_entry(self.cbgInterface, ':/script/cbg.svg', 'Cbg', show_in_pure_mode=True)
+        if self._script_entry_visible("danbooru_visible"):
+            self._add_script_entry(self.danbooruInterface, ':/script/danbooru.svg', 'Danbooru', show_in_pure_mode=False)
+        if self._script_entry_visible("kemono_visible"):
+            self._add_script_entry(self.kemonoInterface, ':/script/kemono.ico', 'Kemono', show_in_pure_mode=False)
+        if self._script_entry_visible("cbg_visible"):
+            self._add_script_entry(self.cbgInterface, ':/script/cbg.svg', 'Cbg', show_in_pure_mode=True)
+        if self._script_entry_visible("jsoneri_palaces_probe_visible"):
+            self._add_script_entry(self.jsoneriPalacesProbeInterface, FIF.CLOUD, 'jsoneriPalacesProbe', show_in_pure_mode=True)
         self.navigationInterface.addSeparator()
-        self._add_script_entry(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM, show_in_pure_mode=True)
+        if self._script_entry_visible("settings_visible"):
+            self._add_script_entry(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM, show_in_pure_mode=True)
+
+    def _hide_unavailable_script_interfaces(self):
+        for interface, visibility_key in (
+            (self.danbooruInterface, "danbooru_visible"),
+            (self.kemonoInterface, "kemono_visible"),
+            (self.cbgInterface, "cbg_visible"),
+            (self.jsoneriPalacesProbeInterface, "jsoneri_palaces_probe_visible"),
+            (self.settingInterface, "settings_visible"),
+        ):
+            if not self._script_entry_visible(visibility_key):
+                interface.hide()
+
+    def _script_entry_visible(self, visibility_key: str) -> bool:
+        return bool(self.script_entry_state.get(visibility_key, True))
 
     def apply_pure_entry_mode(self):
         for interface, show_in_pure_mode in self._script_entry_specs:
@@ -456,12 +494,27 @@ class ScriptWindow(ScriptWindowBase):
         # 初始化设置界面的内容
         self.settingInterface.show_self()
         
+    def server_mode_switch_blockers(self) -> list[str]:
+        blockers = []
+        blockers.extend(self.danbooruInterface.server_mode_switch_blockers())
+        blockers.extend(self.kemonoInterface.server_mode_switch_blockers())
+        blockers.extend(self.cbgInterface.server_mode_switch_blockers())
+        return list(dict.fromkeys(blockers))
+
     def closeEvent(self, event):
         event.accept()
+        if self._exception_feedback_scope is not None:
+            self._exception_feedback_scope.close()
+            self._exception_feedback_scope = None
         cgs_cfg.scriptWinRect.value = [self.x(), self.y(), self.width(), self.height()]
         cgs_cfg.save()
         self.danbooruInterface.image_viewer.hide()
-        if self.gui is not None:
+        self.jsoneriPalacesProbeInterface.close_service_window()
+        if (
+            self.gui is not None
+            and not getattr(self.gui, "_closing", False)
+            and not getattr(self.gui, "server_mode_switch_requested", False)
+        ):
             safe_single_shot(10, self.gui.close)
 
 

@@ -20,7 +20,7 @@ class MangabzSpider(BaseComicSpider):
         group_infos = {'title':book.name,'section':ep.name,'uuid':uid,'uuid_md5':u_md5}
         ep.pages = len(page_urls)
         self.set_task(ep)
-        for idx, img_url in enumerate(page_urls, start=1):
+        for idx, img_url in self._iter_target_page_urls(ep, page_urls):
             item = ComicspiderItem()
             item.update(**group_infos)
             matched = re.search(r'/(\d+)_\d+\.', img_url)

@@ -124,6 +124,15 @@ if __name__ == "__main__":
                 custom_fluent_widgets=["TransparentToolButton", "PrimaryToolButton", "TransparentToggleToolButton"],
                 extra_import="from GUI.uic.qfluent.components import LinkEdit",
             )
+        case "ui_mainwindow":
+            converter = ConvertBase(file, file,
+                post_substitutions={
+                    "        self.retrybtn.setIconSize(QSize(18, 18))":
+                        "        self.retrybtn.setIcon(CgsIcon.REBOOT.fixed_light_surface_icon())\n"
+                        "        self.retrybtn.setIconSize(QSize(18, 18))",
+                },
+                extra_import="from GUI.uic.qfluent.components.icons import CgsIcon",
+            )
         case _:
             converter = ConvertBase(file, file)
     converter.run()

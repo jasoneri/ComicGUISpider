@@ -20,7 +20,7 @@ _PARKLOGIC_HOST = "router.parklogic.com"
 
 class _WnacgContract:
     name = "wnacg"
-    domain = "wnacg.com"  # REMARK(CG001): GUI runtime needs this static fallback when wnacg_domain.txt is absent; do not delete.
+    domain = "wnacg.com"  # REMARK(CGS001): GUI runtime needs this static fallback when wnacg_domain.txt is absent; do not delete.
     publish_domain = "wnacg01.link"
     publish_domain_old = ["wnacg.date", "wn01.link"]
     publish_url = f"https://{publish_domain}"

@@ -26,14 +26,24 @@ class PresetProvider(MiddlewareProvider):
     category = "Built-in"
 
     def list_available(self) -> list[MiddlewareDefinition]:
+        return self._workflow_presets()
+
+    def list_all(self) -> list[MiddlewareDefinition]:
+        return self._workflow_presets() + self._subscription_presets()
+
+    @staticmethod
+    def _build_preset(*, lane: LaneStage, stage: TimelineStage, **kwargs) -> MiddlewareDefinition:
+        kwargs.setdefault("enabled", True)
+        kwargs.setdefault("params", {})
+        return MiddlewareDefinition(
+            supported_stages=[int(stage)],
+            allowed_lanes=[lane.value],
+            **kwargs,
+        )
+
+    def _workflow_presets(self) -> list[MiddlewareDefinition]:
         def _preset(*, lane: LaneStage, stage: TimelineStage, **kwargs) -> MiddlewareDefinition:
-            kwargs.setdefault("enabled", True)
-            kwargs.setdefault("params", {})
-            return MiddlewareDefinition(
-                supported_stages=[int(stage)],
-                allowed_lanes=[lane.value],
-                **kwargs,
-            )
+            return self._build_preset(lane=lane, stage=stage, **kwargs)
 
         return [
             _preset(
@@ -69,6 +79,43 @@ class PresetProvider(MiddlewareProvider):
             #     lane=LaneStage.POSTPROCESSING,
             #     stage=TimelineStage.POSTPROCESSING,
             # ),
+        ]
+
+    def _subscription_presets(self) -> list[MiddlewareDefinition]:
+        def _preset(*, lane: LaneStage, stage: TimelineStage, **kwargs) -> MiddlewareDefinition:
+            return self._build_preset(lane=lane, stage=stage, **kwargs)
+
+        return [
+            _preset(
+                id="preset:c3_feature_diff",
+                type="c3_feature_diff",
+                name="Feature Diff",
+                default_priority=212,
+                label="C3",
+                desc="过滤已见过的书，仅留特征下的新书",
+                lane=LaneStage.BOOK,
+                stage=TimelineStage.WAIT_BOOK_DECISION,
+            ),
+            _preset(
+                id="preset:d2_episode_diff",
+                type="d2_episode_diff",
+                name="Episode Diff",
+                default_priority=301,
+                label="D2",
+                desc="过滤本地已下载章节",
+                lane=LaneStage.EP,
+                stage=TimelineStage.WAIT_EP_DECISION,
+            ),
+            _preset(
+                id="preset:e2_publish_metadata",
+                type="e2_publish_metadata",
+                name="Publish Metadata",
+                default_priority=602,
+                label="E2",
+                desc="发布订阅元数据",
+                lane=LaneStage.POSTPROCESSING,
+                stage=TimelineStage.POSTPROCESSING,
+            ),
         ]
 
 

@@ -11,7 +11,7 @@ from qfluentwidgets import (
 from assets import res as ori_res
 from utils import curr_os, conf, yaml_update
 from utils.config.rule import CgsRuleMgr
-from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CustomIcon, CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
+from GUI.uic.qfluent import CustomFlyout, TableFlyoutView, CgsIcon, CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 
 tools_res = ori_res.GUI.Tools
 
@@ -63,7 +63,7 @@ class rvTool(QWidget):
 
         # col1: showMaxBtn + scanBtn
         col1 = QVBoxLayout()
-        self.showMaxBtn = PrimaryPushButton(CustomIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
+        self.showMaxBtn = PrimaryPushButton(CgsIcon.TOOL_BOOK_MARKED, tools_res.rv_book_marked)
         self.scanBtn = PushButton(FIF.SYNC, tools_res.rv_scan_local)
         col1.addWidget(self.showMaxBtn)
         col1.addWidget(self.scanBtn)

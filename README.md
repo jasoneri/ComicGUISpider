@@ -9,6 +9,9 @@
   <a href="https://img-cgs.101114105.xyz/file/cgs/1777322414802_danbooru.webm" target="_blank">
     <img src="https://img-cgs.101114105.xyz/file/cgs/1777735134939_fake-danbooru.png" alt="logo" height="135">
   </a>
+  <a href="https://img-cgs.101114105.xyz/file/rv/1783171021752_app.webm" target="_blank">
+    <img src="https://img-cgs.101114105.xyz/file/rv/1783000491990_app_cover.png" alt="logo" height="160">
+  </a>
   <a href="https://cgs.101114105.xyz" target="_blank">
     <img src="https://img-cgs.101114105.xyz/file/cgs/1779095744969_cgs-logo.png" alt="logo" height="160">
   </a>
@@ -32,26 +35,30 @@
 - 多种使用方式，多开同时操作不同网站，各站点特有功能，任务面板等
 - 无感翻页提交，已下载记录等提示
 - 预设，去重，加标识符等各种自定义配置
-- 漫画外其他二次元工具箱 scriptWin
+- 漫画外其他工具集 scriptWin
 
 **更多移步查阅 [🎸功能文档](https://cgs.101114105.xyz/feat/)**
 
 ## 🚨[站点状态](https://cgs.101114105.xyz/deploy/monitor/)
 
-| 网站                                    | 适用区域 |    补充说明    |
-|:--------------------------------------|:----:|:----------:|
-| [拷贝漫画](https://www.2026copy.com/)    | :cn: | |
-| [Māngabz](https://mangabz.com)        | :cn: | |
-| [禁漫天堂](https://18comic.vip/)          | :cn: |
+| 网站 | 适用区域 | 补充说明 |
+|:---|:---:|:---:|
+| [拷贝漫画](https://www.2026copy.com/) | :cn: | |
+| [Māngabz](https://mangabz.com) | :cn: | |
+| [禁漫天堂](https://18comic.vip/) | :cn: |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
-| [ExHentai](https://exhentai.org/)     | 🌏 |     代理     |
-| [Hitomi](https://hitomi.la/)     | 🌏 |          |
-| Script | 🌏 |     [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/)    |
-| [HComic](https://h-comic.com/)     | 🌏 |     代理     |
-| [Nhentai](https://nhentai.net/)     | 🌏 |     代理/ `>=2.10.1-beta`     |
-| [jestful](https://jestful.net/)     | 🌏 |     表漫/生肉     |
-| [漫画柜](https://www.manhuagui.com/)     | :cn: |     代理/ `>=2.10.1-beta`     |
-| [dm5(动漫屋)](https://tel.dm5.com/)     | :cn: |     代理?/`>=2.10.1-beta.2`     |
+| [ExHentai](https://exhentai.org/) | 🌏 | 代理 |
+| [Hitomi](https://hitomi.la/) | 🌏 | |
+| Script | 🌏 | [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) |
+| [HComic](https://h-comic.com/) | 🌏 | 代理 |
+| [Nhentai](https://nhentai.net/) | 🌏 | 代理 |
+| [jestful](https://jestful.net/) | 🌏 | 表漫/生肉 |
+| [漫画柜](https://www.manhuagui.com/) | :cn: | 代理 |
+| [dm5(动漫屋)](https://tel.dm5.com/) | :cn: | 代理? |
+| [無限動漫(comicabc)](https://www.8comic.com/) | :cn: | 代理? |
+| [mh1234](https://m.wmh1234.com/) | :cn: | 代理? |
+| [JCOMIC](https://jcomic.net/) | 🌎 | 代理? |
+| [如漫画](https://www.rumanhua2.com/) | :cn: | |
 
 点进网站前先判断 NSFW , 不了解就勿点  
 使用请适度，以免加重对方服务器负担，也减少被封ip风险
@@ -68,16 +75,16 @@
 
 ## 🍮食用搭配(阅读器)
 
-<table><tbody>  
+<table><tbody>
   <tr>
     <td><div align="center"><a href="https://github.com/jasoneri/redViewer" target="_blank">
-      <img src="https://img-cgs.101114105.xyz/file/1766904566021_rv.png" alt="logo" height="60">
+      <img src="https://img-cgs.101114105.xyz/file/rv/1783438655018_rv-new-logo.png" alt="gif" height="120">
       </a></div></td>
     <td><div align="center"><a href="https://github.com/gotson/komga" target="_blank">
-      <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" height="60">
+      <img src="https://raw.githubusercontent.com/gotson/komga/master/.github/readme-images/app-icon.png" alt="komga" height="120">
       </a></div></td>
     <td><div align="center"><a href="https://github.com/Ruben2776/PicView" target="_blank">
-      <img src="https://avatars.githubusercontent.com/u/4200419?s=48&v=4" alt="PicView" height="60">
+      <img src="https://avatars.githubusercontent.com/u/4200419?s=48&v=4" alt="PicView" height="120">
       </a></div></td>
   </tr>
   <tr>

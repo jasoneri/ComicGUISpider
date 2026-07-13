@@ -2,8 +2,9 @@
 
 from ComicSpider.runtime.job_models import iter_download_items
 
-from utils import conf
+from utils import conf, PresetHtmlEl
 from utils.website import JmBookInfo, BookInfo, Episode
+from ComicSpider.items import ComicspiderItem
 from .basecomicspider import BaseComicSpider2, font_color, scrapy
 
 domain = "18comic-zzz.xyz"
@@ -19,6 +20,7 @@ class JmSpider(BaseComicSpider2):
             'ComicSpider.middlewares.ComicDlProxyMiddleware': 4,
             # 'ComicSpider.middlewares.ScrapyDoHProxyMiddleware': 8,
             'ComicSpider.middlewares.RefererMiddleware': 10,
+            'ComicSpider.middlewares.FakeMiddleware': 30,
         }, "COOKIES_ENABLED": not conf.cookies.get(name),
     }
     num_of_row = 4
@@ -69,15 +71,59 @@ class JmSpider(BaseComicSpider2):
                 if getattr(item, 'episodes', None):
                     yield from self._dispatch_episodes(item)
                     continue
-                yield scrapy.Request(
-                    url=item.url,
-                    callback=self.parse_section,
-                    headers={**self.ua, 'Referer': self.request_referer(item.url)},
-                    meta={'book': item},
-                    dont_filter=True,
-                )
+                yield from self._process_book(item)
                 continue
             raise ValueError(f"jm runtime item is missing download url: {item!r}")
+
+    def _iter_target_page_urls(self, item):
+        page_urls = getattr(item, "page_urls", None) or []
+        for page, url in enumerate(page_urls, start=1):
+            if self._should_download_page(item, page):
+                yield page, url
+
+    def _process_book(self, item):
+        if not getattr(item, "page_urls", None):
+            yield scrapy.Request(
+                url=item.url,
+                callback=self.parse_section,
+                headers={**self.ua, 'Referer': self.request_referer(item.url)},
+                meta={'book': item},
+                dont_filter=True,
+            )
+            return
+        yield from self._process_prefetched_pages(item)
+
+    def _process_prefetched_pages(self, item):
+        if getattr(item, "pages", None) is None:
+            item.pages = len(getattr(item, "page_urls", None) or [])
+        book = item.from_book if isinstance(item, Episode) else item
+        this_uuid, this_md5 = item.id_and_md5()
+        ep_name = item.name if isinstance(item, Episode) else None
+        book.name = PresetHtmlEl.sub(book.name)
+        self._assert_task_not_downloaded(item)
+        self.say(f'''📜 《{item.display_title}》''')
+        self.set_task(item)
+        for page, url in self._iter_target_page_urls(item):
+            spider_item = ComicspiderItem()
+            spider_item['title'] = book.name
+            spider_item['page'] = str(page)
+            spider_item['section'] = ep_name
+            spider_item['image_urls'] = [url]
+            spider_item['uuid'] = this_uuid
+            spider_item['uuid_md5'] = this_md5
+            if self.job_context:
+                self.job_context.total += 1
+            self.total += 1
+            yield scrapy.Request(
+                url=f'https://fakefakefa.com/{url}',
+                callback=self.process_item,
+                meta={'item': spider_item},
+                dont_filter=True,
+            )
+        self._emit_process('fin')
+
+    def process_item(self, response):
+        yield response.meta['item']
 
     def frame_section(self, response):
         targets = response.xpath(".//img[contains(@id,'album_photo_')]")

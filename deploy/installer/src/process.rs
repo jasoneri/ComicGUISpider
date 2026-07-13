@@ -22,9 +22,10 @@ const COMPLETED_PROGRESS: u8 = 100;
 #[derive(Debug, Clone)]
 pub(crate) struct InstallerConfig {
     pub uv_exc: PathBuf,
-    pub version: String,
+    pub cgs_ver: String,
     pub index_url: String,
     pub script: bool,
+    pub uv_args: Vec<String>,
     pub uv_tool_dir: PathBuf,
     pub uv_tool_bin_dir: PathBuf,
 }
@@ -98,9 +99,9 @@ impl InstallerProgress {
     pub(crate) fn downloading(count: u32, total_packages: u32) -> Self {
         let count = count.min(total_packages);
         let span = u32::from(DOWNLOAD_PROGRESS_END - DOWNLOAD_PROGRESS_START);
-        let percent =
-            (u32::from(DOWNLOAD_PROGRESS_START) + count.saturating_mul(span) / total_packages)
-                .min(u32::from(DOWNLOAD_PROGRESS_END)) as u8;
+        let percent = (u32::from(DOWNLOAD_PROGRESS_START)
+            + count.saturating_mul(span) / total_packages)
+            .min(u32::from(DOWNLOAD_PROGRESS_END)) as u8;
         Self::new(
             InstallerStage::Downloading,
             percent,
@@ -177,9 +178,10 @@ impl InstallerConfig {
 
         Self {
             uv_exc: PathBuf::from(&args.uv_exc),
-            version: args.version.clone(),
+            cgs_ver: args.cgs_ver.clone(),
             index_url: args.index_url.clone(),
             script: args.script,
+            uv_args: args.uv_args.clone(),
             uv_tool_dir,
             uv_tool_bin_dir,
         }
@@ -190,7 +192,7 @@ impl InstallerConfig {
     }
 
     pub(crate) fn install_args(&self) -> Vec<String> {
-        build_install_args(&self.version, &self.index_url, self.script)
+        build_install_args(&self.cgs_ver, &self.index_url, self.script, &self.uv_args)
     }
 }
 

@@ -62,15 +62,23 @@ class DanbooruChallengeController(QtCore.QObject):
         self.interface = interface
         self.gui = interface.gui
         self.coordinator = BrowserChallengeCoordinator(
+            # CGS002: BrowserWindow starts WebEngine DoH synchronously on the GUI thread.
             window_factory=lambda spec: BrowserWindow(
-                self.interface.gui, skip_env_mode=True, persistent_profile=False, webengine_doh_url=spec.doh_url,
+                self.interface.gui,
+                skip_env_mode=True,
+                persistent_profile=False,
             ),
             on_success=self._handle_success, on_missing=self._handle_missing, parent=self,
         )
 
     def submit(self, tab_id: str, challenge: DanbooruChallengeRequired, retry_callback: t.Callable[[], None], retry_key: str) -> None:
         self.interface.tab_mgr.set_httpx_status(tab_id, "httpx blocked", cls="theme-tip")
-        self.coordinator.submit(self._build_spec(challenge), tab_id=tab_id, retry_key=str(retry_key), retry_callback=retry_callback)
+        self.coordinator.submit(
+            self._build_spec(challenge),
+            tab_id=tab_id,
+            retry_key=str(retry_key),
+            retry_callback=retry_callback,
+        )
 
     def _build_spec(self, challenge: DanbooruChallengeRequired) -> BrowserChallengeSpec:
         return BrowserChallengeSpec(

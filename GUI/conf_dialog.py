@@ -7,19 +7,19 @@ import codecs
 from functools import partial
 
 import yaml
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
 from PySide6.QtWidgets import QSizePolicy, QFileDialog, QCompleter
 from PySide6.QtCore import Qt, QRect, QStringListModel
-from PySide6.QtGui import QIcon
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, TransparentToolButton,
-    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox
+    PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox,
+    TogglePushButton, TeachingTipTailPosition
 )
 import uncurl
 
 from assets import res
-from variables import SPIDERS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG, CGS_DOC
+from variables import SPIDERS, SPIDERS_LABELS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG, CGS_DOC, Spider
 from utils import conf, convert_punctuation as cp, exc_p, curr_os, ori_path
 from utils.config.rule import CgsRuleMgr
 from GUI.thread import ProjUpdateThread
@@ -27,17 +27,17 @@ from GUI.uic.conf_dia import Ui_Dialog as Ui_ConfDialog
 from GUI.manager import Updater
 from GUI.core.anim import PopupAnimator
 from GUI.uic.qfluent.components import DoHButtonController
+from GUI.uic.qfluent.components.icons import CgsIcon
 from GUI.core.theme import theme_mgr
 from utils.config.qc import cgs_cfg
 from GUI.uic.qfluent.components import (
-    SupportView, CustomFlyout, CustomInfoBar, ExpandSettings, TextEditWithBg
+    SupportView, CustomFlyout, CustomInfoBar, CustomTeachingTip, ExpandSettings, TextEditWithBg
 )
 
 
 class SvPathCard(PushSettingCard):
     def __init__(self, parent=None):
-        super().__init__(res.GUI.Uic.sv_path_desc_tip, FIF.DOWNLOAD, 
-                         res.GUI.Uic.sv_path_desc, "D:/Comic", parent)
+        super().__init__(res.GUI.Uic.sv_path_desc_tip, FIF.DOWNLOAD, res.GUI.Uic.sv_path_desc, "D:/Comic", parent)
         self.conf_dia = parent
         self.clicked.connect(self._onSelectFolder)
 
@@ -49,17 +49,64 @@ class SvPathCard(PushSettingCard):
             cgs_flag = str(wanted_p).startswith(str(cgs_path))
             drive_flag = len(wanted_p.parts) == 1 and wanted_p.drive
             if cgs_flag or drive_flag:
-                CustomInfoBar.show("", res.GUI.Uic.confDia_svPathWarning, self.conf_dia, 
-                    f"{CGS_DOC}/config/#配置项-对应-yml-字段", 
-                    "conf desc", _type="ERROR", position=InfoBarPosition.TOP)
+                CustomInfoBar.show("", res.GUI.Uic.confDia_svPathWarning, self.conf_dia,
+                    f"{CGS_DOC}/config/#配置项-对应-yml-字段", "conf desc", _type="ERROR", position=InfoBarPosition.TOP)
                 return
             self.setContent(folder)
+
+
+class SiteChoicePanel(QtWidgets.QWidget):
+    COLUMNS = 3
+
+    def __init__(self, conf_dia):
+        super().__init__(conf_dia)
+        self.conf_dia = conf_dia
+        self.site_buttons = {}
+        self.setupUi()
+
+    def setupUi(self):
+        self.setMinimumWidth(450)
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(8)
+
+        first_row = QtWidgets.QWidget(self)
+        first_row_layout = QtWidgets.QGridLayout(first_row)
+        first_row_layout.setContentsMargins(0, 0, 0, 0)
+        first_row_layout.setHorizontalSpacing(6)
+        first_row_layout.setVerticalSpacing(6)
+        hidden = cgs_cfg.site_choices.hidden(SPIDERS_LABELS.keys())
+        for offset, (index, label) in enumerate(SPIDERS_LABELS.items()):
+            button = TogglePushButton(self)
+            button.setText(self._site_label(index, label))
+            button.setToolTip(button.text())
+            button.setCheckable(True)
+            button.setChecked(index not in hidden)
+            button.setMinimumWidth(118)
+            button.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed))
+            first_row_layout.addWidget(button, offset // self.COLUMNS, offset % self.COLUMNS)
+            self.site_buttons[index] = button
+            button.toggled.connect(partial(self._set_site_visible, index))
+
+        self.layout.addWidget(first_row)
+
+    @staticmethod
+    def _site_label(index: int, label: str) -> str:
+        if index in Spider and Spider(index) in Spider.specials():
+            return f"{label}🔞"
+        return label
+
+    def _set_site_visible(self, site_index: int, visible: bool):
+        cgs_cfg.site_choices.set_hidden(site_index, not visible, SPIDERS_LABELS.keys())
+        self.conf_dia.gui.site_choice_combo.set_site_visible(site_index, visible)
+        self.conf_dia.gui.refresh_lifecycle_state()
 
 
 class ConfDialog(FramelessDialog, Ui_ConfDialog):
     def __init__(self, parent=None):
         super(ConfDialog, self).__init__(parent)
         self._init_flag = True
+        self._site_choice_tip = None
         self.gui = parent
         self.setupUi(self)
 
@@ -134,7 +181,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxiesEdit.setCompleter(completer)
         self.proxiesEdit.setClearButtonEnabled(True)
-        self.logPathBtn = TransparentToolButton(QIcon(':/configDialog/log.svg'))
+        self.logPathBtn = TransparentToolButton(CgsIcon.CONFIG_LOG)
         self.logPathBtn.setIconSize(QtCore.QSize(24, 24))
         self.dohBtn = PrimaryPushButton("DoH", self)
         self.dohBtn.setMaximumSize(QtCore.QSize(80, 16777215))
@@ -152,13 +199,17 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.updateBtn = PushButton(FIF.UPDATE, res.GUI.Uic.confDia_updateBtn)
         self.updateBtn.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.updateBtn.setMaximumSize(QtCore.QSize(110, 16777215))
-        self.monitorBtn = PushButton(QIcon(':/configDialog/monitor.svg'), res.GUI.Uic.confDia_monitorBtn)
+        self.monitorBtn = PushButton(CgsIcon.CONFIG_MONITOR, res.GUI.Uic.confDia_monitorBtn)
         self.supportBtn = TransparentPushButton(FIF.GAME, res.GUI.Uic.confDia_supportBtn)
+        self.siteChoiceBtn = TransparentPushButton(FIF.VIEW, res.GUI.Uic.confDia_siteChoiceBtn)
+        self.serverModeBtn = TransparentPushButton(CgsIcon.CONFIG_TRAY, "CGS Server")
 
         self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.monitorBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.updateBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.descBtn)
+        self.bottom_btn_horizontalLayout.insertWidget(4, self.siteChoiceBtn)
+        self.bottom_btn_horizontalLayout.insertWidget(5, self.serverModeBtn)
 
         self.isDeduplicate = TransparentToggleToolButton(FIF.FILTER)
         self.addUuid = TransparentToggleToolButton(FIF.FLAG)
@@ -203,9 +254,9 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP
             )
         self.clipDbBtn.clicked.connect(set_clipDb)
-        self.supportBtn.clicked.connect(lambda: CustomFlyout.make(
-            view=SupportView(self), target=self.supportBtn, parent=self
-        ))
+        self.supportBtn.clicked.connect(lambda: CustomFlyout.make(view=SupportView(self), target=self.supportBtn, parent=self))
+        self.siteChoiceBtn.clicked.connect(self._show_site_choice_tip)
+        self.serverModeBtn.clicked.connect(lambda: self.gui.request_server_mode_switch(self))
         def _tip_lang_change(idx):
             if self.langBox.itemData(idx) != conf.lang:
                 InfoBar.success(
@@ -252,6 +303,14 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
             conf.update(skipDev=checked)
             self.gui.update_notifier.refresh_badges()
         self.skipDev.checkedChanged.connect(_on_skip_dev_changed)
+
+    def _show_site_choice_tip(self):
+        if self._site_choice_tip is not None:
+            self._site_choice_tip.close()
+        panel = SiteChoicePanel(self)
+        tip = CustomTeachingTip.create([panel], target=self.siteChoiceBtn, parent=self, tailPosition=TeachingTipTailPosition.TOP)
+        self._site_choice_tip = tip
+        tip.destroyed.connect(lambda *_args: setattr(self, "_site_choice_tip", None))
 
     def show_self(self):  # can't naming `show`. If done, just run code once
         # 1. Text类配置
@@ -316,15 +375,17 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         else:
             return str(val)
 
-    def save_conf(self):
+    def save_conf(self, _checked=False, *, raise_on_invalid=False):
         sv_path = self.sv_path_card.contentLabel.text()
         n_dledHandle = self.dledHandleBox.currentText()
         
         is_valid, _msg = CgsRuleMgr.validate(pathlib.Path(sv_path), n_dledHandle)
         if not is_valid:
+            if raise_on_invalid:
+                raise ValueError(f"{_msg}\nconf save fail")
             InfoBar.error(title="", content=f"{_msg}\n❌conf save fail", duration=-1, parent=self.gui.showArea,
                 orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM)
-            return
+            return False
         
         self.format_cookie()
 
@@ -359,6 +420,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         
         if sv_path != str(conf.sv_path):  # after conf.update(sv_path)
             self._trigger_rv_scan()
+        return True
 
     def _trigger_rv_scan(self):
         self.gui.rv_mgr.start_scan(show_progress=True, parent_widget=self.gui.showArea)

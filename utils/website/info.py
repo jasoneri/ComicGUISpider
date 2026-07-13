@@ -101,10 +101,7 @@ class Ero(BookInfo):
 
     def to_tasks_obj(self):
         assert self.pages is not None
-        return TasksObj(
-            self.u_md5, self.name, int(self.pages), self.preview_url, None, self.img_preview,
-            source=self.source,
-        )
+        return TasksObj(self.u_md5, self.name, int(self.pages), self.preview_url, None, self.img_preview, source=self.source)
 
 
 class Episode(InfoMinix):
@@ -155,6 +152,16 @@ class ManhuaguiBookInfo(Manga):
 class Dm5BookInfo(Manga):
     source = "dm5"
 
+class ComicabcBookInfo(Manga):
+    source = "comicabc"
+
+class Mh1234BookInfo(Manga):
+    source = "mh1234"
+
+
+class RumanhuaBookInfo(Manga):
+    source = "rumanhua"
+
 # ---
 
 class JmBookInfo(Ero):
@@ -190,6 +197,11 @@ class HitomiBookInfo(Ero):
 
 class HComicBookInfo(Ero):
     source = "h_comic"
+
+
+class JComicBookInfo(Ero):
+    source = "jcomic"
+    page_links: list = None
 
 
 class NhentaiBookInfo(Ero):

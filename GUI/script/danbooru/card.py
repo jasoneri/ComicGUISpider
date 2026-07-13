@@ -236,7 +236,7 @@ class DanbooruCardWidget(QFrame):
         self.preview_button.setProperty("unsupported", not self.post.is_supported)
         self.preview_button.setCursor(Qt.PointingHandCursor)
         self.preview_button.clicked.connect(lambda: self.open_detail_requested.emit(self.post))
-        self.preview_button.setText("Loading..." if self.post.preview_file_url else "No Preview")
+        self.preview_button.setText(self._initial_preview_text())
         preview_layout.addWidget(self.preview_button)
 
         self._preview_glow = QGraphicsDropShadowEffect(self.preview_frame)
@@ -354,10 +354,21 @@ class DanbooruCardWidget(QFrame):
         return QtCore.QSize(max(1, self.preview_width - inset), max(1, self.preview_height - inset))
 
     def _default_preview_text(self) -> str:
+        if self.post.is_archive:
+            if self.post.preview_asset_is_video:
+                return "ZIP original, video preview available"
+            return "ZIP original, preview available" if self.post.has_renderable_preview_asset else "ZIP archive, download original"
         if not self.post.is_supported:
             ext = DanbooruPost.normalize_file_ext(self.post.file_ext).upper() or "UNKNOWN"
+            if self.post.has_renderable_preview_asset:
+                return f"{ext} original, preview available"
             return f"Non-renderable preview: {ext}"
         return "Loading..." if self.post.preview_file_url else "No Preview"
+
+    def _initial_preview_text(self) -> str:
+        if self.post.has_renderable_preview_asset:
+            return "Loading..."
+        return self._default_preview_text()
 
     def _build_preview_icon(self) -> QPixmap:
         target_size = self._preview_target_size()
@@ -371,8 +382,8 @@ class DanbooruCardWidget(QFrame):
             preview = self._apply_downloaded_preview_effect(preview, self._card_theme)
         if self._is_selected():
             preview = self._apply_selection_overlay(preview, self._card_theme)
-        if self.post.is_video:
-            preview = self._apply_video_badge(preview, self._card_theme, self.post.file_ext)
+        if self.post.uses_viewer_video:
+            preview = self._apply_video_badge(preview, self._card_theme, self.post.viewer_video_media_ext)
         return preview
 
     def _apply_preview_icon(self):

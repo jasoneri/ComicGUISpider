@@ -470,7 +470,7 @@ class VideoProxy(QtCore.QObject):
         self._progress_thread.join(timeout=2.0)
 
     def register_post(self, post: DanbooruPost) -> str:
-        source_url = post.large_file_url or post.file_url or post.preview_file_url
+        source_url = self._source_url_for_post(post)
         if not source_url:
             raise ValueError(f"Danbooru video source url is required: post_id={post.post_id}")
         with self._lock:
@@ -489,6 +489,10 @@ class VideoProxy(QtCore.QObject):
             self._post_tokens[post.post_id] = token
             self._routes[token] = _VideoRoute(post_id=post.post_id, source_url=source_url, cache=cache)
             return self._build_local_url(token)
+
+    @staticmethod
+    def _source_url_for_post(post: DanbooruPost) -> str:
+        return post.viewer_video_source_url
 
     def progress_for_post(self, post_id: int) -> VideoCacheProgress | None:
         with self._lock:

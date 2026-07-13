@@ -38,7 +38,7 @@ class Shares(QObject):
         self._items: list[BookInfo] = []
         self.site = ""
         self._uploading = False
-        self.task_mgr = AsyncTaskManager(gui)
+        self.task_mgr = AsyncTaskManager(gui, gui)
 
     @property
     def items(self) -> list[BookInfo]:
@@ -49,6 +49,14 @@ class Shares(QObject):
 
     def is_uploading(self) -> bool:
         return self._uploading
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        blockers = []
+        if self._uploading:
+            blockers.append("share upload")
+        if self.task_mgr.get_running_tasks():
+            blockers.append("share task")
+        return blockers
 
     def count(self) -> int:
         return len(self._items)

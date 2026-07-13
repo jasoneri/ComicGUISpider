@@ -1,0 +1,100 @@
+from enum import Enum
+import re
+
+from PySide6.QtGui import QColor, QIcon
+from qfluentwidgets import FluentIconBase, Theme
+from qfluentwidgets.common.icon import SvgIconEngine, drawSvgIcon, getIconColor
+
+
+FIXED_LIGHT_SURFACE_ICON = "#111111"
+_PAINT_ATTR_RE = re.compile(r'\b(?P<name>fill|stroke)="(?P<value>[^"]+)"')
+_SKIP_VALUES = {"none", "transparent"}
+
+
+_SVG_SOURCES = {
+    "configDialog/discord": """<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24"><path fill="currentColor" d="M19.303 5.337A17.3 17.3 0 0 0 14.963 4c-.191.329-.403.775-.552 1.125a16.6 16.6 0 0 0-4.808 0C9.454 4.775 9.23 4.329 9.05 4a17 17 0 0 0-4.342 1.337C1.961 9.391 1.218 13.35 1.59 17.255a17.7 17.7 0 0 0 5.318 2.664a13 13 0 0 0 1.136-1.836c-.627-.234-1.22-.52-1.794-.86c.149-.106.297-.223.435-.34c3.46 1.582 7.207 1.582 10.624 0c.149.117.287.234.435.34c-.573.34-1.167.626-1.793.86a13 13 0 0 0 1.135 1.836a17.6 17.6 0 0 0 5.318-2.664c.457-4.52-.722-8.448-3.1-11.918M8.52 14.846c-1.04 0-1.889-.945-1.889-2.101s.828-2.102 1.89-2.102c1.05 0 1.91.945 1.888 2.102c0 1.156-.838 2.1-1.889 2.1m6.974 0c-1.04 0-1.89-.945-1.89-2.101s.828-2.102 1.89-2.102c1.05 0 1.91.945 1.889 2.102c0 1.156-.828 2.1-1.89 2.1"/></svg>""",
+    "configDialog/qq": """<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>QQ</title><path fill="currentColor" d="M21.395 15.035a40 40 0 0 0-.803-2.264l-1.079-2.695c.001-.032.014-.562.014-.836C19.526 4.632 17.351 0 12 0S4.474 4.632 4.474 9.241c0 .274.013.804.014.836l-1.08 2.695a39 39 0 0 0-.802 2.264c-1.021 3.283-.69 4.643-.438 4.673c.54.065 2.103-2.472 2.103-2.472c0 1.469.756 3.387 2.394 4.771c-.612.188-1.363.479-1.845.835c-.434.32-.379.646-.301.778c.343.578 5.883.369 7.482.189c1.6.18 7.14.389 7.483-.189c.078-.132.132-.458-.301-.778c-.483-.356-1.233-.646-1.846-.836c1.637-1.384 2.393-3.302 2.393-4.771c0 0 1.563 2.537 2.103 2.472c.251-.03.581-1.39-.438-4.673"/></svg>""",
+    "tools/merge": """<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8.25a2.75 2.75 0 1 0 0-5.5a2.75 2.75 0 0 0 0 5.5m0 0v7.5m0-7.5c0 2.9 2.35 5.25 5.25 5.25h2M7 15.75a2.75 2.75 0 1 0 0 5.5a2.75 2.75 0 0 0 0-5.5m7.25-2.25a2.75 2.75 0 1 0 5.5 0a2.75 2.75 0 0 0-5.5 0"/></svg>""",
+    "tools/book_marked": """<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"><path stroke-linecap="round" d="M4.5 16.25V5.75a3 3 0 0 1 3-3h11a1 1 0 0 1 1 1v12.5H7.375M4.5 16.245v2.38"/><path stroke-linecap="round" d="M18.5 21.25H7a2.5 2.5 0 0 1 0-5h12.5v4a1 1 0 0 1-1 1"/><path d="M15.5 2.75h-6v7.517a.2.2 0 0 0 .341.142l1.952-1.952a1 1 0 0 1 1.414 0l1.952 1.952a.2.2 0 0 0 .341-.142z"/></g></svg>""",
+    "tools/reboot_icon": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none" /><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"><path stroke-linejoin="round" d="m15.978 8.715l-.442-.453a4.92 4.92 0 0 0-7.072 0c-1.952 1.999-1.952 5.24 0 7.239a4.92 4.92 0 0 0 7.072 0a5.18 5.18 0 0 0 1.425-4.259m-.983-2.527h-2.652m2.651 0V6" /><path d="M7 3.338A9.95 9.95 0 0 1 12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12c0-1.821.487-3.53 1.338-5" /></g></svg>""",
+    "configDialog/log": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512"><path d="M0 0h512v512H0z" fill="none" /><path fill="currentColor" fill-rule="evenodd" d="M321.923 42.667H87.256v234.667h42.667v-192h174.293l81.707 81.706v110.294h42.666v-128zM85.573 448V320.028h28.81v105.394h55V448zm153.17-130.23q30.165 0 46.24 19.146q15.444 18.334 15.443 47.143q0 31.519-18.243 50.124q-15.714 16.075-43.44 16.075q-30.165 0-46.24-19.146q-15.443-18.334-15.443-47.866q0-30.887 18.243-49.491q15.804-15.985 43.44-15.985m-.09 22.578q-15.624 0-24.114 13.005q-7.676 11.74-7.676 30.164q0 21.315 9.121 33.055q8.58 11.108 22.759 11.108q15.534 0 24.204-13.095q7.676-11.56 7.676-30.526q0-20.862-9.121-32.603q-8.58-11.108-22.85-11.108m190.83 36.035v65.295q-11.018 3.704-15.534 4.877q-13.998 3.703-30.074 3.703q-31.61 0-48.136-15.895q-18.334-17.52-18.334-48.859q0-36.035 22.759-54.368q16.527-13.365 44.614-13.366q24.024 0 44.705 8.76l-9.844 22.488q-9.754-4.876-17.07-6.819q-7.315-1.941-16.075-1.941q-20.952 0-30.887 13.637q-8.399 11.559-8.399 30.435q0 22.669 12.644 34.138q10.115 9.212 25.107 9.212q8.76 0 16.617-2.98v-25.74H379.54v-22.577z" /></svg>""",
+    "configDialog/monitor": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 48 48"><path d="M0 0h48v48H0z" fill="none" /><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M4 22h4l4-11l5 26l6-17l4 8l7-13l4 14l2-7h4" /></svg>""",
+    "configDialog/tray": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 14 14"><path d="M0 0h14v14H0z" fill="none" /><path fill="currentColor" fill-rule="evenodd" d="M0 2.5A2.5 2.5 0 0 1 2.5 0h9A2.5 2.5 0 0 1 14 2.5v9a2.5 2.5 0 0 1-2.5 2.5H7a1 1 0 1 1 0-2h4.5a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5V7a1 1 0 0 1-2 0zm4.462 11.191A.5.5 0 0 1 4 14H.5a.5.5 0 0 1-.5-.5V10a.5.5 0 0 1 .854-.354l1.042 1.043l4.397-4.396a1 1 0 0 1 1.414 1.414l-4.396 4.397l1.043 1.042a.5.5 0 0 1 .108.545" clip-rule="evenodd" /></svg>""",
+    "main/publish": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 64 64"><path d="M0 0h64v64H0z" fill="none" /><path fill="currentColor" d="m38.301 7.752l-25.96 7.462a26 26 0 0 1 1.304 2.116q12.843-3.953 25.688-7.903q-.474-.858-1.032-1.675m2.499 4.872l-25.299 8.75q.438 1.16.806 2.353q12.566-4.622 25.13-9.241a33 33 0 0 0-.637-1.862M17.459 28.101c.189.821.361 1.65.527 2.482L42.738 19.92a89 89 0 0 0-.416-1.964z" /><path fill="currentColor" d="M61.228 33.155c-2.256-2.472-3.539-5.399-4.419-8.518q-4.09 2.313-7.747 4.385C46.392 19.556 47.121 8.488 38.121 2L2 10.253c15.272 11.005 11.144 39.508 22.041 50.212c.911.895 4.324 2.588 9.068.628c7.352-3.038 4.657-6.484 27.185-22.907c1.987-1.45 2.156-3.67.934-5.031M24.701 42.81c1.234 4.375 9.551 6.745 8.115 13.259c-.872 3.961-5.77 4.762-7.461 3.064c-4.45-4.466-6.291-12.502-8.191-21.061c-2.199-9.904-4.463-20.106-11.129-26.824l31.65-7.23c5.485 4.371 6.664 10.884 7.909 17.765c.491 2.715 1.014 5.497 1.804 8.182z" /></svg>""",
+    "main/repair": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512"><path d="M0 0h512v512H0z" fill="none" /><path fill="currentColor" d="M477.2 477.2c-46.4 46.4-121.631 46.4-168.032 0L34.8 202.832c-46.401-46.4-46.401-121.631 0-168.032c46.4-46.4 121.631-46.4 168.032 0l274.366 274.366c46.4 46.4 46.4 121.631 0 168.032M221.92 128.381l-93.54 93.54l158.913 158.912l93.54-93.54zM86.838 180.384c-5.569 5.569-5.569 14.597 0 20.166c5.568 5.569 14.597 5.569 20.166 0c5.568-5.569 5.568-14.597 0-20.166c-5.569-5.569-14.598-5.569-20.166 0m47.231-47.232c-5.568 5.569-5.568 14.597 0 20.166c5.57 5.569 14.598 5.569 20.167 0c5.568-5.569 5.568-14.597 0-20.166c-5.57-5.569-14.598-5.569-20.167 0m47.232-47.232c-5.568 5.569-5.568 14.598 0 20.166c5.569 5.57 14.598 5.57 20.166 0c5.569-5.568 5.569-14.597 0-20.166s-14.597-5.568-20.166 0m-57.25-8.587c-5.57 5.568-5.57 14.597 0 20.166c5.568 5.568 14.597 5.568 20.166 0c5.568-5.569 5.568-14.598 0-20.166c-5.57-5.569-14.598-5.569-20.166 0m-45.8 45.8c-5.57 5.569-5.57 14.598 0 20.166c5.568 5.569 14.596 5.569 20.165 0c5.569-5.568 5.569-14.597 0-20.166c-5.569-5.568-14.597-5.568-20.166 0M65.368 64.451c-5.569 5.569-5.569 14.598 0 20.166c5.568 5.57 14.597 5.57 20.166 0c5.568-5.568 5.568-14.597 0-20.166c-5.569-5.568-14.598-5.568-20.166 0m359.376 264.913c5.569-5.569 5.569-14.598 0-20.166c-5.569-5.569-14.598-5.569-20.166 0c-5.569 5.568-5.569 14.597 0 20.166c5.568 5.569 14.597 5.569 20.166 0m-47.232 47.232c5.569-5.57 5.569-14.598 0-20.166c-5.569-5.57-14.597-5.57-20.166 0c-5.569 5.568-5.569 14.597 0 20.166c5.569 5.568 14.597 5.568 20.166 0m-47.232 47.231c5.569-5.568 5.569-14.597 0-20.166c-5.569-5.568-14.597-5.568-20.166 0c-5.569 5.569-5.569 14.598 0 20.166c5.569 5.57 14.597 5.57 20.166 0m57.25 8.588c5.57-5.569 5.57-14.597 0-20.166c-5.568-5.569-14.596-5.569-20.165 0s-5.569 14.597 0 20.166s14.597 5.569 20.166 0m45.801-45.8c5.57-5.57 5.57-14.598 0-20.167c-5.568-5.568-14.597-5.568-20.166 0c-5.568 5.57-5.568 14.598 0 20.166c5.57 5.57 14.598 5.57 20.166 0m12.882 58.681c5.569-5.568 5.569-14.597 0-20.166c-5.569-5.568-14.598-5.568-20.166 0c-5.569 5.57-5.569 14.598 0 20.166c5.568 5.57 14.597 5.57 20.166 0m-12.675-198.803l43.66-43.66c46.401-46.4 46.401-121.631 0-168.032c-46.4-46.401-121.631-46.401-168.032 0l-43.66 43.66zM78.461 265.507l-43.66 43.66c-46.401 46.4-46.401 121.631 0 168.032c46.4 46.401 121.631 46.401 168.032 0l43.66-43.66z" /></svg>""",
+    "expand": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none" /><path fill="currentColor" d="M9.17 10.17a1 1 0 0 0 .71-.29a1 1 0 0 0 0-1.42L5.41 4H7a1 1 0 0 0 0-2H3a1 1 0 0 0-.38.08a1 1 0 0 0-.54.54A1 1 0 0 0 2 3v4a1 1 0 0 0 2 0V5.41l4.46 4.47a1 1 0 0 0 .71.29m6.37-1.71a1 1 0 0 0-1.42 0l-5.66 5.66a1 1 0 0 0 0 1.42a1 1 0 0 0 .71.29a1 1 0 0 0 .71-.29l5.66-5.66a1 1 0 0 0 0-1.42M21 16a1 1 0 0 0-1 1v1.59l-4.46-4.47a1 1 0 1 0-1.42 1.42L18.59 20H17a1 1 0 0 0 0 2h4a1 1 0 0 0 .38-.08a1 1 0 0 0 .54-.54A1 1 0 0 0 22 21v-4a1 1 0 0 0-1-1" /></svg>""",
+    "script/api": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none" /><path fill="currentColor" d="M7.312 9H5.688L3.5 15h1.607l.446-1.226h1.894L7.893 15H9.5Zm-1.394 3.774L6.5 11.18l.582 1.595ZM14.744 9h-3.5v6h1.5v-2h2a1.473 1.473 0 0 0 1.5-1.5v-1a1.473 1.473 0 0 0-1.5-1.5m0 2.5h-2v-1h2ZM18 9h1.5v6H18z" /><path fill="currentColor" d="M22 6v12H2V6zm0-2H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2" /></svg>""",
+    "script/random": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256"><path d="M0 0h256v256H0z" fill="none" /><g fill="currentColor" fill-rule="evenodd"><path d="M24.898 100.907a7.97 7.97 0 0 1 8.035-7.935l80.011.623c4.419.034 8.209 3.635 8.466 8.042l.517 8.868l26.68-42.392a7.776 7.776 0 0 1 10.94-2.349l66.996 44.369a8.03 8.03 0 0 1 2.275 11.113l-43.766 66.506c-2.432 3.695-7.447 4.8-11.197 2.47l-51.928-32.265v26.49c0 4.419-3.583 8-7.993 8H32.498a7.95 7.95 0 0 1-7.959-7.998zm11.828 6.694l-.189 71.811l74.127.073l-.035-29.78l-5.954-4.119c-1.809-1.25-2.375-3.81-1.257-5.71L111 127l-.466-19.749zM156.483 79L118 138.79l60.965 38.32l37.612-58.539z" /><circle cx="138" cy="135" r="8" /><circle cx="165" cy="130" r="8" /><circle cx="193" cy="125" r="8" /><circle cx="50" cy="124" r="8" /><circle cx="73" cy="145" r="8" /><circle cx="95" cy="123" r="8" /><circle cx="51" cy="165" r="8" /><circle cx="95" cy="165" r="8" /></g></svg>""",
+    "script/generate": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none" /><path fill="currentColor" d="m19.91 11.5l1.79-1.79a.996.996 0 0 0 0-1.41l-3-3a.996.996 0 0 0-1.41 0L15.5 7.09zm-5.82-3L6.3 16.29a1 1 0 0 0-.29.71v3c0 .55.45 1 1 1h3c.27 0 .52-.11.71-.29l7.79-7.79l-4.41-4.41ZM5 17c0-.3.07-.59.2-.85c-.59-.56-.91-1.1-.94-1.61c-.09-1.41 1.83-3 3.52-4.39C9.51 8.72 11.01 7.49 11.01 6C11 2.19 3.5 2 2 2v2c3.31 0 7 .83 7 2c0 .54-1.51 1.78-2.5 2.6c-2.06 1.7-4.4 3.63-4.24 6.07c.09 1.4 1 2.67 2.74 3.86z" /></svg>""",
+    "script/favMgr": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256"><path d="M0 0h256v256H0z" fill="none" /><path fill="currentColor" d="M124 192a12 12 0 0 1-12 12H40a12 12 0 0 1 0-24h72a12 12 0 0 1 12 12M40 76h176a12 12 0 0 0 0-24H40a12 12 0 0 0 0 24m0 64h56a12 12 0 0 0 0-24H40a12 12 0 0 0 0 24m212 4c0 17-9.53 33.56-28.32 49.22a151.5 151.5 0 0 1-26.31 17.51a12 12 0 0 1-10.74 0a151.5 151.5 0 0 1-26.31-17.51C141.53 177.56 132 161 132 144a36 36 0 0 1 60-26.81A36 36 0 0 1 252 144m-24 0a12 12 0 0 0-24 0a12 12 0 0 1-24 0a12 12 0 0 0-24 0c0 17.23 22.85 34.43 36 42.29c13.14-7.85 36-25.06 36-42.29" /></svg>""",
+    "script/translate": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none" /><path fill="currentColor" d="M5 15v2a2 2 0 0 0 1.85 1.994L7 19h3v2H7a4 4 0 0 1-4-4v-2zm13-5l4.4 11h-2.155l-1.201-3h-4.09l-1.199 3h-2.154L16 10zm-1 2.885L15.753 16h2.492zM8 2v2h4v7H8v3H6v-3H2V4h4V2zm9 1a4 4 0 0 1 4 4v2h-2V7a2 2 0 0 0-2-2h-3V3zM6 6H4v3h2zm4 0H8v3h2z" /></svg>""",
+    "script/func": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none" /><path fill="currentColor" d="M3 4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zm0 10a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zm10 0a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1zm4.713-3.872l-.246.565a.506.506 0 0 1-.934 0l-.246-.565a4.36 4.36 0 0 0-2.22-2.251l-.759-.338a.53.53 0 0 1 0-.963l.717-.32a4.37 4.37 0 0 0 2.251-2.326l.253-.611a.506.506 0 0 1 .942 0l.253.611a4.37 4.37 0 0 0 2.25 2.327l.718.319a.53.53 0 0 1 0 .963l-.76.338a4.36 4.36 0 0 0-2.219 2.25" /></svg>""",
+    "script/merge": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16"><path d="M0 0h16v16H0z" fill="none" /><path fill="currentColor" fill-rule="evenodd" d="M5.5 3.5a1 1 0 1 1-2 0a1 1 0 0 1 2 0m-.044 2.31a2.5 2.5 0 1 0-1.706.076v4.228a2.501 2.501 0 1 0 1.5 0V8.373a5.74 5.74 0 0 0 3.86 1.864a2.501 2.501 0 1 0 .01-1.504a4.25 4.25 0 0 1-3.664-2.922ZM11.5 10.5a1 1 0 1 0 0-2a1 1 0 0 0 0 2m-6 2a1 1 0 1 1-2 0a1 1 0 0 1 2 0" clip-rule="evenodd" /></svg>""",
+    "jsoneri/check": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none" /><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12h10M3 7V5a2 2 0 0 1 2-2h2M3 17v2a2 2 0 0 0 2 2h2M17 3h2a2 2 0 0 1 2 2v2m-4 14h2a2 2 0 0 0 2-2v-2" /></svg>""",
+    "jsoneri/recheck": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16"><path d="M0 0h16v16H0z" fill="none" /><path fill="currentColor" d="M14.78 6.28a.75.75 0 0 0 0-1.06l-3.5-3.5a.749.749 0 1 0-1.06 1.06L12.439 5H5.251l-.001.007L5.251 5a1 1 0 0 0-.171.019A4.501 4.501 0 0 0 5.5 14h1.704a.75.75 0 0 0 0-1.5H5.5a3 3 0 1 1 0-6h6.939L10.22 8.72a.749.749 0 1 0 1.06 1.06z" /></svg>""",
+    "jsoneri/expand": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 3h6v6" /><path d="m21 3l-7 7" /><path d="M9 21H3v-6" /><path d="m3 21l7-7" /></g></svg>""",
+    "jsoneri/collapse": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 14h6v6" /><path d="m10 14l-7 7" /><path d="M20 10h-6V4" /><path d="m14 10l7-7" /></g></svg>""",
+    "jsoneri/lock": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g></svg>""",
+    "jsoneri/station-image": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></g></svg>""",
+    "jsoneri/station-music": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></g></svg>""",
+    "jsoneri/station-activity": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg>""",
+    "jsoneri/station-bot": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></g></svg>""",
+}
+
+
+class CgsIcon(FluentIconBase, Enum):
+    DISCORD = "configDialog/discord"
+    QQ = "configDialog/qq"
+    TOOL_MERGE = "tools/merge"
+    TOOL_BOOK_MARKED = "tools/book_marked"
+    REBOOT = "tools/reboot_icon"
+    CONFIG_LOG = "configDialog/log"
+    CONFIG_MONITOR = "configDialog/monitor"
+    CONFIG_TRAY = "configDialog/tray"
+    MAIN_PUBLISH = "main/publish"
+    MAIN_REPAIR = "main/repair"
+    EXPAND = "expand"
+    SCRIPT_API = "script/api"
+    SCRIPT_RANDOM = "script/random"
+    SCRIPT_GENERATE = "script/generate"
+    SCRIPT_FAV_MGR = "script/favMgr"
+    SCRIPT_TRANSLATE = "script/translate"
+    SCRIPT_FUNC = "script/func"
+    SCRIPT_MERGE_FLODER = "script/merge"
+    JSONERI_CHECK = "jsoneri/check"
+    JSONERI_RECHECK = "jsoneri/recheck"
+    JSONERI_EXPAND = "jsoneri/expand"
+    JSONERI_COLLAPSE = "jsoneri/collapse"
+    JSONERI_LOCK = "jsoneri/lock"
+    JSONERI_STATION_IMAGE = "jsoneri/station-image"
+    JSONERI_STATION_MUSIC = "jsoneri/station-music"
+    JSONERI_STATION_ACTIVITY = "jsoneri/station-activity"
+    JSONERI_STATION_BOT = "jsoneri/station-bot"
+
+    def path(self, theme=Theme.AUTO):
+        return self.value
+
+    def icon(self, theme=Theme.AUTO, color: QColor = None) -> QIcon:
+        return QIcon(SvgIconEngine(self._svg(color or getIconColor(theme))))
+
+    def render(self, painter, rect, theme=Theme.AUTO, indexes=None, **attributes):
+        color = attributes.get("fill") or attributes.get("stroke") or getIconColor(theme)
+        drawSvgIcon(self._svg(color).encode(), painter, rect)
+
+    def fixed_light_surface_icon(self) -> QIcon:
+        return self.icon(color=FIXED_LIGHT_SURFACE_ICON)
+
+    def source_svg(self) -> str:
+        return _SVG_SOURCES[self.value]
+
+    def _svg(self, color) -> str:
+        resolved = QColor(color).name()
+        svg = self.source_svg().replace("currentColor", resolved)
+
+        def replace_attr(match):
+            value = match.group("value")
+            if value in _SKIP_VALUES or value.startswith("url("):
+                return match.group(0)
+            return f'{match.group("name")}="{resolved}"'
+
+        return _PAINT_ATTR_RE.sub(replace_attr, svg)

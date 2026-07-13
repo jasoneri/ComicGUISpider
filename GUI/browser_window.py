@@ -20,6 +20,7 @@ from GUI.core.browser.runtime import (
 from GUI.core.browser.environment import build_browser_environment
 from GUI.core.browser.page_runtime import BrowserPageRuntime
 from GUI.core.browser.profile import create_browser_window_profile
+from GUI.core.browser.subscription import PreviewSubscriptionController
 from GUI.core.browser.types import BrowserChallengeSpec, BrowserEnvironmentConfig
 from GUI.core.browser.window_mode import BrowserDoHProxyRuntime, BrowserWindowModeController
 from GUI.uic.browser import Ui_browser
@@ -143,6 +144,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.output = []
         self.setupUi(self)
         self.zoom_mgr = ZoomManager(self)
+        self.subscription = PreviewSubscriptionController(self)
 
     def updateFrameless(self):
         runtime = getattr(self, "page_runtime", None)

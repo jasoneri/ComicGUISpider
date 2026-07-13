@@ -18,7 +18,7 @@ class PreprocessManager(QObject):
         super().__init__()
         self.gui = gui
         self.show_err = conf.log_level.lower() == "debug"
-        self.task_manager = AsyncTaskManager(gui)
+        self.task_manager = AsyncTaskManager(gui, gui)
         self._switch_generation = 0
         self._active_preprocess: tuple[int, int] | None = None
         self._queued_search: tuple[int, int, str] | None = None
@@ -79,7 +79,7 @@ class PreprocessManager(QObject):
             for message in result.messages:
                 self._display_message(message)
             for action in result.actions:
-                self._apply_action(action)
+                self._apply_action(action, index, generation)
 
             self._dispatch_queued_search(index, generation, ready=bool(result.runtime_ready and not result.block_search))
         finally:
@@ -120,11 +120,12 @@ class PreprocessManager(QObject):
             CustomInfoBar.show(
                 title=message.get("title", ""), content=text, parent=message.get("parent", self.gui.showArea), url=message["url"], url_name=message["url_name"],
                 _type={"success": "SUCCESS", "info": "INFORMATION", "warning": "WARNING", "error": "ERROR"}[level],
+                position=message.get("position", InfoBarPosition.BOTTOM), duration=message.get("duration", -1),
             )
             return
         raise ValueError(f"unsupported preprocess message channel: {channel!r}")
 
-    def _apply_action(self, action: dict):
+    def _apply_action(self, action: dict, index: int, generation: int):
         action_type = action.get("type")
         if action_type == "open_publish_flow":
             return self.gui.do_publish()
@@ -136,12 +137,26 @@ class PreprocessManager(QObject):
         if action_type == "add_hitomi_tool":
             return self._add_hitomi_tool()
         if action_type == "open_scriptWin":
-            return self.gui.open_scriptWin()
+            script_entry_state = action.get("script_entry_state")
+            delay_ms = max(0, int(action.get("delay_ms", 0) or 0))
+            if delay_ms:
+                return safe_single_shot(
+                    delay_ms,
+                    lambda state=script_entry_state, action_index=index, action_generation=generation: self._open_script_window_if_current(
+                        action_index, action_generation, state,
+                    ),
+                )
+            return self.gui.open_scriptWin(script_entry_state=script_entry_state)
         if action_type == "launch_update_flow":
             _UpdateLauncher(VER, script=True).run()
             self.gui.close()
             return
         raise ValueError(f"unsupported preprocess action: {action_type!r}")
+
+    def _open_script_window_if_current(self, index: int, generation: int, script_entry_state: dict | None):
+        if not self._is_current_site(index, generation):
+            return
+        self.gui.open_scriptWin(script_entry_state=script_entry_state)
 
     def _is_current_site(self, index: int, generation: int) -> bool:
         return generation == self._switch_generation and self.gui.chooseBox.currentIndex() == index
@@ -167,6 +182,17 @@ class PreprocessManager(QObject):
             return False
         self._queued_search = (generation, index, keyword)
         return True
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        blockers = []
+        if self._active_preprocess is not None:
+            blockers.append("preprocess")
+        if self._queued_search is not None:
+            blockers.append("queued search")
+        preprocess_tasks = [task_id for task_id in self.task_manager.get_running_tasks() if str(task_id).startswith("preprocess_")]
+        if preprocess_tasks:
+            blockers.append("preprocess task")
+        return blockers
 
     def cleanup(self):
         self._next_generation()

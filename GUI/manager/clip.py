@@ -215,3 +215,9 @@ class ClipGUIManager:
         self.infos = {}
         if self.clipTasksThread:
             self.clipTasksThread = None
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        thread = self.clipTasksThread
+        if thread is not None and thread.isRunning():
+            return ["clip preview"]
+        return []

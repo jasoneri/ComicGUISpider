@@ -96,6 +96,12 @@ class PublishDomainManager(QObject):
         self._current_thread.finished.connect(lambda: self._on_thread_finished(current_id))
         self._current_thread.start()
 
+    def server_mode_switch_blockers(self) -> list[str]:
+        thread = self._current_thread
+        if thread is not None and thread.isRunning():
+            return ["domain test"]
+        return []
+
     def _on_results_ready(self, task_id, available, unavailable):
         if task_id != self._task_id:
             return

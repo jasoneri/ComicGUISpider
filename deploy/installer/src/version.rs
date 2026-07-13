@@ -9,7 +9,12 @@ pub fn normalize_version(version: &str) -> (String, bool) {
     }
 }
 
-pub fn build_install_args(version: &str, index_url: &str, script: bool) -> Vec<String> {
+pub fn build_install_args(
+    version: &str,
+    index_url: &str,
+    script: bool,
+    uv_args: &[String],
+) -> Vec<String> {
     let (normalized, is_prerelease) = normalize_version(version);
     let package_name = if script {
         "ComicGUISpider[script]"
@@ -34,5 +39,6 @@ pub fn build_install_args(version: &str, index_url: &str, script: bool) -> Vec<S
         cmd.extend(["--prerelease".into(), "if-necessary-or-explicit".into()]);
     }
     cmd.push("--force".into());
+    cmd.extend(uv_args.iter().cloned());
     cmd
 }

@@ -4,9 +4,13 @@ from .wnacg import *
 from .ehentai import *
 from .kaobei import *
 from .mangabz import *
+from .comicabc import *
+from .mh1234 import *
+from .rumanhua import *
 from .jestful import *
 from .manhuagui import *
 from ..hitomi import *
 from .hcomic import *
+from .jcomic import *
 from ..nhentai import *
 from ..dm5 import *

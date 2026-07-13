@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import typing as t
-from enum import Enum
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtWidgets import QApplication, QSizePolicy
 from PySide6.QtCore import Qt, QUrl, Signal, QSize
@@ -9,7 +10,7 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScen
 
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton, ToolButton,
-    FluentIcon, FluentIconBase, Theme, LineEdit, LineEditButton,
+    FluentIcon, FluentIconBase, LineEdit, LineEditButton,
     VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, ImageLabel, TeachingTipView, PrimaryToolButton, TeachingTipTailPosition, 
@@ -17,11 +18,16 @@ from qfluentwidgets import (
 )
 
 from assets import res
+from GUI.uic.qfluent.components.icons import CgsIcon
+from .flyout_kit import CustomTeachingTip
 from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, ContentTarget
 from utils import conf
-from utils.redViewer_tools import BookShow
 from utils.config.qc import cgs_cfg
 from utils.network.doh import DEFAULT_DOH_URL
+
+# CGS003: keep type-only backend imports out of the first-paint dependency graph.
+if t.TYPE_CHECKING:
+    from utils.redViewer_tools import BookShow
 
 
 class DoHButtonController:
@@ -164,58 +170,6 @@ class CustomInfoBar:
             w.addWidget(widget)
         w.show()
         return w
-
-
-class CustomFlyout:
-    @classmethod
-    def make(cls, view, target, parent, calc_bottom=False, aniType=FlyoutAnimationType.PULL_UP):
-        _fly = Flyout.make(
-            view=view, parent=parent, aniType=aniType, 
-            target=cls.calculate_target_position(target) if calc_bottom else target
-        )
-        if hasattr(view, "closed"):
-            view.closed.connect(_fly.close)
-        return _fly
-
-
-    @staticmethod
-    def calculate_target_position(widget):
-        rect = widget.rect()
-        bottom_center = widget.mapToGlobal(rect.bottomLeft())
-        bottom_center.setX(bottom_center.x() + rect.width() // 2 - widget.width() // 2)
-        bottom_center.setY(bottom_center.y() - 15)
-        return bottom_center
-
-
-class CustomTeachingTip:
-    @classmethod
-    def create(cls, widgets, target, parent, content=None, topLayout=None,
-             isClosable=True, duration=-1, **kw):
-        view = TeachingTipView(
-            title="", content="", isClosable=isClosable
-        )
-        offset = 0
-        cindex = 1 if isClosable else 0
-        if topLayout:
-            view.viewLayout.insertLayout(view.viewLayout.count() - cindex, topLayout)
-        for w in widgets:
-            view.viewLayout.insertWidget(view.viewLayout.count() - cindex, w)
-            offset += (w.sizeHint().width() + 5)
-        view.adjustSize()
-        tip = TeachingTip(view, target, duration, parent=parent, **kw)
-        tip.show()
-        view.closeButton.clicked.connect(tip.close)
-        return tip
-
-
-class CustomIcon(FluentIconBase, Enum):
-    DISCORD = "configDialog/discord"
-    QQ = "configDialog/qq"
-    TOOL_MERGE = "tools/merge"
-    TOOL_BOOK_MARKED = "tools/book_marked"
-    
-    def path(self, theme=Theme.AUTO):
-        return f':/{self.value}.svg'
 
 
 class ExpandSettings(QtWidgets.QWidget):
@@ -403,8 +357,8 @@ class SupportView(FlyoutViewBase):
         self.width = int(conf_dia.width() * 0.8)
         self.layout = VBoxLayout(self)
         self.titleLayout = QtWidgets.QHBoxLayout()
-        self.qqGroupBtn = HyperlinkButton(CustomIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
-        self.discordBtn = PrimaryToolButton(CustomIcon.DISCORD, self)
+        self.qqGroupBtn = HyperlinkButton(CgsIcon.QQ, "https://qm.qq.com/q/T2SONVQmiW", "QQ")
+        self.discordBtn = PrimaryToolButton(CgsIcon.DISCORD, self)
         self.discordBtn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://discord.gg/BRx5xPpEYe")))
         discordTokenEdit = AcceptEdit(self)
         discordTokenEdit.setMinimumWidth(320)
@@ -593,55 +547,3 @@ class TableFlyoutView(FlyoutViewBase):
         safe_single_shot(10, do)
         self.rvInterface.table_fv.close()
         self.rvInterface.toolWin.close()
-
-
-_ICON_SIZE = 18
-_VIEW_SIZE = 24
-_PAD = (_VIEW_SIZE - _ICON_SIZE) // 2
-
-class ExpandButton(QWidget):
-    clicked = Signal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.expanded = False
-
-        self._label = ImageLabel()
-        self._label.setImage(QPixmap(":/expand.svg"))
-        self._label.setFixedSize(_ICON_SIZE, _ICON_SIZE)
-
-        self._scene = QGraphicsScene(self)
-        self._view = QGraphicsView(self._scene, self)
-        self._proxy = self._scene.addWidget(self._label)
-        self._proxy.setPos(_PAD, _PAD)
-        self._proxy.setTransformOriginPoint(_ICON_SIZE / 2, _ICON_SIZE / 2)
-        self._scene.setSceneRect(0, 0, _VIEW_SIZE, _VIEW_SIZE)
-
-        self._view.setFixedSize(_VIEW_SIZE, _VIEW_SIZE)
-        self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self._view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self._view.setFrameShape(QGraphicsView.NoFrame)
-        self._view.setStyleSheet("background: transparent;")
-        self._view.setBackgroundBrush(QBrush(Qt.transparent))
-        self._view.setAttribute(Qt.WA_TransparentForMouseEvents)
-
-        self._anim_ctrl = ProxyRotationController(self._proxy)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._view)
-
-        self.setFixedSize(_VIEW_SIZE, _VIEW_SIZE)
-        self.setCursor(Qt.PointingHandCursor)
-
-    def expand(self):
-        self.expanded = not self.expanded
-        self._anim_ctrl.rotate_to(-45.0 if self.expanded else 0.0)
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self.clicked.emit()
-        super().mousePressEvent(e)
-
-    def click(self):
-        self.clicked.emit()

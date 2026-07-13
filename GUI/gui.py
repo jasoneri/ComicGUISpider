@@ -11,7 +11,7 @@ from PySide6.QtCore import (
     Signal,
 )
 from GUI.core.timer import safe_single_shot
-from PySide6.QtWidgets import QMainWindow, QCompleter
+from PySide6.QtWidgets import QApplication, QMainWindow, QCompleter
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from GUI.uic.qfluent import (
@@ -21,25 +21,11 @@ from GUI.mainwindow import MitmMainWindow
 from GUI.core.font import font_color
 from GUI.core.theme import setupTheme
 from GUI.core.anim import PopupAnimator
-from utils.sql.download_state import DownloadStateStore
-from GUI.conf_dialog import ConfDialog
-from GUI.browser_window import BrowserWindow as BrowserWindowCls
-from GUI.tools import ToolWindow, TextUtils
-from GUI.manager import (
-    TaskProgressManager, ClipGUIManager, AggrSearchManager, RVManager,
-    CGSMidManagerGUI, PreviewMgr, UpdateNotifier, PublishDomainManager,
-    SelectionFlowManager, DownloadRuntimeManager, Shares
-)
-from utils.config.qc import cgs_cfg
-from GUI.manager.preprocess import PreprocessManager
 from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState, SearchUiState
-from utils.middleware.timeline import EventSource, TimelineStage
+from utils.config.qc import cgs_cfg
 from variables import *
 from assets import res
 from utils import conf, p, curr_os, select, bs_theme
-from utils.processed_class import TmpFormatHtml
-from utils.redViewer_tools import Handler as rVtools
-from utils.website.registry import create_gui_site_runtime
 _UNSET = object()
 
 
@@ -57,15 +43,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
     setup_finished = Signal()
     exception_feedback_requested = Signal(str, str)
-    BrowserWindow: BrowserWindowCls = None  # CG001 browser init/show flow
+    BrowserWindow = None  # CGS001 browser init/show flow
     toolWin = None
     web_is_r18 = False
-    gui_site_runtime = None  # CG001 choose-box site flow
+    gui_site_runtime = None  # CGS001 choose-box site flow
+    dl_mgr = None
     sut = None
     bsm: dict = None  # books show max
     flow_stage: GUIFlowStage = GUIFlowStage.IDLE
     sv_path = None
-    rv_tools: rVtools = None
+    rv_tools = None
     splashWait = 3
 
     def __init__(self, parent=None):
@@ -75,8 +62,12 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.log.debug(f"{conf.settings=}")
         self.log.debug(f"{cgs_cfg.doh.get_url()=}")
         self._preview_warmup_pending = False
+        self._post_first_paint_setup_requested = False
+        self._post_first_paint_setup_started = False
+        self._server_mode_switch_requested = False
+        self._closing = False
+        self.script_window = None
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
-        # self.log.debug(f'-*- 主线程id {threading.currentThread().ident}')
         self.setupUi(self)
         self.exception_feedback_requested.connect(self._show_exception_feedback, Qt.QueuedConnection)
 
@@ -93,13 +84,23 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.show()
         res.set_language(conf.lang)
         self.apply_translations()
-        self.task_init()
-        self.task_mgr = TaskProgressManager(self)
-        self.task_mgr.init_native_panel()
         setupTheme(self)
+
+    def start_post_first_paint_setup(self):
+        if self._post_first_paint_setup_requested or self._post_first_paint_setup_started:
+            return
+        self._post_first_paint_setup_requested = True
         safe_single_shot(10, self.setupUi_)
 
     def setupUi_(self):
+        if self._post_first_paint_setup_started:
+            return
+        self._post_first_paint_setup_started = True
+        from utils.redViewer_tools import Handler as rVtools
+        from GUI.manager import TaskProgressManager, RVManager
+        self.task_init()
+        self.task_mgr = TaskProgressManager(self)
+        self.task_mgr.init_native_panel()
         self.rv_tools = rVtools()
         self.rv_mgr = RVManager(self)
         self.rv_mgr.start_scan(show_progress=False)
@@ -114,17 +115,28 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self._startup_completed = True
 
     def _restore_feedback_panel(self):
+        from GUI.tools import TextUtils
         self.textBrowser.clear()
         self.textBrowser.append(TextUtils.description())
         self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
 
     def startup_only(self):
+        from GUI.manager import UpdateNotifier
         self.update_notifier = UpdateNotifier(self)
         self.update_notifier.check_on_startup()
         past = time.time() - self.st
         safe_single_shot(int((0 if past >= self.splashWait else self.splashWait-past)*1000), self.splashScreen.finish)
 
     def generation_bind(self):
+        from utils.sql.download_state import DownloadStateStore
+        from GUI.conf_dialog import ConfDialog
+        from GUI.tools import TextUtils
+        from GUI.manager import (
+            ClipGUIManager, AggrSearchManager,
+            CGSMidManagerGUI, PreviewMgr, PublishDomainManager,
+            SelectionFlowManager, DownloadRuntimeManager, Shares
+        )
+        from GUI.manager.preprocess import PreprocessManager
         self.flow_stage = GUIFlowStage.IDLE
         self.pageFrameClickCnt = 0
         self.conf_dia = ConfDialog(self)
@@ -215,6 +227,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageFrame.setStyleSheet(f"QToolButton {{ background-color: {color}; }}")
 
     def _create_gui_site_runtime(self, site_index: int):
+        from utils.website.registry import create_gui_site_runtime
         if site_index in SPIDERS:
             return create_gui_site_runtime(site_index, conf_state=conf, default_doh_url=cgs_cfg.doh.get_url())
 
@@ -296,24 +309,64 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             shortcut.activated.connect(slot)
 
     def show_toolWin(self, win_type):
-        _map = {"ags": "asInterface", "hitomi": "htInterface"}
+        _map = {"ags": "asInterface", "hitomi": "htInterface", "subscribe": "subscribeInterface"}
         self.rvBtn.click()
         def _jump():
             self.toolWin.stackedWidget.setCurrentWidget(getattr(self.toolWin, _map[win_type]))
         safe_single_shot(10, _jump)
 
-    def open_scriptWin(self, *, pure_only: bool = False):
+    def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
         from GUI.script import ScriptWindow
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
         self.hide()
-        script_window = ScriptWindow(self)
-        setupTheme(script_window.kemonoInterface)
+        self.script_window = ScriptWindow(
+            self,
+            script_entry_state=script_entry_state,
+            feedback_dispatcher=self.exception_feedback_dispatcher,
+        )
+        self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
+        setupTheme(self.script_window.kemonoInterface)
         if pure_only:
-            script_window.apply_pure_entry_mode()
-        script_window.show()
+            self.script_window.apply_pure_entry_mode()
+        self.script_window.show()
+
+    @property
+    def server_mode_switch_requested(self) -> bool:
+        return self._server_mode_switch_requested
+
+    def request_server_mode_switch(self, conf_dialog):
+        blockers = self.server_mode_switch_blockers()
+        if blockers:
+            InfoBar.warning(
+                title="", content=f"请先停止或完成当前任务：{', '.join(blockers)}",
+                isClosable=True, position=InfoBarPosition.TOP, duration=5000, parent=conf_dialog,
+            )
+            return False
+        conf_dialog.save_conf(raise_on_invalid=True)
+        self._server_mode_switch_requested = True
+        conf_dialog.hide()
+        self.close()
+        return True
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        blockers = []
+        if self.dl_mgr.has_active_download():
+            blockers.append("download")
+        if self.search_ui_state.request is PreviewRequestState.Running:
+            blockers.append("preview/search")
+        blockers.extend(self.preprocess_mgr.server_mode_switch_blockers())
+        blockers.extend(self.shares.server_mode_switch_blockers())
+        blockers.extend(self.toolWin.server_mode_switch_blockers())
+        if self.script_window is not None:
+            blockers.extend(self.script_window.server_mode_switch_blockers())
+        blockers.extend(self.publish_mgr.server_mode_switch_blockers())
+        blockers.extend(self.clip_mgr.server_mode_switch_blockers())
+        blockers.extend(self.ags_mgr.server_mode_switch_blockers())
+        return list(dict.fromkeys(blockers))
 
     def set_tool_win(self):
+        from GUI.tools import ToolWindow
         self.toolWin = ToolWindow(self)
         # self.toolWin.addMidTool()  # TODO[2](2026-03-07): 下个稳定版本恢复
 
@@ -383,6 +436,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.pageEdit.valueChanged.connect(page_edit)
     
     def set_preview(self, rect=None, *, skip_env_mode: bool = False):
+        from GUI.browser_window import BrowserWindow as BrowserWindowCls
         if self.BrowserWindow:
             self._destroy_browser_window()
         sb = self.BrowserWindow = BrowserWindowCls(self, skip_env_mode=skip_env_mode)
@@ -495,6 +549,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preview_mgr.handle_choosebox_changed(0, None)
         self.clean_temp_file()
         self._destroy_browser_window()
+        from GUI.browser_window import BrowserWindow as BrowserWindowCls
         BrowserWindowCls.clear_proxies()
         self.clip_mgr.reset()
         self.ags_mgr.reset()
@@ -541,7 +596,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.shares.download(share_id)
             return
         if not kw:
-            return InfoBar.info(title='', content='先输入搜索词吧', isClosable=True, position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
+            return InfoBar.info(
+                title='', content='先输入搜索词吧', isClosable=True,
+                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser,
+            )
         site = self.chooseBox.currentIndex()
         if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
             self.refresh_lifecycle_state()
@@ -605,6 +663,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.progressBar.setValue(i)
 
     def closeEvent(self, event):
+        self._closing = True
+        if self.script_window is not None:
+            self.script_window.close()
+        if self.toolWin is not None:
+            self.toolWin.close()
         if hasattr(self, 'rv_mgr'):
             self.rv_mgr.stop_scan()
         if hasattr(self, 'task_mgr'):
@@ -615,9 +678,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preview_mgr.shutdown()
         event.accept()
         self.destroy()  # 窗口关闭销毁
-        if getattr(self, "dl_mgr", None):
+        if self.dl_mgr is not None:
             self.dl_mgr.close_runtime()
-        sys.exit(0)
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     def hook_exception(self, exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):
@@ -632,15 +697,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.exception_feedback_requested.emit(headline, guidance)
 
     def do_publish(self):
+        from utils.processed_class import TmpFormatHtml
         gui_site_runtime = self.gui_site_runtime
         if gui_site_runtime is None:
             raise RuntimeError("gui_site_runtime unavailable for publish flow")
         cached = gui_site_runtime.peek_cached_domain() or ""
         publish_url = getattr(gui_site_runtime.provider_cls, "publish_url", "")
-        self.tf = TmpFormatHtml.created_temp_html("publish",
-            bs_theme=bs_theme(), publish_url=publish_url, __cached_domain__=cached
-        )
-        self.set_preview(skip_env_mode=not bool(gui_site_runtime.peek_cached_domain() or getattr(gui_site_runtime.provider_cls, "domain", None)))
+        self.tf = TmpFormatHtml.created_temp_html("publish", bs_theme=bs_theme(), publish_url=publish_url, __cached_domain__=cached)
+        provider_domain = getattr(gui_site_runtime.provider_cls, "domain", None)
+        self.set_preview(skip_env_mode=not bool(cached or provider_domain))
         self.publish_mgr.setup_channel(self.BrowserWindow.view.page())
         screen_width = QGuiApplication.primaryScreen().availableGeometry().width()
         o_h = self.BrowserWindow.height()
@@ -651,8 +716,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
-        rect = QRect(self.x(), int(screen_height*0.05),
-            self.width(), int(screen_height*0.9))
+        rect = QRect(self.x(), int(screen_height*0.05), self.width(), int(screen_height*0.9))
         if not getattr(self, 'BrowserWindow'):
             site_index = (
                 self.gui_site_runtime.site_index
@@ -673,6 +737,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         """.discard()"""
 
     def _on_decision_made(self, lane: str, indexes: list):
+        from utils.middleware.timeline import EventSource, TimelineStage
         mgr = getattr(self, "mid_mgr", None)
         if mgr and mgr.enabled:
             stage_map = {"BOOK": TimelineStage.BOOK_SENT, "EP": TimelineStage.EP_SENT}

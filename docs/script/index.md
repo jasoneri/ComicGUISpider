@@ -5,22 +5,25 @@ kemono / danbooru / cbg / saucenao
 
 ## ⚠️ 通用前置须知
 
-::: danger (🔔必装)脚本集通用前置安装
+::: warning 🔔 脚本集通用前置安装( v2.11.0 改为 `按需` )
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
-:::
-::: tip 指引
-Redis-windows: 下载 *-cygwin-with-Service.zip  
-查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
+> [!tip] 指引
+> Redis-windows: 下载 *-cygwin-with-Service.zip  
+> 查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
 
-Motrix 在进入Script 前时保持启动即可
+Motrix 在进入 Script 前保持启动即可
 :::
 
 | 前置矩阵 | redis-service | Motrix |
 | --- |  :---: | :---: |
 | Kemono | ⭕️ | ⭕️ |
-| Danbooru | ⭕️<br>实际不需要，后续将解耦脱离 | ⭕️ |
+| Danbooru | ➖ | ⭕️ |
 | Cbg | ➖ | ➖ |
+| jsoneriPalaces | ➖ | ➖ |
+
+::: tip 参考 `前置矩阵` 例如只装 Motrix 并进 Script 前启动就能使用 Danbooru
+:::
 
 ::: details 脚本目录树: `script`目录 (非 GUI 相关)
 ```shell
@@ -48,7 +51,7 @@ utils
 ::: details 功能为油猴脚本，让立绘资源在浏览器右下角常驻展示（当前仅本地资源，火狐暂不支持 ¹）  
 > [!Tip] 需要进扩展管理油猴权限设 `允许访问文件网址` (火狐没有所以不支持)
 
-![cbgShow](https://img-cgs.101114105.xyz/file/cgs/1777293262706_cbgShow.png)
+![cbgShow]({{URL_IMG}}/file/cgs/1777293262706_cbgShow.png)
 :::
 技术开源，资源自备  
 或前往[引力圈](https://app.unifans.io/c/jsoneri)赞助获取资源  

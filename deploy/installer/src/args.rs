@@ -6,8 +6,8 @@ pub struct CliArgs {
     #[arg(long = "uv-exc")]
     pub uv_exc: String,
 
-    #[arg(long)]
-    pub version: String,
+    #[arg(long = "cgs-ver")]
+    pub cgs_ver: String,
 
     #[arg(long = "index-url", default_value_t)]
     pub index_url: String,
@@ -26,4 +26,7 @@ pub struct CliArgs {
 
     #[arg(long)]
     pub script: bool,
+
+    #[arg(last = true, value_name = "UV_ARGS", allow_hyphen_values = true)]
+    pub uv_args: Vec<String>,
 }

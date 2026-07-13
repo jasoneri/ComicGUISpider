@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from utils.website.providers import *
 from utils.website.providers.hcomic import HComicParseError  
+from utils.website.providers.jcomic import JComicParseError
 from variables import Spider
 
 from . import registry
@@ -14,10 +15,12 @@ def _build_provider_map():
         Spider.MANGA_COPY: KaobeiUtils, Spider.JM: JmUtils, Spider.WNACG: WnacgUtils, 
         Spider.EHENTAI: EHentaiKits, Spider.MANGABZ: MangabzUtils, Spider.HITOMI: HitomiUtils, 
         Spider.H_COMIC: HComicUtils, Spider.NHENTAI: NhentaiUtils, Spider.JESTFUL: JestfulUtils,
-        Spider.MANHUAGUI: ManhuaguiUtils, Spider.DM5: Dm5Utils,
+        Spider.MANHUAGUI: ManhuaguiUtils, Spider.DM5: Dm5Utils, Spider.COMICABC: ComicabcUtils,
+        Spider.MH1234: Mh1234Utils, Spider.JCOMIC: JComicUtils, Spider.RUMANHUA: RumanhuaUtils,
     }
     _PROVIDER_ALIASES = {
         Spider.MANGA_COPY: ("kaobei",), Spider.JESTFUL: ("jf",), Spider.DM5: ("dm",),
+        Spider.RUMANHUA: ("rmh",),
     }
     binding_map = {}
     for spider in sorted(Spider, key=int):

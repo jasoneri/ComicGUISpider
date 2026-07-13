@@ -3,7 +3,6 @@ import typing as t
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCompleter, QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     Action, ComboBox, EditableComboBox, FluentIcon as FIF, FlowLayout, PrimaryToolButton, ToolButton, 
@@ -13,6 +12,7 @@ from qfluentwidgets.components.widgets.line_edit import CompleterMenu
 
 from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch
 from GUI.uic.qfluent.components import CustomTeachingTip
+from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.config.qc import danbooru_cfg
 from utils.script.image.danbooru.constants import DANBOORU_SORT_OPTIONS
 from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, DanbooruPost, DanbooruSearchQuery
@@ -41,7 +41,7 @@ class DanbooruTabWidget(QFrame):
         self.gui = parent.gui
         self.state = state
         self.card_metrics = DEFAULT_CARD_METRICS
-        self.card_widgets: dict[str, DanbooruCardWidget] = {}
+        self.card_widgets: dict[int, DanbooruCardWidget] = {}
         self._extra_tip = None
         self.zoom_mgr = self._InnerZoomMgr(self)
         self._setup_ui()
@@ -54,7 +54,7 @@ class DanbooruTabWidget(QFrame):
             self.tab = tab
             self.hidden_target_metrics: t.Optional[DanbooruCardMetrics] = None
             self.hidden_dirty = False
-            self.preview_refresh_ids: list[str] = []
+            self.preview_refresh_ids: list[int] = []
             self.preview_refresh_index = 0
             self.preview_refresh_batch_size = 18
             self.preview_refresh_timer = QtCore.QTimer(tab)
@@ -108,31 +108,33 @@ class DanbooruTabWidget(QFrame):
             self.preview_refresh_ids = []
             self.preview_refresh_index = 0
 
-        def _build_preview_refresh_order(self, *, refresh_visible_first: bool) -> list[str]:
+        def _build_preview_refresh_order(self, *, refresh_visible_first: bool) -> list[int]:
             ordered_ids = list(self.tab.card_widgets.keys())
             if not refresh_visible_first or not ordered_ids:
                 return ordered_ids
-            visible_ids = self._visible_card_md5s()
+            visible_ids = self._visible_card_post_ids()
             if not visible_ids:
                 return ordered_ids
-            return [md5 for md5 in ordered_ids if md5 in visible_ids] + [md5 for md5 in ordered_ids if md5 not in visible_ids]
+            return [post_id for post_id in ordered_ids if post_id in visible_ids] + [
+                post_id for post_id in ordered_ids if post_id not in visible_ids
+            ]
 
-        def _visible_card_md5s(self) -> set[str]:
+        def _visible_card_post_ids(self) -> set[int]:
             viewport = self.tab.scroll_area.viewport()
             viewport_rect = viewport.rect()
-            visible_ids: set[str] = set()
-            for md5, card in self.tab.card_widgets.items():
+            visible_ids: set[int] = set()
+            for post_id, card in self.tab.card_widgets.items():
                 card_rect = QtCore.QRect(card.mapTo(viewport, QtCore.QPoint(0, 0)), card.size())
                 if viewport_rect.intersects(card_rect):
-                    visible_ids.add(md5)
+                    visible_ids.add(post_id)
             return visible_ids
 
         def _drain_preview_refresh_queue(self):
             if self.preview_refresh_index >= len(self.preview_refresh_ids):
                 return
             end = min(len(self.preview_refresh_ids), self.preview_refresh_index + self.preview_refresh_batch_size)
-            for md5 in self.preview_refresh_ids[self.preview_refresh_index:end]:
-                card = self.tab.card_widgets.get(md5)
+            for post_id in self.preview_refresh_ids[self.preview_refresh_index:end]:
+                card = self.tab.card_widgets.get(post_id)
                 if card is not None:
                     card.refresh_preview_icon()
             self.preview_refresh_index = end
@@ -174,7 +176,7 @@ class DanbooruTabWidget(QFrame):
         self.favorite_btn = TransparentToggleToolButton(FIF.HEART, self)
         self.favorite_btn.setFixedSize(38, 38)
         self.favorite_btn.setDisabled(True)
-        self.convert_btn = ToolButton(QIcon(':/script/translate.svg'), self)
+        self.convert_btn = ToolButton(CgsIcon.SCRIPT_TRANSLATE, self)
         self.convert_btn.setIconSize(QtCore.QSize(24,24))
         self.convert_btn.setMinimumHeight(38)
         self.convert_btn.clicked.connect(self.request_conversion.emit)
@@ -312,6 +314,30 @@ class DanbooruTabWidget(QFrame):
         self.state.sort_mode = value
         self.request_search.emit(self.search_edit.text())
 
+    def apply_first_extra_search(self) -> bool:
+        for extra_search_value in danbooru_cfg.get_search_extra():
+            if self._apply_extra_search_value(extra_search_value):
+                return True
+        return False
+
+    def apply_score_sort_search(self) -> bool:
+        score_sort_index = next((index for index, (_, value) in enumerate(self.SORT_OPTIONS) if value == "score"), None)
+        if score_sort_index is None:
+            return False
+        if self.sort_box.currentIndex() == score_sort_index:
+            self._on_sort_changed()
+            return True
+        self.sort_box.setCurrentIndex(score_sort_index)
+        return True
+
+    def _apply_extra_search_value(self, value: str) -> bool:
+        extra_search_value = str(value or "").strip()
+        if not extra_search_value:
+            return False
+        danbooru_cfg.add_search_extra(extra_search_value)
+        self.request_extra_search.emit(extra_search_value)
+        return True
+
     def _on_extra_search_clicked(self):
         if self._extra_tip is not None:
             self._extra_tip.close()
@@ -331,10 +357,7 @@ class DanbooruTabWidget(QFrame):
         self._extra_tip = tip
         tip.destroyed.connect(lambda *_args: setattr(self, '_extra_tip', None))
         def _apply():
-            value = extraCombo.currentText().strip()
-            if value:
-                danbooru_cfg.add_search_extra(value)
-                self.request_extra_search.emit(value)
+            self._apply_extra_search_value(extraCombo.currentText())
             tip.close()
         svBtn.clicked.connect(_apply)
 
@@ -391,7 +414,7 @@ class DanbooruTabWidget(QFrame):
             widget = item if isinstance(item, QWidget) else item.widget() if item is not None else None
             if isinstance(widget, DanbooruCardWidget):
                 widget.set_pagination_bar(False)
-                self.card_widgets.pop(widget.post.md5, None)
+                self.card_widgets.pop(widget.post.post_id, None)
             _delete_flow_item(item)
         self.state.retain_current_page_as_buffer_start()
         self._refresh_grid_layout()
@@ -438,12 +461,11 @@ class DanbooruTabWidget(QFrame):
             card.open_detail_requested.connect(self.detail_opened.emit)
             self.selection_controller.bind_card(card)
             self.flow_layout.addWidget(card)
-            self.card_widgets[post.md5] = card
+            self.card_widgets[post.post_id] = card
             card.set_pagination_bar(idx == 0)
             appended_cards.append(card)
         self.state.result_list.extend(posts)
         self.selection_controller.sync_selection_count()
-        self.apply_theme()
         self._refresh_grid_layout()
         return appended_cards
 
@@ -451,7 +473,17 @@ class DanbooruTabWidget(QFrame):
         self.selection_controller.mark_downloaded(md5_value)
 
     def card_for_post(self, post_id: int) -> t.Optional[DanbooruCardWidget]:
-        return next((card for card in self.card_widgets.values() if card.post.post_id == post_id), None)
+        return self.card_widgets.get(post_id)
+
+    def visible_card_post_ids(self) -> set[int]:
+        viewport = self.scroll_area.viewport()
+        viewport_rect = viewport.rect()
+        visible_ids: set[int] = set()
+        for post_id, card in self.card_widgets.items():
+            card_rect = QtCore.QRect(card.mapTo(viewport, QtCore.QPoint(0, 0)), card.size())
+            if viewport_rect.intersects(card_rect):
+                visible_ids.add(post_id)
+        return visible_ids
 
     def _refresh_grid_layout(self):
         viewport_size = self.scroll_area.viewport().size()

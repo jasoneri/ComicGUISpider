@@ -11,6 +11,7 @@ import traceback
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtWidgets import QWidget
 from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition, StateToolTip
 
@@ -119,11 +120,10 @@ class AsyncTaskThread(QThread):
     error_signal = Signal(str)
     progress_signal = Signal(str)
 
-    def __init__(self, task_func: Callable, *args, gui=None, **kwargs):
+    def __init__(self, task_func: Callable, *args, **kwargs):
         super().__init__()
         self.task_func = task_func
         self.args = tuple(args)
-        self.gui = gui
         self.kwargs = dict(kwargs)
         self.is_cancelled = False
 
@@ -187,15 +187,13 @@ class TaskTooltipStack:
     TOOLTIP_RIGHT_MARGIN = 30
     CLOSE_DELAY_MS = 1000
 
-    def __init__(self, default_parent: Optional[QObject] = None):
+    def __init__(self, default_parent: QWidget):
         self._default_parent = default_parent
         self.tooltips: Dict[str, StateToolTip] = {}
         self._entries: Dict[str, _TooltipEntry] = {}
 
     def show(self, task_id: str, title: str, content: str, position: Optional[Tuple[int, int]] = None, parent: Optional[QObject] = None):
-        tooltip_parent = parent or self._default_parent
-        if tooltip_parent is None:
-            return
+        tooltip_parent = parent if parent is not None else self._default_parent
 
         tooltip = StateToolTip(title, content, tooltip_parent)
         self.tooltips[task_id] = tooltip
@@ -253,8 +251,9 @@ class TaskTooltipStack:
 
 
 class TaskInfoBarCenter:
-    def __init__(self, gui: Optional[QObject] = None):
+    def __init__(self, gui, parent: QWidget):
         self._gui = gui
+        self._parent = parent
         self.infobars: List[InfoBar] = []
 
     def success(self, message: str):
@@ -268,10 +267,10 @@ class TaskInfoBarCenter:
         self._show(factory=InfoBar.info, title="", content=message, duration=2000)
 
     def error(self, message: str, show_popup: bool = True):
-        logged = self._log_error(message)
+        self._gui.log.error(message)
         if not show_popup:
             return
-        self._show(factory=InfoBar.error, title="", content=self._clip_error(message, logged=logged), duration=-1)
+        self._show(factory=InfoBar.error, title="", content=summarize_error_message(message), duration=-1)
 
     def cleanup(self):
         for infobar in list(self.infobars):
@@ -279,11 +278,9 @@ class TaskInfoBarCenter:
         self.infobars.clear()
 
     def _show(self, factory: Callable[..., Optional[InfoBar]], title: str, content: str, duration: int):
-        if self._gui is None:
-            return None
         infobar = factory(
             title=title, content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-            duration=duration, parent=self._gui,
+            duration=duration, parent=self._parent,
         )
         if infobar is None:
             return None
@@ -295,31 +292,15 @@ class TaskInfoBarCenter:
         if infobar in self.infobars:
             self.infobars.remove(infobar)
 
-    def _log_error(self, message: str):
-        if self._gui is None:
-            return False
-        self._gui.log.error(message)
-        return True
-
-    @staticmethod
-    def _clip_error(message: str, *, logged: bool) -> str:
-        summary = summarize_error_message(message)
-        if logged:
-            return summary
-        return summary.removesuffix("。详情见日志")
-
 
 class AsyncTaskManager(QObject):
     """异步任务管理器 - 只负责任务入口、线程生命周期与结果分发"""
 
-    def __init__(self, gui=None):
-        super().__init__()
-        if gui is not None and gui.__class__.__name__ != "SpiderGUI":
-            raise TypeError("AsyncTaskManager gui must be SpiderGUI or None.")
-        self.gui = gui
+    def __init__(self, gui, parent: QWidget):
+        super().__init__(parent)
         self.current_tasks: Dict[str, AsyncTaskThread] = {}
-        self._tooltip_stack = TaskTooltipStack(gui)
-        self._infobar_center = TaskInfoBarCenter(gui)
+        self._tooltip_stack = TaskTooltipStack(parent)
+        self._infobar_center = TaskInfoBarCenter(gui, parent)
         self.current_tooltips = self._tooltip_stack.tooltips
         self.current_infobars = self._infobar_center.infobars
         self._active = True
@@ -330,7 +311,7 @@ class AsyncTaskManager(QObject):
             return False
 
         try:
-            thread = AsyncTaskThread(config.task_func, *config.args, gui=self.gui, **config.kwargs)
+            thread = AsyncTaskThread(config.task_func, *config.args, **config.kwargs)
             self.current_tasks[task_id] = thread
             thread.success_signal.connect(lambda result, tid=task_id, task_config=config: self._handle_success(tid, result, task_config))
             thread.error_signal.connect(lambda error, tid=task_id, task_config=config: self._handle_error(tid, error, task_config))

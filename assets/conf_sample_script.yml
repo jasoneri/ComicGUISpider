@@ -14,6 +14,9 @@ danbooru:
   download_concurrency: 5
   view_ratio: 60
 
+jsoneriPalacesProbe:
+  token: ""
+
 proxies: null
 redis:
   host: 127.0.0.1

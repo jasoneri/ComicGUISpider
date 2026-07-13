@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import importlib
+import importlib.util
 import os
 from pathlib import Path
+import socket
 import typing as t
 
 import httpx
-import psutil
 
 from assets import res
 from utils import conf, ori_path
@@ -22,6 +22,13 @@ if t.TYPE_CHECKING:
 
 
 DB_CACHE_TTL_HOURS = 480
+SCRIPT_SERVICE_WARNING_DELAY_MS = 7000
+SCRIPT_SERVICE_PROBE_TIMEOUT_S = 0.15
+# Motrix 默认 JSON-RPC（utils.script.motrix.MOTRIX_RPC_URL）与 conf_sample_script.yml redis 约定
+SCRIPT_MOTRIX_RPC_HOST = "127.0.0.1"
+SCRIPT_MOTRIX_RPC_PORT = 16800
+SCRIPT_REDIS_DEFAULT_HOST = "127.0.0.1"
+SCRIPT_REDIS_DEFAULT_PORT = 6379
 KEMONO_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/kemono.db"
 NHENTAI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/nhentai.db"
 HITOMI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/hitomi.db"
@@ -30,8 +37,6 @@ HITOMI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download
 async def run_site_preprocess(
     gui_site_runtime: "GuiSiteRuntime", *, conf_state=conf, data_client: httpx.AsyncClient | None = None, progress_callback=None
 ) -> PreprocessResult:
-    if gui_site_runtime is None:
-        raise ValueError("run_site_preprocess requires gui_site_runtime")
     owns_data_client = data_client is None
     resolved_data_client = data_client
     site_key = gui_site_runtime.site_index
@@ -60,11 +65,21 @@ async def run_script_preprocess(
     *, conf_state=conf, data_client: httpx.AsyncClient | None = None, progress_callback=None
 ) -> PreprocessResult:
     owns_data_client = data_client is None
-    resolved_data_client = _ensure_data_client(data_client, conf_state=conf_state)
+    resolved_data_client = data_client
+
+    def ensure_data_client() -> httpx.AsyncClient:
+        nonlocal resolved_data_client
+        if resolved_data_client is None:
+            resolved_data_client = _ensure_data_client(None, conf_state=conf_state)
+        return resolved_data_client
+
     try:
-        return await _preprocess_script(data_client=resolved_data_client, progress_callback=progress_callback)
+        return await _preprocess_script(
+            ensure_data_client=ensure_data_client,
+            progress_callback=progress_callback,
+        )
     finally:
-        if owns_data_client:
+        if owns_data_client and resolved_data_client is not None:
             await resolved_data_client.aclose()
 
 
@@ -102,6 +117,109 @@ class ReleaseAssetResult:
     cache_expired: bool
     db_path: Path
     errors: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ScriptServiceStatus:
+    motrix_running: bool
+    redis_server_running: bool
+
+    @classmethod
+    def from_process_names(cls, process_names: t.Iterable[str]) -> "ScriptServiceStatus":
+        normalized_process_names = {process_name.lower() for process_name in process_names}
+        return cls(
+            motrix_running=any("motrix" in process_name for process_name in normalized_process_names),
+            redis_server_running=any("redis-server" in process_name for process_name in normalized_process_names),
+        )
+
+    @property
+    def all_required_services_running(self) -> bool:
+        return self.motrix_running and self.redis_server_running
+
+    @property
+    def missing_services(self) -> tuple[str, ...]:
+        missing_services: list[str] = []
+        if not self.motrix_running:
+            missing_services.append("motrix")
+        if not self.redis_server_running:
+            missing_services.append("redis-server")
+        return tuple(missing_services)
+
+    def to_payload(self) -> dict[str, bool]:
+        return {
+            "motrix_running": self.motrix_running,
+            "redis_server_running": self.redis_server_running,
+            "all_required_services_running": self.all_required_services_running,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ScriptEntryState:
+    service_status: ScriptServiceStatus
+    kemono_data_ready: bool | None = None
+    kemono_data_cache_hit: bool | None = None
+    kemono_data_errors: tuple[str, ...] = ()
+
+    @property
+    def danbooru_visible(self) -> bool:
+        return self.service_status.motrix_running
+
+    @property
+    def kemono_service_ready(self) -> bool:
+        return self.service_status.motrix_running and self.service_status.redis_server_running
+
+    @property
+    def should_check_kemono_data(self) -> bool:
+        return self.kemono_service_ready
+
+    @property
+    def kemono_visible(self) -> bool:
+        return self.kemono_service_ready and self.kemono_data_ready is True
+
+    @property
+    def cbg_visible(self) -> bool:
+        return True
+
+    @property
+    def jsoneri_palaces_probe_visible(self) -> bool:
+        return True
+
+    @property
+    def settings_visible(self) -> bool:
+        return True
+
+    @property
+    def hidden_entries(self) -> tuple[str, ...]:
+        hidden_entries: list[str] = []
+        if not self.danbooru_visible:
+            hidden_entries.append("Danbooru")
+        if not self.kemono_visible:
+            hidden_entries.append("Kemono")
+        return tuple(hidden_entries)
+
+    def with_kemono_asset_result(self, kemono_asset: ReleaseAssetResult) -> "ScriptEntryState":
+        return ScriptEntryState(
+            service_status=self.service_status, kemono_data_ready=kemono_asset.ready,
+            kemono_data_cache_hit=kemono_asset.cache_hit, kemono_data_errors=kemono_asset.errors,
+        )
+
+    def to_payload(self) -> dict[str, t.Any]:
+        return {
+            "services": self.service_status.to_payload(),
+            "motrix_running": self.service_status.motrix_running,
+            "redis_server_running": self.service_status.redis_server_running,
+            "missing_services": self.service_status.missing_services,
+            "kemono_data_ready": self.kemono_data_ready,
+            "kemono_data_cache_hit": self.kemono_data_cache_hit,
+            "kemono_data_errors": self.kemono_data_errors,
+            "danbooru_visible": self.danbooru_visible,
+            "kemono_visible": self.kemono_visible,
+            "cbg_visible": self.cbg_visible,
+            "jsoneri_palaces_probe_visible": self.jsoneri_palaces_probe_visible,
+            "settings_visible": self.settings_visible,
+            "hidden_entries": self.hidden_entries,
+            "should_check_kemono_data": self.should_check_kemono_data,
+        }
 
 
 class ReleaseAssetCache:
@@ -371,68 +489,105 @@ class KemonoReleaseAsset(ReleaseAssetCache):
         )
 
 
-async def _preprocess_script(*, data_client: httpx.AsyncClient, progress_callback=None) -> PreprocessResult:
+def _format_script_service_warning(script_entry_state: ScriptEntryState) -> str:
     script_res = res.GUI.Script
-    services_ready = _check_script_services()
+    missing_services = "、".join(script_entry_state.service_status.missing_services)
+    hidden_entries = "、".join(script_entry_state.hidden_entries)
+    return (
+        f"{script_res.service_check_failed_content}"
+        f"<br>缺少服务：{missing_services}"
+        f"<br>受影响入口：{hidden_entries}"
+        f"<br>{SCRIPT_SERVICE_WARNING_DELAY_MS // 1000} 秒后将打开可用入口。"
+    )
+
+
+def _format_kemono_data_warning() -> str:
+    script_res = res.GUI.Script
+    return f"{script_res.data_cache_check_failed}<br>⚠️ Kemono 入口已隐藏，其他脚本入口仍可使用。"
+
+
+async def _preprocess_script(
+    *,
+    ensure_data_client: t.Callable[[], httpx.AsyncClient],
+    progress_callback=None,
+) -> PreprocessResult:
+    script_res = res.GUI.Script
+    service_status = _check_script_services()
+    script_entry_state = ScriptEntryState(service_status=service_status)
     dependencies_result = _check_script_dependencies()
     dependencies_ready = dependencies_result is True
 
     messages: list[dict[str, t.Any]] = []
-    actions: list[dict[str, t.Any]] = []
+    open_delay_ms = 0
     state_flags: dict[str, t.Any] = {
-        "services_ready": services_ready,
+        "services_ready": service_status.all_required_services_running,
+        "service_status": service_status.to_payload(),
+        "missing_services": service_status.missing_services,
         "dependencies_ready": dependencies_ready,
     }
 
-    if services_ready:
+    if service_status.all_required_services_running:
         messages.append(_message("success", script_res.service_check_success))
     else:
-        service_fail_message = _message("error", script_res.service_check_failed_content, channel="custom",
-            title=script_res.service_check_failed_title, url=f"{CGS_DOC}/script", url_name=script_res.guide_name)
+        open_delay_ms = SCRIPT_SERVICE_WARNING_DELAY_MS
+        service_fail_message = _message(
+            "warning", _format_script_service_warning(script_entry_state), channel="custom", title=script_res.service_check_failed_title,
+            url=f"{CGS_DOC}/script", url_name=script_res.guide_name, duration=SCRIPT_SERVICE_WARNING_DELAY_MS,
+        )
         messages.append(service_fail_message)
 
-    if dependencies_ready:
-        messages.append(_message("success", script_res.dependency_check_success))
-    else:
-        missing = tuple(dependencies_result)
-        dependency_fail_message = _message("error", script_res.dependency_check_failed_content, channel="custom",
-            title=script_res.dependency_check_failed_title, url=f"{CGS_DOC}/script", url_name=script_res.guide_name)
+    if not dependencies_ready:
+        missing = tuple(t.cast(list[str], dependencies_result))
+        dependency_fail_message = _message(
+            "warning", script_res.dependency_check_failed_content, channel="custom", title=script_res.dependency_check_failed_title,
+            url=f"{CGS_DOC}/script", url_name=script_res.guide_name, duration=SCRIPT_SERVICE_WARNING_DELAY_MS,
+        )
         messages.append(dependency_fail_message)
-        actions.append(_action("launch_update_flow"))
         state_flags["missing_dependencies"] = missing
 
-    if not services_ready or not dependencies_ready:
-        return PreprocessResult(ready=False, block_search=True, messages=tuple(messages), actions=tuple(actions), state_flags=state_flags)
-
-    kemono_asset = await KemonoReleaseAsset(data_client, progress_callback).ensure()
-    state_flags["data_ready"] = kemono_asset.ready
-    state_flags["data_cache_hit"] = kemono_asset.cache_hit
-    if kemono_asset.errors:
-        state_flags["kemono_db_errors"] = kemono_asset.errors
-    if kemono_asset.ready:
-        messages.append(_message("success", script_res.data_cache_check_success))
-        actions.append(_action("open_scriptWin"))
+    if script_entry_state.should_check_kemono_data:
+        data_client = ensure_data_client()
+        kemono_asset = await KemonoReleaseAsset(data_client, progress_callback).ensure()
+        script_entry_state = script_entry_state.with_kemono_asset_result(kemono_asset)
+        state_flags["data_ready"] = kemono_asset.ready
+        state_flags["data_cache_hit"] = kemono_asset.cache_hit
+        if kemono_asset.errors:
+            state_flags["kemono_db_errors"] = kemono_asset.errors
+        if kemono_asset.ready:
+            messages.append(_message("success", script_res.data_cache_check_success))
+        else:
+            messages.append(_message("warning", _format_kemono_data_warning()))
     else:
-        messages.append(_message("error", script_res.data_cache_check_failed))
+        state_flags["kemono_data_check_skipped"] = True
 
-    return PreprocessResult(ready=kemono_asset.ready, block_search=True, runtime_ready=kemono_asset.ready, messages=tuple(messages),
-        actions=tuple(actions), state_flags=state_flags)
+    script_entry_state_payload = script_entry_state.to_payload()
+    state_flags["script_entry_state"] = script_entry_state_payload
+    state_flags["hidden_script_entries"] = script_entry_state.hidden_entries
+    actions = (_action("open_scriptWin", script_entry_state=script_entry_state_payload, delay_ms=open_delay_ms),)
+
+    return PreprocessResult(ready=True, block_search=False, runtime_ready=False, messages=tuple(messages), actions=actions, state_flags=state_flags)
 
 
-def _check_script_services() -> bool:
-    running_processes = {proc.info["name"].lower() for proc in psutil.process_iter(["name"]) if proc.info["name"]}
-    required = (
-        any("motrix" in name for name in running_processes),
-        any("redis-server" in name for name in running_processes),
+def _probe_local_port(host: str, port: int, *, timeout_s: float = SCRIPT_SERVICE_PROBE_TIMEOUT_S) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout_s):
+            return True
+    except OSError:
+        return False
+
+
+def _check_script_services() -> ScriptServiceStatus:
+    # 端口 readiness 比 process_iter 全表扫更贴近“服务可用”，且在 Windows 上更稳更快。
+    return ScriptServiceStatus(
+        motrix_running=_probe_local_port(SCRIPT_MOTRIX_RPC_HOST, SCRIPT_MOTRIX_RPC_PORT),
+        redis_server_running=_probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT),
     )
-    return all(required)
 
 
 def _check_script_dependencies() -> bool | list[str]:
-    missing = []
-    for package in ("redis", "pandas"):
-        try:
-            importlib.import_module(package)
-        except ImportError:
-            missing.append(package)
+    missing = [
+        package
+        for package in ("redis", "pandas")
+        if importlib.util.find_spec(package) is None
+    ]
     return True if not missing else missing

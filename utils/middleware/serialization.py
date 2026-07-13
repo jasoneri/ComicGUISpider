@@ -19,7 +19,7 @@ def _init_preset_registry():
     if _PRESET_REGISTRY:
         return
     from utils.middleware.providers import PresetProvider
-    for preset in PresetProvider().list_available():
+    for preset in PresetProvider().list_all():
         _PRESET_REGISTRY[preset.label] = preset
 
 

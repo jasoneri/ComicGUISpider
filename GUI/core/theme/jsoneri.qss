@@ -1,0 +1,131 @@
+/* Jsoneri QSS template and theme tokens */
+
+/* @tokens light */
+HEADER_BORDER = rgba(125, 125, 125, 0.22);
+HEADER_BACKGROUND = rgba(125, 125, 125, 0.06);
+TITLE_TEXT = rgba(9, 9, 11, 0.97);
+STATE_MESSAGE = rgba(115, 115, 115, 0.92);
+CARD_BORDER = rgba(125, 125, 125, 0.22);
+CARD_BACKGROUND = rgba(255, 255, 255, 0.92);
+CARD_HEADER_BORDER = rgba(125, 125, 125, 0.12);
+CARD_HEADER_BACKGROUND = rgba(245, 245, 245, 0.72);
+CARD_TITLE = #262626;
+CARD_CONTENT_BACKGROUND = rgba(250, 250, 250, 0.86);
+FROST_NORMAL = rgba(255, 255, 255, 0.38);
+FROST_INVALID = rgba(239, 68, 68, 0.10);
+FROST_LOCK_BORDER = rgba(255, 255, 255, 0.46);
+FROST_LOCK_BACKGROUND = rgba(245, 245, 245, 0.42);
+RESPONSE_MESSAGE = #262626;
+RESPONSE_DETAIL = #737373;
+CHECKING_BACKGROUND = rgba(255, 255, 255, 0.93);
+CHECKING_TRACK = rgba(115, 115, 115, 0.18);
+/* @endtokens */
+
+/* @tokens dark */
+HEADER_BORDER = rgba(244, 244, 245, 0.14);
+HEADER_BACKGROUND = rgba(244, 244, 245, 0.06);
+TITLE_TEXT = rgba(250, 250, 250, 0.97);
+STATE_MESSAGE = rgba(212, 212, 216, 0.78);
+CARD_BORDER = rgba(244, 244, 245, 0.14);
+CARD_BACKGROUND = rgba(24, 24, 27, 0.94);
+CARD_HEADER_BORDER = rgba(244, 244, 245, 0.10);
+CARD_HEADER_BACKGROUND = rgba(39, 39, 42, 0.72);
+CARD_TITLE = #f4f4f5;
+CARD_CONTENT_BACKGROUND = rgba(28, 28, 31, 0.90);
+FROST_NORMAL = rgba(9, 9, 11, 0.38);
+FROST_INVALID = rgba(239, 68, 68, 0.16);
+FROST_LOCK_BORDER = rgba(244, 244, 245, 0.18);
+FROST_LOCK_BACKGROUND = rgba(39, 39, 42, 0.42);
+RESPONSE_MESSAGE = #f4f4f5;
+RESPONSE_DETAIL = #a1a1aa;
+CHECKING_BACKGROUND = rgba(24, 24, 27, 0.94);
+CHECKING_TRACK = rgba(244, 244, 245, 0.16);
+/* @endtokens */
+
+/* @section interface */
+QFrame#JsoneriPalacesProbeHeader {
+    border: 1px solid ${HEADER_BORDER};
+    border-radius: 8px;
+    background: ${HEADER_BACKGROUND};
+}
+QLabel#JsoneriPalacesTitle {
+    font-size: 15px;
+    font-weight: 700;
+    color: ${TITLE_TEXT};
+}
+QLabel#JsoneriPalacesStateMessage {
+    color: ${STATE_MESSAGE};
+    padding: 6px;
+}
+QScrollArea#JsoneriPalacesCardScroll {
+    border: none;
+    background: transparent;
+}
+QFrame#JsoneriServiceCard {
+    border: 1px solid ${CARD_BORDER};
+    border-radius: 8px;
+    background: ${CARD_BACKGROUND};
+}
+QFrame#JsoneriServiceCardHeader {
+    border-bottom: 1px solid ${CARD_HEADER_BORDER};
+    background: ${CARD_HEADER_BACKGROUND};
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+QLabel#JsoneriServiceCardTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: ${CARD_TITLE};
+}
+QFrame#JsoneriServiceCardContent {
+    background: ${CARD_CONTENT_BACKGROUND};
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+QFrame#JsoneriFrost_normalCard {
+    background: ${FROST_NORMAL};
+}
+QFrame#JsoneriFrost_invalidCard {
+    background: ${FROST_INVALID};
+}
+QFrame#JsoneriFrost_lockCard {
+    border: 1px solid ${FROST_LOCK_BORDER};
+    background: ${FROST_LOCK_BACKGROUND};
+}
+QLabel#JsoneriCardResponseMessage {
+    font-size: 13px;
+    font-weight: 700;
+    color: ${RESPONSE_MESSAGE};
+}
+QLabel#JsoneriCardResponseDetail {
+    font-size: 12px;
+    color: ${RESPONSE_DETAIL};
+}
+/* @endsection */
+
+/* @section checking_layer */
+QFrame#JsoneriCheckingLayer {
+    border-left: 4px solid ${CHECKING_ACCENT};
+    background: ${CHECKING_BACKGROUND};
+}
+QFrame#JsoneriCheckingProgressTrack {
+    border-radius: 6px;
+    background: ${CHECKING_TRACK};
+}
+/* @endsection */
+
+/* @section connection_dot */
+QLabel#JsoneriPalacesConnectionDot {
+    border-radius: 5px;
+    background: ${CONNECTION_COLOR};
+}
+/* @endsection */
+
+/* @section site_preview_shell */
+QFrame#JsoneriServiceCardContent {
+    background: transparent;
+}
+QFrame#JsoneriCardBackground {
+    background: transparent;
+}
+/* @endsection */

@@ -214,15 +214,16 @@ class KemonoTableView(FramelessWindow):
     """Kemono作者表格视图"""
     closed = Signal()
 
-    def __init__(self, data: t.Dict[str, KemonoAuthor], parent=None):
+    def __init__(self, data: t.Dict[str, KemonoAuthor], parent):
         super().__init__()
         self.interface = parent
+        self.gui = parent.parent_window.gui
         self._table_initialized = False  # 标记表格是否已初始化
 
         self._avatar_size = 32
         self._avatar_col_width = 44
         self._avatar_row_height = 40
-        self._avatar_task_mgr = AsyncTaskManager(gui=None)
+        self._avatar_task_mgr = AsyncTaskManager(self.gui, self)
         self._avatar_cache = AvatarCache(temp_p.joinpath("kemono_avatars.pkl"))
         self._avatar_cache.load()
         self._avatar_widgets: t.Dict[int, ImageLabel] = {}
@@ -252,14 +253,8 @@ class KemonoTableView(FramelessWindow):
         self.titleBar.closeBtn.hide()
 
         # 计算窗口大小
-        if parent:
-            p_width = parent.width()
-            p_height = parent.height()
-        else:
-            screen = QGuiApplication.primaryScreen()
-            screen_geo = screen.geometry()
-            p_width = screen_geo.width()
-            p_height = screen_geo.height()
+        p_width = parent.width()
+        p_height = parent.height()
 
         window_width = int(p_width * 0.9)
         window_height = int(p_height * 0.7)
@@ -595,6 +590,12 @@ class KemonoInterface(QFrame):
         self.selected = []
         self.setObjectName("KemonoInterface")
         self.setupUi()
+
+    def server_mode_switch_blockers(self) -> list[str]:
+        thread = self.backend_thread
+        if thread is not None and thread.isRunning():
+            return ["kemono script"]
+        return []
 
     def setupUi(self):
         self.main_layout = VBoxLayout(self)

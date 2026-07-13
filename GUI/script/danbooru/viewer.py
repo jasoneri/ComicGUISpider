@@ -22,12 +22,16 @@ from .core import DanbooruViewerFitCalculator, DanbooruViewerFitResult, delete_f
 from .style import DanbooruUiPalette, build_viewer_stylesheet, get_danbooru_qss_tokens, qcolor_from_css
 
 
+def _split_tag_string(tag_string: str) -> list[str]:
+    return [tag for tag in str(tag_string or "").split(" ") if tag]
+
+
 def _iter_tag_groups(post: DanbooruPost) -> list[tuple[str, list[str]]]:
     groups = [
-        ("Character", list(filter(None, post.tag_string_character.split(" ")))),
-        ("Artist", list(filter(None, post.tag_string_artist.split(" ")))),
-        ("Copyright", list(filter(None, post.tag_string_copyright.split(" ")))),
-        ("General", list(filter(None, post.tag_string_general.split(" ")))),
+        ("Character", _split_tag_string(post.tag_string_character)),
+        ("Artist", _split_tag_string(post.tag_string_artist)),
+        ("Copyright", _split_tag_string(post.tag_string_copyright)),
+        ("General", _split_tag_string(post.tag_string_general)),
     ]
     return [(label, tags) for label, tags in groups if tags]
 
@@ -169,6 +173,8 @@ class DanbooruImageViewer(QWidget):
         self._loaded_settle_revision = 0
         self._loaded_settle_scheduled = False
         self._current_media_kind = "image"
+        self._page_loading = False
+        self._status_hint_text = ""
         self.video_mgr = self._InnerVideoMgr(self)
         self._setup_ui()
         self.video_mgr.setup_backend(self.playBar)
@@ -505,6 +511,8 @@ class DanbooruImageViewer(QWidget):
 
     def eventFilter(self, obj, event):
         event_type = event.type()
+        if event_type == QtCore.QEvent.Wheel and self._handle_navigation_wheel(event):
+            return True
         if obj is self.top_bar and event_type == QtCore.QEvent.MouseButtonPress:
             if event.button() == Qt.LeftButton and obj.childAt(event.pos()) is None:
                 startSystemMove(self, event.globalPosition().toPoint())
@@ -523,6 +531,19 @@ class DanbooruImageViewer(QWidget):
     def _emit_download(self):
         if self.post is not None:
             self.download_requested.emit(self.post)
+
+    def _handle_navigation_wheel(self, event) -> bool:
+        delta_y = event.angleDelta().y()
+        if delta_y == 0:
+            delta_y = event.pixelDelta().y()
+        if delta_y == 0:
+            return False
+        if delta_y < 0 and self.next_btn.isEnabled():
+            self.next_requested.emit()
+        elif delta_y > 0 and self.previous_btn.isEnabled():
+            self.previous_requested.emit()
+        event.accept()
+        return True
 
     @staticmethod
     def _is_close_gesture(event) -> bool:
@@ -748,8 +769,12 @@ class DanbooruImageViewer(QWidget):
     def _sync_image_hint_geometry(self):
         self.image_hint_label.setGeometry(0, 0, self.image_label.width(), self.image_label.height())
 
+    def _has_image_pixmap(self) -> bool:
+        pixmap = self.image_label.pixmap()
+        return bool(pixmap is not None and not pixmap.isNull())
+
     def _display_media_kind_for_post(self, post: t.Optional[DanbooruPost]) -> str:
-        return "video" if post is not None and post.is_video else "image"
+        return "video" if post is not None and post.uses_viewer_video else "image"
 
     def set_placeholder(self, text: str):
         if self._current_media_kind == "video":
@@ -760,6 +785,39 @@ class DanbooruImageViewer(QWidget):
         self.image_hint_label.setText(text)
         self.image_hint_label.show()
         self._sync_image_hint_geometry()
+
+    def set_status_hint(self, text: str):
+        self._status_hint_text = str(text or "")
+        if not self._status_hint_text:
+            if self._current_media_kind == "video":
+                self.video_mgr.set_hint("", visible=False)
+            elif self._has_image_pixmap():
+                self.image_hint_label.hide()
+            elif self.post is not None:
+                self.image_hint_label.setText(self._initial_placeholder_text(self.post))
+                self.image_hint_label.show()
+                self._sync_image_hint_geometry()
+            return
+        if self._current_media_kind == "video":
+            self.video_mgr.set_hint(self._status_hint_text, visible=True)
+            return
+        self.image_hint_label.setText(self._status_hint_text)
+        self.image_hint_label.show()
+        self._sync_image_hint_geometry()
+
+    def set_page_loading(self, loading: bool, text: str = "Loading..."):
+        self._page_loading = bool(loading)
+        if self._current_media_kind == "video":
+            self.video_mgr._set_buffering_indicator(self._page_loading, text if self._page_loading else "")
+        elif self._page_loading:
+            self.image_hint_label.setText(text)
+            self.image_hint_label.show()
+            self._sync_image_hint_geometry()
+        elif self._status_hint_text:
+            self.set_status_hint(self._status_hint_text)
+        elif self._has_image_pixmap():
+            self.image_hint_label.hide()
+        self.next_btn.setDisabled(self._page_loading)
 
     def set_placeholder_for_post(self, post: DanbooruPost, text: str):
         self._show_media_widget(self._display_media_kind_for_post(post))
@@ -801,9 +859,52 @@ class DanbooruImageViewer(QWidget):
         self.previous_btn.setEnabled(has_previous)
         self.next_btn.setEnabled(has_next)
 
+    def _first_tag_from_group(self, tag_group: str) -> str:
+        if self.post is None:
+            return ""
+        tag_string = getattr(self.post, tag_group, "")
+        tags = _split_tag_string(tag_string)
+        return tags[0] if tags else ""
+
+    def _open_first_group_tag(self, tag_group: str) -> bool:
+        tag = self._first_tag_from_group(tag_group)
+        if not tag:
+            return False
+        self.tag_clicked.emit(tag)
+        return True
+
+    def _keypad_tag_group_for_key(self, key: int, modifiers: Qt.KeyboardModifiers) -> t.Optional[str]:
+        if not modifiers & Qt.KeypadModifier:
+            return None
+        tag_group_by_key = {
+            Qt.Key_1: "tag_string_character",
+            Qt.Key_End: "tag_string_character",
+            Qt.Key_2: "tag_string_artist",
+            Qt.Key_Down: "tag_string_artist",
+            Qt.Key_3: "tag_string_copyright",
+            Qt.Key_PageDown: "tag_string_copyright",
+        }
+        return tag_group_by_key.get(key)
+
+    @staticmethod
+    def _initial_placeholder_text(post: DanbooruPost) -> str:
+        if post.is_video:
+            return "Loading video..."
+        if post.is_archive:
+            if post.preview_asset_is_video:
+                return "Loading video preview..."
+            return "Loading preview asset..." if post.has_renderable_preview_asset else "ZIP archive, download original"
+        if post.uses_viewer_video:
+            return "Loading video preview..."
+        if post.large_file_url or post.file_url or post.preview_file_url:
+            return "Loading..."
+        return "No Preview"
+
     def show_post(self, post: DanbooruPost, already_downloaded: bool):
         self.post = post
         self._already_downloaded = already_downloaded
+        self._page_loading = False
+        self._status_hint_text = ""
         self._display_source_size = None
         self._loaded_pixmap_size = None
         self.video_mgr.clear_payload(self.playBar)
@@ -814,8 +915,7 @@ class DanbooruImageViewer(QWidget):
         self._update_display_source_size(self._post_size_hint(post), replace=True)
         self._populate_tags(post)
         self._update_download_button()
-        placeholder_text = "Loading..." if (post.large_file_url or post.file_url or post.preview_file_url) else "No Preview"
-        self.set_placeholder_for_post(post, placeholder_text)
+        self.set_placeholder_for_post(post, self._initial_placeholder_text(post))
         self.show()
         self._settle_viewer_layout()
         self.raise_()
@@ -855,17 +955,26 @@ class DanbooruImageViewer(QWidget):
             return
         self._schedule_loaded_settlement()
 
+    def wheelEvent(self, event):
+        if self._handle_navigation_wheel(event):
+            return
+        super().wheelEvent(event)
+
     def keyPressEvent(self, event):
         key = event.key()
-        if key == Qt.Key_Escape:
+        modifiers = event.modifiers()
+        keypad_tag_group = self._keypad_tag_group_for_key(key, modifiers)
+        if keypad_tag_group is not None:
+            self._open_first_group_tag(keypad_tag_group)
+        elif key == Qt.Key_Escape:
             self.hide()
         elif key == Qt.Key_Space and self._current_media_kind == "video":
             self.video_mgr.toggle_playback(self._current_media_kind)
-        elif key == Qt.Key_Left and self.previous_btn.isEnabled():
+        elif key == Qt.Key_Left and not (modifiers & Qt.KeypadModifier) and self.previous_btn.isEnabled():
             self.previous_btn.click()
-        elif key == Qt.Key_Right and self.next_btn.isEnabled():
+        elif key == Qt.Key_Right and not (modifiers & Qt.KeypadModifier) and self.next_btn.isEnabled():
             self.next_btn.click()
-        elif key == Qt.Key_Down and self.download_btn.isEnabled():
+        elif key == Qt.Key_Down and not (modifiers & Qt.KeypadModifier) and self.download_btn.isEnabled():
             self.download_btn.click()
         elif key == Qt.Key_Up:
             self.close_btn.click()

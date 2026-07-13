@@ -143,6 +143,7 @@ GUI:
     confDia_kbShowDhb: "展示拷贝单行本"
     confDia_monitorBtn: "状态"
     confDia_supportBtn: "潘多拉之盒"
+    confDia_siteChoiceBtn: "选站显隐"
     confDia_promote_title: "宝可梦机场"
     confDia_promote_url: "https://love.p6m6.com/#/register?code=NDrxqHw9"
     confDia_support_content: "注册以下等助力开发，如有闲置的 gpt/cc token 请资助 CGS 开发"

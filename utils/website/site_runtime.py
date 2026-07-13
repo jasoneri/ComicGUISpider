@@ -186,6 +186,15 @@ class ThreadSiteRuntime(_ProviderRuntimeBase):
         preview_search = self._require_reqer_method("preview_search", purpose="preview worker search")
         return await preview_search(keyword, page=page)
 
+    async def preview_feature_search(self, *, kind: str, value: str, page: int = 1) -> list:
+        preview_feature_search = self._require_reqer_method("preview_feature_search", purpose="preview feature search")
+        return await preview_feature_search(kind=kind, value=value, page=page)
+
+    def invalidate_domain_cache(self, exc: BaseException):
+        """连接级故障时失效域名缓存，下轮 preprocess 走 publish 轮换重建（与 spider._remove_cache 同语义）"""
+        if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)) and issubclass(self.provider_cls, DomainUtils):
+            self.provider_cls.remove_domain_cache()
+
     def get_async_preview_client(self) -> httpx.AsyncClient:
         ensure_preview_client = self._require_reqer_method("ensure_preview_client", purpose="preview runtime client bootstrap")
         return ensure_preview_client()

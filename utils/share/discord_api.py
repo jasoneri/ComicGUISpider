@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json as _json
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import httpx
 
@@ -24,6 +26,24 @@ class DiscordSharePayloadTooLargeError(DiscordShareApiError):
         size_mb = self.size_bytes / (1024 * 1024)
         limit_mb = self.limit_bytes / (1024 * 1024)
         super().__init__(f"文件过大（{size_mb:.2f}MB > {limit_mb:.0f}MB）")
+
+
+@dataclass
+class MetadataUploadResult:
+    """E2 step-2 result — pointer pair for cf-worker /index/{bid} downstream."""
+
+    message_id: str
+    attachment_url: str
+    updated_at: str
+
+
+@dataclass
+class ShareCardPublishResult:
+    """One-shot subscription share-card publication marker returned by cgs-share."""
+
+    posted_at: str
+    discord_channel: str
+    discord_message_id: str
 
 
 class DiscordShareAPI:
@@ -58,10 +78,32 @@ class DiscordShareAPI:
             "book_count": str(len(covers)),
             "book_names": _json.dumps(list(book_names), ensure_ascii=False),
         }
-        response = await self._request(
-            "POST", f"{self.api_url}/api/upload", headers=self._headers(), files=files, data=data,
-        )
+        response = await self._request("POST", f"{self.api_url}/api/upload", headers=self._headers(), files=files, data=data)
         return self._parse_upload_response(response)
+
+    async def upload_metadata(self, *, payload_bytes: bytes, site: str, book_names: list[str], channel_id: str) -> MetadataUploadResult:
+        files = [("pkl_file", ("metadata.pkl", payload_bytes, "application/octet-stream"))]
+        data = {
+            "site": site,
+            "book_count": str(len(book_names)),
+            "book_names": _json.dumps(list(book_names), ensure_ascii=False),
+            "channel_id": str(channel_id or "").strip(),
+        }
+        response = await self._request("POST", f"{self.api_url}/api/upload", headers=self._headers(), files=files, data=data)
+        return self._parse_metadata_upload_response(response)
+
+    async def publish_share_card(
+        self,
+        *,
+        channel_id: str,
+        book_names: list[str],
+    ) -> ShareCardPublishResult:
+        data = {
+            "channel_id": str(channel_id or "").strip(),
+            "book_names": list(book_names),
+        }
+        response = await self._request("POST", f"{self.api_url}/api/share-card", headers=self._headers(), json=data)
+        return self._parse_share_card_publish_response(response, fallback_channel_id=data["channel_id"])
 
     async def download_share(self, share_id: str) -> bytes:
         response = await self._request(
@@ -102,3 +144,51 @@ class DiscordShareAPI:
         if not share_id:
             raise DiscordShareApiError("share API 缺少 share_id")
         return share_id
+
+    def _parse_metadata_upload_response(self, response: httpx.Response) -> MetadataUploadResult:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        if response.status_code == 429:
+            raise DiscordShareCooldownError(int(payload.get("hours_left") or 0))
+        if response.status_code >= 400:
+            raise DiscordShareApiError(self._extract_error(response))
+
+        attachment_url = str(payload.get("attachment_url") or "").strip()
+        if not attachment_url:
+            raise DiscordShareApiError("metadata upload response missing attachment_url")
+
+        message_id = str(payload.get("message_id") or payload.get("share_id") or "").strip()
+        if not message_id:
+            raise DiscordShareApiError("metadata upload response missing message_id")
+
+        updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        return MetadataUploadResult(message_id=message_id, attachment_url=attachment_url, updated_at=updated_at)
+
+    def _parse_share_card_publish_response(self, response: httpx.Response, *, fallback_channel_id: str) -> ShareCardPublishResult:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        if response.status_code == 429:
+            raise DiscordShareCooldownError(int(payload.get("hours_left") or 0))
+        if response.status_code >= 400:
+            raise DiscordShareApiError(self._extract_error(response))
+
+        message_id = str(payload.get("message_id") or payload.get("discord_message_id") or "").strip()
+        if not message_id:
+            raise DiscordShareApiError("share card publish response missing message_id")
+
+        channel_id = str(payload.get("discord_channel") or payload.get("channel_id") or fallback_channel_id).strip()
+        if not channel_id:
+            raise DiscordShareApiError("share card publish response missing channel_id")
+
+        posted_at = str(payload.get("posted_at") or "").strip()
+        if not posted_at:
+            posted_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        return ShareCardPublishResult(posted_at=posted_at, discord_channel=channel_id, discord_message_id=message_id)

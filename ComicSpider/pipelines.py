@@ -34,7 +34,8 @@ class PageNamingMgr:
         if isinstance(page, str) and bool(self.img_suffix_regex.search(page)):
             return page
         elif not self.digits_map.get(taskid):
-            self.digits_map[taskid] = len(str(info.spider.tasks[taskid].tasks_count))
+            task = info.spider.tasks[taskid]
+            self.digits_map[taskid] = len(str(getattr(task, "page_name_count", None) or task.tasks_count))
         digits = self.digits_map[taskid]
         return f"{str(page).zfill(digits)}.{self.img_sv_type}"
 
@@ -142,11 +143,7 @@ class ComicPipeline(ImagesPipeline):
                 spider.record_sql.add(task_obj.taskid)
             spider.rv_sql.write_episode(tasks_obj.title, tasks_obj.episode_name)
             
-        spider.emit(TasksObjEvent(
-            job_id=getattr(spider, '_job_id', None),
-            task_obj=task_obj,
-            is_new=False,
-        ))
+        spider.emit(TasksObjEvent(job_id=getattr(spider, '_job_id', None), task_obj=task_obj, is_new=False))
 
     def item_completed(self, results, item, info):
         completed_item = super(ComicPipeline, self).item_completed(results, item, info)
@@ -242,9 +239,8 @@ class WnacgComicPipeline(ComicPipeline):
             def _handle_curl_result(result):
                 status_code, content = result
                 return maybeDeferred(
-                    self.media_downloaded,
-                    Response(url=request.url,status=status_code,body=content,request=request),
-                    request,info,item=item)
+                    self.media_downloaded, Response(url=request.url, status=status_code, body=content, request=request),
+                    request, info, item=item)
 
             thread_dfd = deferToThread(_download_via_curl)
             thread_dfd.addCallback(_handle_curl_result)
@@ -261,20 +257,13 @@ class JmComicPipeline(ComicPipeline):
 
         width, height = orig_image.size
         if width < self.min_width or height < self.min_height:
-            raise ImageException(
-                "Image too small "
-                f"({width}x{height} < {self.min_width}x{self.min_height})"
-            )
+            raise ImageException("Image too small " f"({width}x{height} < {self.min_width}x{self.min_height})")
 
-        image, buf = self.convert_image(
-            orig_image, response_body=BytesIO(response.body)
-        )
+        image, buf = self.convert_image(orig_image, response_body=BytesIO(response.body))
         yield path, image, buf
 
         for thumb_id, size in self.thumbs.items():
-            thumb_path = self.thumb_path(
-                request, thumb_id, response=response, info=info, item=item
-            )
+            thumb_path = self.thumb_path(request, thumb_id, response=response, info=info, item=item)
             thumb_image, thumb_buf = self.convert_image(image, size, buf)
             yield thumb_path, thumb_image, thumb_buf
 

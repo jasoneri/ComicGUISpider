@@ -234,7 +234,10 @@ class _DoHConnectProxyService:
             raise TimeoutError("DoH CONNECT proxy startup timed out")
         if self._startup_error is not None:
             raise RuntimeError("DoH CONNECT proxy failed to start") from self._startup_error
-        return f"{DOH_CONNECT_PROXY_HOST}:{self._proxy_port}"
+        with self._lock:
+            if self._is_running_locked(normalized_url):
+                return f"{DOH_CONNECT_PROXY_HOST}:{self._proxy_port}"
+        raise RuntimeError("DoH CONNECT proxy startup finished without a proxy endpoint")
 
     def stop(self) -> None:
         with self._lock:

@@ -3,7 +3,7 @@
 from enum import IntEnum
 from assets import res
 
-VER = "v2.10.1-beta.2"
+VER = "v2.11.0"
 
 LANG = {
     "en_US": "English",
@@ -22,16 +22,22 @@ class Spider(IntEnum):
     JESTFUL = 10      # 🌎
     MANHUAGUI = 11    # 🇨🇳
     DM5 = 12          # 🇨🇳
+    COMICABC = 13      # 🇨🇳
+    MH1234 = 14        # 🇨🇳
+    JCOMIC = 15        # 🌎 🔞
+    RUMANHUA = 16      # 🇨🇳
 
     @property
     def spider_name(self): return self.name.lower()
 
     @classmethod
-    def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI})
+    def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.JCOMIC})
     @classmethod
-    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5})
+    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5, cls.COMICABC, cls.MH1234, cls.RUMANHUA})
     @classmethod
-    def cn_proxy(cls):  return frozenset({cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI})
+    def cn_proxy(cls):  return frozenset({
+        cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI, cls.COMICABC, cls.JCOMIC,
+    })
     @classmethod
     def aggr(cls):      return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.H_COMIC, cls.NHENTAI})   # AggrSearchThread._async_run
     @classmethod
@@ -52,6 +58,14 @@ def _label(s: Spider) -> str:
             return f"{s.value}、拷贝漫画"
         case "dm5":
             return f"{s.value}、动漫屋"
+        case "comicabc":
+            return f"{s.value}、無限動漫"
+        case "mh1234":
+            return f"{s.value}、漫画1234"
+        case "jcomic":
+            return f"{s.value}、JComic"
+        case "rumanhua":
+            return f"{s.value}、如漫画"
         case _:
             return f"{s.value}、{s.spider_name}"
 
@@ -82,6 +96,10 @@ DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[comp
         Spider.JESTFUL: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
         Spider.MANHUAGUI: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
         Spider.DM5: [res.SPIDER.Completer.update],
+        Spider.COMICABC: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
+        Spider.MH1234: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
+        Spider.JCOMIC: [res.SPIDER.Completer.index, res.SPIDER.Completer.update, '隨機', '最近更新'],
+        Spider.RUMANHUA: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
     }),
     SCRIPT_SITE_INDEX: [],
 }.items()))
@@ -99,6 +117,10 @@ STATUS_TIP = dict(sorted({
         Spider.JESTFUL: f"jestful: {res.GUI.SearchInputStatusTip.common}",
         Spider.MANHUAGUI: f"manhuagui: {res.GUI.SearchInputStatusTip.common}",
         Spider.DM5: f"dm5: {res.GUI.SearchInputStatusTip.dm5}",
+        Spider.COMICABC: f"comicabc: {res.GUI.SearchInputStatusTip.common}",
+        Spider.MH1234: f"mh1234: {res.GUI.SearchInputStatusTip.common}",
+        Spider.JCOMIC: f"jcomic: {res.GUI.SearchInputStatusTip.common}",
+        Spider.RUMANHUA: f"rumanhua: {res.GUI.SearchInputStatusTip.common}",
     }),
 }.items()))
 
@@ -110,3 +132,6 @@ PYPI_SOURCE = {
 }
 CGS_DOC = "https://cgs.101114105.xyz"
 CGS_DISCORD_SHARE_API = "https://cgs-share.101114105.xyz"
+CGS_WORKER_ENDPOINT = "https://cgs-share.101114105.xyz"
+CGS_METADATA_CHANNEL_ID = ""
+JSONERI_PALACES_PROBE_API_URL = "https://jps.101114105.xyz"

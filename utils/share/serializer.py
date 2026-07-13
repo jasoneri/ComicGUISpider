@@ -6,17 +6,21 @@ from copy import deepcopy
 
 from utils.website.info import (
     BookInfo,
+    ComicabcBookInfo,
     Dm5BookInfo,
     Ero,
     Episode,
     HComicBookInfo,
     HitomiBookInfo,
     InfoMinix,
+    JComicBookInfo,
     JmBookInfo,
     JestfulBookInfo,
     KbBookInfo,
     MangabzBookInfo,
     ManhuaguiBookInfo,
+    Mh1234BookInfo,
+    RumanhuaBookInfo,
     NhentaiBookInfo,
     WnacgBookInfo,
     EhBookInfo,
@@ -36,10 +40,14 @@ _ALLOWED_CLASSES = {
         "KbBookInfo",
         "WnacgBookInfo",
         "HComicBookInfo",
+        "JComicBookInfo",
         "NhentaiBookInfo",
         "JestfulBookInfo",
         "ManhuaguiBookInfo",
         "Dm5BookInfo",
+        "ComicabcBookInfo",
+        "Mh1234BookInfo",
+        "RumanhuaBookInfo",
     },
 }
 _ALLOWED_BOOK_TYPES = (
@@ -52,10 +60,14 @@ _ALLOWED_BOOK_TYPES = (
     KbBookInfo,
     WnacgBookInfo,
     HComicBookInfo,
+    JComicBookInfo,
     NhentaiBookInfo,
     JestfulBookInfo,
     ManhuaguiBookInfo,
     Dm5BookInfo,
+    ComicabcBookInfo,
+    Mh1234BookInfo,
+    RumanhuaBookInfo,
 )
 _PAYLOAD_PREFIX = b"CGS_SHARE_V1\n"
 
