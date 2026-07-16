@@ -318,6 +318,14 @@ class Req:
                 if not proxies:
                     raise RuntimeError(f"{owner_cls.__name__} cover preload requires proxies when proxy mode is enabled")
                 request_kw["proxy"] = f"http://{proxies[0]}"
+            elif proxy_policy == "follow_conf":
+                if proxies:
+                    request_kw["proxy"] = f"http://{proxies[0]}"
+            elif proxy_policy != "direct":
+                raise ValueError(
+                    f"{owner_cls.__name__} unsupported cover_preload_proxy_policy={proxy_policy!r}; "
+                    f"expected 'follow_conf', 'proxy', or 'direct'"
+                )
             resp = curl_requests.get(tasks_obj.cover_url, allow_redirects=True, **request_kw)
             resp.raise_for_status()
             return resp.content

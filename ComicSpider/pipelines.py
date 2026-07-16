@@ -157,11 +157,16 @@ class ComicPipeline(ImagesPipeline):
 
 
 class WnacgComicPipeline(ComicPipeline):
-    curl_image_impersonate = "chrome124"
+    # Prefer current Chrome TLS profile; Session init falls back if unsupported.
+    curl_image_impersonate = "chrome146"
+    curl_image_impersonate_fallbacks = ("chrome", "chrome131")
     curl_image_timeout = 20
-    curl_image_proxy_policy = "direct"
-    curl_image_retries = 3
-    curl_image_retry_delay = 3.0
+    # follow_conf: proxy when conf.proxies is set, else direct (align ComicDlAllProxyMiddleware).
+    curl_image_proxy_policy = "follow_conf"
+    curl_image_retries = 4
+    curl_image_retry_base_delay = 1.0
+    curl_image_retry_max_delay = 8.0
+    curl_image_retryable_status_codes = frozenset({403, 408, 429, 500, 502, 503, 504})
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -182,40 +187,123 @@ class WnacgComicPipeline(ComicPipeline):
         self._curl_session = None
         self._curl_session_config = None
 
-    def _get_curl_session(self, spider):
-        session_kwargs = {
-            "impersonate": getattr(spider, "image_impersonate", self.curl_image_impersonate),
-            "timeout": getattr(spider, "image_download_timeout", self.curl_image_timeout),
-        }
+    def _resolve_impersonate_candidates(self, spider):
+        preferred = getattr(spider, "image_impersonate", None) or self.curl_image_impersonate
+        candidates = [preferred]
+        for fallback_profile in self.curl_image_impersonate_fallbacks:
+            if fallback_profile not in candidates:
+                candidates.append(fallback_profile)
+        return candidates
+
+    def _resolve_curl_proxy_url(self, spider):
         proxy_policy = getattr(spider, "curl_image_proxy_policy", self.curl_image_proxy_policy)
+        if proxy_policy == "direct":
+            return None
         if proxy_policy == "proxy":
             if not conf.proxies:
                 raise RuntimeError("WnacgComicPipeline requires conf.proxies when proxy mode is enabled")
-            session_kwargs["proxy"] = f"http://{conf.proxies[0]}"
-        if getattr(self, "_curl_session_config", None) != session_kwargs:
-            self._close_curl_session()
-            self._curl_session = curl_requests.Session(**session_kwargs)
-            self._curl_session_config = session_kwargs
-        return self._curl_session
+            return f"http://{conf.proxies[0]}"
+        if proxy_policy == "follow_conf":
+            if conf.proxies:
+                return f"http://{conf.proxies[0]}"
+            return None
+        raise ValueError(
+            f"WnacgComicPipeline unsupported curl_image_proxy_policy={proxy_policy!r}; "
+            f"expected 'follow_conf', 'proxy', or 'direct'"
+        )
+
+    def _get_curl_session(self, spider):
+        timeout = getattr(spider, "image_download_timeout", self.curl_image_timeout)
+        proxy_url = self._resolve_curl_proxy_url(spider)
+
+        session_identity = {
+            "impersonate_candidates": self._resolve_impersonate_candidates(spider),
+            "timeout": timeout,
+            "proxy": proxy_url,
+        }
+        if getattr(self, "_curl_session_config", None) == session_identity and self._curl_session is not None:
+            return self._curl_session
+
+        self._close_curl_session()
+        last_error = None
+        for impersonate_profile in session_identity["impersonate_candidates"]:
+            session_kwargs = {
+                "impersonate": impersonate_profile,
+                "timeout": timeout,
+            }
+            if proxy_url:
+                session_kwargs["proxy"] = proxy_url
+            try:
+                self._curl_session = curl_requests.Session(**session_kwargs)
+                self._curl_session_config = session_identity
+                if impersonate_profile != session_identity["impersonate_candidates"][0]:
+                    spider.logger.warning(
+                        "Wnacg image curl impersonate fallback | preferred=%s | active=%s",
+                        session_identity["impersonate_candidates"][0],
+                        impersonate_profile,
+                    )
+                return self._curl_session
+            except Exception as session_error:
+                last_error = session_error
+                spider.logger.warning(
+                    "Wnacg image curl session init failed | impersonate=%s | error=%s: %s",
+                    impersonate_profile,
+                    type(session_error).__name__,
+                    session_error,
+                )
+        raise RuntimeError(
+            f"WnacgComicPipeline could not create curl session with candidates "
+            f"{session_identity['impersonate_candidates']}: {last_error}"
+        )
 
     @staticmethod
-    def _curl_request_context(request, spider):
+    def _curl_request_referer(request, spider):
+        # Only pass Referer into curl; leave UA/Client-Hints to impersonate defaults.
         headers = request.headers.to_unicode_dict()
-        referer = headers.pop("Referer", None) or headers.pop("referer", None)
+        referer = headers.get("Referer") or headers.get("referer")
         if not referer:
             referer = request.meta.get("referer")
         if not referer:
             referer_resolver = getattr(spider, "request_referer", None)
             if callable(referer_resolver):
                 referer = referer_resolver()
-        return referer, headers or None
+        return referer
+
+    def _retry_delay_seconds(self, spider, attempt):
+        base_delay = float(getattr(spider, "curl_image_retry_base_delay", self.curl_image_retry_base_delay))
+        max_delay = float(getattr(spider, "curl_image_retry_max_delay", self.curl_image_retry_max_delay))
+        delay = base_delay * (2 ** max(0, attempt - 1))
+        return min(delay, max_delay)
+
+    @staticmethod
+    def _extract_http_status(exc):
+        response = getattr(exc, "response", None)
+        status_code = getattr(response, "status_code", None)
+        if status_code is not None:
+            return int(status_code)
+        status_code = getattr(exc, "status_code", None)
+        if status_code is not None:
+            try:
+                return int(status_code)
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    def _is_retryable_curl_error(self, spider, exc):
+        status_code = self._extract_http_status(exc)
+        if status_code is not None:
+            retryable_codes = getattr(
+                spider, "curl_image_retryable_status_codes", self.curl_image_retryable_status_codes
+            )
+            return int(status_code) in retryable_codes
+        # Transport / timeout / connection failures have no HTTP status.
+        return True
 
     def media_to_download(self, request: Request, info, *, item=None):
         dfd = maybeDeferred(super().media_to_download, request, info, item=item)
         spider = info.spider
         attempts = max(1, int(getattr(spider, "curl_image_retries", self.curl_image_retries)))
-        retry_delay = float(getattr(spider, "curl_image_retry_delay", self.curl_image_retry_delay))
-        referer, headers = self._curl_request_context(request, spider)
+        referer = self._curl_request_referer(request, spider)
 
         def _fallback(file_info):
             if file_info is not None:
@@ -225,16 +313,27 @@ class WnacgComicPipeline(ComicPipeline):
                 session = self._get_curl_session(spider)
                 for attempt in range(1, attempts + 1):
                     try:
-                        response = session.get(request.url, referer=referer, headers=headers)
+                        response = session.get(request.url, referer=referer)
                         response.raise_for_status()
                         return response.status_code, response.content
                     except Exception as exc:
-                        if attempt >= attempts:
+                        retryable = self._is_retryable_curl_error(spider, exc)
+                        if (not retryable) or attempt >= attempts:
                             raise
+                        next_delay = self._retry_delay_seconds(spider, attempt)
+                        status_code = self._extract_http_status(exc)
                         spider.logger.warning(
-                            "Wnacg image curl retry %s/%s | url=%s | referer=%s | error=%s: %s",
-                            attempt,attempts - 1,request.url,referer or "-",type(exc).__name__,exc)
-                        sleep(retry_delay)
+                            "Wnacg image curl retry %s/%s | status=%s | delay=%.1fs | url=%s | referer=%s | error=%s: %s",
+                            attempt,
+                            attempts,
+                            status_code if status_code is not None else "-",
+                            next_delay,
+                            request.url,
+                            referer or "-",
+                            type(exc).__name__,
+                            exc,
+                        )
+                        sleep(next_delay)
 
             def _handle_curl_result(result):
                 status_code, content = result

@@ -93,6 +93,12 @@ class JmSpider(BaseComicSpider2):
             return
         yield from self._process_prefetched_pages(item)
 
+    def _process_episode(self, item):
+        if getattr(item, "page_urls", None):
+            yield from self._process_prefetched_pages(item)
+            return
+        yield from super()._process_episode(item)
+
     def _process_prefetched_pages(self, item):
         if getattr(item, "pages", None) is None:
             item.pages = len(getattr(item, "page_urls", None) or [])

@@ -35,7 +35,10 @@ class _Dm5Contract:
     }
     rank_period_labels = ("周", "月", "总")
     rank_default_period = rank_period_labels[0]
-    mappings = {res.SPIDER.Completer.update: {"kind": "update", "day": 0}}
+    # Update day is site-driven: SSR picks the active tab (often "今天" once it has
+    # items, otherwise "昨天"). API DK = active tab data - 1. Do not hardcode DK=1.
+    # mapping "day" is an absolute DK override; omit it to follow the site anchor.
+    mappings = {res.SPIDER.Completer.update: {"kind": "update"}}
     ua = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -300,6 +303,37 @@ class Dm5Parser(_Dm5Contract, Previewer):
                 book.img_preview = cls.normalize_preview_resource(cover, domain=cls.domain)
             books.append(book)
         return books
+
+    @classmethod
+    def parse_update_anchor_day(cls, html_text: str) -> int:
+        """Resolve API DK for the page's active update tab.
+
+        Official mh-update.js posts DK = DM5UPDATE_DAYKEY - 1 (tab ``data`` attr).
+        When "今天" has no items the SSR page usually activates "昨天" instead.
+        """
+        html_text = str(html_text or "")
+        daykey_match = re.search(r"\bDM5UPDATE_DAYKEY\s*=\s*(?P<daykey>\d+)\s*;", html_text)
+        if daykey_match:
+            tab_data = int(daykey_match.group("daykey"))
+            if tab_data >= 1:
+                return tab_data - 1
+
+        sel = Selector(text=html_text)
+        active_data = cls._normalize_text(
+            sel.css("li.active.lidaykey a.bt_daykey::attr(data), li.lidaykey.active a.bt_daykey::attr(data)").get()
+            or sel.css("a.bt_daykey").xpath("parent::li[contains(@class,'active')]/a/@data").get()
+        )
+        if active_data and active_data.isdigit():
+            tab_data = int(active_data)
+            if tab_data >= 1:
+                return tab_data - 1
+
+        first_data = cls._normalize_text(sel.css("a.bt_daykey::attr(data)").get())
+        if first_data and first_data.isdigit():
+            tab_data = int(first_data)
+            if tab_data >= 1:
+                return tab_data - 1
+        return 0
 
     @classmethod
     def _extract_js_var(cls, text: str, name: str):
@@ -591,6 +625,7 @@ class Dm5Reqer(_Dm5Contract, Req):
 
     def __init__(self, _conf):
         self.cli = self.get_cli(_conf)
+        self._update_anchor_day: int | None = None
 
     @classmethod
     def build_search_url(cls, keyword: str, *, page: int = 1) -> str:
@@ -639,10 +674,14 @@ class Dm5Reqer(_Dm5Contract, Req):
         return isinstance(mapping_value, dict) and mapping_value.get("kind") == "update"
 
     @classmethod
-    def mapping_update_day(cls, mapping_value) -> int:
-        if not isinstance(mapping_value, dict):
-            return 0
-        return max(0, int(mapping_value.get("day", 0) or 0))
+    def mapping_update_day(cls, mapping_value) -> int | None:
+        """Absolute API DK override. ``None`` means follow site SSR anchor."""
+        if not isinstance(mapping_value, dict) or "day" not in mapping_value:
+            return None
+        raw_day = mapping_value.get("day")
+        if raw_day is None:
+            return None
+        return max(0, int(raw_day))
 
     @classmethod
     def parse_rank_type_from_mapping(cls, mapping_value) -> int | None:
@@ -694,7 +733,13 @@ class Dm5Reqer(_Dm5Contract, Req):
         }
 
     @classmethod
-    def build_update_request(cls, *, page: int, day: int = 0) -> tuple[str, dict[str, str], dict[str, str]]:
+    def build_update_request(
+        cls,
+        *,
+        page: int,
+        day: int | None = None,
+        base_day: int | None = None,
+    ) -> tuple[str, dict[str, str], dict[str, str]]:
         stamp = int(time.time() * 1000)
         url = f"{cls.update_api}&d={stamp}"
         headers = {
@@ -706,17 +751,33 @@ class Dm5Reqer(_Dm5Contract, Req):
             "Referer": cls.update_page,
         }
         preview_page = max(1, int(page or 1))
-        request_day = max(0, int(day or 0)) + (preview_page - 1)
+        if day is not None:
+            request_day = max(0, int(day)) + (preview_page - 1)
+        else:
+            anchor_day = 0 if base_day is None else max(0, int(base_day))
+            request_day = anchor_day + (preview_page - 1)
         data = {"page": "1", "pagesize": str(cls.update_page_size), "DK": str(request_day)}
         return url, headers, data
 
     @classmethod
-    def resolve_preview_route(cls, keyword: str, *, page: int, mappings: dict | None) -> _Dm5PreviewRoute:
+    def resolve_preview_route(
+        cls,
+        keyword: str,
+        *,
+        page: int,
+        mappings: dict | None,
+        update_base_day: int | None = None,
+    ) -> _Dm5PreviewRoute:
         normalized_keyword = keyword.strip()
         if normalized_keyword in (mappings or {}):
             mapping_value = mappings[normalized_keyword]
             if cls.is_update_mapping(mapping_value):
-                url, headers, data = cls.build_update_request(page=page, day=cls.mapping_update_day(mapping_value))
+                absolute_day = cls.mapping_update_day(mapping_value)
+                url, headers, data = cls.build_update_request(
+                    page=page,
+                    day=absolute_day,
+                    base_day=update_base_day,
+                )
                 return _Dm5PreviewRoute(
                     kind="update",
                     method="POST",
@@ -725,6 +786,7 @@ class Dm5Reqer(_Dm5Contract, Req):
                     data=data,
                     parser_name="parse_update_payload",
                     response_format="json",
+                    parser_kwargs={"absolute_day": absolute_day},
                 )
 
         rank_spec = cls.resolve_rank_search_spec(normalized_keyword, mappings=mappings)
@@ -763,24 +825,64 @@ class Dm5Reqer(_Dm5Contract, Req):
             return False
         return bool(resp.text)
 
+    async def resolve_update_anchor_day(self) -> int:
+        if self._update_anchor_day is not None:
+            return self._update_anchor_day
+        owner = self._require_preview_owner()
+        resp = await self.ensure_preview_client().get(
+            self.update_page, headers=self.ua, follow_redirects=True, timeout=12
+        )
+        resp.raise_for_status()
+        anchor_day = await asyncio.to_thread(owner.parser.parse_update_anchor_day, resp.text)
+        self._update_anchor_day = max(0, int(anchor_day))
+        return self._update_anchor_day
+
     async def preview_search(self, keyword: str, *, page: int = 1):
         owner = self._require_preview_owner()
         owner_type = type(owner)
         site_kw = self.preview_site_kwargs()
         mappings = owner_type.merge_search_mappings(self.mappings, site_kw.get("custom_map"))
         page = max(1, int(page or 1))
-        route = self.resolve_preview_route(keyword, page=page, mappings=mappings)
+        update_base_day = None
+        normalized_keyword = keyword.strip()
+        if normalized_keyword in mappings and self.is_update_mapping(mappings[normalized_keyword]):
+            if self.mapping_update_day(mappings[normalized_keyword]) is None:
+                update_base_day = await self.resolve_update_anchor_day()
+        route = self.resolve_preview_route(
+            keyword, page=page, mappings=mappings, update_base_day=update_base_day
+        )
         request_kw = {"headers": route.headers, "follow_redirects": True, "timeout": 12}
         if route.data is not None:
             request_kw["data"] = route.data
         resp = await self.ensure_preview_client().request(route.method, route.url, **request_kw)
         resp.raise_for_status()
         parser = getattr(owner.parser, route.parser_name)
+        parser_kwargs = {
+            key: value for key, value in dict(route.parser_kwargs or {}).items() if key != "absolute_day"
+        }
         if route.response_format == "json":
             payload = resp.json()
         else:
             payload = resp.text
-        return await asyncio.to_thread(parser, payload, **route.parser_kwargs)
+        books = await asyncio.to_thread(parser, payload, **parser_kwargs)
+        # Rare race: anchor said "today" but API still empty; fall back one day for page 1 only.
+        if (
+            route.kind == "update"
+            and page == 1
+            and not books
+            and route.data is not None
+            and str(route.data.get("DK", "")) == "0"
+            and route.parser_kwargs.get("absolute_day") is None
+        ):
+            retry_url, retry_headers, retry_data = self.build_update_request(page=1, day=1)
+            retry_resp = await self.ensure_preview_client().request(
+                "POST", retry_url, headers=retry_headers, data=retry_data, follow_redirects=True, timeout=12
+            )
+            retry_resp.raise_for_status()
+            books = await asyncio.to_thread(parser, retry_resp.json())
+            if books:
+                self._update_anchor_day = 1
+        return books
 
     async def preview_fetch_episodes(self, book):
         owner = self._require_preview_owner()
@@ -816,6 +918,12 @@ class Dm5Reqer(_Dm5Contract, Req):
 class Dm5Utils(_Dm5Contract, Utils, Previewer):
     parser = Dm5Parser
     reqer_cls = Dm5Reqer
+    # Task-panel cover preload only: cdndm5 TLS often resets under plain httpx.
+    # Image chapter download uses spider/curl path separately and is unaffected.
+    cover_preload_transport = "curl_cffi"
+    cover_preload_proxy_policy = "direct"
+    cover_preload_impersonate = "chrome146"
+    cover_preload_timeout = 12.0
 
     def __init__(self, _conf):
         self.reqer = self.reqer_cls(_conf)

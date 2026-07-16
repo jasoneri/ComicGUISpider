@@ -80,7 +80,7 @@ class _JmContract:
     cover_preload_requires_browser_headers = True
     cover_preload_transport = "curl_cffi"
     cover_preload_proxy_policy = "direct"
-    cover_preload_impersonate = "chrome124"
+    cover_preload_impersonate = "chrome146"
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")

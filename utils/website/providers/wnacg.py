@@ -77,15 +77,15 @@ class _WnacgContract:
     # cover_preload_via_http = False
     browser_referer_mode = "domain_origin"
     cover_preload_transport = "curl_cffi"
-    cover_preload_proxy_policy = "direct"
-    cover_preload_impersonate = "chrome124"
+    cover_preload_proxy_policy = "follow_conf"
+    cover_preload_impersonate = "chrome146"
 
     @dataclass
     class Policy:
         browser_referer_mode = "domain_origin"
         cover_preload_transport = "curl_cffi"
-        cover_preload_proxy_policy = "direct"
-        cover_preload_impersonate = "chrome124"
+        cover_preload_proxy_policy = "follow_conf"
+        cover_preload_impersonate = "chrome146"
 
 
 class WnacgParser(_WnacgContract, Previewer):

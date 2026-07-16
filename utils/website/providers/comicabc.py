@@ -10,6 +10,7 @@ from scrapy import Selector
 
 from assets import res
 from utils.website.core import Previewer, Req, Utils
+from utils.website.core.err import SiteBusinessError
 from utils.website.info import ComicabcBookInfo, Episode
 
 _COMICABC_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -334,12 +335,31 @@ class ComicabcParser(_ComicabcContract, Previewer):
         return [cls.parse_search_item(card, idx=idx, domain=domain) for idx, card in enumerate(cards, start=1)]
 
     @classmethod
+    def _extract_book_title(cls, sel: Selector) -> str:
+        title = cls._clean_text(sel.css(".item_content_box .h2::text").get())
+        if title:
+            return title
+        title = cls._clean_node_text(sel.css(".item_content_box .h2"))
+        if title:
+            return title
+        title = cls._clean_text(sel.css("title::text").get())
+        if not title:
+            return ""
+        for separator in (" 最新漫畫", " 最新漫画", " - 無限動漫", " - 无限动漫", " - 8comic"):
+            if separator in title:
+                title = title.split(separator, 1)[0]
+                break
+        return cls._clean_text(title)
+
+    @classmethod
     def apply_book_fields(cls, book: ComicabcBookInfo, html_text: str, *, domain: str) -> ComicabcBookInfo:
         cls._assert_not_cloudflare_block(html_text, stage="book")
+        if not (html_text or "").strip():
+            raise SiteBusinessError(f"comicabc book page returned empty body: url={book.url}")
         sel = Selector(text=html_text)
-        title = cls._clean_text(sel.css(".item_content_box .h2::text").get())
+        title = cls._extract_book_title(sel)
         if not title:
-            raise ValueError(f"comicabc book page missing title: url={book.url}")
+            raise SiteBusinessError(f"comicabc book page missing title: url={book.url}")
         book.name = title
         aliases = cls._clean_text(sel.css(".item_content_box .h6::text").get())
         if aliases:
@@ -421,9 +441,16 @@ class ComicabcReqer(_ComicabcContract, Req):
             return False
         return True
 
-    async def _fetch_text(self, url: str, *, headers: dict | None = None):
-        resp = await self.ensure_preview_client().get(url, headers=headers or self.headers, follow_redirects=True, timeout=12)
+    async def _fetch_text(self, url: str, *, headers: dict | None = None, stage: str = "page"):
+        request_headers = dict(headers or self.headers)
+        if "Referer" not in request_headers:
+            request_headers["Referer"] = self.index
+        resp = await self.ensure_preview_client().get(
+            url, headers=request_headers, follow_redirects=True, timeout=12
+        )
         resp.raise_for_status()
+        if not (resp.text or "").strip():
+            raise SiteBusinessError(f"comicabc {stage} returned empty body: url={url}")
         return resp
 
     async def preview_search(self, keyword: str, *, page: int = 1):
@@ -433,7 +460,7 @@ class ComicabcReqer(_ComicabcContract, Req):
         custom_map = site_kw.get("custom_map")
         page = max(1, int(page or 1))
         url = self.build_search_url(keyword, domain=domain, custom_map=custom_map, page=page)
-        resp = await self._fetch_text(url)
+        resp = await self._fetch_text(url, stage="list" if self.is_mapped_search_keyword(keyword, custom_map=custom_map) else "search")
         mapped_keyword = self.is_mapped_search_keyword(keyword, custom_map=custom_map)
         parser = owner.parser.parse_list_document if mapped_keyword else owner.parser.parse_search_document
         return await asyncio.to_thread(parser, resp.text, domain=domain)
@@ -441,14 +468,17 @@ class ComicabcReqer(_ComicabcContract, Req):
     async def preview_fetch_episodes(self, book):
         owner = self._require_preview_owner()
         domain = self.preview_site_kwargs().get("domain") or getattr(self, "domain", None) or type(owner).domain
-        resp = await self._fetch_text(book.url)
+        referer = getattr(book, "preview_url", None) or getattr(book, "url", None) or self.index
+        resp = await self._fetch_text(book.url, headers={**self.headers, "Referer": referer}, stage="book")
         parsed = await asyncio.to_thread(owner.parser.parse_book, resp.text, book, domain=domain)
         return parsed.episodes
 
     async def preview_fetch_pages(self, episode) -> list[str]:
         owner = self._require_preview_owner()
         referer = getattr(episode.from_book, "preview_url", None) or getattr(episode.from_book, "url", None) or self.index
-        resp = await self._fetch_text(episode.url, headers={**self.headers, "Referer": referer})
+        resp = await self._fetch_text(
+            episode.url, headers={**self.headers, "Referer": referer}, stage="section"
+        )
         urls = await asyncio.to_thread(owner.parser.parse_page_urls_from_html, resp.text, section_url=str(resp.url))
         episode.pages = len(urls)
         episode.page_urls = list(urls)
