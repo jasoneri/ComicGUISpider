@@ -6,22 +6,20 @@ import typing as t
 from PySide6.QtCore import QItemSelectionModel, QSize, Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QAbstractItemView, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QSizePolicy,
+    QAbstractItemView, QFrame, QHBoxLayout, QHeaderView, QSizePolicy,
     QTableWidgetItem, QTreeWidgetItem, QVBoxLayout, QWidget,
 )
-from shiboken6 import isValid as qt_object_is_valid
 from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
-    ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition, LineEdit, PrimaryToolButton,
-    StrongBodyLabel, TableWidget, TeachingTipTailPosition, TogglePushButton, ToolButton,
-    TransparentToolButton, TreeWidget, setCustomStyleSheet,
+    FluentIcon as FIF, InfoBar, InfoBarPosition, PrimaryToolButton,
+    StrongBodyLabel, TableWidget, ToolButton, TransparentToolButton, TreeWidget, setCustomStyleSheet,
 )
 
-from GUI.uic.qfluent.components import AcceptEdit, CustomTeachingTip
-from GUI.uic.qfluent.components.icons import CgsIcon
+from GUI.uic.qfluent.components import AcceptEdit
 from utils.config.qc import danbooru_cfg
 
 from .favorite_groups import FavoriteGroupsState, RESERVED_GROUP_NAMES, TagGroup
+from .favorite_translate import FavoriteTagTranslateDialogSession
 from .style import build_favorites_tree_item_stylesheet
 
 _ROLE_DATA = Qt.UserRole
@@ -206,53 +204,6 @@ class FavTagRow(_SelectableTreeRow):
         self.sync_height()
 
 
-class GroupChoicePanel(QWidget):
-    COLUMNS = 3
-    selection_changed = Signal(list)
-
-    def __init__(self, group_names: list[str], selected_names: set[str], parent=None):
-        super().__init__(parent)
-        self.group_buttons: dict[str, TogglePushButton] = {}
-        self.setMinimumWidth(360)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-        grid_host = QWidget(self)
-        grid = QGridLayout(grid_host)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(6)
-        grid.setVerticalSpacing(6)
-        for offset, group_name in enumerate(group_names):
-            button = TogglePushButton(self)
-            button.setText(group_name)
-            button.setToolTip(group_name)
-            button.setCheckable(True)
-            button.setChecked(group_name in selected_names)
-            button.setMinimumWidth(100)
-            button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            button.toggled.connect(lambda *_args: self._emit_selection_changed())
-            grid.addWidget(button, offset // self.COLUMNS, offset % self.COLUMNS)
-            self.group_buttons[group_name] = button
-        layout.addWidget(grid_host)
-
-    def selected_group_names(self) -> list[str]:
-        return [name for name, button in self.group_buttons.items() if button.isChecked()]
-
-    def all_groups_selected(self) -> bool:
-        return bool(self.group_buttons) and all(
-            button.isChecked()
-            for button in self.group_buttons.values()
-        )
-
-    def set_all_groups_selected(self, selected: bool):
-        for button in self.group_buttons.values():
-            button.setChecked(selected)
-        self._emit_selection_changed()
-
-    def _emit_selection_changed(self):
-        self.selection_changed.emit(self.selected_group_names())
-
-
 class DanbooruFavoriteManagerDialog(FramelessDialog):
     def __init__(self, groups_state: FavoriteGroupsState, parent=None):
         super().__init__(parent)
@@ -262,14 +213,10 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         self._custom_selection_anchor: QTreeWidgetItem | None = None
         self._groups_state = groups_state
         self._current_group = self._groups_state.ensure_custom_group()
-        self._translate_cache: dict[str, str] = dict(danbooru_cfg.get_translate_map())
-        self._active_translate_groups: set[str] = set(self._groups_state.group_names())
-        self._group_choice_tip = None
-        self._translate_running = False
-        self._active_editor_origin: str | None = None
         self.setupUi(self)
+        self.translate_session = FavoriteTagTranslateDialogSession(self)
+        self.translate_session.install_into_dialog()
         self._configure_tables()
-        self._sync_translate_entry_visibility()
         self.refresh_view()
 
     def setupUi(self, dialog):
@@ -336,42 +283,6 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         self.custom_title = StrongBodyLabel("自定义区", self.custom_frame)
         self.titleHeadRow.addWidget(self.custom_title)
         self.titleHeadRow.addStretch(1)
-        self.translateBtnGroup = QWidget(self.custom_frame)
-        self.translateBtnGroupLayout = QHBoxLayout(self.translateBtnGroup)
-        self.translateBtnGroupLayout.setContentsMargins(0, 0, 0, 0)
-        self.translateBtnGroupLayout.setSpacing(6)
-        self.translateBtn = TransparentToolButton(CgsIcon.SCRIPT_TRANSLATE_AI, self.translateBtnGroup)
-        self.translateBtn.setToolTip("展开标签翻译")
-        self.translateBtn.clicked.connect(self._expand_translate_controls)
-        self.groupSelectBtn = ToolButton(FIF.MENU, self.translateBtnGroup)
-        self.groupSelectBtn.setToolTip("选择要翻译的收藏组")
-        self.groupSelectBtn.clicked.connect(self._show_group_choice_tip)
-        self.groupSelectBtn.hide()
-        self.searchSiteBox = ComboBox(self.translateBtnGroup)
-        # Danbooru wiki is always collected; selected engine enriches (no static series maps).
-        self.searchSiteBox.addItem("Danbooru Wiki", userData="danbooru")
-        self.searchSiteBox.addItem("萌娘百科", userData="moegirl")
-        self.searchSiteBox.addItem("百度", userData="baidu")
-        self.searchSiteBox.addItem("Google", userData="google")
-        self.searchSiteBox.addItem("Bing", userData="bing")
-        self.searchSiteBox.setMinimumWidth(108)
-        self.searchSiteBox.hide()
-        self.languageBox = ComboBox(self.translateBtnGroup)
-        self.languageBox.addItem("中文", userData="zh")
-        self.languageBox.addItem("日本語", userData="ja")
-        self.languageBox.setMinimumWidth(88)
-        self.languageBox.hide()
-        self.runTranslateBtn = PrimaryToolButton(CgsIcon.SCRIPT_RUN, self.translateBtnGroup)
-        self.runTranslateBtn.setToolTip("开始翻译")
-        self.runTranslateBtn.clicked.connect(self._run_translate)
-        self.runTranslateBtn.hide()
-        self.translateBtnGroupLayout.addWidget(self.translateBtn)
-        self.translateBtnGroupLayout.addWidget(self.groupSelectBtn)
-        self.translateBtnGroupLayout.addWidget(self.searchSiteBox)
-        self.translateBtnGroupLayout.addWidget(self.languageBox)
-        self.translateBtnGroupLayout.addWidget(self.runTranslateBtn)
-        self.translateBtnGroup.hide()
-        self.titleHeadRow.addWidget(self.translateBtnGroup)
         self.headRow = QHBoxLayout()
         self.headRow.setContentsMargins(0, 0, 0, 0)
         self.headRow.setSpacing(8)
@@ -391,21 +302,6 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         self.translateEditRow = QHBoxLayout()
         self.translateEditRow.setContentsMargins(0, 0, 0, 0)
         self.translateEditRow.setSpacing(6)
-        self.oriTagStrongLabel = StrongBodyLabel("origin:", self.custom_frame)
-        self.oriTagLabel = StrongBodyLabel("-", self.custom_frame)
-        self.oriTagLabel.setMinimumWidth(120)
-        self.translatedTagLabel = StrongBodyLabel("display:", self.custom_frame)
-        self.translatedTagInput = LineEdit(self.custom_frame)
-        self.translatedTagInput.setClearButtonEnabled(True)
-        self.translatedTagInput.setPlaceholderText("显示名")
-        self.translateSvBtn = ToolButton(CgsIcon.SCRIPT_GENERATE, self.custom_frame)
-        self.translateSvBtn.setToolTip("保存当前显示名到缓存")
-        self.translateSvBtn.clicked.connect(self._save_active_translation)
-        self.translateEditRow.addWidget(self.oriTagStrongLabel)
-        self.translateEditRow.addWidget(self.oriTagLabel, 1)
-        self.translateEditRow.addWidget(self.translatedTagLabel)
-        self.translateEditRow.addWidget(self.translatedTagInput, 1)
-        self.translateEditRow.addWidget(self.translateSvBtn)
         self.custom_layout.addLayout(self.titleHeadRow)
         self.custom_layout.addLayout(self.headRow)
         self.custom_layout.addWidget(self.custom_tree, 1)
@@ -448,349 +344,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         tree_item_qss = build_favorites_tree_item_stylesheet()
         setCustomStyleSheet(self.custom_tree, tree_item_qss, tree_item_qss)
         self.custom_tree.itemSelectionChanged.connect(self._handle_custom_selection_changed)
-        self._clear_translate_editor()
-
-    def _display_tag(self, origin: str) -> str:
-        canonical = danbooru_cfg.canonicalize_term(origin)
-        if not canonical:
-            return ""
-        return self._translate_cache.get(canonical) or canonical
-
-    def _drop_translate_cache_keys(self, tags: t.Iterable[str], *, force: bool = False):
-        living_tags = set() if force else self._groups_state.all_terms()
-        dropped: list[str] = []
-        for raw_tag in tags:
-            canonical = danbooru_cfg.canonicalize_term(str(raw_tag))
-            if not canonical:
-                continue
-            if force or canonical not in living_tags:
-                self._translate_cache.pop(canonical, None)
-                dropped.append(canonical)
-        if dropped:
-            # Keep disk map aligned with background-persist UX (do not wait for FavMgr accept).
-            danbooru_cfg.drop_translate_keys(dropped)
-
-    def _sync_translate_entry_visibility(self):
-        from utils.script.ai.kernel import AiProviderMgr
-
-        configured = AiProviderMgr().is_configured()
-        self.translateBtnGroup.setVisible(configured)
-        if not configured:
-            self.translateBtn.show()
-            self.groupSelectBtn.hide()
-            self.searchSiteBox.hide()
-            self.languageBox.hide()
-            self.runTranslateBtn.hide()
-            if self._group_choice_tip is not None:
-                self._group_choice_tip.close()
-                self._group_choice_tip = None
-
-    def _expand_translate_controls(self):
-        self.translateBtn.hide()
-        self.groupSelectBtn.show()
-        self.searchSiteBox.show()
-        self.languageBox.show()
-        self.runTranslateBtn.show()
-        available = set(self._groups_state.group_names())
-        if not self._active_translate_groups:
-            self._active_translate_groups = set(available)
-        else:
-            self._active_translate_groups &= available
-            if not self._active_translate_groups:
-                self._active_translate_groups = set(available)
-
-    def _apply_translate_group_selection(self, selected_names: t.Iterable[str], *, fallback_all: bool = False):
-        available = set(self._groups_state.group_names())
-        selected = {
-            name
-            for raw_name in selected_names
-            if (name := str(raw_name or "").strip()) and name in available
-        }
-        if selected:
-            self._active_translate_groups = selected
-            return selected
-        if fallback_all:
-            self._active_translate_groups = set(available)
-            return set(available)
-        # Empty selection is valid: runTranslate will warn "no tags".
-        self._active_translate_groups = set()
-        return set()
-
-    def _sync_translate_groups_from_open_tip(self):
-        """Flush live panel toggles even if tip is still open when run is clicked."""
-        tip = self._group_choice_tip
-        if tip is None or not qt_object_is_valid(tip):
-            return
-        panel = getattr(tip, "_translate_group_panel", None)
-        if panel is None or not qt_object_is_valid(panel):
-            return
-        self._apply_translate_group_selection(panel.selected_group_names(), fallback_all=False)
-
-    def _show_group_choice_tip(self):
-        if self._group_choice_tip is not None:
-            self._group_choice_tip.close()
-            self._group_choice_tip = None
-        group_names = self._groups_state.group_names()
-        if not group_names:
-            return InfoBar.warning(
-                title="", content="暂无自定义收藏组",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=2500, parent=self,
-            )
-        selected = set(self._active_translate_groups) & set(group_names)
-        if not selected:
-            selected = set(group_names)
-            self._active_translate_groups = set(selected)
-        panel = GroupChoicePanel(group_names, selected, self)
-        select_all_button = TransparentToolButton(FIF.CHECKBOX, self)
-        select_all_button.clicked.connect(lambda: panel.set_all_groups_selected(not panel.all_groups_selected()))
-        tip = CustomTeachingTip.create(
-            [panel],
-            target=self.groupSelectBtn,
-            parent=self,
-            closeButtonBelows=(select_all_button,),
-            tailPosition=TeachingTipTailPosition.BOTTOM,
-        )
-        tip._translate_group_panel = panel  # type: ignore[attr-defined]
-        self._group_choice_tip = tip
-        tip.destroyed.connect(lambda *_args, current=tip: self._clear_group_choice_tip(current))
-
-        def on_selection_changed(names: list[str]):
-            self._apply_translate_group_selection(names, fallback_all=False)
-
-        def on_closed():
-            # Last flush when tip closes; keep empty selection if user cleared all.
-            if qt_object_is_valid(panel):
-                self._apply_translate_group_selection(panel.selected_group_names(), fallback_all=False)
-
-        panel.selection_changed.connect(on_selection_changed)
-        tip.destroyed.connect(lambda *_args: on_closed())
-
-    def _clear_group_choice_tip(self, tip):
-        if self._group_choice_tip is tip:
-            self._group_choice_tip = None
-
-    def _clear_translate_editor(self):
-        self._active_editor_origin = None
-        self.oriTagLabel.setText("-")
-        self.translatedTagInput.setText("")
-
-    def _bind_translate_editor(self, origin: str | None):
-        canonical = danbooru_cfg.canonicalize_term(origin or "")
-        if not canonical:
-            self._clear_translate_editor()
-            return
-        self._active_editor_origin = canonical
-        self.oriTagLabel.setText(canonical)
-        self.translatedTagInput.setText(self._translate_cache.get(canonical, ""))
-
-    def _save_active_translation(self):
-        origin = self._active_editor_origin
-        if not origin:
-            return InfoBar.warning(
-                title="", content="请先选中自定义区中的标签",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=2500, parent=self,
-            )
-        translated = danbooru_cfg.canonicalize_term(self.translatedTagInput.text())
-        if translated:
-            self._translate_cache[origin] = translated
-            danbooru_cfg.merge_translate_map({origin: translated})
-        else:
-            self._translate_cache.pop(origin, None)
-            danbooru_cfg.drop_translate_keys([origin])
-        self._apply_translate_cache_to_tree({origin: self._display_tag(origin)})
-        InfoBar.success(
-            title="", content="已保存显示名",
-            orient=Qt.Horizontal, isClosable=True,
-            position=InfoBarPosition.TOP, duration=1800, parent=self,
-        )
-
-    def _apply_translate_cache_to_tree(self, origins: dict[str, str] | None = None):
-        display_map = origins
-        for group_index in range(self.custom_tree.topLevelItemCount()):
-            group_item = self.custom_tree.topLevelItem(group_index)
-            for child_index in range(group_item.childCount()):
-                tag_item = group_item.child(child_index)
-                meta = self._item_meta(tag_item)
-                if meta.get("kind") != "tag":
-                    continue
-                origin = meta.get("tag", "")
-                if not origin:
-                    continue
-                if display_map is not None and origin not in display_map:
-                    continue
-                row = self.custom_tree.itemWidget(tag_item, 0)
-                if isinstance(row, FavTagRow):
-                    text = display_map[origin] if display_map is not None else self._display_tag(origin)
-                    row.set_display_text(text)
-                    tag_item.setSizeHint(0, QSize(0, row.height()))
-
-    def _snapshot_translate_tags(self) -> list[str]:
-        # Never silently expand to all groups: empty selection means empty job.
-        selected_groups = set(self._active_translate_groups)
-        if not selected_groups:
-            return []
-        tags: list[str] = []
-        seen: set[str] = set()
-        for group in self._groups_state.custom_groups:
-            if group.name not in selected_groups:
-                continue
-            for tag in group.tags:
-                canonical = danbooru_cfg.canonicalize_term(tag)
-                if not canonical or canonical in seen:
-                    continue
-                seen.add(canonical)
-                tags.append(canonical)
-        return tags
-
-    def _existing_translated_origins(self) -> set[str]:
-        """Origins that already have a non-empty display name (disk map ∪ dialog cache)."""
-        # Refresh local cache from disk so re-runs after background merge stay accurate.
-        self._translate_cache.update(danbooru_cfg.get_translate_map())
-        existing: set[str] = set()
-        merged = dict(danbooru_cfg.get_translate_map())
-        merged.update(self._translate_cache)
-        for raw_origin, raw_translated in merged.items():
-            origin = danbooru_cfg.canonicalize_term(str(raw_origin))
-            translated = danbooru_cfg.canonicalize_term(str(raw_translated))
-            if origin and translated:
-                existing.add(origin)
-        return existing
-
-    def _pending_translate_tags(self, snapshot_tags: list[str]) -> tuple[list[str], int]:
-        """
-        Freeze snapshot first, then set-difference away already-translated origins.
-        Returns (pending_ordered, skipped_already_count).
-        """
-        snapshot_ordered: list[str] = []
-        seen: set[str] = set()
-        for raw_tag in snapshot_tags:
-            canonical = danbooru_cfg.canonicalize_term(raw_tag)
-            if not canonical or canonical in seen:
-                continue
-            seen.add(canonical)
-            snapshot_ordered.append(canonical)
-        snapshot_set = set(snapshot_ordered)
-        already_translated = self._existing_translated_origins()
-        pending_set = snapshot_set - already_translated
-        pending_ordered = [tag for tag in snapshot_ordered if tag in pending_set]
-        skipped_already = len(snapshot_ordered) - len(pending_ordered)
-        return pending_ordered, skipped_already
-
-    def _run_translate(self):
-        if self._translate_running:
-            return InfoBar.warning(
-                title="", content="翻译任务进行中",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=2500, parent=self,
-            )
-        self._sync_translate_groups_from_open_tip()
-        selected_groups = sorted(self._active_translate_groups)
-        snapshot_tags = self._snapshot_translate_tags()
-        if not selected_groups:
-            return InfoBar.warning(
-                title="", content="请先用组选择按钮勾选至少一个收藏组",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=3000, parent=self,
-            )
-        if not snapshot_tags:
-            return InfoBar.warning(
-                title="", content=f"所选组无标签: {', '.join(selected_groups)}",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=3000, parent=self,
-            )
-        # Same-group re-run: freeze snapshot, then exclude origins already in FavoritesTranslateMap.
-        tags, skipped_already = self._pending_translate_tags(snapshot_tags)
-        if not tags:
-            return InfoBar.info(
-                title="",
-                content=(
-                    f"所选组共 {len(snapshot_tags)} 个标签均已有译文，已跳过（跳过 {skipped_already}）"
-                ),
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP, duration=3500, parent=self,
-            )
-        interface = self.parent()
-        begin = getattr(interface, "begin_favorite_tag_translate", None)
-        if not callable(begin):
-            return InfoBar.error(
-                title="", content="当前界面不支持翻译任务",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=3500, parent=self,
-            )
-        engine = self.searchSiteBox.currentData() or "danbooru"
-        language = self.languageBox.currentData() or "zh"
-
-        def on_success(result):
-            # Persistence already done by DanbooruInterface; only refresh UI if dialog still alive.
-            if not qt_object_is_valid(self):
-                return
-            self._translate_running = False
-            self.runTranslateBtn.setEnabled(True)
-            translations = getattr(result, "translations", None) or {}
-            for origin, translated in translations.items():
-                canonical = danbooru_cfg.canonicalize_term(origin)
-                display = danbooru_cfg.canonicalize_term(translated)
-                if canonical and display:
-                    self._translate_cache[canonical] = display
-            self._translate_cache.update(danbooru_cfg.get_translate_map())
-            self._apply_translate_cache_to_tree()
-            if self._active_editor_origin:
-                self._bind_translate_editor(self._active_editor_origin)
-
-        def on_error(message: str):
-            # Error toast is shown on DanbooruInterface; keep dialog controls usable if still open.
-            _ = message
-            if not qt_object_is_valid(self):
-                return
-            self._translate_running = False
-            self.runTranslateBtn.setEnabled(True)
-
-        self._translate_running = True
-        self.runTranslateBtn.setEnabled(False)
-        total_tags = len(tags)
-        try:
-            started = begin(
-                tags,
-                engine=str(engine),
-                language=str(language),
-                success_callback=on_success,
-                error_callback=on_error,
-            )
-        except Exception as exc:
-            self._translate_running = False
-            self.runTranslateBtn.setEnabled(True)
-            return InfoBar.error(
-                title="", content=f"翻译启动失败: {exc}",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=5000, parent=self,
-            )
-        if not started:
-            self._translate_running = False
-            self.runTranslateBtn.setEnabled(True)
-            return InfoBar.warning(
-                title="", content="翻译任务未能启动（可能已在运行）",
-                orient=Qt.Horizontal, isClosable=True,
-                position=InfoBarPosition.TOP, duration=2500, parent=self,
-            )
-        group_preview = ", ".join(selected_groups)
-        if len(group_preview) > 30:
-            group_preview = f"{group_preview} …"
-        content = (
-            f"已提交翻译任务: {len(selected_groups)} 组（{group_preview}），"
-            f"待译 {total_tags}/{len(snapshot_tags)}"
-        )
-        if skipped_already:
-            content = f"{content}（已跳过已有译文 {skipped_already}）"
-        InfoBar.info(
-            title="",
-            content=content,
-            orient=Qt.Horizontal,
-            isClosable=True,
-            position=InfoBarPosition.TOP,
-            duration=4000,
-            parent=self,
-        )
+        self.translate_session.clear_editor()
 
     def _apply_groups_change(self, change: t.Callable[[], None]):
         try:
@@ -799,8 +353,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             return InfoBar.error(
                 title="", content=str(exc), orient=Qt.Horizontal, isClosable=True, 
                 position=InfoBarPosition.TOP, duration=3500, parent=self)
-        available = set(self._groups_state.group_names())
-        self._active_translate_groups = (self._active_translate_groups & available) or set(available)
+        self.translate_session.on_groups_changed()
         self.refresh_view()
 
     def _delete_selected_default_tags(self):
@@ -817,7 +370,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             self._groups_state.set_default_tags(
                 current for current in self._groups_state.default_tags if current not in selected
             )
-            self._drop_translate_cache_keys(tags)
+            self.translate_session.drop_cache_keys(tags)
 
         self._apply_groups_change(change)
 
@@ -836,7 +389,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
                     remaining_groups.append(group)
                 self._groups_state.custom_groups = remaining_groups
                 self._groups_state.ensure_custom_group()
-                self._drop_translate_cache_keys(removed_tags)
+                self.translate_session.drop_cache_keys(removed_tags)
                 if self._editing_group in selected_group_set:
                     self._editing_group = None
                 if (
@@ -860,13 +413,13 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         def change_tags():
             group = self._groups_state.group(group_name)
             group.set_tags(current for current in group.tags if current not in selected)
-            self._drop_translate_cache_keys(tags)
+            self.translate_session.drop_cache_keys(tags)
             self._current_group = group.name
-            active_origin = self._active_editor_origin
+            active_origin = self.translate_session.active_editor_origin
             if active_origin and any(
                 danbooru_cfg.canonicalize_term(tag) == active_origin for tag in tags
             ):
-                self._clear_translate_editor()
+                self.translate_session.clear_editor()
 
         self._apply_groups_change(change_tags)
 
@@ -1037,7 +590,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
                         group.name,
                         tag,
                         self.custom_tree,
-                        display_text=self._display_tag(tag),
+                        display_text=self.translate_session.display_tag(tag),
                     )
                     tag_item = _tree_item(
                         {"kind": "tag", "group": group.name, "tag": tag},
@@ -1070,10 +623,10 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             select_group_item(self._current_group, preserve_scroll=True, scroll_hint=pre_scroll)
             self._custom_selection_anchor = self.custom_tree.currentItem()
         self._update_move_buttons()
-        if self._active_editor_origin and self._active_editor_origin not in self._groups_state.all_terms():
-            self._clear_translate_editor()
-        elif self._active_editor_origin:
-            self._bind_translate_editor(self._active_editor_origin)
+        if self.translate_session.active_editor_origin and self.translate_session.active_editor_origin not in self._groups_state.all_terms():
+            self.translate_session.clear_editor()
+        elif self.translate_session.active_editor_origin:
+            self.translate_session.bind_editor(self.translate_session.active_editor_origin)
 
     def _selected_default_rows(self) -> list[int]:
         selection_model = self.default_table.selectionModel()
@@ -1147,7 +700,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
             return
         selected_items = self.custom_tree.selectedItems()
         if not selected_items:
-            self._clear_translate_editor()
+            self.translate_session.clear_editor()
             self._update_move_buttons()
             return
         current_item = self.custom_tree.currentItem() or selected_items[-1]
@@ -1184,9 +737,9 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         self._current_group = target_group
         self.curr_group_label.setText(target_group)
         if current_kind == "tag":
-            self._bind_translate_editor(current_meta.get("tag"))
+            self.translate_session.bind_editor(current_meta.get("tag"))
         else:
-            self._clear_translate_editor()
+            self.translate_session.clear_editor()
         self._update_move_buttons()
 
     def _create_group(self):
@@ -1255,13 +808,7 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
         self._apply_groups_change(change)
 
     def _accept_changes(self):
-        living_tags = self._groups_state.all_terms()
-        pruned = {
-            origin: translated
-            for origin, translated in self._translate_cache.items()
-            if origin in living_tags
-        }
-        self._translate_cache = pruned
+        pruned = self.translate_session.prune_to_living()
         danbooru_cfg.save_translate_map(pruned)
         self.accept()
 
@@ -1271,4 +818,4 @@ class DanbooruFavoriteManagerDialog(FramelessDialog):
 
     @property
     def translate_cache(self) -> dict[str, str]:
-        return dict(self._translate_cache)
+        return dict(self.translate_session.cache)

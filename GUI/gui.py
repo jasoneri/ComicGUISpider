@@ -319,17 +319,27 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         from GUI.script import ScriptWindow
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
-        self.hide()
+        # Keep main window visible until ScriptWindow is ready: import/construct can block the
+        # GUI thread for seconds; hide-first looks like a total freeze with only a taskbar ghost.
         self.script_window = ScriptWindow(
             self,
             script_entry_state=script_entry_state,
             feedback_dispatcher=self.exception_feedback_dispatcher,
         )
         self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
-        setupTheme(self.script_window.kemonoInterface)
         if pure_only:
             self.script_window.apply_pure_entry_mode()
+        if self.script_window.kemonoInterface is not None:
+            setupTheme(self.script_window.kemonoInterface)
         self.script_window.show()
+        self.script_window.raise_()
+        self.script_window.activateWindow()
+        self.hide()
+        self.log.info(
+            f"[ScriptWindow] shown geometry=[{self.script_window.x()}, {self.script_window.y()}, "
+            f"{self.script_window.width()}, {self.script_window.height()}] "
+            f"mounted={sorted(self.script_window._mounted_keys)}"
+        )
 
     @property
     def server_mode_switch_requested(self) -> bool:

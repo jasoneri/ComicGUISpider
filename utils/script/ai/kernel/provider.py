@@ -16,48 +16,58 @@ class AiProvider:
         return self.url is not None and self.key is not None and self.model is not None
 
 
-def _blank_to_none(value: object) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text if text else None
+class AiProviderMgr:
+    """Owns AI provider config state loaded from script conf / mapping."""
 
+    def __init__(self, config: object | None = None):
+        self.provider = self._parse(config)
 
-def normalize_provider_fields(
-    *,
-    url: object = None,
-    key: object = None,
-    model: object = None,
-) -> dict[str, str | None]:
-    return {
-        "url": _blank_to_none(url),
-        "key": _blank_to_none(key),
-        "model": _blank_to_none(model),
-    }
+    @staticmethod
+    def _blank_to_none(value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text if text else None
 
-
-def load_ai_provider(config: object | None = None) -> AiProvider:
-    root = config if isinstance(config, dict) else (getattr(script_conf, "ai", None) or {})
-    provider_payload = root.get("provider") if isinstance(root, dict) else {}
-    if not isinstance(provider_payload, dict):
-        provider_payload = {}
-    normalized = normalize_provider_fields(
-        url=provider_payload.get("url"),
-        key=provider_payload.get("key"),
-        model=provider_payload.get("model"),
-    )
-    return AiProvider(**normalized)
-
-
-def is_ai_provider_configured(config: object | None = None) -> bool:
-    return load_ai_provider(config).is_configured()
-
-
-def provider_to_payload(provider: AiProvider) -> dict[str, t.Any]:
-    return {
-        "provider": {
-            "url": provider.url,
-            "key": provider.key,
-            "model": provider.model,
+    @classmethod
+    def normalize_fields(
+        cls,
+        *,
+        url: object = None,
+        key: object = None,
+        model: object = None,
+    ) -> dict[str, str | None]:
+        return {
+            "url": cls._blank_to_none(url),
+            "key": cls._blank_to_none(key),
+            "model": cls._blank_to_none(model),
         }
-    }
+
+    @classmethod
+    def _parse(cls, config: object | None = None) -> AiProvider:
+        root = config if isinstance(config, dict) else (getattr(script_conf, "ai", None) or {})
+        provider_payload = root.get("provider") if isinstance(root, dict) else {}
+        if not isinstance(provider_payload, dict):
+            provider_payload = {}
+        normalized = cls.normalize_fields(
+            url=provider_payload.get("url"),
+            key=provider_payload.get("key"),
+            model=provider_payload.get("model"),
+        )
+        return AiProvider(**normalized)
+
+    def reload(self, config: object | None = None) -> AiProvider:
+        self.provider = self._parse(config)
+        return self.provider
+
+    def is_configured(self) -> bool:
+        return self.provider.is_configured()
+
+    def to_payload(self) -> dict[str, t.Any]:
+        return {
+            "provider": {
+                "url": self.provider.url,
+                "key": self.provider.key,
+                "model": self.provider.model,
+            }
+        }

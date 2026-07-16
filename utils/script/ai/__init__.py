@@ -5,18 +5,12 @@ Domain capabilities import from ``utils.script.ai.capabilities.<name>``.
 
 from .kernel import (
     AiProvider,
+    AiProviderMgr,
     OpenAiCompatClient,
-    is_ai_provider_configured,
-    load_ai_provider,
-    normalize_provider_fields,
-    provider_to_payload,
 )
 
 __all__ = [
     "AiProvider",
+    "AiProviderMgr",
     "OpenAiCompatClient",
-    "is_ai_provider_configured",
-    "load_ai_provider",
-    "normalize_provider_fields",
-    "provider_to_payload",
 ]
