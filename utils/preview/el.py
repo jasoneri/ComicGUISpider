@@ -17,7 +17,7 @@ class ElMinix:
                 badges_kw[key] = value
         return cls.create(
             getattr(book, "idx", ""),
-            getattr(book, "img_preview", None) or "",
+            getattr(book, "preview_img_src", None) or getattr(book, "img_preview", None) or "",
             getattr(book, "name", "") or "-",
             getattr(book, "preview_url", None) or getattr(book, "url", "") or "",
             extra_info=extra_info,

@@ -156,7 +156,12 @@ class PreviewWorker(QThread):
                                 self.thread_site_runtime.download_cover_bytes(tasks_obj, browser_headers=headers)
                             )
                         except Exception as exc:
-                            self.cover_error.emit(self._generation, tid, f"任务执行 > {exc}\n{traceback.format_exc()}")
+                            # Keep cover failures off the main crawl error channel: no full traceback dump.
+                            cover_url = getattr(tasks_obj, "cover_url", None) or ""
+                            self.cover_error.emit(
+                                self._generation, tid,
+                                f"{type(exc).__name__}: {exc}; cover_url={cover_url}",
+                            )
                         else:
                             self.cover_done.emit(self._generation, tid, data)
         finally:

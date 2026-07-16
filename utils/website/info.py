@@ -202,6 +202,7 @@ class HComicBookInfo(Ero):
 class JComicBookInfo(Ero):
     source = "jcomic"
     page_links: list = None
+    preview_img_src: str = None
 
 
 class NhentaiBookInfo(Ero):

@@ -959,7 +959,16 @@ class TaskProgressManager:
         self._cover_preloads_inflight.discard(task_id)
         if generation != self.gui.preview_mgr._generation:
             return
-        self.gui.log.error(error)
+        # Cover preload is best-effort UI decoration; never treat as crawl failure.
+        cover_url = ""
+        entry = self._entries.get(task_id)
+        if entry is not None:
+            cover_url = str(getattr(entry.tasks_obj, "cover_url", "") or "")
+        self.gui.log.warning(
+            "task cover preload skipped task_id={} cover_url={} detail={}",
+            task_id, cover_url or "-",
+            (error or "").strip().splitlines()[0] if error else "unknown",
+        )
 
     def zero_task_state(self):
         completed_task_ids = [task_id for task_id, entry in self._entries.items() if entry.progress.completed]

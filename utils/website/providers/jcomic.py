@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import re
+from pathlib import Path
 from urllib.parse import quote
 
 import httpx
 from scrapy import Selector
 
 from assets import res
+from utils import temp_p
 from utils.website.core import EroUtils, Previewer, Req
 from utils.website.info import JComicBookInfo
 
@@ -20,6 +22,7 @@ class _JComicContract:
     domain = "jcomic.net"
     index = "https://jcomic.net"
     proxy_policy = "proxy"
+    browser_referer_mode = "provider_index"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -40,6 +43,19 @@ class _JComicContract:
     uuid_regex = re.compile(r"/(?:eps|page)/([^/?#]+)")
     page_count_regex = re.compile(r"\((\d+)\)\s*$")
     book_url_regex = r"^https://jcomic\.net/(?:eps|page)/.+"
+    image_url_host_markers = (
+        "images.jcomic.net",
+        "jcomic-content",
+        "cloudflarestorage.com",
+    )
+
+    @classmethod
+    def _is_comic_image_url(cls, value: str) -> bool:
+        candidate = str(value or "").strip()
+        if not candidate.lower().startswith(("http://", "https://")):
+            return False
+        lowered = candidate.casefold()
+        return any(marker in lowered for marker in cls.image_url_host_markers)
 
 
 class JComicParser(_JComicContract, Previewer):
@@ -150,7 +166,7 @@ class JComicParser(_JComicContract, Previewer):
         doc = cls._selector(html_text)
         image_srcs = doc.xpath("//div[contains(@class, 'container')]//img[contains(@class, 'comic-thumb')]/@src").getall()
         urls = [url.strip() for url in image_srcs if url.strip()]
-        urls = [url for url in urls if "jcomic-content" in url or "cloudflarestorage.com" in url]
+        urls = [url for url in urls if cls._is_comic_image_url(url)]
         if not urls:
             raise JComicParseError("jcomic 图片页未解析到图片 URL")
         return urls
@@ -182,9 +198,43 @@ class JComicReqer(_JComicContract, Req):
         site_kw = self.preview_site_kwargs()
         domain = site_kw.get("domain") or getattr(self, "domain", None) or type(owner).domain
         url = owner.parser.build_search_url(keyword, page=page, domain=domain, mappings=site_kw.get("custom_map"))
-        resp = await self.ensure_preview_client().get(url, headers=self.headers, follow_redirects=True, timeout=12)
+        preview_client = self.ensure_preview_client()
+        resp = await preview_client.get(url, headers=self.headers, follow_redirects=True, timeout=12)
         resp.raise_for_status()
-        return await asyncio.to_thread(owner.parser.parse_preview_books, resp.text, domain=domain)
+        books = await asyncio.to_thread(owner.parser.parse_preview_books, resp.text, domain=domain)
+        await self._cache_preview_covers(books, preview_client=preview_client, referer_url=str(resp.url))
+        return books
+
+    async def _cache_preview_covers(self, books, *, preview_client: httpx.AsyncClient, referer_url: str) -> None:
+        cache_root = temp_p.joinpath("jcomic_preview_covers")
+        cache_root.mkdir(parents=True, exist_ok=True)
+        request_headers = dict(self.headers)
+        request_headers["Referer"] = referer_url
+        concurrency_limit = asyncio.Semaphore(6)
+
+        async def cache_cover(book) -> None:
+            cover_url = str(book.img_preview or "").strip()
+            if not cover_url:
+                raise JComicParseError(f"jcomic 作品 {book.id!r} 缺少预览封面")
+            async with concurrency_limit:
+                response = await preview_client.get(
+                    cover_url,
+                    headers=request_headers,
+                    follow_redirects=True,
+                    timeout=12,
+                )
+                response.raise_for_status()
+            content_type = str(response.headers.get("content-type") or "").casefold()
+            if not content_type.startswith("image/"):
+                raise JComicParseError(
+                    f"jcomic 封面响应不是图片: content_type={content_type!r}, url={cover_url}"
+                )
+            suffix = Path(httpx.URL(cover_url).path).suffix.casefold() or ".jpg"
+            cover_path = cache_root.joinpath(f"{book.u_md5}{suffix}")
+            await asyncio.to_thread(cover_path.write_bytes, response.content)
+            book.preview_img_src = cover_path.resolve().as_uri()
+
+        await asyncio.gather(*(cache_cover(book) for book in books))
 
     async def preview_fetch_episodes(self, book):
         return [book]
