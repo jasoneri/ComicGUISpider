@@ -1,18 +1,18 @@
-const copySiteAvatarSrc = new URL('../../../assets/img/icons/website/copy.png', import.meta.url).href
-const ehentaiSiteAvatarSrc = new URL('../../../assets/img/icons/website/ehentai.png', import.meta.url).href
-const hitomiSiteAvatarSrc = new URL('../../../assets/img/icons/website/hitomi.png', import.meta.url).href
-const hcomicSiteAvatarSrc = new URL('../../../assets/img/icons/website/hcomic.png', import.meta.url).href
-const jmSiteAvatarSrc = new URL('../../../assets/img/icons/website/jm.png', import.meta.url).href
-const mangabzSiteAvatarSrc = new URL('../../../assets/img/icons/website/mangabz.png', import.meta.url).href
-const wnacgSiteAvatarSrc = new URL('../../../assets/img/icons/website/wnacg.png', import.meta.url).href
-const danbooruSiteAvatarSrc = new URL('../../../assets/img/icons/website/danbooru.svg', import.meta.url).href
-const nhentaiSiteAvatarSrc = new URL('../../../assets/img/icons/website/nhentai.svg', import.meta.url).href
-const jestfulSiteAvatarSrc = new URL('../../../assets/img/icons/website/jf.svg', import.meta.url).href
-const manhuaguiSiteAvatarSrc = new URL('../../../assets/img/icons/website/mhg.png', import.meta.url).href
-const dm5SiteAvatarSrc = new URL('../../../assets/img/icons/website/dm5.png', import.meta.url).href
-const mobileIspIconSrc = new URL('../../../assets/img/icons/isp/mobile.png', import.meta.url).href
-const telecomIspIconSrc = new URL('../../../assets/img/icons/isp/telecom.png', import.meta.url).href
-const unicomIspIconSrc = new URL('../../../assets/img/icons/isp/unicom.png', import.meta.url).href
+import mobileIspIconSrc from '../../../assets/img/icons/isp/mobile.png'
+import telecomIspIconSrc from '../../../assets/img/icons/isp/telecom.png'
+import unicomIspIconSrc from '../../../assets/img/icons/isp/unicom.png'
+import copySiteAvatarSrc from '../../../assets/img/icons/website/copy.png'
+import danbooruSiteAvatarSrc from '../../../assets/img/icons/website/danbooru.svg'
+import dm5SiteAvatarSrc from '../../../assets/img/icons/website/dm5.png'
+import ehentaiSiteAvatarSrc from '../../../assets/img/icons/website/ehentai.png'
+import hcomicSiteAvatarSrc from '../../../assets/img/icons/website/hcomic.png'
+import hitomiSiteAvatarSrc from '../../../assets/img/icons/website/hitomi.png'
+import jestfulSiteAvatarSrc from '../../../assets/img/icons/website/jf.svg'
+import jmSiteAvatarSrc from '../../../assets/img/icons/website/jm.png'
+import mangabzSiteAvatarSrc from '../../../assets/img/icons/website/mangabz.png'
+import manhuaguiSiteAvatarSrc from '../../../assets/img/icons/website/mhg.png'
+import nhentaiSiteAvatarSrc from '../../../assets/img/icons/website/nhentai.svg'
+import wnacgSiteAvatarSrc from '../../../assets/img/icons/website/wnacg.png'
 
 export type MonitorBoardLocale = 'zh' | 'en'
 
