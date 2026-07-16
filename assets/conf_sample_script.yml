@@ -17,6 +17,12 @@ danbooru:
 jsoneriPalacesProbe:
   token: ""
 
+ai:
+  provider:
+    url: null
+    key: null
+    model: null
+
 proxies: null
 redis:
   host: 127.0.0.1

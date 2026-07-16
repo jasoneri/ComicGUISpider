@@ -4,7 +4,10 @@ import pathlib
 import os
 
 from PySide6 import QtWidgets
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog, QVBoxLayout, QStackedWidget
+from PySide6.QtWidgets import (
+    QAbstractScrollArea, QApplication, QFrame, QHBoxLayout, QSizePolicy,
+    QCompleter, QFileDialog, QVBoxLayout, QStackedWidget, QWidget,
+)
 from PySide6.QtCore import Qt, QCoreApplication, QSize
 from PySide6.QtGui import QIcon
 from utils import install_qfluentwidgets_notice_filter
@@ -13,15 +16,16 @@ install_qfluentwidgets_notice_filter()
 
 from qfluentwidgets import (
     NavigationItemPosition, FluentWindow,
-    LineEdit, PrimaryPushButton,
-    VBoxLayout, FluentIcon as FIF, StrongBodyLabel, InfoBar, InfoBarPosition,
-    GroupHeaderCardWidget, PushButton, SpinBox, ComboBox, RangeSettingCard
+    LineEdit, PasswordLineEdit, PrimaryPushButton,
+    FluentIcon as FIF, StrongBodyLabel, InfoBar, InfoBarPosition,
+    GroupHeaderCardWidget, PushButton, ScrollArea, SpinBox, ComboBox, RangeSettingCard
 )
 
 from assets import res
 from utils import yaml, ori_path
 from utils.config.qc import danbooru_cfg, cgs_cfg
 from utils.script import conf as script_conf
+from utils.script.ai.kernel import is_ai_provider_configured, load_ai_provider, normalize_provider_fields
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig
 from GUI.core.doh_runtime import ScriptDoHStubRuntime
 from GUI.core.exception_feedback import GuiExceptionFeedbackDispatcher, InfoBarExceptionPresenter
@@ -32,6 +36,7 @@ from GUI.script.cbg import CbgInterface
 from GUI.script.danbooru import DanbooruInterface
 from GUI.script.kemono import KemonoInterface
 from GUI.script.jsoneri import JsoneriPalacesProbeInterface
+from GUI.uic.qfluent.components.icons import CgsIcon
 
 
 script_res = res.GUI.Script
@@ -174,7 +179,7 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.pathButton.clicked.connect(self._onSelectFolder)
 
         self.pathCard = self.addGroup(FIF.DOWNLOAD, uic_res.sv_path_desc, self.current_path, self.pathButton)
-        self.addGroup(FIF.FOLDER, script_res.danbooru_save_mode, script_res.danbooru_save_mode_desc, self.saveTypeBox)
+        self.addGroup(CgsIcon.SV_TYPE, script_res.danbooru_save_mode, script_res.danbooru_save_mode_desc, self.saveTypeBox)
         self.addGroup(
             FIF.SPEED_HIGH, script_res.danbooru_download_concurrency, script_res.danbooru_download_concurrency_desc,
             self.downloadConcurrencyEdit,
@@ -227,6 +232,57 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.saveTypeBox.setCurrentIndex(index if index >= 0 else 0)
 
 
+class AiGroupCard(GroupHeaderCardWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setting_interface = parent
+        self.setTitle("AI Provider")
+        self.setBorderRadius(8)
+
+        self.urlEdit = LineEdit(self)
+        self.urlEdit.setPlaceholderText("https://api.openai.com/v1")
+        self.urlEdit.setClearButtonEnabled(True)
+        self.urlEdit.setMinimumWidth(320)
+
+        self.keyEdit = PasswordLineEdit(self)
+        self.keyEdit.setPlaceholderText("api-key")
+        self.keyEdit.setClearButtonEnabled(True)
+        self.keyEdit.setMinimumWidth(320)
+
+        self.modelEdit = LineEdit(self)
+        self.modelEdit.setPlaceholderText("model name")
+        self.modelEdit.setClearButtonEnabled(True)
+        self.modelEdit.setMinimumWidth(240)
+
+        self.addGroup(CgsIcon.URL, "Base URL", "OpenAI-compatible endpoint", self.urlEdit)
+        self.addGroup(CgsIcon.KEY, "API Key", "Bearer token / api key", self.keyEdit)
+        self.addGroup(FIF.ROBOT, "Model", "Chat model id", self.modelEdit)
+
+    def set_provider(self, *, url: object = None, key: object = None, model: object = None):
+        self.urlEdit.setText(str(url or ""))
+        self.keyEdit.setText(str(key or ""))
+        self.modelEdit.setText(str(model or ""))
+
+    def get_provider_fields(self) -> dict:
+        return normalize_provider_fields(
+            url=self.urlEdit.text(),
+            key=self.keyEdit.text(),
+            model=self.modelEdit.text(),
+        )
+
+
+class _SettingFillScrollArea(ScrollArea):
+    """ScrollArea whose vertical sizeHint is 0 so parent layout can stretch it to fill remainder."""
+
+    def sizeHint(self):
+        hint = super().sizeHint()
+        return QSize(hint.width(), 0)
+
+    def minimumSizeHint(self):
+        hint = super().minimumSizeHint()
+        return QSize(hint.width(), 0)
+
+
 class SettingInterface(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -236,12 +292,32 @@ class SettingInterface(QFrame):
 
     def setupUi(self):
         _translate = QCoreApplication.translate
-        self.main_layout = VBoxLayout(self)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # QVBoxLayout (not qfluent VBoxLayout): stretch factor must expand scroll above footer.
+        self.outer_layout = QVBoxLayout(self)
+        self.outer_layout.setContentsMargins(0, 0, 0, 0)
+        self.outer_layout.setSpacing(0)
 
-        # 第一行：代理设置
+        self.scroll_area = _SettingFillScrollArea(self)
+        self.scroll_area.setObjectName("SettingInterfaceScrollArea")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # content sizeHint must not inflate ScriptWindow min height (scriptWinRect owns geometry).
+        self.scroll_area.setMinimumHeight(0)
+        self.scroll_area.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
+        if hasattr(self.scroll_area, "enableTransparentBackground"):
+            self.scroll_area.enableTransparentBackground()
+
+        self.scroll_content = QWidget(self.scroll_area)
+        self.scroll_content.setObjectName("SettingInterfaceScrollContent")
+        self.scroll_content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.main_layout = QVBoxLayout(self.scroll_content)
+
         first_row = QHBoxLayout()
-        proxies_label = StrongBodyLabel("代理/Proxy", self)
-        self.imgProxiesEdit = LineEdit(self)
+        proxies_label = StrongBodyLabel("代理/Proxy", self.scroll_content)
+        self.imgProxiesEdit = LineEdit(self.scroll_content)
         self.imgProxiesEdit.setToolTip(_translate("SettingInterface", "proxies"))
         self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", "example-of-v2rayN 127.0.0.1:10809"))
         completer = QCompleter(['127.0.0.1:10809'])
@@ -250,28 +326,67 @@ class SettingInterface(QFrame):
         self.imgProxiesEdit.setCompleter(completer)
         self.imgProxiesEdit.setClearButtonEnabled(True)
 
-        self.dohBtn = PushButton("DoH", self)
+        self.dohBtn = PushButton("DoH", self.scroll_content)
         self.dohBtn.setMaximumSize(QSize(80, 16777215))
         self.dohController = DoHButtonController(self.dohBtn, parent=self, on_saved=self._save_doh_config)
         first_row.addWidget(proxies_label)
         first_row.addWidget(self.imgProxiesEdit)
         first_row.addWidget(self.dohBtn)
-        
+
+        # Cards keep SettingInterface as parent so setting_interface/saveBtn wiring stays valid.
         self.kemono_group_card = KemonoGroupCard(self)
         self.danbooru_group_card = DanbooruGroupCard(self)
-
-        # 第四行：保存按钮
-        forth_row = QHBoxLayout()
-        self.saveBtn = PrimaryPushButton(FIF.SAVE, "", self)
-        self.saveBtn.clicked.connect(self.save_conf)
-        forth_row.addWidget(self.saveBtn)
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.ai_card = AiGroupCard(self)
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addWidget(self.kemono_group_card)
         self.main_layout.addWidget(self.danbooru_group_card)
-        self.main_layout.addItem(spacerItem)
-        self.main_layout.addLayout(forth_row)
+        self.main_layout.addWidget(self.ai_card)
+        self.main_layout.addStretch(0)
+
+        self.scroll_area.setWidget(self.scroll_content)
+
+        # Save outside scroll: always pinned to SettingInterface bottom.
+        self.footer = QWidget(self)
+        self.footer.setObjectName("SettingInterfaceFooter")
+        self.footer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.footer_row = QHBoxLayout(self.footer)
+        self.footer_row.setContentsMargins(12, 8, 12, 12)
+        self.saveBtn = PrimaryPushButton(FIF.SAVE, "", self.footer)
+        self.saveBtn.clicked.connect(self.save_conf)
+        self.footer_row.addWidget(self.saveBtn)
+
+        self.outer_layout.addWidget(self.scroll_area, 1)
+        self.outer_layout.addWidget(self.footer, 0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._sync_scroll_area_height_to_parent()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._sync_scroll_area_height_to_parent()
+
+    def _sync_scroll_area_height_to_parent(self):
+        """Parent-driven max height: scroll fills remainder above footer; min=0 keeps scriptWin shrinkable."""
+        page_height = self.height()
+        if page_height <= 0:
+            return
+        footer_height = self.footer.height() if self.footer.height() > 0 else self.footer.sizeHint().height()
+        margins = self.outer_layout.contentsMargins()
+        available_height = (
+            page_height
+            - footer_height
+            - margins.top()
+            - margins.bottom()
+            - self.outer_layout.spacing()
+        )
+        if available_height < 0:
+            available_height = 0
+        self.scroll_area.setMinimumHeight(0)
+        self.scroll_area.setMaximumHeight(available_height if available_height > 0 else 16777215)
+        self.scroll_area.updateGeometry()
+        self.outer_layout.activate()
 
     def show_self(self):
         """加载配置文件内容到各个编辑框"""
@@ -286,6 +401,8 @@ class SettingInterface(QFrame):
         self.danbooru_group_card.setCurrentPath(runtime_config.save_path)
         self.danbooru_group_card.setSaveType(runtime_config.save_type)
         self.danbooru_group_card.setDownloadConcurrency(runtime_config.download_concurrency)
+        provider = load_ai_provider(config_data.get("ai") or {})
+        self.ai_card.set_provider(url=provider.url, key=provider.key, model=provider.model)
 
     def _gui_logger(self):
         return self.parent_window.gui.log
@@ -335,6 +452,10 @@ class SettingInterface(QFrame):
             config_data['danbooru'].pop('doh_url', None)
             config_data['danbooru'].pop('redis_key', None)
             config_data['danbooru'].pop('page_size', None)
+
+            config_data['ai'] = {
+                "provider": self.ai_card.get_provider_fields(),
+            }
 
             script_conf.update(**config_data)
             if hasattr(self.parent_window, "danbooruInterface"):

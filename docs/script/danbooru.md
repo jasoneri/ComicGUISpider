@@ -33,7 +33,7 @@
 
 + 整合目录：将附有「额外输入」的目录转移回无印，  
   例如 `beatrice_(re-zero) score--100` 转移回 `beatrice_(re-zero)`
-  > 目录储存问题，`score--100` 即为 `score:>100`
+  > 目录字符储存问题，`score--100` 即为 `score:>100`
 
 #### 额外输入
 

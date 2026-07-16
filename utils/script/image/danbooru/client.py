@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import threading
 from typing import Optional
+from urllib.parse import quote
 
 import httpx
 from lxml import html as lxml_html
@@ -164,6 +165,33 @@ class DanbooruClient:
 
     def get_post(self, post_id: int, *, timeout: Optional[float] = None) -> DanbooruPost:
         return DanbooruPost.from_api_payload(self._get_json(f"/posts/{post_id}.json", timeout=timeout))
+
+    def get_wiki_page(self, title: str, *, timeout: Optional[float] = None) -> Optional[dict]:
+        """Exact wiki page by tag title (other_names + body). Uses browser session client."""
+        tag_title = str(title or "").strip()
+        if not tag_title:
+            return None
+        encoded = quote(tag_title, safe="")
+        try:
+            payload = self._get_json(f"/wiki_pages/{encoded}.json", timeout=timeout)
+        except Exception:
+            payload = self._get_json(
+                "/wiki_pages.json",
+                params={"search[title]": tag_title, "limit": "1"},
+                timeout=timeout,
+            )
+        record: Optional[dict] = None
+        if isinstance(payload, dict):
+            record = payload
+        elif isinstance(payload, list) and payload and isinstance(payload[0], dict):
+            record = payload[0]
+        if not record or record.get("is_deleted"):
+            return None
+        got_title = str(record.get("title") or "").replace(" ", "_").casefold()
+        want = tag_title.replace(" ", "_").casefold()
+        if got_title and got_title != want and isinstance(payload, list):
+            return None
+        return record
 
     def autocomplete_tags(
         self,

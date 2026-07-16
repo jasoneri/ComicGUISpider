@@ -10,10 +10,10 @@ from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLineEdit, QPlainTextEdit, QStackedWidget, QTextEdit, QVBoxLayout, QWidget
 from qfluentwidgets import (
-    Action, ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition, PrimaryToolButton, ProgressBar, RoundMenu,
-    StrongBodyLabel, SubtitleLabel, TabBar, TabCloseButtonDisplayMode, TeachingTipTailPosition, ToolButton,
-    TransparentToolButton
-    )
+    Action, ComboBox, FluentIcon as FIF, IndeterminateProgressRing, InfoBar, InfoBarPosition,
+    PrimaryToolButton, ProgressBar, ProgressRing, RoundMenu, StrongBodyLabel, SubtitleLabel, TabBar,
+    TabCloseButtonDisplayMode, TeachingTipTailPosition, ToolButton, TransparentToolButton,
+)
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
@@ -22,8 +22,11 @@ from GUI.uic.qfluent.components import CountBadge, CustomInfoBar, CustomTeaching
 from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.script.image.danbooru.client import DanbooruClient
 from utils.config.qc import danbooru_cfg
+from utils.script.ai.capabilities.tag_translate import TagTranslatePipeline
+from utils.script.ai.kernel import load_ai_provider
 from utils.script.image.danbooru.constants import DANBOORU_SAVE_TYPE_SEARCH_TAG, DANBOORU_SQL_TABLE
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig, DanbooruSearchQuery
+from utils.script import conf as script_conf
 from utils.script import folder_sub
 from utils.sql import SqlRecorder
 
@@ -215,13 +218,33 @@ class DanbooruInterface(QFrame):
         self.zoomOut.setMaximumHeight(22)
         zoomBtnGroup.addWidget(self.zoomIn)
         zoomBtnGroup.addWidget(self.zoomOut)
-        self.funcBtn = ToolButton(CgsIcon.SCRIPT_FUNC, self)
+        self.funcBtn = ToolButton(FIF.APPLICATION, self)
         self.funcBtn.setIconSize(QSize(20, 20))
         self.funcBtn.setMinimumHeight(50)
         self.favMgrBtn = ToolButton(CgsIcon.SCRIPT_FAV_MGR, self)
         self.favMgrBtn.setObjectName("FavMgrBtn")
         self.favMgrBtn.setIconSize(QSize(20, 20))
         self.favMgrBtn.setMinimumHeight(50)
+        self.favTranslateRingHost = QWidget(self)
+        self.favTranslateRingHost.setObjectName("FavTranslateRingHost")
+        self.favTranslateRingHost.setFixedSize(QSize(36, 36))
+        self.favTranslateRingHost.setToolTip("翻译中")
+        self.favTranslateRing = ProgressRing(self.favTranslateRingHost)
+        self.favTranslateRing.setTextVisible(False)
+        self.favTranslateRing.setFixedSize(QSize(36, 36))
+        self.favTranslateRing.setRange(0, 100)
+        self.favTranslateRing.setValue(0)
+        self.favTranslateRing.move(0, 0)
+        self.favTranslateIndeterminateRing = IndeterminateProgressRing(
+            self.favTranslateRingHost, start=False
+        )
+        self.favTranslateIndeterminateRing.setFixedSize(QSize(18, 18))
+        self.favTranslateIndeterminateRing.setStrokeWidth(3)
+        self.favTranslateIndeterminateRing.move(9, 9)
+        self.favTranslateIndeterminateRing.raise_()
+        self.favTranslateRingHost.hide()
+        self._fav_mgr_title_index = None
+        self._translate_task_id = "danbooru_favorite_tag_translate"
         self.openBtn = ToolButton(FIF.FOLDER)
         self.openBtn.setMinimumHeight(50)
         self.batch_download_btn = PrimaryToolButton(FIF.DOWNLOAD, self)
@@ -235,9 +258,11 @@ class DanbooruInterface(QFrame):
         title_row.addLayout(zoomBtnGroup)
         title_row.addWidget(self.funcBtn)
         title_row.addWidget(self.favMgrBtn)
+        title_row.addWidget(self.favTranslateRingHost, 0, Qt.AlignVCenter)
         title_row.addWidget(self.openBtn)
         title_row.addWidget(self.batch_download_btn)
         self.main_layout.addLayout(title_row)
+        self._title_row_layout = title_row
 
         self.pivot_shell = QFrame(self)
         self.pivot_shell.setObjectName("DanbooruPivotShell")
@@ -739,6 +764,8 @@ class DanbooruInterface(QFrame):
         favorites_state = self._favorite_groups_state()
         is_favorited = favorites_state.toggle(term)
         self._save_favorite_groups_state(favorites_state)
+        if not is_favorited and term not in favorites_state.all_terms():
+            danbooru_cfg.drop_translate_keys([term])
         self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         if not is_favorited:
@@ -777,6 +804,126 @@ class DanbooruInterface(QFrame):
             tab.set_search_menu()
             self._refresh_completer(tab)
             tab.sync_favorite_button_state()
+
+    def _show_favorite_translate_progress(self, done: int = 0, total: int = 0):
+        self.favMgrBtn.hide()
+        self.favTranslateRingHost.show()
+        if total > 0:
+            percent = min(100, int((done * 100) / total))
+            self.favTranslateRing.setValue(percent)
+        else:
+            self.favTranslateRing.setValue(0)
+        tip = f"翻译中 {done}/{total}" if total else "翻译中"
+        self.favTranslateRingHost.setToolTip(tip)
+        self.favTranslateRing.setToolTip(tip)
+        self.favTranslateIndeterminateRing.setToolTip(tip)
+        if not self.favTranslateIndeterminateRing.isVisible():
+            self.favTranslateIndeterminateRing.show()
+        self.favTranslateIndeterminateRing.start()
+
+    def _hide_favorite_translate_progress(self):
+        self.favTranslateIndeterminateRing.stop()
+        self.favTranslateIndeterminateRing.hide()
+        self.favTranslateRingHost.hide()
+        self.favTranslateRing.setValue(0)
+        self.favTranslateRingHost.setToolTip("")
+        self.favTranslateRing.setToolTip("")
+        self.favTranslateIndeterminateRing.setToolTip("")
+        self.favMgrBtn.show()
+
+    def begin_favorite_tag_translate(
+        self,
+        tags: list[str],
+        *,
+        engine: str = "danbooru",
+        language: str = "zh",
+        success_callback=None,
+        error_callback=None,
+    ) -> bool:
+        provider = load_ai_provider()
+        if not provider.is_configured():
+            raise ValueError("AI provider is not configured")
+        tag_snapshot = [tag for tag in tags if str(tag or "").strip()]
+        if not tag_snapshot:
+            raise ValueError("empty tags")
+
+        def task_func(*, progress_callback=None):
+            def on_progress(progress):
+                if progress_callback is None:
+                    return
+                total = max(1, int(progress.total or 0))
+                done = max(0, int(progress.done or 0))
+                percent = min(100, int((done * 100) / total))
+                progress_callback(f"{percent}% ({done}/{total}) {progress.message or ''}".strip())
+
+            pipeline = TagTranslatePipeline(
+                provider,
+                engine=engine,
+                language=language,
+                proxies=getattr(script_conf, "proxies", None) or [],
+                batch_size=5,
+                on_progress=on_progress,
+            )
+            return pipeline.run(tag_snapshot)
+
+        def on_progress(message: str):
+            text = str(message or "")
+            done = 0
+            total = len(tag_snapshot)
+            if "(" in text and "/" in text and ")" in text:
+                try:
+                    fraction = text.split("(", 1)[1].split(")", 1)[0]
+                    done_text, total_text = fraction.split("/", 1)
+                    done = int(done_text)
+                    total = int(total_text)
+                except (ValueError, IndexError):
+                    pass
+            self._show_favorite_translate_progress(done, total)
+
+        def on_success(result):
+            self._hide_favorite_translate_progress()
+            translations = dict(getattr(result, "translations", None) or {})
+            failed = list(getattr(result, "failed_tags", None) or [])
+            skipped = list(getattr(result, "skipped_no_evidence", None) or [])
+            # Persist independently of FavMgr lifetime: close dialog while task runs still saves.
+            if translations:
+                danbooru_cfg.merge_translate_map(translations)
+            # Product goal: search completer must show display names after map updates.
+            for tab in self.tabs.values():
+                self._refresh_completer(tab)
+            ok_count = len(translations)
+            fail_count = len(failed)
+            skip_count = len(skipped)
+            content = f"标签翻译完成: 成功 {ok_count}/{len(tag_snapshot)}"
+            if fail_count:
+                content = f"{content}, 失败 {fail_count}"
+            if skip_count:
+                content = f"{content}, 无证据跳过 {skip_count}"
+            factory = InfoBar.success if ok_count else InfoBar.warning
+            self._show_info(factory, content, duration=5000)
+            if callable(success_callback):
+                success_callback(result)
+
+        def on_error(message: str):
+            self._hide_favorite_translate_progress()
+            summary = summarize_error_message(message)
+            self._show_info(InfoBar.error, f"标签翻译失败: {summary}", duration=5000)
+            if callable(error_callback):
+                error_callback(summary)
+
+        self._show_favorite_translate_progress(0, len(tag_snapshot))
+        return self.task_mgr.execute_simple_task(
+            task_func,
+            success_callback=on_success,
+            error_callback=on_error,
+            progress_callback=on_progress,
+            tooltip_title="标签翻译中",
+            tooltip_content="搜索引擎 + LLM",
+            show_success_info=False,
+            show_error_info=False,
+            show_tooltip=False,
+            task_id=self._translate_task_id,
+        )
 
     def _open_favorite_manager(self):
         dialog = DanbooruFavoriteManagerDialog(self._favorite_groups_state(), self)

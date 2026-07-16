@@ -220,11 +220,32 @@ class ScriptConf(BaseConf):
     kemono: dict = field(default_factory=dict)
     danbooru: dict = field(default_factory=dict)
     jsoneriPalacesProbe: dict = field(default_factory=dict)
+    ai: dict = field(default_factory=dict)
     proxies: list = field(default_factory=list)
     redis: dict = field(default_factory=dict)
 
     def __init__(self, path=None, iname=None):
         self.init_conf()
+
+    @staticmethod
+    def _merge_section_defaults(yml_config: dict, sample_config: dict, section_name: str) -> dict:
+        section_defaults = (sample_config.get(section_name) or {}).copy()
+        section_config = (yml_config.get(section_name) or {}).copy()
+        if section_name == "ai":
+            provider_defaults = (section_defaults.get("provider") or {}).copy()
+            provider_config = (section_config.get("provider") or {}).copy()
+            for key, value in provider_defaults.items():
+                provider_config.setdefault(key, value)
+            section_config["provider"] = provider_config
+            for key, value in section_defaults.items():
+                if key == "provider":
+                    continue
+                section_config.setdefault(key, value)
+        else:
+            for key, value in section_defaults.items():
+                section_config.setdefault(key, value)
+        yml_config[section_name] = section_config
+        return yml_config
 
     def init_conf(self):
         sample_file = ori_path.joinpath('assets/conf_sample_script.yml')
@@ -237,18 +258,10 @@ class ScriptConf(BaseConf):
         with open(self.file, 'r', encoding='utf-8') as fp:
             cfg = fp.read()
         yml_config = yaml.load(cfg, Loader=yaml.FullLoader) or {}
-        danbooru_defaults = (sample_config.get("danbooru") or {}).copy()
-        danbooru_config = (yml_config.get("danbooru") or {}).copy()
-        for key, value in danbooru_defaults.items():
-            danbooru_config.setdefault(key, value)
-        yml_config["danbooru"] = danbooru_config
-        jsoneriPalacesProbe_defaults = (sample_config.get("jsoneriPalacesProbe") or {}).copy()
-        jsoneriPalacesProbe_config = (yml_config.get("jsoneriPalacesProbe") or {}).copy()
-        for key, value in jsoneriPalacesProbe_defaults.items():
-            jsoneriPalacesProbe_config.setdefault(key, value)
-        yml_config["jsoneriPalacesProbe"] = jsoneriPalacesProbe_config
+        for section_name in ("danbooru", "jsoneriPalacesProbe", "ai"):
+            yml_config = self._merge_section_defaults(yml_config, sample_config, section_name)
         for k, v in yml_config.items():
-            setattr(self, k, v or getattr(self, k, None))
+            setattr(self, k, v if v is not None else getattr(self, k, None))
 
     def update(self, **kwargs):
         for k, v in kwargs.items():

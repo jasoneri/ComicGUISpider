@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QBrush
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QHBoxLayout, QWidget
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import Flyout, FlyoutAnimationType, IconWidget, TeachingTip, TeachingTipView
 
 from GUI.core.anim import ProxyRotationController
@@ -28,10 +28,22 @@ class CustomFlyout:
 
 class CustomTeachingTip:
     @classmethod
-    def create(cls, widgets, target, parent, content=None, topLayout=None, isClosable=True, duration=-1, **kw):
+    def create(
+        cls, widgets, target, parent, content=None, topLayout=None, closeButtonBelows=None, 
+        isClosable=True, duration=-1, **kw,
+    ):
         view = TeachingTipView(
             title="", content="", isClosable=isClosable
         )
+        if closeButtonBelows and isClosable:
+            view.viewLayout.removeWidget(view.closeButton)
+            close_button_col = QVBoxLayout()
+            close_button_col.setContentsMargins(0, 0, 0, 0)
+            close_button_col.addWidget(view.closeButton)
+            for btn in closeButtonBelows:
+                close_button_col.addWidget(btn)
+            close_button_col.addStretch(0)
+            view.viewLayout.addLayout(close_button_col)
         offset = 0
         cindex = 1 if isClosable else 0
         if topLayout:
