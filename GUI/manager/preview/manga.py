@@ -8,6 +8,7 @@ from assets import res as ori_res
 from variables import SPIDERS
 from utils import bs_theme, conf, temp_p, conf_dir
 from utils.preview import TF, El, format_path
+from GUI.manager.preview.loading import PreviewLoadingReason
 
 
 class MangaPreviewBridge(QObject):
@@ -118,6 +119,19 @@ class _FavoriteStore:
 
 
 class MangaPreviewFeature:
+    _BOOK_META_FIELDS = {
+        "description": "description", "artist": "artist", "tags": "tags",
+        "publicDate": "public_date", "updatedAt": "updated_at", "views": "views",
+        "likes": "likes", "pages": "pages", "status": "status", "btype": "btype",
+        "otherNames": "other_names",
+    }
+
+    @classmethod
+    def book_meta_payload(cls, book):
+        return {
+            key: value for key, attr in cls._BOOK_META_FIELDS.items()
+            if (value := getattr(book, attr, None)) not in (None, "", [], ())
+        }
     def __init__(self, mgr):
         self.mgr = mgr
         self.gui = mgr.gui
@@ -352,7 +366,13 @@ class MangaPreviewFeature:
             "downloaded": f"ep{book_key}-{ep.idx}" in downloaded_episode_ids}
             for ep in episodes
         ]
-        self.mgr.send_command("manga.episodes.loaded", {"bookKey": str(book_key), "episodes": ep_data}, session_id=session_id)
+        book = self.mgr.books_cache[book_key]
+        book_meta = self.book_meta_payload(book)
+        self.mgr.send_command(
+            "manga.episodes.loaded",
+            {"bookKey": str(book_key), "episodes": ep_data, "bookMeta": book_meta},
+            session_id=session_id,
+        )
         if latest_payload := self._latest_badge_payload(book_key, episodes):
             self.mgr.send_command("manga.badge.latest", latest_payload, session_id=session_id)
 
@@ -475,10 +495,10 @@ class MangaPreviewFeature:
         self._submit_payload(self._current_submit_payload())
 
     def _handle_submit_request(self):
-        self.gui.BrowserWindow.start_submit_loading()
+        self.mgr.loading.begin(PreviewLoadingReason.SUBMIT)
         self._submit_payload(self._current_submit_payload())
         if not self._inflight_pages:
             self._stop_submit_loading()
 
     def _stop_submit_loading(self):
-        self.gui.BrowserWindow.stop_submit_loading()
+        self.mgr.loading.end(PreviewLoadingReason.SUBMIT)

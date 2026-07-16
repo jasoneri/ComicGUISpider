@@ -12,7 +12,8 @@ from PySide6.QtCore import (
 )
 from GUI.core.timer import safe_single_shot
 from PySide6.QtWidgets import QApplication, QMainWindow, QCompleter
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import Action, FluentIcon as FIF, InfoBar, InfoBarPosition
+from qfluentwidgets.components.widgets.line_edit import CompleterMenu
 
 from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
@@ -261,7 +262,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.web_is_r18:
             self.rv_tools.ero = 1
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
-        FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
+        self._set_search_context_menu()
         if index in SPIDERS and not self.dl_mgr.spider_runtime:
             self.dl_mgr.start_runtime(index)
         self.chooseBox_changed_tips(index)
@@ -319,17 +320,27 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         from GUI.script import ScriptWindow
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
-        self.hide()
+        # Keep main window visible until ScriptWindow is ready: import/construct can block the
+        # GUI thread for seconds; hide-first looks like a total freeze with only a taskbar ghost.
         self.script_window = ScriptWindow(
             self,
             script_entry_state=script_entry_state,
             feedback_dispatcher=self.exception_feedback_dispatcher,
         )
         self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
-        setupTheme(self.script_window.kemonoInterface)
         if pure_only:
             self.script_window.apply_pure_entry_mode()
+        if self.script_window.kemonoInterface is not None:
+            setupTheme(self.script_window.kemonoInterface)
         self.script_window.show()
+        self.script_window.raise_()
+        self.script_window.activateWindow()
+        self.hide()
+        self.log.info(
+            f"[ScriptWindow] shown geometry=[{self.script_window.x()}, {self.script_window.y()}, "
+            f"{self.script_window.width()}, {self.script_window.height()}] "
+            f"mounted={sorted(self.script_window._mounted_keys)}"
+        )
 
     @property
     def server_mode_switch_requested(self) -> bool:
@@ -379,6 +390,42 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             target_rect = QRect(self.x(), target_y, t.width(), t.height())
             PopupAnimator.show(t, target_rect, duration_ms=220, direction="down")
         self.rvBtn.clicked.connect(_show_toolWin)
+
+    def _set_search_context_menu(self):
+        def show_preset_completer():
+            if not self.searchinput.text().strip():
+                self.searchinput.setText(" ")
+            self.searchinput._showCompleterMenu()
+
+        def show_history_completer():
+            history_terms = cgs_cfg.search.get_history()
+            if not history_terms:
+                return
+            history_menu = CompleterMenu(self.searchinput)
+            history_menu.setItems(history_terms)
+            history_menu.setMaxVisibleItems(max(len(history_terms), 10))
+            history_menu.activated.connect(
+                lambda selected_text: self.searchinput.setCursorPosition(len(selected_text or ""))
+            )
+            self.searchinput.setFocus(Qt.OtherFocusReason)
+            history_menu.popup()
+
+        preset_action = Action(
+            FIF.ALIGNMENT,
+            text=self.searchinput.tr(self.res.Uic.menu_show_completer),
+            triggered=show_preset_completer,
+        )
+        history_terms = cgs_cfg.search.get_history()
+        history_action = Action(
+            FIF.HISTORY,
+            text=self.searchinput.tr(self.res.Uic.menu_show_history),
+            triggered=show_history_completer,
+        )
+        history_action.setEnabled(bool(history_terms))
+        FluentMonkeyPatch.rbutton_menu_lineEdit(
+            self.searchinput,
+            extra_actions=[preset_action, history_action],
+        )
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()
@@ -517,8 +564,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             return any(bool(mgr.is_triggered and mgr.infos) for mgr in (self.clip_mgr, self.ags_mgr))
     
         if self.search_ui_state.request is PreviewRequestState.Running:
-            InfoBar.info(title='', content='searching', isClosable=True,
-                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
             return
         if not _has_cached_preview():
             self.start_and_search()
@@ -583,8 +628,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def start_and_search(self, keyword=None, site_index=None):
         self.log.info('===--→ -*- searching')
         if self.search_ui_state.request is PreviewRequestState.Running:
-            InfoBar.info(title='', content='searching', isClosable=True,
-                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
             return
         if site_index is not None:
             self.chooseBox.setCurrentIndex(site_index)
@@ -604,6 +647,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
             self.refresh_lifecycle_state()
             return
+        cgs_cfg.search.add_history(kw)
+        self._set_search_context_menu()
         self.log.debug(f'[search] site :[{site}], keyword [{kw}] ')
         self.preview_mgr.on_spreview_clicked(keyword=kw)
 

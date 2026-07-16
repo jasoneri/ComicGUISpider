@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 from GUI.core.font import font_color
 from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState
 from GUI.thread.preview import PreviewWorker
+from GUI.manager.preview.loading import PreviewLoadingController, PreviewLoadingReason
 from GUI.manager.preview.manga import MangaPreviewFeature
 from GUI.manager.preview.ero import EroPreviewFeature
 from GUI.manager.preview.fix import FixPreviewFeature
@@ -36,6 +37,7 @@ class PreviewMgr:
         self._page_bridge = None
         self._interactive_browser = None
         self._retired_workers = []
+        self.loading = PreviewLoadingController(self)
         self._manga = MangaPreviewFeature(self)
         self._ero = EroPreviewFeature(self)
         self._fix = FixPreviewFeature(self)
@@ -73,6 +75,7 @@ class PreviewMgr:
 
     def shutdown(self):
         self._generation += 1
+        self.loading.end_all()
         self.gui_site_runtime = None
         self._active_keyword = ""
         self.downloaded_book_ids.clear()
@@ -189,6 +192,7 @@ class PreviewMgr:
         elif self.is_fix:
             self._fix.episodes_cache.clear()
         if self._worker:
+            self.loading.begin(PreviewLoadingReason.SEARCH_INITIAL)
             self._worker.enqueue("search", keyword, page=1)
             return
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
@@ -204,6 +208,7 @@ class PreviewMgr:
         self._target_page = target_page
         self.begin_preview_session()
         if self._worker:
+            self.loading.begin(PreviewLoadingReason.PAGING)
             self._worker.enqueue("search", keyword, page=target_page)
             return
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
@@ -226,6 +231,7 @@ class PreviewMgr:
             self.submit_browser_selection()
 
     def _on_empty_search_done(self):
+        self.loading.end_all()
         target_page = self._target_page
         self._target_page = None
         self._is_local_mode = False
@@ -250,6 +256,7 @@ class PreviewMgr:
         self._is_local_mode = False
         self.gui.flow_stage = GUIFlowStage.SEARCHED
         self.gui.update_search_ui(request=PreviewRequestState.Idle)
+        self.loading.end_all()
         self._active.publish(books)
 
     def _on_search_error(self, generation, _keyword, site_index, error):

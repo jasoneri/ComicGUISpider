@@ -10,10 +10,10 @@ from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLineEdit, QPlainTextEdit, QStackedWidget, QTextEdit, QVBoxLayout, QWidget
 from qfluentwidgets import (
-    Action, ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition, PrimaryToolButton, ProgressBar, RoundMenu,
-    StrongBodyLabel, SubtitleLabel, TabBar, TabCloseButtonDisplayMode, TeachingTipTailPosition, ToolButton,
-    TransparentToolButton
-    )
+    Action, ComboBox, FluentIcon as FIF, IndeterminateProgressRing, InfoBar, InfoBarPosition,
+    PrimaryToolButton, ProgressBar, ProgressRing, RoundMenu, StrongBodyLabel, SubtitleLabel, TabBar,
+    TabCloseButtonDisplayMode, TeachingTipTailPosition, ToolButton, TransparentToolButton,
+)
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
@@ -31,7 +31,7 @@ from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
 from .detail_preview import DetailPreviewController
 from .favorite_groups import build_favorite_groups_state
-from .favorites import DanbooruFavoriteManagerDialog
+from .favorite_translate import FavoriteTagTranslateController
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
     build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
@@ -162,6 +162,7 @@ class DanbooruInterface(QFrame):
         self.search_controller = DanbooruSearchController(self)
         self.download_controller = DanbooruDownloadController(self)
         self.challenge_controller = DanbooruChallengeController(self)
+        self.favorite_translate = FavoriteTagTranslateController(self)
         self.zoom_mgr = self._ZoomMgr(self)
         self.tab_mgr = self._TabMgr(self)
         self._infobars_by_key = {}
@@ -215,13 +216,31 @@ class DanbooruInterface(QFrame):
         self.zoomOut.setMaximumHeight(22)
         zoomBtnGroup.addWidget(self.zoomIn)
         zoomBtnGroup.addWidget(self.zoomOut)
-        self.funcBtn = ToolButton(CgsIcon.SCRIPT_FUNC, self)
+        self.funcBtn = ToolButton(FIF.APPLICATION, self)
         self.funcBtn.setIconSize(QSize(20, 20))
         self.funcBtn.setMinimumHeight(50)
         self.favMgrBtn = ToolButton(CgsIcon.SCRIPT_FAV_MGR, self)
         self.favMgrBtn.setObjectName("FavMgrBtn")
         self.favMgrBtn.setIconSize(QSize(20, 20))
         self.favMgrBtn.setMinimumHeight(50)
+        self.favTranslateRingHost = QWidget(self)
+        self.favTranslateRingHost.setObjectName("FavTranslateRingHost")
+        self.favTranslateRingHost.setFixedSize(QSize(36, 36))
+        self.favTranslateRingHost.setToolTip("翻译中")
+        self.favTranslateRing = ProgressRing(self.favTranslateRingHost)
+        self.favTranslateRing.setTextVisible(False)
+        self.favTranslateRing.setFixedSize(QSize(36, 36))
+        self.favTranslateRing.setRange(0, 100)
+        self.favTranslateRing.setValue(0)
+        self.favTranslateRing.move(0, 0)
+        self.favTranslateIndeterminateRing = IndeterminateProgressRing(
+            self.favTranslateRingHost, start=False
+        )
+        self.favTranslateIndeterminateRing.setFixedSize(QSize(18, 18))
+        self.favTranslateIndeterminateRing.setStrokeWidth(3)
+        self.favTranslateIndeterminateRing.move(9, 9)
+        self.favTranslateIndeterminateRing.raise_()
+        self.favTranslateRingHost.hide()
         self.openBtn = ToolButton(FIF.FOLDER)
         self.openBtn.setMinimumHeight(50)
         self.batch_download_btn = PrimaryToolButton(FIF.DOWNLOAD, self)
@@ -235,9 +254,11 @@ class DanbooruInterface(QFrame):
         title_row.addLayout(zoomBtnGroup)
         title_row.addWidget(self.funcBtn)
         title_row.addWidget(self.favMgrBtn)
+        title_row.addWidget(self.favTranslateRingHost, 0, Qt.AlignVCenter)
         title_row.addWidget(self.openBtn)
         title_row.addWidget(self.batch_download_btn)
         self.main_layout.addLayout(title_row)
+        self._title_row_layout = title_row
 
         self.pivot_shell = QFrame(self)
         self.pivot_shell.setObjectName("DanbooruPivotShell")
@@ -739,6 +760,8 @@ class DanbooruInterface(QFrame):
         favorites_state = self._favorite_groups_state()
         is_favorited = favorites_state.toggle(term)
         self._save_favorite_groups_state(favorites_state)
+        if not is_favorited and term not in favorites_state.all_terms():
+            danbooru_cfg.drop_translate_keys([term])
         self._refresh_all_favorites_ui()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         if not is_favorited:
@@ -779,6 +802,8 @@ class DanbooruInterface(QFrame):
             tab.sync_favorite_button_state()
 
     def _open_favorite_manager(self):
+        from .favorites import DanbooruFavoriteManagerDialog
+
         dialog = DanbooruFavoriteManagerDialog(self._favorite_groups_state(), self)
         if dialog.exec():
             self._save_favorite_groups_state(dialog.groups_state)

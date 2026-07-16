@@ -29,6 +29,10 @@ class BookInfo(InfoMinix):
     tags: list = []
 
     @property
+    def is_episode_card(self) -> bool:
+        return bool(self.episodes)
+
+    @property
     def children_length(self):
         return len(self.episodes or []) or self.pages
 
@@ -63,6 +67,14 @@ class Manga(BookInfo):
     last_chapter_name: str = None
     other_names: list = None
     other_name_raw: str = None
+    description: str = None
+    updated_at: str = None
+    views: str = None
+    status: str = None
+
+    @property
+    def is_episode_card(self) -> bool:
+        return True
 
     @property
     def say(self):
@@ -167,6 +179,18 @@ class RumanhuaBookInfo(Manga):
 class JmBookInfo(Ero):
     source = "jm"
     likes: int = None
+    has_latest: bool = False
+    description: str = None
+    updated_at: str = None
+    views: str = None
+    status: str = None
+    other_names: list = None
+
+    @property
+    def is_episode_card(self) -> bool:
+        return bool(
+            self.episodes or self.has_latest or "青年漫" in (self.btype or "")
+        )
 
 
 class WnacgBookInfo(Ero):
@@ -202,6 +226,7 @@ class HComicBookInfo(Ero):
 class JComicBookInfo(Ero):
     source = "jcomic"
     page_links: list = None
+    preview_img_src: str = None
 
 
 class NhentaiBookInfo(Ero):

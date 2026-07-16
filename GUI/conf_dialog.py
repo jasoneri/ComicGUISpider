@@ -14,7 +14,7 @@ from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, TransparentToolButton,
     PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox,
-    TogglePushButton, TeachingTipTailPosition
+    TogglePushButton, ToolButton, TeachingTipTailPosition
 )
 import uncurl
 
@@ -100,6 +100,15 @@ class SiteChoicePanel(QtWidgets.QWidget):
         cgs_cfg.site_choices.set_hidden(site_index, not visible, SPIDERS_LABELS.keys())
         self.conf_dia.gui.site_choice_combo.set_site_visible(site_index, visible)
         self.conf_dia.gui.refresh_lifecycle_state()
+
+    def all_sites_selected(self) -> bool:
+        return bool(self.site_buttons) and all(
+            button.isChecked() for button in self.site_buttons.values()
+        )
+
+    def set_all_sites_selected(self, selected: bool):
+        for button in self.site_buttons.values():
+            button.setChecked(selected)
 
 
 class ConfDialog(FramelessDialog, Ui_ConfDialog):
@@ -202,7 +211,7 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         self.monitorBtn = PushButton(CgsIcon.CONFIG_MONITOR, res.GUI.Uic.confDia_monitorBtn)
         self.supportBtn = TransparentPushButton(FIF.GAME, res.GUI.Uic.confDia_supportBtn)
         self.siteChoiceBtn = TransparentPushButton(FIF.VIEW, res.GUI.Uic.confDia_siteChoiceBtn)
-        self.serverModeBtn = TransparentPushButton(CgsIcon.CONFIG_TRAY, "CGS Server")
+        self.serverModeBtn = TransparentPushButton(FIF.MINIMIZE, "CGS Server")
 
         self.bottom_btn_horizontalLayout.insertWidget(0, self.supportBtn)
         self.bottom_btn_horizontalLayout.insertWidget(0, self.monitorBtn)
@@ -308,7 +317,14 @@ class ConfDialog(FramelessDialog, Ui_ConfDialog):
         if self._site_choice_tip is not None:
             self._site_choice_tip.close()
         panel = SiteChoicePanel(self)
-        tip = CustomTeachingTip.create([panel], target=self.siteChoiceBtn, parent=self, tailPosition=TeachingTipTailPosition.TOP)
+        select_all_button = TransparentToolButton(FIF.CHECKBOX, self)
+        select_all_button.clicked.connect(
+            lambda: panel.set_all_sites_selected(not panel.all_sites_selected())
+        )
+        tip = CustomTeachingTip.create(
+            [panel], target=self.siteChoiceBtn, parent=self,
+            closeButtonBelows=(select_all_button,), tailPosition=TeachingTipTailPosition.TOP,
+        )
         self._site_choice_tip = tip
         tip.destroyed.connect(lambda *_args: setattr(self, "_site_choice_tip", None))
 

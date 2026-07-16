@@ -3,6 +3,7 @@ import typing as t
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QCompleter, QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     Action, ComboBox, EditableComboBox, FluentIcon as FIF, FlowLayout, PrimaryToolButton, ToolButton, 
@@ -43,6 +44,8 @@ class DanbooruTabWidget(QFrame):
         self.card_metrics = DEFAULT_CARD_METRICS
         self.card_widgets: dict[int, DanbooruCardWidget] = {}
         self._extra_tip = None
+        # Completer shows display labels; selection must insert origin search keys.
+        self._completer_origin_by_label: dict[str, str] = {}
         self.zoom_mgr = self._InnerZoomMgr(self)
         self._setup_ui()
         self.selection_controller = DanbooruTabSelectionController(self)
@@ -251,6 +254,7 @@ class DanbooruTabWidget(QFrame):
             return Action(icon, text=text, triggered=open_)
         def _create_fav_sub_menu():
             def _show_group_completer(terms: list[str]):
+                # Labels may be translated; selecting still inserts origin tags into the search box.
                 self.update_completer(terms)
                 self._show_search_edit_completer("")
             submenu = RoundMenu("收藏组", self)
@@ -261,11 +265,14 @@ class DanbooruTabWidget(QFrame):
                 empty_action.setEnabled(False)
                 submenu.addAction(empty_action)
                 return submenu
+
             submenu.addActions([
-                Action(text=group.display,
+                Action(
+                    text=group.display,
                     triggered=lambda _=False, current=list(group.tags): _show_group_completer(current),
                 )
-                for group in groups])
+                for group in groups
+            ])
             return submenu
         FluentMonkeyPatch.rbutton_menu_lineEdit(
             self.search_edit,
@@ -366,12 +373,103 @@ class DanbooruTabWidget(QFrame):
         if bar.maximum() - value < 200 and not self.state.loading and self.state.has_more_results:
             self.request_next_page.emit()
 
+    @staticmethod
+    def _normalize_completer_label(text: str) -> str:
+        return " ".join(str(text or "").split())
+
+    @classmethod
+    def _completer_label_for_origin(cls, origin: str) -> str:
+        canonical = danbooru_cfg.canonicalize_term(origin)
+        if not canonical:
+            return ""
+        display = danbooru_cfg.display_tag(canonical)
+        if display and display != canonical:
+            # Localized name first; origin kept so MatchContains still finds latin tags.
+            return cls._normalize_completer_label(f"{display} · {canonical}")
+        return canonical
+
+    def resolve_completer_origin(self, label_or_origin: str) -> str:
+        text = self._normalize_completer_label(label_or_origin)
+        if not text:
+            return ""
+        mapped = self._completer_origin_by_label.get(text)
+        if mapped:
+            return mapped
+        # CompleterMenu / whitespace variants may differ slightly; match by suffix origin.
+        for label, origin in self._completer_origin_by_label.items():
+            if text == label or text.endswith(f"· {origin}") or text.endswith(origin):
+                if origin in text or text == label:
+                    return origin
+        # Bare origin typed/selected.
+        canonical = danbooru_cfg.canonicalize_term(text)
+        if canonical in set(self._completer_origin_by_label.values()):
+            return canonical
+        if " · " in text:
+            tail = danbooru_cfg.canonicalize_term(text.rsplit(" · ", 1)[-1])
+            if tail:
+                return tail
+        return canonical
+
+    def _on_completer_label_activated(self, label: str):
+        origin = self.resolve_completer_origin(label)
+        if not origin:
+            return
+        if self.search_edit.text() != origin:
+            self.search_edit.setText(origin)
+        self.search_edit.setCursorPosition(len(origin))
+        self.sync_favorite_button_state()
+
     def update_completer(self, terms: list[str]):
-        completer = QCompleter(list(dict.fromkeys(terms)), self.search_edit)
+        """Build completer from origin tags; popup shows display names, selection writes origin."""
+        ordered_origins: list[str] = []
+        seen: set[str] = set()
+        for raw in terms:
+            origin = danbooru_cfg.canonicalize_term(str(raw or ""))
+            if not origin or origin in seen:
+                continue
+            seen.add(origin)
+            ordered_origins.append(origin)
+
+        model = QStandardItemModel(self.search_edit)
+        label_to_origin: dict[str, str] = {}
+        for origin in ordered_origins:
+            label = self._completer_label_for_origin(origin)
+            if not label:
+                continue
+            # Disambiguate rare identical display labels.
+            if label in label_to_origin and label_to_origin[label] != origin:
+                label = self._normalize_completer_label(f"{label} · {origin}")
+            item = QStandardItem(label)
+            item.setData(origin, Qt.UserRole)
+            model.appendRow(item)
+            label_to_origin[label] = origin
+
+        self._completer_origin_by_label = label_to_origin
+        completer = QCompleter(model, self.search_edit)
         completer.setFilterMode(Qt.MatchContains)
         completer.setCompletionMode(QCompleter.PopupCompletion)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setCompletionRole(Qt.DisplayRole)
+        completer.setCompletionColumn(0)
+        # Fallback path when Qt native activated is used instead of CompleterMenu.
+        completer.activated[str].connect(self._on_completer_label_activated)
         self.search_edit.setCompleter(completer)
+
+        menu = getattr(self.search_edit, "_completerMenu", None)
+        if menu is None:
+            menu = CompleterMenu(self.search_edit)
+            self.search_edit.setCompleterMenu(menu)
+        # CompleterMenu inserts label text; rewrite to origin search key immediately after.
+        if getattr(menu, "_cgs_origin_activated_bound", None) is not self:
+            menu.activated.connect(self._on_completer_label_activated)
+            menu._cgs_origin_activated_bound = self  # type: ignore[attr-defined]
         return completer
+
+    def completer_labels(self) -> list[str]:
+        return list(self._completer_origin_by_label.keys())
+
+    def completer_origin_map(self) -> dict[str, str]:
+        return dict(self._completer_origin_by_label)
 
     def _show_search_edit_completer(self, prefix: str):
         completer = self.search_edit.completer()
@@ -382,6 +480,9 @@ class DanbooruTabWidget(QFrame):
         if menu is None:
             self.search_edit.setCompleterMenu(CompleterMenu(self.search_edit))
             menu = self.search_edit._completerMenu
+            if getattr(menu, "_cgs_origin_activated_bound", None) is not self:
+                menu.activated.connect(self._on_completer_label_activated)
+                menu._cgs_origin_activated_bound = self  # type: ignore[attr-defined]
         changed = menu.setCompletion(completer.completionModel(), completer.completionColumn())
         menu.setMaxVisibleItems(max(completer.maxVisibleItems(),10))
         if changed:

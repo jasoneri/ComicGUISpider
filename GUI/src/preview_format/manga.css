@@ -31,7 +31,7 @@ body{min-height:100vh;box-sizing:border-box;padding:18px;color:var(--preview-tex
 .book-card-badge-danger.badge-latest{justify-content:center;z-index:2;background:linear-gradient(0deg,var(--preview-danger-bg),var(--preview-danger-bg)),rgba(var(--preview-surface-strong-rgb),0.98)}
 .book-card-badge-success.badge-latest{justify-content:flex-end;z-index:0}
 
-/* subscribe-select checkbox (top-left overlay, ero-style; hidden until subscribe-select-mode) */
-.preview-manga-card .preview-checkbox{display:none}
-body.subscribe-select-mode .preview-manga-card .preview-checkbox{display:block;position:absolute;top:.47rem;left:.47rem;width:25.33px;height:25.33px;margin:0;z-index:14}
-body.subscribe-select-mode .preview-manga-card .preview-checkbox .preview-checkbox-toggle{top:0;left:0}
+/* subscribe-select checkbox：默认隐藏；仅 body.subscribe-select-mode 显示（需压过 .singal-task .preview-checkbox） */
+.singal-task.preview-manga-card .preview-checkbox{display:none}
+body.subscribe-select-mode .singal-task.preview-manga-card .preview-checkbox{display:block;position:absolute;top:.47rem;left:.47rem;width:25.33px;height:25.33px;margin:0;z-index:14}
+body.subscribe-select-mode .singal-task.preview-manga-card .preview-checkbox .preview-checkbox-toggle{top:0;left:0}

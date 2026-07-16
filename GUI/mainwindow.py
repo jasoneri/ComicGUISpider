@@ -174,7 +174,7 @@ class MitmMainWindow(Ui_MainWindow):
 
     def task_init(self):
         self.expandBtn = ExpandButton(self)
-        self.shareBtn = TransparentToolButton(FIF.SHARE, self)
+        self.shareBtn = TransparentToolButton(CgsIcon.MAIN_SHARE, self)
         self.clearBtn = TransparentToolButton(FIF.BROOM)
         self.repairBtn = TransparentToolButton(CgsIcon.MAIN_REPAIR, self)
         self.repairBtn.setStatusTip("Patch missing page/补漏页")

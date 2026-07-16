@@ -15,6 +15,7 @@ from qfluentwidgets import (
 from GUI.core.anim import ExpandCollapseOrchestrator, ContentTarget
 from GUI.core.timer import safe_single_shot
 from GUI.uic.qfluent.components import DlStatusBadge, CustomTeachingTip
+from GUI.uic.qfluent.components.icons import CgsIcon
 from utils import conf, TaskObj, TasksObj, curr_os
 from utils.sql import SqlRecorder
 
@@ -154,7 +155,7 @@ class ProgressClass(QFrame):
         for attr, icon, btn_cls, callback in (
             ("folder_btn", FIF.FOLDER, TransparentToolButton, self._open_task_folder),
             ("link_btn", FIF.LINK, TransparentToolButton, self._open_task_link),
-            ("share_btn", QIcon(':/main/add.svg'), TransparentToggleToolButton, self._share_task),
+            ("share_btn", CgsIcon.MAIN_ADD, TransparentToggleToolButton, self._share_task),
         ):
             btn_parent = self if attr == "share_btn" else self.cover_label
             btn = btn_cls(icon, btn_parent)
@@ -959,7 +960,16 @@ class TaskProgressManager:
         self._cover_preloads_inflight.discard(task_id)
         if generation != self.gui.preview_mgr._generation:
             return
-        self.gui.log.error(error)
+        # Cover preload is best-effort UI decoration; never treat as crawl failure.
+        cover_url = ""
+        entry = self._entries.get(task_id)
+        if entry is not None:
+            cover_url = str(getattr(entry.tasks_obj, "cover_url", "") or "")
+        self.gui.log.warning(
+            "task cover preload skipped task_id={} cover_url={} detail={}",
+            task_id, cover_url or "-",
+            (error or "").strip().splitlines()[0] if error else "unknown",
+        )
 
     def zero_task_state(self):
         completed_task_ids = [task_id for task_id, entry in self._entries.items() if entry.progress.completed]

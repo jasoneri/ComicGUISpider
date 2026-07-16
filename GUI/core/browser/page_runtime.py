@@ -264,15 +264,18 @@ return JSON.stringify({
             ensure_uses_page_scan=self._browser.window_mode.uses_page_scan,
         )
         self._cancel_ready_probe()
+        # Skip readiness probes for empty shell / about:blank early-open navigations.
+        if current_url in ("", "about:blank", "about:blank#blocked"):
+            return
         self._ready_probe_started_at = self._page_load_started_at
         self._schedule_ready_probe(self._ready_generation, delay_ms=self._READY_PROBE_INTERVAL_MS)
 
     def _on_view_load_finished(self, ok: bool) -> None:
         self._browser.view.setFocus()
+        current_url = self._browser.view.url().toString()
         if not ok:
             self._page_ready = False
             self._cancel_ready_probe()
-            current_url = self._browser.view.url().toString()
             self.log_js_debug(f"load failed url={current_url!r}")
             append_browser_debug_event(
                 "browser.load_finished",
@@ -284,6 +287,31 @@ return JSON.stringify({
                 structured=self._js_structured_count,
             )
             self._browser.pageLoadFinishedDetailed.emit(False, -1.0)
+            return
+        if current_url in ("", "about:blank", "about:blank#blocked"):
+            # Early shell only: never mark page_ready without preview runtime scripts.
+            self._cancel_ready_probe()
+            elapsed_ms = None
+            if self._page_load_started_at is not None:
+                elapsed_ms = (time.perf_counter() - self._page_load_started_at) * 1000
+            self.log_js_debug(
+                f"load finished shell-only url={current_url!r} elapsed_ms="
+                f"{(elapsed_ms if elapsed_ms is not None else -1):.1f}"
+            )
+            append_browser_debug_event(
+                "browser.load_finished",
+                ok=True,
+                url=current_url,
+                elapsed_ms=float(elapsed_ms if elapsed_ms is not None else -1.0),
+                dispatch=self._js_dispatch_count,
+                callbacks=self._js_callback_count,
+                structured=self._js_structured_count,
+                page_ready=False,
+                shell_only=True,
+            )
+            self._browser.pageLoadFinishedDetailed.emit(
+                True, float(elapsed_ms if elapsed_ms is not None else -1.0),
+            )
             return
         self._probe_page_interactive(self._ready_generation)
         elapsed_ms = None
@@ -327,6 +355,13 @@ return JSON.stringify({
 
     def _probe_page_interactive(self, generation: int) -> None:
         if generation != self._ready_generation or self._page_ready:
+            return
+        current_url = self._browser.view.url()
+        if current_url.isEmpty() or current_url.toString() in ("about:blank", "about:blank#blocked"):
+            # Shell-only browser (early search open) has no preview document yet.
+            elapsed_ms = (time.perf_counter() - (self._ready_probe_started_at or time.perf_counter())) * 1000
+            if elapsed_ms < self._READY_PROBE_TIMEOUT_MS:
+                self._schedule_ready_probe(generation, delay_ms=self._READY_PROBE_INTERVAL_MS)
             return
         page = self._browser.view.page()
         self._ready_probe_attempts += 1

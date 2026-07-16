@@ -24,9 +24,11 @@ class CgsConfig(QConfig):
     proxyHistory = ConfigItem("Proxy", "History", ["127.0.0.1:10809"], restart=False)
     dohUrl = ConfigItem("DoH", "Url", "", restart=False)
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
+    searchHistory = ConfigItem("Search", "History", [], restart=False)
     scriptWinRect = ConfigItem("ScriptWindow", "Rect", [], restart=False)
     hiddenSiteChoices = ConfigItem("MainWindow", "HiddenSiteChoices", [], restart=False)
     doh: "CgsConfig.DoH"
+    search: "CgsConfig.Search"
     site_choices: "CgsConfig.SiteChoices"
 
     class SiteChoices:
@@ -96,11 +98,42 @@ class CgsConfig(QConfig):
             self._cfg.save()
             return normalized
 
+    class Search:
+        """Main-window search keyword history (site-agnostic MRU)."""
+
+        MAX_HISTORY = 35
+
+        def __init__(self, cfg: "CgsConfig"):
+            self._cfg = cfg
+
+        @staticmethod
+        def canonicalize(term: object) -> str:
+            return " ".join(str(term or "").split())
+
+        def get_history(self) -> list[str]:
+            history = []
+            for item in list(self._cfg.searchHistory.value or []):
+                normalized = self.canonicalize(item)
+                if normalized and normalized not in history:
+                    history.append(normalized)
+            return history
+
+        def add_history(self, term: object) -> list[str]:
+            canonical = self.canonicalize(term)
+            if not canonical or canonical.lower().startswith("dc:"):
+                return self.get_history()
+            history = [item for item in self.get_history() if item != canonical]
+            history.insert(0, canonical)
+            self._cfg.searchHistory.value = history[: self.MAX_HISTORY]
+            self._cfg.save()
+            return self.get_history()
+
 
 cgs_cfg = CgsConfig()
 qconfig.load(_qconfig_path("qc.json"), cgs_cfg)
 cgs_cfg.site_choices = CgsConfig.SiteChoices(cgs_cfg)
 cgs_cfg.doh = CgsConfig.DoH(cgs_cfg)
+cgs_cfg.search = CgsConfig.Search(cgs_cfg)
 
 
 class CbgConfig(QConfig):
@@ -159,6 +192,7 @@ class DanbooruConfig(QConfig):
     searchHistory = ConfigItem("Search", "History", [], restart=False)
     searchExtra = ConfigItem("Search", "SearchExtra", [], restart=False)
     searchFavorites = ConfigItem("Search", "Favorites", {}, restart=False)
+    searchFavoritesTranslateMap = ConfigItem("Search", "FavoritesTranslateMap", {}, restart=False)
     view_ratio = RangeConfigItem("Viewer", "ViewRatio", _default_danbooru_view_ratio(), RangeValidator(30, 85), restart=False)
     player = ConfigItem("Viewer", "Player", {}, restart=False)
     zoom_index = ConfigItem("Viewer", "ZoomIndex", 2, restart=False)
@@ -198,8 +232,70 @@ class DanbooruConfig(QConfig):
             self.searchFavorites.value = normalized_payload
         return normalized_payload
 
+    def _normalize_translate_map_payload(self, payload: object) -> dict[str, str]:
+        if not isinstance(payload, dict):
+            return {}
+        normalized_payload: dict[str, str] = {}
+        for raw_origin, raw_translated in payload.items():
+            origin = self.canonicalize_term(str(raw_origin))
+            translated = self.canonicalize_term(str(raw_translated))
+            if not origin or not translated:
+                continue
+            normalized_payload[origin] = translated
+        return normalized_payload
+
+    def get_translate_map(self) -> dict[str, str]:
+        normalized_payload = self._normalize_translate_map_payload(self.searchFavoritesTranslateMap.value)
+        if normalized_payload != self.searchFavoritesTranslateMap.value:
+            self.searchFavoritesTranslateMap.value = normalized_payload
+        return dict(normalized_payload)
+
+    def save_translate_map(self, payload: object) -> dict[str, str]:
+        normalized_payload = self._normalize_translate_map_payload(payload)
+        if normalized_payload != self.searchFavoritesTranslateMap.value:
+            self.searchFavoritesTranslateMap.value = normalized_payload
+            self.save()
+        return dict(normalized_payload)
+
+    def merge_translate_map(self, translations: object) -> dict[str, str]:
+        """Background-safe merge: keep existing map entries, overwrite only provided keys."""
+        merged = self.get_translate_map()
+        if isinstance(translations, dict):
+            for raw_origin, raw_translated in translations.items():
+                origin = self.canonicalize_term(str(raw_origin))
+                translated = self.canonicalize_term(str(raw_translated))
+                if not origin or not translated:
+                    continue
+                merged[origin] = translated
+        return self.save_translate_map(merged)
+
+    def drop_translate_keys(self, tags: object) -> dict[str, str]:
+        current_map = self.get_translate_map()
+        if not current_map:
+            return current_map
+        drop_keys = {
+            canonical
+            for raw_tag in (tags or [])
+            if (canonical := self.canonicalize_term(str(raw_tag)))
+        }
+        if not drop_keys:
+            return current_map
+        next_map = {
+            origin: translated
+            for origin, translated in current_map.items()
+            if origin not in drop_keys
+        }
+        return self.save_translate_map(next_map)
+
+    def display_tag(self, origin: str) -> str:
+        canonical = self.canonicalize_term(origin)
+        if not canonical:
+            return ""
+        return self.get_translate_map().get(canonical) or canonical
+
     def toDict(self, serialize=True):
         self._normalize_search_favorites_value()
+        self.get_translate_map()
         return super().toDict(serialize=serialize)
 
     def get_view_ratio_percent(self) -> int:

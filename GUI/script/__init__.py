@@ -1,11 +1,15 @@
 # ruff: noqa: E402
+import contextlib
 import sys
 import pathlib
 import os
 
 from PySide6 import QtWidgets
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QSizePolicy, QCompleter, QFileDialog, QVBoxLayout, QStackedWidget
-from PySide6.QtCore import Qt, QCoreApplication, QSize
+from PySide6.QtWidgets import (
+    QAbstractScrollArea, QApplication, QFrame, QHBoxLayout, QSizePolicy,
+    QCompleter, QFileDialog, QVBoxLayout, QStackedWidget, QWidget,
+)
+from PySide6.QtCore import Qt, QCoreApplication, QRect, QSize
 from PySide6.QtGui import QIcon
 from utils import install_qfluentwidgets_notice_filter
 
@@ -13,9 +17,9 @@ install_qfluentwidgets_notice_filter()
 
 from qfluentwidgets import (
     NavigationItemPosition, FluentWindow,
-    LineEdit, PrimaryPushButton,
-    VBoxLayout, FluentIcon as FIF, StrongBodyLabel, InfoBar, InfoBarPosition,
-    GroupHeaderCardWidget, PushButton, SpinBox, ComboBox, RangeSettingCard
+    LineEdit, PasswordLineEdit, PrimaryPushButton,
+    FluentIcon as FIF, StrongBodyLabel, InfoBar, InfoBarPosition,
+    GroupHeaderCardWidget, PushButton, ScrollArea, SpinBox, ComboBox, RangeSettingCard
 )
 
 from assets import res
@@ -28,10 +32,7 @@ from GUI.core.exception_feedback import GuiExceptionFeedbackDispatcher, InfoBarE
 from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import summarize_error_message
-from GUI.script.cbg import CbgInterface
-from GUI.script.danbooru import DanbooruInterface
-from GUI.script.kemono import KemonoInterface
-from GUI.script.jsoneri import JsoneriPalacesProbeInterface
+from GUI.uic.qfluent.components.icons import CgsIcon
 
 
 script_res = res.GUI.Script
@@ -174,7 +175,7 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.pathButton.clicked.connect(self._onSelectFolder)
 
         self.pathCard = self.addGroup(FIF.DOWNLOAD, uic_res.sv_path_desc, self.current_path, self.pathButton)
-        self.addGroup(FIF.FOLDER, script_res.danbooru_save_mode, script_res.danbooru_save_mode_desc, self.saveTypeBox)
+        self.addGroup(CgsIcon.SV_TYPE, script_res.danbooru_save_mode, script_res.danbooru_save_mode_desc, self.saveTypeBox)
         self.addGroup(
             FIF.SPEED_HIGH, script_res.danbooru_download_concurrency, script_res.danbooru_download_concurrency_desc,
             self.downloadConcurrencyEdit,
@@ -227,6 +228,59 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.saveTypeBox.setCurrentIndex(index if index >= 0 else 0)
 
 
+class AiGroupCard(GroupHeaderCardWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setting_interface = parent
+        self.setTitle("AI Provider")
+        self.setBorderRadius(8)
+
+        self.urlEdit = LineEdit(self)
+        self.urlEdit.setPlaceholderText("https://api.openai.com/v1")
+        self.urlEdit.setClearButtonEnabled(True)
+        self.urlEdit.setMinimumWidth(320)
+
+        self.keyEdit = PasswordLineEdit(self)
+        self.keyEdit.setPlaceholderText("api-key")
+        self.keyEdit.setClearButtonEnabled(True)
+        self.keyEdit.setMinimumWidth(320)
+
+        self.modelEdit = LineEdit(self)
+        self.modelEdit.setPlaceholderText("model name")
+        self.modelEdit.setClearButtonEnabled(True)
+        self.modelEdit.setMinimumWidth(240)
+
+        self.addGroup(CgsIcon.URL, "Base URL", "OpenAI-compatible endpoint", self.urlEdit)
+        self.addGroup(CgsIcon.KEY, "API Key", "Bearer token / api key", self.keyEdit)
+        self.addGroup(FIF.ROBOT, "Model", "Chat model id", self.modelEdit)
+
+    def set_provider(self, *, url: object = None, key: object = None, model: object = None):
+        self.urlEdit.setText(str(url or ""))
+        self.keyEdit.setText(str(key or ""))
+        self.modelEdit.setText(str(model or ""))
+
+    def get_provider_fields(self) -> dict:
+        from utils.script.ai.kernel import AiProviderMgr
+
+        return AiProviderMgr.normalize_fields(
+            url=self.urlEdit.text(),
+            key=self.keyEdit.text(),
+            model=self.modelEdit.text(),
+        )
+
+
+class _SettingFillScrollArea(ScrollArea):
+    """ScrollArea whose vertical sizeHint is 0 so parent layout can stretch it to fill remainder."""
+
+    def sizeHint(self):
+        hint = super().sizeHint()
+        return QSize(hint.width(), 0)
+
+    def minimumSizeHint(self):
+        hint = super().minimumSizeHint()
+        return QSize(hint.width(), 0)
+
+
 class SettingInterface(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -236,12 +290,32 @@ class SettingInterface(QFrame):
 
     def setupUi(self):
         _translate = QCoreApplication.translate
-        self.main_layout = VBoxLayout(self)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # QVBoxLayout (not qfluent VBoxLayout): stretch factor must expand scroll above footer.
+        self.outer_layout = QVBoxLayout(self)
+        self.outer_layout.setContentsMargins(0, 0, 0, 0)
+        self.outer_layout.setSpacing(0)
 
-        # 第一行：代理设置
+        self.scroll_area = _SettingFillScrollArea(self)
+        self.scroll_area.setObjectName("SettingInterfaceScrollArea")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # content sizeHint must not inflate ScriptWindow min height (scriptWinRect owns geometry).
+        self.scroll_area.setMinimumHeight(0)
+        self.scroll_area.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
+        if hasattr(self.scroll_area, "enableTransparentBackground"):
+            self.scroll_area.enableTransparentBackground()
+
+        self.scroll_content = QWidget(self.scroll_area)
+        self.scroll_content.setObjectName("SettingInterfaceScrollContent")
+        self.scroll_content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.main_layout = QVBoxLayout(self.scroll_content)
+
         first_row = QHBoxLayout()
-        proxies_label = StrongBodyLabel("代理/Proxy", self)
-        self.imgProxiesEdit = LineEdit(self)
+        proxies_label = StrongBodyLabel("代理/Proxy", self.scroll_content)
+        self.imgProxiesEdit = LineEdit(self.scroll_content)
         self.imgProxiesEdit.setToolTip(_translate("SettingInterface", "proxies"))
         self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", "example-of-v2rayN 127.0.0.1:10809"))
         completer = QCompleter(['127.0.0.1:10809'])
@@ -250,28 +324,67 @@ class SettingInterface(QFrame):
         self.imgProxiesEdit.setCompleter(completer)
         self.imgProxiesEdit.setClearButtonEnabled(True)
 
-        self.dohBtn = PushButton("DoH", self)
+        self.dohBtn = PushButton("DoH", self.scroll_content)
         self.dohBtn.setMaximumSize(QSize(80, 16777215))
         self.dohController = DoHButtonController(self.dohBtn, parent=self, on_saved=self._save_doh_config)
         first_row.addWidget(proxies_label)
         first_row.addWidget(self.imgProxiesEdit)
         first_row.addWidget(self.dohBtn)
-        
+
+        # Cards keep SettingInterface as parent so setting_interface/saveBtn wiring stays valid.
         self.kemono_group_card = KemonoGroupCard(self)
         self.danbooru_group_card = DanbooruGroupCard(self)
-
-        # 第四行：保存按钮
-        forth_row = QHBoxLayout()
-        self.saveBtn = PrimaryPushButton(FIF.SAVE, "", self)
-        self.saveBtn.clicked.connect(self.save_conf)
-        forth_row.addWidget(self.saveBtn)
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.ai_card = AiGroupCard(self)
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addWidget(self.kemono_group_card)
         self.main_layout.addWidget(self.danbooru_group_card)
-        self.main_layout.addItem(spacerItem)
-        self.main_layout.addLayout(forth_row)
+        self.main_layout.addWidget(self.ai_card)
+        self.main_layout.addStretch(0)
+
+        self.scroll_area.setWidget(self.scroll_content)
+
+        # Save outside scroll: always pinned to SettingInterface bottom.
+        self.footer = QWidget(self)
+        self.footer.setObjectName("SettingInterfaceFooter")
+        self.footer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.footer_row = QHBoxLayout(self.footer)
+        self.footer_row.setContentsMargins(12, 8, 12, 12)
+        self.saveBtn = PrimaryPushButton(FIF.SAVE, "", self.footer)
+        self.saveBtn.clicked.connect(self.save_conf)
+        self.footer_row.addWidget(self.saveBtn)
+
+        self.outer_layout.addWidget(self.scroll_area, 1)
+        self.outer_layout.addWidget(self.footer, 0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._sync_scroll_area_height_to_parent()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._sync_scroll_area_height_to_parent()
+
+    def _sync_scroll_area_height_to_parent(self):
+        """Parent-driven max height: scroll fills remainder above footer; min=0 keeps scriptWin shrinkable."""
+        page_height = self.height()
+        if page_height <= 0:
+            return
+        footer_height = self.footer.height() if self.footer.height() > 0 else self.footer.sizeHint().height()
+        margins = self.outer_layout.contentsMargins()
+        available_height = (
+            page_height
+            - footer_height
+            - margins.top()
+            - margins.bottom()
+            - self.outer_layout.spacing()
+        )
+        if available_height < 0:
+            available_height = 0
+        self.scroll_area.setMinimumHeight(0)
+        self.scroll_area.setMaximumHeight(available_height if available_height > 0 else 16777215)
+        self.scroll_area.updateGeometry()
+        self.outer_layout.activate()
 
     def show_self(self):
         """加载配置文件内容到各个编辑框"""
@@ -286,6 +399,10 @@ class SettingInterface(QFrame):
         self.danbooru_group_card.setCurrentPath(runtime_config.save_path)
         self.danbooru_group_card.setSaveType(runtime_config.save_type)
         self.danbooru_group_card.setDownloadConcurrency(runtime_config.download_concurrency)
+        from utils.script.ai.kernel import AiProviderMgr
+
+        provider = AiProviderMgr(config_data.get("ai") or {}).provider
+        self.ai_card.set_provider(url=provider.url, key=provider.key, model=provider.model)
 
     def _gui_logger(self):
         return self.parent_window.gui.log
@@ -301,8 +418,9 @@ class SettingInterface(QFrame):
         )
 
     def _save_doh_config(self, doh_url: str):
-        if hasattr(self.parent_window, "danbooruInterface"):
-            self.parent_window.danbooruInterface.refresh_runtime_settings()
+        danbooru = getattr(self.parent_window, "danbooruInterface", None)
+        if danbooru is not None:
+            danbooru.refresh_runtime_settings()
         if hasattr(self.parent_window, "doh_stub_runtime"):
             self.parent_window.doh_stub_runtime.ensure(doh_url)
 
@@ -336,9 +454,14 @@ class SettingInterface(QFrame):
             config_data['danbooru'].pop('redis_key', None)
             config_data['danbooru'].pop('page_size', None)
 
+            config_data['ai'] = {
+                "provider": self.ai_card.get_provider_fields(),
+            }
+
             script_conf.update(**config_data)
-            if hasattr(self.parent_window, "danbooruInterface"):
-                self.parent_window.danbooruInterface.refresh_runtime_settings()
+            danbooru = getattr(self.parent_window, "danbooruInterface", None)
+            if danbooru is not None:
+                danbooru.refresh_runtime_settings()
 
             InfoBar.success(
                 title='', content="配置保存成功",
@@ -350,6 +473,15 @@ class SettingInterface(QFrame):
 
 
 class ScriptWindow(ScriptWindowBase):
+    # Lazy interface factories: import+construct only when the nav entry is first needed.
+    _INTERFACE_FACTORIES = {
+        "danbooru": ("GUI.script.danbooru", "DanbooruInterface"),
+        "kemono": ("GUI.script.kemono", "KemonoInterface"),
+        "cbg": ("GUI.script.cbg", "CbgInterface"),
+        "jsoneri": ("GUI.script.jsoneri", "JsoneriPalacesProbeInterface"),
+        "settings": (None, "SettingInterface"),
+    }
+
     def __init__(
         self,
         parent=None,
@@ -363,23 +495,18 @@ class ScriptWindow(ScriptWindowBase):
         if OFFSCREEN_FLUENT_FALLBACK:
             self._setup_offscreen_shell()
         self._script_entry_specs: list[tuple[QFrame, bool]] = []
-        self.doh_stub_runtime = ScriptDoHStubRuntime(self)
-        self.danbooruInterface = DanbooruInterface(self)
-        self.kemonoInterface = KemonoInterface(self)
-        self.cbgInterface = CbgInterface(self)
-        self.jsoneriPalacesProbeInterface = JsoneriPalacesProbeInterface(self)
-        self.settingInterface = SettingInterface(self)
+        self._mounted_keys: set[str] = set()
+        self._feedback_dispatcher = feedback_dispatcher
         self._exception_feedback_scope = None
-        if feedback_dispatcher is not None:
-            self._exception_feedback_scope = feedback_dispatcher.register_scope(
-                owner=self,
-                surfaces=(self.danbooruInterface.image_viewer,),
-                presenter=InfoBarExceptionPresenter(),
-            )
+        self.doh_stub_runtime = ScriptDoHStubRuntime(self)
+        self.danbooruInterface = None
+        self.kemonoInterface = None
+        self.cbgInterface = None
+        self.jsoneriPalacesProbeInterface = None
+        self.settingInterface = None
         self.doh_stub_runtime.ensure_from_config()
 
         self.initNavigation()
-        self._hide_unavailable_script_interfaces()
         self.initWindow()
         safe_single_shot(0, self.doh_stub_runtime.flush_warning)
 
@@ -423,82 +550,223 @@ class ScriptWindow(ScriptWindowBase):
         return widget
 
     def _set_offscreen_current_widget(self, widget):
+        key = getattr(widget, "_script_lazy_key", None)
+        if key is not None and key not in self._mounted_keys:
+            widget = self._materialize_interface(key)
         self.stackedWidget.setCurrentWidget(widget)
         for current_widget, button in self._offscreen_nav_buttons.items():
             button.setChecked(current_widget is widget)
 
     def initNavigation(self):
-        if self._script_entry_visible("danbooru_visible"):
-            self._add_script_entry(self.danbooruInterface, ':/script/danbooru.svg', 'Danbooru', show_in_pure_mode=False)
-        if self._script_entry_visible("kemono_visible"):
-            self._add_script_entry(self.kemonoInterface, ':/script/kemono.ico', 'Kemono', show_in_pure_mode=False)
-        if self._script_entry_visible("cbg_visible"):
-            self._add_script_entry(self.cbgInterface, ':/script/cbg.svg', 'Cbg', show_in_pure_mode=True)
-        if self._script_entry_visible("jsoneri_palaces_probe_visible"):
-            self._add_script_entry(self.jsoneriPalacesProbeInterface, FIF.CLOUD, 'jsoneriPalacesProbe', show_in_pure_mode=True)
-        self.navigationInterface.addSeparator()
-        if self._script_entry_visible("settings_visible"):
-            self._add_script_entry(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM, show_in_pure_mode=True)
-
-    def _hide_unavailable_script_interfaces(self):
-        for interface, visibility_key in (
-            (self.danbooruInterface, "danbooru_visible"),
-            (self.kemonoInterface, "kemono_visible"),
-            (self.cbgInterface, "cbg_visible"),
-            (self.jsoneriPalacesProbeInterface, "jsoneri_palaces_probe_visible"),
-            (self.settingInterface, "settings_visible"),
-        ):
+        self._deferred_nav: dict[str, tuple] = {}
+        self._stub_by_key: dict[str, QFrame] = {}
+        entries = (
+            ("danbooru", "danbooru_visible", ":/script/danbooru.svg", "Danbooru", NavigationItemPosition.TOP, False),
+            ("kemono", "kemono_visible", ":/script/kemono.ico", "Kemono", NavigationItemPosition.TOP, False),
+            ("cbg", "cbg_visible", ":/script/cbg.svg", "Cbg", NavigationItemPosition.TOP, True),
+            ("jsoneri", "jsoneri_palaces_probe_visible", FIF.CLOUD, "jsoneriPalacesProbe", NavigationItemPosition.TOP, True),
+        )
+        first_key = None
+        for key, visibility_key, icon, text, position, show_in_pure_mode in entries:
             if not self._script_entry_visible(visibility_key):
-                interface.hide()
+                continue
+            self._script_entry_specs.append((key, show_in_pure_mode))
+            if first_key is None:
+                first_key = key
+                interface = self._materialize_interface(key)
+                self.addSubInterface(interface, icon, text, position)
+            else:
+                self._add_lazy_nav_entry(key, icon, text, position)
+
+        if self._script_entry_visible("settings_visible"):
+            self.navigationInterface.addSeparator()
+            self._script_entry_specs.append(("settings", True))
+            if first_key is None:
+                interface = self._materialize_interface("settings")
+                self.addSubInterface(interface, FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM)
+            else:
+                self._add_lazy_nav_entry("settings", FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM)
+
+        if not OFFSCREEN_FLUENT_FALLBACK and hasattr(self, "stackedWidget"):
+            self.stackedWidget.currentChanged.connect(self._on_stacked_current_changed)
+
+    def _attr_name_for_key(self, key: str) -> str:
+        return {
+            "danbooru": "danbooruInterface",
+            "kemono": "kemonoInterface",
+            "cbg": "cbgInterface",
+            "jsoneri": "jsoneriPalacesProbeInterface",
+            "settings": "settingInterface",
+        }[key]
+
+    def _add_lazy_nav_entry(self, key: str, icon, text: str, position):
+        self._deferred_nav[key] = (icon, text, position)
+        stub = QFrame(self)
+        stub.setObjectName(f"ScriptDeferredStub_{key}")
+        stub._script_lazy_key = key  # type: ignore[attr-defined]
+        self._stub_by_key[key] = stub
+        self.addSubInterface(stub, icon, text, position)
+
+    def _materialize_interface(self, key: str):
+        if key in self._mounted_keys:
+            return getattr(self, self._attr_name_for_key(key))
+        module_path, class_name = self._INTERFACE_FACTORIES[key]
+        if module_path is None:
+            interface_cls = SettingInterface
+        else:
+            import importlib
+
+            module = importlib.import_module(module_path)
+            interface_cls = getattr(module, class_name)
+        interface = interface_cls(self)
+        attr = self._attr_name_for_key(key)
+        setattr(self, attr, interface)
+        self._mounted_keys.add(key)
+
+        stub = self._stub_by_key.pop(key, None)
+        if stub is not None:
+            self._replace_nav_stub(key, stub, interface)
+        if key == "settings":
+            interface.show_self()
+        if key == "danbooru" and self._feedback_dispatcher is not None and self._exception_feedback_scope is None:
+            self._exception_feedback_scope = self._feedback_dispatcher.register_scope(
+                owner=self,
+                surfaces=(interface.image_viewer,),
+                presenter=InfoBarExceptionPresenter(),
+            )
+        return interface
+
+    def _replace_nav_stub(self, key: str, stub: QFrame, interface: QFrame):
+        if OFFSCREEN_FLUENT_FALLBACK:
+            index = self.stackedWidget.indexOf(stub)
+            if index >= 0:
+                was_current = self.stackedWidget.currentWidget() is stub
+                self.stackedWidget.removeWidget(stub)
+                self.stackedWidget.insertWidget(index, interface)
+                button = self._offscreen_nav_buttons.pop(stub, None)
+                if button is not None:
+                    self._offscreen_nav_buttons[interface] = button
+                    with contextlib.suppress(TypeError, RuntimeError):
+                        button.clicked.disconnect()
+                    button.clicked.connect(
+                        lambda _=False, current_widget=interface: self._set_offscreen_current_widget(current_widget)
+                    )
+                if was_current:
+                    self.stackedWidget.setCurrentWidget(interface)
+        else:
+            icon, text, position = self._deferred_nav.get(key, (FIF.APPLICATION, key, NavigationItemPosition.TOP))
+            was_current = getattr(self, "stackedWidget", None) is not None and self.stackedWidget.currentWidget() is stub
+            with contextlib.suppress(Exception):
+                self.navigationInterface.removeWidget(stub.objectName())
+            self.addSubInterface(interface, icon, text, position)
+            if was_current:
+                self.switchTo(interface)
+        stub.deleteLater()
+
+    def _on_stacked_current_changed(self, index: int):
+        if index < 0 or not hasattr(self, "stackedWidget"):
+            return
+        widget = self.stackedWidget.widget(index)
+        key = getattr(widget, "_script_lazy_key", None)
+        if key is None or key in self._mounted_keys:
+            return
+        interface = self._materialize_interface(key)
+        self.switchTo(interface)
 
     def _script_entry_visible(self, visibility_key: str) -> bool:
         return bool(self.script_entry_state.get(visibility_key, True))
 
     def apply_pure_entry_mode(self):
-        for interface, show_in_pure_mode in self._script_entry_specs:
+        for key, show_in_pure_mode in self._script_entry_specs:
             if show_in_pure_mode:
                 continue
+            interface = getattr(self, self._attr_name_for_key(key), None)
+            stub = self._stub_by_key.get(key)
+            target = interface or stub
+            if target is None:
+                continue
             if OFFSCREEN_FLUENT_FALLBACK:
-                button = self._offscreen_nav_buttons.get(interface)
+                button = self._offscreen_nav_buttons.get(target)
                 if button is not None:
                     button.hide()
             else:
-                self.navigationInterface.removeWidget(interface.objectName())
+                with contextlib.suppress(Exception):
+                    self.navigationInterface.removeWidget(target.objectName())
 
+        cbg = self._materialize_interface("cbg")
         if OFFSCREEN_FLUENT_FALLBACK:
-            self._set_offscreen_current_widget(self.cbgInterface)
+            self._set_offscreen_current_widget(cbg)
         else:
-            self.switchTo(self.cbgInterface)
-
-    def _add_script_entry(self, interface, icon, text, position=NavigationItemPosition.TOP, *, show_in_pure_mode: bool):
-        self._script_entry_specs.append((interface, show_in_pure_mode))
-        return self.addSubInterface(interface, icon, text, position)
+            self.switchTo(cbg)
 
     def addSubInterface(self, interface, icon, text, position=NavigationItemPosition.TOP):
         if OFFSCREEN_FLUENT_FALLBACK:
             return self._add_offscreen_subinterface(interface, text, position)
         return super().addSubInterface(interface, icon, text, position)
 
+    @staticmethod
+    def _normalized_window_rect(x: int, y: int, width: int, height: int) -> QRect:
+        """Keep restored geometry usable when a prior monitor was disconnected."""
+        min_width, min_height = 640, 420
+        width = max(min_width, int(width))
+        height = max(min_height, int(height))
+        proposed = QRect(int(x), int(y), width, height)
+        screens = QApplication.screens()
+        if not screens:
+            return proposed
+
+        def _visible_enough(rect: QRect) -> bool:
+            for screen in screens:
+                intersection = screen.availableGeometry().intersected(rect)
+                # Require a usable title-bar / content strip so taskbar-only ghosts fail.
+                if intersection.width() >= min(120, rect.width()) and intersection.height() >= 48:
+                    return True
+            return False
+
+        if _visible_enough(proposed):
+            return proposed
+
+        primary = QApplication.primaryScreen() or screens[0]
+        available = primary.availableGeometry()
+        fitted_width = min(width, available.width())
+        fitted_height = min(height, available.height())
+        centered = QRect(
+            available.x() + max(0, (available.width() - fitted_width) // 2),
+            available.y() + max(0, (available.height() - fitted_height) // 2),
+            fitted_width,
+            fitted_height,
+        )
+        return centered
+
     def initWindow(self):
-        if cgs_cfg.scriptWinRect.value:
-            x, y, w, h = (int(v) for v in cgs_cfg.scriptWinRect.value)
-            self.move(x, y)
-            self.resize(w, h)
+        saved_rect = cgs_cfg.scriptWinRect.value
+        if saved_rect and len(saved_rect) >= 4:
+            x, y, width, height = (int(value) for value in saved_rect[:4])
+            geometry = self._normalized_window_rect(x, y, width, height)
+            if geometry.x() != x or geometry.y() != y or geometry.width() != width or geometry.height() != height:
+                gui_logger = getattr(self.gui, "log", None) if self.gui is not None else None
+                if gui_logger is not None:
+                    gui_logger.warning(
+                        f"[ScriptWindow] restored geometry off-screen or invalid "
+                        f"saved={[x, y, width, height]} -> applied="
+                        f"[{geometry.x()}, {geometry.y()}, {geometry.width()}, {geometry.height()}]"
+                    )
+            self.setGeometry(geometry)
         elif self.gui:
             self.resize(max(850, self.gui.width()), self.gui.height())
         else:
             self.resize(850, 600)
         self.setWindowIcon(QIcon(':/CGS-logo.png'))
         self.setWindowTitle('CGS - ScriptTool')
+        if self.settingInterface is not None:
+            self.settingInterface.show_self()
 
-        # 初始化设置界面的内容
-        self.settingInterface.show_self()
-        
     def server_mode_switch_blockers(self) -> list[str]:
         blockers = []
-        blockers.extend(self.danbooruInterface.server_mode_switch_blockers())
-        blockers.extend(self.kemonoInterface.server_mode_switch_blockers())
-        blockers.extend(self.cbgInterface.server_mode_switch_blockers())
+        for interface in (self.danbooruInterface, self.kemonoInterface, self.cbgInterface):
+            if interface is None:
+                continue
+            blockers.extend(interface.server_mode_switch_blockers())
         return list(dict.fromkeys(blockers))
 
     def closeEvent(self, event):
@@ -506,10 +774,14 @@ class ScriptWindow(ScriptWindowBase):
         if self._exception_feedback_scope is not None:
             self._exception_feedback_scope.close()
             self._exception_feedback_scope = None
-        cgs_cfg.scriptWinRect.value = [self.x(), self.y(), self.width(), self.height()]
+        geometry = self._normalized_window_rect(self.x(), self.y(), self.width(), self.height())
+        # Persist only a screen-safe rect so a disconnected monitor cannot trap the next open.
+        cgs_cfg.scriptWinRect.value = [geometry.x(), geometry.y(), geometry.width(), geometry.height()]
         cgs_cfg.save()
-        self.danbooruInterface.image_viewer.hide()
-        self.jsoneriPalacesProbeInterface.close_service_window()
+        if self.danbooruInterface is not None:
+            self.danbooruInterface.image_viewer.hide()
+        if self.jsoneriPalacesProbeInterface is not None:
+            self.jsoneriPalacesProbeInterface.close_service_window()
         if (
             self.gui is not None
             and not getattr(self.gui, "_closing", False)

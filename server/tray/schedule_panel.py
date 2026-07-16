@@ -23,19 +23,24 @@ from qfluentwidgets import (
     TransparentToolButton,
 )
 
+from server.tray.style import (
+    accent_info_label_stylesheet,
+    accent_ok_label_stylesheet,
+    body_text_stylesheet,
+    cover_placeholder_stylesheet,
+    detail_title_stylesheet,
+    latest_banner_stylesheet,
+    muted_label_stylesheet,
+    pending_card_stylesheet,
+    pkl_detail_stylesheet,
+    run_id_chip_stylesheet,
+    section_heading_stylesheet,
+    site_badge_stylesheet,
+    source_card_stylesheet,
+)
 from server.tray.ui_common import (
     ClickableFrame,
-    SCHEDULE_ACCENT_INFO,
-    SCHEDULE_ACCENT_OK,
-    SCHEDULE_CARD_BG,
-    SCHEDULE_CARD_BG_SEL,
     StageRail,
-    TRAY_BORDER,
-    TRAY_COVER_BG,
-    TRAY_MUTED,
-    TRAY_PANEL_BG,
-    TRAY_PANEL_BG_ALT,
-    TRAY_TEXT,
     clear_layout,
     tray_mono_font,
 )
@@ -225,7 +230,6 @@ class SchedulePanel:
     def _build_header_panel(self, parent) -> QWidget:
         band = QFrame(parent)
         band.setObjectName("ScheduleHeaderPanel")
-        band.setStyleSheet(f"QFrame#ScheduleHeaderPanel{{background:{TRAY_PANEL_BG};border:1px solid {TRAY_BORDER};border-radius:6px;}}")
         layout = QHBoxLayout(band)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(8)
@@ -233,7 +237,8 @@ class SchedulePanel:
         self.mode_chip = QLabel(band)
         self.state_chip = QLabel(band)
         self.next_label = CaptionLabel("Next -", band)
-        self.next_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.next_label.setObjectName("TrayMutedLabel")
+        self.next_label.setStyleSheet(muted_label_stylesheet())
         self.run_button = PrimaryPushButton(FIF.PLAY, "立刻执行", band)
         self.run_button.clicked.connect(lambda _checked=False: self.host.run_schedule_now())
         subscribe_button = PushButton(FIF.LINK, "打开追更配置", band)
@@ -263,8 +268,6 @@ class SchedulePanel:
     def _panel(self, parent, object_name: str, *, alt: bool = False):
         frame = QFrame(parent)
         frame.setObjectName(object_name)
-        bg = TRAY_PANEL_BG_ALT if alt else TRAY_PANEL_BG
-        frame.setStyleSheet(f"#{object_name}{{background:{bg};border:1px solid {TRAY_BORDER};border-radius:6px;}}")
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(6)
@@ -272,19 +275,17 @@ class SchedulePanel:
 
     def _site_badge(self, site: str, parent) -> QLabel:
         chip = QLabel((site or "?").upper(), parent)
-        chip.setStyleSheet(
-            f"background:{TRAY_PANEL_BG};color:{TRAY_MUTED};border:1px solid {TRAY_BORDER};"
-            "border-radius:3px;padding:1px 4px;font-size:9px;font-weight:600;"
-        )
+        chip.setObjectName("TraySiteBadge")
+        chip.setStyleSheet(site_badge_stylesheet())
         return chip
 
     def _scroll_host(self, parent):
         scroll = QScrollArea(parent)
+        scroll.setObjectName("TrayTransparentScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea{background:transparent;border:none;}")
         body = QWidget()
-        body.setStyleSheet("background:transparent;")
+        body.setObjectName("TrayTransparentBody")
         layout = QVBoxLayout(body)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
@@ -301,7 +302,8 @@ class SchedulePanel:
         plan_header = QHBoxLayout()
         plan_header.setContentsMargins(0, 0, 0, 0)
         plan_title = CaptionLabel("PLAN", plan_frame)
-        plan_title.setStyleSheet(f"color:{TRAY_MUTED};font-weight:600;")
+        plan_title.setObjectName("TrayMutedLabel")
+        plan_title.setStyleSheet(section_heading_stylesheet())
         self.cache_chip = QLabel(plan_frame)
         plan_header.addWidget(plan_title)
         plan_header.addStretch(1)
@@ -324,7 +326,8 @@ class SchedulePanel:
         sp_layout.setContentsMargins(0, 0, 0, 0)
         sp_layout.setSpacing(4)
         self.sources_count_label = CaptionLabel("0 个对象", sources_page)
-        self.sources_count_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.sources_count_label.setObjectName("TrayMutedLabel")
+        self.sources_count_label.setStyleSheet(muted_label_stylesheet())
         sources_scroll, self.sources_layout = self._scroll_host(sources_page)
         sp_layout.addWidget(self.sources_count_label)
         sp_layout.addWidget(sources_scroll, 1)
@@ -334,7 +337,8 @@ class SchedulePanel:
         hp_layout.setContentsMargins(0, 0, 0, 0)
         hp_layout.setSpacing(4)
         self.history_count_label = CaptionLabel("0 条事件", history_page)
-        self.history_count_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.history_count_label.setObjectName("TrayMutedLabel")
+        self.history_count_label.setStyleSheet(muted_label_stylesheet())
         self.events_table = self.host.ui.create_log_table(history_page, ["时间", "类型", "结果", "详情"])
         self.events_table.setObjectName("ScheduleEventsTable")
         hp_layout.addWidget(self.history_count_label)
@@ -361,27 +365,32 @@ class SchedulePanel:
         head.setContentsMargins(0, 0, 0, 0)
         head.setSpacing(8)
         self.run_id_chip = QLabel("-", run_frame)
+        self.run_id_chip.setObjectName("TrayRunIdChip")
         self.run_id_chip.setFont(tray_mono_font(8))
-        self.run_id_chip.setStyleSheet(
-            f"background:{TRAY_PANEL_BG};color:{TRAY_MUTED};border:1px solid {TRAY_BORDER};border-radius:3px;padding:1px 6px;"
-        )
+        self.run_id_chip.setStyleSheet(run_id_chip_stylesheet())
         self.run_trigger_label = CaptionLabel("触发: -", run_frame)
-        self.run_trigger_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.run_trigger_label.setObjectName("TrayMutedLabel")
+        self.run_trigger_label.setStyleSheet(muted_label_stylesheet())
         self.run_elapsed_label = CaptionLabel("0s", run_frame)
+        self.run_elapsed_label.setObjectName("TrayMutedLabel")
         self.run_elapsed_label.setFont(tray_mono_font(8))
-        self.run_elapsed_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.run_elapsed_label.setStyleSheet(muted_label_stylesheet())
         head.addWidget(self.run_id_chip)
         head.addWidget(self.run_trigger_label)
         head.addWidget(self.run_elapsed_label)
         head.addStretch(1)
         self.run_scanned_label = CaptionLabel("扫描 0", run_frame)
-        self.run_scanned_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.run_scanned_label.setObjectName("TrayMutedLabel")
+        self.run_scanned_label.setStyleSheet(muted_label_stylesheet())
         self.run_pending_label = CaptionLabel("待处理 0", run_frame)
-        self.run_pending_label.setStyleSheet(f"color:{SCHEDULE_ACCENT_INFO};")
+        self.run_pending_label.setObjectName("TrayAccentInfoLabel")
+        self.run_pending_label.setStyleSheet(accent_info_label_stylesheet())
         self.run_jobs_label = CaptionLabel("任务 0", run_frame)
-        self.run_jobs_label.setStyleSheet(f"color:{SCHEDULE_ACCENT_OK};")
+        self.run_jobs_label.setObjectName("TrayAccentOkLabel")
+        self.run_jobs_label.setStyleSheet(accent_ok_label_stylesheet())
         self.run_meta_label = CaptionLabel("元数据 -", run_frame)
-        self.run_meta_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.run_meta_label.setObjectName("TrayMutedLabel")
+        self.run_meta_label.setStyleSheet(muted_label_stylesheet())
         for widget in (self.run_scanned_label, self.run_pending_label, self.run_jobs_label, self.run_meta_label):
             widget.setFont(tray_mono_font(8))
             head.addWidget(widget)
@@ -389,10 +398,9 @@ class SchedulePanel:
         self.stage_rail = StageRail(run_frame)
         run_layout.addWidget(self.stage_rail)
         self.latest_banner = BodyLabel("-", run_frame)
+        self.latest_banner.setObjectName("TrayLatestBanner")
         self.latest_banner.setWordWrap(True)
-        self.latest_banner.setStyleSheet(
-            f"background:#172554;color:{SCHEDULE_ACCENT_INFO};border:1px solid #1d4ed8;border-radius:4px;padding:3px 6px;"
-        )
+        self.latest_banner.setStyleSheet(latest_banner_stylesheet())
         run_layout.addWidget(self.latest_banner)
         layout.addWidget(run_frame)
 
@@ -402,7 +410,8 @@ class SchedulePanel:
         pending_header.addWidget(StrongBodyLabel("待处理条目", pending_frame))
         pending_header.addStretch(1)
         self.pending_count_label = CaptionLabel("0 个", pending_frame)
-        self.pending_count_label.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.pending_count_label.setObjectName("TrayMutedLabel")
+        self.pending_count_label.setStyleSheet(muted_label_stylesheet())
         pending_header.addWidget(self.pending_count_label)
         pending_layout.addLayout(pending_header)
         pending_scroll, self.pending_layout = self._scroll_host(pending_frame)
@@ -415,11 +424,12 @@ class SchedulePanel:
         layout.addWidget(StrongBodyLabel("条目详情", frame))
         self.detail_title = BodyLabel("-", frame)
         self.detail_title.setWordWrap(True)
-        self.detail_title.setStyleSheet(f"color:{TRAY_TEXT};font-weight:600;")
+        self.detail_title.setStyleSheet(detail_title_stylesheet())
         self.detail_source = CaptionLabel("-", frame)
+        self.detail_source.setObjectName("TrayMutedLabel")
         self.detail_source.setWordWrap(True)
         self.detail_source.setFont(tray_mono_font(8))
-        self.detail_source.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.detail_source.setStyleSheet(muted_label_stylesheet())
         chips = QHBoxLayout()
         chips.setContentsMargins(0, 0, 0, 0)
         chips.setSpacing(4)
@@ -429,13 +439,13 @@ class SchedulePanel:
         chips.addWidget(self.detail_status_chip)
         chips.addStretch(1)
         pkl_title = CaptionLabel("PKL BOOKINFO", frame)
-        pkl_title.setStyleSheet(f"color:{TRAY_MUTED};font-weight:600;")
+        pkl_title.setObjectName("TrayMutedLabel")
+        pkl_title.setStyleSheet(section_heading_stylesheet())
         self.detail_pkl_label = CaptionLabel("-", frame)
+        self.detail_pkl_label.setObjectName("TrayPklDetail")
         self.detail_pkl_label.setWordWrap(True)
         self.detail_pkl_label.setFont(tray_mono_font(8))
-        self.detail_pkl_label.setStyleSheet(
-            f"background:{TRAY_PANEL_BG};color:{TRAY_MUTED};border:1px solid {TRAY_BORDER};border-radius:4px;padding:4px;"
-        )
+        self.detail_pkl_label.setStyleSheet(pkl_detail_stylesheet())
         self.detail_open_source_btn = PushButton(FIF.LINK, "打开来源", frame)
         self.detail_open_source_btn.setEnabled(False)
         self.detail_open_source_btn.clicked.connect(lambda _checked=False: self.open_detail_source())
@@ -443,8 +453,9 @@ class SchedulePanel:
         self.detail_open_folder_btn.setEnabled(False)
         self.detail_open_folder_btn.setToolTip("下载完成后可打开目录")
         self.detail_message = CaptionLabel("选择一个待处理条目查看 BookInfo 派生字段。", frame)
+        self.detail_message.setObjectName("TrayMutedLabel")
         self.detail_message.setWordWrap(True)
-        self.detail_message.setStyleSheet(f"color:{TRAY_MUTED};")
+        self.detail_message.setStyleSheet(muted_label_stylesheet())
         layout.addWidget(self.detail_title)
         layout.addWidget(self.detail_source)
         layout.addLayout(chips)
@@ -538,9 +549,10 @@ class SchedulePanel:
             box.setContentsMargins(0, 0, 0, 0)
             box.setSpacing(0)
             key_label = CaptionLabel(key, cell)
-            key_label.setStyleSheet(f"color:{TRAY_MUTED};")
+            key_label.setObjectName("TrayMutedLabel")
+            key_label.setStyleSheet(muted_label_stylesheet())
             value_label = CaptionLabel(str(value), cell)
-            value_label.setStyleSheet(f"color:{TRAY_TEXT};")
+            value_label.setStyleSheet(body_text_stylesheet())
             value_label.setWordWrap(True)
             box.addWidget(key_label)
             box.addWidget(value_label)
@@ -566,7 +578,8 @@ class SchedulePanel:
         self.host.ui.set_label(self.sources_count_label, f"{len(sources)} 个对象")
         if not sources:
             empty = CaptionLabel(self._sources_empty_text(presentation))
-            empty.setStyleSheet(f"color:{TRAY_MUTED};")
+            empty.setObjectName("TrayMutedLabel")
+            empty.setStyleSheet(muted_label_stylesheet())
             empty.setWordWrap(True)
             self.sources_layout.addWidget(empty)
             self.sources_layout.addStretch(1)
@@ -583,10 +596,7 @@ class SchedulePanel:
     def _source_card(self, source) -> QWidget:
         card = QFrame()
         card.setObjectName("ScheduleSourceCard")
-        card.setStyleSheet(
-            f"#ScheduleSourceCard{{background:{SCHEDULE_CARD_BG};border:1px solid {TRAY_BORDER};border-radius:6px;}}"
-            f"#ScheduleSourceCard:hover{{background:{SCHEDULE_CARD_BG_SEL};}}"
-        )
+        card.setStyleSheet(source_card_stylesheet())
         box = QVBoxLayout(card)
         box.setContentsMargins(8, 6, 8, 6)
         box.setSpacing(3)
@@ -595,25 +605,28 @@ class SchedulePanel:
         top.setSpacing(6)
         top.addWidget(self._site_badge(source.site, card))
         title = BodyLabel(source.title or source.locator or "-", card)
-        title.setStyleSheet(f"color:{TRAY_TEXT};")
+        title.setStyleSheet(body_text_stylesheet())
         top.addWidget(title, 1)
         enabled = CaptionLabel(self._source_status_label(source.status), card)
-        enabled.setStyleSheet(f"color:{SCHEDULE_ACCENT_OK if source.enabled else TRAY_MUTED};")
+        enabled.setStyleSheet(accent_ok_label_stylesheet() if source.enabled else muted_label_stylesheet())
         top.addWidget(enabled)
         box.addLayout(top)
         bottom = QHBoxLayout()
         bottom.setContentsMargins(0, 0, 0, 0)
         bottom.setSpacing(6)
         locator = CaptionLabel(source.locator or "-", card)
-        locator.setStyleSheet(f"color:{TRAY_MUTED};")
+        locator.setObjectName("TrayMutedLabel")
+        locator.setStyleSheet(muted_label_stylesheet())
         locator.setFont(tray_mono_font(8))
         bottom.addWidget(locator, 1)
         if source.pending_count:
             pending = CaptionLabel(f"{source.pending_count} 个待处理", card)
-            pending.setStyleSheet(f"color:{SCHEDULE_ACCENT_INFO};")
+            pending.setObjectName("TrayAccentInfoLabel")
+            pending.setStyleSheet(accent_info_label_stylesheet())
         else:
             pending = CaptionLabel(source.latest or "最近记录", card)
-            pending.setStyleSheet(f"color:{TRAY_MUTED};")
+            pending.setObjectName("TrayMutedLabel")
+            pending.setStyleSheet(muted_label_stylesheet())
         bottom.addWidget(pending)
         box.addLayout(bottom)
         return card
@@ -637,7 +650,8 @@ class SchedulePanel:
         if not items:
             self.selected_index = -1
             empty = CaptionLabel("暂无待处理条目。可以手动执行一次检查，或等待下一次自动检查。")
-            empty.setStyleSheet(f"color:{TRAY_MUTED};")
+            empty.setObjectName("TrayMutedLabel")
+            empty.setStyleSheet(muted_label_stylesheet())
             empty.setWordWrap(True)
             self.pending_layout.addWidget(empty)
             self.pending_layout.addStretch(1)
@@ -667,22 +681,17 @@ class SchedulePanel:
         selected = index == self.selected_index
         card = ClickableFrame()
         card.setObjectName("SchedulePendingCard")
-        bg = SCHEDULE_CARD_BG_SEL if selected else SCHEDULE_CARD_BG
-        card.setStyleSheet(
-            f"#SchedulePendingCard{{background:{bg};border:1px solid {TRAY_BORDER};border-radius:6px;}}"
-            f"#SchedulePendingCard:hover{{background:{SCHEDULE_CARD_BG_SEL};}}"
-        )
+        card.setStyleSheet(pending_card_stylesheet(selected=selected))
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card._on_click = lambda i=index: self.select_pending(i)
         row = QHBoxLayout(card)
         row.setContentsMargins(6, 6, 6, 6)
         row.setSpacing(8)
         cover = QLabel("封面", card)
+        cover.setObjectName("TrayCoverPlaceholderSmall")
         cover.setFixedSize(36, 50)
         cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cover.setStyleSheet(
-            f"background:{TRAY_COVER_BG};border:1px solid {TRAY_BORDER};border-radius:4px;color:{TRAY_MUTED};font-size:9px;"
-        )
+        cover.setStyleSheet(cover_placeholder_stylesheet(small=True))
         if item.cover_url:
             self.host.server_panel.apply_cover(cover, item.cover_url)
         row.addWidget(cover)
@@ -696,9 +705,10 @@ class SchedulePanel:
         title_box.setContentsMargins(0, 0, 0, 0)
         title_box.setSpacing(0)
         title = BodyLabel(item.title or "-", card)
-        title.setStyleSheet(f"color:{TRAY_TEXT};")
+        title.setStyleSheet(body_text_stylesheet())
         episode = CaptionLabel(item.episode or "-", card)
-        episode.setStyleSheet(f"color:{SCHEDULE_ACCENT_INFO};")
+        episode.setObjectName("TrayAccentInfoLabel")
+        episode.setStyleSheet(accent_info_label_stylesheet())
         title_box.addWidget(title)
         title_box.addWidget(episode)
         head.addLayout(title_box, 1)
@@ -708,7 +718,8 @@ class SchedulePanel:
         bottom.setContentsMargins(0, 0, 0, 0)
         bottom.setSpacing(6)
         message = CaptionLabel(item.message or item.stage or "-", card)
-        message.setStyleSheet(f"color:{TRAY_MUTED};")
+        message.setObjectName("TrayMutedLabel")
+        message.setStyleSheet(muted_label_stylesheet())
         bottom.addWidget(message, 1)
         open_button = TransparentToolButton(FIF.LINK, card)
         open_button.setFixedSize(22, 22)
@@ -741,11 +752,7 @@ class SchedulePanel:
             widget = item.widget() if item is not None else None
             if widget is None or widget.objectName() != "SchedulePendingCard":
                 continue
-            bg = SCHEDULE_CARD_BG_SEL if card_index == selected_index else SCHEDULE_CARD_BG
-            widget.setStyleSheet(
-                f"#SchedulePendingCard{{background:{bg};border:1px solid {TRAY_BORDER};border-radius:6px;}}"
-                f"#SchedulePendingCard:hover{{background:{SCHEDULE_CARD_BG_SEL};}}"
-            )
+            widget.setStyleSheet(pending_card_stylesheet(selected=card_index == selected_index))
             card_index += 1
 
     def _render_detail(self, entry) -> None:

@@ -17,7 +17,7 @@ class ElMinix:
                 badges_kw[key] = value
         return cls.create(
             getattr(book, "idx", ""),
-            getattr(book, "img_preview", None) or "",
+            getattr(book, "preview_img_src", None) or getattr(book, "img_preview", None) or "",
             getattr(book, "name", "") or "-",
             getattr(book, "preview_url", None) or getattr(book, "url", "") or "",
             extra_info=extra_info,
@@ -59,7 +59,7 @@ class MangaEl(ElMinix):
     max_width = 200
 
     @classmethod
-    def create_from_book(cls, book, *, extra_info=None, with_favorite=True):
+    def create_from_book(cls, book, *, extra_info=None, with_favorite=True, with_checkbox=True):
         meta = []
         meta_badges = []
         if artist := getattr(book, "artist", None):
@@ -79,10 +79,11 @@ class MangaEl(ElMinix):
             meta_badges=meta_badges or None,
             extra_info=extra_info,
             with_favorite=with_favorite,
+            with_checkbox=with_checkbox,
         )
 
     @classmethod
-    def create(cls, idx, img_src, title, url, meta=None, extra_info=None, with_favorite=True, **badges_kw):
+    def create(cls, idx, img_src, title, url, meta=None, extra_info=None, with_favorite=True, with_checkbox=True, **badges_kw):
         safe_title = html.escape(title or "", quote=True)
         # safe_url = html.escape(url or "", quote=True)
         safe_img_src = html.escape(img_src or "", quote=True)
@@ -117,7 +118,9 @@ class MangaEl(ElMinix):
                     </div>
                 </label>'''
 
-        subscribe_checkbox_html = f'''
+        subscribe_checkbox_html = ""
+        if with_checkbox:
+            subscribe_checkbox_html = f'''
                 <div class="preview-checkbox">
                     <input class="preview-checkbox-input" type="checkbox" name="img" id="{idx}">
                     <label class="preview-checkbox-label" for="{idx}">

@@ -461,7 +461,8 @@ class PopupAnimator:
         start_pos = PopupAnimator._calc_start_pos(final_rect, direction, offset_px)
         widget.resize(final_rect.size())
         widget.move(start_pos)
-        widget.setWindowOpacity(0.0)
+        if with_fade:
+            widget.setWindowOpacity(0.0)
         widget.show()
 
         pos_anim = QPropertyAnimation(widget, b"pos", widget)
@@ -493,8 +494,6 @@ class PopupAnimator:
         def _start_anim():
             if getattr(widget, "_popup_anim_group", None) is not group:
                 return
-            if not with_fade:
-                widget.setWindowOpacity(1.0)
             group.start()
 
         safe_single_shot(0, _start_anim)

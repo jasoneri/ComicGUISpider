@@ -101,6 +101,18 @@ class MangabzParser(_MangabzContract):
 
     @classmethod
     def parse_episodes(cls, sel, book, domain):
+        description = " ".join(sel.css("p.detail-main-content ::text, p.detail-main-content::text").getall()).strip()
+        if description:
+            book.description = description
+        artists = [text.strip() for text in sel.css("p.detail-main-subtitle span.block:first-child a span::text").getall() if text.strip()]
+        if artists:
+            book.artist = " ".join(artists)
+        tags = [text.strip() for text in sel.css("p.detail-main-subtitle span.block:nth-child(2) span::text").getall() if text.strip()]
+        if tags:
+            book.tags = tags
+        status = sel.css("div.detail-list-title span.detail-list-left::text").get()
+        if status and status.strip():
+            book.status = status.strip()
         targets = list(reversed(sel.xpath('//div[@class="detail-list-item"]/a')))
         return [cls.parse_ep_item(target, book, domain, idx + 1) for idx, target in enumerate(targets)]
 

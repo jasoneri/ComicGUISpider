@@ -6,7 +6,6 @@ from typing import Union
 
 from PySide6.QtCore import QThread, Signal
 
-from utils.website.core.err import SiteBusinessError
 from utils.website.info import Episode
 from utils.website import ThreadSiteRuntime
 
@@ -88,7 +87,7 @@ class PreviewWorker(QThread):
             async with semaphore:
                 try:
                     episodes = await self.thread_site_runtime.preview_fetch_episodes(book)
-                except SiteBusinessError as exc:
+                except Exception as exc:
                     return self.episodes_error.emit(self._generation, session_id, book_key, str(exc))
                 self.episodes_done.emit(self._generation, session_id, book_key, episodes)
 
@@ -137,12 +136,18 @@ class PreviewWorker(QThread):
                     case EpisodesTask(session_id=sid, book_key=bk, book=b):
                         try:
                             episodes = self._loop.run_until_complete(self.thread_site_runtime.preview_fetch_episodes(b))
-                        except SiteBusinessError as exc:
+                        except Exception as exc:
                             self.episodes_error.emit(self._generation, sid, bk, str(exc))
                             continue
                         self.episodes_done.emit(self._generation, sid, bk, episodes)
                     case EpisodesBatchTask(items=its):
-                        self._loop.run_until_complete(self._do_fetch_episodes_batch(its))
+                        try:
+                            self._loop.run_until_complete(self._do_fetch_episodes_batch(its))
+                        except Exception as exc:
+                            self.search_error.emit(
+                                self._generation, "episodes_batch", self.site_index,
+                                f"任务执行 > {exc}\n{traceback.format_exc()}",
+                            )
                     case PagesBatchTask(items=its):
                         self._loop.run_until_complete(self._do_fetch_pages_batch(its))
                     case CoverTask(task_id=tid, tasks_obj=tasks_obj, browser_headers=headers):
@@ -151,7 +156,12 @@ class PreviewWorker(QThread):
                                 self.thread_site_runtime.download_cover_bytes(tasks_obj, browser_headers=headers)
                             )
                         except Exception as exc:
-                            self.cover_error.emit(self._generation, tid, f"任务执行 > {exc}\n{traceback.format_exc()}")
+                            # Keep cover failures off the main crawl error channel: no full traceback dump.
+                            cover_url = getattr(tasks_obj, "cover_url", None) or ""
+                            self.cover_error.emit(
+                                self._generation, tid,
+                                f"{type(exc).__name__}: {exc}; cover_url={cover_url}",
+                            )
                         else:
                             self.cover_done.emit(self._generation, tid, data)
         finally:

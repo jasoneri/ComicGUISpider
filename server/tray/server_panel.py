@@ -23,14 +23,8 @@ from qfluentwidgets import (
 from server.runtime_state import task_progress_page_number as runtime_task_progress_page_number
 from server.tray.server_diagnostics_panel import ServerDiagnosticsPanel
 from GUI.uic.qfluent.components.icons import CgsIcon
+from server.tray.style import cover_placeholder_stylesheet, error_label_stylesheet, progress_done_color
 from server.tray.ui_common import (
-    TRAY_BORDER,
-    TRAY_COVER_BG,
-    TRAY_MUTED,
-    TRAY_PANEL_BG,
-    TRAY_PANEL_BG_ALT,
-    TRAY_ROW_BG,
-    TRAY_TEXT,
     CompactKeyValueTable,
     configure_tray_qt_fonts,
     tray_mono_font,
@@ -51,21 +45,14 @@ class ServerTaskRow(QFrame):
         self._local_path = ""
         self._source_url = ""
         self._cover_path = ""
-        self.setStyleSheet(
-            f"#ServerTaskProgressRow{{background:{TRAY_ROW_BG};border:1px solid {TRAY_BORDER};border-radius:6px;}}"
-            f"#ServerTaskProgressRow QLabel{{color:{TRAY_TEXT};}}"
-        )
         layout = QHBoxLayout(self)
         layout.setContentsMargins(5, 4, 6, 4)
         layout.setSpacing(7)
         self._cover = QLabel("cover", self)
-        self._cover.setObjectName("ServerTaskCover")
+        self._cover.setObjectName("TrayCoverPlaceholder")
         self._cover.setFixedSize(40, 54)
         self._cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._cover.setStyleSheet(
-            f"background:{TRAY_COVER_BG};border:1px solid {TRAY_BORDER};"
-            "border-radius:4px;color:#94a3b8;font-size:10px;"
-        )
+        self._cover.setStyleSheet(cover_placeholder_stylesheet())
         layout.addWidget(self._cover)
         body = QVBoxLayout()
         body.setSpacing(2)
@@ -112,7 +99,8 @@ class ServerTaskRow(QFrame):
         host.ui.set_chip(self._status_chip, str(item.get("status") or "running"))
         self._progress.setValue(percent)
         if percent >= 100:
-            self._progress.setCustomBarColor(light="#00ff00", dark="#00cc00")
+            done_color = progress_done_color()
+            self._progress.setCustomBarColor(light=done_color, dark=done_color)
         stage = str(item.get("stage") or item.get("type") or "-")
         latest = str(item.get("error") or item.get("latest_message") or item.get("url") or "-")
         meta_text = f"stage: {stage}    latest: {host.ui.strip_html(latest)}"
@@ -225,7 +213,7 @@ class ServerPanel:
             if error:
                 host.ui.set_label(self.job_error_label, f"{job.get('error_code') or 'error'}: {host.ui.strip_html(str(error))}")
                 self.job_error_label.setVisible(True)
-                self.job_error_label.setStyleSheet("color:#f87171;")
+                self.job_error_label.setStyleSheet(error_label_stylesheet())
             elif self.job_error_label is not None:
                 self.job_error_label.setVisible(False)
         else:
@@ -238,7 +226,8 @@ class ServerPanel:
         if self.job_progress_bar is not None:
             self.job_progress_bar.setValue(percent)
             if percent >= 100:
-                self.job_progress_bar.setCustomBarColor(light="#00ff00", dark="#00cc00")
+                done_color = progress_done_color()
+                self.job_progress_bar.setCustomBarColor(light=done_color, dark=done_color)
             else:
                 self.job_progress_bar.setCustomBarColor(light=QColor(), dark=QColor())
         host.ui.set_label(self.job_progress_label, f"{percent}%")
@@ -371,10 +360,6 @@ class ServerPanel:
     def _build_job_panel(self, parent) -> QWidget:
         card = QFrame(parent)
         card.setObjectName("ServerActiveJobPanel")
-        card.setStyleSheet(
-            f"#ServerActiveJobPanel{{background:{TRAY_PANEL_BG};border:1px solid {TRAY_BORDER};border-radius:6px;}}"
-            f"#ServerActiveJobPanel QLabel{{color:{TRAY_TEXT};}}"
-        )
         layout = QVBoxLayout(card)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(6)
@@ -411,7 +396,6 @@ class ServerPanel:
     def _build_tasks_panel(self, parent) -> QWidget:
         panel = QFrame(parent)
         panel.setObjectName("ServerTasksPanel")
-        panel.setStyleSheet(f"#ServerTasksPanel{{background:{TRAY_PANEL_BG_ALT};border:1px solid {TRAY_BORDER};border-radius:6px;}}")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(6)

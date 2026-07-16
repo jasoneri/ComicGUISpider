@@ -34,7 +34,26 @@ body.preview-dialog-open{overflow:hidden}
 .preview-dialog__panel{width:min(100%,760px);max-height:min(88vh,900px);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--preview-border);border-radius:28px}
 .preview-dialog.is-open .preview-dialog__panel{transform:translateY(0) scale(1)}
 .preview-dialog__panel--wide{width:min(100%,1040px)}
-.preview-dialog__header{display:flex;flex-direction:column;gap:14px;padding:20px 22px 18px;border-bottom:1px solid var(--preview-border);background:linear-gradient(180deg,rgba(var(--preview-surface-rgb),0.98),rgba(var(--preview-surface-rgb),0.82))}
+.preview-dialog__header{display:flex;flex-direction:column;gap:10px;padding:16px 22px 12px;border-bottom:1px solid var(--preview-border);background:linear-gradient(180deg,rgba(var(--preview-surface-rgb),0.98),rgba(var(--preview-surface-rgb),0.82))}
+.preview-dialog__book-meta{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:.78rem;color:var(--preview-text-soft)}
+.preview-dialog__book-meta[hidden]{display:none}
+.preview-book-meta__stats{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .35rem;line-height:1.35;color:var(--preview-text-muted)}
+.preview-book-meta__stat{white-space:nowrap}
+.preview-book-meta__stat-label{color:var(--preview-text-faint);font-weight:600}
+.preview-book-meta__stat-sep{opacity:.55;user-select:none}
+.preview-book-meta__main{display:grid;grid-template-columns:7fr 3fr;gap:10px 12px;align-items:start;min-width:0}
+.preview-book-meta__main--solo{grid-template-columns:1fr}
+.preview-book-meta__desc-col,.preview-book-meta__tags-col{min-width:0}
+.preview-book-meta__desc-body{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.preview-book-meta__description{margin:0;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;line-height:1.45;color:var(--preview-text-soft)}
+.preview-book-meta__description.is-expanded{display:block;-webkit-line-clamp:unset;line-clamp:unset}
+.preview-book-meta__aliases{margin:0;color:var(--preview-text-muted);font-size:.74rem;line-height:1.35}
+.preview-book-meta__toggle{padding:0;border:0;background:transparent;color:var(--preview-accent-strong);font:inherit;font-size:.74rem;font-weight:600;cursor:pointer}
+.preview-book-meta__toggle:focus-visible{outline:2px solid rgba(var(--preview-accent-rgb),.65);outline-offset:3px;border-radius:.2rem}
+/* Tags: content-width chips, wrap freely; viewport fixed at 2 rows, vertical scroll for the rest. */
+.preview-book-meta__tags-col{--meta-tag-h:1.32rem;--meta-tag-gap:5px;min-width:0;max-height:calc(var(--meta-tag-h) * 2 + var(--meta-tag-gap));overflow-x:hidden;overflow-y:auto;scrollbar-width:thin}
+.preview-book-meta__tags{display:flex;flex-wrap:wrap;align-content:flex-start;align-items:center;gap:var(--meta-tag-gap)}
+.preview-book-meta__tag{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:max-content;height:var(--meta-tag-h);max-width:100%;box-sizing:border-box;padding:0 .42rem;border:1px solid rgba(var(--preview-accent-rgb),.2);border-radius:999px;background:rgba(var(--preview-accent-rgb),.1);color:var(--preview-accent-strong);font-size:.72rem;font-weight:600;line-height:1;white-space:nowrap}
 .preview-dialog__title-row,
 .preview-dialog__toolbar{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
 .preview-dialog__title-row{align-items:flex-start;justify-content:space-between;flex-wrap:nowrap}
@@ -42,6 +61,7 @@ body.preview-dialog-open{overflow:hidden}
 .preview-dialog__title{flex:1 1 auto;min-width:0;margin:0;font-size:1.08rem;font-weight:700;letter-spacing:0.01em;overflow-wrap:anywhere}
 .preview-dialog__title-row [data-preview-dialog-close]{flex:0 0 auto;align-self:flex-start;margin-left:auto}
 .preview-dialog__body{padding:14px 22px 22px;overflow:auto}
+@media (max-width:640px){.preview-dialog{padding:10px}.preview-dialog__panel{max-height:94vh;border-radius:20px}.preview-dialog__header{gap:8px;padding:12px 14px 10px}.preview-dialog__body{padding:10px 14px 18px}.preview-dialog__book-meta{gap:5px}.preview-book-meta__main{grid-template-columns:1fr;gap:8px}.preview-book-meta__tags-col{--meta-tag-h:1.28rem}.preview-book-meta__tag{padding:0 .36rem}}
 .preview-number-input{display:inline-flex;align-items:center;min-width:0;padding:0 0.45rem;background:rgba(var(--preview-surface-rgb),0.92)}
 .preview-number-input__field{width:3.9rem;padding:0.62rem 0.1rem;border:0;background:transparent;color:var(--preview-text);text-align:center;font:inherit}
 .preview-number-input__field:focus{outline:0}

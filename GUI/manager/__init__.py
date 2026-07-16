@@ -1,17 +1,18 @@
 import os
 import contextlib
 import subprocess
+from datetime import date
 
-from GUI.core.timer import safe_single_shot
+from packaging.version import parse
 from qfluentwidgets import (
     InfoBarPosition, StateToolTip
 )
 
 from assets import res
-from variables import PYPI_SOURCE, CGS_DOC
-from datetime import date
+from variables import PYPI_SOURCE, CGS_DOC, VER
 from deploy.update import InstallerAssetUpdater, Proj, UpdateState
 from utils import conf, env, uv_exc, exc_p
+from GUI.core.timer import safe_single_shot
 from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox, CustomBadge
 )
@@ -83,6 +84,9 @@ class UpdateNotifier:
             flag = "local"
         if flag != "local" and tag_name and tag_name == conf.skipped_version:
             flag = "local"
+        if flag != "local" and self._is_already_on_or_beyond(tag_name):
+            self._mark_local_and_persist()
+            flag = "local"
 
         self._clear_badges()
         if flag in ("stable", "dev"):
@@ -103,11 +107,23 @@ class UpdateNotifier:
                 badge.deleteLater()
         self._badges.clear()
 
+    @staticmethod
+    def _is_already_on_or_beyond(tag_name: str) -> bool:
+        if not tag_name:
+            return False
+        return parse(VER.lstrip("v")) >= parse(tag_name.lstrip("v"))
+
+    def _mark_local_and_persist(self):
+        self.state.update_flag = "local"
+        self.state.update_info = {}
+        self.state.save()
+
     def on_version_skipped(self, tag_name: str):
         conf.update(skipped_version=tag_name)
         self.refresh_badges()
 
     def on_updated_or_dismissed(self):
+        self._mark_local_and_persist()
         self._clear_badges()
 
 
