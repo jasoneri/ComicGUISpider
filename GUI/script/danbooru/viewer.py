@@ -175,6 +175,8 @@ class DanbooruImageViewer(QWidget):
         self._current_media_kind = "image"
         self._page_loading = False
         self._status_hint_text = ""
+        self._suppress_closed = False
+        self._native_window_warmed = False
         self.video_mgr = self._InnerVideoMgr(self)
         self._setup_ui()
         self.video_mgr.setup_backend(self.playBar)
@@ -184,6 +186,8 @@ class DanbooruImageViewer(QWidget):
         self.setObjectName("DanbooruImageViewer")
         self.setWindowFlags(self._window_flags(self._keep_on_top))
         self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WA_NoSystemBackground, True)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
 
         self.outer_layout = QVBoxLayout(self)
         self.outer_layout.setContentsMargins(12, 12, 12, 12)
@@ -565,17 +569,61 @@ class DanbooruImageViewer(QWidget):
             return
         hwnd = int(self.winId())
         insert_after = win32con.HWND_TOPMOST if keep_on_top else win32con.HWND_NOTOPMOST
-        win32gui.SetWindowPos(hwnd, insert_after, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE)
+        win32gui.SetWindowPos(
+            hwnd, insert_after, 0, 0, 0, 0,
+            win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE | win32con.SWP_FRAMECHANGED,
+        )
+
+    def _refresh_native_input_surface(self):
+        """Resync Windows layered-window hit testing after first show / flag rebuild."""
+        if sys.platform != "win32" or not self.isVisible():
+            return
+        try:
+            import win32con
+            import win32gui
+        except ImportError:
+            return
+        hwnd = int(self.winId())
+        win32gui.SetWindowPos(
+            hwnd, 0, 0, 0, 0, 0,
+            win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOZORDER
+            | win32con.SWP_NOACTIVATE | win32con.SWP_FRAMECHANGED | win32con.SWP_SHOWWINDOW,
+        )
+        self.repaint()
+
+    def _warm_native_window(self):
+        """Prime HWND / DWM state so the first real show receives mouse hits."""
+        if self._native_window_warmed or self.isVisible():
+            self._native_window_warmed = True
+            return
+        self._native_window_warmed = True
+        self._suppress_closed = True
+        try:
+            self.setAttribute(Qt.WA_DontShowOnScreen, True)
+            self.show()
+            self.winId()
+            self.hide()
+        finally:
+            self.setAttribute(Qt.WA_DontShowOnScreen, False)
+            self._suppress_closed = False
 
     def _apply_window_mode(self):
         geometry = self.geometry()
         was_visible = self.isVisible()
-        self.setWindowFlags(self._window_flags(self._keep_on_top))
-        if was_visible:
-            self.show()
-            if geometry.isValid():
-                self.setGeometry(geometry)
-            self._sync_native_topmost(self._keep_on_top)
+        self._suppress_closed = True
+        try:
+            self.setWindowFlags(self._window_flags(self._keep_on_top))
+            self.setAttribute(Qt.WA_TranslucentBackground, True)
+            self.setAttribute(Qt.WA_NoSystemBackground, True)
+            self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+            if was_visible:
+                self.show()
+                if geometry.isValid():
+                    self.setGeometry(geometry)
+                self._sync_native_topmost(self._keep_on_top)
+                self._refresh_native_input_surface()
+        finally:
+            self._suppress_closed = False
 
     def keep_top_hint(self, _flag: bool = None):
         flag = _flag if _flag is not None else self.topHintBox.isChecked()
@@ -916,11 +964,15 @@ class DanbooruImageViewer(QWidget):
         self._populate_tags(post)
         self._update_download_button()
         self.set_placeholder_for_post(post, self._initial_placeholder_text(post))
+        first_real_show = not self.isVisible() and not self._native_window_warmed
+        self._warm_native_window()
         self.show()
         self._settle_viewer_layout()
         self.raise_()
         self.activateWindow()
-        self.setFocus()
+        self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        if first_real_show or sys.platform == "win32":
+            self._refresh_native_input_surface()
 
     def set_image(self, post_id: int, pixmap: QPixmap):
         if self.post is None or self.post.post_id != post_id:
@@ -985,8 +1037,9 @@ class DanbooruImageViewer(QWidget):
 
     def hideEvent(self, event):
         self._drag_offset = None
-        self.video_mgr.clear_payload(self.playBar)
-        self.closed.emit()
+        if not self._suppress_closed:
+            self.video_mgr.clear_payload(self.playBar)
+            self.closed.emit()
         super().hideEvent(event)
 
     def _image_mouse_press_event(self, event):
