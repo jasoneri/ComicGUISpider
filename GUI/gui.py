@@ -517,8 +517,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             return any(bool(mgr.is_triggered and mgr.infos) for mgr in (self.clip_mgr, self.ags_mgr))
     
         if self.search_ui_state.request is PreviewRequestState.Running:
-            InfoBar.info(title='', content='searching', isClosable=True,
-                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
             return
         if not _has_cached_preview():
             self.start_and_search()
@@ -583,8 +581,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def start_and_search(self, keyword=None, site_index=None):
         self.log.info('===--→ -*- searching')
         if self.search_ui_state.request is PreviewRequestState.Running:
-            InfoBar.info(title='', content='searching', isClosable=True,
-                position=InfoBarPosition.BOTTOM, duration=2000, parent=self.textBrowser)
             return
         if site_index is not None:
             self.chooseBox.setCurrentIndex(site_index)

@@ -1,0 +1,144 @@
+/* Paging overlay — loader adapted from Uiverse.io by alexruix (big-octopus-60, MIT) */
+.preview-paging-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 1.5rem;
+  border: 0;
+  background: rgba(var(--preview-surface-rgb, 255, 255, 255), 0.42);
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+
+.preview-paging-overlay[hidden] {
+  display: none !important;
+}
+
+html[data-preview-theme="dark"] .preview-paging-overlay {
+  background: rgba(2, 6, 23, 0.48);
+}
+
+.preview-paging-loader {
+  position: relative;
+  width: 80px;
+  height: 50px;
+}
+
+.preview-paging-loader .loader-text {
+  position: absolute;
+  top: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--preview-accent, #0f7fff);
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  animation: previewPagingText 3.5s ease both infinite;
+}
+
+.preview-paging-loader .load {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50px;
+  background-color: var(--preview-accent, #0f7fff);
+  transform: translateX(64px);
+  animation: previewPagingLoad 3.5s ease both infinite;
+}
+
+.preview-paging-loader .load::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--preview-accent-strong, #0358b8);
+  opacity: 0.55;
+  animation: previewPagingLoadBefore 3.5s ease both infinite;
+}
+
+@keyframes previewPagingText {
+  0% {
+    letter-spacing: 1px;
+    transform: translateX(0);
+  }
+  40% {
+    letter-spacing: 2px;
+    transform: translateX(26px);
+  }
+  80% {
+    letter-spacing: 1px;
+    transform: translateX(32px);
+  }
+  90% {
+    letter-spacing: 2px;
+    transform: translateX(0);
+  }
+  100% {
+    letter-spacing: 1px;
+    transform: translateX(0);
+  }
+}
+
+@keyframes previewPagingLoad {
+  0% {
+    width: 16px;
+    transform: translateX(0);
+  }
+  40% {
+    width: 100%;
+    transform: translateX(0);
+  }
+  80% {
+    width: 16px;
+    transform: translateX(64px);
+  }
+  90% {
+    width: 100%;
+    transform: translateX(0);
+  }
+  100% {
+    width: 16px;
+    transform: translateX(0);
+  }
+}
+
+@keyframes previewPagingLoadBefore {
+  0% {
+    width: 16px;
+    transform: translateX(0);
+  }
+  40% {
+    width: 80%;
+    transform: translateX(0);
+  }
+  80% {
+    width: 100%;
+    transform: translateX(0);
+  }
+  90% {
+    width: 80%;
+    transform: translateX(15px);
+  }
+  100% {
+    width: 16px;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-paging-loader .loader-text,
+  .preview-paging-loader .load,
+  .preview-paging-loader .load::before {
+    animation: none;
+  }
+
+  .preview-paging-loader .load {
+    width: 100%;
+    transform: none;
+  }
+}

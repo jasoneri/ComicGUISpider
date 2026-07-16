@@ -8,6 +8,7 @@ from assets import res as ori_res
 from variables import SPIDERS
 from utils import bs_theme, conf, temp_p, conf_dir
 from utils.preview import TF, El, format_path
+from GUI.manager.preview.loading import PreviewLoadingReason
 
 
 class MangaPreviewBridge(QObject):
@@ -475,10 +476,10 @@ class MangaPreviewFeature:
         self._submit_payload(self._current_submit_payload())
 
     def _handle_submit_request(self):
-        self.gui.BrowserWindow.start_submit_loading()
+        self.mgr.loading.begin(PreviewLoadingReason.SUBMIT)
         self._submit_payload(self._current_submit_payload())
         if not self._inflight_pages:
             self._stop_submit_loading()
 
     def _stop_submit_loading(self):
-        self.gui.BrowserWindow.stop_submit_loading()
+        self.mgr.loading.end(PreviewLoadingReason.SUBMIT)

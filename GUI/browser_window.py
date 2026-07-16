@@ -176,7 +176,11 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
                 parent=self, _type="INFORMATION", ib_pos=InfoBarPosition.BOTTOM_LEFT)
         if self._first_show:
             self._first_show = False
-            self.load_home()
+            # Early-open / warmup may have no preview HTML yet. Loading about:blank
+            # starts page_ready probes that never succeed and blocks real smoke waits.
+            local_preview = self.home_url.toLocalFile() if self.home_url.isLocalFile() else ""
+            if local_preview and os.path.exists(local_preview):
+                self.load_home()
 
     def setupUi(self, _window):
         super(BrowserWindow, self).setupUi(_window)
@@ -195,10 +199,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         self.closeBtn.setIconSize(QSize(20, 20))
         self.closeBtn.setIcon(QIcon(':/close.svg'))
 
-        self.submitLoadingBar = IndeterminateProgressBar(self.groupBox, start=False)
-        self.submitLoadingBar.setFixedWidth(120)
-        self.submitLoadingBar.hide()
-        self.horizontalLayout_2.insertWidget(self.horizontalLayout_2.count() - 3, self.submitLoadingBar)
+        self.loadingBar = IndeterminateProgressBar(self.groupBox, start=False)
+        self.loadingBar.setFixedWidth(120)
+        self.loadingBar.hide()
+        self.horizontalLayout_2.insertWidget(self.horizontalLayout_2.count() - 3, self.loadingBar)
 
         self.homeBtn.clicked.connect(self.load_home)
         self.backBtn.clicked.connect(self.view.back)
@@ -432,15 +436,15 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         js_code = f"window.showTaskAddedToast && window.showTaskAddedToast({json.dumps(title)});"
         self.page_runtime.run_js(js_code)
 
-    def start_submit_loading(self):
-        self.submitLoadingBar.show()
-        if not self.submitLoadingBar.isStarted():
-            self.submitLoadingBar.start()
+    def start_loading(self):
+        self.loadingBar.show()
+        if not self.loadingBar.isStarted():
+            self.loadingBar.start()
 
-    def stop_submit_loading(self):
-        if self.submitLoadingBar.isStarted():
-            self.submitLoadingBar.stop()
-        self.submitLoadingBar.hide()
+    def stop_loading(self):
+        if self.loadingBar.isStarted():
+            self.loadingBar.stop()
+        self.loadingBar.hide()
 
     def closeEvent(self, event):
         self.page_runtime.shutdown()
