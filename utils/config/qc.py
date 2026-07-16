@@ -24,9 +24,11 @@ class CgsConfig(QConfig):
     proxyHistory = ConfigItem("Proxy", "History", ["127.0.0.1:10809"], restart=False)
     dohUrl = ConfigItem("DoH", "Url", "", restart=False)
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
+    searchHistory = ConfigItem("Search", "History", [], restart=False)
     scriptWinRect = ConfigItem("ScriptWindow", "Rect", [], restart=False)
     hiddenSiteChoices = ConfigItem("MainWindow", "HiddenSiteChoices", [], restart=False)
     doh: "CgsConfig.DoH"
+    search: "CgsConfig.Search"
     site_choices: "CgsConfig.SiteChoices"
 
     class SiteChoices:
@@ -96,11 +98,42 @@ class CgsConfig(QConfig):
             self._cfg.save()
             return normalized
 
+    class Search:
+        """Main-window search keyword history (site-agnostic MRU)."""
+
+        MAX_HISTORY = 35
+
+        def __init__(self, cfg: "CgsConfig"):
+            self._cfg = cfg
+
+        @staticmethod
+        def canonicalize(term: object) -> str:
+            return " ".join(str(term or "").split())
+
+        def get_history(self) -> list[str]:
+            history = []
+            for item in list(self._cfg.searchHistory.value or []):
+                normalized = self.canonicalize(item)
+                if normalized and normalized not in history:
+                    history.append(normalized)
+            return history
+
+        def add_history(self, term: object) -> list[str]:
+            canonical = self.canonicalize(term)
+            if not canonical or canonical.lower().startswith("dc:"):
+                return self.get_history()
+            history = [item for item in self.get_history() if item != canonical]
+            history.insert(0, canonical)
+            self._cfg.searchHistory.value = history[: self.MAX_HISTORY]
+            self._cfg.save()
+            return self.get_history()
+
 
 cgs_cfg = CgsConfig()
 qconfig.load(_qconfig_path("qc.json"), cgs_cfg)
 cgs_cfg.site_choices = CgsConfig.SiteChoices(cgs_cfg)
 cgs_cfg.doh = CgsConfig.DoH(cgs_cfg)
+cgs_cfg.search = CgsConfig.Search(cgs_cfg)
 
 
 class CbgConfig(QConfig):

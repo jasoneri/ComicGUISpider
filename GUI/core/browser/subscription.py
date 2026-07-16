@@ -1,5 +1,7 @@
 from PySide6.QtCore import Qt
-from qfluentwidgets import FluentIcon as FIF, InfoBar, InfoBarPosition, ToolButton
+from qfluentwidgets import InfoBar, InfoBarPosition, ToolButton
+
+from GUI.uic.qfluent.components.icons import CgsIcon
 
 
 class PreviewSubscriptionController:
@@ -8,7 +10,7 @@ class PreviewSubscriptionController:
         self._selection_active = False
         self._manga_like = False
         self._button = ToolButton(browser.groupBox)
-        self._button.setIcon(FIF.SHARE)
+        self._button.setIcon(CgsIcon.MAIN_SHARE)
         self._button.setToolTip("加入订阅/send selected to subscribe")
         self._button.hide()
         browser.horizontalLayout_2.insertWidget(browser.horizontalLayout_2.indexOf(browser.ensureBtn), self._button)

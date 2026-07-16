@@ -37,6 +37,7 @@ from qfluentwidgets import (
 
 from GUI.manager.async_task import AsyncTaskManager
 from GUI.uic.qfluent.components import AcceptEdit
+from GUI.uic.qfluent.components.icons import CgsIcon
 from utils import conf
 from utils.share import DiscordShareAPI, WorkerIndexClient
 from utils.subscription import (
@@ -348,7 +349,7 @@ class SubscribeInterface(QWidget):
         self.publish_bid_edit.setReadOnly(True)
         self.publish_bid_edit.setPlaceholderText("未发布")
         self.share_card_label = BodyLabel("未发布", view)
-        self.publish_share_card_btn = PrimaryPushButton(FIF.SHARE, "发布分享链", view)
+        self.publish_share_card_btn = PrimaryPushButton(CgsIcon.MAIN_SHARE, "发布分享链", view)
         self.publish_share_card_btn.clicked.connect(self._publish_share_card_from_button)
         top_row.addWidget(self.publish_bid_edit, 2)
         top_row.addWidget(self.share_card_label, 2)

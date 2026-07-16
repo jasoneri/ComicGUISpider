@@ -12,7 +12,8 @@ from PySide6.QtCore import (
 )
 from GUI.core.timer import safe_single_shot
 from PySide6.QtWidgets import QApplication, QMainWindow, QCompleter
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import Action, FluentIcon as FIF, InfoBar, InfoBarPosition
+from qfluentwidgets.components.widgets.line_edit import CompleterMenu
 
 from GUI.uic.qfluent import (
     MonkeyPatch as FluentMonkeyPatch, CustomSplashScreen
@@ -261,7 +262,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.web_is_r18:
             self.rv_tools.ero = 1
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
-        FluentMonkeyPatch.rbutton_menu_lineEdit(self.searchinput)
+        self._set_search_context_menu()
         if index in SPIDERS and not self.dl_mgr.spider_runtime:
             self.dl_mgr.start_runtime(index)
         self.chooseBox_changed_tips(index)
@@ -389,6 +390,42 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             target_rect = QRect(self.x(), target_y, t.width(), t.height())
             PopupAnimator.show(t, target_rect, duration_ms=220, direction="down")
         self.rvBtn.clicked.connect(_show_toolWin)
+
+    def _set_search_context_menu(self):
+        def show_preset_completer():
+            if not self.searchinput.text().strip():
+                self.searchinput.setText(" ")
+            self.searchinput._showCompleterMenu()
+
+        def show_history_completer():
+            history_terms = cgs_cfg.search.get_history()
+            if not history_terms:
+                return
+            history_menu = CompleterMenu(self.searchinput)
+            history_menu.setItems(history_terms)
+            history_menu.setMaxVisibleItems(max(len(history_terms), 10))
+            history_menu.activated.connect(
+                lambda selected_text: self.searchinput.setCursorPosition(len(selected_text or ""))
+            )
+            self.searchinput.setFocus(Qt.OtherFocusReason)
+            history_menu.popup()
+
+        preset_action = Action(
+            FIF.ALIGNMENT,
+            text=self.searchinput.tr(self.res.Uic.menu_show_completer),
+            triggered=show_preset_completer,
+        )
+        history_terms = cgs_cfg.search.get_history()
+        history_action = Action(
+            FIF.HISTORY,
+            text=self.searchinput.tr(self.res.Uic.menu_show_history),
+            triggered=show_history_completer,
+        )
+        history_action.setEnabled(bool(history_terms))
+        FluentMonkeyPatch.rbutton_menu_lineEdit(
+            self.searchinput,
+            extra_actions=[preset_action, history_action],
+        )
 
     def set_completer(self):
         idx = self.chooseBox.currentIndex()
@@ -610,6 +647,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if site not in SPIDERS or not getattr(self.preview_mgr, "worker", None):
             self.refresh_lifecycle_state()
             return
+        cgs_cfg.search.add_history(kw)
+        self._set_search_context_menu()
         self.log.debug(f'[search] site :[{site}], keyword [{kw}] ')
         self.preview_mgr.on_spreview_clicked(keyword=kw)
 

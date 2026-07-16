@@ -118,6 +118,7 @@ GUI:
     sv_path_desc: "存储路径"
     sv_path_desc_tip: "选择目录"
     menu_show_completer: "展开预设"
+    menu_show_history: "打开历史"
     menu_next_page: "下一页"
     menu_prev_page: "上一页"
     confDia_labelLogLevel: "日志等级"
