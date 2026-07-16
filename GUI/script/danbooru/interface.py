@@ -22,8 +22,6 @@ from GUI.uic.qfluent.components import CountBadge, CustomInfoBar, CustomTeaching
 from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.script.image.danbooru.client import DanbooruClient
 from utils.config.qc import danbooru_cfg
-from utils.script.ai.capabilities.tag_translate import TagTranslatePipeline
-from utils.script.ai.kernel import load_ai_provider
 from utils.script.image.danbooru.constants import DANBOORU_SAVE_TYPE_SEARCH_TAG, DANBOORU_SQL_TABLE
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig, DanbooruSearchQuery
 from utils.script import conf as script_conf
@@ -34,7 +32,6 @@ from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
 from .detail_preview import DetailPreviewController
 from .favorite_groups import build_favorite_groups_state
-from .favorites import DanbooruFavoriteManagerDialog
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
     build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
