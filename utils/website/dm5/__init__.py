@@ -358,6 +358,8 @@ class Dm5Parser(_Dm5Contract, Previewer):
         )
         artists = [cls._normalize_text(text) for text in sel.xpath("//p[contains(@class,'subtitle')]//a/text()").getall()]
         tags = [cls._normalize_text(text) for text in sel.xpath("//p[contains(@class,'tip')]//a//span/text()").getall()]
+        description = cls._normalize_text("".join(sel.xpath("//div[contains(@class,'banner_detail_form')]//div[contains(@class,'info')]//p[contains(@class,'content')]//text()").getall()))
+        status = cls._normalize_text(sel.xpath("//p[contains(@class,'tip')]//span[contains(@class,'block')][contains(normalize-space(.),'状态')]/span[1]/text()").get())
         latest = cls._normalize_text(sel.xpath("//div[contains(@class,'detail-list-title')]//span[contains(@class,'s')]//a[1]/text()").get())
         return {
             "id": cls._extract_js_var(html_text, "DM5_COMIC_MID"),
@@ -365,6 +367,8 @@ class Dm5Parser(_Dm5Contract, Previewer):
             "cover": cover or None,
             "artist": " ".join(filter(None, artists)) or None,
             "tags": [tag for tag in tags if tag],
+            "description": description or None,
+            "status": status or None,
             "latest_sec": latest or None,
         }
 
@@ -383,6 +387,10 @@ class Dm5Parser(_Dm5Contract, Previewer):
         tags = list(details.get("tags") or [])
         if tags:
             book.tags = tags
+        if description := cls._normalize_text(details.get("description")):
+            book.description = description
+        if status := cls._normalize_text(details.get("status")):
+            book.status = status
         cls._apply_latest(book, details.get("latest_sec") or book.latest_sec)
 
     @classmethod

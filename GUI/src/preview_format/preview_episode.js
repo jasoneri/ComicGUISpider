@@ -31,6 +31,7 @@
       this.pendingTimer = null;
       this.scanToastInstance = null;
       this.episodesCache = new Map();
+      this.bookMetaCache = new Map();
 
       this.listEl = requireElement('episodeList');
       this.titleEl = requireElement('episodeTitle');
@@ -40,6 +41,8 @@
       this.scrollBottomBtn = document.getElementById('scrollBottomBtn');
       this.filterInput = document.getElementById('episodeFilterInput');
       this.modalEl = requireElement('episodeModal');
+      this.bookMetaEl = requireElement('episodeBookMeta');
+      this.bulkBarEl = requireElement('episodeBulkSelectBar');
       this.modalBodyEl = this.modalEl.querySelector('.preview-dialog__body');
       if (!(this.modalBodyEl instanceof HTMLElement)) {
         throw new Error('preview template is missing .preview-dialog__body');
@@ -47,8 +50,8 @@
     }
 
     registerCommandHandlers() {
-      previewCommandBus.register('manga.episodes.loaded', ({ bookKey, episodes }) => {
-        this.updateEpisodes(bookKey, episodes);
+      previewCommandBus.register('manga.episodes.loaded', ({ bookKey, episodes, bookMeta }) => {
+        this.updateEpisodes(bookKey, episodes, bookMeta);
       });
       previewCommandBus.register('preview.books.downloaded', ({ bookIds }) => {
         if (window.previewRuntime) {
@@ -96,6 +99,8 @@
         this.scrollBottomBtn.addEventListener('click', () => this.scrollEpisodesToBottom());
       }
       this.ensureModal();
+      this.modalEl.addEventListener('preview-dialog:show', () => { this.bulkBarEl.hidden = false; });
+      this.modalEl.addEventListener('preview-dialog:hide', () => { this.bulkBarEl.hidden = true; });
       this.ensureScanToast();
       this.initEpisodeDragSelect();
       window.collectPreviewSubmitPayload = () => this.collectSubmitPayload();
@@ -263,16 +268,18 @@
       return this.episodesCache.get(String(bookKey)) || null;
     }
 
-    preloadEpisodes(bookKey, episodes) {
+    preloadEpisodes(bookKey, episodes, bookMeta = null) {
       const cacheKey = String(bookKey);
       if (!Array.isArray(episodes)) {
         throw new TypeError('episodes payload must be an array');
       }
       this.episodesCache.set(cacheKey, episodes);
+      this.bookMetaCache.set(cacheKey, bookMeta && typeof bookMeta === 'object' ? bookMeta : {});
       if (cacheKey === this.activeBookKey) {
         this.clearPendingTimer();
         this.setLoadingState(false);
         this.renderEpisodes(cacheKey, episodes);
+        this.renderBookMeta(this.bookMetaCache.get(cacheKey));
       }
     }
 
@@ -286,6 +293,7 @@
       this.beforeOpenBook(cacheKey, title);
       this.activeBookKey = cacheKey;
       this.titleEl.textContent = title || `Book ${bookKey}`;
+      this.renderBookMeta(this.bookMetaCache.get(cacheKey));
 
       const readyEpisodes = this.getImmediateEpisodes(cacheKey, title);
       if (readyEpisodes) {
@@ -315,6 +323,61 @@
         return;
       }
       this.requestEpisodes(bridge, cacheKey);
+    }
+
+    renderBookMeta(meta) {
+      const data = meta && typeof meta === 'object' ? meta : {};
+      const stats = [
+        ['更新', data.updatedAt], ['上架', data.publicDate], ['观看', data.views],
+        ['点赞', data.likes], ['页数', data.pages], ['状态', data.status],
+        ['类型', data.btype], ['作者', data.artist],
+      ].filter(([, value]) => value !== null && value !== undefined && String(value).trim());
+      const tags = Array.isArray(data.tags) ? data.tags.filter(Boolean) : [];
+      const aliases = Array.isArray(data.otherNames) ? data.otherNames.filter(Boolean) : [];
+      const description = String(data.description || '').trim();
+      if (!stats.length && !tags.length && !aliases.length && !description) {
+        this.bookMetaEl.hidden = true;
+        this.bookMetaEl.replaceChildren();
+        return;
+      }
+
+      const statsHtml = stats.length
+        ? `<div class="preview-book-meta__stats">${stats.map(([label, value], index) => `${index ? '<span class="preview-book-meta__stat-sep" aria-hidden="true">·</span>' : ''}<span class="preview-book-meta__stat"><span class="preview-book-meta__stat-label">${escapeHtml(label)}</span> ${escapeHtml(String(value))}</span>`).join('')}</div>`
+        : '';
+      const aliasesHtml = aliases.length
+        ? `<div class="preview-book-meta__aliases">${escapeHtml(aliases.join(' · '))}</div>`
+        : '';
+      const descriptionBlock = description
+        ? `<div class="preview-book-meta__desc-body"><p class="preview-book-meta__description">${escapeHtml(description.slice(0, 120))}${description.length > 120 ? '…' : ''}</p>${description.length > 120 ? '<button type="button" class="preview-book-meta__toggle">展开</button>' : ''}</div>`
+        : '';
+      const descColHtml = (descriptionBlock || aliasesHtml)
+        ? `<div class="preview-book-meta__desc-col">${descriptionBlock}${aliasesHtml}</div>`
+        : '';
+      const tagsColHtml = tags.length
+        ? `<div class="preview-book-meta__tags-col"><div class="preview-book-meta__tags">${tags.map((tag) => `<span class="preview-book-meta__tag">${escapeHtml(String(tag))}</span>`).join('')}</div></div>`
+        : '';
+      let mainHtml = '';
+      if (descColHtml && tagsColHtml) {
+        mainHtml = `<div class="preview-book-meta__main">${descColHtml}${tagsColHtml}</div>`;
+      } else if (descColHtml) {
+        mainHtml = `<div class="preview-book-meta__main preview-book-meta__main--solo">${descColHtml}</div>`;
+      } else if (tagsColHtml) {
+        mainHtml = `<div class="preview-book-meta__main preview-book-meta__main--solo">${tagsColHtml}</div>`;
+      }
+
+      this.bookMetaEl.innerHTML = `${statsHtml}${mainHtml}`;
+      const paragraph = this.bookMetaEl.querySelector('.preview-book-meta__description');
+      const toggle = this.bookMetaEl.querySelector('.preview-book-meta__toggle');
+      if (paragraph && toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.addEventListener('click', () => {
+          const expanded = paragraph.classList.toggle('is-expanded');
+          paragraph.textContent = expanded ? description : `${description.slice(0, 120)}…`;
+          toggle.textContent = expanded ? '收起' : '展开';
+          toggle.setAttribute('aria-expanded', String(expanded));
+        });
+      }
+      this.bookMetaEl.hidden = false;
     }
 
     onCardClick(event) {
@@ -368,9 +431,10 @@
     }
 
     scrollEpisodesToBottom() {
+      const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.modalBodyEl.scrollTo({
         top: this.modalBodyEl.scrollHeight,
-        behavior: 'smooth',
+        behavior: reducedMotion ? 'auto' : 'smooth',
       });
     }
 
@@ -537,7 +601,7 @@
 
     afterRenderEpisodes(_bookKey) {}
 
-    updateEpisodes(bookKey, episodes) {
+    updateEpisodes(bookKey, episodes, bookMeta = null) {
       const cacheKey = String(bookKey);
       if (cacheKey !== this.activeBookKey) {
         return;
@@ -550,7 +614,7 @@
         if (!Array.isArray(episodes)) {
           throw new TypeError('episodes payload must be an array');
         }
-        this.preloadEpisodes(cacheKey, episodes);
+        this.preloadEpisodes(cacheKey, episodes, bookMeta);
       } catch (_error) {
         this.showEpisodeError(this.buildEpisodeErrorMessage('parse_error'));
       }

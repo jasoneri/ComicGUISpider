@@ -506,6 +506,7 @@ class JestfulParser(_JestfulContract, Previewer):
             "author": fields.get("author"),
             "tags": cls._semantics.split_csv_field(fields.get("genres")),
             "public_date": fields.get("last update"),
+            "views": fields.get("views"),
         }
 
     @classmethod
@@ -527,8 +528,12 @@ class JestfulParser(_JestfulContract, Previewer):
             book.artist = pop_fields["author"]
         if pop_fields.get("tags"):
             book.tags = list(pop_fields["tags"])
+        if pop_fields.get("status"):
+            book.status = cls._semantics.normalize_text(pop_fields["status"])
         if pop_fields.get("public_date"):
             book.public_date = pop_fields["public_date"]
+        if pop_fields.get("views"):
+            book.views = cls._semantics.normalize_text(pop_fields["views"])
         cover_url = cls._semantics.normalize_text(pop_fields.get("cover_url"))
         if cover_url:
             book.img_preview = cls.normalize_site_resource(cover_url)
@@ -554,6 +559,9 @@ class JestfulParser(_JestfulContract, Previewer):
             raw_other_name=str(fields.get("other name (s)") or fields.get("other name") or ""),
         ).analyze()
         cover_url = cls._semantics.normalize_text(sel.css("div.well.info-cover img.thumbnail::attr(src)").get())
+        views = cls._semantics.normalize_text(
+            " ".join(sel.xpath("//ul[contains(@class,'manga-info')]//li[.//i[contains(@class,'fa-eye')]]/text()[normalize-space()]").getall())
+        ).lstrip(":").strip()
 
         return {
             "loader_slug": loader_slug,
@@ -568,6 +576,9 @@ class JestfulParser(_JestfulContract, Previewer):
             "other_names": list(alias_result.aliases),
             "preferred_title": alias_result.preferred_title,
             "preferred_title_reason": alias_result.preferred_reason,
+            "tags": cls._semantics.split_csv_field(fields.get("genre(s)") or fields.get("genres")),
+            "status": fields.get("status"),
+            "views": views or None,
         }
 
     @classmethod
@@ -710,6 +721,9 @@ class JestfulReqer(_JestfulContract, Req):
                     "other_name_raw": owner_state.get("other_name_raw"),
                     "other_names": owner_state.get("other_names"),
                     "cover_url": owner_state.get("cover_url"),
+                    "tags": owner_state.get("tags"),
+                    "status": owner_state.get("status"),
+                    "views": owner_state.get("views"),
                 },
             )
         if book.id:

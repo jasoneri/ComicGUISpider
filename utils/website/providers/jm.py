@@ -142,6 +142,9 @@ class _JmContract:
 
 
 class JmParser(_JmContract, Previewer):
+    _pages_label_re = re.compile(r"[頁页][數数]\s*[:：]?\s*(\d+)")
+    _description_prefix_re = re.compile(r"^[敘叙]述\s*[:：]\s*")
+
     @classmethod
     async def parse_publish_(cls, html_text):
         html_doc = etree.HTML(html_text)
@@ -232,10 +235,21 @@ class JmParser(_JmContract, Previewer):
         html_doc = Selector(text=resp_text)
         cover_el = html_doc.xpath('//div[@id="album_photo_cover"]')[-1]
         info_el = cover_el.xpath("./following-sibling::div")[0]
-        pages_text = info_el.xpath('./div/div[contains(text(), "頁數") or contains(text(), "页数")]/text()').get()
+        info_blob = " ".join(text.strip() for text in info_el.xpath(".//text()").getall() if text.strip())
+        pages = cls._pages_label_re.search(info_blob).group(1)
         jm_id = re.search(r"var aid = (\d+);", resp_text).group(1)
         epa_els = html_doc.xpath('(//div[@class="episode"])[last()]/ul/a')
         public_date = info_el.xpath('.//span[@itemprop="datePublished"][contains(text(), "上架日期")]/@content').get()
+        description = None
+        for heading in html_doc.xpath("//h2"):
+            heading_text = " ".join(text.strip() for text in heading.xpath(".//text()").getall() if text.strip()).strip()
+            if not cls._description_prefix_re.match(heading_text):
+                continue
+            description = cls._description_prefix_re.sub("", heading_text, count=1).strip() or None
+            break
+        updated_at = html_doc.xpath('(//span[@itemprop="datePublished"][contains(normalize-space(.), "更新日期")]/@content)[1]').get()
+        views = html_doc.xpath('string((//*[contains(@class,"fa-eye")]/following-sibling::*[1])[1])').get()
+        likes = html_doc.xpath('string((//span[starts-with(@id,"albim_likes_")])[1])').get()
         book = JmBookInfo(
             name=html_doc.xpath("//h1/text()").get(),
             artist=(info_el.xpath('.//span[@data-type="author"]/a/text()').getall() or [None])[-1],
@@ -247,8 +261,11 @@ class JmParser(_JmContract, Previewer):
                 cover_el.xpath('.//div[@class="thumb-overlay"]/img[contains(@class,"img-responsive")]/@src').get(),
                 domain=domain,
             ),
-            pages=re.search(r"\d+", pages_text).group(0),
+            pages=pages,
             public_date=public_date,
+            description=description,
+            updated_at=updated_at, views=(views or "").strip() or None,
+            likes=(likes or "").strip() or None,
         )
         book.episodes = []
         for epa_el in epa_els:
@@ -282,7 +299,7 @@ class JmParser(_JmContract, Previewer):
 
     @classmethod
     def merge_book_detail(cls, book, parsed, domain):
-        for attr in ("name", "artist", "public_date", "pages", "btype", "likes"):
+        for attr in ("name", "artist", "public_date", "pages", "btype", "likes", "description", "updated_at", "views"):
             value = getattr(parsed, attr, None)
             if value is not None:
                 setattr(book, attr, value)

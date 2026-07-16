@@ -67,6 +67,10 @@ class Manga(BookInfo):
     last_chapter_name: str = None
     other_names: list = None
     other_name_raw: str = None
+    description: str = None
+    updated_at: str = None
+    views: str = None
+    status: str = None
 
     @property
     def is_episode_card(self) -> bool:
@@ -176,6 +180,11 @@ class JmBookInfo(Ero):
     source = "jm"
     likes: int = None
     has_latest: bool = False
+    description: str = None
+    updated_at: str = None
+    views: str = None
+    status: str = None
+    other_names: list = None
 
     @property
     def is_episode_card(self) -> bool:
