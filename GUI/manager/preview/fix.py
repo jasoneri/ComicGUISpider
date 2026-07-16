@@ -1,4 +1,5 @@
 from utils.preview import PreviewByFixHtml, El
+from GUI.manager.preview.loading import PreviewLoadingReason
 from GUI.manager.preview.manga import MangaPreviewFeature
 
 
@@ -9,10 +10,13 @@ class FixPreviewFeature(MangaPreviewFeature):
 
     @staticmethod
     def is_episode_card(book) -> bool:
-        return bool(getattr(book, "episodes", None) or "青年漫" in (getattr(book, "btype", None) or ""))
+        return bool(getattr(book, "is_episode_card", None) or getattr(book, "episodes", None))
 
     def _clear_fix_state(self):
         self._inflight_book_pages.clear()
+
+    def _has_submit_inflight(self) -> bool:
+        return bool(self._inflight_pages or self._inflight_book_pages)
 
     def publish(self, books):
         self.mgr.begin_preview_session()
@@ -34,7 +38,7 @@ class FixPreviewFeature(MangaPreviewFeature):
         manga_el = El("manga")
         for book in books:
             if self.is_episode_card(book):
-                lower_cards.append(manga_el.create_from_book(book, with_favorite=False))
+                lower_cards.append(manga_el.create_from_book(book))
             else:
                 upper_cards.append(ero_el.create_from_book(book))
         self.gui.tf = PreviewByFixHtml.created_temp_html(
@@ -55,6 +59,7 @@ class FixPreviewFeature(MangaPreviewFeature):
         super().reset()
 
     def _on_page_ready(self, session_id):
+        self._sync_page_favorites(session_id)
         if self.mgr.downloaded_book_ids:
             self.mgr.send_command(
                 "preview.books.downloaded",
@@ -65,8 +70,9 @@ class FixPreviewFeature(MangaPreviewFeature):
             self._start_dl_scan(session_id)
 
     def _hide_scan_if_idle(self):
-        if not self._inflight_pages and not self._inflight_book_pages:
+        if not self._has_submit_inflight():
             self.mgr.send_command("preview.scan.hide", {})
+            self._stop_submit_loading()
 
     @staticmethod
     def _same_book(left, right) -> bool:
@@ -184,6 +190,16 @@ class FixPreviewFeature(MangaPreviewFeature):
             self.gui.sel_mgr.submit_decision("EP", book)
         self._hide_scan_if_idle()
 
+    def on_pages_error(self, generation, book_key, error):
+        self._inflight_book_pages.pop(book_key, None)
+        self._inflight_pages.pop(book_key, None)
+        if generation == self.mgr._generation:
+            self.mgr.send_command(
+                "manga.episodes.error",
+                {"bookKey": str(book_key), "code": "pages_fetch_failed"},
+            )
+        self._hide_scan_if_idle()
+
     def _submit_payload(self, payload: dict):
         selected_episodes = self._parse_selected_episodes(payload)
         self._submit_selected_episodes(selected_episodes)
@@ -201,4 +217,8 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._submit_payload(self._current_submit_payload())
 
     def _handle_submit_request(self):
+        # Match manga chrome loading so JM manga-card chapter submit is not silent.
+        self.mgr.loading.begin(PreviewLoadingReason.SUBMIT)
         self._submit_payload(self._current_submit_payload())
+        if not self._has_submit_inflight():
+            self._stop_submit_loading()

@@ -126,8 +126,31 @@
       )).join('\n');
     }
     const extraInfo = options.extra_info ? `\n          <div class="card-extra-info">${options.extra_info}</div>` : '';
+    const withFavorite = options.with_favorite !== false;
+    const withCheckbox = options.with_checkbox !== false;
+    const favoriteTip = esc(options.favorite_tip || '收藏/取消收藏');
+    let favoriteHtml = '';
+    if (withFavorite) {
+      favoriteHtml = `
+        <label class="card-favorite-btn ui-bookmark" data-book-key="${safeIdx}" role="button" tabindex="0" aria-pressed="false" aria-label="${favoriteTip}" title="${favoriteTip}">
+          <input class="card-favorite-input" type="checkbox" tabindex="-1" aria-hidden="true">
+          <div class="bookmark" aria-hidden="true">
+            <svg viewBox="0 0 32 32"><g><path d="M27 4v27a1 1 0 0 1-1.625.781L16 24.281l-9.375 7.5A1 1 0 0 1 5 31V4a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4z"></path></g></svg>
+          </div>
+        </label>`;
+    }
+    let checkboxHtml = '';
+    if (withCheckbox) {
+      checkboxHtml = `
+        <div class="preview-checkbox">
+          <input class="preview-checkbox-input" type="checkbox" name="img" id="${safeIdx}">
+          <label class="preview-checkbox-label" for="${safeIdx}">
+            <span class="preview-checkbox-toggle" aria-hidden="true"><span class="preview-checkbox-tick"></span></span>
+          </label>
+        </div>`;
+    }
     return `<article class="preview-manga-card singal-task">
-      <div class="book-card normal-book-card" data-book-key="${safeIdx}" data-book-title="${safeTitle}" role="button" aria-label="${safeTitle}">
+      <div class="book-card normal-book-card" data-book-key="${safeIdx}" data-book-title="${safeTitle}" role="button" aria-label="${safeTitle}">${favoriteHtml}${checkboxHtml}
         <div class="book-card-media">
           <img src="${safeImg}" class="book-card-cover" alt="${safeTitle}" title="${safeTitle}" onerror="this.onerror=null;this.src='../GUI/src/preview_format/placeholder.svg';">
           ${metaBadgesHtml}
@@ -146,9 +169,11 @@
       super();
       this.savedSelections = new Map();
       this._activeGroupIdx = null;
+      this.favoriteFeature = null;
     }
 
     init() {
+      this.initFavoriteFeature();
       this.registerCommandHandlers();
       this.registerWindowApi();
       getRuntime().setExtraCheckedIdsResolver(() => this.getAllSelectedEpisodeIds());
@@ -158,6 +183,31 @@
         return;
       }
       this.onDomReady();
+    }
+
+    initFavoriteFeature() {
+      if (typeof MangaFavoriteFeature === 'function') {
+        this.favoriteFeature = new MangaFavoriteFeature(this.bridgeClient);
+        this.favoriteFeature.init();
+      }
+    }
+
+    registerCommandHandlers() {
+      super.registerCommandHandlers();
+      const previewCommandBus = window.previewCommandBus;
+      if (!previewCommandBus) {
+        return;
+      }
+      previewCommandBus.register('manga.favorite.state', ({ bookKey, isFavorited }) => {
+        if (this.favoriteFeature) {
+          this.favoriteFeature.updateFavoriteState(bookKey, Boolean(isFavorited));
+        }
+      });
+      previewCommandBus.register('manga.favorites.sync', ({ bookKeys }) => {
+        if (this.favoriteFeature) {
+          this.favoriteFeature.initFavoriteStates(Array.isArray(bookKeys) ? bookKeys : []);
+        }
+      });
     }
 
     registerWindowApi() {
@@ -178,8 +228,36 @@
       this.onDomReadyBase();
       this.modalEl.addEventListener('preview-dialog:show', () => this.syncBulkToolbarPresentation({ modalOpen: true }));
       this.modalEl.addEventListener('preview-dialog:hide', () => this.syncBulkToolbarPresentation({ modalOpen: false }));
+      this.bindBulkToolbarScrollDock();
       this.syncBulkToolbarPresentation();
       updateProgressBar();
+    }
+
+    bindBulkToolbarScrollDock() {
+      if (this._bulkDockBound) {
+        return;
+      }
+      this._bulkDockBound = true;
+      let rafId = 0;
+      const schedule = () => {
+        if (rafId) {
+          return;
+        }
+        rafId = window.requestAnimationFrame(() => {
+          rafId = 0;
+          this.syncBulkToolbarPresentation();
+        });
+      };
+      window.addEventListener('scroll', schedule, { passive: true });
+      window.addEventListener('resize', schedule);
+    }
+
+    isLowerFragmentReached(lowerEl) {
+      if (!(lowerEl instanceof HTMLElement) || lowerEl.closest('[hidden]')) {
+        return false;
+      }
+      const rect = lowerEl.getBoundingClientRect();
+      return rect.top <= window.innerHeight - 48;
     }
 
     getUpperTarget(groupIdx) {
@@ -224,6 +302,18 @@
         return;
       }
       target.insertAdjacentHTML('beforeend', bookWithEpsCardHtml(idx, imgSrc, title, url, options));
+      const card = target.lastElementChild;
+      const runtime = getRuntime();
+      if (options.with_checkbox !== false) {
+        runtime.registerItems([{
+          id: String(idx),
+          kind: 'book',
+          checkboxId: String(idx),
+          scope: 'fix',
+          groupIdx: groupIdx != null ? String(groupIdx) : undefined,
+        }]);
+        runtime.refresh(card);
+      }
       updateProgressBar();
     }
 
@@ -264,8 +354,16 @@
       }
       const host = document.getElementById('previewBulkSelectHost');
       const fragments = document.getElementById('fixFragmentSections');
+      const lowerFragment = document.querySelector('.fix-preview-fragment[data-fragment="lower"]');
       const modalOpen = options.modalOpen ?? this.ensureModal().isOpen();
-      const activeHost = !modalOpen && host && fragments && !fragments.hidden && !host.closest('[hidden]') ? host : null;
+      const fragmentsActive = Boolean(
+        host
+        && fragments
+        && !fragments.hidden
+        && !host.closest('[hidden]')
+      );
+      const dockToHost = fragmentsActive && this.isLowerFragmentReached(lowerFragment);
+      const activeHost = !modalOpen && dockToHost ? host : null;
       bulkSelect.setHost(activeHost);
       bulkSelect.setHidden(modalOpen);
       bulkSelect.refresh();
@@ -348,7 +446,20 @@
     toggleGroupSelection(groupIdx) {
       const runtime = getRuntime();
       const ids = runtime.getItemIds({ kind: 'book', scope: 'fix', selectableOnly: true, requireCheckbox: true })
-        .filter((id) => runtime.resolveItem(id)?.groupIdx === String(groupIdx));
+        .filter((id) => {
+          if (runtime.resolveItem(id)?.groupIdx !== String(groupIdx)) {
+            return false;
+          }
+          const targets = runtime.resolveDomTargets(id);
+          const checkbox = targets.checkbox;
+          if (!checkbox) {
+            return false;
+          }
+          if (checkbox.closest('.preview-manga-card, .fix-group-lower')) {
+            return false;
+          }
+          return true;
+        });
       if (!ids.length) {
         return;
       }

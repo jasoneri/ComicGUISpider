@@ -181,6 +181,7 @@ class JmParser(_JmContract, Previewer):
         btypes = target.xpath('.//div[@class="category-icon"]/div/text()').getall()
         artist = parent_div.xpath('.//div//a[contains(@href, "main_tag=2")]/text()').get()
         tags = parent_div.xpath('.//div[contains(@class, "tags")]//a[@class="tag"]/text()').getall()
+        has_latest = bool(target.xpath('.//div[contains(@class,"label-latest")]/*'))
         return JmBookInfo(
             name=target.xpath('.//img/@title').get().strip().replace("\n", ""),
             preview_url=pre_url,
@@ -190,6 +191,7 @@ class JmParser(_JmContract, Previewer):
             artist=(artist or "").strip() or None,
             tags=tags,
             likes=likes.strip() if likes else 0,
+            has_latest=has_latest,
         ).get_id(pre_url)
 
     @classmethod

@@ -9,12 +9,27 @@
     return window.previewRuntime;
   }
 
+  function isBulkSelectableBookId(id) {
+    const targets = getRuntime().resolveDomTargets(id);
+    const checkbox = targets.checkbox;
+    if (!checkbox) {
+      return false;
+    }
+    if (checkbox.closest('.preview-manga-card') || targets.card?.closest('.preview-manga-card')) {
+      return false;
+    }
+    if (checkbox.closest('#bookCardsLower, .fix-group-lower')) {
+      return false;
+    }
+    return true;
+  }
+
   function getBookIds(options = {}) {
     return getRuntime().getItemIds({
       kind: 'book',
       requireCheckbox: true,
       ...options,
-    });
+    }).filter(isBulkSelectableBookId);
   }
 
   function clampSelectCount(total, inputEl) {
@@ -74,15 +89,17 @@
     });
   }
 
-  function scrollPageToBottom() {
-    const scrollTarget = Math.max(
-      document.documentElement?.scrollHeight || 0,
-      document.body?.scrollHeight || 0
-    );
-    window.scrollTo({
-      top: scrollTarget,
-      behavior: 'smooth',
-    });
+  function scrollToLastBulkBook() {
+    const bookIds = getBookIds({ selectableOnly: true });
+    if (!bookIds.length) {
+      return;
+    }
+    const targets = getRuntime().resolveDomTargets(bookIds[bookIds.length - 1]);
+    const scrollTarget = targets.card || targets.label || targets.checkbox;
+    if (!(scrollTarget instanceof Element)) {
+      return;
+    }
+    scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
   function isEpisodeModalOpen() {
@@ -92,8 +109,8 @@
 
   function isBookSelectionSurface(target) {
     return target instanceof Element && Boolean(
-      target.closest('#bookCards, #bookCardsUpper, #bookCardsLower, .fix-group-upper, .fix-group-lower')
-    );
+      target.closest('#bookCards, #bookCardsUpper, .fix-group-upper')
+    ) && !target.closest('.preview-manga-card, #bookCardsLower, .fix-group-lower');
   }
 
   function mount() {
@@ -116,10 +133,9 @@
 
     function refresh() {
       syncPresentation();
-      const runtime = getRuntime();
       const bookIds = getBookIds();
       const selectableIds = getBookIds({ selectableOnly: true });
-      const checked = runtime.getCheckedIds({ kind: 'book' }).length;
+      const checked = getBookIds({ checkedOnly: true }).length;
       countBadge.textContent = `${checked}/${bookIds.length} selected`;
 
       const disabled = selectableIds.length === 0;
@@ -164,7 +180,7 @@
         runtime.clearChecked(getBookIds());
         runtime.selectRange(selectableIds, { fromEnd: true, count });
         refresh();
-        scrollPageToBottom();
+        scrollToLastBulkBook();
       });
       countInput.addEventListener('blur', () => {
         clampSelectCount(getBookIds({ selectableOnly: true }).length, countInput);

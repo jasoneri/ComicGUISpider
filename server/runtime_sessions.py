@@ -94,15 +94,7 @@ class ServerSessionCatalog:
         return normalized
 
     def is_episode_card(self, book) -> bool:
-        source = getattr(book, "source", None)
-        if not source:
-            return bool(getattr(book, "episodes", None) or "青年漫" in (getattr(book, "btype", None) or ""))
-        manga_sources = {spider.spider_name for spider in Spider.mangas()}
-        if source in manga_sources:
-            return True
-        if source == "jm":
-            return bool(getattr(book, "episodes", None) or "青年漫" in (getattr(book, "btype", None) or ""))
-        return False
+        return bool(getattr(book, "is_episode_card", None) or getattr(book, "episodes", None))
 
     def is_episode_item(self, item) -> bool:
         return hasattr(item, "from_book")

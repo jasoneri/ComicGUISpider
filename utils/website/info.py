@@ -29,6 +29,10 @@ class BookInfo(InfoMinix):
     tags: list = []
 
     @property
+    def is_episode_card(self) -> bool:
+        return bool(self.episodes)
+
+    @property
     def children_length(self):
         return len(self.episodes or []) or self.pages
 
@@ -63,6 +67,10 @@ class Manga(BookInfo):
     last_chapter_name: str = None
     other_names: list = None
     other_name_raw: str = None
+
+    @property
+    def is_episode_card(self) -> bool:
+        return True
 
     @property
     def say(self):
@@ -167,6 +175,13 @@ class RumanhuaBookInfo(Manga):
 class JmBookInfo(Ero):
     source = "jm"
     likes: int = None
+    has_latest: bool = False
+
+    @property
+    def is_episode_card(self) -> bool:
+        return bool(
+            self.episodes or self.has_latest or "青年漫" in (self.btype or "")
+        )
 
 
 class WnacgBookInfo(Ero):

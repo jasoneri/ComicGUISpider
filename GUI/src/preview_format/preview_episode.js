@@ -97,8 +97,115 @@
       }
       this.ensureModal();
       this.ensureScanToast();
+      this.initEpisodeDragSelect();
       window.collectPreviewSubmitPayload = () => this.collectSubmitPayload();
       window.updateEpisodes = (bookKey, episodes) => this.preloadEpisodes(bookKey, episodes);
+    }
+
+    initEpisodeDragSelect() {
+      if (this.listEl.__cgsEpisodeDragSelectBound) {
+        return;
+      }
+      let dragging = false;
+      let wasDragging = false;
+      let startX = 0;
+      let startY = 0;
+
+      let overlay = document.getElementById('dragSelOverlay');
+      if (!(overlay instanceof HTMLElement)) {
+        overlay = document.createElement('div');
+        overlay.id = 'dragSelOverlay';
+        document.body.appendChild(overlay);
+      }
+      overlay.style.display = 'none';
+
+      const updateOverlay = (x1, y1, x2, y2) => {
+        overlay.style.left = `${Math.min(x1, x2)}px`;
+        overlay.style.top = `${Math.min(y1, y2)}px`;
+        overlay.style.width = `${Math.abs(x2 - x1)}px`;
+        overlay.style.height = `${Math.abs(y2 - y1)}px`;
+      };
+
+      const intersects = (a, b) => !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+
+      document.addEventListener(
+        'click',
+        (event) => {
+          if (!wasDragging) {
+            return;
+          }
+          wasDragging = false;
+          if (!this.listEl.contains(event.target)) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+        },
+        true
+      );
+
+      document.addEventListener('mousedown', (event) => {
+        if (event.button !== 0 || event.target.closest('input, a, button, select, textarea')) {
+          return;
+        }
+        if (!this.listEl.contains(event.target)) {
+          return;
+        }
+        startX = event.clientX;
+        startY = event.clientY;
+        dragging = false;
+        wasDragging = false;
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp, { once: true });
+      });
+
+      const onMove = (event) => {
+        const deltaX = event.clientX - startX;
+        const deltaY = event.clientY - startY;
+        if (!dragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+          dragging = true;
+          document.body.classList.add('drag-selecting');
+          overlay.style.display = 'block';
+        }
+        if (!dragging) {
+          return;
+        }
+        updateOverlay(startX, startY, event.clientX, event.clientY);
+      };
+
+      const onUp = (event) => {
+        document.removeEventListener('mousemove', onMove);
+        document.body.classList.remove('drag-selecting');
+        overlay.style.display = 'none';
+        if (!dragging) {
+          return;
+        }
+        dragging = false;
+        wasDragging = true;
+
+        const selectRect = {
+          left: Math.min(startX, event.clientX),
+          top: Math.min(startY, event.clientY),
+          right: Math.max(startX, event.clientX),
+          bottom: Math.max(startY, event.clientY),
+        };
+        if (selectRect.right - selectRect.left < 5 && selectRect.bottom - selectRect.top < 5) {
+          return;
+        }
+
+        this.listEl.querySelectorAll('label[data-episode-chip]').forEach((label) => {
+          if (!intersects(selectRect, label.getBoundingClientRect())) {
+            return;
+          }
+          const checkbox = document.getElementById(label.htmlFor);
+          if (checkbox && !checkbox.checked) {
+            checkbox.checked = true;
+          }
+        });
+        this.updateCount();
+      };
+
+      this.listEl.__cgsEpisodeDragSelectBound = true;
     }
 
     ensureModal() {
