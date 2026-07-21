@@ -10,15 +10,6 @@
 ::: warning macOS用户须阅读 [macOS 部署](./mac-required-reading.md) 文档
 :::
 
-::: danger ⚠️ 初始自动部署流程异常处理方法
-::: details 点击展开
-
-+ 过一遍 [faq](/faq/)
-+ 参考解压包内的 `异常处理提示.txt` (仅`win`绿色包)
-+ 开终端参考`./CGS.exe --help`，使用参数重新部署，例子：下方[更新第三种方法](#_4-更新)
-
-:::
-
 + 或使用 `uv tool`  
 
 ::: details `uv tool` 细节部署流程：⇩  
@@ -105,7 +96,5 @@ uv 额外命令：可加 `--` 然后追加 `uv tool install` 的参数，例如�
 :::
 
 ## 5. 搭配阅读器
-
-欢迎尝试使用 redViewer ，最适 CGS ！也希望能提供有创意的功能想法给 rV ！💑
 
 [![点击前往redViewer]({{URL_GHSTAT}}/api/pin/?username=jasoneri&repo=redViewer&show_icons=true&bg_color=60,ef4057,cf4057,c44490&title_color=4df5b4&hide_border=true&icon_color=e9ede1&text_color=e9ede1)](https://github.com/jasoneri/redViewer)

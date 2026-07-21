@@ -76,7 +76,7 @@ hero:
 
 <table><tbody>
   <tr>
-    <td style="text-align: center; vertical-align: middle;" rowspan="4">
+    <td style="text-align: center; vertical-align: middle;" rowspan="3">
       <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1777320602636_normal.webm" title="AGS demo"></HomeDemoVideo>
     </td>
     <td style="text-align: left;"><strong>🎮Script:<br>
@@ -84,11 +84,7 @@ hero:
     <a href="/script/danbooru/">Danbooru</a><br>
     <a href="/script/#_3-cbg-cornerbackground">Cbg</a><br>
     </strong></td>
-    <td style="text-align: center; vertical-align: middle;" rowspan="4"><div align="center"><a href="{{URL_IMG}}/file/rv/1783171021752_app.webm" target="_blank">
-      <img src="{{URL_IMG}}/file/rv/1783000491990_app_cover.png" alt="rV app demo" style="height: 350px; width: auto; max-width: none; display: block;">
-      </a></div></td>
   </tr>
-  <tr><td style="text-align: left;"><a href="/feat/server/"><strong>server/mcp</strong></a><br>1:50 左右开始👉</td></tr>
   <tr><td style="text-align: left;"><a href="/feat/clip/"><strong>📋读剪贴板</strong></a></td></tr>
   <tr><td style="text-align: left;"><a href="/feat/ags/"><strong>🔎聚合搜索</strong></a></td></tr>
 </tbody></table>
