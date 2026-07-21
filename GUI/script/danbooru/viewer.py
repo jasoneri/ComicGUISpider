@@ -17,23 +17,10 @@ from utils.config.qc import danbooru_cfg
 from GUI.core.timer import safe_single_shot
 from GUI.uic.qfluent.components import FlexImageLabel
 from utils.script.image.danbooru.models import DanbooruPost
+from utils.script.image.danbooru.tag_prompt import TagPrompt
 
 from .core import DanbooruViewerFitCalculator, DanbooruViewerFitResult, delete_flow_item as _delete_flow_item
 from .style import DanbooruUiPalette, build_viewer_stylesheet, get_danbooru_qss_tokens, qcolor_from_css
-
-
-def _split_tag_string(tag_string: str) -> list[str]:
-    return [tag for tag in str(tag_string or "").split(" ") if tag]
-
-
-def _iter_tag_groups(post: DanbooruPost) -> list[tuple[str, list[str]]]:
-    groups = [
-        ("Character", _split_tag_string(post.tag_string_character)),
-        ("Artist", _split_tag_string(post.tag_string_artist)),
-        ("Copyright", _split_tag_string(post.tag_string_copyright)),
-        ("General", _split_tag_string(post.tag_string_general)),
-    ]
-    return [(label, tags) for label, tags in groups if tags]
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +139,7 @@ class _BufferingIndicator(QWidget):
 
 class DanbooruImageViewer(QWidget):
     tag_clicked = Signal(str)
+    export_panel_requested = Signal()
     download_requested = Signal(object)
     previous_requested = Signal()
     next_requested = Signal()
@@ -200,9 +188,28 @@ class DanbooruImageViewer(QWidget):
         self.main_layout.setContentsMargins(14, 14, 14, 14)
         self.main_layout.setSpacing(14)
 
-        self.tags_scroll = ScrollArea(self.frame)
+        self.left_column = QWidget(self.frame)
+        self.left_column.setObjectName("DanbooruViewerLeftColumn")
+        self.left_column.setFixedWidth(196)
+        left_column_layout = QVBoxLayout(self.left_column)
+        left_column_layout.setContentsMargins(0, 0, 0, 0)
+        left_column_layout.setSpacing(6)
+
+        self.tag_toolbar = QWidget(self.left_column)
+        self.tag_toolbar.setObjectName("DanbooruTagToolbar")
+        tag_toolbar_layout = QHBoxLayout(self.tag_toolbar)
+        tag_toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        tag_toolbar_layout.setSpacing(4)
+        tag_toolbar_layout.addStretch(1)
+        self.export_panel_btn = TransparentToolButton(FIF.COPY, self.tag_toolbar)
+        self.export_panel_btn.setFixedSize(34, 34)
+        self.export_panel_btn.setToolTip("打开 Tag 导出面板")
+        self.export_panel_btn.clicked.connect(self.export_panel_requested.emit)
+        tag_toolbar_layout.addWidget(self.export_panel_btn)
+        left_column_layout.addWidget(self.tag_toolbar, 0)
+
+        self.tags_scroll = ScrollArea(self.left_column)
         self.tags_scroll.setWidgetResizable(True)
-        self.tags_scroll.setFixedWidth(196)
         self.tags_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.tags_scroll.setStyleSheet("background: transparent; border: none;")
         self.tags_container = QWidget(self.tags_scroll)
@@ -211,7 +218,8 @@ class DanbooruImageViewer(QWidget):
         self.tags_layout.setContentsMargins(0, 0, 0, 0)
         self.tags_layout.setSpacing(8)
         self.tags_scroll.setWidget(self.tags_container)
-        self.main_layout.addWidget(self.tags_scroll)
+        left_column_layout.addWidget(self.tags_scroll, 1)
+        self.main_layout.addWidget(self.left_column)
 
         self.right_panel_widget = QWidget(self.frame)
         self.right_panel_widget.setObjectName("DanbooruViewerRightPanel")
@@ -765,7 +773,7 @@ class DanbooruImageViewer(QWidget):
             + outer_margins.right()
             + main_margins.left()
             + main_margins.right()
-            + self.tags_scroll.width()
+            + self.left_column.width()
             + self.main_layout.spacing()
             + right_panel_margins.left()
             + right_panel_margins.right()
@@ -929,7 +937,7 @@ class DanbooruImageViewer(QWidget):
         self._clear_tags()
         tail = self.tags_layout.takeAt(self.tags_layout.count() - 1)
         _delete_flow_item(tail)
-        for section_label, tags in _iter_tag_groups(post):
+        for section_label, tags in TagPrompt(post).groups:
             title = BodyLabel(section_label, self.tags_container)
             title.setObjectName("DanbooruTagSectionTitle")
             self.tags_layout.addWidget(title)
@@ -956,9 +964,10 @@ class DanbooruImageViewer(QWidget):
     def _first_tag_from_group(self, tag_group: str) -> str:
         if self.post is None:
             return ""
-        tag_string = getattr(self.post, tag_group, "")
-        tags = _split_tag_string(tag_string)
-        return tags[0] if tags else ""
+        for label, tags in TagPrompt(self.post).groups:
+            if label == tag_group:
+                return tags[0] if tags else ""
+        return ""
 
     def _open_first_group_tag(self, tag_group: str) -> bool:
         tag = self._first_tag_from_group(tag_group)
@@ -971,12 +980,12 @@ class DanbooruImageViewer(QWidget):
         if not modifiers & Qt.KeypadModifier:
             return None
         tag_group_by_key = {
-            Qt.Key_1: "tag_string_character",
-            Qt.Key_End: "tag_string_character",
-            Qt.Key_2: "tag_string_artist",
-            Qt.Key_Down: "tag_string_artist",
-            Qt.Key_3: "tag_string_copyright",
-            Qt.Key_PageDown: "tag_string_copyright",
+            Qt.Key_1: "Character",
+            Qt.Key_End: "Character",
+            Qt.Key_2: "Artist",
+            Qt.Key_Down: "Artist",
+            Qt.Key_3: "Copyright",
+            Qt.Key_PageDown: "Copyright",
         }
         return tag_group_by_key.get(key)
 

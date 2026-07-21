@@ -39,6 +39,7 @@ from .style import (
 )
 from .tab import DanbooruTabWidget
 from .video_proxy import VideoProxy
+from .tag_actions import DanbooruTagActionController
 from .viewer import DanbooruImageViewer
 
 
@@ -163,11 +164,15 @@ class DanbooruInterface(QFrame):
         self.download_controller = DanbooruDownloadController(self)
         self.challenge_controller = DanbooruChallengeController(self)
         self.favorite_translate = FavoriteTagTranslateController(self)
+        self.tag_action_controller = DanbooruTagActionController(
+            self.gui, self, browser_opener=self._open_imgpalace_browser,
+        )
         self.zoom_mgr = self._ZoomMgr(self)
         self.tab_mgr = self._TabMgr(self)
         self._infobars_by_key = {}
         self.download_result_signal.connect(self.download_controller.on_download_result)
         self.image_viewer.tag_clicked.connect(self._open_tag_jump_tab)
+        self.image_viewer.export_panel_requested.connect(self._open_tag_export_panel)
         self.image_viewer.download_requested.connect(self.download_controller.submit_single)
         self.image_viewer.previous_requested.connect(lambda: self.detail_preview_controller.open_adjacent(-1))
         self.image_viewer.next_requested.connect(lambda: self.detail_preview_controller.open_adjacent(1))
@@ -721,6 +726,24 @@ class DanbooruInterface(QFrame):
         favorites_state = self._favorite_groups_state()
         favorites = sorted(favorites_state.all_terms() - set(history))
         tab.update_completer(history + favorites)
+
+    def _open_tag_export_panel(self):
+        self.tag_action_controller.open_export_panel(self.image_viewer)
+
+    def _open_imgpalace_browser(self, service_name: str, url: str | None):
+        script_window = self.parent_window
+        jsoneri_interface = getattr(script_window, "jsoneriPalacesProbeInterface", None)
+        if jsoneri_interface is None:
+            self._show_info(InfoBar.warning, "jsoneriPalaces 未加载，无法打开 imgPalace", 3500)
+            return
+        browser_controller = getattr(jsoneri_interface, "browser_controller", None)
+        if browser_controller is None:
+            raise RuntimeError("jsoneriPalacesProbeInterface.browser_controller is required")
+        known_url = str(url or "").strip()
+        if known_url and hasattr(browser_controller, "open_url"):
+            browser_controller.open_url(known_url, service_name=service_name)
+            return
+        browser_controller.open_service(service_name, url=known_url or None)
 
     def _show_info(self, factory, content: str, duration: int = 3000):
         key = (getattr(factory, "__name__", repr(factory)), str(content or ""))
