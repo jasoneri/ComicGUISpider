@@ -53,6 +53,11 @@ CARD_CHECKBOX_OFFSET_Y = 12;
 CARD_VIDEO_BADGE_BG = rgba(0, 0, 0, 0.62);
 CARD_VIDEO_BADGE_TEXT = rgba(255, 255, 255, 0.92);
 CARD_PAGE_BORDER_COLOR = rgba(123, 90, 206, 0.68);
+PAGE_NAV_FAB_BG = rgba(250, 250, 249, 0.98);
+PAGE_NAV_FAB_FG = rgba(63, 63, 70, 0.92);
+PAGE_NAV_FAB_BORDER = rgba(39, 39, 42, 0.12);
+PAGE_NAV_FAB_HOVER_BORDER = rgba(120, 100, 110, 0.28);
+PAGE_NAV_FAB_SHADOW = rgba(39, 39, 42, 0.10);
 /* @endtokens */
 
 /* @tokens dark */
@@ -108,6 +113,11 @@ CARD_CHECKBOX_OFFSET_Y = 12;
 CARD_VIDEO_BADGE_BG = rgba(0, 0, 0, 0.68);
 CARD_VIDEO_BADGE_TEXT = rgba(255, 255, 255, 0.94);
 CARD_PAGE_BORDER_COLOR = rgba(160, 134, 232, 0.72);
+PAGE_NAV_FAB_BG = rgba(28, 28, 31, 0.96);
+PAGE_NAV_FAB_FG = rgba(212, 212, 216, 0.90);
+PAGE_NAV_FAB_BORDER = rgba(244, 244, 245, 0.10);
+PAGE_NAV_FAB_HOVER_BORDER = rgba(200, 180, 186, 0.28);
+PAGE_NAV_FAB_SHADOW = rgba(0, 0, 0, 0.36);
 /* @endtokens */
 
 /* @section card */
@@ -298,4 +308,49 @@ padding-left: 8px; color: ${MUTED_TEXT};
 
 /* @section network_label_inline */
 color: ${MUTED_TEXT};
+/* @endsection */
+
+/* @section page_nav */
+/* FAB chrome only. Panel uses FlyoutViewBase paint; chips/jump use Fluent theme. */
+PushButton#DanbooruPageNavFab {
+    min-width: 0px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0 8px;
+    border-radius: 14px;
+    border: 1px solid ${PAGE_NAV_FAB_BORDER};
+    background-color: ${PAGE_NAV_FAB_BG};
+    color: ${PAGE_NAV_FAB_FG};
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0px;
+}
+PushButton#DanbooruPageNavFab:hover {
+    border-color: ${PAGE_NAV_FAB_HOVER_BORDER};
+}
+PushButton#DanbooruPageNavFab:pressed {
+    padding-top: 1px;
+}
+PushButton#DanbooruPageNavFab:disabled {
+    color: ${MUTED_TEXT};
+    border-color: ${SHELL_BORDER};
+    background-color: ${SECTION_BACKGROUND};
+}
+LineEdit#DanbooruPageNavJumpEdit,
+PrimaryToolButton#DanbooruPageNavJumpBtn,
+ToggleButton#DanbooruPageNavChip {
+    min-height: 28px;
+    max-height: 28px;
+}
+PrimaryToolButton#DanbooruPageNavJumpBtn {
+    min-width: 28px;
+    max-width: 28px;
+    padding: 0px;
+    margin: 0px;
+}
+ScrollArea#DanbooruPageNavScroll,
+QWidget#DanbooruPageNavListHost {
+    background: transparent;
+    border: none;
+}
 /* @endsection */

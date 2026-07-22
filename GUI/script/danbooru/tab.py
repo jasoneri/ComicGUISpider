@@ -537,10 +537,10 @@ class DanbooruTabWidget(QFrame):
         menu.addAction(clear_action)
         menu.exec(global_pos)
 
-    def clear_results(self, *, query: t.Optional[str] = None):
+    def clear_results(self, *, query: t.Optional[str] = None, keep_count: bool = False):
         self.zoom_mgr.cancel_pending()
         self.selection_controller.clear()
-        self.state.reset_results(query=query)
+        self.state.reset_results(query=query, keep_count=keep_count)
         if query is not None:
             self.search_edit.setText(self.state.query)
         while self.flow_layout.count():

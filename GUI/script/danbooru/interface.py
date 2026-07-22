@@ -32,10 +32,11 @@ from .core import DanbooruDownloadController, DanbooruSearchController, Danbooru
 from .detail_preview import DetailPreviewController
 from .favorite_groups import build_favorite_groups_state
 from .favorite_translate import FavoriteTagTranslateController
+from .page_nav import PageNavController, PageNavState
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
-    build_interface_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
-    format_tip_rich_text as _format_tip_rich_text, qcolor_from_css,
+    build_interface_stylesheet, build_page_nav_stylesheet, build_tip_line_stylesheet, build_title_label_stylesheet,
+    format_tip_rich_text as _format_tip_rich_text, get_danbooru_qss_tokens, qcolor_from_css,
 )
 from .tab import DanbooruTabWidget
 from .video_proxy import VideoProxy
@@ -163,6 +164,7 @@ class DanbooruInterface(QFrame):
         self.search_controller = DanbooruSearchController(self)
         self.download_controller = DanbooruDownloadController(self)
         self.challenge_controller = DanbooruChallengeController(self)
+        self.page_nav = PageNavController(self)
         self.favorite_translate = FavoriteTagTranslateController(self)
         self.tag_action_controller = DanbooruTagActionController(
             self.gui, self, browser_opener=self._open_imgpalace_browser,
@@ -320,6 +322,51 @@ class DanbooruInterface(QFrame):
         
         self.main_layout.addWidget(self.pivot_shell)
         self.main_layout.addWidget(self.content_shell, 1)
+        self.page_nav.attach(self)
+        self.page_nav.page_jump_requested.connect(self._on_page_nav_jump)
+        self.page_nav.jump_rejected.connect(self._on_page_nav_rejected)
+        self.sync_page_nav()
+
+    def sync_page_nav(self, tab_id: t.Optional[str] = None):
+        active_tab_id = tab_id or self.tab_mgr.active_tab_id()
+        state = self.tab_states.get(active_tab_id) if active_tab_id else None
+        if state is None:
+            self.page_nav.set_state(
+                PageNavState.from_counts(current_page=1, total_count=None, query_is_empty=True, page_size=30)
+            )
+            return
+        total_count = state.total_count if state.count_query_key == state.count_cache_key() else None
+        self.page_nav.set_state(
+            PageNavState.from_counts(
+                current_page=state.page_cursor,
+                total_count=total_count,
+                query_is_empty=not bool(state.query),
+                page_size=30,
+                loading=state.loading,
+            )
+        )
+
+    def _on_page_nav_jump(self, page: int):
+        tab_id = self.tab_mgr.active_tab_id()
+        if not tab_id:
+            return
+        self.search_controller.jump_to_page(tab_id, int(page))
+
+    def _on_page_nav_rejected(self, reason: str, target_page: object):
+        if reason == "home_soft_cap":
+            self._show_info(
+                InfoBar.warning,
+                f"首页深跳受软上限限制（最多到 p{target_page}）。建议加 tag 后再跳页。",
+                4500,
+            )
+            return
+        if reason == "above_cap":
+            self._show_info(InfoBar.warning, f"页码超出范围（最大 {target_page}）", 3500)
+            return
+        if reason == "same_page":
+            return
+        if reason == "below_min" or reason == "invalid":
+            self._show_info(InfoBar.warning, "请输入有效页码", 3000)
 
     def _apply_theme(self, *_args):
         palette = DanbooruUiPalette.current()
@@ -332,11 +379,17 @@ class DanbooruInterface(QFrame):
         self.image_viewer.apply_theme()
         for tab in self.tabs.values():
             tab.apply_theme()
+        self.page_nav.apply_theme(
+            stylesheet=build_page_nav_stylesheet(palette),
+            shadow_color=qcolor_from_css(get_danbooru_qss_tokens()["PAGE_NAV_FAB_SHADOW"]),
+        )
         self.tab_mgr.update_chrome()
         self.tab_mgr.sync_tip_line()
         self.refresh_runtime_settings()
         self.zoom_mgr.sync_buttons()
         self.tab_mgr.sync_bar_width()
+        self.page_nav.reposition()
+        self.sync_page_nav()
 
     def eventFilter(self, obj, event):
         if self._handle_interface_key_press(obj, event):
@@ -538,6 +591,7 @@ class DanbooruInterface(QFrame):
             self.interface.tab_bar.setCurrentTab(tab_id)
             self.record_activation(tab_id)
             self.interface._update_batch_button(tab_id)
+            self.interface.sync_page_nav(tab_id)
 
         def record_activation(self, tab_id: str):
             if tab_id in self.activation_order:
@@ -566,6 +620,7 @@ class DanbooruInterface(QFrame):
             self.update_chrome()
             self.sync_tip_line(tab_id)
             self.schedule_zoom_sync(tab_id)
+            self.interface.sync_page_nav(tab_id)
 
         def schedule_zoom_sync(self, tab_id: str):
             self._zoom_sync_generation += 1
@@ -857,9 +912,15 @@ class DanbooruInterface(QFrame):
     def notify_download_result(self, md5_value: str, success: bool):
         self.download_result_signal.emit(md5_value, success)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.page_nav.reposition()
+        self.page_nav.schedule_reposition()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.tab_mgr.sync_bar_width()
+        self.page_nav.reposition()
 
     def closeEvent(self, event):
         try:

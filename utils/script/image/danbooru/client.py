@@ -163,6 +163,30 @@ class DanbooruClient:
         payload = self._get_json("/posts.json", timeout=timeout, params=params)
         return [DanbooruPost.from_api_payload(item, canonical_term=search_query.folder_term) for item in payload]
 
+    def count_posts(
+        self,
+        tags: str = "",
+        *,
+        order: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> int:
+        search_query = DanbooruSearchQuery(tags, order or "")
+        payload = self._get_json(
+            "/counts/posts.json",
+            timeout=timeout,
+            params={"tags": search_query.tags},
+        )
+        if not isinstance(payload, dict):
+            raise ValueError(f"unexpected counts payload type: {type(payload).__name__}")
+        counts = payload.get("counts")
+        if isinstance(counts, dict) and "posts" in counts:
+            return int(counts["posts"])
+        if "posts" in payload:
+            return int(payload["posts"])
+        if "total_count" in payload:
+            return int(payload["total_count"])
+        raise ValueError(f"counts payload missing posts field: {payload!r}")
+
     def get_post(self, post_id: int, *, timeout: Optional[float] = None) -> DanbooruPost:
         return DanbooruPost.from_api_payload(self._get_json(f"/posts/{post_id}.json", timeout=timeout))
 

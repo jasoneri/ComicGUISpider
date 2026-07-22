@@ -135,12 +135,14 @@ class DanbooruTabState:
     has_more_results: bool = True
     loading: bool = False
     has_loaded_once: bool = False
+    total_count: t.Optional[int] = None
+    count_query_key: str = ""
 
     def begin_request(self) -> int:
         self.request_token += 1
         return self.request_token
 
-    def reset_results(self, *, query: t.Optional[str] = None):
+    def reset_results(self, *, query: t.Optional[str] = None, keep_count: bool = False):
         if query is not None:
             self.query = query
         self.page_cursor = 1
@@ -149,13 +151,19 @@ class DanbooruTabState:
         self.selected_post_ids.clear()
         self.has_more_results = True
         self.has_loaded_once = False
+        if not keep_count:
+            self.total_count = None
+            self.count_query_key = ""
 
-    def mark_loaded_page(self, posts: t.Sequence[DanbooruPost], page: int):
-        if not self.has_loaded_once or not self.result_list:
+    def mark_loaded_page(self, posts: t.Sequence[DanbooruPost], page: int, *, replace: bool = False):
+        if replace or not self.has_loaded_once or not self.result_list:
             self.buffer_start_page = page
         self.page_cursor = page
         self.has_loaded_once = True
         self.has_more_results = len(posts) >= DANBOORU_PAGE_SIZE
+
+    def count_cache_key(self) -> str:
+        return f"{self.query}\n{self.sort_mode}"
 
     def can_load_next_page(self) -> bool:
         return not self.loading and self.has_more_results and self.has_loaded_once
@@ -187,6 +195,8 @@ class _DanbooruSearchDispatch:
         return f"search:{self.tab_id}:{self.page}:{int(self.replace)}"
 
     def retry_callback(self, controller: "DanbooruSearchController") -> t.Callable[[], None]:
+        if self.task_prefix == "jump" or (self.replace and self.page > 1):
+            return lambda dispatch=self: controller.jump_to_page(dispatch.tab_id, dispatch.page)
         if self.replace or self.page <= 1:
             return lambda dispatch=self: controller.start_search(dispatch.tab_id, dispatch.query, order=dispatch.order)
         return lambda dispatch=self: controller.load_next_page(dispatch.tab_id)
@@ -387,14 +397,43 @@ class DanbooruSearchController:
         canonical_term = DanbooruSearchQuery.normalize(query)
         token = state.begin_request()
         tab.clear_results(query=canonical_term)
+        state.total_count = None
+        state.count_query_key = ""
         self.interface.detail_preview_controller.cancel_page_continuation(tab_id)
         if order is not None:
             state.sort_mode = str(order or "")
         tab.set_loading(True)
+        self.interface.sync_page_nav(tab_id)
         self._submit_search_request(
             tab_id=tab_id, query=state.query, order=state.sort_mode, page=1,
             token=token, replace=True, task_prefix="search",
         )
+
+    def jump_to_page(self, tab_id: str, page: int) -> bool:
+        tab = self.interface.tabs.get(tab_id)
+        state = self.interface.tab_states.get(tab_id)
+        if tab is None or state is None or state.loading:
+            return False
+        target_page = max(1, int(page or 1))
+        if target_page == state.page_cursor and state.has_loaded_once:
+            return False
+        token = state.begin_request()
+        keep_count = state.count_query_key == state.count_cache_key() and state.total_count is not None
+        tab.clear_results(query=state.query, keep_count=keep_count)
+        if not keep_count:
+            state.total_count = None
+            state.count_query_key = ""
+        state.page_cursor = target_page
+        state.buffer_start_page = target_page
+        self.interface.detail_preview_controller.cancel_page_continuation(tab_id)
+        tab.set_loading(True)
+        self.interface.tab_mgr.set_tip(tab_id, f"jump page {target_page}...", cls="theme-tip")
+        self.interface.sync_page_nav(tab_id)
+        self._submit_search_request(
+            tab_id=tab_id, query=state.query, order=state.sort_mode, page=target_page,
+            token=token, replace=True, task_prefix="jump",
+        )
+        return True
 
     def load_next_page(self, tab_id: str) -> bool:
         tab = self.interface.tabs.get(tab_id)
@@ -405,6 +444,7 @@ class DanbooruSearchController:
         next_page = state.page_cursor + 1
         tab.set_loading(True)
         self.interface.tab_mgr.set_tip(tab_id, f"loading page {next_page}...", cls="theme-tip")
+        self.interface.sync_page_nav(tab_id)
         self._submit_search_request(
             tab_id=tab_id, query=state.query, order=state.sort_mode, page=next_page,
             token=token, replace=False, task_prefix="page",
@@ -448,17 +488,21 @@ class DanbooruSearchController:
         state = self.interface.tab_states.get(dispatch.tab_id)
         if tab is None or state is None or dispatch.token != state.request_token:
             return
-        state.mark_loaded_page(posts, dispatch.page)
+        state.mark_loaded_page(posts, dispatch.page, replace=dispatch.replace)
         self.interface.tab_mgr.update_title(dispatch.tab_id, state.query)
         self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, f"httpx 200/{len(posts)}", cls="theme-success")
+        if dispatch.replace:
+            self._schedule_count_fetch(dispatch)
         if not posts and dispatch.replace:
             tab.set_loading(False)
             self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, "httpx 200/0", cls="theme-tip")
+            self.interface.sync_page_nav(dispatch.tab_id)
             return
         if not posts:
             tab.set_loading(False)
             self.interface.detail_preview_controller.handle_page_load_empty(dispatch.tab_id)
             self.interface.tab_mgr.set_tip(dispatch.tab_id, "empty", cls="theme-err")
+            self.interface.sync_page_nav(dispatch.tab_id)
             return
         self.interface.tab_mgr.set_tip(dispatch.tab_id, f"rendering {len(posts)} posts...", cls="theme-tip")
         QtCore.QTimer.singleShot(0, lambda current=dispatch, payload=list(posts): self._append_search_success(current, payload))
@@ -479,6 +523,50 @@ class DanbooruSearchController:
             self.interface.tab_mgr.set_tip(dispatch.tab_id, "empty", cls="theme-err")
         else:
             self.interface.tab_mgr.set_httpx_status(dispatch.tab_id, f"httpx 200/{len(posts)}", cls="theme-success")
+        self.interface.sync_page_nav(dispatch.tab_id)
+
+    def _schedule_count_fetch(self, dispatch: _DanbooruSearchDispatch):
+        state = self.interface.tab_states.get(dispatch.tab_id)
+        if state is None:
+            return
+        query_key = f"{dispatch.query}\n{dispatch.order}"
+        if state.count_query_key == query_key and state.total_count is not None:
+            self.interface.sync_page_nav(dispatch.tab_id)
+            return
+        token = state.request_token
+        execute_danbooru_task(
+            self.interface.task_mgr,
+            lambda current=dispatch, interface=self.interface: capture_danbooru_request(
+                interface.request_client.count_posts, current.query, order=current.order
+            ),
+            success_callback=lambda result, current=dispatch, request_token=token: self.handle_count_result(
+                current, request_token, result
+            ),
+            error_callback=lambda _err, current=dispatch, request_token=token: self.handle_count_error(
+                current, request_token
+            ),
+            task_id=f"danbooru-count-{dispatch.tab_id}-{token}",
+        )
+
+    def handle_count_result(self, dispatch: _DanbooruSearchDispatch, request_token: int, result: DanbooruReqResult):
+        state = self.interface.tab_states.get(dispatch.tab_id)
+        if state is None or request_token != state.request_token:
+            return
+        if result.challenge is not None:
+            return
+        try:
+            total_count = int(result.value)
+        except (TypeError, ValueError):
+            return
+        state.total_count = max(0, total_count)
+        state.count_query_key = f"{dispatch.query}\n{dispatch.order}"
+        self.interface.sync_page_nav(dispatch.tab_id)
+
+    def handle_count_error(self, dispatch: _DanbooruSearchDispatch, request_token: int):
+        state = self.interface.tab_states.get(dispatch.tab_id)
+        if state is None or request_token != state.request_token:
+            return
+        self.interface.sync_page_nav(dispatch.tab_id)
 
     def handle_search_challenge(self, dispatch: _DanbooruSearchDispatch, challenge: DanbooruChallengeRequired):
         tab = self.interface.tabs.get(dispatch.tab_id)
@@ -486,6 +574,7 @@ class DanbooruSearchController:
         if tab is None or state is None or dispatch.token != state.request_token:
             return
         tab.set_loading(False)
+        self.interface.sync_page_nav(dispatch.tab_id)
         self.interface.challenge_controller.submit(
             dispatch.tab_id, challenge, dispatch.retry_callback(self), retry_key=dispatch.challenge_retry_key(),
         )
@@ -496,6 +585,7 @@ class DanbooruSearchController:
         if tab is None or state is None or dispatch.token != state.request_token:
             return
         tab.set_loading(False)
+        self.interface.sync_page_nav(dispatch.tab_id)
         if DANBOORU_CHALLENGE_ERROR_MARKER in str(error or ""):
             self.interface.detail_preview_controller.handle_page_load_failed(dispatch.tab_id, "Need browser verification")
             self.handle_search_challenge(dispatch, DanbooruChallengeRequired(verify_url=DANBOORU_BASE_URL, status_code=403))

@@ -238,6 +238,11 @@ def build_interface_stylesheet(palette: DanbooruUiPalette) -> str:
     return _render_qss_section("interface")
 
 
+def build_page_nav_stylesheet(palette: DanbooruUiPalette | None = None) -> str:
+    _ = palette
+    return _render_qss_section("page_nav")
+
+
 def build_favorites_tree_item_stylesheet() -> str:
     return _render_qss_section("favorites_tree_item_inline")
 
