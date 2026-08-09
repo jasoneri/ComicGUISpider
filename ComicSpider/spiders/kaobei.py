@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 
-from utils.website import KaobeiUtils
+from utils.website.providers.kaobei import KaobeiUtils
 from utils.website.schema import KbFrameBook as FrameBook
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 

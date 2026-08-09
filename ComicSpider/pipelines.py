@@ -17,7 +17,9 @@ from twisted.internet.threads import deferToThread
 
 from utils import conf, TaskObj
 from utils.core import sanitize_for_path
-from utils.website import JmUtils, MangabzUtils, set_author_ahead
+from utils.chore import set_author_ahead
+from utils.website.providers.jm import JmUtils
+from utils.website.providers.mangabz import MangabzUtils
 from utils.config.rule import CgsRuleMgr
 from assets import res
 from utils.protocol import BarProgressEvent, TasksObjEvent
@@ -117,10 +119,7 @@ class ComicPipeline(ImagesPipeline):
 
     @staticmethod
     def _processed_file_count(stats):
-        return (
-            stats.get_value('file_status_count/downloaded', default=0) +
-            stats.get_value('file_status_count/uptodate', default=0)
-        )
+        return stats.get_value('file_status_count/downloaded', default=0) + stats.get_value('file_status_count/uptodate', default=0)
 
     def _sync_item_progress(self, spider, stats, item):
         total = getattr(spider, 'total', 0) or 0
@@ -156,12 +155,12 @@ class ComicPipeline(ImagesPipeline):
         return completed_item
 
 
-class WnacgComicPipeline(ComicPipeline):
-    # Prefer current Chrome TLS profile; Session init falls back if unsupported.
+class CurlComicPipeline(ComicPipeline):
+    """Download uncached images with curl_cffi while retaining ImagesPipeline storage."""
+
     curl_image_impersonate = "chrome146"
     curl_image_impersonate_fallbacks = ("chrome", "chrome131")
     curl_image_timeout = 20
-    # follow_conf: proxy when conf.proxies is set, else direct (align ComicDlAllProxyMiddleware).
     curl_image_proxy_policy = "follow_conf"
     curl_image_retries = 4
     curl_image_retry_base_delay = 1.0
@@ -201,14 +200,14 @@ class WnacgComicPipeline(ComicPipeline):
             return None
         if proxy_policy == "proxy":
             if not conf.proxies:
-                raise RuntimeError("WnacgComicPipeline requires conf.proxies when proxy mode is enabled")
+                raise RuntimeError(f"{type(self).__name__} requires conf.proxies when proxy mode is enabled")
             return f"http://{conf.proxies[0]}"
         if proxy_policy == "follow_conf":
             if conf.proxies:
                 return f"http://{conf.proxies[0]}"
             return None
         raise ValueError(
-            f"WnacgComicPipeline unsupported curl_image_proxy_policy={proxy_policy!r}; "
+            f"{type(self).__name__} unsupported curl_image_proxy_policy={proxy_policy!r}; "
             f"expected 'follow_conf', 'proxy', or 'direct'"
         )
 
@@ -216,21 +215,14 @@ class WnacgComicPipeline(ComicPipeline):
         timeout = getattr(spider, "image_download_timeout", self.curl_image_timeout)
         proxy_url = self._resolve_curl_proxy_url(spider)
 
-        session_identity = {
-            "impersonate_candidates": self._resolve_impersonate_candidates(spider),
-            "timeout": timeout,
-            "proxy": proxy_url,
-        }
+        session_identity = {"impersonate_candidates": self._resolve_impersonate_candidates(spider), "timeout": timeout, "proxy": proxy_url}
         if getattr(self, "_curl_session_config", None) == session_identity and self._curl_session is not None:
             return self._curl_session
 
         self._close_curl_session()
         last_error = None
         for impersonate_profile in session_identity["impersonate_candidates"]:
-            session_kwargs = {
-                "impersonate": impersonate_profile,
-                "timeout": timeout,
-            }
+            session_kwargs = {"impersonate": impersonate_profile, "timeout": timeout}
             if proxy_url:
                 session_kwargs["proxy"] = proxy_url
             try:
@@ -238,7 +230,8 @@ class WnacgComicPipeline(ComicPipeline):
                 self._curl_session_config = session_identity
                 if impersonate_profile != session_identity["impersonate_candidates"][0]:
                     spider.logger.warning(
-                        "Wnacg image curl impersonate fallback | preferred=%s | active=%s",
+                        "%s image curl impersonate fallback | preferred=%s | active=%s",
+                        self._curl_image_label,
                         session_identity["impersonate_candidates"][0],
                         impersonate_profile,
                     )
@@ -246,15 +239,20 @@ class WnacgComicPipeline(ComicPipeline):
             except Exception as session_error:
                 last_error = session_error
                 spider.logger.warning(
-                    "Wnacg image curl session init failed | impersonate=%s | error=%s: %s",
+                    "%s image curl session init failed | impersonate=%s | error=%s: %s",
+                    self._curl_image_label,
                     impersonate_profile,
                     type(session_error).__name__,
                     session_error,
                 )
         raise RuntimeError(
-            f"WnacgComicPipeline could not create curl session with candidates "
+            f"{type(self).__name__} could not create curl session with candidates "
             f"{session_identity['impersonate_candidates']}: {last_error}"
         )
+
+    @property
+    def _curl_image_label(self):
+        return type(self).__name__.removesuffix("ComicPipeline")
 
     @staticmethod
     def _curl_request_referer(request, spider):
@@ -292,20 +290,20 @@ class WnacgComicPipeline(ComicPipeline):
     def _is_retryable_curl_error(self, spider, exc):
         status_code = self._extract_http_status(exc)
         if status_code is not None:
-            retryable_codes = getattr(
-                spider, "curl_image_retryable_status_codes", self.curl_image_retryable_status_codes
-            )
+            retryable_codes = getattr(spider, "curl_image_retryable_status_codes", self.curl_image_retryable_status_codes)
             return int(status_code) in retryable_codes
         # Transport / timeout / connection failures have no HTTP status.
         return True
 
     def media_to_download(self, request: Request, info, *, item=None):
+        # super(): local uptodate only (None => need bytes). Never rewrite request.url.
         dfd = maybeDeferred(super().media_to_download, request, info, item=item)
         spider = info.spider
         attempts = max(1, int(getattr(spider, "curl_image_retries", self.curl_image_retries)))
         referer = self._curl_request_referer(request, spider)
+        image_url = str(request.url)
 
-        def _fallback(file_info):
+        def _fetch_uncached(file_info):
             if file_info is not None:
                 return file_info
 
@@ -313,22 +311,29 @@ class WnacgComicPipeline(ComicPipeline):
                 session = self._get_curl_session(spider)
                 for attempt in range(1, attempts + 1):
                     try:
-                        response = session.get(request.url, referer=referer)
+                        response = session.get(image_url, referer=referer)
                         response.raise_for_status()
                         return response.status_code, response.content
                     except Exception as exc:
                         retryable = self._is_retryable_curl_error(spider, exc)
                         if (not retryable) or attempt >= attempts:
-                            raise
+                            status_code = self._extract_http_status(exc)
+                            raise RuntimeError(
+                                f"{self._curl_image_label} image curl failed | url={image_url} | "
+                                f"status={status_code if status_code is not None else '-'} | "
+                                f"proxy_policy={getattr(spider, 'curl_image_proxy_policy', self.curl_image_proxy_policy)} | "
+                                f"error={type(exc).__name__}: {exc}"
+                            ) from exc
                         next_delay = self._retry_delay_seconds(spider, attempt)
                         status_code = self._extract_http_status(exc)
                         spider.logger.warning(
-                            "Wnacg image curl retry %s/%s | status=%s | delay=%.1fs | url=%s | referer=%s | error=%s: %s",
+                            "%s image curl retry %s/%s | status=%s | delay=%.1fs | url=%s | referer=%s | error=%s: %s",
+                            self._curl_image_label,
                             attempt,
                             attempts,
                             status_code if status_code is not None else "-",
                             next_delay,
-                            request.url,
+                            image_url,
                             referer or "-",
                             type(exc).__name__,
                             exc,
@@ -338,15 +343,31 @@ class WnacgComicPipeline(ComicPipeline):
             def _handle_curl_result(result):
                 status_code, content = result
                 return maybeDeferred(
-                    self.media_downloaded, Response(url=request.url, status=status_code, body=content, request=request),
-                    request, info, item=item)
+                    self.media_downloaded,
+                    Response(url=image_url, status=status_code, body=content, request=request),
+                    request,
+                    info,
+                    item=item,
+                )
 
             thread_dfd = deferToThread(_download_via_curl)
             thread_dfd.addCallback(_handle_curl_result)
             return thread_dfd
 
-        dfd.addCallback(_fallback)
+        dfd.addCallback(_fetch_uncached)
         return dfd
+
+
+class WnacgComicPipeline(CurlComicPipeline):
+    """Use the gallery CDN URL and configured proxy for WNACG image downloads."""
+
+    curl_image_proxy_policy = "follow_conf"
+
+
+class Dm5ComicPipeline(CurlComicPipeline):
+    """Use direct curl_cffi requests for DM5 reader images."""
+
+    curl_image_proxy_policy = "direct"
 
 
 class JmComicPipeline(ComicPipeline):

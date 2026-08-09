@@ -17,9 +17,8 @@ from utils import PresetHtmlEl, temp_p, conf
 from utils.processed_class import TextBrowserState, ProcessState
         
 from utils.protocol import SpiderDownloadJob, JobContext, LogEvent, ProcessStateEvent
-from utils.website import (
-    correct_domain, BookInfo, Episode
-)
+from utils.chore import correct_domain
+from utils.website.info import BookInfo, Episode
 from utils.website.registry import (
     resolve_provider_descriptor_by_spider,
     create_spider_site_runtime,

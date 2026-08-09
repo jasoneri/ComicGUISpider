@@ -4,7 +4,7 @@ from PySide6.QtWebChannel import QWebChannel
 from qfluentwidgets import InfoBar, InfoBarPosition
 
 from assets import res as ori_res
-from utils.website import extract_domains
+from utils.chore import extract_domains
 from GUI.tools.domain import DomainToolView
 
 

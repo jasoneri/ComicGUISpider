@@ -2,7 +2,7 @@
 import scrapy
 
 from utils import PresetHtmlEl
-from utils.website import JComicUtils
+from utils.website.providers.jcomic import JComicUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 

@@ -7,7 +7,7 @@ import contextlib
 import warnings
 from PySide6.QtGui import QKeySequence, QGuiApplication, QShortcut, QTextCursor
 from PySide6.QtCore import (
-    QThread, Qt, QCoreApplication, QUrl, QRect,
+    QThread, Qt, QCoreApplication, QUrl, QRect, QTimer,
     Signal,
 )
 from GUI.core.timer import safe_single_shot
@@ -46,6 +46,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     exception_feedback_requested = Signal(str, str)
     BrowserWindow = None  # CGS001 browser init/show flow
     toolWin = None
+    conf_dia = None  # CGS006: construct on demand (P4)
     web_is_r18 = False
     gui_site_runtime = None  # CGS001 choose-box site flow
     dl_mgr = None
@@ -68,6 +69,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._server_mode_switch_requested = False
         self._closing = False
         self.script_window = None
+        self._pending_rv_sauce_visible = False  # CGS006: apply when toolWin is ensured
+        self._conf_accept_bound = False
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         self.setupUi(self)
         self.exception_feedback_requested.connect(self._show_exception_feedback, Qt.QueuedConnection)
@@ -97,8 +100,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self._post_first_paint_setup_started:
             return
         self._post_first_paint_setup_started = True
+        # CGS006: import only the submodules needed for P2 — not GUI.manager barrel.
         from utils.redViewer_tools import Handler as rVtools
-        from GUI.manager import TaskProgressManager, RVManager
+        from GUI.manager.task_progress import TaskProgressManager
+        from GUI.manager.rv import RVManager
         self.task_init()
         self.task_mgr = TaskProgressManager(self)
         self.task_mgr.init_native_panel()
@@ -112,11 +117,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def finish_setup(self):
         self.generation_bind()
         if not getattr(self, "_startup_completed", False):
+            # Start while splash still covers the window so chooseBox first-use
+            # does not race an empty warmup (was gated on splash finish).
+            self._start_import_warmup()
             self.startup_only()
             self._startup_completed = True
 
     def _restore_feedback_panel(self):
-        from GUI.tools import TextUtils
+        from GUI.tools.chore import TextUtils
         self.textBrowser.clear()
         self.textBrowser.append(TextUtils.description())
         self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
@@ -126,21 +134,32 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.update_notifier = UpdateNotifier(self)
         self.update_notifier.check_on_startup()
         past = time.time() - self.st
-        safe_single_shot(int((0 if past >= self.splashWait else self.splashWait-past)*1000), self.splashScreen.finish)
+        delay_ms = int((0 if past >= self.splashWait else self.splashWait - past) * 1000)
+        safe_single_shot(delay_ms, self.splashScreen.finish)
+
+    def _start_import_warmup(self):
+        """Background-import what startup deferred (providers + scrapy stack)."""
+        from GUI.core.warmup import ImportWarmupThread
+
+        self.warmup_thread = ImportWarmupThread(self)
+        self.warmup_thread.start()
 
     def generation_bind(self):
+        # CGS006 P2: interactive-minimum only — ConfDialog/ToolWindow are P4.
         from utils.sql.download_state import DownloadStateStore
-        from GUI.conf_dialog import ConfDialog
-        from GUI.tools import TextUtils
-        from GUI.manager import (
-            ClipGUIManager, AggrSearchManager,
-            CGSMidManagerGUI, PreviewMgr, PublishDomainManager,
-            SelectionFlowManager, DownloadRuntimeManager, Shares
-        )
+        from GUI.tools.chore import TextUtils
+        from GUI.manager.clip import ClipGUIManager
+        from GUI.manager.ags import AggrSearchManager
+        from GUI.manager.mid import CGSMidManagerGUI
+        from GUI.manager.preview import PreviewMgr
+        from GUI.manager.publish import PublishDomainManager
+        from GUI.manager.selection import SelectionFlowManager
+        from GUI.manager.download import DownloadRuntimeManager
+        from GUI.manager.share import Shares
         from GUI.manager.preprocess import PreprocessManager
         self.flow_stage = GUIFlowStage.IDLE
         self.pageFrameClickCnt = 0
-        self.conf_dia = ConfDialog(self)
+        self.conf_dia = None
         self.textBrowser.append(TextUtils.description())
 
         self.clip_mgr = ClipGUIManager(self)
@@ -173,6 +192,28 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.chooseBox.currentIndexChanged.connect(self._chooseBox_changed_handle)
         self.refresh_lifecycle_state()
         self.setup_finished.emit()
+
+    def ensure_conf_dialog(self):
+        """CGS006 P4: build ConfDialog only when configuration UI is needed."""
+        if self.conf_dia is None:
+            from GUI.conf_dialog import ConfDialog
+            self.conf_dia = ConfDialog(self)
+            if not self._conf_accept_bound:
+                self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
+                self._conf_accept_bound = True
+            update_notifier = getattr(self, "update_notifier", None)
+            if update_notifier is not None:
+                update_notifier.refresh_badges()
+        return self.conf_dia
+
+    def ensure_tool_win(self):
+        """CGS006 P4: build ToolWindow on first tool open / rv sauce need."""
+        if self.toolWin is None:
+            from GUI.tools import ToolWindow
+            self.toolWin = ToolWindow(self)
+            if hasattr(self.toolWin, "rvInterface"):
+                self.toolWin.rvInterface.set_sauce_visible(self._pending_rv_sauce_visible)
+        return self.toolWin
 
     def update_search_ui(self, *, session=_UNSET, request=_UNSET, controls_blocked=_UNSET):
         if session is not _UNSET:
@@ -254,7 +295,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.search_ui_state = SearchUiState()
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
-        self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
+        self._pending_rv_sauce_visible = self.web_is_r18
+        if self.toolWin is not None and hasattr(self.toolWin, "rvInterface"):
+            self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
         self.sut = None
         if index in (Spider.JM, Spider.WNACG) and not conf.proxies:
@@ -274,6 +317,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.flow_stage = GUIFlowStage.IDLE
         self.preprocess_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
         self.refresh_lifecycle_state()
+
 
     def chooseBox_changed_tips(self, index):
         self.pageEdit.setEnabled(index != Spider.EHENTAI)
@@ -311,9 +355,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def show_toolWin(self, win_type):
         _map = {"ags": "asInterface", "hitomi": "htInterface", "subscribe": "subscribeInterface"}
+        self.ensure_tool_win()
         self.rvBtn.click()
+
         def _jump():
-            self.toolWin.stackedWidget.setCurrentWidget(getattr(self.toolWin, _map[win_type]))
+            tool_window = self.ensure_tool_win()
+            if win_type == "subscribe":
+                tool_window.ensure_subscribe_interface()
+            target_widget = getattr(tool_window, _map[win_type], None)
+            if target_widget is not None:
+                tool_window.stackedWidget.setCurrentWidget(target_widget)
+
         safe_single_shot(10, _jump)
 
     def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
@@ -368,7 +420,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             blockers.append("preview/search")
         blockers.extend(self.preprocess_mgr.server_mode_switch_blockers())
         blockers.extend(self.shares.server_mode_switch_blockers())
-        blockers.extend(self.toolWin.server_mode_switch_blockers())
+        if self.toolWin is not None:
+            blockers.extend(self.toolWin.server_mode_switch_blockers())
         if self.script_window is not None:
             blockers.extend(self.script_window.server_mode_switch_blockers())
         blockers.extend(self.publish_mgr.server_mode_switch_blockers())
@@ -377,18 +430,21 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         return list(dict.fromkeys(blockers))
 
     def set_tool_win(self):
-        from GUI.tools import ToolWindow
-        self.toolWin = ToolWindow(self)
-        # self.toolWin.addMidTool()  # TODO[2](2026-03-07): 下个稳定版本恢复
+        # CGS006: only wire the open hook on P2; ToolWindow builds on first click (P4).
+        self.toolWin = None
 
         def _show_toolWin():
-            t = self.toolWin
-            h = self.height()
-            abs_y = self.y() + h
+            tool_window = self.ensure_tool_win()
+            abs_y = self.y() + self.height()
             screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
-            target_y = screen_height - t.height() if abs_y + t.height() > screen_height else abs_y
-            target_rect = QRect(self.x(), target_y, t.width(), t.height())
-            PopupAnimator.show(t, target_rect, duration_ms=220, direction="down")
+            target_y = (
+                screen_height - tool_window.height()
+                if abs_y + tool_window.height() > screen_height
+                else abs_y
+            )
+            target_rect = QRect(self.x(), target_y, tool_window.width(), tool_window.height())
+            PopupAnimator.show(tool_window, target_rect, duration_ms=220, direction="down")
+
         self.rvBtn.clicked.connect(_show_toolWin)
 
     def _set_search_context_menu(self):
@@ -440,8 +496,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def btn_logic_bind(self):
         self.retrybtn.clicked.connect(self.retry_schedule)
-        self.confBtn.clicked.connect(self.conf_dia.show_self)
-        self.conf_dia.acceptBtn.clicked.connect(self.set_completer)
+        self.confBtn.clicked.connect(lambda: self.ensure_conf_dialog().show_self())
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
         self.aggrBtn.clicked.connect(lambda: self.show_toolWin("ags"))
         self.htBtn.clicked.connect(lambda: self.show_toolWin("hitomi"))
@@ -759,7 +814,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         final_rect = self.BrowserWindow.geometry()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
-    def open_url_by_browser(self, url, callback=None):
+    def open_url_by_browser(self, url, callback=None, *, inject_cookies_provider: str = ""):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
         rect = QRect(self.x(), int(screen_height*0.05), self.width(), int(screen_height*0.9))
         if not getattr(self, 'BrowserWindow'):
@@ -772,6 +827,17 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.set_preview(rect, skip_env_mode=skip_env_mode)
         else:
             self.BrowserWindow.setGeometry(rect)
+            # 复用浏览器时刷新当前站点环境 (cookies/referer/proxy):
+            # 否则 conf.cookies 变化 (登录保存/清除) 不会反映到浏览器
+            if self.gui_site_runtime is not None:
+                try:
+                    self.BrowserWindow.apply_standard_environment()
+                except Exception:
+                    self.log.exception("browser environment refresh failed")
+        # 登录模式: 加载登录页前注入已保存 cookies (竞品 WebViewActivity/CookieJar 同款),
+        # 登录态仍有效时打开即为已登录, 失效则停留在登录表单重新登录
+        if inject_cookies_provider:
+            self._inject_saved_cookies_to_browser(inject_cookies_provider)
         final_rect = self.BrowserWindow.geometry()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
         self.BrowserWindow.view.load(QUrl(url))

@@ -2,12 +2,13 @@
 import re
 import random
 import traceback
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 # Define here the models for your spider middleware
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
+from curl_cffi import requests as curl_requests
 from scrapy import signals
 from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
 from scrapy.http import HtmlResponse
@@ -156,9 +157,7 @@ class ScrapyDoHProxyMiddleware:
     def _ensure_proxy_endpoint(self, spider):
         if not self._proxy_endpoint:
             self._proxy_endpoint = ensure_doh_connect_proxy_started(self._doh_url)
-            spider.logger.info(
-                f"Scrapy DoH proxy enabled | doh={self._doh_url} | proxy={self._proxy_endpoint}"
-            )
+            spider.logger.info(f"Scrapy DoH proxy enabled | doh={self._doh_url} | proxy={self._proxy_endpoint}")
         return self._proxy_endpoint
 
     def spider_opened(self, spider):
@@ -198,3 +197,75 @@ class FakeMiddleware:
             fake_resp = HtmlResponse(url=request.url, request=request, body=b'fake')
             return fake_resp
         return None
+
+
+class WnacgCurlCffiHtmlMiddleware:
+    """Fetch wnacg book gallery HTML via curl_cffi (CF TLS), not Twisted bare TLS.
+
+    Image CDN hosts stay on WnacgComicPipeline. photos-index has no imglist; rewrite to gallery.
+    """
+
+    default_impersonate = "chrome146"
+    default_download_timeout = 20
+    image_host_tokens = ("wnimg.", "qy0.ru", "/data/")
+    image_suffix_tokens = (".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif")
+
+    def process_request(self, request, spider):
+        def _is_image_cdn_request(url: str) -> bool:
+            lower_url = str(url or "").casefold()
+            if "photos-" in lower_url:
+                return False
+            if any(token in lower_url for token in self.image_host_tokens):
+                return True
+            return any(token in lower_url for token in self.image_suffix_tokens)
+
+        def _normalize_wnacg_request_url(url: str) -> str:
+            parts = urlsplit(str(url))
+            host = (parts.hostname or "").casefold()
+            if host != "wnacg.com":
+                return str(url)
+            netloc = parts.netloc.replace("wnacg.com", "www.wnacg.com", 1)
+            return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
+        def _resolve_proxy_url() -> str | None:
+            meta_proxy = request.meta.get("proxy")
+            if meta_proxy:
+                return str(meta_proxy)
+            proxies = list(conf.proxies or [])
+            if not proxies:
+                return None
+            return f"http://{proxies[0]}"
+
+        if getattr(spider, "name", None) != "wnacg":
+            return None
+        raw_url = str(request.url or "")
+        if _is_image_cdn_request(raw_url):
+            return None
+        request_url = raw_url
+        if "photos-index-aid-" in raw_url.casefold():
+            request_url = re.sub(r"photos-index-aid-", "photos-gallery-aid-", raw_url, count=1, flags=re.I)
+        fetch_url = _normalize_wnacg_request_url(request_url)
+        impersonate = getattr(spider, "html_impersonate", None) or getattr(spider, "image_impersonate", None) or self.default_impersonate
+        proxy_url = _resolve_proxy_url()
+        timeout = float(request.meta.get("download_timeout") or self.default_download_timeout)
+        request_kw = {"timeout": timeout, "allow_redirects": True, "impersonate": impersonate, "verify": False}
+        if proxy_url:
+            request_kw["proxy"] = proxy_url
+        method = str(request.method or "GET").upper()
+        if method == "GET":
+            raw_resp = curl_requests.get(fetch_url, **request_kw)
+        else:
+            raw_resp = curl_requests.request(method, fetch_url, data=request.body, **request_kw)
+        status_code = int(raw_resp.status_code)
+        final_url = str(getattr(raw_resp, "url", None) or fetch_url)
+        content = raw_resp.content or b""
+        spider.logger.debug(
+            "wnacg curl_cffi html | status=%s | orig=%s | fetch=%s | final=%s | body_len=%s | proxy=%s",
+            status_code,
+            raw_url,
+            fetch_url,
+            final_url,
+            len(content),
+            proxy_url,
+        )
+        return HtmlResponse(url=final_url, status=status_code, body=content, encoding="utf-8", request=request)

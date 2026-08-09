@@ -5,7 +5,7 @@ from scrapy import Request
 
 from utils import conf, re
 from utils.processed_class import Url
-from utils.website import EHentaiKits as EK
+from utils.website.providers.ehentai import EHentaiKits as EK
 from assets import res
 from .basecomicspider import BaseComicSpider3
 from ..items import ComicspiderItem

@@ -23,7 +23,7 @@ from .flyout_kit import CustomTeachingTip
 from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, ContentTarget
 from utils import conf
 from utils.config.qc import cgs_cfg
-from utils.network.doh import DEFAULT_DOH_URL
+from utils.network.doh_policy import DEFAULT_DOH_URL
 
 # CGS003: keep type-only backend imports out of the first-paint dependency graph.
 if t.TYPE_CHECKING:

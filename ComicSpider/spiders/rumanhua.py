@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 
-from utils.website import RumanhuaUtils
+from utils.website.providers.rumanhua import RumanhuaUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 

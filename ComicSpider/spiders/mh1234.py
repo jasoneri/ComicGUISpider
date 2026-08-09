@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 
-from utils.website import Mh1234Utils
+from utils.website.providers.mh1234 import Mh1234Utils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 

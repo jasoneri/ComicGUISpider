@@ -3,7 +3,7 @@ import shutil
 from qfluentwidgets import QConfig, ConfigItem, RangeConfigItem, RangeValidator, qconfig
 
 from utils.config import ScriptConf, conf_dir, qconfig_dir
-from utils.network.doh import normalize_doh_url
+from utils.network.doh_policy import normalize_doh_url
 
 
 def _qconfig_path(name: str):

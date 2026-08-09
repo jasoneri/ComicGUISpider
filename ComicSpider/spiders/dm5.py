@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 
-from utils.website import Dm5Utils
+from utils.website.dm5 import Dm5Utils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 
@@ -12,7 +12,8 @@ class Dm5Spider(BaseComicSpider):
         "DOWNLOADER_MIDDLEWARES": {
             "ComicSpider.middlewares.RefererMiddleware": 10,
             "ComicSpider.middlewares.FakeMiddleware": 30,
-        }
+        },
+        "ITEM_PIPELINES": {"ComicSpider.pipelines.Dm5ComicPipeline": 50},
     }
 
     def _build_episode_items(self, ep, page_urls, *, chapter_referer):

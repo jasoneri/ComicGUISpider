@@ -162,12 +162,13 @@ class PreprocessManager(QObject):
         return generation == self._switch_generation and self.gui.chooseBox.currentIndex() == index
 
     def _add_hitomi_tool(self):
-        self.gui.toolWin.addHitomiTool()
+        self.gui.ensure_tool_win().addHitomiTool()
         self.gui.htBtn.setVisible(True)
 
     def _add_aggr_search(self):
-        if not hasattr(self.gui.toolWin, "asInterface"):
-            self.gui.toolWin.addAggrSearchView()
+        tool_window = self.gui.ensure_tool_win()
+        if not hasattr(tool_window, "asInterface"):
+            tool_window.addAggrSearchView()
         self.gui.aggrBtn.setVisible(True)
 
     def sync_gui_site_runtime(self, gui_site_runtime: GuiSiteRuntime | None):

@@ -3,7 +3,7 @@ import asyncio
 import httpx
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urlparse, urlsplit
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from lxml import etree
 from scrapy import Selector
@@ -79,6 +79,11 @@ class _WnacgContract:
     cover_preload_transport = "curl_cffi"
     cover_preload_proxy_policy = "follow_conf"
     cover_preload_impersonate = "chrome146"
+    # CF challenges bare httpx/Twisted TLS on www.wnacg.com under proxy; align cover + search HTML.
+    preview_html_transport = "curl_cffi"
+    preview_html_impersonate = "chrome146"
+    preview_html_proxy_policy = "follow_conf"
+    preview_html_verify = False
 
     @dataclass
     class Policy:
@@ -86,6 +91,10 @@ class _WnacgContract:
         cover_preload_transport = "curl_cffi"
         cover_preload_proxy_policy = "follow_conf"
         cover_preload_impersonate = "chrome146"
+        preview_html_transport = "curl_cffi"
+        preview_html_impersonate = "chrome146"
+        preview_html_proxy_policy = "follow_conf"
+        preview_html_verify = False
 
 
 class WnacgParser(_WnacgContract, Previewer):
@@ -279,3 +288,13 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
     @classmethod
     def preview_transport_config(cls) -> dict:
         return {"verify": False, "retries": 2}
+
+    @classmethod
+    def normalize_preview_request_url(cls, url: str) -> str:
+        """Prefer www host; apex wnacg.com often fails CF when headers/TLS disagree with browser."""
+        parts = urlsplit(str(url))
+        host = (parts.hostname or "").casefold()
+        if host != "wnacg.com":
+            return str(url)
+        netloc = parts.netloc.replace("wnacg.com", "www.wnacg.com", 1)
+        return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))

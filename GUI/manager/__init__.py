@@ -1,5 +1,12 @@
-import os
+"""GUI managers package.
+
+CGS006: keep this module light. Submodules (clip, preview, …) must be imported
+from their own paths on the startup critical path — not via eager re-exports.
+"""
+from __future__ import annotations
+
 import contextlib
+import os
 import subprocess
 from datetime import date
 
@@ -17,24 +24,38 @@ from GUI.uic.qfluent.components import (
     CustomInfoBar, UpdaterMessageBox, CustomBadge
 )
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
-from GUI.manager.clip import ClipGUIManager
-from GUI.manager.ags import AggrSearchManager
-from GUI.manager.rv import RVManager
-from GUI.manager.mid import CGSMidManagerGUI
-from GUI.manager.preview import PreviewMgr
-from GUI.manager.task_progress import TaskProgressManager
-from GUI.manager.publish import PublishDomainManager
-from GUI.manager.selection import SelectionFlowManager
-from GUI.manager.download import DownloadRuntimeManager
-from GUI.manager.share import Shares
 
 __all__ = [
-    'Updater', 'UpdateNotifier', 'TaskConfig',
-    'RVManager', 'TaskProgressManager','AsyncTaskManager',
+    'Updater', 'UpdateNotifier', 'TaskConfig', 'AsyncTaskManager',
+    'RVManager', 'TaskProgressManager',
     'ClipGUIManager', 'AggrSearchManager', 'CGSMidManagerGUI',
     'PreviewMgr', 'PublishDomainManager',
-    'SelectionFlowManager', 'DownloadRuntimeManager', 'Shares'
+    'SelectionFlowManager', 'DownloadRuntimeManager', 'Shares',
 ]
+
+_LAZY_MANAGER_EXPORTS = {
+    'RVManager': 'GUI.manager.rv',
+    'TaskProgressManager': 'GUI.manager.task_progress',
+    'ClipGUIManager': 'GUI.manager.clip',
+    'AggrSearchManager': 'GUI.manager.ags',
+    'CGSMidManagerGUI': 'GUI.manager.mid',
+    'PreviewMgr': 'GUI.manager.preview',
+    'PublishDomainManager': 'GUI.manager.publish',
+    'SelectionFlowManager': 'GUI.manager.selection',
+    'DownloadRuntimeManager': 'GUI.manager.download',
+    'Shares': 'GUI.manager.share',
+}
+
+
+def __getattr__(name: str):
+    module_path = _LAZY_MANAGER_EXPORTS.get(name)
+    if module_path is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    import importlib
+    module = importlib.import_module(module_path)
+    value = getattr(module, name)
+    globals()[name] = value
+    return value
 
 
 class UpdateNotifier:
@@ -96,9 +117,11 @@ class UpdateNotifier:
         badge = CustomBadge.make_ani_dot(self.gui.funcGroupBox, target=self.gui.confBtn)
         badge.show()
         self._badges.append(badge)
-        badge2 = CustomBadge.make_ani_dot(self.gui.conf_dia, target=self.gui.conf_dia.updateBtn)
-        badge2.show()
-        self._badges.append(badge2)
+        conf_dia = getattr(self.gui, "conf_dia", None)
+        if conf_dia is not None:
+            badge2 = CustomBadge.make_ani_dot(conf_dia, target=conf_dia.updateBtn)
+            badge2.show()
+            self._badges.append(badge2)
 
     def _clear_badges(self):
         for badge in self._badges:
@@ -136,7 +159,7 @@ class Updater:
 
     def __init__(self, gui):
         self.gui = gui
-        self.conf_dia = self.gui.conf_dia
+        self.conf_dia = self.gui.ensure_conf_dialog()
 
     def run(self):
         def _close_thread():

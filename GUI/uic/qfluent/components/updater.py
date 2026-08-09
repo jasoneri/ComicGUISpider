@@ -41,11 +41,11 @@ class UpdaterMessageBox(MessageBoxBase):
     def validate(self):
         if code_env == "git":
             CustomInfoBar.show_custom("", res.Updater.git_update_desc, self.gui.showArea, _type="INFORMATION")
-            safe_single_shot(3000, self.gui.conf_dia.puThread.update_signal.emit)
+            safe_single_shot(3000, self.gui.ensure_conf_dialog().puThread.update_signal.emit)
         else:
             self.gui.updaterStateTooltip = StateToolTip("Updating", res.Updater.doing, self.gui.showArea)
             self.gui.updaterStateTooltip.show()
-            self.gui.conf_dia.puThread.update_signal.emit()
+            self.gui.ensure_conf_dialog().puThread.update_signal.emit()
         return True
 
     def show_release_note(self, note):

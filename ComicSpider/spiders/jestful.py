@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 
-from utils.website import JestfulUtils
+from utils.website.providers.jestful import JestfulUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 

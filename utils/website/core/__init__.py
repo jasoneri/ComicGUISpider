@@ -6,6 +6,7 @@ import pickle
 import copy
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from urllib.parse import quote, urlparse, urlunparse
 
 import httpx
@@ -373,6 +374,11 @@ class Previewer:
     cover_preload_timeout: float = 15.0
     cover_preload_proxy_policy: str | None = None
     cover_preload_impersonate: str | None = None
+    # HTML search/detail preview: default httpx; sites under CF TLS challenge set curl_cffi.
+    preview_html_transport: str = "httpx"
+    preview_html_impersonate: str | None = None
+    preview_html_proxy_policy: str | None = None
+    preview_html_verify: bool | None = None
 
     @classmethod
     def preview_client_config(cls, **context) -> dict:
@@ -541,13 +547,85 @@ class Previewer:
         return PreviewRequestSpec(url=cls.build_page_url(base_url, page, page_info), headers=dict(headers or {}), state=dict(state or {}))
 
     @classmethod
+    def normalize_preview_request_url(cls, url: str) -> str:
+        return str(url)
+
+    @classmethod
+    def _resolve_preview_html_proxy_url(cls, proxies: list | tuple | None) -> str | None:
+        proxy_policy = (
+            getattr(cls, "preview_html_proxy_policy", None)
+            or getattr(cls, "cover_preload_proxy_policy", None)
+            or getattr(cls, "proxy_policy", "proxy")
+        )
+        proxy_list = list(proxies or ())
+        if proxy_policy == "direct":
+            return None
+        if proxy_policy == "proxy":
+            if not proxy_list:
+                raise RuntimeError(f"{cls.__name__} preview HTML requires proxies when proxy mode is enabled")
+            return f"http://{proxy_list[0]}"
+        if proxy_policy == "follow_conf":
+            if proxy_list:
+                return f"http://{proxy_list[0]}"
+            return None
+        raise ValueError(
+            f"{cls.__name__} unsupported preview_html_proxy_policy={proxy_policy!r}; "
+            f"expected 'follow_conf', 'proxy', or 'direct'"
+        )
+
+    @classmethod
+    def _perform_preview_request_via_curl(cls, spec: PreviewRequestSpec, *, proxies: list | tuple | None):
+        request_url = cls.normalize_preview_request_url(spec.url)
+        method = str(spec.method or "GET").upper()
+        impersonate = getattr(cls, "preview_html_impersonate", None) or getattr(cls, "cover_preload_impersonate", None)
+        verify_setting = getattr(cls, "preview_html_verify", None)
+        if verify_setting is None:
+            verify_setting = dict(cls.preview_transport_config() or {}).get("verify", True)
+        request_kw = {
+            "timeout": float(spec.timeout or 12.0),
+            "allow_redirects": True,
+            "verify": verify_setting,
+        }
+        if impersonate:
+            request_kw["impersonate"] = impersonate
+        proxy_url = cls._resolve_preview_html_proxy_url(proxies)
+        if proxy_url:
+            request_kw["proxy"] = proxy_url
+        # Impersonate owns TLS/JA3 and default browser headers; do not merge site Firefox UA bags.
+        if method == "GET":
+            raw_resp = curl_requests.get(request_url, **request_kw)
+        else:
+            raw_resp = curl_requests.request(method, request_url, data=spec.data, **request_kw)
+        status_code = int(raw_resp.status_code)
+        final_url = str(getattr(raw_resp, "url", None) or request_url)
+        body_text = raw_resp.text or ""
+        if status_code >= 400:
+            request = httpx.Request(method, request_url)
+            response = httpx.Response(status_code, request=request, text=body_text)
+            raise httpx.HTTPStatusError(
+                f"Client error '{status_code} {response.reason_phrase}' for url '{final_url}'",
+                request=request,
+                response=response,
+            )
+        return SimpleNamespace(text=body_text, url=final_url, status_code=status_code)
+
+    @classmethod
     async def perform_preview_request(cls, client, spec: PreviewRequestSpec):
+        transport = str(getattr(cls, "preview_html_transport", "httpx") or "httpx").casefold()
+        if transport in {"curl_cffi", "curl-cffi", "cffi"}:
+            proxies = list(conf.proxies or ())
+            return await asyncio.to_thread(cls._perform_preview_request_via_curl, spec, proxies=proxies)
+        if transport not in {"httpx", "production", ""}:
+            raise ValueError(
+                f"{cls.__name__} unsupported preview_html_transport={transport!r}; expected httpx or curl_cffi"
+            )
         request_kw = {}
         if spec.headers:
             request_kw["headers"] = spec.headers
         if spec.data is not None:
             request_kw["data"] = spec.data
-        resp = await client.request(spec.method, spec.url, follow_redirects=True, timeout=spec.timeout, **request_kw)
+        request_url = cls.normalize_preview_request_url(spec.url)
+        resp = await client.request(spec.method, request_url, follow_redirects=True, timeout=spec.timeout, **request_kw)
         resp.raise_for_status()
         return resp
 

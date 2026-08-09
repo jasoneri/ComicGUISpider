@@ -351,7 +351,7 @@ def _preprocess_jm_like(gui_site_runtime: "GuiSiteRuntime") -> PreprocessResult:
 
 def _preprocess_wnacg(gui_site_runtime: "GuiSiteRuntime", *, conf_state=conf) -> PreprocessResult:
     if conf_state.proxies:
-        domain = gui_site_runtime.peek_cached_domain() or gui_site_runtime.provider_cls.domain
+        domain = gui_site_runtime.provider_cls.domain  # remark wnacg 代理下不能锁 国内域名 前置
         return PreprocessResult(ready=True, domain=domain, runtime_ready=True, messages=(_message("info", "🔔 已设置代理，跳过域名缓存处理"),),
             state_flags={"proxy_configured": True, "domain_ready": True})
     return _preprocess_jm_like(gui_site_runtime)

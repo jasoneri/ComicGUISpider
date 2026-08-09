@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass, field, replace
+import functools
+from importlib import import_module
 import typing as t
 
 import httpx
@@ -29,24 +31,49 @@ def _pick_bound_domain(*values: t.Any) -> str | None:
     return None
 
 
+@functools.cache
+def _load_provider(provider_ref: str) -> type:
+    module_path, _, class_name = provider_ref.partition(":")
+    return getattr(import_module(module_path), class_name)
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderDescriptor:
     """
     Value object holding static provider identity and factory reference.
 
+    The factory is held as a declarative ``"module:ClassName"`` ref rather than
+    the class itself, so building the registry imports no provider module; each
+    one loads on first ``provider_cls`` read. This keeps the registry
+    independent of its own registrants -- the pattern used by setuptools entry
+    points and Django's INSTALLED_APPS.
+
     Static config like publish_url, book_url_regex should be read directly
     from provider_cls when needed, not cached as forwarding properties.
     """
-    provider_cls: type
+    provider_ref: str
     provider_name: str
     spider_name: str
     site_index: int | None = None
 
     @classmethod
     def create(cls, provider_cls, *, site_index: int | None = None, spider_name: str | None = None) -> "ProviderDescriptor":
+        """Eager form, for callers that already hold the class."""
         provider_name = str(getattr(provider_cls, "name", "") or spider_name or "")
-        return cls(provider_cls=provider_cls, provider_name=provider_name, spider_name=str(spider_name or provider_name),
+        return cls(provider_ref=f"{provider_cls.__module__}:{provider_cls.__name__}",
+            provider_name=provider_name, spider_name=str(spider_name or provider_name),
             site_index=site_index)
+
+    @classmethod
+    def from_ref(cls, provider_ref: str, *, provider_name: str, site_index: int | None = None,
+                 spider_name: str | None = None) -> "ProviderDescriptor":
+        """Declarative form: imports nothing until provider_cls is read."""
+        return cls(provider_ref=provider_ref, provider_name=provider_name,
+            spider_name=str(spider_name or provider_name), site_index=site_index)
+
+    @property
+    def provider_cls(self) -> type:
+        return _load_provider(self.provider_ref)
 
     def get_uuid(self, *args, **kwargs):
         return self.provider_cls.get_uuid(*args, **kwargs)

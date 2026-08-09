@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 
-from utils.website import ManhuaguiUtils
+from utils.website.providers.manhuagui import ManhuaguiUtils
 from .basecomicspider import BaseComicSpider, ComicspiderItem
 
 

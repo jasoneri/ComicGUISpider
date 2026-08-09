@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from utils.website import NhentaiUtils
+from utils.website.nhentai import NhentaiUtils
 
 from .basecomicspider import BaseComicSpider2, font_color
 

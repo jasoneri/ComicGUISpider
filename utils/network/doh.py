@@ -20,25 +20,23 @@ from httpx._transports.default import (
     map_httpcore_exceptions,
 )
 
-DNS_STUB_HOST = "127.0.0.1"
-DNS_STUB_PORT = 53
-DOH_WEBENGINE_PROXY_HOST = DOH_CONNECT_PROXY_HOST = "127.0.0.1"
-DEFAULT_DOH_URL = "https://cloudflare-dns.com/dns-query"
+from .doh_policy import (
+    DEFAULT_DOH_URL,
+    DNS_STUB_HOST,
+    DNS_STUB_PORT,
+    DOH_CONNECT_PROXY_HOST,
+    DOH_WEBENGINE_PROXY_HOST,
+    dns_stub_endpoint,
+    dns_stub_server,
+    is_doh_enabled,
+    normalize_doh_url,
+)
+
 _DOH_CACHE_SIZE = 4096
 _DOH_JSON_TIMEOUT = 5.0
 
 _resolver_cache_lock = threading.Lock()
 _resolver_caches: dict[str, dns.resolver.LRUCache] = {}
-
-
-def normalize_doh_url(value: object) -> str:
-    text = str(value or "").strip()
-    if not text:
-        return ""
-    parsed = urlparse(text)
-    if parsed.scheme != "https" or not parsed.netloc:
-        raise ValueError("DoH URL must be a full https://... endpoint")
-    return text
 
 
 def _resolver_cache(doh_url: str) -> dns.resolver.LRUCache:
@@ -266,18 +264,6 @@ def resolve_host_via_sync_doh(
     if last_error is not None:
         raise httpcore.ConnectError(f"DoH resolution failed for {text}: {last_error}") from last_error
     raise httpcore.ConnectError(f"DoH resolution returned no A/AAAA record for {text}")
-
-
-def is_doh_enabled(doh_url: object) -> bool:
-    return bool(normalize_doh_url(doh_url))
-
-
-def dns_stub_server(doh_url: object) -> str:
-    return DNS_STUB_HOST if is_doh_enabled(doh_url) else ""
-
-
-def dns_stub_endpoint(doh_url: object) -> str:
-    return f"{DNS_STUB_HOST}:{DNS_STUB_PORT}" if is_doh_enabled(doh_url) else ""
 
 
 class DoHNetworkBackend(httpcore.AsyncNetworkBackend):

@@ -6,7 +6,8 @@ import scrapy
 from ComicSpider.runtime.job_models import iter_download_items
 
 from utils import conf
-from utils.website import HitomiUtils, get_loop
+from utils.website import get_loop
+from utils.website.hitomi import HitomiUtils
 from ComicSpider.items import ComicspiderItem
 
 from .basecomicspider import BaseComicSpider

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from utils.website import HComicUtils
+from utils.website.providers.hcomic import HComicUtils
 from .basecomicspider import BaseComicSpider2, font_color
 
 domain = "h-comic.com"
