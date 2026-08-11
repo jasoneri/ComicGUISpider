@@ -76,7 +76,12 @@ SPIDERS_LABELS = dict(sorted({
 
 COOKIES_SUPPORT = {     # only when login required
     'jm': set(),
-    'ehentai': {"igneous","ipb_member_id","ipb_pass_hash"}
+    'ehentai': {"igneous","ipb_member_id","ipb_pass_hash"},
+    'comicabc': set(),
+    'nhentai': set(),
+    'manhuagui': set(),
+    'dm5': set(),
+    'mangabz': set(),
 }
 COOKIES_PLACEHOLDER = {
     k: f"{res.GUI.Uic.confDia_cookies_placeholder}{', '.join(v)}"

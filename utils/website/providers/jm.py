@@ -336,6 +336,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
         headers = dict(kwargs.pop("headers", cls.book_hea))
         if domain:
             headers["Referer"] = f"https://{domain}"
+        headers["Cookie"] = cls.to_str_(_conf.cookies.get(cls.name))
         return super().get_cli(_conf, is_async=is_async, headers=headers, **kwargs)
 
     @classmethod

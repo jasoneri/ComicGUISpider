@@ -9,7 +9,7 @@ import httpx
 from scrapy import Selector
 
 from assets import res
-from utils.website.core import Previewer, Req, Utils
+from utils.website.core import Cookies, Previewer, Req, Utils
 from utils.website.core.err import SiteBusinessError
 from utils.website.info import ComicabcBookInfo, Episode
 
@@ -211,6 +211,8 @@ class _ComicabcContract:
     name = "comicabc"
     proxy_policy = "proxy"
     domain = "www.8comic.com"
+    browser_referer_mode = "provider_index"
+    browser_cookie_set_enabled = True
     index = f"https://{domain}/"
     popular = f"{index}comic/h-1.html"
     update = f"{index}comic/u-1.html"
@@ -416,9 +418,15 @@ class ComicabcParser(_ComicabcContract, Previewer):
         return _SectionImageDecoder(script, section_url).decode()
 
 
-class ComicabcReqer(_ComicabcContract, Req):
+class ComicabcReqer(_ComicabcContract, Req, Cookies):
     def __init__(self, _conf):
         self.cli = self.get_cli(_conf)
+
+    @classmethod
+    def get_cli(cls, _conf, is_async=False, **kwargs):
+        cli = super().get_cli(_conf, is_async=is_async, **kwargs)
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(_conf.cookies.get(cls.name))}
+        return cli
 
     @classmethod
     def build_search_url(cls, keyword: str, *, domain: str, custom_map: dict | None = None, page: int = 1) -> str:
@@ -486,7 +494,7 @@ class ComicabcReqer(_ComicabcContract, Req):
         return urls
 
 
-class ComicabcUtils(_ComicabcContract, Utils, Previewer):
+class ComicabcUtils(_ComicabcContract, Utils, Cookies, Previewer):
     parser = ComicabcParser
     reqer_cls = ComicabcReqer
 
@@ -503,5 +511,16 @@ class ComicabcUtils(_ComicabcContract, Utils, Previewer):
         return identity if only_id else f"{cls.name}-{identity}"
 
     @classmethod
+    def preview_headers(cls, domain: str, cookies: dict | None = None) -> dict[str, str]:
+        return cls.build_site_headers(
+            domain,
+            cls.headers,
+            referer_url=cls.preview_origin(domain),
+            cookies=cookies,
+            cookie_serializer=cls.to_str_,
+        )
+
+    @classmethod
     def preview_client_config(cls, **context):
-        return {"headers": cls.headers}
+        domain = context.get("domain") or cls.domain
+        return {"headers": cls.preview_headers(domain, context.get("cookies"))}

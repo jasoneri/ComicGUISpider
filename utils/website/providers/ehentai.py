@@ -15,7 +15,6 @@ from utils.website.info import EhBookInfo
 
 class _EHentaiContract:
     name = "ehentai"
-    login_url = "https://forums.e-hentai.org/index.php?act=Login"
     home_url = "https://e-hentai.org/home.php"
     domain = "exhentai.org"
     index = f"https://{domain}/"

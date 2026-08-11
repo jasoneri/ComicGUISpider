@@ -44,6 +44,42 @@ def _selected_web_text(web_view):
     return ""
 
 
+_WEB_MENU_ICON_MAP = {
+    'Copy': FluentIcon.COPY.icon(),
+    'Copy link address': FluentIcon.COPY.icon(),
+    'Cut': FluentIcon.CUT.icon(),
+    'Paste': FluentIcon.PASTE.icon(),
+    'Undo': FluentIcon.CANCEL.icon(),
+    'Reload': FluentIcon.SYNC.icon(),
+    'Back': FluentIcon.LEFT_ARROW.icon(),
+    'Forward': FluentIcon.RIGHT_ARROW.icon(),
+}
+
+
+def _convert_menu(native_menu, menu_builder=None, icon_map=None):
+    """将原生 QMenu 转换为 Fluent 风格 RoundMenu，menu_builder 负责前置自定义项。"""
+    fluent_menu = menu_builder() if menu_builder else RoundMenu()
+    for action in native_menu.actions():
+        if not action.isVisible():
+            continue
+        if action.isSeparator():
+            fluent_menu.addSeparator()
+            continue
+        action_text = str(action.text() or "").replace("&", "").strip()
+        if not action_text:
+            continue
+        fluent_action = Action(text=action_text, shortcut=action.shortcut(), triggered=action.trigger)
+        fluent_action.setEnabled(action.isEnabled())
+        if action.isCheckable():
+            fluent_action.setCheckable(True)
+            fluent_action.setChecked(action.isChecked())
+        icon = (icon_map or {}).get(action_text)
+        if icon:
+            fluent_action.setIcon(icon)
+        fluent_menu.addAction(fluent_action)
+    return fluent_menu
+
+
 class MonkeyPatch:
     @staticmethod
     def rbutton_menu_lineEdit(line_edit, extra_actions=None, sub_menu=None):
@@ -104,7 +140,7 @@ class MonkeyPatch:
     def rbutton_menu_WebEngine(browserWindow):
         def custom_context_menu(self, event):
             native_menu = _create_web_context_menu(self)
-            menu = _convert_menu(native_menu) if native_menu is not None else custom_menu()
+            menu = _convert_menu(native_menu, custom_menu, _WEB_MENU_ICON_MAP) if native_menu is not None else custom_menu()
             _exec_menu(menu, event)
             event.accept()
             if native_menu is not None:
@@ -131,43 +167,27 @@ class MonkeyPatch:
             fluent_menu.addAction(subscribe_mode_action)
             fluent_menu.addSeparator()
             return fluent_menu
-            
-        def _convert_menu(native_menu):
-            """将原生菜单转换为Fluent风格"""
-            fluent_menu = custom_menu()
-            for action in native_menu.actions():
-                # 过滤不需要的默认动作
-                if not action.isVisible():
-                    continue
-                if action.isSeparator():
-                    fluent_menu.addSeparator()
-                    continue
-                action_text = str(action.text() or "").replace("&", "").strip()
-                if not action_text:
-                    continue
-                fluent_action = Action(text=action_text, shortcut=action.shortcut(), triggered=action.trigger)
-                fluent_action.setEnabled(action.isEnabled())
-                if action.isCheckable():
-                    fluent_action.setCheckable(True)
-                    fluent_action.setChecked(action.isChecked())
-                match action_text:  # icon mapping
-                    case 'Copy' | 'Copy link address':
-                        fluent_action.setIcon(FluentIcon.COPY.icon())
-                    case 'Cut':
-                        fluent_action.setIcon(FluentIcon.CUT.icon())
-                    case 'Paste':
-                        fluent_action.setIcon(FluentIcon.PASTE.icon())
-                    case 'Undo':
-                        fluent_action.setIcon(FluentIcon.CANCEL.icon())
-                    case 'Reload':
-                        fluent_action.setIcon(FluentIcon.SYNC.icon())
-                    case 'Back':
-                        fluent_action.setIcon(FluentIcon.LEFT_ARROW.icon())
-                    case 'Forward':
-                        fluent_action.setIcon(FluentIcon.RIGHT_ARROW.icon())
-                    case _:
-                        pass
-                fluent_menu.addAction(fluent_action)
+
+        web_view = browserWindow.view
+        web_view.contextMenuEvent = types.MethodType(custom_context_menu, web_view)
+
+    @staticmethod
+    def rbutton_menu_LoginMode(browserWindow):
+        """登录模式右键菜单：保存 Cookies 并关闭浏览器 + 标准菜单"""
+        def custom_context_menu(self, event):
+            native_menu = _create_web_context_menu(self)
+            menu = _convert_menu(native_menu, custom_menu) if native_menu is not None else custom_menu()
+            _exec_menu(menu, event)
+            event.accept()
+            if native_menu is not None:
+                native_menu.deleteLater()
+
+        def custom_menu():
+            fluent_menu = RoundMenu(parent=web_view)
+            save_action = Action(FluentIcon.SAVE, web_view.tr("保存 Cookies 并关闭浏览器"),
+                                 triggered=browserWindow.login_controller.collect_and_save)
+            fluent_menu.addAction(save_action)
+            fluent_menu.addSeparator()
             return fluent_menu
 
         web_view = browserWindow.view

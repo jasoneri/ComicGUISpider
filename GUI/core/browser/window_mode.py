@@ -110,6 +110,9 @@ class BrowserWindowModeController:
         self._close_handler = callback
 
     def reset_standard_mode(self, *, window_title: str, ensure_tooltip: str) -> None:
+        if self._browser.login_controller.is_active:
+            # 登录模式下 preview 生命周期刷新（reset_preview_page 等）不得破坏登录模式
+            return
         self._uses_page_scan = True
         self._ensure_result_kind = "checked_ids"
         self.stop_cookie_watch()
@@ -118,6 +121,23 @@ class BrowserWindowModeController:
         self._browser.copyBtn.show()
         self._browser.ensureBtn.setToolTip(ensure_tooltip)
         self._browser.setWindowTitle(window_title)
+
+    def enter_plain_page_mode(self, *, window_title: str = "", ensure_tooltip: str = "") -> None:
+        """普通网页模式（登录页等）：page_ready 仅需 domReady，不要求 preview runtime。
+
+        与 challenge 模式区别：不配置 request capture / cookie watch / doh，
+        仅关闭 page scan，让 page_runtime 对任意登录页可执行 run_js。
+        """
+        self._uses_page_scan = False
+        self._ensure_result_kind = "checked_ids"
+        self.stop_cookie_watch()
+        self._interceptor.clear_request_capture()
+        self._doh_proxy_runtime.restore()
+        self._browser.copyBtn.hide()
+        if ensure_tooltip:
+            self._browser.ensureBtn.setToolTip(ensure_tooltip)
+        if window_title:
+            self._browser.setWindowTitle(window_title)
 
     def enter_challenge_mode(
         self,

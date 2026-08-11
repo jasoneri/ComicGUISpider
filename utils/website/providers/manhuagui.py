@@ -345,6 +345,12 @@ class ManhuaguiReqer(_ManhuaguiContract, Req, Cookies, Previewer):
         self.reader_decoder = _ReaderDecoder()
 
     @classmethod
+    def get_cli(cls, _conf, is_async=False, **kwargs):
+        cli = super().get_cli(_conf, is_async=is_async, **kwargs)
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(_conf.cookies.get(cls.name))}
+        return cli
+
+    @classmethod
     def normalize_cookies(cls, cookies: dict | None = None) -> dict[str, str]:
         merged = {key: value for key, value in cls.default_cookies.items() if value not in (None, "")}
         for key, value in (cookies or {}).items():

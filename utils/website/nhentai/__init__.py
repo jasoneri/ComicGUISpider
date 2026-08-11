@@ -65,6 +65,8 @@ class _NhentaiContract:
     name = "nhentai"
     proxy_policy = "proxy"
     domain = "nhentai.net"
+    browser_referer_mode = "provider_index"
+    browser_cookie_set_enabled = True
     index = "https://nhentai.net/"
     api_index = "https://nhentai.net/api/v2"
     image_host = "https://i.nhentai.net"
@@ -282,7 +284,7 @@ class NhentaiReqer(_NhentaiContract, Cookies, Req):
     @classmethod
     def get_cli(cls, _conf, is_async=False, **kwargs):
         cli = super().get_cli(_conf, is_async=is_async, **kwargs)
-        cli.headers = dict(cls.book_hea)
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(_conf.cookies.get(cls.name))}
         return cli
 
     def test_index(self):
@@ -349,5 +351,16 @@ class NhentaiUtils(_NhentaiContract, EroUtils, Cookies, Previewer):
         return cls.catalog.preload(db_path=db_path, default_db_path=cls.tag_db_path, excluded_language_names=cls._language_excluded_names)
 
     @classmethod
+    def preview_headers(cls, domain: str, cookies: dict | None = None) -> dict[str, str]:
+        return cls.build_site_headers(
+            domain,
+            cls.headers,
+            referer_url=cls.index,
+            cookies=cookies,
+            cookie_serializer=cls.to_str_,
+        )
+
+    @classmethod
     def preview_client_config(cls, **context):
-        return {"headers": cls.with_referer(cls.index)}
+        domain = context.get("domain") or cls.domain
+        return {"headers": cls.preview_headers(domain, context.get("cookies"))}

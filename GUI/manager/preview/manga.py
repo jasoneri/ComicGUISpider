@@ -24,7 +24,6 @@ class MangaPreviewBridge(QObject):
     def toggleFavorite(self, bookKey):
         self.mgr.toggle_favorite(bookKey)
 
-
 class _ScanSignals(QObject):
     scan_done = Signal(int, dict)
     scan_error = Signal(int, str)
@@ -172,7 +171,6 @@ class MangaPreviewFeature:
     # ------------------------------------------------------------------
     # Favorites
     # ------------------------------------------------------------------
-
     def toggle_favorite(self, book_key):
         book = self.mgr.books_cache.get(book_key)
         if book is None:
@@ -189,6 +187,20 @@ class MangaPreviewFeature:
         kw = ori_res.GUI.local_fav
         completer_list = conf.completer.get(self.mgr.site_index)
         self._fav_completer_exists = bool(completer_list and kw in completer_list)
+
+    def _ensure_online_fav_completer(self):
+        """线上收藏关键词注入 completer (对齐本地收藏先例, 领域 4 辅助入口)。"""
+        idx = self.mgr.site_index
+        kw = ori_res.GUI.online_fav
+        completer_list = conf.completer.get(idx)
+        if completer_list is None:
+            from variables import DEFAULT_COMPLETER
+            completer_list = list(DEFAULT_COMPLETER.get(idx, []))
+            conf.completer[idx] = completer_list
+        if kw not in completer_list:
+            completer_list.insert(0, kw)
+            conf.update()
+            self.gui.set_completer()
 
     def _ensure_local_fav_completer(self):
         idx = self.mgr.site_index
@@ -209,6 +221,15 @@ class MangaPreviewFeature:
             book.idx = idx
         self.mgr._is_local_mode = True
         self.mgr._current_page = 1
+        self.publish(books)
+
+    def _show_online_fav(self, books):
+        """线上收藏 → 正式 manga/form 网格 (镜像搜索 publish: bridge+ensure 可下载)。"""
+        for idx, book in enumerate(books):
+            book.idx = idx
+        self.mgr._is_local_mode = True
+        self.mgr._current_page = 1
+        self.mgr._active_keyword = ori_res.GUI.online_fav
         self.publish(books)
 
     # ------------------------------------------------------------------

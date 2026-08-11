@@ -5,7 +5,7 @@ from collections import OrderedDict
 import httpx
 from scrapy import Selector
 
-from utils.website.core import Previewer, Req, Utils
+from utils.website.core import Cookies, Previewer, Req, Utils
 from utils.website.info import Episode, MangabzBookInfo
 from utils.website.schema import MbBody, MbSearchBody, mb_curr_time_format
 
@@ -14,6 +14,8 @@ class _MangabzContract:
     name = "mangabz"
     proxy_policy = "proxy"
     domain = "www.mangabz.com"
+    browser_referer_mode = "provider_index"
+    browser_cookie_set_enabled = True
     index = "https://www.mangabz.com"
     search_cover_fields = ("Pic", "ShowPicUrlB", "ShowConver")
     search_url_head = f"https://{domain}/pager.ashx"
@@ -150,9 +152,15 @@ class MangabzParser(_MangabzContract):
         return [re.sub(r"""['"]""", "", item) for item in re.split(", ?", img_list)]
 
 
-class MangabzReqer(_MangabzContract, Req):
+class MangabzReqer(_MangabzContract, Req, Cookies):
     def __init__(self, _conf):
         self.cli = self.get_cli(_conf)
+
+    @classmethod
+    def get_cli(cls, _conf, is_async=False, **kwargs):
+        cli = super().get_cli(_conf, is_async=is_async, **kwargs)
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(_conf.cookies.get(cls.name))}
+        return cli
 
     @classmethod
     def build_search_request(
@@ -240,7 +248,7 @@ class MangabzReqer(_MangabzContract, Req):
         return urls
 
 
-class MangabzUtils(_MangabzContract, Utils, Previewer):
+class MangabzUtils(_MangabzContract, Utils, Cookies, Previewer):
     parser = MangabzParser
     reqer_cls = MangabzReqer
 
@@ -249,7 +257,16 @@ class MangabzUtils(_MangabzContract, Utils, Previewer):
         self.parser = self.__class__.parser
 
     @classmethod
+    def preview_headers(cls, domain: str, cookies: dict | None = None) -> dict[str, str]:
+        return cls.build_site_headers(
+            domain,
+            cls.ua,
+            referer_url=cls.preview_origin(domain),
+            cookies=cookies,
+            cookie_serializer=cls.to_str_,
+        )
+
+    @classmethod
     def preview_client_config(cls, **context):
-        return {
-            "headers": cls.ua,
-        }
+        domain = context.get("domain") or cls.domain
+        return {"headers": cls.preview_headers(domain, context.get("cookies"))}

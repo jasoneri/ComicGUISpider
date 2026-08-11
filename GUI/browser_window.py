@@ -17,7 +17,9 @@ from GUI.core.browser.runtime import (
     BrowserRequestInterceptor,
     apply_cookie_sets,
 )
+from GUI.core.browser.download import BrowserDownloadController
 from GUI.core.browser.environment import build_browser_environment
+from GUI.core.browser.login import BrowserLoginController
 from GUI.core.browser.page_runtime import BrowserPageRuntime
 from GUI.core.browser.profile import create_browser_window_profile
 from GUI.core.browser.subscription import PreviewSubscriptionController
@@ -27,8 +29,6 @@ from GUI.uic.browser import Ui_browser
 from GUI.uic.qfluent import CustomInfoBar, MonkeyPatch as FluentMonkeyPatch
 from GUI.tools import CopyUnfinished
 from assets import res
-from utils import conf
-from utils.website import EHentaiKits
 from variables import CGS_DOC
 
 _SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
@@ -119,6 +119,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         )
         doh_proxy_bootstrap = BrowserDoHProxyRuntime.prepare_before_webengine(webengine_doh_url)
         self.profile = create_browser_window_profile(self, persistent=persistent_profile)
+        # Qt6 drops downloadRequested unless accepted; station pages (μsPalace etc.) need the save dialog.
+        self.download_controller = BrowserDownloadController(self, self.profile)
         self.view = FramelessWebEngineView(self)
         self.view.setPage(CustomWebEnginePage(self.profile, self.view))
         self.page_runtime = BrowserPageRuntime(self)
@@ -137,6 +139,7 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36")
         self.profile.setUrlRequestInterceptor(self.interceptor)
         self.window_mode = BrowserWindowModeController(self, self.interceptor, doh_proxy_bootstrap=doh_proxy_bootstrap)
+        self.login_controller = BrowserLoginController(self)
         preview_file = getattr(self.gui, "tf", None)
         self.home_url = QUrl.fromLocalFile(str(preview_file)) if preview_file else QUrl("about:blank")
         if not skip_env_mode:
@@ -246,6 +249,10 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
         return super().eventFilter(obj, event)
 
     def set_ensure_handler(self, callback=None, *, result_kind: str = "checked_ids"):
+        if self.login_controller.is_active:
+            # 登录模式下 preview 刷新也会走 set_ensure_handler，只更新回调不重置页面扫描
+            self.window_mode.set_ensure_handler(callback, result_kind=result_kind)
+            return
         self.window_mode.reset_standard_mode(
             window_title=self._default_window_title,
             ensure_tooltip=self._default_ensure_tooltip,
@@ -284,7 +291,9 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
 
     def load_home(self):
         self.page_runtime.prepare_navigation()
-        if hasattr(self.gui, 'tf') and self.gui.tf and 'publish' in str(self.gui.tf).lower():
+        if self.login_controller.is_active:
+            self.login_controller.apply_context_menu()
+        elif getattr(self.gui, "tf", None) and "publish" in str(self.gui.tf).lower():
             FluentMonkeyPatch.rbutton_menu_PulishPage(self)
         else:
             FluentMonkeyPatch.rbutton_menu_WebEngine(self)
@@ -406,22 +415,6 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def latest_image_request(self, *, url: str = "", path_suffix: str = "") -> dict:
         return self.interceptor.latest_image_request(url=url, path_suffix=path_suffix)
 
-    @classmethod
-    def check_ehentai(cls, gui):
-        if not conf.cookies.get("ehentai"):
-            InfoBar.error(
-                title='', content=res.EHentai.COOKIES_NOT_SET,
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=-1, parent=gui.showArea
-            )
-            return
-        cls.eh_kits = EHentaiKits(conf)
-        if not cls.eh_kits.reqer.test_index():
-            CustomInfoBar.show('', res.EHentai.ACCESS_FAIL, gui.showArea,
-                cls.eh_kits.index, cls.eh_kits.name)
-            return
-        return True
-
     def tmp_sv_local(self):
         def refresh_tf(html):
             if html:
@@ -449,6 +442,8 @@ class BrowserWindow(FramelessMainWindow, Ui_browser):
     def closeEvent(self, event):
         self.page_runtime.shutdown()
         self.window_mode.shutdown()
+        self.download_controller.shutdown()
+        self.login_controller.shutdown()
         if self.page_runtime.has_activity:
             self.page_runtime.log_js_metrics("closeEvent")
         self.window_mode.invoke_close_handler(event)

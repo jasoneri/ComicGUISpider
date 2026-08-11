@@ -168,6 +168,23 @@ class PreviewMgr:
         browser.page_runtime.run_js(f"window.previewCommandBus.dispatch({envelope});")
         return True
 
+    def show_online_favorites(self, books):
+        """线上收藏 BookInfo 列表 → 正式 preview 网格 (manga/fix/ero)。
+
+        ehentai 等 specials 走 EroPreviewFeature.publish (index.html), 与搜索同路基;
+        禁止因 is_manga/is_form 收窄而拒绝已支持 FavoritesSpec 的站。
+        """
+        active = self._active
+        if not hasattr(active, "_show_online_fav"):
+            self.gui.say(
+                font_color("当前站点预览类型不支持线上收藏网格", cls="theme-warning"),
+                ignore_http=True,
+            )
+            return
+        active._show_online_fav(books)
+        self.gui.flow_stage = GUIFlowStage.SEARCHED
+        self.gui.update_search_ui(request=PreviewRequestState.Idle)
+
     def on_spreview_clicked(self, keyword=None):
         keyword = keyword or self.gui.searchinput.text().strip()
         if not keyword:
@@ -183,6 +200,11 @@ class PreviewMgr:
             self._active._show_local_fav()
             self.gui.flow_stage = GUIFlowStage.SEARCHED
             self.gui.update_search_ui(request=PreviewRequestState.Idle)
+            return
+        if keyword == ori_res.GUI.online_fav and hasattr(self._active, "_show_online_fav"):
+            # 线上收藏: 与右键同一 fetch 入口 → 正式网格 (manga/form/ero), 不发起 search worker
+            self.gui.update_search_ui(request=PreviewRequestState.Idle)
+            self.gui._fetch_online_favorites()
             return
 
         self._is_local_mode = False

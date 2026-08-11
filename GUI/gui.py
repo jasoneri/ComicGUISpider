@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import random
+import threading
 import traceback
 import contextlib
 import warnings
@@ -29,7 +30,6 @@ from assets import res
 from utils import conf, p, curr_os, select, bs_theme
 _UNSET = object()
 
-
 def _safe_disconnect(signal, slot=None):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -44,6 +44,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     res = res.GUI
     setup_finished = Signal()
     exception_feedback_requested = Signal(str, str)
+    # Background fetch → main-thread publish (must be QueuedConnection; QTimer from
+    # worker threads does not reliably schedule on the GUI thread).
+    online_favorites_ready = Signal(str, int, object)  # provider_name, site_index, books
     BrowserWindow = None  # CGS001 browser init/show flow
     toolWin = None
     conf_dia = None  # CGS006: construct on demand (P4)
@@ -69,11 +72,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._server_mode_switch_requested = False
         self._closing = False
         self.script_window = None
+        self.timeline_tip_mgr = None
         self._pending_rv_sauce_visible = False  # CGS006: apply when toolWin is ensured
         self._conf_accept_bound = False
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         self.setupUi(self)
         self.exception_feedback_requested.connect(self._show_exception_feedback, Qt.QueuedConnection)
+        self.online_favorites_ready.connect(self._on_online_favorites_ready, Qt.QueuedConnection)
 
     def _pick_sleep_widget_image(self, *, allow_random: bool) -> str | None:
         if allow_random and getattr(self.bg_mgr, "bg_fs", []):
@@ -131,8 +136,11 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def startup_only(self):
         from GUI.manager import UpdateNotifier
+        from GUI.manager.timeline_tip import TimelineTipManager
         self.update_notifier = UpdateNotifier(self)
         self.update_notifier.check_on_startup()
+        self.timeline_tip_mgr = TimelineTipManager(self)
+        self.timeline_tip_mgr.check_on_startup()
         past = time.time() - self.st
         delay_ms = int((0 if past >= self.splashWait else self.splashWait - past) * 1000)
         safe_single_shot(delay_ms, self.splashScreen.finish)
@@ -157,6 +165,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         from GUI.manager.download import DownloadRuntimeManager
         from GUI.manager.share import Shares
         from GUI.manager.preprocess import PreprocessManager
+        from GUI.manager.login import LoginManager
         self.flow_stage = GUIFlowStage.IDLE
         self.pageFrameClickCnt = 0
         self.conf_dia = None
@@ -171,6 +180,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.dl_mgr = DownloadRuntimeManager(self)
         self.sel_mgr = SelectionFlowManager(self)
         self.mid_mgr = CGSMidManagerGUI(self)
+        self.login_mgr = LoginManager(self)
         self.dl_mgr.process_stage_changed.connect(self.mid_mgr.on_process_stage)
         if self.dl_mgr.process_stage:
             self.mid_mgr.on_process_stage(self.dl_mgr.process_stage)
@@ -287,6 +297,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.search_ui_state = SearchUiState()
             self.web_is_r18 = False
             self.flow_stage = GUIFlowStage.IDLE
+            self.login_mgr.on_site_changed(0)
             self.preview_mgr.handle_choosebox_changed(index, None)
             self.refresh_lifecycle_state()
             return
@@ -302,6 +313,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sut = None
         if index in (Spider.JM, Spider.WNACG) and not conf.proxies:
             self.domainBtn.setVisible(True)
+        self.login_mgr.on_site_changed(index)
         if self.web_is_r18:
             self.rv_tools.ero = 1
         self.searchinput.setStatusTip(QCoreApplication.translate("MainWindow", STATUS_TIP.get(index) or ""))
@@ -317,7 +329,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.flow_stage = GUIFlowStage.IDLE
         self.preprocess_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
         self.refresh_lifecycle_state()
-
 
     def chooseBox_changed_tips(self, index):
         self.pageEdit.setEnabled(index != Spider.EHENTAI)
@@ -355,7 +366,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def show_toolWin(self, win_type):
         _map = {"ags": "asInterface", "hitomi": "htInterface", "subscribe": "subscribeInterface"}
-        self.ensure_tool_win()
         self.rvBtn.click()
 
         def _jump():
@@ -437,11 +447,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             tool_window = self.ensure_tool_win()
             abs_y = self.y() + self.height()
             screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
-            target_y = (
-                screen_height - tool_window.height()
-                if abs_y + tool_window.height() > screen_height
-                else abs_y
-            )
+            target_y = screen_height - tool_window.height() if abs_y + tool_window.height() > screen_height else abs_y
             target_rect = QRect(self.x(), target_y, tool_window.width(), tool_window.height())
             PopupAnimator.show(tool_window, target_rect, duration_ms=220, direction="down")
 
@@ -478,9 +484,112 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             triggered=show_history_completer,
         )
         history_action.setEnabled(bool(history_terms))
+        online_fav_action = Action(
+            FIF.HEART,
+            text=self.searchinput.tr(self.res.menu_fetch_online_fav),
+            triggered=lambda: self._fetch_online_favorites(),
+        )
         FluentMonkeyPatch.rbutton_menu_lineEdit(
             self.searchinput,
-            extra_actions=[preset_action, history_action],
+            extra_actions=[preset_action, history_action, online_fav_action],
+        )
+
+    def _fetch_online_favorites(self):
+        """登录态拉取当前站点收藏列表 → 正式预览网格 (与搜索/本地收藏同交互)。
+
+        产品入口: 搜索框右键「拉取线上收藏」/ completer online_fav。
+        成功路径必须: run_fetch_favorites → (QueuedConnection 回主线程) →
+        preview publish → present_browser 打开并加载 gui.tf。禁止平行 Dialog。
+
+        线程约束: 网络在后台线程; UI 只经 online_favorites_ready 信号进主线程。
+        禁止在 worker 里 QTimer.singleShot(GUI) — 那不会可靠调度到 GUI 线程,
+        表现为菜单点了没反应 / browser 不弹 (用户实测根因)。
+        """
+        if self.gui_site_runtime is None:
+            self.say(font_color("请先选择站点并等待预处理完成", cls="theme-warning"), ignore_http=True)
+            return
+        provider_name = self.gui_site_runtime.name
+        site_index = self.chooseBox.currentIndex()
+        from utils.website.account import resolve_favorites_spec, run_fetch_favorites
+
+        if resolve_favorites_spec(provider_name) is None:
+            self.say(font_color("当前站点不支持拉取线上收藏", cls="theme-warning"), ignore_http=True)
+            return
+        if not conf.cookies.get(provider_name):
+            self.say(font_color("请先点击登录按钮保存该站点 cookies", cls="theme-warning"), ignore_http=True)
+            return
+
+        # Same chrome loader path as search_initial (open browser shell + loading bar).
+        from GUI.manager.preview.loading import PreviewLoadingReason
+
+        self.preview_mgr.loading.begin(PreviewLoadingReason.SEARCH_INITIAL)
+        self.say(font_color(f"正在拉取 {provider_name} 线上收藏…", cls="theme-highlight"), ignore_http=True)
+
+        def worker():
+            try:
+                books = run_fetch_favorites(provider_name)
+            except Exception:
+                self.log.exception("fetch online favorites failed")
+                books = []
+            # Cross-thread: QueuedConnection delivers on GUI thread.
+            self.online_favorites_ready.emit(provider_name, int(site_index), books or [])
+
+        threading.Thread(target=worker, daemon=True, name=f"online-fav-{provider_name}").start()
+
+    def _on_online_favorites_ready(self, provider_name: str, site_index: int, books):
+        """Main-thread slot: publish online favorites into formal preview browser."""
+        from GUI.manager.preview.loading import PreviewLoadingReason
+
+        runtime = self.gui_site_runtime
+        if runtime is None or runtime.name != provider_name:
+            self.preview_mgr.loading.end(PreviewLoadingReason.SEARCH_INITIAL)
+            self.say(font_color("站点已切换，已丢弃线上收藏结果", cls="theme-warning"), ignore_http=True)
+            return
+        if self.chooseBox.currentIndex() != site_index:
+            self.preview_mgr.loading.end(PreviewLoadingReason.SEARCH_INITIAL)
+            self.say(font_color("站点已切换，已丢弃线上收藏结果", cls="theme-warning"), ignore_http=True)
+            return
+        if not books:
+            self.preview_mgr.loading.end(PreviewLoadingReason.SEARCH_INITIAL)
+            self.say(
+                font_color(
+                    "未拉取到线上收藏（登录态失效 / CF 拦截 / 收藏为空）",
+                    cls="theme-warning",
+                ),
+                ignore_http=True,
+            )
+            return
+        try:
+            self.preview_mgr.show_online_favorites(books)
+            active = self.preview_mgr._active
+            if hasattr(active, "_ensure_online_fav_completer"):
+                active._ensure_online_fav_completer()
+        finally:
+            self.preview_mgr.loading.end(PreviewLoadingReason.SEARCH_INITIAL)
+        browser = getattr(self, "BrowserWindow", None)
+        tf_path = getattr(self, "tf", None)
+        if browser is None or not tf_path:
+            self.log.error(
+                "online favorites publish did not open browser: browser=%s tf=%s",
+                browser is not None,
+                bool(tf_path),
+            )
+            self.say(
+                font_color("线上收藏已解析但预览窗口未打开，请看日志", cls="theme-err"),
+                ignore_http=True,
+            )
+            return
+        if not browser.isVisible():
+            browser.show()
+            browser.raise_()
+            browser.activateWindow()
+        with_cover = sum(1 for book in books if getattr(book, "img_preview", None))
+        self.say(
+            font_color(
+                f"线上收藏已打开预览（{len(books)} 本，封面 {with_cover}）",
+                cls="theme-success",
+            ),
+            ignore_http=True,
         )
 
     def set_completer(self):
@@ -505,6 +614,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.shares.changed.connect(self._sync_share_btn_visible)
         self._sync_share_btn_visible()
         self.domainBtn.clicked.connect(self.do_publish)
+        self.login_mgr.bind()
 
         _safe_disconnect(self.mpreviewBtn.clicked)
         self.mpreviewBtn.clicked.connect(self.show_preview)
@@ -586,17 +696,30 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         reload_tf=False,
         rect=None,
     ):
-        """Unified BrowserWindow init ceremony + animated presentation."""
+        """Unified BrowserWindow init ceremony + animated presentation.
+
+        When ``reload_tf`` is true (search / online-fav / local-fav publish path),
+        always bind ``gui.tf`` into ``home_url`` and load it. Warmup may have
+        already constructed BrowserWindow on about:blank; without this branch the
+        new HTML never becomes the visible page even though books_cache is filled.
+        """
         browser = self.BrowserWindow
         browser_created = False
         if not browser:
             self.set_preview(rect)
             browser = self.BrowserWindow
             browser_created = True
-        elif reload_tf:
+
+        preview_file = getattr(self, "tf", None)
+        if reload_tf and preview_file:
+            browser.home_url = QUrl.fromLocalFile(str(preview_file))
+            # Warmup / prior show may have already consumed _first_show; always load.
             browser._first_show = False
-            browser.home_url = QUrl.fromLocalFile(str(self.tf)) if self.tf else QUrl("about:blank")
             browser.load_home()
+        elif browser_created and preview_file:
+            # Fresh window: showEvent would load home_url, but re-bind in case set_preview
+            # raced before gui.tf was assigned (callers should set tf first).
+            browser.home_url = QUrl.fromLocalFile(str(preview_file))
 
         if ensure_handler is not _UNSET:
             browser.set_ensure_handler(ensure_handler, result_kind=ensure_result_kind)
@@ -605,8 +728,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         final_rect = browser.geometry()
         if enable_page_frame:
             self.refresh_lifecycle_state()
-        if browser_created or not reload_tf or not browser.isVisible():
+        # Always present when caller asked to reload preview HTML, or window not visible.
+        if browser_created or reload_tf or not browser.isVisible():
             PopupAnimator.show(browser, final_rect, duration_ms=220, direction="right")
+            if not browser.isVisible():
+                browser.show()
+                browser.raise_()
+                browser.activateWindow()
         return browser
 
     def show_preview(self):
@@ -646,6 +774,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preprocess_mgr.cleanup()
         if getattr(self, "preview_mgr", None):
             self.preview_mgr.shutdown()
+        if self.timeline_tip_mgr is not None:
+            self.timeline_tip_mgr.close()
             self.preview_mgr.handle_choosebox_changed(0, None)
         self.clean_temp_file()
         self._destroy_browser_window()
@@ -658,6 +788,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         # self.web_is_r18 = False
         self.gui_site_runtime = None
         self.domainBtn.setVisible(False)
+        self.loginBtn.setVisible(False)
         self.rv_tools.ero = 0
         self.bsm = None
         self.sv_path = conf.sv_path
@@ -814,7 +945,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         final_rect = self.BrowserWindow.geometry()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
 
-    def open_url_by_browser(self, url, callback=None, *, inject_cookies_provider: str = ""):
+    def open_url_by_browser(self, url, callback=None):
         screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
         rect = QRect(self.x(), int(screen_height*0.05), self.width(), int(screen_height*0.9))
         if not getattr(self, 'BrowserWindow'):
@@ -830,14 +961,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             # 复用浏览器时刷新当前站点环境 (cookies/referer/proxy):
             # 否则 conf.cookies 变化 (登录保存/清除) 不会反映到浏览器
             if self.gui_site_runtime is not None:
-                try:
-                    self.BrowserWindow.apply_standard_environment()
-                except Exception:
-                    self.log.exception("browser environment refresh failed")
-        # 登录模式: 加载登录页前注入已保存 cookies (竞品 WebViewActivity/CookieJar 同款),
-        # 登录态仍有效时打开即为已登录, 失效则停留在登录表单重新登录
-        if inject_cookies_provider:
-            self._inject_saved_cookies_to_browser(inject_cookies_provider)
+                self.BrowserWindow.apply_standard_environment()
         final_rect = self.BrowserWindow.geometry()
         PopupAnimator.show(self.BrowserWindow, final_rect, duration_ms=220, direction="right")
         self.BrowserWindow.view.load(QUrl(url))

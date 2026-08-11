@@ -10,7 +10,7 @@ import httpx
 from scrapy import Selector
 
 from assets import res
-from utils.website.core import Previewer, Req, Utils
+from utils.website.core import Cookies, Previewer, Req, Utils
 from utils.website.core.err import Dm5Resp
 from utils.website.info import Dm5BookInfo, Episode
 
@@ -20,6 +20,8 @@ class _Dm5Contract:
     name = "dm5"
     proxy_policy = "direct"
     domain = "www.dm5.com"
+    browser_referer_mode = "provider_index"
+    browser_cookie_set_enabled = True
     reader_domain = "tel.dm5.com"
     index = f"https://{domain}/"
     reader_index = f"https://{reader_domain}/"
@@ -628,12 +630,18 @@ class _ChapterfunSession:
         episode.page_urls = list(page_urls)
 
 
-class Dm5Reqer(_Dm5Contract, Req):
+class Dm5Reqer(_Dm5Contract, Req, Cookies):
     update_page_size = 140
 
     def __init__(self, _conf):
         self.cli = self.get_cli(_conf)
         self._update_anchor_day: int | None = None
+
+    @classmethod
+    def get_cli(cls, _conf, is_async=False, **kwargs):
+        cli = super().get_cli(_conf, is_async=is_async, **kwargs)
+        cli.headers = {**cls.book_hea, "Cookie": cls.to_str_(_conf.cookies.get(cls.name))}
+        return cli
 
     @classmethod
     def build_search_url(cls, keyword: str, *, page: int = 1) -> str:
@@ -892,9 +900,23 @@ class Dm5Reqer(_Dm5Contract, Req):
                 self._update_anchor_day = 1
         return books
 
+    @classmethod
+    def _preview_resource_headers(cls, resource_url: str) -> dict[str, str]:
+        headers = dict(cls.ua)
+        parsed = urlparse(str(resource_url))
+        if parsed.scheme and parsed.netloc:
+            headers["Host"] = parsed.netloc
+            headers["Referer"] = f"{parsed.scheme}://{parsed.netloc}/"
+        return headers
+
     async def preview_fetch_episodes(self, book):
         owner = self._require_preview_owner()
-        resp = await self.ensure_preview_client().get(book.url, headers=self.ua, follow_redirects=True, timeout=12)
+        resp = await self.ensure_preview_client().get(
+            book.url,
+            headers=self._preview_resource_headers(book.url),
+            follow_redirects=True,
+            timeout=12,
+        )
         resp.raise_for_status()
         book.url = str(resp.url)
         details = await asyncio.to_thread(owner.parser.parse_book_details, resp.text, request_url=book.url)
@@ -903,7 +925,12 @@ class Dm5Reqer(_Dm5Contract, Req):
 
     async def preview_fetch_pages(self, episode) -> list[str]:
         owner = self._require_preview_owner()
-        resp = await self.ensure_preview_client().get(episode.url, headers=self.ua, follow_redirects=True, timeout=12)
+        resp = await self.ensure_preview_client().get(
+            episode.url,
+            headers=self._preview_resource_headers(episode.url),
+            follow_redirects=True,
+            timeout=12,
+        )
         resp.raise_for_status()
         episode.url = str(resp.url)
         chapterfun = await asyncio.to_thread(_ChapterfunSession.from_reader_html, owner.parser, resp.text, chapter_url=episode.url)
@@ -923,7 +950,7 @@ class Dm5Reqer(_Dm5Contract, Req):
         return list(episode.page_urls)
 
 
-class Dm5Utils(_Dm5Contract, Utils, Previewer):
+class Dm5Utils(_Dm5Contract, Utils, Cookies, Previewer):
     parser = Dm5Parser
     reqer_cls = Dm5Reqer
     # Task-panel cover preload only: cdndm5 TLS often resets under plain httpx.
@@ -938,5 +965,16 @@ class Dm5Utils(_Dm5Contract, Utils, Previewer):
         self.parser = self.__class__.parser
 
     @classmethod
+    def preview_headers(cls, domain: str, cookies: dict | None = None) -> dict[str, str]:
+        return cls.build_site_headers(
+            domain,
+            cls.ua,
+            referer_url=cls.preview_origin(domain),
+            cookies=cookies,
+            cookie_serializer=cls.to_str_,
+        )
+
+    @classmethod
     def preview_client_config(cls, **context):
-        return {"headers": cls.ua}
+        domain = context.get("domain") or cls.domain
+        return {"headers": cls.preview_headers(domain, context.get("cookies"))}
