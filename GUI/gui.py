@@ -774,9 +774,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preprocess_mgr.cleanup()
         if getattr(self, "preview_mgr", None):
             self.preview_mgr.shutdown()
+            self.preview_mgr.handle_choosebox_changed(0, None)
         if self.timeline_tip_mgr is not None:
             self.timeline_tip_mgr.close()
-            self.preview_mgr.handle_choosebox_changed(0, None)
         self.clean_temp_file()
         self._destroy_browser_window()
         from GUI.browser_window import BrowserWindow as BrowserWindowCls

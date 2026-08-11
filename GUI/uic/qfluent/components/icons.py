@@ -44,6 +44,9 @@ _SVG_SOURCES = {
     "jsoneri/station-music": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></g></svg>""",
     "jsoneri/station-activity": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg>""",
     "jsoneri/station-bot": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></g></svg>""",
+    "notice/timeline": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5m4-1v5l4 2" /></g></svg>""",
+    "notice/link": """<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 3h6v6m-11 5L21 3m-3 10v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>""",
+
 }
 
 
@@ -64,6 +67,7 @@ class CgsIcon(FluentIconBase, Enum):
     SCRIPT_RANDOM = "script/random"
     SCRIPT_GENERATE = "script/generate"
     SCRIPT_FAV_MGR = "script/favMgr"
+    # Fav 段位 icon-only：lucide layers / circle-user / paintbrush / book-open
     URL = "script/url"
     KEY = "script/key"
     SV_TYPE = "script/svType"
@@ -80,6 +84,8 @@ class CgsIcon(FluentIconBase, Enum):
     JSONERI_STATION_MUSIC = "jsoneri/station-music"
     JSONERI_STATION_ACTIVITY = "jsoneri/station-activity"
     JSONERI_STATION_BOT = "jsoneri/station-bot"
+    NOTICE_TIMELINE = "notice/timeline"
+    NOTICE_LINK = "notice/link"
 
     def path(self, theme=Theme.AUTO):
         return self.value

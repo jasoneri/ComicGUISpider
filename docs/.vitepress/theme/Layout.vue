@@ -33,6 +33,9 @@ watchEffect(() => {
         />
       </div>
     </template>
+    <template #layout-bottom>
+      <TimelineWidget />
+    </template>
   </DefaultTheme.Layout>
 </template>
 

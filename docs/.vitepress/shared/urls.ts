@@ -10,6 +10,7 @@ const DEFAULT_ORIGINS = {
 } as const
 
 const DEFAULT_MONITOR_API_BASE_URL = 'https://cgs-monitor.101114105.xyz/api/monitor'
+const DEFAULT_TIMELINE_API_BASE_URL = 'https://notice.101114105.xyz/v1/boards/cgs'
 
 function join(origin: string, path = ''): string {
   return origin + (path.startsWith('/') ? path : `/${path}`)
@@ -64,12 +65,27 @@ export function normalizeMonitorApiBaseUrl(rawValue: string, key: string): strin
   return `${trimTrailingSlash(url.origin)}${normalizedPathname}`
 }
 
+const TIMELINE_BOARD_PATH = /^\/v1\/boards\/[a-z][a-z0-9-]{1,31}$/
+
+export function normalizeTimelineApiBaseUrl(rawValue: string, key: string): string {
+  const url = parseAbsoluteUrl(rawValue, key)
+  if (url.protocol !== 'https:' && !isLocalHttpUrl(url)) {
+    throw new Error(`${key} must use https unless pointing to localhost or 127.0.0.1.`)
+  }
+  const normalizedPathname = trimTrailingSlash(url.pathname)
+  if (url.search !== '' || url.hash !== '' || !TIMELINE_BOARD_PATH.test(normalizedPathname)) {
+    throw new Error(`${key} must point to /v1/boards/{board}.`)
+  }
+  return `${trimTrailingSlash(url.origin)}${normalizedPathname}`
+}
+
 export const PLACEHOLDERS = {
   URL_MAIN: '{{URL_MAIN}}',
   URL_IMG: '{{URL_IMG}}',
   URL_RV: '{{URL_RV}}',
   URL_GHSTAT: '{{URL_GHSTAT}}',
   URL_MONITOR_API: '{{URL_MONITOR_API}}',
+  URL_TIMELINE_API: '{{URL_TIMELINE_API}}',
 } as const
 
 export function createDocsUrlConfig(env: DocsUrlEnv) {
@@ -84,6 +100,10 @@ export function createDocsUrlConfig(env: DocsUrlEnv) {
     readEnvValue(env, 'VITE_MONITOR_API_BASE_URL') ?? DEFAULT_MONITOR_API_BASE_URL,
     'VITE_MONITOR_API_BASE_URL',
   )
+  const timelineApiBaseUrl = normalizeTimelineApiBaseUrl(
+    readEnvValue(env, 'VITE_TIMELINE_API_BASE_URL') ?? DEFAULT_TIMELINE_API_BASE_URL,
+    'VITE_TIMELINE_API_BASE_URL',
+  )
 
   const URLS = {
     main: (path = '/') => join(ORIGINS.MAIN, path),
@@ -92,6 +112,9 @@ export function createDocsUrlConfig(env: DocsUrlEnv) {
     ghstat: (path = '/') => join(ORIGINS.GHSTAT, path),
     monitor: {
       api: monitorApiBaseUrl,
+    },
+    timeline: {
+      api: timelineApiBaseUrl,
     },
     assets: {
       logo: join(ORIGINS.IMG, '/file/1765128492268_cgs_eat.png'),
@@ -102,6 +125,7 @@ export function createDocsUrlConfig(env: DocsUrlEnv) {
       quickStart: join(ORIGINS.MAIN, '/deploy/quick-start'),
       faq: join(ORIGINS.MAIN, '/faq'),
       featScript: join(ORIGINS.MAIN, '/script'),
+      timeline: join(ORIGINS.MAIN, '/timeline/'),
     },
   } as const
 
@@ -111,6 +135,7 @@ export function createDocsUrlConfig(env: DocsUrlEnv) {
     [PLACEHOLDERS.URL_RV]: ORIGINS.RV,
     [PLACEHOLDERS.URL_GHSTAT]: ORIGINS.GHSTAT,
     [PLACEHOLDERS.URL_MONITOR_API]: monitorApiBaseUrl,
+    [PLACEHOLDERS.URL_TIMELINE_API]: timelineApiBaseUrl,
   } as const
 
   return {
@@ -119,5 +144,6 @@ export function createDocsUrlConfig(env: DocsUrlEnv) {
     PLACEHOLDERS,
     PLACEHOLDER_MAP,
     MONITOR_API_BASE_URL: monitorApiBaseUrl,
+    TIMELINE_API_BASE_URL: timelineApiBaseUrl,
   } as const
 }

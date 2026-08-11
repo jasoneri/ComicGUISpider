@@ -138,5 +138,6 @@ PYPI_SOURCE = {
 CGS_DOC = "https://cgs.101114105.xyz"
 CGS_DISCORD_SHARE_API = "https://cgs-share.101114105.xyz"
 CGS_WORKER_ENDPOINT = "https://cgs-share.101114105.xyz"
+CGS_TIMELINE_API = "https://notice.101114105.xyz/v1/boards/cgs"
 CGS_METADATA_CHANNEL_ID = ""
 JSONERI_PALACES_PROBE_API_URL = "https://jps.101114105.xyz"
