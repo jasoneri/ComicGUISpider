@@ -1,63 +1,147 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import sqlite3
+import threading
+from pathlib import Path
 
 from utils import conf, conf_dir, md5
 from utils.chore import set_author_ahead
 
+_BATCH_IN_CHUNK = 400
+_POOL_LOCK = threading.Lock()
+# (resolved_db, table) -> {lock, conn, cursor, md5_set}
+_POOL: dict[tuple[str, str], dict] = {}
+
+
+def _pool_entry(db_path: Path, table: str) -> dict:
+    key = (str(Path(db_path).resolve()), table)
+    with _POOL_LOCK:
+        entry = _POOL.get(key)
+        if entry is None:
+            entry = {
+                "lock": threading.RLock(),
+                "conn": None,
+                "cursor": None,
+                "md5_set": None,
+                "db": Path(db_path),
+                "table": table,
+            }
+            _POOL[key] = entry
+        return entry
+
+
+def _open_entry(entry: dict) -> None:
+    if entry["conn"] is not None:
+        return
+    db_path: Path = entry["db"]
+    table: str = entry["table"]
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path), check_same_thread=False, timeout=30.0)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        (table,),
+    )
+    if cursor.fetchone() is None:
+        cursor.execute(
+            f"""CREATE TABLE IF NOT EXISTS `{table}` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                `identity_md5` TEXT NOT NULL UNIQUE
+            );"""
+        )
+        conn.commit()
+    entry["conn"] = conn
+    entry["cursor"] = cursor
+
+
+def _batch_select_md5s(cursor, table: str, wanted: list[str]) -> set[str]:
+    found: set[str] = set()
+    for offset in range(0, len(wanted), _BATCH_IN_CHUNK):
+        chunk = wanted[offset : offset + _BATCH_IN_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        cursor.execute(
+            f"SELECT identity_md5 FROM `{table}` WHERE identity_md5 IN ({placeholders});",
+            chunk,
+        )
+        found.update(row[0] for row in cursor.fetchall())
+    return found
+
 
 class SqlRecorder:
+    """identity_md5 owner: shared connection per (db, table), real batch_check_dupe."""
+
     init_flag = False
 
-    def __init__(self, table: str = "identity_md5_table"):
-        self.db = conf_dir.joinpath("record.db")
-        if not self.db.exists():
-            self.init_flag = True
-        self.conn = sqlite3.connect(self.db)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute("PRAGMA journal_mode=WAL")
-        self.cursor.execute("PRAGMA busy_timeout=5000")
+    def __init__(self, table: str = "identity_md5_table", *, db_path: Path | None = None):
+        self.db = Path(db_path) if db_path is not None else conf_dir.joinpath("record.db")
         self.table = table
-        if self.init_flag or not self.table_exists():
-            self.create()
+        self._entry = _pool_entry(self.db, self.table)
+        self.init_flag = not self.db.exists()
+        with self._entry["lock"]:
+            _open_entry(self._entry)
+        self.conn = self._entry["conn"]
+        self.cursor = self._entry["cursor"]
 
     def table_exists(self):
-        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (self.table,))
-        return self.cursor.fetchone() is not None
+        with self._entry["lock"]:
+            _open_entry(self._entry)
+            self._entry["cursor"].execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                (self.table,),
+            )
+            return self._entry["cursor"].fetchone() is not None
 
     def create(self):
-        sql = f'''CREATE TABLE IF NOT EXISTS `{self.table}` (
-            `id` INTEGER PRIMARY KEY AUTOINCREMENT,
-            `identity_md5` TEXT NOT NULL UNIQUE
-        );'''
-        self.cursor.execute(sql)
-        self.conn.commit()
+        with self._entry["lock"]:
+            _open_entry(self._entry)
+            self._entry["cursor"].execute(
+                f"""CREATE TABLE IF NOT EXISTS `{self.table}` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                    `identity_md5` TEXT NOT NULL UNIQUE
+                );"""
+            )
+            self._entry["conn"].commit()
 
     def add(self, identity_md5):
-        sql = f'''INSERT OR IGNORE INTO {self.table} (identity_md5) VALUES (?);'''
-        self.cursor.execute(sql, (identity_md5,))
-        self.conn.commit()
+        with self._entry["lock"]:
+            _open_entry(self._entry)
+            self._entry["cursor"].execute(
+                f"INSERT OR IGNORE INTO `{self.table}` (identity_md5) VALUES (?);",
+                (identity_md5,),
+            )
+            self._entry["conn"].commit()
+            cached = self._entry["md5_set"]
+            if cached is not None:
+                cached.add(identity_md5)
         return identity_md5
 
     def batch_check_dupe(self, identity_md5s):
         if not identity_md5s:
             return set()
-        placeholders = ','.join('?' * len(identity_md5s))
-        sql = f'''SELECT identity_md5 FROM {self.table} WHERE identity_md5 IN ({placeholders});'''
-        self.cursor.execute(sql, identity_md5s)
-        result = set(row[0] for row in self.cursor.fetchall())
-        return result
+        wanted = [value for value in dict.fromkeys(identity_md5s) if value]
+        if not wanted:
+            return set()
+        with self._entry["lock"]:
+            _open_entry(self._entry)
+            cached = self._entry["md5_set"]
+            if cached is not None:
+                return {value for value in wanted if value in cached}
+            found = _batch_select_md5s(self._entry["cursor"], self.table, wanted)
+            self._entry["cursor"].execute(f"SELECT identity_md5 FROM `{self.table}`;")
+            self._entry["md5_set"] = {row[0] for row in self._entry["cursor"].fetchall()}
+            return found
 
     def check_dupe(self, identity_md5):
-        sql = f'''SELECT EXISTS (SELECT 1 FROM {self.table} WHERE identity_md5 = ?);'''
-        self.cursor.execute(sql, (identity_md5,))
-        result = self.cursor.fetchone()[0]
-        return bool(result)
+        return bool(self.batch_check_dupe([identity_md5]))
 
     def close(self):
-        self.cursor.close()
-        self.conn.close()
-        del self.conn
+        # Shared pool connection; historical construct/close pairs must not thrash WAL.
+        return
 
 
 class SqlrV:

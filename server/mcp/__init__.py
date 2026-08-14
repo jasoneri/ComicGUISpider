@@ -16,16 +16,15 @@ from starlette.applications import Starlette
 
 from server.mcp.call_log import McpCallLog
 from server.subscription import (
-    add_broadcaster_book,
-    add_subscriber_follow,
+    add_book,
+    add_follow,
     load_subscription_config,
     publish_subscription_share_card,
-    remove_broadcaster_book,
-    remove_subscriber_follow,
+    remove_book,
+    remove_follow,
     save_subscription_config,
-    switch_subscription_mode,
-    update_broadcaster_book,
-    update_subscriber_follow,
+    update_book,
+    update_follow,
 )
 from server.surfaces import ServerSurface
 from utils.subscription import SubscriptionStore
@@ -77,9 +76,13 @@ class CgsMcpBackend(Protocol):
     async def reset_work_state(self) -> JSONDict: ...
     async def subscription_config(self, customname: str = "default") -> JSONDict: ...
     async def update_subscription_config(self, config: Mapping[str, Any]) -> JSONDict: ...
-    async def set_subscription_mode(self, mode: str, customname: str = "default") -> JSONDict: ...
     async def add_subscription_book(
-            self, site: str, url: str, title: str, enabled: bool = True, customname: str = "default"
+            self,
+            site: str,
+            url: str,
+            title: str,
+            enabled: bool = True,
+            customname: str = "default",
     ) -> JSONDict: ...
     async def update_subscription_book(
             self, index: int, patch: Mapping[str, Any], customname: str = "default"
@@ -157,40 +160,39 @@ class HttpCgsMcpBackend:
     async def update_subscription_config(self, config: Mapping[str, Any]) -> JSONDict:
         return await self._request("PUT", "/subscription/config", json=dict(config))
 
-    async def set_subscription_mode(self, mode: str, customname: str = "default") -> JSONDict:
-        return await self._request("POST", "/subscription/mode", json={"customname": customname, "mode": mode})
-
     async def add_subscription_book(
-            self, site: str, url: str, title: str, enabled: bool = True, customname: str = "default"
+            self,
+            site: str,
+            url: str,
+            title: str,
+            enabled: bool = True,
+            customname: str = "default",
     ) -> JSONDict:
-        return await self._request(
-            "POST",
-            "/subscription/broadcaster/books",
-            json={"customname": customname, "site": site, "url": url, "title": title, "enabled": enabled},
-        )
+        payload: JSONDict = {"customname": customname, "site": site, "url": url, "title": title, "enabled": enabled}
+        return await self._request("POST", "/subscription/books", json=payload)
 
     async def update_subscription_book(
             self, index: int, patch: Mapping[str, Any], customname: str = "default"
     ) -> JSONDict:
         return await self._request(
             "PATCH",
-            f"/subscription/broadcaster/books/{int(index)}",
+            f"/subscription/books/{int(index)}",
             params={"customname": customname},
             json=dict(patch),
         )
 
     async def remove_subscription_book(self, index: int, customname: str = "default") -> JSONDict:
         return await self._request(
-            "DELETE", f"/subscription/broadcaster/books/{int(index)}", params={"customname": customname}
+            "DELETE", f"/subscription/books/{int(index)}", params={"customname": customname}
         )
 
     async def publish_subscription_share_card(self, customname: str = "default") -> JSONDict:
-        return await self._request("POST", "/subscription/broadcaster/share-card", params={"customname": customname})
+        return await self._request("POST", "/subscription/share-card", params={"customname": customname})
 
     async def add_subscription_follow(self, bid: str, alias: str = "", customname: str = "default") -> JSONDict:
         return await self._request(
             "POST",
-            "/subscription/subscriber/follows",
+            "/subscription/follows",
             json={"customname": customname, "bid": bid, "alias": alias},
         )
 
@@ -199,14 +201,14 @@ class HttpCgsMcpBackend:
     ) -> JSONDict:
         return await self._request(
             "PATCH",
-            f"/subscription/subscriber/follows/{int(index)}",
+            f"/subscription/follows/{int(index)}",
             params={"customname": customname},
             json=dict(patch),
         )
 
     async def remove_subscription_follow(self, index: int, customname: str = "default") -> JSONDict:
         return await self._request(
-            "DELETE", f"/subscription/subscriber/follows/{int(index)}", params={"customname": customname}
+            "DELETE", f"/subscription/follows/{int(index)}", params={"customname": customname}
         )
 
     async def _request(self, method: str, path: str, **kwargs) -> JSONDict:
@@ -299,13 +301,15 @@ class RuntimeCgsMcpBackend:
         payload = dict(config)
         return save_subscription_config(SubscriptionStore(str(payload.get("customname") or "default")), payload)
 
-    async def set_subscription_mode(self, mode: str, customname: str = "default") -> JSONDict:
-        return switch_subscription_mode(SubscriptionStore(customname), mode)
-
     async def add_subscription_book(
-            self, site: str, url: str, title: str, enabled: bool = True, customname: str = "default"
+            self,
+            site: str,
+            url: str,
+            title: str,
+            enabled: bool = True,
+            customname: str = "default",
     ) -> JSONDict:
-        return add_broadcaster_book(
+        return add_book(
             SubscriptionStore(customname),
             {"site": site, "url": url, "title": title, "enabled": enabled},
         )
@@ -313,24 +317,24 @@ class RuntimeCgsMcpBackend:
     async def update_subscription_book(
             self, index: int, patch: Mapping[str, Any], customname: str = "default"
     ) -> JSONDict:
-        return update_broadcaster_book(SubscriptionStore(customname), index, dict(patch))
+        return update_book(SubscriptionStore(customname), index, dict(patch))
 
     async def remove_subscription_book(self, index: int, customname: str = "default") -> JSONDict:
-        return remove_broadcaster_book(SubscriptionStore(customname), index)
+        return remove_book(SubscriptionStore(customname), index)
 
     async def publish_subscription_share_card(self, customname: str = "default") -> JSONDict:
         return await publish_subscription_share_card(SubscriptionStore(customname))
 
     async def add_subscription_follow(self, bid: str, alias: str = "", customname: str = "default") -> JSONDict:
-        return add_subscriber_follow(SubscriptionStore(customname), {"bid": bid, "alias": alias})
+        return add_follow(SubscriptionStore(customname), {"bid": bid, "alias": alias})
 
     async def update_subscription_follow(
             self, index: int, patch: Mapping[str, Any], customname: str = "default"
     ) -> JSONDict:
-        return update_subscriber_follow(SubscriptionStore(customname), index, dict(patch))
+        return update_follow(SubscriptionStore(customname), index, dict(patch))
 
     async def remove_subscription_follow(self, index: int, customname: str = "default") -> JSONDict:
-        return remove_subscriber_follow(SubscriptionStore(customname), index)
+        return remove_follow(SubscriptionStore(customname), index)
 
 
 class CgsMcpSurface:
@@ -432,7 +436,7 @@ class CgsMcpSurface:
 
         @server.tool(name="cgs_get_subscription_config", title="Get CGS subscription config")
         async def cgs_get_subscription_config(customname: str = "default") -> JSONDict:
-            """Return the SubscribeInterface subscription config for broadcaster/subscriber modes."""
+            """Return the flat single-form subscription config (books/features/follows/check/publish)."""
             return await self._call(
                 lambda: backend.subscription_config(customname),
                 tool_name="cgs_get_subscription_config",
@@ -441,23 +445,14 @@ class CgsMcpSurface:
 
         @server.tool(name="cgs_update_subscription_config", title="Update CGS subscription config")
         async def cgs_update_subscription_config(config: dict[str, Any]) -> JSONDict:
-            """Persist the active-mode subscription config section, preserving the opposing mode section."""
+            """Persist the flat subscription config; publish section is optional and marks a published config."""
             return await self._call(
                 lambda: backend.update_subscription_config(config),
                 tool_name="cgs_update_subscription_config",
                 args_summary=self._args_summary(config=config),
             )
 
-        @server.tool(name="cgs_set_subscription_mode", title="Set CGS subscription mode")
-        async def cgs_set_subscription_mode(mode: str, customname: str = "default") -> JSONDict:
-            """Switch between broadcaster and subscriber subscription modes."""
-            return await self._call(
-                lambda: backend.set_subscription_mode(mode, customname),
-                tool_name="cgs_set_subscription_mode",
-                args_summary=self._args_summary(mode=mode, customname=customname),
-            )
-
-        @server.tool(name="cgs_add_subscription_book", title="Add broadcaster subscription book")
+        @server.tool(name="cgs_add_subscription_book", title="Add subscription book")
         async def cgs_add_subscription_book(
                 site: str,
                 url: str,
@@ -465,14 +460,18 @@ class CgsMcpSurface:
                 enabled: bool = True,
                 customname: str = "default",
         ) -> JSONDict:
-            """Add a CGS BookInfo-derived book to the broadcaster subscription list."""
+            """Add a CGS BookInfo-derived book to the subscription book list.
+            """
             return await self._call(
                 lambda: backend.add_subscription_book(site, url, title, enabled, customname),
                 tool_name="cgs_add_subscription_book",
-                args_summary=self._args_summary(site=site, url=url, title=title, enabled=enabled, customname=customname),
+                args_summary=self._args_summary(
+                    site=site, url=url, title=title, enabled=enabled,
+                    customname=customname,
+                ),
             )
 
-        @server.tool(name="cgs_update_subscription_book", title="Update broadcaster subscription book")
+        @server.tool(name="cgs_update_subscription_book", title="Update subscription book")
         async def cgs_update_subscription_book(
                 index: int,
                 site: str | None = None,
@@ -481,10 +480,12 @@ class CgsMcpSurface:
                 enabled: bool | None = None,
                 customname: str = "default",
         ) -> JSONDict:
-            """Update a broadcaster subscription book by zero-based index."""
+            """Update a subscription book by zero-based index."""
             patch = {
                 key: value
-                for key, value in {"site": site, "url": url, "title": title, "enabled": enabled}.items()
+                for key, value in {
+                    "site": site, "url": url, "title": title, "enabled": enabled,
+                }.items()
                 if value is not None
             }
             return await self._call(
@@ -493,45 +494,45 @@ class CgsMcpSurface:
                 args_summary=self._args_summary(index=index, patch=patch, customname=customname),
             )
 
-        @server.tool(name="cgs_remove_subscription_book", title="Remove broadcaster subscription book")
+        @server.tool(name="cgs_remove_subscription_book", title="Remove subscription book")
         async def cgs_remove_subscription_book(index: int, customname: str = "default") -> JSONDict:
-            """Remove a broadcaster subscription book by zero-based index."""
+            """Remove a subscription book by zero-based index."""
             return await self._call(
                 lambda: backend.remove_subscription_book(index, customname),
                 tool_name="cgs_remove_subscription_book",
                 args_summary=self._args_summary(index=index, customname=customname),
             )
 
-        @server.tool(name="cgs_publish_subscription_share_card", title="Publish broadcaster subscription share card")
+        @server.tool(name="cgs_publish_subscription_share_card", title="Publish subscription share card")
         async def cgs_publish_subscription_share_card(customname: str = "default") -> JSONDict:
-            """Publish the broadcaster share card and register publish_bid through CGS."""
+            """Publish the subscription share card and register publish bid through CGS."""
             return await self._call(
                 lambda: backend.publish_subscription_share_card(customname),
                 tool_name="cgs_publish_subscription_share_card",
                 args_summary=self._args_summary(customname=customname),
             )
 
-        @server.tool(name="cgs_add_subscription_follow", title="Add subscriber follow")
+        @server.tool(name="cgs_add_subscription_follow", title="Add subscription follow")
         async def cgs_add_subscription_follow(
                 bid: str,
                 alias: str = "",
                 customname: str = "default",
         ) -> JSONDict:
-            """Add a subscriber follow bid."""
+            """Add a follow bid to the subscription config."""
             return await self._call(
                 lambda: backend.add_subscription_follow(bid, alias, customname),
                 tool_name="cgs_add_subscription_follow",
                 args_summary=self._args_summary(bid=bid, alias=alias, customname=customname),
             )
 
-        @server.tool(name="cgs_update_subscription_follow", title="Update subscriber follow")
+        @server.tool(name="cgs_update_subscription_follow", title="Update subscription follow")
         async def cgs_update_subscription_follow(
                 index: int,
                 bid: str | None = None,
                 alias: str | None = None,
                 customname: str = "default",
         ) -> JSONDict:
-            """Update a subscriber follow by zero-based index."""
+            """Update a subscription follow by zero-based index."""
             patch = {key: value for key, value in {"bid": bid, "alias": alias}.items() if value is not None}
             return await self._call(
                 lambda: backend.update_subscription_follow(index, patch, customname),
@@ -539,9 +540,9 @@ class CgsMcpSurface:
                 args_summary=self._args_summary(index=index, patch=patch, customname=customname),
             )
 
-        @server.tool(name="cgs_remove_subscription_follow", title="Remove subscriber follow")
+        @server.tool(name="cgs_remove_subscription_follow", title="Remove subscription follow")
         async def cgs_remove_subscription_follow(index: int, customname: str = "default") -> JSONDict:
-            """Remove a subscriber follow by zero-based index."""
+            """Remove a subscription follow by zero-based index."""
             return await self._call(
                 lambda: backend.remove_subscription_follow(index, customname),
                 tool_name="cgs_remove_subscription_follow",

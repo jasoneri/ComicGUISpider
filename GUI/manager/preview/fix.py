@@ -1,12 +1,16 @@
+from PySide6.QtCore import QThreadPool
+
+from utils import conf
 from utils.preview import PreviewByFixHtml, El
 from GUI.manager.preview.loading import PreviewLoadingReason
-from GUI.manager.preview.manga import MangaPreviewFeature
+from GUI.manager.preview.manga import MangaPreviewFeature, _BookMd5DedupRunnable
 
 
 class FixPreviewFeature(MangaPreviewFeature):
     def __init__(self, mgr):
         super().__init__(mgr)
         self._inflight_book_pages = {}
+        self._book_dedup_runnable = None
 
     @staticmethod
     def is_episode_card(book) -> bool:
@@ -14,6 +18,7 @@ class FixPreviewFeature(MangaPreviewFeature):
 
     def _clear_fix_state(self):
         self._inflight_book_pages.clear()
+        self._book_dedup_runnable = None
 
     def _has_submit_inflight(self) -> bool:
         return bool(self._inflight_pages or self._inflight_book_pages)
@@ -23,24 +28,20 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._inflight_books.clear()
         self._clear_fix_state()
         self.mgr.books_cache = {str(book.idx): book for book in books}
-        direct_books = [
-            book for book in books
-            if not self.is_episode_card(book)
-        ]
-        self.mgr.downloaded_book_ids = {
-            str(book.idx) for book in self.gui.download_state.downloaded_items(direct_books)
-        }
+        self.mgr.downloaded_book_ids.clear()
         self.episodes_cache.clear()
         self.gui.clean_temp_file()
         upper_cards = []
         lower_cards = []
         ero_el = El(None)
         manga_el = El("manga")
+        direct_books = []
         for book in books:
             if self.is_episode_card(book):
                 lower_cards.append(manga_el.create_from_book(book))
             else:
                 upper_cards.append(ero_el.create_from_book(book))
+                direct_books.append(book)
         self.gui.tf = PreviewByFixHtml.created_temp_html(
             upper_html="\n".join(upper_cards),
             lower_html="\n".join(lower_cards),
@@ -49,6 +50,7 @@ class FixPreviewFeature(MangaPreviewFeature):
             ensure_handler=self._handle_submit_request,
             bridge=self.bridge,
         )
+        self._start_book_dedup(self.mgr._session_id, direct_books)
 
     def shutdown(self):
         self._clear_fix_state()
@@ -58,14 +60,36 @@ class FixPreviewFeature(MangaPreviewFeature):
         self._clear_fix_state()
         super().reset()
 
+    def _start_book_dedup(self, session_id: int, direct_books: list) -> None:
+        if not conf.isDeduplicate or not direct_books:
+            return
+        runnable = _BookMd5DedupRunnable(session_id, direct_books, self.gui.download_state)
+        runnable.signals.done.connect(self._on_book_dedup_done)
+        self._book_dedup_runnable = runnable
+        QThreadPool.globalInstance().start(runnable)
+
+    def _on_book_dedup_done(self, session_id: int, book_keys) -> None:
+        if session_id != self.mgr._session_id:
+            return
+        self.mgr.downloaded_book_ids = set(book_keys or ())
+        self._book_dedup_runnable = None
+        self._project_downloaded_if_ready(session_id)
+
+    def _project_downloaded_if_ready(self, session_id: int) -> None:
+        if not self.mgr.downloaded_book_ids:
+            return
+        browser = getattr(self.gui, "BrowserWindow", None)
+        if not browser or not browser.page_runtime.page_ready:
+            return
+        self.mgr.send_command(
+            "preview.books.downloaded",
+            {"bookIds": sorted(self.mgr.downloaded_book_ids)},
+            session_id=session_id,
+        )
+
     def _on_page_ready(self, session_id):
         self._sync_page_favorites(session_id)
-        if self.mgr.downloaded_book_ids:
-            self.mgr.send_command(
-                "preview.books.downloaded",
-                {"bookIds": sorted(self.mgr.downloaded_book_ids)},
-                session_id=session_id,
-            )
+        self._project_downloaded_if_ready(session_id)
         if self.mgr.books_cache and session_id not in self._dl_scan_runnables:
             self._start_dl_scan(session_id)
 

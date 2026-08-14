@@ -8,20 +8,21 @@ from utils import conf
 from utils.share import DiscordShareAPI, WorkerIndexClient
 from utils.subscription import (
     BookEntry,
+    CheckSection,
+    CheckSlot,
+    CheckinSection,
     DEFAULT_CUSTOMNAME,
-    FollowEntry,
     FeatureEntry,
-    MODE_BROADCASTER,
-    MODE_SUBSCRIBER,
-    ScheduleSection,
+    FollowEntry,
+    PublishSection,
     ShareCard,
     SubscriptionConfig,
     SubscriptionStore,
+    normalize_tz_offset,
 )
+from utils.subscription.library import LocalLibraryStore
+from utils.subscription.site_proxy import normalize_site_proxy_map
 from variables import CGS_DISCORD_SHARE_API, CGS_METADATA_CHANNEL_ID
-
-
-VALID_SUBSCRIPTION_MODES = frozenset({MODE_BROADCASTER, MODE_SUBSCRIBER})
 
 
 def load_subscription_config(store: SubscriptionStore) -> dict[str, Any]:
@@ -34,91 +35,84 @@ def save_subscription_config(store: SubscriptionStore, payload: dict[str, Any]) 
     return subscription_config_payload(store.load())
 
 
-def switch_subscription_mode(store: SubscriptionStore, mode: str) -> dict[str, Any]:
-    normalized_mode = str(mode or "").strip()
-    if normalized_mode not in VALID_SUBSCRIPTION_MODES:
-        raise ValueError(f"unsupported subscription mode: {mode!r}")
-    cfg = store.load()
-    cfg.mode = normalized_mode
-    store.save(cfg)
-    return subscription_config_payload(store.load())
-
-
-def add_broadcaster_book(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
-    cfg = store.load()
+def add_book(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
     entry = _book_from_payload(payload)
-    if entry.url in {book.url for book in cfg.broadcaster.books}:
-        raise ValueError(f"broadcaster book already exists: {entry.url}")
-    cfg.broadcaster.books.append(entry)
-    store.save(cfg)
+    library = LocalLibraryStore()
+    site_index = library.site_index_for_name(entry.site)
+    if site_index is None:
+        raise ValueError(f"unknown subscription book site: {entry.site}")
+    from utils.website.info import BookInfo
+    book = BookInfo(id=entry.url, source=entry.site, url=entry.url, preview_url=entry.url, name=entry.title)
+    if not library.add_book(site_index, book):
+        raise ValueError(f"subscription book already exists: {entry.url}")
     return subscription_config_payload(store.load())
 
 
-def update_broadcaster_book(store: SubscriptionStore, index: int, payload: dict[str, Any]) -> dict[str, Any]:
-    cfg = store.load()
-    book = _indexed(cfg.broadcaster.books, index, "broadcaster book")
+def update_book(store: SubscriptionStore, index: int, payload: dict[str, Any]) -> dict[str, Any]:
+    library = LocalLibraryStore()
+    entries = library.book_entries()
+    book = _indexed(entries, index, "subscription book")
     next_book = BookEntry(
         site=_optional_text(payload, "site", book.site),
         url=_optional_text(payload, "url", book.url),
         title=_optional_text(payload, "title", book.title),
-        enabled=_optional_bool(payload, "enabled", book.enabled),
+        enabled=True,
     )
     _validate_book(next_book)
-    duplicate_index = next(
-        (row for row, candidate in enumerate(cfg.broadcaster.books) if row != index and candidate.url == next_book.url),
-        None,
-    )
-    if duplicate_index is not None:
-        raise ValueError(f"broadcaster book already exists: {next_book.url}")
-    cfg.broadcaster.books[index] = next_book
+    library.remove_entry(book)
+    site_index = library.site_index_for_name(next_book.site)
+    if site_index is None:
+        raise ValueError(f"unknown subscription book site: {next_book.site}")
+    from utils.website.info import BookInfo
+    info = BookInfo(id=next_book.url, source=next_book.site, url=next_book.url, preview_url=next_book.url, name=next_book.title)
+    if not library.add_book(site_index, info):
+        raise ValueError(f"subscription book already exists: {next_book.url}")
+    return subscription_config_payload(store.load())
+
+
+def remove_book(store: SubscriptionStore, index: int) -> dict[str, Any]:
+    library = LocalLibraryStore()
+    entries = library.book_entries()
+    entry = _indexed(entries, index, "subscription book")
+    library.remove_entry(entry)
+    return subscription_config_payload(store.load())
+
+
+def add_follow(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
+    cfg = store.load()
+    cfg.follows.append(_follow_from_payload(payload))
     store.save(cfg)
     return subscription_config_payload(store.load())
 
 
-def remove_broadcaster_book(store: SubscriptionStore, index: int) -> dict[str, Any]:
+def update_follow(store: SubscriptionStore, index: int, payload: dict[str, Any]) -> dict[str, Any]:
     cfg = store.load()
-    _indexed(cfg.broadcaster.books, index, "broadcaster book")
-    del cfg.broadcaster.books[index]
-    store.save(cfg)
-    return subscription_config_payload(store.load())
-
-
-def add_subscriber_follow(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
-    cfg = store.load()
-    cfg.subscriber.follows.append(_follow_from_payload(payload))
-    store.save(cfg)
-    return subscription_config_payload(store.load())
-
-
-def update_subscriber_follow(store: SubscriptionStore, index: int, payload: dict[str, Any]) -> dict[str, Any]:
-    cfg = store.load()
-    follow = _indexed(cfg.subscriber.follows, index, "subscriber follow")
-    cfg.subscriber.follows[index] = FollowEntry(
+    follow = _indexed(cfg.follows, index, "subscription follow")
+    cfg.follows[index] = FollowEntry(
         bid=_optional_text(payload, "bid", follow.bid),
         alias=_optional_text(payload, "alias", follow.alias, allow_empty=True),
         added_at=_utc_now(),
     )
-    _validate_follow(cfg.subscriber.follows[index])
+    _validate_follow(cfg.follows[index])
     store.save(cfg)
     return subscription_config_payload(store.load())
 
 
-def remove_subscriber_follow(store: SubscriptionStore, index: int) -> dict[str, Any]:
+def remove_follow(store: SubscriptionStore, index: int) -> dict[str, Any]:
     cfg = store.load()
-    _indexed(cfg.subscriber.follows, index, "subscriber follow")
-    del cfg.subscriber.follows[index]
+    _indexed(cfg.follows, index, "subscription follow")
+    del cfg.follows[index]
     store.save(cfg)
     return subscription_config_payload(store.load())
 
 
 async def publish_subscription_share_card(store: SubscriptionStore) -> dict[str, Any]:
     cfg = store.load()
-    broadcaster = cfg.broadcaster
-    if broadcaster.share_card and broadcaster.share_card.posted_at:
+    if cfg.publish is not None and cfg.publish.share_card and cfg.publish.share_card.posted_at:
         raise ValueError("share_card already published")
-    enabled_books = [book for book in broadcaster.books if book.enabled]
+    enabled_books = LocalLibraryStore().book_entries()
     if not enabled_books:
-        raise ValueError("at least one enabled broadcaster book is required before publishing share_card")
+        raise ValueError("at least one enabled subscription book is required before publishing share_card")
 
     token = _require_discord_token()
     registration = await WorkerIndexClient(auth_token=token).register_publish_bid(
@@ -134,11 +128,13 @@ async def publish_subscription_share_card(store: SubscriptionStore) -> dict[str,
         book_names=[book.title for book in enabled_books],
     )
 
-    broadcaster.publish_bid = registration.bid
-    broadcaster.share_card = ShareCard(
-        posted_at=result.posted_at,
-        discord_channel=result.discord_channel,
-        discord_message_id=result.discord_message_id,
+    cfg.publish = PublishSection(
+        bid=registration.bid,
+        share_card=ShareCard(
+            posted_at=result.posted_at,
+            discord_channel=result.discord_channel,
+            discord_message_id=result.discord_message_id,
+        ),
     )
     store.save(cfg)
     payload = subscription_config_payload(store.load())
@@ -152,67 +148,114 @@ async def publish_subscription_share_card(store: SubscriptionStore) -> dict[str,
 
 
 def subscription_config_payload(cfg: SubscriptionConfig) -> dict[str, Any]:
+    library_books = LocalLibraryStore().book_entries(yaml_books=cfg.books)
     return {
         "customname": cfg.customname,
-        "mode": cfg.mode,
-        "broadcaster": {
-            "publish_bid": cfg.broadcaster.publish_bid,
-            "share_card": asdict(cfg.broadcaster.share_card) if cfg.broadcaster.share_card else None,
-            "books": [asdict(book) for book in cfg.broadcaster.books],
-            "features": [asdict(feature) for feature in cfg.broadcaster.features],
-            "schedule": asdict(cfg.broadcaster.schedule),
-        },
-        "subscriber": {
-            "follows": [asdict(follow) for follow in cfg.subscriber.follows],
-            "pull_interval_hours": cfg.subscriber.pull_interval_hours,
-            "initial_lookback_days": cfg.subscriber.initial_lookback_days,
-            "auto_download": cfg.subscriber.auto_download,
-        },
+        "books": [asdict(book) for book in library_books],
+        "features": [asdict(feature) for feature in cfg.features],
+        "follows": [asdict(follow) for follow in cfg.follows],
+        "check": asdict(cfg.check),
+        "checkin": asdict(cfg.checkin),
+        "publish": _publish_payload(cfg.publish),
+        "site_proxy": dict(cfg.site_proxy or {}),
     }
 
 
 def config_from_payload(payload: dict[str, Any], *, customname: str = DEFAULT_CUSTOMNAME) -> SubscriptionConfig:
     if not isinstance(payload, dict):
         raise ValueError("subscription config payload must be a mapping")
-    mode = str(payload.get("mode") or MODE_BROADCASTER).strip()
-    if mode not in VALID_SUBSCRIPTION_MODES:
-        raise ValueError(f"unsupported subscription mode: {mode!r}")
-    broadcaster_payload = _mapping(payload.get("broadcaster"), "broadcaster")
-    subscriber_payload = _mapping(payload.get("subscriber"), "subscriber")
-    cfg = SubscriptionConfig(customname=customname, mode=mode)
-    cfg.broadcaster.publish_bid = _nullable_text(broadcaster_payload.get("publish_bid"))
-    cfg.broadcaster.share_card = _share_card_from_payload(broadcaster_payload.get("share_card"))
-    cfg.broadcaster.books = [_book_from_payload(item) for item in _list(broadcaster_payload.get("books"), "broadcaster.books")]
-    cfg.broadcaster.features = [
-        _feature_from_payload(item) for item in _list(broadcaster_payload.get("features"), "broadcaster.features")
-    ]
-    cfg.broadcaster.schedule = _schedule_from_payload(broadcaster_payload.get("schedule"))
-    cfg.subscriber.follows = [
-        _follow_from_payload(item, keep_added_at=True)
-        for item in _list(subscriber_payload.get("follows"), "subscriber.follows")
-    ]
-    cfg.subscriber.pull_interval_hours = _positive_int(
-        subscriber_payload.get("pull_interval_hours"), "pull_interval_hours", default=6
+    cfg = SubscriptionConfig(
+        customname=customname,
+        books=[_book_from_payload(item) for item in _list(payload.get("books"), "books")],
+        features=[_feature_from_payload(item) for item in _list(payload.get("features"), "features")],
+        follows=[
+            _follow_from_payload(item, keep_added_at=True) for item in _list(payload.get("follows"), "follows")
+        ],
+        check=_check_from_payload(payload.get("check")),
+        checkin=_checkin_from_payload(payload.get("checkin")),
+        publish=_publish_from_payload(payload.get("publish")),
+        site_proxy=normalize_site_proxy_map(payload.get("site_proxy")),
     )
-    cfg.subscriber.initial_lookback_days = _non_negative_int(
-        subscriber_payload.get("initial_lookback_days"), "initial_lookback_days", default=7
-    )
-    cfg.subscriber.auto_download = _bool(subscriber_payload.get("auto_download"), default=True)
     cfg.validate()
     return cfg
+
+
+def _publish_payload(publish: PublishSection | None) -> dict[str, Any] | None:
+    if publish is None:
+        return None
+    return {
+        "bid": publish.bid,
+        "share_card": asdict(publish.share_card) if publish.share_card else None,
+    }
+
+
+def _check_from_payload(payload: Any) -> CheckSection:
+    """Flat CheckSection: weekdays + time + tz_offset + auto_download."""
+    data = _mapping(payload, "check")
+    defaults = CheckSection()
+    time_value = data.get("time")
+    if time_value is None or str(time_value).strip() == "":
+        time_value = defaults.time
+    weekdays_raw = data.get("weekdays")
+    if weekdays_raw is None:
+        weekdays = list(defaults.weekdays)
+    elif isinstance(weekdays_raw, (list, tuple)):
+        weekdays = [str(item).strip() for item in weekdays_raw if str(item).strip()]
+    else:
+        raise ValueError("check.weekdays must be a list")
+    section = CheckSection(
+        weekdays=weekdays,
+        time=str(time_value).strip(),
+        tz_offset=normalize_tz_offset(
+            data.get("tz_offset") if data.get("tz_offset") is not None else defaults.tz_offset
+        ),
+        auto_download=_bool(data.get("auto_download"), default=defaults.auto_download),
+    )
+    section.validate()
+    return section
+
+
+def _checkin_from_payload(payload: Any) -> CheckinSection:
+    data = _mapping(payload, "checkin")
+    defaults = CheckinSection()
+    section = CheckinSection(
+        enabled=_bool(data.get("enabled"), default=defaults.enabled),
+        interval_preset=str(data.get("interval_preset") or defaults.interval_preset).strip(),
+    )
+    section.validate()
+    return section
+
+
+def _publish_from_payload(payload: Any) -> PublishSection | None:
+    if payload is None:
+        return None
+    data = _mapping(payload, "publish")
+    return PublishSection(
+        bid=_required_text(data.get("bid"), "publish.bid"),
+        share_card=_share_card_from_payload(data.get("share_card")),
+    )
 
 
 def _book_from_payload(payload: dict[str, Any]) -> BookEntry:
     if not isinstance(payload, dict):
         raise ValueError("book payload must be a mapping")
-    entry = BookEntry(
+    check_raw = payload.get("check")
+    check_slot = None
+    if check_raw is not None:
+        # Book-level override uses the same flat fields as profile check (no auto_download).
+        section = _check_from_payload(check_raw)
+        check_slot = CheckSlot(
+            weekdays=list(section.weekdays),
+            time=str(section.time),
+            tz_offset=int(section.tz_offset),
+        ).copy()
+    return BookEntry(
         site=_required_text(payload.get("site"), "site"),
         url=_required_text(payload.get("url"), "url"),
         title=_required_text(payload.get("title"), "title"),
         enabled=_bool(payload.get("enabled"), default=True),
+        check=check_slot,
     )
-    _validate_book(entry)
-    return entry
 
 
 def _validate_book(entry: BookEntry) -> None:
@@ -226,7 +269,7 @@ def _follow_from_payload(payload: dict[str, Any], *, keep_added_at: bool = False
     follow = FollowEntry(
         bid=_required_text(payload.get("bid"), "bid"),
         alias=_nullable_text(payload.get("alias")) or "",
-        added_at=_nullable_text(payload.get("added_at")) if keep_added_at else _utc_now(),
+        added_at=(_nullable_text(payload.get("added_at")) or "") if keep_added_at else _utc_now(),
     )
     _validate_follow(follow)
     return follow
@@ -250,22 +293,6 @@ def _validate_follow(entry: FollowEntry) -> None:
         raise ValueError("follow requires bid")
 
 
-def _schedule_from_payload(payload: Any) -> ScheduleSection:
-    if payload is None:
-        return ScheduleSection()
-    data = _mapping(payload, "schedule")
-    weekdays = [str(item).strip() for item in _list(data.get("weekdays"), "schedule.weekdays") if str(item).strip()]
-    invalid = [weekday for weekday in weekdays if weekday not in {"1", "2", "3", "4", "5", "6", "7"}]
-    if invalid:
-        raise ValueError(f"schedule.weekdays must be 1..7, got {invalid}")
-    time_value = _required_text(data.get("time") or "21:00", "schedule.time")
-    try:
-        datetime.strptime(time_value, "%H:%M")
-    except ValueError as exc:
-        raise ValueError(f"schedule.time must be HH:MM, got {time_value!r}") from exc
-    return ScheduleSection(weekdays=weekdays, time=time_value)
-
-
 def _share_card_from_payload(payload: Any) -> ShareCard | None:
     if payload is None:
         return None
@@ -275,6 +302,8 @@ def _share_card_from_payload(payload: Any) -> ShareCard | None:
         discord_channel=_nullable_text(data.get("discord_channel")),
         discord_message_id=_nullable_text(data.get("discord_message_id")),
     )
+
+
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:
@@ -320,20 +349,6 @@ def _bool(value: Any, *, default: bool) -> bool:
 
 def _optional_bool(payload: dict[str, Any], key: str, current: bool) -> bool:
     return current if key not in payload else bool(payload.get(key))
-
-
-def _positive_int(value: Any, label: str, *, default: int) -> int:
-    number = int(default if value is None else value)
-    if number <= 0:
-        raise ValueError(f"{label} must be positive")
-    return number
-
-
-def _non_negative_int(value: Any, label: str, *, default: int) -> int:
-    number = int(default if value is None else value)
-    if number < 0:
-        raise ValueError(f"{label} must be non-negative")
-    return number
 
 
 def _indexed(values: list[Any], index: int, label: str) -> Any:

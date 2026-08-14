@@ -186,28 +186,9 @@
     }
 
     initFavoriteFeature() {
-      if (typeof MangaFavoriteFeature === 'function') {
-        this.favoriteFeature = new MangaFavoriteFeature(this.bridgeClient);
-        this.favoriteFeature.init();
+      if (typeof window.installMangaFavoriteFeature === 'function') {
+        this.favoriteFeature = window.installMangaFavoriteFeature(this.bridgeClient);
       }
-    }
-
-    registerCommandHandlers() {
-      super.registerCommandHandlers();
-      const previewCommandBus = window.previewCommandBus;
-      if (!previewCommandBus) {
-        return;
-      }
-      previewCommandBus.register('manga.favorite.state', ({ bookKey, isFavorited }) => {
-        if (this.favoriteFeature) {
-          this.favoriteFeature.updateFavoriteState(bookKey, Boolean(isFavorited));
-        }
-      });
-      previewCommandBus.register('manga.favorites.sync', ({ bookKeys }) => {
-        if (this.favoriteFeature) {
-          this.favoriteFeature.initFavoriteStates(Array.isArray(bookKeys) ? bookKeys : []);
-        }
-      });
     }
 
     registerWindowApi() {

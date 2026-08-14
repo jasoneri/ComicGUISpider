@@ -9,7 +9,7 @@ class DownloadStateStore:
     """Query persisted downloaded state for id_and_md5-capable items."""
 
     def __init__(self, sql_factory=SqlRecorder):
-        self._sql_factory = sql_factory
+        self._sql = sql_factory()
 
     @staticmethod
     def _md5_by_item(items) -> dict[str, object]:
@@ -18,7 +18,8 @@ class DownloadStateStore:
             if not hasattr(item, "id_and_md5"):
                 continue
             _, item_md5 = item.id_and_md5()
-            lookup[item_md5] = item
+            if item_md5:
+                lookup[item_md5] = item
         return lookup
 
     def downloaded_md5s(self, items) -> set[str]:
@@ -27,11 +28,7 @@ class DownloadStateStore:
         md5_lookup = self._md5_by_item(items)
         if not md5_lookup:
             return set()
-        sql = self._sql_factory()
-        try:
-            return sql.batch_check_dupe(list(md5_lookup))
-        finally:
-            sql.close()
+        return self._sql.batch_check_dupe(list(md5_lookup))
 
     def downloaded_items(self, items) -> list:
         md5_lookup = self._md5_by_item(items)

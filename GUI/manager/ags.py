@@ -78,7 +78,7 @@ class _AggrSearchRun:
 
         for book in books_list:
             self.manager.infos[str(book.idx)] = book
-            options = {}
+            options = {'with_follow': False}
             for attr in ('pages', 'likes', 'lang', 'btype'):
                 val = getattr(book, attr, None)
                 if val:
@@ -90,7 +90,7 @@ class _AggrSearchRun:
                     meta.append(book.artist)
                 if book.pages:
                     meta.append(f'{book.pages}pages')
-                ep_options = {}
+                ep_options = {'with_follow': False}
                 if meta:
                     ep_options['meta'] = meta
                 if book.tags:

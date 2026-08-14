@@ -1,13 +1,12 @@
-import pickle
 import tempfile
 from collections import defaultdict
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 
 from assets import res as ori_res
-from variables import SPIDERS
-from utils import bs_theme, conf, temp_p, conf_dir
+from utils import bs_theme, conf, temp_p
 from utils.preview import TF, El, format_path
+from utils.subscription.library import LocalLibraryStore
 from GUI.manager.preview.loading import PreviewLoadingReason
 
 
@@ -23,6 +22,7 @@ class MangaPreviewBridge(QObject):
     @Slot(str)
     def toggleFavorite(self, bookKey):
         self.mgr.toggle_favorite(bookKey)
+
 
 class _ScanSignals(QObject):
     scan_done = Signal(int, dict)
@@ -50,71 +50,26 @@ class _ScanRunnable(QRunnable):
         self.signals.scan_done.emit(self._sid, matched)
 
 
-class _FavoriteStore:
-    def __init__(self, favorites_dir):
-        self._favorites_dir = favorites_dir
-        self._favorites_dir.mkdir(parents=True, exist_ok=True)
+class _BookMd5DedupSignals(QObject):
+    done = Signal(int, object)
 
-    def load(self, site_index):
-        pkl_path = self._favorites_pkl_path(site_index)
-        if pkl_path is None or not pkl_path.exists():
-            return []
-        with open(pkl_path, "rb") as f:
-            data = pickle.load(f)
-        deduped, seen = [], set()
-        for book in data:
-            key = self.book_unique_url(book)
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            deduped.append(book)
-        return deduped
 
-    def save(self, site_index, books):
-        pkl_path = self._favorites_pkl_path(site_index)
-        if pkl_path is None:
-            return False
-        self._favorites_dir.mkdir(parents=True, exist_ok=True)
-        tmp_path = pkl_path.with_name(f"{pkl_path.name}.tmp")
-        try:
-            with open(tmp_path, "wb") as f:
-                pickle.dump(books, f, protocol=pickle.HIGHEST_PROTOCOL)
-            tmp_path.replace(pkl_path)
-        except Exception:
-            if tmp_path.exists():
-                tmp_path.unlink(missing_ok=True)
-            raise
-        return True
+class _BookMd5DedupRunnable(QRunnable):
+    def __init__(self, session_id, books_snapshot, download_state):
+        super().__init__()
+        self.signals = _BookMd5DedupSignals()
+        self._sid = session_id
+        self._books = list(books_snapshot or [])
+        self._download_state = download_state
 
-    def urls(self, site_index):
-        return {
-            url for book in self.load(site_index)
-            if (url := self.book_unique_url(book))
-        }
-
-    def toggle(self, site_index, book):
-        book_url = self.book_unique_url(book)
-        if not book_url:
-            return None
-        favorites = self.load(site_index)
-        existed_index = next((i for i, fav in enumerate(favorites) if self.book_unique_url(fav) == book_url), None)
-        if existed_index is None:
-            favorites.append(book)
-            final_state = True
-        else:
-            favorites.pop(existed_index)
-            final_state = False
-        return final_state if self.save(site_index, favorites) else None
-
-    @staticmethod
-    def book_unique_url(book):
-        return (getattr(book, "url", None) or getattr(book, "preview_url", "") or "").strip()
-
-    def _favorites_pkl_path(self, site_index):
-        spider_name = SPIDERS.get(site_index)
-        if not spider_name:
-            return None
-        return self._favorites_dir.joinpath(f"{spider_name}_local.pkl")
+    def run(self):
+        downloaded_items = self._download_state.downloaded_items(self._books)
+        book_keys = frozenset(
+            str(getattr(book, "idx", ""))
+            for book in downloaded_items
+            if getattr(book, "idx", None) not in (None, "")
+        )
+        self.signals.done.emit(self._sid, book_keys)
 
 
 class MangaPreviewFeature:
@@ -139,7 +94,7 @@ class MangaPreviewFeature:
         self._inflight_pages = {}
         self._dl_scan_runnables = {}
         self.bridge = MangaPreviewBridge(self)
-        self._favorites = _FavoriteStore(conf_dir.joinpath("manga"))
+        self._library = LocalLibraryStore()
         self._fav_completer_exists = False
         self._check_lc_completer_exists()
 
@@ -171,17 +126,23 @@ class MangaPreviewFeature:
     # ------------------------------------------------------------------
     # Favorites
     # ------------------------------------------------------------------
+
     def toggle_favorite(self, book_key):
-        book = self.mgr.books_cache.get(book_key)
+        book = self.mgr.books_cache.get(str(book_key))
         if book is None:
             return
-        final_state = self._favorites.toggle(self.mgr.site_index, book)
+        final_state = self._library.toggle(self.mgr.site_index, book)
         if final_state is None:
             return
         if final_state and not self._fav_completer_exists:
             self._ensure_local_fav_completer()
             self._fav_completer_exists = True
-        self.mgr.send_command("manga.favorite.state", {"bookKey": str(book_key), "isFavorited": bool(final_state)})
+        self.mgr.send_command(
+            "manga.favorite.state",
+            {"bookKey": str(book_key), "isFavorited": bool(final_state)},
+        )
+        if final_state:
+            self.mgr.follow.after_library_added(str(book_key), book)
 
     def _check_lc_completer_exists(self):
         kw = ori_res.GUI.local_fav
@@ -216,7 +177,7 @@ class MangaPreviewFeature:
             self.gui.set_completer()
 
     def _show_local_fav(self):
-        books = self._favorites.load(self.mgr.site_index)
+        books = self._library.load(self.mgr.site_index)
         for idx, book in enumerate(books):
             book.idx = idx
         self.mgr._is_local_mode = True
@@ -266,10 +227,10 @@ class MangaPreviewFeature:
             if self.mgr._is_local_mode:
                 fav_keys = list(self.mgr.books_cache.keys())
             else:
-                favorite_urls = self._favorites.urls(self.mgr.site_index)
+                favorite_urls = self._library.urls(self.mgr.site_index)
                 fav_keys = [
                     key for key, book in self.mgr.books_cache.items()
-                    if self._favorites.book_unique_url(book) in favorite_urls
+                    if LocalLibraryStore.book_unique_url(book) in favorite_urls
                 ]
             self.mgr.send_command("manga.favorites.sync", {"bookKeys": fav_keys}, session_id=session_id)
 
@@ -396,11 +357,13 @@ class MangaPreviewFeature:
         )
         if latest_payload := self._latest_badge_payload(book_key, episodes):
             self.mgr.send_command("manga.badge.latest", latest_payload, session_id=session_id)
+        self.mgr.follow.on_first_check_episodes(book_key, episodes, len(downloaded_episode_ids))
 
     def on_episodes_error(self, generation, session_id, book_key, error):
         self._inflight_books.discard((session_id, book_key))
         if generation != self.mgr._generation or session_id != self.mgr._session_id:
             return
+        self.mgr.follow.on_first_check_failed(book_key)
         self.mgr.send_command("manga.episodes.error", {"bookKey": str(book_key), "code": "fetch_failed", "message": str(error or "")},
             session_id=session_id,
         )

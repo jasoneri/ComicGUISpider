@@ -14,8 +14,19 @@ class ScheduleNotification:
 def notification_for_schedule_result(summary, *, trigger: str) -> ScheduleNotification | None:
     pending = int(getattr(summary, "pending_episodes", 0) or 0)
     jobs = int(getattr(summary, "submitted_jobs", 0) or 0)
+    book_errors = int(getattr(summary, "book_errors", 0) or 0)
+    feature_errors = int(getattr(summary, "feature_errors", 0) or 0)
     mode = str(getattr(summary, "mode", "") or "subscription")
     manual = _is_manual(trigger)
+    if book_errors or feature_errors:
+        return ScheduleNotification(
+            title="追更部分完成",
+            message=(
+                f"{mode} 完成：pending={pending} jobs={jobs} "
+                f"book_errors={book_errors} feature_errors={feature_errors}。"
+            ),
+            level="warning",
+        )
     if pending <= 0 and jobs <= 0 and not manual:
         return None
     if pending > 0 or jobs > 0:

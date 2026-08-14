@@ -116,11 +116,16 @@ class rvTool(QWidget):
         col4 = QVBoxLayout()
         self.cbgBtn = TransparentToolButton(QIcon(":/script/cbg.svg"))
         self.cbgBtn.setIconSize(QSize(40, 40))
+        self.subscribeEntryBtn = TransparentToolButton(CgsIcon.TOOL_RSS, self)
+        self.subscribeEntryBtn.setIconSize(QSize(36, 36))
+        self.subscribeEntryBtn.setToolTip("订阅管理")
         col4.addWidget(self.cbgBtn)
+        col4.addWidget(self.subscribeEntryBtn)
         
         self.showMaxBtn.clicked.connect(self.show_max)
         self.scanBtn.clicked.connect(self.rv_scan)
         self.cbgBtn.clicked.connect(lambda _=False: self.gui.open_scriptWin(pure_only=True))
+        self.subscribeEntryBtn.clicked.connect(lambda _=False: self.gui.open_subscribe_window())
         self.sauceBtn.clicked.connect(self.do_sauce)
         self.deployBtn.clicked.connect(self.deploy)
         self.broomBtn.clicked.connect(self.broom)
@@ -136,6 +141,7 @@ class rvTool(QWidget):
         _bind_ratio(self.showMaxBtn, 3)
         _bind_ratio(self.scanBtn, 3)
         _bind_ratio(self.cbgBtn, 1)
+        _bind_ratio(self.subscribeEntryBtn, 1)
         _bind_ratio(self.sauceBtn, 1)
 
     def resizeEvent(self, event):
@@ -145,7 +151,15 @@ class rvTool(QWidget):
         self.col3Widget.setFixedSize(sq, sq)
         self.col3BgLabel.setGeometry(0, 0, sq, sq)
         if self.showMaxBtn.maximumHeight() != h:
-            for btn in (self.showMaxBtn, self.scanBtn, self.cbgBtn, self.deployBtn, self.broomBtn, self.runBtn):
+            for btn in (
+                self.showMaxBtn,
+                self.scanBtn,
+                self.cbgBtn,
+                self.subscribeEntryBtn,
+                self.deployBtn,
+                self.broomBtn,
+                self.runBtn,
+            ):
                 btn.setFixedHeight(h)
             icon_size = int(h*1.5)
             self.sauceBtn.setFixedHeight(icon_size)

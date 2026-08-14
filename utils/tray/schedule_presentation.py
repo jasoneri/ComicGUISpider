@@ -8,15 +8,12 @@ from typing import Any, Iterable, Optional
 
 from utils import temp_p
 from utils.share.serializer import deserialize_books, serialize_books
-from utils.subscription import MODE_BROADCASTER, MODE_SUBSCRIBER
 from utils.subscription.schema import BookEntry, FeatureEntry, FollowEntry, SubscriptionConfig
+from utils.subscription.library import LocalLibraryStore
 from utils.tray.feature_search import feature_status, supported_features, unsupported_feature_summary, unsupported_features
 
 SCHEDULE_PRESENTATION_SCHEMA = 1
-RUN_STAGES = {
-    MODE_BROADCASTER: ("Config", "Scan", "Episodes", "Diff", "Submit", "Metadata"),
-    MODE_SUBSCRIBER: ("Config", "Worker", "PKL", "Episodes", "Diff", "Submit"),
-}
+RUN_STAGES = ("Config", "Scan", "Pull", "Episodes", "Diff", "Submit", "Metadata")
 
 
 class ScheduleCacheError(RuntimeError):
@@ -70,6 +67,8 @@ class ScheduleRunView:
     finished_at: str = ""
     elapsed_sec: float = 0.0
     scanned_books: int = 0
+    own_books: int = 0
+    follow_books: int = 0
     pending_episodes: int = 0
     submitted_jobs: int = 0
     published_metadata: bool = False
@@ -80,8 +79,6 @@ class ScheduleRunView:
 
 @dataclass(frozen=True)
 class SchedulePlanView:
-    mode: str
-    mode_label: str
     automation_state: str
     automation_label: str
     next_run_at: str
@@ -94,8 +91,6 @@ class SchedulePlanView:
     enabled_features: int
     follows: int
     auto_download: bool
-    lookback_days: int
-    pull_interval_hours: int
 
 
 @dataclass(frozen=True)
@@ -120,7 +115,14 @@ class ScheduleCache:
         self.summary_path = self.root / "summary.json"
         self.pkl_path = self.root / "bookinfo.pkl"
 
-    def read_summary(self) -> dict[str, Any]:
+    def read_summary(self) -> dict[str, Any] | None:
+        """Return summary mapping, or None when no run has written a cache yet.
+
+        Missing file is a valid cold-start domain state (not an error).
+        Corrupt / wrong-schema payloads raise ScheduleCacheError and must propagate.
+        """
+        if not self.summary_path.exists():
+            return None
         with open(self.summary_path, "r", encoding="utf-8") as fp:
             payload = json.load(fp)
         if not isinstance(payload, dict):
@@ -205,10 +207,13 @@ def build_schedule_presentation(
     events: Iterable[dict] = (),
     run: Optional[ScheduleRunView] = None,
     blocker: str = "",
-    config_owner: str = "main application settings",
+    config_owner: str | None = None,
     cache: ScheduleCache | None = None,
 ) -> SchedulePresentation:
     cfg.validate()
+    if not config_owner:
+        profile = str(getattr(cfg, "customname", "") or "default").strip() or "default"
+        config_owner = f"subscription binding «{profile}» (tray executes)"
     schedule_cache = cache or ScheduleCache()
     plan = _build_plan(cfg, status=status, blocker=blocker, config_owner=config_owner)
     sources = _source_rows(cfg)
@@ -225,9 +230,8 @@ def build_schedule_presentation(
         sources=sources,
         pending_items=pending_items,
         history=history,
-        stages=list(RUN_STAGES.get(cfg.mode, ())),
+        stages=list(RUN_STAGES),
         debug_payload={
-            "mode": cfg.mode,
             "cache": asdict(cache_state),
             "run": asdict(run_view),
             "summary": cache_summary or {},
@@ -238,46 +242,61 @@ def build_schedule_presentation(
 def _build_plan(cfg: SubscriptionConfig, *, status, blocker: str, config_owner: str) -> SchedulePlanView:
     next_run = getattr(status, "next_run_at", None)
     next_run_at = next_run.isoformat(timespec="minutes") if next_run is not None else "-"
-    broadcaster = cfg.broadcaster
-    subscriber = cfg.subscriber
-    enabled_books = len([entry for entry in broadcaster.books if entry.enabled])
-    enabled_features = len([entry for entry in broadcaster.features if entry.enabled])
-    follows = len(subscriber.follows)
-    timing = _schedule_label(cfg)
+    enabled_books = len(LocalLibraryStore().book_entries())
+    enabled_features = len([entry for entry in cfg.features if entry.enabled])
+    follows = len(cfg.follows)
     config_blocker, blocker_action = _config_blocker(cfg)
     effective_blocker = str(blocker or config_blocker or "")
     if blocker:
         blocker_action = "等待 CGS Server 回到空闲状态后再运行，或关闭占用中的前台任务。"
     automation_state = "blocked" if effective_blocker else "ready"
-    if cfg.mode == MODE_SUBSCRIBER and not subscriber.auto_download and not blocker:
+    if not cfg.check.auto_download and not blocker:
         automation_state = "disabled"
     return SchedulePlanView(
-        mode=cfg.mode,
-        mode_label=_mode_label(cfg.mode),
         automation_state=automation_state,
         automation_label=_automation_label(automation_state),
         next_run_at=next_run_at,
         config_owner=config_owner,
         blocker=effective_blocker,
         blocker_action=blocker_action,
-        timing=timing,
-        publish_bid=str(broadcaster.publish_bid or "").strip() or "-",
+        timing=_format_plan_timing(cfg),
+        publish_bid=str(cfg.publish.bid).strip() if cfg.publish is not None else "-",
         enabled_books=enabled_books,
         enabled_features=enabled_features,
         follows=follows,
-        auto_download=bool(subscriber.auto_download),
-        lookback_days=int(subscriber.initial_lookback_days),
-        pull_interval_hours=int(subscriber.pull_interval_hours),
+        auto_download=bool(cfg.check.auto_download),
+    )
+
+
+def _format_plan_timing(cfg: SubscriptionConfig) -> str:
+    """Profile default CheckSlot + catchup label (not Layer C clock)."""
+    from utils.subscription.schema import (
+        CATCHUP_PRESET_ITEMS,
+        format_tz_offset_label,
+        format_weekdays_label,
+    )
+    from utils.subscription.store import get_subscription_catchup_preset
+
+    profile_slot = cfg.check.as_slot()
+    weekdays_label = format_weekdays_label(list(profile_slot.weekdays))
+    time_text = str(profile_slot.time or "").strip() or "-"
+    tz_label = format_tz_offset_label(profile_slot.tz_offset)
+    catchup = get_subscription_catchup_preset()
+    catchup_label = next((label for key, label in CATCHUP_PRESET_ITEMS if key == catchup), catchup)
+    # Copy: default slot is profile default; cards may override; catchup is tray-global.
+    return (
+        f"档案默认 {weekdays_label} @ {time_text}{tz_label} "
+        f"· 卡可覆盖 · 后巡查 {catchup_label}"
     )
 
 
 def _source_rows(cfg: SubscriptionConfig) -> list[ScheduleSourceRow]:
     rows: list[ScheduleSourceRow] = []
-    for index, entry in enumerate(cfg.broadcaster.books, start=1):
+    for index, entry in enumerate(LocalLibraryStore().book_entries(), start=1):
         rows.append(_book_source_row(index, entry))
-    for index, entry in enumerate(cfg.broadcaster.features, start=1):
+    for index, entry in enumerate(cfg.features, start=1):
         rows.append(_feature_source_row(index, entry))
-    for index, entry in enumerate(cfg.subscriber.follows, start=1):
+    for index, entry in enumerate(cfg.follows, start=1):
         rows.append(_follow_source_row(index, entry))
     return rows
 
@@ -361,6 +380,8 @@ def _run_from_summary(summary: Optional[dict[str, Any]]) -> ScheduleRunView:
         finished_at=str(raw.get("finished_at") or ""),
         elapsed_sec=float(raw.get("elapsed_sec") or 0.0),
         scanned_books=int(raw.get("scanned_books") or 0),
+        own_books=int(raw.get("own_books") or 0),
+        follow_books=int(raw.get("follow_books") or 0),
         pending_episodes=int(raw.get("pending_episodes") or 0),
         submitted_jobs=int(raw.get("submitted_jobs") or 0),
         published_metadata=bool(raw.get("published_metadata")),
@@ -379,23 +400,6 @@ def _history_row(event: dict) -> dict[str, str]:
     }
 
 
-def _schedule_label(cfg: SubscriptionConfig) -> str:
-    if cfg.mode == MODE_BROADCASTER:
-        weekdays = ",".join(cfg.broadcaster.schedule.weekdays) or "-"
-        return f"{weekdays} {cfg.broadcaster.schedule.time}"
-    if cfg.mode == MODE_SUBSCRIBER:
-        return f"every {int(cfg.subscriber.pull_interval_hours)}h"
-    return "-"
-
-
-def _mode_label(mode: str) -> str:
-    if mode == MODE_BROADCASTER:
-        return "追更"
-    if mode == MODE_SUBSCRIBER:
-        return "订阅源"
-    return mode
-
-
 def _automation_label(state: str) -> str:
     labels = {
         "ready": "可自动检查",
@@ -407,24 +411,14 @@ def _automation_label(state: str) -> str:
 
 
 def _config_blocker(cfg: SubscriptionConfig) -> tuple[str, str]:
-    if cfg.mode == MODE_BROADCASTER:
-        enabled_books = len([entry for entry in cfg.broadcaster.books if entry.enabled])
-        supported = supported_features(cfg.broadcaster.features)
-        unsupported = unsupported_features(cfg.broadcaster.features)
-        if unsupported:
-            return f"有暂不支持后台扫描的作者/标签特征：{unsupported_feature_summary(unsupported)}", "停用这些特征，或改为添加明确作品追更。"
-        if enabled_books <= 0 and not supported:
-            return "没有启用的追更对象", "从预览页勾选作品加入追更，或在主窗口追更配置里启用已有对象。"
-        if not cfg.broadcaster.schedule.weekdays:
-            return "未选择自动检查日期", "在主窗口追更配置里选择至少一个检查日。"
-        return "", ""
-    if cfg.mode == MODE_SUBSCRIBER:
-        if not cfg.subscriber.auto_download:
-            return "订阅源自动下载已关闭", "在主窗口订阅源配置里开启自动下载。"
-        if not cfg.subscriber.follows:
-            return "没有订阅源 follow bid", "在主窗口订阅源配置里添加至少一个 follow bid。"
-        return "", ""
-    return f"unsupported subscription mode: {cfg.mode!r}", "检查 subscription 配置里的 mode 字段。"
+    unsupported = unsupported_features(cfg.features)
+    if unsupported:
+        return f"有暂不支持后台扫描的作者/标签特征：{unsupported_feature_summary(unsupported)}", "停用这些特征，或改为添加明确作品追更。"
+    enabled_books = len(LocalLibraryStore().book_entries())
+    supported = supported_features(cfg.features)
+    if enabled_books <= 0 and not supported and not cfg.follows:
+        return "没有启用的追更对象", "从预览页勾选作品加入追更，或在主窗口追更配置里启用已有对象。"
+    return "", ""
 
 
 def _tail(value: str, limit: int = 28) -> str:

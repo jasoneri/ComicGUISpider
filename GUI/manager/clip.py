@@ -124,7 +124,7 @@ class ClipGUIManager:
                 self.infos[f"ep{book.idx}-{ep.idx}"] = ep
             self.infos[str(book.idx)] = book
 
-            options = {}
+            options = {'with_follow': False}
             meta = []
             if book.artist:
                 meta.append(book.artist)
@@ -151,7 +151,7 @@ class ClipGUIManager:
         else:
             self.infos[str(book.idx)] = book
 
-            options = {}
+            options = {'with_follow': False}
             if book.pages:
                 options['pages'] = book.pages
 

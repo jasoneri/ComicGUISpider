@@ -49,6 +49,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     online_favorites_ready = Signal(str, int, object)  # provider_name, site_index, books
     BrowserWindow = None  # CGS001 browser init/show flow
     toolWin = None
+    _subscribe_window = None
     conf_dia = None  # CGS006: construct on demand (P4)
     web_is_r18 = False
     gui_site_runtime = None  # CGS001 choose-box site flow
@@ -225,6 +226,32 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.toolWin.rvInterface.set_sauce_visible(self._pending_rv_sauce_visible)
         return self.toolWin
 
+    def ensure_subscribe_window(self):
+        """Singleton frameless subscribe waterfall window (manga library only)."""
+        window = getattr(self, "_subscribe_window", None)
+        if window is not None:
+            return window
+        from GUI.tools.subscribe import SubscribeWindow
+        self._subscribe_window = SubscribeWindow(self)
+        self._subscribe_window.destroyed.connect(lambda *_args: setattr(self, "_subscribe_window", None))
+        return self._subscribe_window
+
+    def open_subscribe_window(self) -> None:
+        window = self.ensure_subscribe_window()
+        window.show()
+        window.raise_()
+        window.activateWindow()
+        # showEvent hydrates once; only re-refresh when the window was already open.
+        if getattr(window, "_content_hydrated", False):
+            window.refresh_library()
+
+    def open_subscribe_with_books(self, books) -> None:
+        window = self.ensure_subscribe_window()
+        window.show()
+        window.raise_()
+        window.activateWindow()
+        window.receive_pushed_books(list(books or []))
+
     def update_search_ui(self, *, session=_UNSET, request=_UNSET, controls_blocked=_UNSET):
         if session is not _UNSET:
             self.search_ui_state.session = session
@@ -365,13 +392,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             shortcut.activated.connect(slot)
 
     def show_toolWin(self, win_type):
-        _map = {"ags": "asInterface", "hitomi": "htInterface", "subscribe": "subscribeInterface"}
+        if win_type == "subscribe":
+            self.open_subscribe_window()
+            return
+        _map = {"ags": "asInterface", "hitomi": "htInterface"}
         self.rvBtn.click()
 
         def _jump():
             tool_window = self.ensure_tool_win()
-            if win_type == "subscribe":
-                tool_window.ensure_subscribe_interface()
             target_widget = getattr(tool_window, _map[win_type], None)
             if target_widget is not None:
                 tool_window.stackedWidget.setCurrentWidget(target_widget)
@@ -432,6 +460,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         blockers.extend(self.shares.server_mode_switch_blockers())
         if self.toolWin is not None:
             blockers.extend(self.toolWin.server_mode_switch_blockers())
+        subscribe_window = getattr(self, "_subscribe_window", None)
+        if subscribe_window is not None:
+            blockers.extend(subscribe_window.server_mode_switch_blockers())
         if self.script_window is not None:
             blockers.extend(self.script_window.server_mode_switch_blockers())
         blockers.extend(self.publish_mgr.server_mode_switch_blockers())
@@ -899,6 +930,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.script_window.close()
         if self.toolWin is not None:
             self.toolWin.close()
+        subscribe_window = getattr(self, "_subscribe_window", None)
+        if subscribe_window is not None:
+            subscribe_window.close()
+            self._subscribe_window = None
         if hasattr(self, 'rv_mgr'):
             self.rv_mgr.stop_scan()
         if hasattr(self, 'task_mgr'):

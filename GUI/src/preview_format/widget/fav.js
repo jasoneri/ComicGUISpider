@@ -91,5 +91,39 @@
     }
   }
 
+  // Idempotent installer. manga/fix apps pass their bridgeClient so QWebChannel
+  // stays single-transport; index.html (ero, no app class) falls back to createQtBridgeClient.
+  function installMangaFavoriteFeature(bridgeClient) {
+    if (window.__previewFavoriteFeature) {
+      return window.__previewFavoriteFeature;
+    }
+    const client = bridgeClient
+      || (window.previewUi && typeof window.previewUi.createQtBridgeClient === 'function'
+        ? window.previewUi.createQtBridgeClient()
+        : null);
+    if (!client) {
+      return null;
+    }
+    const feature = new MangaFavoriteFeature(client);
+    feature.init();
+    if (window.previewCommandBus) {
+      window.previewCommandBus.register('manga.favorite.state', ({ bookKey, isFavorited }) => {
+        feature.updateFavoriteState(bookKey, Boolean(isFavorited));
+      });
+      window.previewCommandBus.register('manga.favorites.sync', ({ bookKeys }) => {
+        feature.initFavoriteStates(Array.isArray(bookKeys) ? bookKeys : []);
+      });
+    }
+    window.__previewFavoriteFeature = feature;
+    return feature;
+  }
+
   window.MangaFavoriteFeature = MangaFavoriteFeature;
+  window.installMangaFavoriteFeature = installMangaFavoriteFeature;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => installMangaFavoriteFeature(), { once: true });
+  } else {
+    installMangaFavoriteFeature();
+  }
 })();

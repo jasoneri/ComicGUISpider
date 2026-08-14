@@ -3,6 +3,19 @@ import html
 from assets import res
 from utils import PresetHtmlEl
 
+def favorite_btn_html(idx):
+    favorite_tip = html.escape(res.GUI.card_favorite_toggle, quote=True)
+    return f'''
+                <label class="card-favorite-btn ui-bookmark" data-book-key="{idx}" role="button" tabindex="0" aria-pressed="false" aria-label="{favorite_tip}" title="{favorite_tip}">
+                    <input class="card-favorite-input" type="checkbox" tabindex="-1" aria-hidden="true">
+                    <div class="bookmark" aria-hidden="true">
+                        <svg viewBox="0 0 32 32"><g><path d="M27 4v27a1 1 0 0 1-1.625.781L16 24.281l-9.375 7.5A1 1 0 0 1 5 31V4a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4z"></path></g></svg>
+                    </div>
+                </label>'''
+
+
+
+
 
 class ElMinix:
     max_width = 170
@@ -43,7 +56,7 @@ class ElMinix:
                 <span class="preview-checkbox-toggle" aria-hidden="true"><span class="preview-checkbox-tick"></span></span>
                 <div class="preview-checkbox-media">
                     <img src="{img_src}" title="{title}" alt="{title}" class="preview-card-image"/>
-                    {badges}
+                    {badges}{favorite_btn_html(idx)}
                 </div>
             </label>
         </div>
@@ -55,11 +68,32 @@ class ElMinix:
         </div>"""
 
 
+_FOLDER_ICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">'
+    '<path fill="currentColor" d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8z"/>'
+    "</svg>"
+)
+_SITE_ICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">'
+    '<path fill="currentColor" d="M3.9 12a3.1 3.1 0 0 1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7A3.1 3.1 0 0 1 3.9 12m4.1 1h8v-2H8zm9-6h-4v1.9h4a3.1 3.1 0 1 1 0 6.2h-4V17h4a5 5 0 0 0 0-10z"/>'
+    "</svg>"
+)
+
+
 class MangaEl(ElMinix):
     max_width = 200
 
     @classmethod
-    def create_from_book(cls, book, *, extra_info=None, with_favorite=True, with_checkbox=True):
+    def create_from_book(
+        cls,
+        book,
+        *,
+        extra_info=None,
+        with_favorite=True,
+        with_checkbox=True,
+        with_subscribe_actions=False,
+        local_path=None,
+    ):
         meta = []
         meta_badges = []
         if artist := getattr(book, "artist", None):
@@ -80,13 +114,29 @@ class MangaEl(ElMinix):
             extra_info=extra_info,
             with_favorite=with_favorite,
             with_checkbox=with_checkbox,
+            with_subscribe_actions=with_subscribe_actions,
+            local_path=local_path,
         )
 
     @classmethod
-    def create(cls, idx, img_src, title, url, meta=None, extra_info=None, with_favorite=True, with_checkbox=True, **badges_kw):
+    def create(
+        cls,
+        idx,
+        img_src,
+        title,
+        url,
+        meta=None,
+        extra_info=None,
+        with_favorite=True,
+        with_checkbox=True,
+        with_subscribe_actions=False,
+        local_path=None,
+        **badges_kw,
+    ):
         safe_title = html.escape(title or "", quote=True)
-        # safe_url = html.escape(url or "", quote=True)
         safe_img_src = html.escape(img_src or "", quote=True)
+        safe_url = html.escape(url or "", quote=True)
+        safe_path = html.escape(str(local_path or ""), quote=True)
         meta_badges = badges_kw.get("meta_badges") or []
 
         meta_html = ""
@@ -107,16 +157,7 @@ class MangaEl(ElMinix):
 
         extra_html = f'\n                    <div class="card-extra-info">{extra_info}</div>' if extra_info else ''
 
-        favorite_html = ""
-        if with_favorite:
-            favorite_tip = html.escape(res.GUI.card_favorite_toggle, quote=True)
-            favorite_html = f'''
-                <label class="card-favorite-btn ui-bookmark" data-book-key="{idx}" role="button" tabindex="0" aria-pressed="false" aria-label="{favorite_tip}" title="{favorite_tip}">
-                    <input class="card-favorite-input" type="checkbox" tabindex="-1" aria-hidden="true">
-                    <div class="bookmark" aria-hidden="true">
-                        <svg viewBox="0 0 32 32"><g><path d="M27 4v27a1 1 0 0 1-1.625.781L16 24.281l-9.375 7.5A1 1 0 0 1 5 31V4a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4z"></path></g></svg>
-                    </div>
-                </label>'''
+        favorite_html = favorite_btn_html(idx) if with_favorite else ""
 
         subscribe_checkbox_html = ""
         if with_checkbox:
@@ -128,10 +169,20 @@ class MangaEl(ElMinix):
                     </label>
                 </div>'''
 
+        actions_html = ""
+        if with_subscribe_actions:
+            folder_disabled = "" if safe_path else " disabled"
+            site_disabled = "" if safe_url else " disabled"
+            actions_html = f'''
+                    <div class="subscribe-card-actions">
+                        <button type="button" class="subscribe-action-btn" data-action="folder" data-path="{safe_path}" title="Open folder"{folder_disabled} aria-label="Open folder">{_FOLDER_ICON_SVG}</button>
+                        <button type="button" class="subscribe-action-btn" data-action="site" data-url="{safe_url}" title="Open site"{site_disabled} aria-label="Open site">{_SITE_ICON_SVG}</button>
+                    </div>'''
+
         return f"""<article class="preview-manga-card singal-task">
             <div class="book-card normal-book-card" data-book-key="{idx}" data-book-title="{safe_title}" role="button" aria-label="{safe_title}">{favorite_html}{subscribe_checkbox_html}
                 <div class="book-card-media">
-                    <img src="{safe_img_src}" class="book-card-cover" alt="{safe_title}" title="{safe_title}" onerror="this.onerror=null;this.src='../GUI/src/preview_format/placeholder.svg';">{meta_badges_html}
+                    <img src="{safe_img_src}" class="book-card-cover" alt="{safe_title}" title="{safe_title}" onerror="this.onerror=null;this.src='../GUI/src/preview_format/placeholder.svg';">{meta_badges_html}{actions_html}
                 </div>
                 <div class="book-card-body">
                     <h3 class="book-card-title" title="{safe_title}">{safe_title}</h3>{meta_html}{extra_html}

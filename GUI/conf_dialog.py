@@ -14,12 +14,12 @@ from qframelesswindow import FramelessDialog
 from qfluentwidgets import (
     FluentIcon as FIF, PushButton, PrimaryPushButton, TransparentPushButton, TransparentToolButton,
     PushSettingCard, InfoBarPosition, TransparentToggleToolButton, InfoBar, ComboBox,
-    TogglePushButton, ToolButton, TeachingTipTailPosition
+    ToolButton, TeachingTipTailPosition
 )
 import uncurl
 
 from assets import res
-from variables import SPIDERS, SPIDERS_LABELS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG, CGS_DOC, Spider
+from variables import SPIDERS, SPIDERS_LABELS, COOKIES_PLACEHOLDER, COOKIES_SUPPORT, LANG, CGS_DOC
 from utils import conf, convert_punctuation as cp, exc_p, curr_os, ori_path
 from utils.config.rule import CgsRuleMgr
 from GUI.thread import ProjUpdateThread
@@ -33,6 +33,7 @@ from utils.config.qc import cgs_cfg
 from GUI.uic.qfluent.components import (
     SupportView, CustomFlyout, CustomInfoBar, CustomTeachingTip, ExpandSettings, TextEditWithBg
 )
+from GUI.uic.qfluent.components.site_toggle_grid import SiteToggleGrid
 
 
 class SvPathCard(PushSettingCard):
@@ -55,60 +56,26 @@ class SvPathCard(PushSettingCard):
             self.setContent(folder)
 
 
-class SiteChoicePanel(QtWidgets.QWidget):
-    COLUMNS = 3
+class SiteChoicePanel(SiteToggleGrid):
+    """ConfDialog adapter: toggle = chooseBox site visibility (cgs_cfg.site_choices)."""
 
     def __init__(self, conf_dia):
-        super().__init__(conf_dia)
         self.conf_dia = conf_dia
-        self.site_buttons = {}
-        self.setupUi()
-
-    def setupUi(self):
+        super().__init__(
+            conf_dia,
+            site_indexes=list(SPIDERS_LABELS.keys()),
+            labels=SPIDERS_LABELS,
+        )
         self.setMinimumWidth(450)
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(8)
-
-        first_row = QtWidgets.QWidget(self)
-        first_row_layout = QtWidgets.QGridLayout(first_row)
-        first_row_layout.setContentsMargins(0, 0, 0, 0)
-        first_row_layout.setHorizontalSpacing(6)
-        first_row_layout.setVerticalSpacing(6)
-        hidden = cgs_cfg.site_choices.hidden(SPIDERS_LABELS.keys())
-        for offset, (index, label) in enumerate(SPIDERS_LABELS.items()):
-            button = TogglePushButton(self)
-            button.setText(self._site_label(index, label))
-            button.setToolTip(button.text())
-            button.setCheckable(True)
-            button.setChecked(index not in hidden)
-            button.setMinimumWidth(118)
-            button.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed))
-            first_row_layout.addWidget(button, offset // self.COLUMNS, offset % self.COLUMNS)
-            self.site_buttons[index] = button
-            button.toggled.connect(partial(self._set_site_visible, index))
-
-        self.layout.addWidget(first_row)
-
-    @staticmethod
-    def _site_label(index: int, label: str) -> str:
-        if index in Spider and Spider(index) in Spider.specials():
-            return f"{label}🔞"
-        return label
+        self.bind_handlers(
+            is_checked=lambda site_index: site_index not in cgs_cfg.site_choices.hidden(SPIDERS_LABELS.keys()),
+            set_checked=self._set_site_visible,
+        )
 
     def _set_site_visible(self, site_index: int, visible: bool):
         cgs_cfg.site_choices.set_hidden(site_index, not visible, SPIDERS_LABELS.keys())
         self.conf_dia.gui.site_choice_combo.set_site_visible(site_index, visible)
         self.conf_dia.gui.refresh_lifecycle_state()
-
-    def all_sites_selected(self) -> bool:
-        return bool(self.site_buttons) and all(
-            button.isChecked() for button in self.site_buttons.values()
-        )
-
-    def set_all_sites_selected(self, selected: bool):
-        for button in self.site_buttons.values():
-            button.setChecked(selected)
 
 
 class ConfDialog(FramelessDialog, Ui_ConfDialog):

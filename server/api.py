@@ -14,22 +14,21 @@ from pydantic import BaseModel, Field
 from server.errors import ServerRuntimeError
 from server.runtime import runtime
 from server.subscription import (
-    add_broadcaster_book,
-    add_subscriber_follow,
+    add_book,
+    add_follow,
     load_subscription_config,
     publish_subscription_share_card,
-    remove_broadcaster_book,
-    remove_subscriber_follow,
+    remove_book,
+    remove_follow,
     save_subscription_config,
-    switch_subscription_mode,
-    update_broadcaster_book,
-    update_subscriber_follow,
+    update_book,
+    update_follow,
 )
 from server.surfaces import ServerSurface, mount_server_surfaces, server_surface_lifespan
 from utils import conf, exc_p, temp_p
 from utils.config.rule import CgsRuleMgr
 from utils.server_control import is_authorized_header
-from utils.subscription import DEFAULT_CUSTOMNAME, MODE_BROADCASTER, MODE_SUBSCRIBER, SubscriptionStore
+from utils.subscription import DEFAULT_CUSTOMNAME, SubscriptionStore
 
 
 class SearchRequest(BaseModel):
@@ -74,14 +73,11 @@ class CgsConfigRequest(BaseModel):
 
 class SubscriptionConfigRequest(BaseModel):
     customname: str = DEFAULT_CUSTOMNAME
-    mode: Literal["broadcaster", "subscriber"] = MODE_BROADCASTER
-    broadcaster: dict[str, Any] = Field(default_factory=dict)
-    subscriber: dict[str, Any] = Field(default_factory=dict)
-
-
-class SubscriptionModeRequest(BaseModel):
-    customname: str = DEFAULT_CUSTOMNAME
-    mode: Literal["broadcaster", "subscriber"]
+    books: list[dict[str, Any]] = Field(default_factory=list)
+    features: list[dict[str, Any]] = Field(default_factory=list)
+    follows: list[dict[str, Any]] = Field(default_factory=list)
+    check: dict[str, Any] = Field(default_factory=dict)
+    publish: dict[str, Any] | None = None
 
 
 class SubscriptionBookRequest(BaseModel):
@@ -209,27 +205,19 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
-    @app.post("/subscription/mode")
-    async def post_subscription_mode(req: SubscriptionModeRequest, authorization: str | None = Header(default=None)):
-        require_auth(authorization)
-        try:
-            return switch_subscription_mode(SubscriptionStore(req.customname), req.mode)
-        except (TypeError, ValueError) as exc:
-            _raise_subscription_error(exc)
-
-    @app.post("/subscription/broadcaster/books")
-    async def post_subscription_broadcaster_book(
+    @app.post("/subscription/books")
+    async def post_subscription_book(
         req: SubscriptionBookRequest,
         authorization: str | None = Header(default=None),
     ):
         require_auth(authorization)
         try:
-            return add_broadcaster_book(SubscriptionStore(req.customname), req.model_dump())
+            return add_book(SubscriptionStore(req.customname), req.model_dump())
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
-    @app.patch("/subscription/broadcaster/books/{index}")
-    async def patch_subscription_broadcaster_book(
+    @app.patch("/subscription/books/{index}")
+    async def patch_subscription_book(
         index: int,
         req: SubscriptionBookPatchRequest,
         customname: str = Query(default=DEFAULT_CUSTOMNAME),
@@ -237,27 +225,27 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return update_broadcaster_book(SubscriptionStore(customname), index, req.model_dump(exclude_none=True))
+            return update_book(SubscriptionStore(customname), index, req.model_dump(exclude_none=True))
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
-    @app.delete("/subscription/broadcaster/books/{index}")
-    async def delete_subscription_broadcaster_book(
+    @app.delete("/subscription/books/{index}")
+    async def delete_subscription_book(
         index: int,
         customname: str = Query(default=DEFAULT_CUSTOMNAME),
         authorization: str | None = Header(default=None),
     ):
         require_auth(authorization)
         try:
-            return remove_broadcaster_book(SubscriptionStore(customname), index)
+            return remove_book(SubscriptionStore(customname), index)
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
-    @app.post("/subscription/broadcaster/share-card")
+    @app.post("/subscription/share-card")
     async def post_subscription_share_card(
         customname: str = Query(default=DEFAULT_CUSTOMNAME),
         authorization: str | None = Header(default=None),
@@ -268,19 +256,19 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
         except (TypeError, ValueError, RuntimeError) as exc:
             _raise_subscription_error(exc)
 
-    @app.post("/subscription/subscriber/follows")
-    async def post_subscription_subscriber_follow(
+    @app.post("/subscription/follows")
+    async def post_subscription_follow(
         req: SubscriptionFollowRequest,
         authorization: str | None = Header(default=None),
     ):
         require_auth(authorization)
         try:
-            return add_subscriber_follow(SubscriptionStore(req.customname), req.model_dump())
+            return add_follow(SubscriptionStore(req.customname), req.model_dump())
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
-    @app.patch("/subscription/subscriber/follows/{index}")
-    async def patch_subscription_subscriber_follow(
+    @app.patch("/subscription/follows/{index}")
+    async def patch_subscription_follow(
         index: int,
         req: SubscriptionFollowPatchRequest,
         customname: str = Query(default=DEFAULT_CUSTOMNAME),
@@ -288,21 +276,21 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
     ):
         require_auth(authorization)
         try:
-            return update_subscriber_follow(SubscriptionStore(customname), index, req.model_dump(exclude_none=True))
+            return update_follow(SubscriptionStore(customname), index, req.model_dump(exclude_none=True))
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:
             _raise_subscription_error(exc)
 
-    @app.delete("/subscription/subscriber/follows/{index}")
-    async def delete_subscription_subscriber_follow(
+    @app.delete("/subscription/follows/{index}")
+    async def delete_subscription_follow(
         index: int,
         customname: str = Query(default=DEFAULT_CUSTOMNAME),
         authorization: str | None = Header(default=None),
     ):
         require_auth(authorization)
         try:
-            return remove_subscriber_follow(SubscriptionStore(customname), index)
+            return remove_follow(SubscriptionStore(customname), index)
         except IndexError as exc:
             _raise_subscription_error(exc)
         except (TypeError, ValueError) as exc:

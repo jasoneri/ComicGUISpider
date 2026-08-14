@@ -1,232 +1,325 @@
-"""YAML store for one subscription_<customname>.yml under conf_dir/subscription.
+# -*- coding: utf-8 -*-
+"""Subscription binding persistence.
 
-I1: save keeps the opposing-mode segment.
+Architecture (dev-stage, no dual-shape compat debt):
+
+- ``BindingRepository`` — pure YAML file gateway (paths + raw dict I/O only).
+- ``SchemaCodec`` — single decode/encode owner; future schema evolution is an
+  ordered transform pipeline *here*, never ``store._migrate_v*`` free functions.
+- ``SubscriptionStore`` — document session / aggregate handle for one binding
+  profile (load → edit ``SubscriptionConfig`` → validate → save).
+- ``BindingProfileCatalog`` — profile name list + active profile (qconfig).
+- ``CatchupPresetSetting`` — tray-global catch-up preset (qconfig).
+
+Public names ``SubscriptionStore`` / ``DEFAULT_CUSTOMNAME`` / list-active helpers
+stay stable; module-level helpers only forward to the owners above.
 """
 from __future__ import annotations
 
 import re
-from dataclasses import fields
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Protocol
 
 import yaml
 
 from utils.config import conf_dir
-from utils.subscription.schema import (
-    BookEntry,
-    BroadcasterSection,
-    FeatureEntry,
-    FollowEntry,
-    ScheduleSection,
-    ShareCard,
-    SubscriberSection,
-    SubscriptionConfig,
-)
+from utils.subscription.schema import SubscriptionConfig, VALID_CATCHUP_PRESETS
 
 DEFAULT_CUSTOMNAME = "default"
 SUBSCRIPTION_DIR = conf_dir.joinpath("subscription")
 SUBSCRIPTION_DIR.mkdir(parents=True, exist_ok=True)
-_TOP_LEVEL_KEYS = frozenset({"customname", "mode", "broadcaster", "subscriber"})
+
 _CUSTOMNAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+_YAML_NAME_RE = re.compile(r"^subscription_(?P<name>[A-Za-z0-9_-]+)\.yml$")
 
 
-def _require_customname(value: str) -> str:
+def require_customname(value: str) -> str:
     name = str(value or "").strip() or DEFAULT_CUSTOMNAME
     if name in {".", ".."} or not _CUSTOMNAME_RE.fullmatch(name):
         raise ValueError(f"invalid subscription customname: {value!r}")
     return name
 
 
-class SubscriptionStore:
-    def __init__(self, customname: str = DEFAULT_CUSTOMNAME) -> None:
-        self.customname = _require_customname(customname)
-        self.path = SUBSCRIPTION_DIR / f"subscription_{self.customname}.yml"
+class RawTransform(Protocol):
+    """Optional pre-decode rewrite of a raw mapping (future schema evolution only)."""
 
-    def rebind(self, customname: str) -> SubscriptionStore:
-        return SubscriptionStore(customname)
+    def apply(self, raw: dict[str, Any]) -> dict[str, Any]:
+        ...
 
-    def load(self) -> SubscriptionConfig:
-        if not self.path.exists():
-            cfg = SubscriptionConfig(customname=self.customname)
-            cfg.validate()
-            _write_yaml(self.path, _to_dict(cfg))
-            return cfg
 
-        with open(self.path, "r", encoding="utf-8") as fp:
-            raw = yaml.safe_load(fp.read())
+class SchemaCodec:
+    """Typed codec for the *current* binding document.
+
+    Development stage: empty transform pipeline. Unknown shapes fail in
+    ``SubscriptionConfig.from_mapping``. When a real schema bump is required,
+    register one ordered ``RawTransform`` here — do not scatter ``_migrate_*``
+    helpers onto the repository or session.
+    """
+
+    def __init__(self, transforms: list[RawTransform] | None = None) -> None:
+        self._transforms = list(transforms or [])
+
+    def decode(self, raw: Any) -> SubscriptionConfig:
         if not isinstance(raw, dict):
             raise ValueError(f"subscription yaml root must be a mapping, got {type(raw).__name__}")
-        unknown = set(raw.keys()) - _TOP_LEVEL_KEYS
-        if unknown:
-            raise ValueError(f"subscription yaml has unknown top-level keys: {sorted(unknown)}")
-        if "mode" not in raw:
-            raise ValueError("subscription yaml missing required 'mode' field")
+        document = dict(raw)
+        for transform in self._transforms:
+            document = transform.apply(document)
+            if not isinstance(document, dict):
+                raise ValueError("schema transform must return a mapping")
+        return SubscriptionConfig.from_mapping(document)
 
-        cfg = _from_dict(raw)
-        cfg.customname = self.customname
-        cfg.validate()
-        return cfg
-
-    def save(self, cfg: SubscriptionConfig) -> None:
-        cfg.customname = self.customname
-        cfg.validate()
-        payload = _to_dict(cfg)
-        if self.path.exists():
-            with open(self.path, "r", encoding="utf-8") as fp:
-                prior = yaml.safe_load(fp.read()) or {}
-            if isinstance(prior, dict):
-                unknown = set(prior.keys()) - _TOP_LEVEL_KEYS
-                if unknown:
-                    raise ValueError(f"subscription yaml has unknown top-level keys: {sorted(unknown)}")
-                opposing = "subscriber" if cfg.mode == "broadcaster" else "broadcaster"
-                if opposing in prior:
-                    builder = _build_subscriber if opposing == "subscriber" else _build_broadcaster
-                    dumper = _subscriber_to_dict if opposing == "subscriber" else _broadcaster_to_dict
-                    payload[opposing] = dumper(builder(prior[opposing]))
-        _write_yaml(self.path, payload)
+    def encode(self, config: SubscriptionConfig) -> dict[str, Any]:
+        config.validate()
+        return config.to_mapping()
 
 
-def _write_yaml(path: Path, payload: dict) -> None:
-    with open(path, "w", encoding="utf-8") as fp:
-        yaml.safe_dump(payload, fp, allow_unicode=True, sort_keys=False)
+class BindingRepository:
+    """File gateway for ``subscription_{name}.yml`` — no domain rules."""
+
+    def __init__(self, directory: Path | None = None) -> None:
+        self.directory = Path(directory) if directory is not None else SUBSCRIPTION_DIR
+        self.directory.mkdir(parents=True, exist_ok=True)
+
+    def path_for(self, customname: str) -> Path:
+        name = require_customname(customname)
+        return self.directory / f"subscription_{name}.yml"
+
+    def exists(self, customname: str) -> bool:
+        return self.path_for(customname).exists()
+
+    def list_names(self, *, include_default: bool = True) -> list[str]:
+        names: list[str] = []
+        if self.directory.is_dir():
+            for path in sorted(self.directory.glob("subscription_*.yml")):
+                match = _YAML_NAME_RE.fullmatch(path.name)
+                if match is None:
+                    continue
+                name = match.group("name")
+                if name not in names:
+                    names.append(name)
+        if include_default and DEFAULT_CUSTOMNAME not in names:
+            names.insert(0, DEFAULT_CUSTOMNAME)
+        return names
+
+    def read_mapping(self, customname: str) -> dict[str, Any] | None:
+        path = self.path_for(customname)
+        if not path.exists():
+            return None
+        with open(path, "r", encoding="utf-8") as handle:
+            raw = yaml.safe_load(handle.read())
+        if raw is None:
+            return {}
+        if not isinstance(raw, dict):
+            raise ValueError(
+                f"subscription yaml root must be a mapping, got {type(raw).__name__}"
+            )
+        return raw
+
+    def write_mapping(self, customname: str, payload: dict[str, Any]) -> None:
+        if not isinstance(payload, dict):
+            raise ValueError("subscription payload must be a mapping")
+        path = self.path_for(customname)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            yaml.safe_dump(payload, handle, allow_unicode=True, sort_keys=False)
 
 
-def _from_dict(raw: dict) -> SubscriptionConfig:
-    return SubscriptionConfig(
-        customname=raw.get("customname", DEFAULT_CUSTOMNAME),
-        mode=raw["mode"],
-        broadcaster=_build_broadcaster(raw.get("broadcaster")),
-        subscriber=_build_subscriber(raw.get("subscriber")),
-    )
+class SubscriptionStore:
+    """Document session for one whole-library binding profile.
+
+    Owns: customname identity, loaded ``SubscriptionConfig`` lifecycle.
+    Does not own: profile catalog, catch-up preset, schema migration strategies.
+    """
+
+    def __init__(
+        self,
+        customname: str = DEFAULT_CUSTOMNAME,
+        *,
+        repository: BindingRepository | None = None,
+        codec: SchemaCodec | None = None,
+    ) -> None:
+        self.customname = require_customname(customname)
+        self._repository = repository or BindingRepository()
+        self._codec = codec or SchemaCodec()
+        self._config: SubscriptionConfig | None = None
+
+    @property
+    def path(self) -> Path:
+        return self._repository.path_for(self.customname)
+
+    @property
+    def config(self) -> SubscriptionConfig:
+        if self._config is None:
+            return self.load()
+        return self._config
+
+    def rebind(self, customname: str) -> SubscriptionStore:
+        return SubscriptionStore(
+            customname,
+            repository=self._repository,
+            codec=self._codec,
+        )
+
+    def load(self) -> SubscriptionConfig:
+        raw = self._repository.read_mapping(self.customname)
+        if raw is None:
+            config = SubscriptionConfig(customname=self.customname)
+            config.validate()
+            self._config = config
+            self._persist(config)
+            return config
+        config = self._codec.decode(raw)
+        config.customname = self.customname
+        config.validate()
+        self._config = config
+        return config
+
+    def save(self, config: SubscriptionConfig | None = None) -> None:
+        document = config if config is not None else self._config
+        if document is None:
+            raise RuntimeError("SubscriptionStore.save requires a loaded or provided config")
+        document.customname = self.customname
+        document.validate()
+        self._persist(document)
+        self._config = document
+
+    def replace(self, config: SubscriptionConfig) -> SubscriptionConfig:
+        """In-memory replace without I/O (session edit)."""
+        config.customname = self.customname
+        config.validate()
+        self._config = config
+        return config
+
+    def _persist(self, config: SubscriptionConfig) -> None:
+        self._repository.write_mapping(self.customname, self._codec.encode(config))
 
 
-def _build_broadcaster(raw: Any) -> BroadcasterSection:
-    if raw is None:
-        return BroadcasterSection()
-    if not isinstance(raw, dict):
-        raise ValueError(f"broadcaster section must be a mapping, got {type(raw).__name__}")
-    data = _filter_fields(BroadcasterSection, raw)
-    data["share_card"] = _build_share_card(data.get("share_card"))
-    data["books"] = [_build_book(b) for b in (data.get("books") or [])]
-    data["features"] = [_build_feature(f) for f in (data.get("features") or [])]
-    data["schedule"] = _build_schedule(data.get("schedule"))
-    return BroadcasterSection(**data)
+class BindingProfileCatalog:
+    """Profile names under the binding directory + active profile pointer."""
+
+    def __init__(
+        self,
+        repository: BindingRepository | None = None,
+        *,
+        active_reader: Callable[[], str] | None = None,
+        active_writer: Callable[[str], None] | None = None,
+    ) -> None:
+        self._repository = repository or BindingRepository()
+        self._active_reader = active_reader or self._read_active_from_qconfig
+        self._active_writer = active_writer or self._write_active_to_qconfig
+
+    def list_names(self, *, include_default: bool = True) -> list[str]:
+        return self._repository.list_names(include_default=include_default)
+
+    def active_name(self) -> str:
+        return require_customname(self._active_reader())
+
+    def set_active_name(self, customname: str) -> str:
+        name = require_customname(customname)
+        self._active_writer(name)
+        return name
+
+    def open_active(self, *, codec: SchemaCodec | None = None) -> SubscriptionStore:
+        return SubscriptionStore(
+            self.active_name(),
+            repository=self._repository,
+            codec=codec,
+        )
+
+    def open(self, customname: str, *, codec: SchemaCodec | None = None) -> SubscriptionStore:
+        return SubscriptionStore(
+            customname,
+            repository=self._repository,
+            codec=codec,
+        )
+
+    @staticmethod
+    def _read_active_from_qconfig() -> str:
+        try:
+            from utils.config.qc import cgs_cfg
+
+            return str(getattr(cgs_cfg.activeSubscriptionCustomname, "value", None) or "")
+        except Exception:
+            return DEFAULT_CUSTOMNAME
+
+    @staticmethod
+    def _write_active_to_qconfig(name: str) -> None:
+        from utils.config.qc import cgs_cfg
+
+        if cgs_cfg.activeSubscriptionCustomname.value != name:
+            cgs_cfg.activeSubscriptionCustomname.value = name
+            cgs_cfg.save()
 
 
-def _build_share_card(raw: Any) -> Optional[ShareCard]:
-    if raw is None:
-        return None
-    if not isinstance(raw, dict):
-        raise ValueError(f"share_card must be a mapping, got {type(raw).__name__}")
-    return ShareCard(**_filter_fields(ShareCard, raw))
+class CatchupPresetSetting:
+    """Tray-global 后巡查 preset — not part of per-profile binding yaml."""
+
+    def __init__(
+        self,
+        *,
+        reader: Callable[[], str] | None = None,
+        writer: Callable[[str], None] | None = None,
+    ) -> None:
+        self._reader = reader or self._read_from_qconfig
+        self._writer = writer or self._write_to_qconfig
+
+    def get(self) -> str:
+        raw = str(self._reader() or "off").strip() or "off"
+        if raw not in VALID_CATCHUP_PRESETS:
+            return "off"
+        return raw
+
+    def set(self, preset: str) -> str:
+        name = str(preset or "off").strip() or "off"
+        if name not in VALID_CATCHUP_PRESETS:
+            raise ValueError(f"invalid catchup preset: {preset!r}")
+        self._writer(name)
+        return name
+
+    @staticmethod
+    def _read_from_qconfig() -> str:
+        try:
+            from utils.config.qc import cgs_cfg
+
+            return str(getattr(cgs_cfg.subscriptionCatchupPreset, "value", None) or "off")
+        except Exception:
+            return "off"
+
+    @staticmethod
+    def _write_to_qconfig(name: str) -> None:
+        from utils.config.qc import cgs_cfg
+
+        if cgs_cfg.subscriptionCatchupPreset.value != name:
+            cgs_cfg.subscriptionCatchupPreset.value = name
+            cgs_cfg.save()
 
 
-def _build_book(raw: Any) -> BookEntry:
-    if not isinstance(raw, dict):
-        raise ValueError(f"book entry must be a mapping, got {type(raw).__name__}")
-    return BookEntry(**_filter_fields(BookEntry, raw))
+# --- stable module surface (forward to owners; no business logic here) ---
+
+_default_catalog = BindingProfileCatalog()
+_default_catchup = CatchupPresetSetting()
 
 
-def _build_feature(raw: Any) -> FeatureEntry:
-    if not isinstance(raw, dict):
-        raise ValueError(f"feature entry must be a mapping, got {type(raw).__name__}")
-    entry = FeatureEntry(**_filter_fields(FeatureEntry, raw))
-    entry.validate()
-    return entry
+def list_subscription_customnames(*, include_default: bool = True) -> list[str]:
+    return _default_catalog.list_names(include_default=include_default)
 
 
-def _build_schedule(raw: Any) -> ScheduleSection:
-    if raw is None:
-        return ScheduleSection()
-    if not isinstance(raw, dict):
-        raise ValueError(f"schedule section must be a mapping, got {type(raw).__name__}")
-    return ScheduleSection(**_filter_fields(ScheduleSection, raw))
+def get_active_subscription_customname() -> str:
+    return _default_catalog.active_name()
 
 
-def _build_subscriber(raw: Any) -> SubscriberSection:
-    if raw is None:
-        return SubscriberSection()
-    if not isinstance(raw, dict):
-        raise ValueError(f"subscriber section must be a mapping, got {type(raw).__name__}")
-    data = _filter_fields(SubscriberSection, raw)
-    data["follows"] = [_build_follow(f) for f in (data.get("follows") or [])]
-    return SubscriberSection(**data)
+def set_active_subscription_customname(customname: str) -> str:
+    return _default_catalog.set_active_name(customname)
 
 
-def _build_follow(raw: Any) -> FollowEntry:
-    if not isinstance(raw, dict):
-        raise ValueError(f"follow entry must be a mapping, got {type(raw).__name__}")
-    return FollowEntry(**_filter_fields(FollowEntry, raw))
+def open_active_subscription_store() -> SubscriptionStore:
+    return _default_catalog.open_active()
 
 
-def _filter_fields(cls, raw: dict) -> dict:
-    declared = {f.name for f in fields(cls)}
-    unknown = set(raw.keys()) - declared
-    if unknown:
-        raise ValueError(f"{cls.__name__} got unknown keys: {sorted(unknown)} (declared: {sorted(declared)})")
-    return {k: v for k, v in raw.items() if k in declared}
+def get_subscription_catchup_preset() -> str:
+    return _default_catchup.get()
 
 
-def _to_dict(cfg: SubscriptionConfig) -> dict:
-    return {
-        "customname": cfg.customname,
-        "mode": cfg.mode,
-        "broadcaster": _broadcaster_to_dict(cfg.broadcaster),
-        "subscriber": _subscriber_to_dict(cfg.subscriber),
-    }
-
-
-def _broadcaster_to_dict(section: BroadcasterSection) -> dict:
-    payload = {
-        "books": [_book_to_dict(b) for b in section.books],
-        "features": [_feature_to_dict(f) for f in section.features],
-        "schedule": _schedule_to_dict(section.schedule),
-    }
-    publish_bid = str(section.publish_bid or "").strip()
-    if publish_bid:
-        payload["publish_bid"] = publish_bid
-    if section.share_card is not None:
-        payload["share_card"] = _share_card_to_dict(section.share_card)
-    return payload
-
-
-def _subscriber_to_dict(section: SubscriberSection) -> dict:
-    return {
-        "follows": [_follow_to_dict(f) for f in section.follows],
-        "pull_interval_hours": int(section.pull_interval_hours),
-        "initial_lookback_days": int(section.initial_lookback_days),
-        "auto_download": bool(section.auto_download),
-    }
-
-
-def _book_to_dict(entry: BookEntry) -> dict:
-    return {"site": entry.site, "url": entry.url, "title": entry.title, "enabled": bool(entry.enabled)}
-
-
-def _feature_to_dict(entry: FeatureEntry) -> dict:
-    entry.validate()
-    return {"site": entry.site, "kind": entry.kind, "value": entry.value, "enabled": bool(entry.enabled)}
-
-
-def _follow_to_dict(entry: FollowEntry) -> dict:
-    payload = {"bid": entry.bid}
-    if entry.alias:
-        payload["alias"] = entry.alias
-    if entry.added_at:
-        payload["added_at"] = entry.added_at
-    return payload
-
-
-def _schedule_to_dict(section: ScheduleSection) -> dict:
-    return {"weekdays": list(section.weekdays), "time": section.time}
-
-
-def _share_card_to_dict(card: ShareCard) -> dict:
-    payload = {}
-    if card.posted_at:
-        payload["posted_at"] = card.posted_at
-    if card.discord_channel:
-        payload["discord_channel"] = card.discord_channel
-    if card.discord_message_id:
-        payload["discord_message_id"] = card.discord_message_id
-    return payload
+def set_subscription_catchup_preset(preset: str) -> str:
+    return _default_catchup.set(preset)

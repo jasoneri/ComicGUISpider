@@ -9,6 +9,7 @@ from GUI.core.font import font_color
 from GUI.types import GUIFlowStage, PreviewRequestState, SearchLifecycleState
 from GUI.thread.preview import PreviewWorker
 from GUI.manager.preview.loading import PreviewLoadingController, PreviewLoadingReason
+from GUI.manager.preview.follow import FollowController
 from GUI.manager.preview.manga import MangaPreviewFeature
 from GUI.manager.preview.ero import EroPreviewFeature
 from GUI.manager.preview.fix import FixPreviewFeature
@@ -38,6 +39,7 @@ class PreviewMgr:
         self._interactive_browser = None
         self._retired_workers = []
         self.loading = PreviewLoadingController(self)
+        self.follow = FollowController(self)
         self._manga = MangaPreviewFeature(self)
         self._ero = EroPreviewFeature(self)
         self._fix = FixPreviewFeature(self)
@@ -80,6 +82,7 @@ class PreviewMgr:
         self._active_keyword = ""
         self.downloaded_book_ids.clear()
         self.reset_preview_page()
+        self.follow.reset()
         self._manga.shutdown()
         self._ero.shutdown()
         self._fix.shutdown()
@@ -99,6 +102,7 @@ class PreviewMgr:
         self.books_cache.clear()
         self.downloaded_book_ids.clear()
         self.reset_preview_page()
+        self.follow.reset()
         self._manga.reset()
         self._ero.reset()
         self._fix.reset()
@@ -196,7 +200,7 @@ class PreviewMgr:
         )
         self._active_keyword = keyword
         self._target_page = 1
-        if keyword == ori_res.GUI.local_fav and (self.is_manga or self.is_fix):
+        if keyword == ori_res.GUI.local_fav:
             self._active._show_local_fav()
             self.gui.flow_stage = GUIFlowStage.SEARCHED
             self.gui.update_search_ui(request=PreviewRequestState.Idle)

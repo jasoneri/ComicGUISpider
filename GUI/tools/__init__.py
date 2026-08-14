@@ -9,7 +9,6 @@ from qfluentwidgets import Pivot
 from qframelesswindow import FramelessWindow
 from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
 
-from GUI.core.timer import safe_single_shot
 from GUI.tools.hitomi_tool import HitomiTools, hitomi_db_path
 from GUI.tools.rv_tool import rvTool
 from GUI.tools.domain import DomainToolView
@@ -22,7 +21,6 @@ class ToolWindow(FramelessWindow):
     def __init__(self, parent=None):
         super().__init__()
         self.gui = parent
-        self.subscribeInterface = None  # CGS006: build on first subscribe open
         self.titleBar.minBtn.hide()
         self.titleBar.maxBtn.hide()
         self.titleBar.closeBtn.hide()
@@ -50,8 +48,6 @@ class ToolWindow(FramelessWindow):
         first_row = QHBoxLayout()
         self.rvInterface = rvTool(self)
         self.addSubInterface(self.rvInterface, 'rvInterface', 'rvTool')
-        # CGS006: SubscribeInterface is P4 — create on first pivot click / open_subscribe.
-        self.pivot.addItem(routeKey='subscribeInterface', text='subscribe',onClick=self._open_subscribe_tab,)
 
         self.stackedWidget.currentChanged.connect(self.onCurrentIndexChanged)
         self.stackedWidget.setCurrentWidget(self.rvInterface)
@@ -67,18 +63,6 @@ class ToolWindow(FramelessWindow):
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addLayout(second_row)
-
-    def ensure_subscribe_interface(self):
-        if self.subscribeInterface is not None:
-            return self.subscribeInterface
-        from GUI.tools.subscribe import SubscribeInterface
-        self.subscribeInterface = SubscribeInterface(self)
-        self.addSubInterface(self.subscribeInterface, 'subscribeInterface', 'subscribe', add_pivot=False)
-        return self.subscribeInterface
-
-    def _open_subscribe_tab(self):
-        subscribe_interface = self.ensure_subscribe_interface()
-        self.stackedWidget.setCurrentWidget(subscribe_interface)
 
     def addAggrSearchView(self):
         self.asInterface = AggrSearchView(self.gui)
@@ -119,28 +103,18 @@ class ToolWindow(FramelessWindow):
             self.resize(self.gui.width(), new_height)
         elif widget.objectName() == "midInterface":
             self.resize(self.gui.width(), min(370, self.gui.height()))
-        elif widget.objectName() == "subscribeInterface":
-            self.resize(self.gui.width(), min(520, self.gui.height()))
         else:
             self.resize(self.window_width, self.default_height)
         self.pivot.setCurrentItem(widget.objectName())
 
     def open_subscribe_with_books(self, books):
-        """Open the subscribe tab and persist preview BookInfo seeds directly (wizard-less)."""
-        self.gui.show_toolWin("subscribe")
-        payload = list(books)
-
-        def _deliver():
-            subscribe_interface = self.ensure_subscribe_interface()
-            self.stackedWidget.setCurrentWidget(subscribe_interface)
-            subscribe_interface.receive_pushed_books(payload)
-
-        safe_single_shot(20, _deliver)
+        """Back-compat: preview push routes through gui singleton subscribe window."""
+        if self.gui is None:
+            raise RuntimeError("ToolWindow.open_subscribe_with_books requires gui")
+        self.gui.open_subscribe_with_books(books)
 
     def server_mode_switch_blockers(self) -> list[str]:
-        if self.subscribeInterface is None:
-            return []
-        return self.subscribeInterface.server_mode_switch_blockers()
+        return []
 
 
 def main():

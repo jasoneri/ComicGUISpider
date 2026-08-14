@@ -10,7 +10,7 @@ class PreviewSubscriptionController:
         self._selection_active = False
         self._manga_like = False
         self._button = ToolButton(browser.groupBox)
-        self._button.setIcon(CgsIcon.MAIN_SHARE)
+        self._button.setIcon(CgsIcon.TOOL_RSS)
         self._button.setToolTip("加入订阅/send selected to subscribe")
         self._button.hide()
         browser.horizontalLayout_2.insertWidget(browser.horizontalLayout_2.indexOf(browser.ensureBtn), self._button)
@@ -69,13 +69,15 @@ class PreviewSubscriptionController:
 
     def _preview_is_manga_like(self) -> bool:
         preview_manager = self._browser.gui.preview_mgr
-        return bool(preview_manager.is_manga or preview_manager.is_fix)
+        # Subscribe selection is mangaCard-only (not JM fix / ero).
+        return bool(preview_manager.is_manga)
 
     def send_checked_books(self) -> None:
         if not self._browser.page_runtime.page_ready:
+            # CGS010: page_ready is JS-contract ready, not cover/loadFinished.
             InfoBar.info(
                 title="",
-                content="页面仍在加载，稍后再试",
+                content="预览脚本尚未就绪，请稍后再试",
                 orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.TOP,
@@ -120,4 +122,4 @@ class PreviewSubscriptionController:
             )
             return
         self._exit_selection()
-        self._browser.gui.toolWin.open_subscribe_with_books(selected_books)
+        self._browser.gui.open_subscribe_with_books(selected_books)

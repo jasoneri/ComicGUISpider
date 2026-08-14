@@ -145,7 +145,10 @@ class TrayApp(QObject):
         if self._run_thread is not None and self._run_thread.is_alive():
             self.event_log.append("subscription", result="skip", detail="subscription run already in progress")
             return False
-        self._run_thread = threading.Thread(target=self._run_subscription_once, name="CGSSubscriptionRunNow", daemon=True)
+        trigger = "schedule" if decision is not None else "manual"
+        self._run_thread = threading.Thread(
+            target=self._run_subscription_once, args=(trigger,), name="CGSSubscriptionRunNow", daemon=True
+        )
         try:
             self._run_thread.start()
         except Exception as exc:
@@ -172,9 +175,9 @@ class TrayApp(QObject):
             return
         self._update_tray_tooltip()
 
-    def _run_subscription_once(self) -> None:
+    def _run_subscription_once(self, trigger: str = "schedule") -> None:
         try:
-            summary = self._runner.run_once()
+            summary = self._runner.run_once(trigger=trigger)
         except Exception as exc:
             self._run_failed.emit(exc)
             return
@@ -226,7 +229,7 @@ class TrayApp(QObject):
     @staticmethod
     def _format_status(status: Optional[ScheduleStatus]) -> str:
         if status is None:
-            return "mode=unknown next=-"
+            return "status=unknown next=-"
         next_run = status.next_run_at.isoformat(timespec="minutes") if status.next_run_at is not None else "-"
         return f"{status.summary} next={next_run}"
 

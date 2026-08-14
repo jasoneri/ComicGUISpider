@@ -61,7 +61,7 @@
   </thead>
   <tbody>
     <tr>
-      <td style="text-align: center; vertical-align: middle;" rowspan="5">rV工具<br><small>rvTool</small></td>
+      <td style="text-align: center; vertical-align: middle;" rowspan="6">rV工具<br><small>rvTool</small></td>
       <td style="text-align: left;"><strong>显示记录</strong>: 显示已阅最新话、下载最新话<br><code>已阅最新话</code>需用 <a href="https://github.com/jasoneri/redViewer" target="_blank" rel="noopener noreferrer">rV</a> 操作过才有记录</td>
     </tr>
     <tr><td style="text-align: left;"><strong>扫描本地</strong>: 重新刷本地数据存至<code>储存目录/rV.db</code>，<br>供<code>显示记录</code>使用，并且与 rV 共用</td></tr>
@@ -69,6 +69,7 @@
     <tr>
       <td style="text-align: left;"><strong>以图搜索</strong>: 借用 saucenao，按 CGS 内指示操作即可<br>ps: 搜索后按图示转 ascii2d 有奇效</td></tr>
     <tr><td style="text-align: left;"><strong>橙色Cbg按钮</strong>: <a href="/script/#_3-cbg-cornerbackground">Cbg入口</a></td></tr>
+    <tr><td style="text-align: left;"><strong>rss按钮</strong>: <a href="#_4-%E8%AE%A2%E9%98%85%E7%AE%A1%E7%90%86%E9%9D%A2%E6%9D%BF-%E8%AF%95%E8%A1%8C%E4%B8%AD">进入订阅面板</a></td></tr>
     <tr>
       <td style="text-align: center;">CGSMid<br><small>midTool</small></td>
       <td style="text-align: left;"><a href="/feat/mid">🀄️跳转阅读 > 使用</a></td>
@@ -87,3 +88,7 @@
     </tr>
   </tbody>
 </table>
+
+## 4. 订阅管理面板（试行中）
+
+![subscribeWin]({{URL_IMG}}/file/cgs/1786691121805_subscribeWin.png)

@@ -188,9 +188,10 @@ return JSON.stringify({
         def on_error(exc):
             self._browser.output = []
             if isinstance(exc, PageNotReadyError):
+                # CGS010: this is interactive-ready / JS contract, not cover or loadFinished.
                 InfoBar.info(
                     title="",
-                    content="页面仍在加载，稍后再试",
+                    content="预览脚本尚未就绪，请稍后再试",
                     orient=Qt.Horizontal,
                     isClosable=True,
                     position=InfoBarPosition.TOP,
@@ -251,21 +252,43 @@ return JSON.stringify({
         )
         self._browser.pageInteractive.emit(reason, float(elapsed_ms if elapsed_ms is not None else -1.0))
 
+    @staticmethod
+    def _is_shell_only_url(url_text: str) -> bool:
+        return url_text in ("", "about:blank", "about:blank#blocked")
+
+    def _navigation_probe_url(self) -> str:
+        """URL used to decide whether interactive probes may run.
+
+        On loadStarted, Qt often still reports the previous/shell URL (about:blank)
+        while home_url already points at the preview HTML being navigated to.
+        Probing must follow the intended target, not the stale view URL — otherwise
+        ready is deferred until loadFinished (cover-bound on heavy pages). CGS010.
+        """
+        current_url = self._browser.view.url().toString()
+        if not self._is_shell_only_url(current_url):
+            return current_url
+        home_url = self._browser.home_url.toString() if self._browser.home_url is not None else ""
+        if home_url and not self._is_shell_only_url(home_url):
+            return home_url
+        return current_url
+
     def _on_view_load_started(self) -> None:
         self._page_ready = False
         self._page_ready_announced = False
         self._page_load_started_at = time.perf_counter()
         current_url = self._browser.view.url().toString()
-        self.log_js_debug(f"load started url={current_url!r}")
+        probe_url = self._navigation_probe_url()
+        self.log_js_debug(f"load started url={current_url!r} probe_url={probe_url!r}")
         append_browser_debug_event(
             "browser.load_started",
             url=current_url,
+            probe_url=probe_url,
             home_url=self._browser.home_url.toString(),
             ensure_uses_page_scan=self._browser.window_mode.uses_page_scan,
         )
         self._cancel_ready_probe()
-        # Skip readiness probes for empty shell / about:blank early-open navigations.
-        if current_url in ("", "about:blank", "about:blank#blocked"):
+        # Skip readiness probes only for true early-open shells with no preview target.
+        if self._is_shell_only_url(probe_url):
             return
         self._ready_probe_started_at = self._page_load_started_at
         self._schedule_ready_probe(self._ready_generation, delay_ms=self._READY_PROBE_INTERVAL_MS)

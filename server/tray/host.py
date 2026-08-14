@@ -75,13 +75,23 @@ class ServerRuntimeDownloadSubmitter:
 
 class ServerScheduleController:
     def __init__(self) -> None:
+        from utils.subscription import open_active_subscription_store
+
         self.event_log = TrayEventLog()
-        self.store = SubscriptionStore()
+        # Whole-library binding currently marked active (GUI SidePanel + tray share qconfig).
+        self.store = open_active_subscription_store()
         self.cache = ScheduleCache()
         self.scheduler = SubscriptionScheduler(self.store.load, state_path=default_scheduler_state_path())
         self.run_thread: threading.Thread | None = None
         self.last_result = "-"
         self.latest_summary: dict | None = None
+
+    def rebind_active_store(self) -> None:
+        """Reload SubscriptionStore from active customname after GUI/tray profile switch."""
+        from utils.subscription import open_active_subscription_store
+
+        self.store = open_active_subscription_store()
+        self.scheduler = SubscriptionScheduler(self.store.load, state_path=default_scheduler_state_path())
 
     def status(self) -> ScheduleStatus | None:
         return self.scheduler.status()
@@ -90,20 +100,27 @@ class ServerScheduleController:
         return self.event_log.tail(limit)
 
     def refresh_summary(self) -> dict | None:
-        try:
-            self.latest_summary = self.cache.read_summary()
-        except FileNotFoundError:
-            self.latest_summary = None
+        # None = cold start (no summary yet). Corrupt schema raises from ScheduleCache.
+        self.latest_summary = self.cache.read_summary()
         return self.latest_summary
 
     def presentation(self, *, blocker: str = "") -> SchedulePresentation:
+        # Keep store in sync if GUI changed active profile while tray is open.
+        # Failures from load/status/build must propagate — no empty-config fallback.
+        from utils.subscription import get_active_subscription_customname
+
+        active = get_active_subscription_customname()
+        if self.store.customname != active:
+            self.rebind_active_store()
+        cfg = self.store.load()
         return build_schedule_presentation(
-            self.store.load(),
+            cfg,
             status=self.status(),
             cache_summary=self.refresh_summary(),
             events=self.events(20),
             blocker=blocker,
             cache=self.cache,
+            config_owner=f"subscription binding «{cfg.customname}» (tray executes)",
         )
 
 
@@ -469,7 +486,10 @@ class ServerTrayHost(QObject):
             self._show_schedule_notification(notification_for_schedule_blocker(blocker, trigger=detail))
             self.refresh_status(schedule_full=True)
             return False
-        self.schedule.run_thread = threading.Thread(target=self._run_schedule_once, args=(detail,), name="CGSServerScheduleRun", daemon=True)
+        trigger = "schedule" if decision is not None else "manual"
+        self.schedule.run_thread = threading.Thread(
+            target=self._run_schedule_once, args=(detail, trigger), name="CGSServerScheduleRun", daemon=True
+        )
         try:
             self.schedule.run_thread.start()
         except Exception as exc:
@@ -495,17 +515,23 @@ class ServerTrayHost(QObject):
             return self.ui.redact("CGS Server runtime is unavailable")
         return ""
 
-    def _run_schedule_once(self, trigger: str) -> None:
+    def _run_schedule_once(self, detail: str, trigger: str) -> None:
         try:
+            from utils.subscription import get_active_subscription_customname
             from utils.tray.subscription_runner import SubscriptionRunner
 
+            # Rebind if GUI changed active whole-library profile while tray is up.
+            active = get_active_subscription_customname()
+            if self.schedule.store.customname != active:
+                self.schedule.rebind_active_store()
             runner = SubscriptionRunner(
+                store=self.schedule.store,
                 download_submitter=ServerRuntimeDownloadSubmitter(),
                 progress_callback=self.schedule_progress.emit,
             )
             try:
-                summary = runner.run_once()
-                summary.trigger = trigger
+                summary = runner.run_once(trigger=trigger)
+                summary.trigger = detail
             finally:
                 runner.shutdown()
         except Exception as exc:
@@ -589,7 +615,7 @@ class ServerTrayHost(QObject):
             return f"Schedule: error {self.ui.redact(str(exc))}"
         next_run = status.next_run_at.isoformat(timespec="minutes") if status.next_run_at is not None else "-"
         running = self.schedule.run_thread is not None and self.schedule.run_thread.is_alive()
-        state = "running" if running else status.mode
+        state = "running" if running else "idle"
         return f"Schedule: {state} next={next_run}"
 
     def _tooltip(self) -> str:

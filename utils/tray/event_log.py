@@ -1,3 +1,9 @@
+"""Append-only JSONL event log for tray/GUI display (temp_p/tray_events.json).
+
+kind 约定 (append 接受任意 kind 字符串, 展示端按 kind/result 渲染):
+- subscription: 订阅主流程 start/skip/ok/error
+- checkin_ok / checkin_already / checkin_failed: 按站每日签到结果 (领域 6)
+"""
 from __future__ import annotations
 
 import json

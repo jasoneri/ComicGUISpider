@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QScrollA
 from qfluentwidgets import (
     BodyLabel,
     CaptionLabel,
+    ComboBox,
     FluentIcon as FIF,
     MessageBox,
     PrimaryPushButton,
@@ -44,7 +45,6 @@ from server.tray.ui_common import (
     clear_layout,
     tray_mono_font,
 )
-from utils.subscription import MODE_SUBSCRIBER
 from utils.tray.schedule_presentation import SchedulePresentation
 
 if TYPE_CHECKING:
@@ -74,7 +74,6 @@ class SchedulePanel:
     def __init__(self, host: "ServerTrayHost") -> None:
         self.host = host
         self.events_table: TableWidget | None = None
-        self.mode_chip: QLabel | None = None
         self.state_chip: QLabel | None = None
         self.next_label: QLabel | None = None
         self.run_button: PrimaryPushButton | None = None
@@ -132,19 +131,11 @@ class SchedulePanel:
 
     def status_rows(self) -> list[tuple[str, object]]:
         host = self.host
-        rows: list[tuple[str, object]] = [
-            ("下次检查", "-"),
-            ("模式", "-"),
-            ("摘要", "-"),
-            ("最近结果", host.ui.redact(host.schedule.last_result)),
-        ]
-        try:
-            presentation = host.schedule.presentation(blocker=host.schedule_run_blocker())
-        except Exception as exc:
-            return [("错误", host.ui.redact(str(exc)))] + rows
+        # presentation errors must reach tray/sys.excepthook — no local swallow.
+        presentation = host.schedule.presentation(blocker=host.schedule_run_blocker())
         return [
             ("下次检查", presentation.plan.next_run_at),
-            ("模式", presentation.plan.mode_label),
+            ("检查间隔", presentation.plan.timing),
             ("状态", presentation.plan.automation_label),
             ("缓存", f"{presentation.cache.status} ({presentation.cache.book_count})"),
             ("对象", len(presentation.sources)),
@@ -185,16 +176,9 @@ class SchedulePanel:
         if not full:
             self.refresh_live()
             return
-        try:
-            presentation = host.schedule.presentation(blocker=host.schedule_run_blocker())
-        except Exception as exc:
-            host.ui.set_chip(self.mode_chip, "error")
-            host.ui.set_chip(self.state_chip, "error")
-            host.ui.set_label(self.next_label, f"Error {exc}")
-            host.ui.set_label(self.detail_message, host.ui.redact(str(exc)))
-            return
+        # presentation / store / scheduler failures propagate to tray excepthook.
+        presentation = host.schedule.presentation(blocker=host.schedule_run_blocker())
         self.latest_presentation = presentation
-        host.ui.set_chip(self.mode_chip, presentation.plan.mode_label)
         run_is_alive = host.schedule.run_thread is not None and host.schedule.run_thread.is_alive()
         host.ui.set_chip(self.state_chip, "running" if run_is_alive else presentation.plan.automation_state)
         host.ui.set_label(self.next_label, f"下次检查 {presentation.plan.next_run_at}")
@@ -234,7 +218,6 @@ class SchedulePanel:
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(8)
         title = StrongBodyLabel("订阅运行", band)
-        self.mode_chip = QLabel(band)
         self.state_chip = QLabel(band)
         self.next_label = CaptionLabel("Next -", band)
         self.next_label.setObjectName("TrayMutedLabel")
@@ -254,7 +237,6 @@ class SchedulePanel:
         self.debug_switch.setText("Debug")
         self.debug_switch.checkedChanged.connect(self.set_debug_enabled)
         layout.addWidget(title)
-        layout.addWidget(self.mode_chip)
         layout.addWidget(self.state_chip)
         layout.addWidget(self.next_label)
         layout.addStretch(1)
@@ -315,6 +297,31 @@ class SchedulePanel:
         self.plan_layout.setHorizontalSpacing(10)
         self.plan_layout.setVerticalSpacing(4)
         plan_layout.addWidget(grid_host)
+
+        # 后巡查 = tray-global catch-up (not SidePanel, not per-book).
+        catchup_row = QHBoxLayout()
+        catchup_row.setContentsMargins(0, 4, 0, 0)
+        catchup_row.setSpacing(8)
+        catchup_label = CaptionLabel("后巡查", plan_frame)
+        catchup_label.setObjectName("TrayMutedLabel")
+        catchup_label.setStyleSheet(muted_label_stylesheet())
+        self.catchup_combo = ComboBox(plan_frame)
+        self.catchup_combo.setMinimumWidth(120)
+        from utils.subscription.schema import CATCHUP_PRESET_ITEMS
+        from utils.subscription.store import get_subscription_catchup_preset
+
+        for preset_key, preset_label in CATCHUP_PRESET_ITEMS:
+            self.catchup_combo.addItem(preset_label, userData=preset_key)
+        current_catchup = get_subscription_catchup_preset()
+        for index in range(self.catchup_combo.count()):
+            if self.catchup_combo.itemData(index) == current_catchup:
+                self.catchup_combo.setCurrentIndex(index)
+                break
+        self.catchup_combo.currentIndexChanged.connect(self._on_catchup_changed)
+        catchup_row.addWidget(catchup_label)
+        catchup_row.addWidget(self.catchup_combo, 1)
+        plan_layout.addLayout(catchup_row)
+
         layout.addWidget(plan_frame)
 
         sources_frame, sources_layout = self._panel(panel, "ScheduleSourcesPanel")
@@ -514,29 +521,33 @@ class SchedulePanel:
             self.stage_rail.set_stages(list(rail_stages), stage or "", running=running)
         host.ui.set_label(self.latest_banner, latest or "-")
 
+    def _on_catchup_changed(self, *_args) -> None:
+        if not hasattr(self, "catchup_combo") or self.catchup_combo is None:
+            return
+        preset = self.catchup_combo.currentData()
+        if preset is None:
+            return
+        from utils.subscription.store import set_subscription_catchup_preset
+
+        # Invalid preset / qconfig write failures must propagate to tray excepthook.
+        set_subscription_catchup_preset(str(preset))
+        self.host.refresh_status(schedule_full=True)
+
     def _render_plan(self, presentation: SchedulePresentation) -> None:
         if self.plan_layout is None:
             return
         clear_layout(self.plan_layout)
         plan = presentation.plan
-        if plan.mode == MODE_SUBSCRIBER:
-            pairs = [
-                ("模式", plan.mode_label),
-                ("状态", plan.automation_label),
-                ("拉取间隔", f"{plan.pull_interval_hours}h"),
-                ("下次拉取", plan.next_run_at),
-                ("订阅源", str(plan.follows)),
-                ("自动下载", "开" if plan.auto_download else "关"),
-            ]
-        else:
-            pairs = [
-                ("模式", plan.mode_label),
-                ("状态", plan.automation_label),
-                ("检查时间", plan.timing),
-                ("Publish BID", plan.publish_bid),
-                ("作品", str(plan.enabled_books)),
-                ("作者/标签", str(plan.enabled_features)),
-            ]
+        pairs = [
+            ("状态", plan.automation_label),
+            ("检查日/后巡查", plan.timing),
+            ("下次检查", plan.next_run_at),
+            ("配置来源", plan.config_owner),
+            ("作品", str(plan.enabled_books)),
+            ("作者/标签", str(plan.enabled_features)),
+            ("订阅源", str(plan.follows)),
+            ("Publish BID", plan.publish_bid),
+        ]
         pairs.append(("缓存", f"{presentation.cache.status} ({presentation.cache.book_count})"))
         if plan.blocker:
             pairs.append(("阻塞原因", plan.blocker))
@@ -589,9 +600,7 @@ class SchedulePanel:
         self.sources_layout.addStretch(1)
 
     def _sources_empty_text(self, presentation: SchedulePresentation) -> str:
-        if presentation.plan.mode == MODE_SUBSCRIBER:
-            return "还没有订阅源。请从主窗口进入工具箱 > 追更 / 订阅源，添加 follow bid。"
-        return "还没有启用的追更对象。请从预览页勾选作品加入追更，或在主窗口追更配置里启用已有对象。"
+        return "还没有追更对象。请从预览页勾选作品加入追更，或在主窗口订阅配置里添加 follow bid。"
 
     def _source_card(self, source) -> QWidget:
         card = QFrame()

@@ -1,0 +1,226 @@
+/* SubscribeWindow QSS — follows qfluent / danbooru day-night token pattern. */
+
+/* @tokens light */
+CANVAS = #f5f5f4;
+SHELL = rgba(250, 250, 249, 0.98);
+SHELL_BORDER = rgba(39, 39, 42, 0.10);
+CARD_BG = rgba(255, 255, 255, 0.99);
+CARD_BORDER = rgba(39, 39, 42, 0.10);
+CARD_HOVER_BORDER = rgba(39, 39, 42, 0.26);
+COVER_BG = rgba(39, 39, 42, 0.05);
+TEXT = rgba(9, 9, 11, 0.97);
+MUTED_TEXT = rgba(63, 63, 70, 0.74);
+STATUS_BG = rgba(250, 250, 249, 0.96);
+STATUS_BORDER = rgba(39, 39, 42, 0.10);
+BADGE_DL_BG = rgba(244, 244, 245, 0.95);
+BADGE_DL_TEXT = rgba(63, 63, 70, 0.88);
+BADGE_DL_BORDER = rgba(148, 163, 184, 0.28);
+BADGE_NEW_BG = rgba(254, 226, 226, 0.96);
+BADGE_NEW_TEXT = rgba(185, 28, 28, 0.95);
+BADGE_NEW_BORDER = rgba(239, 68, 68, 0.28);
+BADGE_OK_BG = rgba(220, 252, 231, 0.96);
+BADGE_OK_TEXT = rgba(21, 128, 61, 0.95);
+BADGE_OK_BORDER = rgba(34, 197, 94, 0.28);
+CARD_SELECTED_BORDER = rgba(37, 99, 235, 0.72);
+CARD_SELECTED_BG = rgba(219, 234, 254, 0.55);
+CARD_PAUSED_OPACITY = 0.55;
+OVERLAY_BTN_BG = rgba(15, 23, 42, 0.28);
+OVERLAY_BTN_BG_HOVER = rgba(15, 23, 42, 0.35);
+OVERLAY_BTN_BORDER = rgba(255, 255, 255, 0.22);
+/* @endtokens */
+
+/* @tokens dark */
+CANVAS = #09090b;
+SHELL = rgba(18, 18, 20, 0.98);
+SHELL_BORDER = rgba(244, 244, 245, 0.10);
+CARD_BG = rgba(24, 24, 27, 0.98);
+CARD_BORDER = rgba(244, 244, 245, 0.10);
+CARD_HOVER_BORDER = rgba(228, 228, 231, 0.44);
+COVER_BG = rgba(244, 244, 245, 0.06);
+TEXT = rgba(250, 250, 250, 0.97);
+MUTED_TEXT = rgba(212, 212, 216, 0.72);
+STATUS_BG = rgba(18, 18, 20, 0.96);
+STATUS_BORDER = rgba(244, 244, 245, 0.10);
+BADGE_DL_BG = rgba(39, 39, 42, 0.95);
+BADGE_DL_TEXT = rgba(212, 212, 216, 0.88);
+BADGE_DL_BORDER = rgba(148, 163, 184, 0.22);
+BADGE_NEW_BG = rgba(127, 29, 29, 0.55);
+BADGE_NEW_TEXT = rgba(254, 202, 202, 0.96);
+BADGE_NEW_BORDER = rgba(239, 68, 68, 0.32);
+BADGE_OK_BG = rgba(20, 83, 45, 0.55);
+BADGE_OK_TEXT = rgba(187, 247, 208, 0.96);
+BADGE_OK_BORDER = rgba(34, 197, 94, 0.32);
+CARD_SELECTED_BORDER = rgba(96, 165, 250, 0.85);
+CARD_SELECTED_BG = rgba(30, 58, 138, 0.42);
+CARD_PAUSED_OPACITY = 0.50;
+OVERLAY_BTN_BG = rgba(15, 23, 42, 0.28);
+OVERLAY_BTN_BG_HOVER = rgba(15, 23, 42, 0.35);
+OVERLAY_BTN_BORDER = rgba(255, 255, 255, 0.22);
+/* @endtokens */
+
+/* @section window */
+#SubscribeWindow {
+    background: ${CANVAS};
+    color: ${TEXT};
+}
+
+QFrame#SubscribeHeaderShell {
+    background: ${SHELL};
+    border: 1px solid ${SHELL_BORDER};
+    border-radius: 12px;
+}
+
+/* Outer SidePanel: no shell chrome — CardConfFrame / GlobalFrame own the sections. */
+QFrame#SubscribeSidePanel {
+    background: transparent;
+    border: none;
+}
+
+/* Two QSS sections inside SidePanel — visually separated, not one flat stack. */
+QFrame#SubscribeCardConfFrame {
+    background: ${CARD_BG};
+    border: 1px solid ${CARD_BORDER};
+    border-radius: 10px;
+}
+
+QFrame#SubscribeGlobalFrame {
+    background: ${STATUS_BG};
+    border: 1px solid ${STATUS_BORDER};
+    border-radius: 10px;
+}
+
+/* Long titles must not wrap/expand CardConf height (breaks side-panel section gap). */
+BodyLabel#SubscribeCardConfTitle {
+    color: ${TEXT};
+    background: transparent;
+    max-height: 22px;
+}
+
+QFrame#SubscribeSideDivider {
+    background: ${SHELL_BORDER};
+    border: none;
+    max-height: 1px;
+    margin: 4px 0;
+}
+
+QFrame#SubscribeStatusBar {
+    background: ${STATUS_BG};
+    border: 1px solid ${STATUS_BORDER};
+    border-radius: 10px;
+}
+
+QFrame#SubscribeCard {
+    background: ${CARD_BG};
+    border: 1px solid ${CARD_BORDER};
+    border-radius: 12px;
+}
+
+QFrame#SubscribeCard:hover {
+    border-color: ${CARD_HOVER_BORDER};
+}
+
+QFrame#SubscribeCard[selected="true"] {
+    background: ${CARD_SELECTED_BG};
+    border: 2px solid ${CARD_SELECTED_BORDER};
+}
+
+QFrame#SubscribeCard[paused="true"] {
+    opacity: ${CARD_PAUSED_OPACITY};
+}
+
+QLabel#SubscribeCardCover,
+ImageLabel#SubscribeCardCover {
+    background: ${COVER_BG};
+    border-radius: 9px;
+}
+
+QLabel#SubscribeEmptyLabel,
+QLabel#SubscribeCardMeta,
+QLabel#SubscribeStatusLastRun,
+QLabel#SubscribeStatusNextRun,
+CaptionLabel {
+    color: ${MUTED_TEXT};
+    background: transparent;
+}
+
+QLabel#SubscribeEmptyLabel {
+    padding: 40px 0;
+}
+
+StrongBodyLabel,
+BodyLabel#SubscribeCardTitle {
+    color: ${TEXT};
+    background: transparent;
+}
+
+QWidget#SubscribeMainPane,
+QWidget#SubscribeBody {
+    background: transparent;
+}
+
+/* Opaque host: solid canvas under waterfall — cuts scroll overdraw vs transparent. */
+QWidget#SubscribeCardsHost {
+    background: ${CANVAS};
+}
+
+ScrollArea#SubscribeScrollArea {
+    background: ${CANVAS};
+    border: none;
+}
+
+ScrollArea#SubscribeScrollArea > QWidget > QWidget {
+    background: ${CANVAS};
+}
+
+QWidget#SubscribeCardStatusRow {
+    background: transparent;
+}
+
+QLabel#SubscribeCardBadgeDl {
+    background: ${BADGE_DL_BG};
+    color: ${BADGE_DL_TEXT};
+    border: 1px solid ${BADGE_DL_BORDER};
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 9pt;
+    font-weight: 700;
+}
+
+QLabel#SubscribeCardBadgeLatest {
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 9pt;
+    font-weight: 700;
+}
+
+QLabel#SubscribeCardBadgeLatest[updateState="new"] {
+    background: ${BADGE_NEW_BG};
+    color: ${BADGE_NEW_TEXT};
+    border: 1px solid ${BADGE_NEW_BORDER};
+}
+
+QLabel#SubscribeCardBadgeLatest[updateState="ok"] {
+    background: ${BADGE_OK_BG};
+    color: ${BADGE_OK_TEXT};
+    border: 1px solid ${BADGE_OK_BORDER};
+}
+
+/* Card cover action chips — objectNames owned by SubscribeCard; no per-widget setStyleSheet. */
+QToolButton#SubscribeCardFolderBtn,
+QToolButton#SubscribeCardLinkBtn,
+QToolButton#SubscribeCardDelBtn {
+    background: ${OVERLAY_BTN_BG};
+    border: 1px solid ${OVERLAY_BTN_BORDER};
+    border-radius: 8px;
+    padding: 0px;
+}
+
+QToolButton#SubscribeCardFolderBtn:hover,
+QToolButton#SubscribeCardLinkBtn:hover,
+QToolButton#SubscribeCardDelBtn:hover,
+QToolButton#SubscribeCardFolderBtn:pressed,
+QToolButton#SubscribeCardLinkBtn:pressed,
+QToolButton#SubscribeCardDelBtn:pressed {
+    background: ${OVERLAY_BTN_BG_HOVER};
+}
+/* @endsection */
