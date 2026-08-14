@@ -17,6 +17,10 @@ danbooru:
 jsoneriPalacesProbe:
   token: ""
 
+# ComfyUI：空 host = 未启用（TagExportPanel 不显示 Comfy 行，也不静默连 8188）
+comfy:
+  host: ""
+
 ai:
   provider:
     url: null
@@ -24,6 +28,9 @@ ai:
     model: null
 
 proxies: null
+cgs_aria2:
+  proxy: ""
+  migrated_from_motrix: false
 redis:
   host: 127.0.0.1
   port: 6379

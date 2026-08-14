@@ -15,9 +15,16 @@ class macOS:
         "Library/Containers/org.p0deje.Maccy/Data/Library/Application Support/Maccy/Storage.sqlite")
     clip_sql = "SELECT `ZTITLE` FROM `ZHISTORYITEM` order by `Z_PK` desc"
     shell = "zsh"
+    aira2_platform_id = "macos-arm"
+    aira2_binary_name = "aria2c"
 
     def __init__(self, _p):
         self.proj_p = _p
+
+    @property
+    def aira2(self) -> pathlib.Path:
+        # Same tree as utils.temp_p; avoid importing utils (deploy ↔ utils cycle).
+        return pathlib.Path(self.proj_p).joinpath("__temp", "aira2", self.aira2_binary_name)
 
     @staticmethod
     def open_folder(_p):

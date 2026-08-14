@@ -20,7 +20,7 @@ from utils.config.qc import danbooru_cfg
 
 from .favorite_groups import FavoriteGroupsState, RESERVED_GROUP_NAMES, TagGroup
 from .favorite_translate import FavoriteTagTranslateDialogSession
-from .style import build_favorites_tree_item_stylesheet
+from ..style import build_favorites_tree_item_stylesheet
 
 _ROLE_DATA = Qt.UserRole
 _TREE_ROW_SIDE_MARGIN = 6

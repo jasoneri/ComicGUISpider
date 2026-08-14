@@ -14,7 +14,8 @@
 
 ### 配置
 
-进 scriptWin 前 / 进 scriptWin 后搜索之前，设置 doh 即可免代理访问，空词进首页过 cf 盾即可
+进 scriptWin 前 / 进 scriptWin 后搜索之前，设置 doh 即可免代理访问，空词进首页过 cf 盾即可  
+Comfy host / imgPalace token / ai provider：设置面板填了，Tag 导出才出对应行
 
 ### 主界面
 
@@ -85,10 +86,61 @@
 
 #### Tag 导出面板
 
-左侧 tag 栏右上角 **复制图标** 打开 **Tag 导出** 面板：
+![tagExportOpenBtn]({{URL_IMG}}/file/cgs/1786221538268_tagExportOpenBtn.png)
 
-- 按 Character / Artist / Copyright / General / Meta 分组多选；默认勾选可用的 General
-- **Prompt 预览** 实时显示将要复制或发送的内容
-- **Copy**：复制当前 Prompt
-- **to_imgPalace**：用当前 Prompt 打开 imgPalace（需已选 General tag）
-- 左栏单击 tag 仍为搜索跳转，与面板内多选无关
+viewer 左侧 tag 栏顶部双按钮：  
+左：打开 **Tag 导出面板**；  
+右：仅开了导出面板后出现，将当前图(别图)作为附着图，增加 Attached-tags 便捷操作
+
+![tagExportPanel]({{URL_IMG}}/file/cgs/1786266198410_tagExportPanel.png)
+
++ `CurrentImg-tags` 内分组随意多选
++ `Fav-tags` 对应本地收藏 tags 注入 prompt，插入类型跟随下图激活段：  
+  从左到右对应 `内容主体` / `角色` / `画师` / `作品系列`
+![tagExportFavSection]({{URL_IMG}}/file/cgs/1786038075894_tagExportFavSection.png)
+
++ `Attached-tags`：附着图的 tags，途径有两种，通过 viewer 新图 或 comfy 任务卡片附着
++ **Prompt 预览** 行按钮：复制整体 prompt；  
+  右侧：恢复默认 / 全选 / 格式化；附着状态下多出 **清除附着** 按钮
+
+#### ComfyUI
+
+CGS 内置了 ANIMA 工作流
+
+::: warning `导出面板`图中的下方的`控件`出现条件如下
+
++ 设置面板完整填写 AI Provider 保存后，才会出 `Prompt 增强控件`  
+  注意不要用 ds v4f 这种无视觉模型
++ 仅做了以下 3 点前置准备后，才会出现 `Comfy 控件`
++ 设置面板填 imgPalace Token 后，才会出现 `imgPalace 控件`
+
+:::
+
+1. 装 [Comfy Desktop](https://comfy.org/download)（或自托管），前置运行  
+2. 从 [HF · Anima](https://huggingface.co/circlestone-labs/Anima) `split_files/` 下载（**注意命名一致**）：
+
+| 文件 | 目录 |
+|------|------|
+| `anima-turbo-v1.0.safetensors`<br>`anima-base-v1.0.safetensors`（按需）<br>`anima-aesthetic-v1.1.safetensors`（按需） | `models/diffusion_models/` |
+| `qwen_3_06b_base.safetensors` | `models/text_encoders/` |
+| `qwen_image_vae.safetensors` | `models/vae/` |
+
+3. 设置面板填 Comfy host（例 `http://127.0.0.1:8188`）  
+
+| Comfy 控件 | 说明 |
+|------|------|
+| Comfy UNET | turbo / base / aesthetic |
+| 图内补全 | 另需 [WD14](https://github.com/pythongosssss/ComfyUI-WD14-Tagger) |
+| 瀑布流任务卡片<br>对话框 | 任务卡图片主体点击进入预览<br> 绿标按钮会返还作为附着图 <br>删除按钮会清除对应任务并转移到待删除(`.del`)，不会进行物理删除 |
+| 生图按钮 | 提交 comfy 任务出图 |
+| 重绘强度 | 越低越接近原图，甜点值 60~75 |
+
+| Prompt 增强控件 | 说明 |
+|------|------|
+| -- | 自然语言改描述，回填 Prompt（例 `改成蓝色头发`） |
+
+#### imgPalace
+
+| imgPalace 控件 | 说明 |
+|------|------|
+| -- | 未实际上线 |

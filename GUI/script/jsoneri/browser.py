@@ -42,6 +42,13 @@ class JsoneriServicesStatusBrowserController(QObject):
             return
         self.api_client.fetch_route(self._active_service)
 
+    def open_url(self, url: str, *, service_name: str = "raw-image") -> None:
+        target_url = str(url or "").strip()
+        if not target_url:
+            raise ValueError("open_url requires a non-empty url")
+        self._generation += 1
+        self._open_known_url(str(service_name or "raw-image").strip() or "raw-image", target_url)
+
     def close_window(self) -> None:
         if self._window is not None:
             self._window.close()

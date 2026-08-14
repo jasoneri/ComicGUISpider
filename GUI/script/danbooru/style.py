@@ -255,3 +255,8 @@ def build_title_label_stylesheet(palette: DanbooruUiPalette) -> str:
 def build_tip_line_stylesheet(palette: DanbooruUiPalette) -> str:
     _ = palette
     return _render_qss_section("tip_line_inline")
+
+
+def build_comfy_jobs_stylesheet(palette: DanbooruUiPalette) -> str:
+    _ = palette
+    return _render_qss_section("comfy_jobs")

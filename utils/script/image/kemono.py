@@ -23,6 +23,7 @@ from utils import get_httpx_verify
 from utils.config.qc import cgs_cfg, kemono_cfg
 from utils.network.doh import build_http_transport, dns_stub_server
 from utils.script import conf as script_conf, AioRClient, BlackList, folder_sub
+from utils.script.aria2 import create_managed_rpc_client
 from utils.script.motrix import MotrixRPC, build_motrix_dns_options
 from utils.script.image.expander import FilterMgr, format_naming
 from utils.website.kemono.db import load_kemono_authors
@@ -172,7 +173,7 @@ class Kemono:
     def __init__(self, redis_cli: AioRClient):
         self.conf = script_conf.kemono
         self.api = Api(script_conf)
-        self.rpc = MotrixRPC()
+        self.rpc = create_managed_rpc_client()
         qconfig_text = kemono_cfg.filterText.value
         if qconfig_text.strip():
             filter_dict = yaml.safe_load(qconfig_text)

@@ -601,35 +601,35 @@ class DanbooruSearchController:
         preview_url = card.post.preview_file_url or card.post.file_url
         if not preview_url:
             return
+        tab_id, post_id = tab.state.tab_id, card.post.post_id
         execute_danbooru_task(
             self.interface.task_mgr,
             lambda url=preview_url, width=max(card.preview_fetch_width(), 280), interface=self.interface: capture_danbooru_request(
                 fetch_pixmap, interface.request_client, url, max_width=width
             ),
-            success_callback=lambda payload, tid=tab.state.tab_id, pid=card.post.post_id: self.handle_card_preview_result(
-                tid, pid, payload
-            ),
-            error_callback=lambda _err, current_card=card: current_card.preview_button.setText("Preview Error"),
-            task_id=f"danbooru-card-preview-{tab.state.tab_id}-{card.post.post_id}",
+            success_callback=lambda payload, tid=tab_id, pid=post_id: self.handle_card_preview_result(tid, pid, payload),
+            error_callback=lambda _err, tid=tab_id, pid=post_id: self.handle_card_preview_error(tid, pid),
+            task_id=f"danbooru-card-preview-{tab_id}-{post_id}",
         )
 
     def queue_card_previews(self, tab: "DanbooruTabWidget", cards: list["DanbooruCardWidget"]):
         visible_ids = tab.visible_card_post_ids()
-        ordered_cards = [card for card in cards if card.post.post_id in visible_ids] + [
-            card for card in cards if card.post.post_id not in visible_ids
+        ordered_post_ids = [card.post.post_id for card in cards if card.post.post_id in visible_ids] + [
+            card.post.post_id for card in cards if card.post.post_id not in visible_ids
         ]
-        self._queue_card_preview_batch(tab, ordered_cards, 0)
+        self._queue_card_preview_batch(tab.state.tab_id, ordered_post_ids, 0)
 
-    def _queue_card_preview_batch(self, tab: "DanbooruTabWidget", cards: list["DanbooruCardWidget"], index: int):
-        if index >= len(cards):
+    def _queue_card_preview_batch(self, tab_id: str, post_ids: list[int], index: int):
+        tab = self.interface.tabs.get(tab_id)
+        if tab is None or index >= len(post_ids):
             return
-        end = min(len(cards), index + 6)
-        for card in cards[index:end]:
-            self.load_card_preview(tab, card)
-        if end < len(cards):
-            QtCore.QTimer.singleShot(16, lambda current_tab=tab, current_cards=cards, current_index=end: (
-                self._queue_card_preview_batch(current_tab, current_cards, current_index)
-            ))
+        end = min(len(post_ids), index + 6)
+        for post_id in post_ids[index:end]:
+            card = tab.card_for_post(post_id)
+            if card is not None:
+                self.load_card_preview(tab, card)
+        if end < len(post_ids):
+            QtCore.QTimer.singleShot(16, lambda tid=tab_id, ids=post_ids, i=end: self._queue_card_preview_batch(tid, ids, i))
 
     def handle_card_preview_result(self, tab_id: str, post_id: int, payload: DanbooruReqResult):
         tab = self.interface.tabs.get(tab_id)
@@ -646,6 +646,15 @@ class DanbooruSearchController:
             )
             return
         self.apply_card_preview(card, payload.value)
+
+    def handle_card_preview_error(self, tab_id: str, post_id: int):
+        tab = self.interface.tabs.get(tab_id)
+        if tab is None:
+            return
+        card = tab.card_for_post(post_id)
+        if card is None:
+            return
+        card.preview_button.setText("Preview Error")
 
     def retry_card_preview(self, tab_id: str, post_id: int):
         tab = self.interface.tabs.get(tab_id)

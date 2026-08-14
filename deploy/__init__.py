@@ -11,11 +11,22 @@ class Env:
     default_clip_db = pathlib.Path.home().joinpath(r"AppData\Roaming\Ditto\Ditto.db")
     clip_sql = "SELECT `mText` FROM `MAIN` order by `LID` desc"
     shell = "powershell"
+    aira2_platform_id = "win-amd64"
+    aira2_binary_name = "aria2c.exe"
 
     def __init__(self, _p: pathlib.Path):
         self.proj_p = _p
         os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = str(
             proj_path.parent.joinpath(r"site-packages\PyQt5\Qt5\plugins\platforms"))
+
+    @property
+    def aira2(self) -> pathlib.Path:
+        """Local aria2c path under __temp/aira2 (preset-sourced; not PATH).
+
+        Uses proj_path/__temp (same tree as utils.temp_p) without importing utils,
+        to avoid deploy ↔ utils circular import.
+        """
+        return self.proj_p.joinpath("__temp", "aira2", self.aira2_binary_name)
 
     def env_init(self):
         ...

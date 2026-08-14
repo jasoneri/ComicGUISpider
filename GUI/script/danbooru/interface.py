@@ -1,4 +1,5 @@
 import gc
+import re
 import shutil
 import typing as t
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -9,6 +10,7 @@ from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLineEdit, QPlainTextEdit, QStackedWidget, QTextEdit, QVBoxLayout, QWidget
+from qfluentwidgets import PlainTextEdit as FluentPlainTextEdit
 from qfluentwidgets import (
     Action, ComboBox, FluentIcon as FIF, IndeterminateProgressRing, InfoBar, InfoBarPosition,
     PrimaryToolButton, ProgressBar, ProgressRing, RoundMenu, StrongBodyLabel, SubtitleLabel, TabBar,
@@ -30,8 +32,6 @@ from utils.sql import SqlRecorder
 from .challenge import DanbooruChallengeController
 from .core import DanbooruDownloadController, DanbooruSearchController, DanbooruTabState
 from .detail_preview import DetailPreviewController
-from .favorite_groups import build_favorite_groups_state
-from .favorite_translate import FavoriteTagTranslateController
 from .page_nav import PageNavController, PageNavState
 from .style import (
     CARD_ZOOM_METRICS, DEFAULT_TAB_STATUS_CLASS, DanbooruCardMetrics, DanbooruUiPalette, default_tab_status_text,
@@ -39,8 +39,12 @@ from .style import (
     format_tip_rich_text as _format_tip_rich_text, get_danbooru_qss_tokens, qcolor_from_css,
 )
 from .tab import DanbooruTabWidget
+from .tag import (
+    build_favorite_groups_state,
+    FavoriteTagTranslateController,
+    DanbooruTagActionController,
+)
 from .video_proxy import VideoProxy
-from .tag_actions import DanbooruTagActionController
 from .viewer import DanbooruImageViewer
 
 
@@ -145,6 +149,7 @@ class DanbooruFuncs:
 
 class DanbooruInterface(QFrame):
     download_result_signal = Signal(str, bool)
+    favorites_changed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -172,9 +177,11 @@ class DanbooruInterface(QFrame):
         self.zoom_mgr = self._ZoomMgr(self)
         self.tab_mgr = self._TabMgr(self)
         self._infobars_by_key = {}
+        self._favorites_state_cache = None
         self.download_result_signal.connect(self.download_controller.on_download_result)
         self.image_viewer.tag_clicked.connect(self._open_tag_jump_tab)
         self.image_viewer.export_panel_requested.connect(self._open_tag_export_panel)
+        self.image_viewer.export_attach_requested.connect(self._attach_tag_export)
         self.image_viewer.download_requested.connect(self.download_controller.submit_single)
         self.image_viewer.previous_requested.connect(lambda: self.detail_preview_controller.open_adjacent(-1))
         self.image_viewer.next_requested.connect(lambda: self.detail_preview_controller.open_adjacent(1))
@@ -369,6 +376,8 @@ class DanbooruInterface(QFrame):
             self._show_info(InfoBar.warning, "请输入有效页码", 3000)
 
     def _apply_theme(self, *_args):
+        # Intentional exception to the global-push pattern (invariant 7): theme switches
+        # are low-frequency, user-triggered, one-shot, and require whole-page consistency.
         palette = DanbooruUiPalette.current()
         self.setStyleSheet(build_interface_stylesheet(palette))
         self.title_label.setStyleSheet(build_title_label_stylesheet(palette))
@@ -429,7 +438,7 @@ class DanbooruInterface(QFrame):
 
     @staticmethod
     def _is_editable_key_target(obj) -> bool:
-        editable_widgets = (QLineEdit, QTextEdit, QPlainTextEdit)
+        editable_widgets = (QLineEdit, QTextEdit, QPlainTextEdit, FluentPlainTextEdit)
         focus_widget = QApplication.focusWidget()
         return isinstance(focus_widget, editable_widgets) or isinstance(obj, editable_widgets)
 
@@ -527,6 +536,7 @@ class DanbooruInterface(QFrame):
             tab.detail_opened.connect(lambda post, tid=tab_id: self.interface.detail_preview_controller.open_viewer(tid, post))
             tab.selection_count_changed.connect(lambda _count, tid=tab_id: self.interface._update_batch_button(tid))
             tab.favorite_btn.clicked.connect(lambda _=False, tid=tab_id: self.interface._toggle_favorite(tid))
+            self.interface.favorites_changed.connect(tab.mark_favorites_dirty)
             self.interface.tabs[tab_id] = tab
             self.interface.tab_states[tab_id] = state
             self.tips[tab_id] = (default_tab_status_text(), DEFAULT_TAB_STATUS_CLASS)
@@ -620,6 +630,11 @@ class DanbooruInterface(QFrame):
             self.update_chrome()
             self.sync_tip_line(tab_id)
             self.schedule_zoom_sync(tab_id)
+            tab = self.interface.tabs.get(tab_id)
+            if tab is not None:
+                if tab.favorites_dirty:
+                    self.interface._refresh_favorites_tab(tab)
+                tab.flush_download_dirty()
             self.interface.sync_page_nav(tab_id)
 
         def schedule_zoom_sync(self, tab_id: str):
@@ -748,8 +763,13 @@ class DanbooruInterface(QFrame):
         self.batch_download_badge.show()
 
     def apply_downloaded_post(self, md5_value: str):
+        # Zoom-pattern push: mark every tab dirty (O(1)/tab); only the active tab
+        # applies immediately; hidden tabs rescan on activation.
         for tab in self.tabs.values():
-            tab.apply_downloaded_state(md5_value)
+            tab.mark_download_dirty(md5_value)
+        active_tab = self._active_tab_widget()
+        if active_tab is not None:
+            active_tab.flush_download_dirty()
         if self.detail_preview_controller.matches(md5=md5_value):
             self.image_viewer.set_download_state(True)
         self.detail_preview_controller.sync_navigation()
@@ -770,11 +790,23 @@ class DanbooruInterface(QFrame):
         self.request_client.set_runtime_config(self._runtime_config)
 
     def _favorite_groups_state(self):
-        return build_favorite_groups_state(danbooru_cfg.searchFavorites.value, canonicalize_term=danbooru_cfg.canonicalize_term)
+        if self._favorites_state_cache is None:
+            self._favorites_state_cache = build_favorite_groups_state(
+                danbooru_cfg.searchFavorites.value,
+                canonicalize_term=danbooru_cfg.canonicalize_term,
+            )
+        return self._favorites_state_cache
 
-    @staticmethod
-    def _save_favorite_groups_state(groups_state):
+    def _invalidate_favorites(self):
+        self._favorites_state_cache = None
+        self.favorites_changed.emit()
+        active_tab = self._active_tab_widget()
+        if active_tab is not None:
+            self._refresh_favorites_tab(active_tab)
+
+    def _save_favorite_groups_state(self, groups_state):
         danbooru_cfg.fav.save_payload(groups_state.to_payload())
+        self._favorites_state_cache = groups_state
 
     def _refresh_completer(self, tab: DanbooruTabWidget):
         history = danbooru_cfg.get_history()
@@ -782,8 +814,18 @@ class DanbooruInterface(QFrame):
         favorites = sorted(favorites_state.all_terms() - set(history))
         tab.update_completer(history + favorites)
 
+    def _refresh_favorites_tab(self, tab: DanbooruTabWidget):
+        # Keep FluentMonkeyPatch.rbutton_menu_lineEdit path; only rebuild when needed.
+        tab.set_search_menu()
+        self._refresh_completer(tab)
+        tab.sync_favorite_button_state()
+        tab.clear_favorites_dirty()
+
     def _open_tag_export_panel(self):
         self.tag_action_controller.open_export_panel(self.image_viewer)
+
+    def _attach_tag_export(self):
+        self.tag_action_controller.attach_from_viewer(self.image_viewer)
 
     def _open_imgpalace_browser(self, service_name: str, url: str | None):
         script_window = self.parent_window
@@ -807,6 +849,21 @@ class DanbooruInterface(QFrame):
             return existing
         infobar = factory(
             title="", content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP, duration=duration, parent=self,
+        )
+        if infobar is None:
+            return None
+        self._infobars_by_key[key] = infobar
+        infobar.closedSignal.connect(lambda bar=infobar, current_key=key: self._forget_infobar(current_key, bar))
+        return infobar
+
+    def _show_custom_info(self, *, content: str, _type: str, duration: int, widgets: list, key_suffix: str = ""):
+        key = (f"custom:{_type}", f"{content}|{key_suffix}")
+        existing = self._infobars_by_key.get(key)
+        if existing is not None:
+            existing.close()
+        infobar = CustomInfoBar.show_custom(
+            title="", content=content, parent=self, _type=_type,
+            ib_pos=InfoBarPosition.TOP, duration=duration, widgets=widgets,
         )
         if infobar is None:
             return None
@@ -840,7 +897,7 @@ class DanbooruInterface(QFrame):
         self._save_favorite_groups_state(favorites_state)
         if not is_favorited and term not in favorites_state.all_terms():
             danbooru_cfg.drop_translate_keys([term])
-        self._refresh_all_favorites_ui()
+        self._invalidate_favorites()
         content = f"★ {term}" if is_favorited else f"☆ {term}"
         if not is_favorited:
             return self._show_info(InfoBar.error, content)
@@ -848,44 +905,43 @@ class DanbooruInterface(QFrame):
         if not custom_groups:
             return self._show_info(InfoBar.success, content)
         tmpFavMgrBtn = PrimaryToolButton(CgsIcon.SCRIPT_FAV_MGR)
-        first_ib = CustomInfoBar.show_custom(
-            title="", content=content, parent=self, _type="SUCCESS",
-            ib_pos=InfoBarPosition.TOP, duration=3000, widgets=[tmpFavMgrBtn],
+        first_ib = self._show_custom_info(
+            content=content, _type="SUCCESS", duration=3000, widgets=[tmpFavMgrBtn], key_suffix="fav",
         )
         def _open_group_picker():
-            first_ib.close()
+            if first_ib is not None:
+                first_ib.close()
             combo = ComboBox()
-            combo.addItems([group.name for group in custom_groups])
+            group_names = [group.name for group in custom_groups]
+            combo.addItems(group_names)
             combo.setMinimumWidth(100)
+            match = re.search("|".join(re.escape(group_name) for group_name in group_names), term)
+            if match is not None:
+                combo.setCurrentIndex(group_names.index(match.group()))
             accept_btn = PrimaryToolButton(FIF.ACCEPT)
-            picker_ib = CustomInfoBar.show_custom(
-                title="", content="move to:", parent=self, _type="INFORMATION",
-                ib_pos=InfoBarPosition.TOP, duration=-1, widgets=[combo, accept_btn],
+            picker_ib = self._show_custom_info(
+                content="move to:", _type="INFORMATION", duration=-1, widgets=[combo, accept_btn],
+                key_suffix=f"move:{term}",
             )
             def _move_tag():
                 group_name = combo.currentText()
                 move_state = self._favorite_groups_state()
                 move_state.move_to_group(term, group_name)
                 self._save_favorite_groups_state(move_state)
-                self._refresh_all_favorites_ui()
-                picker_ib.close()
+                self._invalidate_favorites()
+                if picker_ib is not None:
+                    picker_ib.close()
                 self._show_info(InfoBar.success, f"moved to「{group_name}」")
             accept_btn.clicked.connect(_move_tag)
         tmpFavMgrBtn.clicked.connect(_open_group_picker)
 
-    def _refresh_all_favorites_ui(self):
-        for tab in self.tabs.values():
-            tab.set_search_menu()
-            self._refresh_completer(tab)
-            tab.sync_favorite_button_state()
-
     def _open_favorite_manager(self):
-        from .favorites import DanbooruFavoriteManagerDialog
+        from .tag import DanbooruFavoriteManagerDialog
 
-        dialog = DanbooruFavoriteManagerDialog(self._favorite_groups_state(), self)
+        dialog = DanbooruFavoriteManagerDialog(self._favorite_groups_state().copy(), self)
         if dialog.exec():
             self._save_favorite_groups_state(dialog.groups_state)
-            self._refresh_all_favorites_ui()
+            self._invalidate_favorites()
 
     def _open_tag_jump_tab(self, tag: str):
         self.image_viewer.hide()

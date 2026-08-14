@@ -24,9 +24,7 @@ if t.TYPE_CHECKING:
 DB_CACHE_TTL_HOURS = 480
 SCRIPT_SERVICE_WARNING_DELAY_MS = 7000
 SCRIPT_SERVICE_PROBE_TIMEOUT_S = 0.15
-# Motrix 默认 JSON-RPC（utils.script.motrix.MOTRIX_RPC_URL）与 conf_sample_script.yml redis 约定
-SCRIPT_MOTRIX_RPC_HOST = "127.0.0.1"
-SCRIPT_MOTRIX_RPC_PORT = 16800
+# Redis 约定见 conf_sample_script.yml；aria2 由 CGS 托管引擎动态端口
 SCRIPT_REDIS_DEFAULT_HOST = "127.0.0.1"
 SCRIPT_REDIS_DEFAULT_PORT = 6379
 KEMONO_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/kemono.db"
@@ -121,32 +119,41 @@ class ReleaseAssetResult:
 
 @dataclass(frozen=True, slots=True)
 class ScriptServiceStatus:
-    motrix_running: bool
+    aria2_ready: bool
     redis_server_running: bool
+
+    @property
+    def motrix_running(self) -> bool:
+        """Backward-compatible alias: download engine readiness (cgs-aria2)."""
+        return self.aria2_ready
 
     @classmethod
     def from_process_names(cls, process_names: t.Iterable[str]) -> "ScriptServiceStatus":
         normalized_process_names = {process_name.lower() for process_name in process_names}
         return cls(
-            motrix_running=any("motrix" in process_name for process_name in normalized_process_names),
+            aria2_ready=any(
+                name in process_name
+                for process_name in normalized_process_names
+                for name in ("aria2c", "motrix")
+            ),
             redis_server_running=any("redis-server" in process_name for process_name in normalized_process_names),
         )
 
     @property
     def all_required_services_running(self) -> bool:
-        return self.motrix_running and self.redis_server_running
+        # Soft gate only covers external Redis. aria2 is CGS-managed and must
+        # already have been ensured (hard fail) before this status is built.
+        return self.redis_server_running
 
     @property
     def missing_services(self) -> tuple[str, ...]:
-        missing_services: list[str] = []
-        if not self.motrix_running:
-            missing_services.append("motrix")
-        if not self.redis_server_running:
-            missing_services.append("redis-server")
-        return tuple(missing_services)
+        if self.redis_server_running:
+            return ()
+        return ("redis-server",)
 
     def to_payload(self) -> dict[str, bool]:
         return {
+            "aria2_ready": self.aria2_ready,
             "motrix_running": self.motrix_running,
             "redis_server_running": self.redis_server_running,
             "all_required_services_running": self.all_required_services_running,
@@ -577,9 +584,13 @@ def _probe_local_port(host: str, port: int, *, timeout_s: float = SCRIPT_SERVICE
 
 
 def _check_script_services() -> ScriptServiceStatus:
-    # 端口 readiness 比 process_iter 全表扫更贴近“服务可用”，且在 Windows 上更稳更快。
+    # aria2 is CGS-managed: ensure or raise (no soft "engine failed" product path).
+    # Redis remains an external service → soft probe for Kemono entry only.
+    from utils.script.aria2 import ensure_engine
+
+    ensure_engine()
     return ScriptServiceStatus(
-        motrix_running=_probe_local_port(SCRIPT_MOTRIX_RPC_HOST, SCRIPT_MOTRIX_RPC_PORT),
+        aria2_ready=True,
         redis_server_running=_probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT),
     )
 

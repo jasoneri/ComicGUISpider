@@ -58,6 +58,9 @@ PAGE_NAV_FAB_FG = rgba(63, 63, 70, 0.92);
 PAGE_NAV_FAB_BORDER = rgba(39, 39, 42, 0.12);
 PAGE_NAV_FAB_HOVER_BORDER = rgba(120, 100, 110, 0.28);
 PAGE_NAV_FAB_SHADOW = rgba(39, 39, 42, 0.10);
+COMFY_JOB_OVERLAY_BG = rgba(15, 23, 42, 0.28);
+COMFY_JOB_OVERLAY_BG_HOVER = rgba(15, 23, 42, 0.35);
+COMFY_JOB_OVERLAY_BORDER = rgba(255, 255, 255, 0.22);
 /* @endtokens */
 
 /* @tokens dark */
@@ -118,6 +121,9 @@ PAGE_NAV_FAB_FG = rgba(212, 212, 216, 0.90);
 PAGE_NAV_FAB_BORDER = rgba(244, 244, 245, 0.10);
 PAGE_NAV_FAB_HOVER_BORDER = rgba(200, 180, 186, 0.28);
 PAGE_NAV_FAB_SHADOW = rgba(0, 0, 0, 0.36);
+COMFY_JOB_OVERLAY_BG = rgba(15, 23, 42, 0.28);
+COMFY_JOB_OVERLAY_BG_HOVER = rgba(15, 23, 42, 0.35);
+COMFY_JOB_OVERLAY_BORDER = rgba(255, 255, 255, 0.22);
 /* @endtokens */
 
 /* @section card */
@@ -352,5 +358,59 @@ ScrollArea#DanbooruPageNavScroll,
 QWidget#DanbooruPageNavListHost {
     background: transparent;
     border: none;
+}
+/* @endsection */
+
+/* @section comfy_jobs */
+#ComfyJobsDialog {
+    background: ${CANVAS};
+}
+QFrame#ComfyJobsHeaderShell {
+    background: ${SHELL};
+    border: 1px solid ${SHELL_BORDER};
+    border-radius: 12px;
+}
+QFrame#ComfyJobCard {
+    background: ${CARD_BACKGROUND_IDLE};
+    border: 1px solid ${CARD_BORDER_IDLE};
+    border-radius: 12px;
+}
+QFrame#ComfyJobCard:hover {
+    border-color: ${CARD_HOVER_BORDER_IDLE};
+}
+QLabel#ComfyJobPreviewLabel {
+    background: ${CARD_PREVIEW_BACKGROUND};
+    border-radius: 9px;
+    color: ${MUTED_TEXT};
+}
+QLabel#ComfyJobPreviewLabel:hover {
+    background: ${CARD_PREVIEW_BACKGROUND_HOVER};
+}
+QLabel#ComfyJobsEmptyLabel {
+    color: ${MUTED_TEXT};
+    background: transparent;
+    padding: 40px 0;
+}
+QWidget#ComfyJobsCardsHost {
+    background: transparent;
+}
+QToolButton#ComfyJobTagsAttachBtn,
+QToolButton#ComfyJobCopyPromptBtn,
+QToolButton#ComfyJobDelBtn {
+    background: ${COMFY_JOB_OVERLAY_BG};
+    border: 1px solid ${COMFY_JOB_OVERLAY_BORDER};
+    border-radius: 8px;
+    padding: 0px;
+}
+QToolButton#ComfyJobTagsAttachBtn:hover,
+QToolButton#ComfyJobCopyPromptBtn:hover,
+QToolButton#ComfyJobDelBtn:hover {
+    background: ${COMFY_JOB_OVERLAY_BG_HOVER};
+}
+QToolButton#ComfyJobTagsAttachBtn:pressed,
+QToolButton#ComfyJobCopyPromptBtn:pressed,
+QToolButton#ComfyJobDelBtn:pressed {
+    background: ${COMFY_JOB_OVERLAY_BG_HOVER};
+    padding-top: 1px;
 }
 /* @endsection */

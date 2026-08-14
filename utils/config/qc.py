@@ -196,6 +196,15 @@ class DanbooruConfig(QConfig):
     view_ratio = RangeConfigItem("Viewer", "ViewRatio", _default_danbooru_view_ratio(), RangeValidator(30, 85), restart=False)
     player = ConfigItem("Viewer", "Player", {}, restart=False)
     zoom_index = ConfigItem("Viewer", "ZoomIndex", 2, restart=False)
+    # Tag 导出面板屏幕几何 [x, y, width, height]；空列表表示尚未记忆，走默认尺寸。
+    tagExportPanelRect = ConfigItem("TagExportPanel", "Rect", [], restart=False)
+    # Tag 导出面板 Comfy 生成设置：UNET 预设键、图内补全开关、重绘强度，随面板开合记忆。
+    tagExportComfyUnet = ConfigItem("TagExportPanel", "ComfyUnet", "turbo", restart=False)
+    tagExportWd14Enabled = ConfigItem("TagExportPanel", "Wd14Enabled", False, restart=False)
+    tagExportDenoise = RangeConfigItem("TagExportPanel", "Denoise", 100, RangeValidator(10, 100), restart=False)
+    # Fav-chip group → PromptDoc section (body/character/artist/series). Preference bag only;
+    # never Search/Favorites content — see danbooru-global-push-pattern panel-pref boundary.
+    tagExportFavGroupSections = ConfigItem("TagExportPanel", "FavGroupSections", {}, restart=False)
 
     @staticmethod
     def canonicalize_term(term: str) -> str:
@@ -326,6 +335,87 @@ class DanbooruConfig(QConfig):
             self.player.value = dict(player)
             self.save()
         return dict(player)
+
+    def get_tag_export_panel_rect(self) -> list[int]:
+        raw_rect = self.tagExportPanelRect.value
+        if not isinstance(raw_rect, list) or len(raw_rect) < 4:
+            return []
+        try:
+            return [int(value) for value in raw_rect[:4]]
+        except (TypeError, ValueError):
+            return []
+
+    def save_tag_export_panel_rect(self, x: int, y: int, width: int, height: int) -> list[int]:
+        rect = [int(x), int(y), int(width), int(height)]
+        if rect != self.tagExportPanelRect.value:
+            self.tagExportPanelRect.value = list(rect)
+            self.save()
+        return list(rect)
+
+    def get_tag_export_comfy_unet(self) -> str:
+        """返回存储的 UNET 预设键；预设键合法性由调用方按注册表校验。"""
+        return str(self.tagExportComfyUnet.value or "")
+
+    def save_tag_export_comfy_unet(self, preset_name: str) -> str:
+        preset_name = str(preset_name or "")
+        if preset_name != self.tagExportComfyUnet.value:
+            self.tagExportComfyUnet.value = preset_name
+            self.save()
+        return preset_name
+
+    def get_tag_export_wd14_enabled(self) -> bool:
+        return bool(self.tagExportWd14Enabled.value)
+
+    def save_tag_export_wd14_enabled(self, enabled: bool) -> bool:
+        enabled = bool(enabled)
+        if enabled != self.tagExportWd14Enabled.value:
+            self.tagExportWd14Enabled.value = enabled
+            self.save()
+        return enabled
+
+    def get_tag_export_denoise(self) -> int:
+        return int(self.tagExportDenoise.value)
+
+    def save_tag_export_denoise(self, value: int) -> int:
+        value = max(10, min(100, int(value)))
+        if value != self.tagExportDenoise.value:
+            self.tagExportDenoise.value = value
+            self.save()
+        return value
+
+    _TAG_EXPORT_FAV_SECTIONS = frozenset({"body", "character", "artist", "series"})
+
+    def get_tag_export_fav_group_sections(self) -> dict[str, str]:
+        """Panel preference bag: favorite group name → insertion section.
+
+        Dumb read only — no favorites invalidate / no tab push.
+        """
+        raw_mapping = self.tagExportFavGroupSections.value
+        if not isinstance(raw_mapping, dict):
+            return {}
+        normalized: dict[str, str] = {}
+        for raw_group_name, raw_section in raw_mapping.items():
+            group_name = str(raw_group_name or "").strip()
+            section = str(raw_section or "").strip()
+            if not group_name or section not in self._TAG_EXPORT_FAV_SECTIONS:
+                continue
+            normalized[group_name] = section
+        return normalized
+
+    def save_tag_export_fav_group_sections(self, mapping: dict[str, str] | None) -> dict[str, str]:
+        """Persist fav-group section map under TagExportPanel; never touches Search/Favorites."""
+        normalized: dict[str, str] = {}
+        if isinstance(mapping, dict):
+            for raw_group_name, raw_section in mapping.items():
+                group_name = str(raw_group_name or "").strip()
+                section = str(raw_section or "").strip()
+                if not group_name or section not in self._TAG_EXPORT_FAV_SECTIONS:
+                    continue
+                normalized[group_name] = section
+        if normalized != self.tagExportFavGroupSections.value:
+            self.tagExportFavGroupSections.value = dict(normalized)
+            self.save()
+        return dict(normalized)
 
     def get_history(self):
         return list(self.searchHistory.value)

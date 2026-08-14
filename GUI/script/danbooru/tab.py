@@ -20,7 +20,7 @@ from utils.script.image.danbooru.models import DanbooruAutocompleteCandidate, Da
 
 from .card import DanbooruCardWidget
 from .core import DanbooruTabSelectionController, DanbooruTabState, delete_flow_item as _delete_flow_item
-from .favorite_groups import build_favorite_groups_state
+from .tag import build_favorite_groups_state
 from .style import DanbooruCardMetrics, DanbooruUiPalette, DEFAULT_CARD_METRICS, build_tab_stylesheet
 
 
@@ -40,12 +40,17 @@ class DanbooruTabWidget(QFrame):
     def __init__(self, state: DanbooruTabState, parent=None):
         super().__init__(parent)
         self.gui = parent.gui
+        self.interface = parent
         self.state = state
         self.card_metrics = DEFAULT_CARD_METRICS
         self.card_widgets: dict[int, DanbooruCardWidget] = {}
         self._extra_tip = None
         # Completer shows display labels; selection must insert origin search keys.
         self._completer_origin_by_label: dict[str, str] = {}
+        self._completer_model: t.Optional[QStandardItemModel] = None
+        self._completer: t.Optional[QCompleter] = None
+        self._favorites_dirty = False
+        self._downloads_dirty: set[str] = set()
         self.zoom_mgr = self._InnerZoomMgr(self)
         self._setup_ui()
         self.selection_controller = DanbooruTabSelectionController(self)
@@ -224,10 +229,36 @@ class DanbooruTabWidget(QFrame):
         self.favorite_btn.blockSignals(False)
 
     def _favorite_groups_state(self):
+        interface_state = getattr(self.interface, "_favorite_groups_state", None)
+        if callable(interface_state):
+            return interface_state()
         return build_favorite_groups_state(
             danbooru_cfg.searchFavorites.value,
             canonicalize_term=danbooru_cfg.canonicalize_term,
         )
+
+    @property
+    def favorites_dirty(self) -> bool:
+        return self._favorites_dirty
+
+    def mark_favorites_dirty(self):
+        self._favorites_dirty = True
+
+    def clear_favorites_dirty(self):
+        self._favorites_dirty = False
+
+    def mark_download_dirty(self, md5_value: str):
+        value = str(md5_value or "").strip()
+        if value:
+            self._downloads_dirty.add(value)
+
+    def flush_download_dirty(self):
+        if not self._downloads_dirty:
+            return
+        pending = list(self._downloads_dirty)
+        self._downloads_dirty.clear()
+        for md5_value in pending:
+            self.apply_downloaded_state(md5_value)
 
     def _set_search_edit_value(self, value: str):
         self.search_edit.setText(value)
@@ -420,7 +451,10 @@ class DanbooruTabWidget(QFrame):
         self.sync_favorite_button_state()
 
     def update_completer(self, terms: list[str]):
-        """Build completer from origin tags; popup shows display names, selection writes origin."""
+        """Build completer from origin tags; popup shows display names, selection writes origin.
+
+        Reuses the same QCompleter + QStandardItemModel after first build (zoom-pattern leaf shaping).
+        """
         ordered_origins: list[str] = []
         seen: set[str] = set()
         for raw in terms:
@@ -430,8 +464,8 @@ class DanbooruTabWidget(QFrame):
             seen.add(origin)
             ordered_origins.append(origin)
 
-        model = QStandardItemModel(self.search_edit)
         label_to_origin: dict[str, str] = {}
+        rows: list[QStandardItem] = []
         for origin in ordered_origins:
             label = self._completer_label_for_origin(origin)
             if not label:
@@ -441,19 +475,34 @@ class DanbooruTabWidget(QFrame):
                 label = self._normalize_completer_label(f"{label} · {origin}")
             item = QStandardItem(label)
             item.setData(origin, Qt.UserRole)
-            model.appendRow(item)
+            rows.append(item)
             label_to_origin[label] = origin
 
         self._completer_origin_by_label = label_to_origin
-        completer = QCompleter(model, self.search_edit)
-        completer.setFilterMode(Qt.MatchContains)
-        completer.setCompletionMode(QCompleter.PopupCompletion)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
-        completer.setCompletionRole(Qt.DisplayRole)
-        completer.setCompletionColumn(0)
-        # Fallback path when Qt native activated is used instead of CompleterMenu.
-        completer.activated[str].connect(self._on_completer_label_activated)
-        self.search_edit.setCompleter(completer)
+
+        if self._completer_model is None or self._completer is None:
+            model = QStandardItemModel(self.search_edit)
+            for item in rows:
+                model.appendRow(item)
+            completer = QCompleter(model, self.search_edit)
+            completer.setFilterMode(Qt.MatchContains)
+            completer.setCompletionMode(QCompleter.PopupCompletion)
+            completer.setCaseSensitivity(Qt.CaseInsensitive)
+            completer.setCompletionRole(Qt.DisplayRole)
+            completer.setCompletionColumn(0)
+            # Fallback path when Qt native activated is used instead of CompleterMenu.
+            completer.activated[str].connect(self._on_completer_label_activated)
+            self.search_edit.setCompleter(completer)
+            self._completer_model = model
+            self._completer = completer
+        else:
+            model = self._completer_model
+            model.beginResetModel()
+            model.clear()
+            for item in rows:
+                model.appendRow(item)
+            model.endResetModel()
+            completer = self._completer
 
         menu = getattr(self.search_edit, "_completerMenu", None)
         if menu is None:

@@ -1,0 +1,24 @@
+{
+  "groups": [
+    {
+      "label": "Safety",
+      "source": "SAFETY_TAGS"
+    },
+    {
+      "label": "Meta",
+      "source": "META_TAGS"
+    },
+    {
+      "label": "Quality",
+      "source": "QUALITY_TAGS"
+    },
+    {
+      "label": "Score",
+      "source": "SCORE_TAGS"
+    },
+    {
+      "label": "Period",
+      "source": "PERIOD_TAGS"
+    }
+  ]
+}

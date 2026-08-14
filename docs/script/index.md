@@ -7,22 +7,22 @@ kemono / danbooru / cbg / saucenao
 
 ::: warning 🔔 脚本集通用前置安装( v2.11.0 改为 `按需` )
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
-下载引擎：[Motrix](https://github.com/agalwood/Motrix/releases)
+下载引擎：**CGS 托管 aria2**（首次使用从 `releases/download/preset` 拉到本地 `__temp/aira2`；仅 **win-amd64 / macos-arm**）  
 > [!tip] 指引
 > Redis-windows: 下载 *-cygwin-with-Service.zip  
 > 查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
 
-Motrix 在进入 Script 前保持启动即可
+Script 设置里两个代理分列：**代理/Proxy** = httpx；**Aria2 下载引擎** 卡片中的下载代理 = 引擎（yaml `cgs_aria2.proxy`，空=直连）。
 :::
 
-| 前置矩阵 | redis-service | Motrix |
+| 前置矩阵 | redis-service |
 | --- |  :---: | :---: |
-| Kemono | ⭕️ | ⭕️ |
-| Danbooru | ➖ | ⭕️ |
-| Cbg | ➖ | ➖ |
-| jsoneriPalaces | ➖ | ➖ |
+| Kemono | ⭕️ |
+| Danbooru | ➖ |
+| Cbg | ➖ |
+| jsoneriPalaces | ➖ |
 
-::: tip 参考 `前置矩阵` 例如只装 Motrix 并进 Script 前启动就能使用 Danbooru
+::: tip 参考 `前置矩阵`：Danbooru 一般只需引擎就绪（进入 Script 时自动启动）；Kemono 另需 Redis
 :::
 
 ::: details 脚本目录树: `script`目录 (非 GUI 相关)

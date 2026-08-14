@@ -24,7 +24,7 @@ GUI:
   Script:
     site_name: "Script"
     service_check_success: "✅ 后台服务检测"
-    service_check_failed_content: "Redis 或 Motrix 服务未运行，<br>点击指南查看`前置须知`，安装并运行相关服务"
+    service_check_failed_content: "Redis 服务未运行，<br>点击指南查看`前置须知`（Kemono 需要 Redis；下载引擎由 CGS 自动托管）"
     service_check_failed_title: "服务检测失败"
     dependency_check_success: "✅ 额外依赖检测"
     dependency_check_failed_content: "点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）"
@@ -35,7 +35,7 @@ GUI:
     danbooru_save_mode: "保存方式"
     danbooru_save_mode_desc: "默认则保存到下载目录，或按搜索标签创建子目录"
     danbooru_download_concurrency: "下载并发"
-    danbooru_download_concurrency_desc: "Motrix 轮询并发数"
+    danbooru_download_concurrency_desc: "下载任务并发数"
     danbooru_view_ratio: "图片展示缩放"
     danbooru_view_ratio_desc: "控制 图片viewer 的展示面积"
     danbooru_save_type_default: "默认"

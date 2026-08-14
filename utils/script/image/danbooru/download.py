@@ -5,7 +5,8 @@ from typing import Callable, Iterable, Optional
 
 from loguru import logger as lg
 
-from utils.script.motrix import HTTPX_USER_AGENT, MotrixRPC
+from utils.script.aria2 import HTTPX_USER_AGENT, create_managed_rpc_client
+from utils.script.aria2.rpc import Aria2RpcClient
 from utils.sql import SqlRecorder
 
 from .constants import DANBOORU_SQL_TABLE, MOTRIX_POLL_INTERVAL
@@ -38,7 +39,7 @@ class DanbooruDownloadSubmitter:
         *,
         runtime_config: Optional[DanbooruRuntimeConfig] = None,
         sql_recorder: Optional[SqlRecorder] = None,
-        motrix_client: Optional[MotrixRPC] = None,
+        motrix_client: Optional[Aria2RpcClient] = None,
     ):
         self.runtime_config = runtime_config or DanbooruRuntimeConfig.from_conf()
         self.planner = DanbooruDownloadPlanner(sql_recorder)
@@ -58,7 +59,7 @@ class DanbooruDownloadSubmitter:
 
         submit_candidates = list(plan.to_submit)
         plan.to_submit = []
-        rpc = self.motrix_client or MotrixRPC()
+        rpc = self.motrix_client or create_managed_rpc_client()
         own_rpc = self.motrix_client is None
         sem = asyncio.Semaphore(self.runtime_config.download_concurrency)
         browser_session = danbooru_browser_session_store.current()
@@ -75,17 +76,17 @@ class DanbooruDownloadSubmitter:
             dns_options=dict(self.runtime_config.motrix_add_uri_options()),
         )
         lg.info(
-            f"[DanbooruMotrix] submit header_names="
+            f"[DanbooruAria2] submit header_names="
             f"{[item.split(':', 1)[0].strip() for item in motrix_options.get('header', []) if ':' in item]} "
             f"cookie_names={browser_session.cookie_names} "
             f"referer={browser_session.referer() or '<none>'}"
         )
         if self.runtime_config.is_doh_enabled():
             lg.info(
-                f"[DanbooruDNS] runtime doh={self.runtime_config.doh_url} stub={self.runtime_config.stub_dns_endpoint()} motrix={self.runtime_config.stub_dns_server()}"
+                f"[DanbooruDNS] runtime doh={self.runtime_config.doh_url} stub={self.runtime_config.stub_dns_endpoint()} aria2={self.runtime_config.stub_dns_server()}"
             )
         else:
-            lg.info("[DanbooruDNS] runtime doh=disabled motrix=system")
+            lg.info("[DanbooruDNS] runtime doh=disabled aria2=system")
 
         async def run_rpc_task(post: DanbooruPost) -> tuple[DanbooruPost, Optional[str]]:
             async with sem:
@@ -110,7 +111,7 @@ class DanbooruDownloadSubmitter:
                             error = status_payload.get("errorMessage") or status_payload.get("errorCode") or status or "unknown"
                             return post, error
                         if progress_callback is not None:
-                            progress_callback(f"等待 Motrix 完成 {post.post_id}: {status or 'unknown'}")
+                            progress_callback(f"等待下载完成 {post.post_id}: {status or 'unknown'}")
                         await asyncio.sleep(MOTRIX_POLL_INTERVAL)
                 except Exception as exc:
                     return post, str(exc)
@@ -129,5 +130,5 @@ class DanbooruDownloadSubmitter:
                 await rpc.aclose()
 
         if plan.submission_errors and not plan.to_submit:
-            raise RuntimeError("Motrix submission failed: " + "; ".join(plan.submission_errors[:3]))
+            raise RuntimeError("aria2 submission failed: " + "; ".join(plan.submission_errors[:3]))
         return plan

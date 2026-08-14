@@ -17,11 +17,11 @@ from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.config.qc import danbooru_cfg
 from utils.script import conf as script_conf
 from utils.script.ai.capabilities.tag_translate import TagTranslatePipeline
-from utils.script.ai.kernel import AiProviderMgr
+from utils.script.ai.kernel import AiProviderConfigSession
 
 if t.TYPE_CHECKING:
+    from ..interface import DanbooruInterface
     from .favorites import DanbooruFavoriteManagerDialog
-    from .interface import DanbooruInterface
 
 _TRANSLATE_TASK_ID = "danbooru_favorite_tag_translate"
 
@@ -89,9 +89,10 @@ class FavoriteTagTranslateController(QtCore.QObject):
         success_callback=None,
         error_callback=None,
     ) -> bool:
-        provider = AiProviderMgr().provider
-        if not provider.is_configured():
+        session = AiProviderConfigSession.instance()
+        if not session.is_configured():
             raise ValueError("AI provider is not configured")
+        provider = session.provider
         tag_snapshot = [tag for tag in tags if str(tag or "").strip()]
         if not tag_snapshot:
             raise ValueError("empty tags")
@@ -136,8 +137,9 @@ class FavoriteTagTranslateController(QtCore.QObject):
             skipped = list(getattr(result, "skipped_no_evidence", None) or [])
             if translations:
                 danbooru_cfg.merge_translate_map(translations)
-            for tab in self.interface.tabs.values():
-                self.interface._refresh_completer(tab)
+            # Translate map is global completer display data; push via favorites dirty path
+            # (zoom-pattern: active-only rebuild, hidden tabs resync on activation).
+            self.interface._invalidate_favorites()
             ok_count = len(translations)
             fail_count = len(failed)
             skip_count = len(skipped)
@@ -212,8 +214,11 @@ class FavoriteTagTranslateDialogSession(QtCore.QObject):
         self._group_choice_tip = None
         self._running = False
         self.active_editor_origin: str | None = None
+        self._ai_provider_session = AiProviderConfigSession.instance()
         self._build_chrome()
         self._wire()
+        self._ai_provider_session.state_changed.connect(self._on_ai_provider_state_changed)
+        self.dialog.destroyed.connect(self._detach_ai_provider_session)
         self.sync_entry_visibility()
 
     def _build_chrome(self):
@@ -294,8 +299,22 @@ class FavoriteTagTranslateDialogSession(QtCore.QObject):
         if dropped:
             danbooru_cfg.drop_translate_keys(dropped)
 
+    def _on_ai_provider_state_changed(self, _previous, _current):
+        self.sync_entry_visibility()
+
+    def _detach_ai_provider_session(self, *_args):
+        session = getattr(self, "_ai_provider_session", None)
+        if session is None:
+            return
+        try:
+            session.state_changed.disconnect(self._on_ai_provider_state_changed)
+        except (RuntimeError, TypeError):
+            pass
+
     def sync_entry_visibility(self):
-        configured = AiProviderMgr().is_configured()
+        """LLM provider presence = translate chrome visibility（与 comfy_nl_row 同状态机）。"""
+        session = getattr(self, "_ai_provider_session", None)
+        configured = session.is_configured() if session is not None else False
         self.translateBtnGroup.setVisible(configured)
         if not configured:
             self.translateBtn.show()

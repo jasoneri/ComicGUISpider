@@ -8,6 +8,8 @@ but it still easily install or use CGS by  `uv tool`, take a look for [uv tool i
 
 ## Operation
 
+Portable `CGS.app` runs `deploy/launcher/mac/init.bash` (via gitee raw) for `brew` + `uv`. scriptWin **aria2c** is pulled on first use from `releases/download/preset` into local `__temp/aira2` (**macos-arm** only; not brew PATH).
+
 ::: warning source code path
 
 ```bash

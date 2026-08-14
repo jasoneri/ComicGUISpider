@@ -8,7 +8,7 @@ from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QGraphicsView, QHBoxLayout, QLabel, QVBoxLayout, QWidget, QSizePolicy
 from qfluentwidgets import (
     BodyLabel, FluentIcon as FIF, IndeterminateProgressRing, PrimaryToolButton, PushButton, ScrollArea,
-    Slider, TransparentToggleToolButton, TransparentToolButton,
+    Slider, ToolButton, TransparentToggleToolButton, TransparentToolButton,
 )
 from qfluentwidgets.multimedia import VideoWidget, SimpleMediaPlayBar
 from qframelesswindow.utils import startSystemMove
@@ -16,6 +16,7 @@ from qframelesswindow.utils import startSystemMove
 from utils.config.qc import danbooru_cfg
 from GUI.core.timer import safe_single_shot
 from GUI.uic.qfluent.components import FlexImageLabel
+from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.script.image.danbooru.models import DanbooruPost
 from utils.script.image.danbooru.tag_prompt import TagPrompt
 
@@ -140,6 +141,7 @@ class _BufferingIndicator(QWidget):
 class DanbooruImageViewer(QWidget):
     tag_clicked = Signal(str)
     export_panel_requested = Signal()
+    export_attach_requested = Signal()
     download_requested = Signal(object)
     previous_requested = Signal()
     next_requested = Signal()
@@ -200,12 +202,18 @@ class DanbooruImageViewer(QWidget):
         tag_toolbar_layout = QHBoxLayout(self.tag_toolbar)
         tag_toolbar_layout.setContentsMargins(0, 0, 0, 0)
         tag_toolbar_layout.setSpacing(4)
-        tag_toolbar_layout.addStretch(1)
-        self.export_panel_btn = TransparentToolButton(FIF.COPY, self.tag_toolbar)
-        self.export_panel_btn.setFixedSize(34, 34)
+        self.export_panel_btn = ToolButton(CgsIcon.SCRIPT_TAG_EDIT, self.tag_toolbar)
+        self.export_attach_btn = PrimaryToolButton(CgsIcon.SCRIPT_TAG_ADD, self.tag_toolbar)
+        self.export_panel_btn.setFixedHeight(34)
+        self.export_panel_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.export_panel_btn.setToolTip("打开 Tag 导出面板")
         self.export_panel_btn.clicked.connect(self.export_panel_requested.emit)
+        self.export_attach_btn.setFixedHeight(34)
+        self.export_attach_btn.setToolTip("附着当前图到已打开的 Tag 导出（Attached-tags）")
+        self.export_attach_btn.clicked.connect(self.export_attach_requested.emit)
+        self.export_attach_btn.hide()
         tag_toolbar_layout.addWidget(self.export_panel_btn)
+        tag_toolbar_layout.addWidget(self.export_attach_btn)
         left_column_layout.addWidget(self.tag_toolbar, 0)
 
         self.tags_scroll = ScrollArea(self.left_column)

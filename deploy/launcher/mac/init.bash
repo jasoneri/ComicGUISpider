@@ -27,6 +27,8 @@ fi
 uv tool update-shell
 export PATH="$(uv tool dir --bin):$PATH"
 
+# scriptWin 下载引擎：aria2c 由 CGS 从 releases/download/preset 拉到 temp_p/aira2（非 brew）
+
 DEFAULT_SOURCE="1"
 SOURCE_OPTION=${1:-$DEFAULT_SOURCE}
 INDEX_URL=""

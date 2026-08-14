@@ -16,7 +16,7 @@ from utils import install_qfluentwidgets_notice_filter
 install_qfluentwidgets_notice_filter()
 
 from qfluentwidgets import (
-    NavigationItemPosition, FluentWindow,
+    NavigationItemPosition, FluentWindow, qrouter,
     LineEdit, PasswordLineEdit, PrimaryPushButton,
     FluentIcon as FIF, StrongBodyLabel, InfoBar, InfoBarPosition,
     GroupHeaderCardWidget, PushButton, ScrollArea, SpinBox, ComboBox, RangeSettingCard
@@ -33,6 +33,7 @@ from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import summarize_error_message
 from GUI.uic.qfluent.components.icons import CgsIcon
+from GUI.script.settings_aria2 import Aria2GroupCard
 
 
 script_res = res.GUI.Script
@@ -269,6 +270,60 @@ class AiGroupCard(GroupHeaderCardWidget):
         )
 
 
+class ImgPalaceGroupCard(GroupHeaderCardWidget):
+    """imgPalace job token only — no enable switch; non-empty token = capability on."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setting_interface = parent
+        self.setTitle("imgPalace")
+        self.setBorderRadius(8)
+
+        self.tokenEdit = PasswordLineEdit(self)
+        self.tokenEdit.setPlaceholderText("Bearer token")
+        self.tokenEdit.setClearButtonEnabled(True)
+        self.tokenEdit.setMinimumWidth(320)
+        self.addGroup(
+            CgsIcon.KEY,
+            "Token",
+            "jsoneriPalacesProbe token；填写后 Tag 导出面板显示 to_imgPalace",
+            self.tokenEdit,
+        )
+
+    def set_token(self, token: object = None):
+        self.tokenEdit.setText(str(token or ""))
+
+    def get_token(self) -> str:
+        return self.tokenEdit.text().strip()
+
+
+class ComfyGroupCard(GroupHeaderCardWidget):
+    """Comfy host only — empty host hides Comfy rows; no silent 8188 fallback in GUI."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setting_interface = parent
+        self.setTitle("ComfyUI")
+        self.setBorderRadius(8)
+
+        self.hostEdit = LineEdit(self)
+        self.hostEdit.setPlaceholderText("http://127.0.0.1:8188")
+        self.hostEdit.setClearButtonEnabled(True)
+        self.hostEdit.setMinimumWidth(320)
+        self.addGroup(
+            CgsIcon.URL,
+            "Host",
+            "本机 ComfyUI 地址；留空则 Tag 导出不显示 Comfy 行",
+            self.hostEdit,
+        )
+
+    def set_host(self, host: object = None):
+        self.hostEdit.setText(str(host or ""))
+
+    def get_host(self) -> str:
+        return self.hostEdit.text().strip()
+
+
 class _SettingFillScrollArea(ScrollArea):
     """ScrollArea whose vertical sizeHint is 0 so parent layout can stretch it to fill remainder."""
 
@@ -332,14 +387,22 @@ class SettingInterface(QFrame):
         first_row.addWidget(self.dohBtn)
 
         # Cards keep SettingInterface as parent so setting_interface/saveBtn wiring stays valid.
+        self.aria2_group_card = Aria2GroupCard(self)
+        # Compatibility alias for probes / existing call sites.
+        self.aria2ProxyEdit = self.aria2_group_card.proxy_edit
         self.kemono_group_card = KemonoGroupCard(self)
         self.danbooru_group_card = DanbooruGroupCard(self)
         self.ai_card = AiGroupCard(self)
+        self.imgpalace_card = ImgPalaceGroupCard(self)
+        self.comfy_card = ComfyGroupCard(self)
 
         self.main_layout.addLayout(first_row)
+        self.main_layout.addWidget(self.aria2_group_card)
         self.main_layout.addWidget(self.kemono_group_card)
         self.main_layout.addWidget(self.danbooru_group_card)
         self.main_layout.addWidget(self.ai_card)
+        self.main_layout.addWidget(self.imgpalace_card)
+        self.main_layout.addWidget(self.comfy_card)
         self.main_layout.addStretch(0)
 
         self.scroll_area.setWidget(self.scroll_content)
@@ -388,10 +451,28 @@ class SettingInterface(QFrame):
 
     def show_self(self):
         """加载配置文件内容到各个编辑框"""
+        from utils.script.aria2.settings import ensure_motrix_proxy_seed, get_proxy
+
         with open(script_conf.file, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f.read()) or {}
 
+        # Seed may write yaml; never block Settings paint if Motrix import fails.
+        imported = False
+        try:
+            config_data, imported = ensure_motrix_proxy_seed(config_data)
+        except Exception as seed_error:
+            logger = self._gui_logger()
+            if logger is not None:
+                logger.warning(f"[ScriptSettings] motrix proxy seed skipped: {seed_error}")
+
         self.imgProxiesEdit.setText(','.join(config_data.get('proxies') or []))
+        self.aria2_group_card.set_proxy_text(get_proxy(config_data))
+        if imported:
+            InfoBar.info(
+                title='', content="已从 Motrix 导入下载代理",
+                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
+                duration=3500, parent=self,
+            )
         kemono_config = config_data.get('kemono', {})
         self.kemono_group_card.setCookieText(kemono_config.get('cookie', ''))
         self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))
@@ -403,6 +484,11 @@ class SettingInterface(QFrame):
 
         provider = AiProviderMgr(config_data.get("ai") or {}).provider
         self.ai_card.set_provider(url=provider.url, key=provider.key, model=provider.model)
+
+        jsoneri_config = config_data.get("jsoneriPalacesProbe") or {}
+        self.imgpalace_card.set_token(jsoneri_config.get("token") if isinstance(jsoneri_config, dict) else "")
+        comfy_config = config_data.get("comfy") or {}
+        self.comfy_card.set_host(comfy_config.get("host") if isinstance(comfy_config, dict) else "")
 
     def _gui_logger(self):
         return self.parent_window.gui.log
@@ -431,12 +517,17 @@ class SettingInterface(QFrame):
             with open(script_conf.file, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f.read()) or {}
 
-            # 更新代理设置
+            from utils.script.aria2 import get_engine
+            from utils.script.aria2.settings import set_proxy
+
+            # 顶部 httpx 代理；Aria2GroupCard：下载引擎代理（cgs_aria2.proxy）
             proxies_text = self.imgProxiesEdit.text().strip()
             if proxies_text:
                 config_data['proxies'] = [p.strip() for p in proxies_text.split(',') if p.strip()]
             else:
                 config_data['proxies'] = None
+
+            config_data = set_proxy(self.aria2_group_card.get_proxy_text(), config_data=config_data)
 
             # 更新kemono配置
             if 'kemono' not in config_data:
@@ -458,10 +549,39 @@ class SettingInterface(QFrame):
                 "provider": self.ai_card.get_provider_fields(),
             }
 
+            existing_jsoneri = config_data.get("jsoneriPalacesProbe")
+            if not isinstance(existing_jsoneri, dict):
+                existing_jsoneri = {}
+            else:
+                existing_jsoneri = dict(existing_jsoneri)
+            existing_jsoneri["token"] = self.imgpalace_card.get_token()
+            config_data["jsoneriPalacesProbe"] = existing_jsoneri
+
+            config_data["comfy"] = {
+                "host": self.comfy_card.get_host(),
+            }
+
             script_conf.update(**config_data)
+            # LLM presence is a process-wide capability bit (fav-translate + comfy_nl_row).
+            from utils.script.ai.kernel import AiProviderConfigSession
+
+            AiProviderConfigSession.instance().reload(config_data.get("ai") or {})
+            # Restart engine off the critical UI path; failure is logged, not a soft product state.
+            def _restart_download_engine():
+                try:
+                    get_engine().restart()
+                except Exception as engine_error:
+                    logger = self._gui_logger()
+                    if logger is not None:
+                        logger.warning(f"[ScriptSettings] aria2 restart after proxy save: {engine_error}")
+
+            safe_single_shot(0, _restart_download_engine)
             danbooru = getattr(self.parent_window, "danbooruInterface", None)
             if danbooru is not None:
                 danbooru.refresh_runtime_settings()
+            jsoneri = getattr(self.parent_window, "jsoneriPalacesProbeInterface", None)
+            if jsoneri is not None and hasattr(jsoneri, "refresh_config"):
+                jsoneri.refresh_config(fetch=False)
 
             InfoBar.success(
                 title='', content="配置保存成功",
@@ -473,13 +593,21 @@ class SettingInterface(QFrame):
 
 
 class ScriptWindow(ScriptWindowBase):
-    # Lazy interface factories: import+construct only when the nav entry is first needed.
+    # Startup-only lazy factories: construct on first visit, then keep alive for the session.
+    # Lazy is NOT continuous unload/delete of real interfaces.
     _INTERFACE_FACTORIES = {
         "danbooru": ("GUI.script.danbooru", "DanbooruInterface"),
         "kemono": ("GUI.script.kemono", "KemonoInterface"),
         "cbg": ("GUI.script.cbg", "CbgInterface"),
         "jsoneri": ("GUI.script.jsoneri", "JsoneriPalacesProbeInterface"),
         "settings": (None, "SettingInterface"),
+    }
+    _ROUTE_KEYS = {
+        "danbooru": "DanbooruInterface",
+        "kemono": "KemonoInterface",
+        "cbg": "CbgInterface",
+        "jsoneri": "JsoneriPalacesProbeInterface",
+        "settings": "SettingInterface",
     }
 
     def __init__(
@@ -494,8 +622,11 @@ class ScriptWindow(ScriptWindowBase):
         self.script_entry_state = script_entry_state or {}
         if OFFSCREEN_FLUENT_FALLBACK:
             self._setup_offscreen_shell()
-        self._script_entry_specs: list[tuple[QFrame, bool]] = []
+        self._script_entry_specs: list[tuple[str, bool]] = []
         self._mounted_keys: set[str] = set()
+        self._deferred_nav_keys: set[str] = set()
+        self._nav_meta: dict[str, tuple] = {}
+        self._fluent_stack_hooked = False
         self._feedback_dispatcher = feedback_dispatcher
         self._exception_feedback_scope = None
         self.doh_stub_runtime = ScriptDoHStubRuntime(self)
@@ -513,7 +644,7 @@ class ScriptWindow(ScriptWindowBase):
     def _setup_offscreen_shell(self):
         self.setObjectName("OffscreenScriptWindow")
         self.setStyleSheet("QFrame#OffscreenScriptWindow { background: #f6f6f7; }")
-        self._offscreen_nav_buttons = {}
+        self._offscreen_nav_buttons: dict[str, PushButton] = {}
         self.main_layout = QHBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
@@ -522,44 +653,7 @@ class ScriptWindow(ScriptWindowBase):
         self.main_layout.addWidget(self.navigationInterface)
         self.main_layout.addWidget(self.stackedWidget, 1)
 
-    def _add_offscreen_subinterface(self, widget, text, position=None):
-        button = PushButton(text, self.navigationInterface)
-        button.setCheckable(True)
-        button.setMinimumHeight(40)
-        button.setStyleSheet(
-            """
-            PushButton {
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 10px;
-                color: white;
-                text-align: left;
-                padding-left: 12px;
-            }
-            PushButton:checked {
-                background: rgba(255, 255, 255, 0.14);
-            }
-            """
-        )
-        self.navigationInterface.add_button(button, bottom=position == NavigationItemPosition.BOTTOM)
-        self.stackedWidget.addWidget(widget)
-        self._offscreen_nav_buttons[widget] = button
-        button.clicked.connect(lambda _=False, current_widget=widget: self._set_offscreen_current_widget(current_widget))
-        if self.stackedWidget.count() == 1:
-            self._set_offscreen_current_widget(widget)
-        return widget
-
-    def _set_offscreen_current_widget(self, widget):
-        key = getattr(widget, "_script_lazy_key", None)
-        if key is not None and key not in self._mounted_keys:
-            widget = self._materialize_interface(key)
-        self.stackedWidget.setCurrentWidget(widget)
-        for current_widget, button in self._offscreen_nav_buttons.items():
-            button.setChecked(current_widget is widget)
-
     def initNavigation(self):
-        self._deferred_nav: dict[str, tuple] = {}
-        self._stub_by_key: dict[str, QFrame] = {}
         entries = (
             ("danbooru", "danbooru_visible", ":/script/danbooru.svg", "Danbooru", NavigationItemPosition.TOP, False),
             ("kemono", "kemono_visible", ":/script/kemono.ico", "Kemono", NavigationItemPosition.TOP, False),
@@ -571,24 +665,27 @@ class ScriptWindow(ScriptWindowBase):
             if not self._script_entry_visible(visibility_key):
                 continue
             self._script_entry_specs.append((key, show_in_pure_mode))
+            self._nav_meta[key] = (icon, text, position)
             if first_key is None:
                 first_key = key
-                interface = self._materialize_interface(key)
-                self.addSubInterface(interface, icon, text, position)
+                interface = self._construct_interface(key)
+                self._register_nav_entry(key, icon, text, position, interface=interface)
             else:
-                self._add_lazy_nav_entry(key, icon, text, position)
+                self._register_nav_entry(key, icon, text, position, interface=None)
 
         if self._script_entry_visible("settings_visible"):
             self.navigationInterface.addSeparator()
             self._script_entry_specs.append(("settings", True))
+            self._nav_meta["settings"] = (FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM)
             if first_key is None:
-                interface = self._materialize_interface("settings")
-                self.addSubInterface(interface, FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM)
+                interface = self._construct_interface("settings")
+                self._register_nav_entry(
+                    "settings", FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM, interface=interface,
+                )
             else:
-                self._add_lazy_nav_entry("settings", FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM)
-
-        if not OFFSCREEN_FLUENT_FALLBACK and hasattr(self, "stackedWidget"):
-            self.stackedWidget.currentChanged.connect(self._on_stacked_current_changed)
+                self._register_nav_entry(
+                    "settings", FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM, interface=None,
+                )
 
     def _attr_name_for_key(self, key: str) -> str:
         return {
@@ -599,15 +696,11 @@ class ScriptWindow(ScriptWindowBase):
             "settings": "settingInterface",
         }[key]
 
-    def _add_lazy_nav_entry(self, key: str, icon, text: str, position):
-        self._deferred_nav[key] = (icon, text, position)
-        stub = QFrame(self)
-        stub.setObjectName(f"ScriptDeferredStub_{key}")
-        stub._script_lazy_key = key  # type: ignore[attr-defined]
-        self._stub_by_key[key] = stub
-        self.addSubInterface(stub, icon, text, position)
+    def _route_key_for(self, key: str) -> str:
+        return self._ROUTE_KEYS[key]
 
-    def _materialize_interface(self, key: str):
+    def _construct_interface(self, key: str):
+        """Import+construct once. Real interfaces stay alive; never deleted for lazy policy."""
         if key in self._mounted_keys:
             return getattr(self, self._attr_name_for_key(key))
         module_path, class_name = self._INTERFACE_FACTORIES[key]
@@ -619,13 +712,10 @@ class ScriptWindow(ScriptWindowBase):
             module = importlib.import_module(module_path)
             interface_cls = getattr(module, class_name)
         interface = interface_cls(self)
-        attr = self._attr_name_for_key(key)
-        setattr(self, attr, interface)
+        setattr(self, self._attr_name_for_key(key), interface)
         self._mounted_keys.add(key)
+        self._deferred_nav_keys.discard(key)
 
-        stub = self._stub_by_key.pop(key, None)
-        if stub is not None:
-            self._replace_nav_stub(key, stub, interface)
         if key == "settings":
             interface.show_self()
         if key == "danbooru" and self._feedback_dispatcher is not None and self._exception_feedback_scope is None:
@@ -636,73 +726,129 @@ class ScriptWindow(ScriptWindowBase):
             )
         return interface
 
-    def _replace_nav_stub(self, key: str, stub: QFrame, interface: QFrame):
-        if OFFSCREEN_FLUENT_FALLBACK:
-            index = self.stackedWidget.indexOf(stub)
-            if index >= 0:
-                was_current = self.stackedWidget.currentWidget() is stub
-                self.stackedWidget.removeWidget(stub)
-                self.stackedWidget.insertWidget(index, interface)
-                button = self._offscreen_nav_buttons.pop(stub, None)
-                if button is not None:
-                    self._offscreen_nav_buttons[interface] = button
-                    with contextlib.suppress(TypeError, RuntimeError):
-                        button.clicked.disconnect()
-                    button.clicked.connect(
-                        lambda _=False, current_widget=interface: self._set_offscreen_current_widget(current_widget)
-                    )
-                if was_current:
-                    self.stackedWidget.setCurrentWidget(interface)
-        else:
-            icon, text, position = self._deferred_nav.get(key, (FIF.APPLICATION, key, NavigationItemPosition.TOP))
-            was_current = getattr(self, "stackedWidget", None) is not None and self.stackedWidget.currentWidget() is stub
-            with contextlib.suppress(Exception):
-                self.navigationInterface.removeWidget(stub.objectName())
-            self.addSubInterface(interface, icon, text, position)
-            if was_current:
-                self.switchTo(interface)
-        stub.deleteLater()
+    def _materialize_interface(self, key: str):
+        """Idempotent first-visit materialize: construct if needed, mount into stack once, keep alive."""
+        interface = self._construct_interface(key)
+        if self.stackedWidget.indexOf(interface) < 0:
+            if not OFFSCREEN_FLUENT_FALLBACK:
+                interface.setProperty("isStackedTransparent", False)
+            self.stackedWidget.addWidget(interface)
+            if not OFFSCREEN_FLUENT_FALLBACK and hasattr(self, "_updateStackedBackground"):
+                self._updateStackedBackground()
+        return interface
 
-    def _on_stacked_current_changed(self, index: int):
-        if index < 0 or not hasattr(self, "stackedWidget"):
-            return
-        widget = self.stackedWidget.widget(index)
-        key = getattr(widget, "_script_lazy_key", None)
-        if key is None or key in self._mounted_keys:
-            return
+    def switchTo(self, interface):
+        """Switch stacked page. Offscreen shell has no FluentWindow.switchTo."""
+        if interface is None:
+            raise ValueError("switchTo requires a live interface widget")
+        if OFFSCREEN_FLUENT_FALLBACK:
+            if self.stackedWidget.indexOf(interface) < 0:
+                self.stackedWidget.addWidget(interface)
+            self.stackedWidget.setCurrentWidget(interface)
+            for nav_key, button in getattr(self, "_offscreen_nav_buttons", {}).items():
+                mounted = getattr(self, self._attr_name_for_key(nav_key), None) if nav_key in self._ROUTE_KEYS else None
+                button.setChecked(mounted is interface)
+            return interface
+        return super().switchTo(interface)
+
+    def _ensure_and_switch(self, key: str):
         interface = self._materialize_interface(key)
         self.switchTo(interface)
+        return interface
+
+    def _nav_click_handler(self, key: str):
+        """Fluent/QPushButton clicked(bool) passes a positional flag; must not bind over `key`."""
+
+        def _on_nav_clicked(_trigger_by_user: bool = False):
+            return self._ensure_and_switch(key)
+
+        return _on_nav_clicked
+
+    def _register_nav_entry(self, key: str, icon, text: str, position, *, interface: QFrame | None):
+        """Register sidebar entry. With interface: first-visit already constructed; without: deferred."""
+        route_key = self._route_key_for(key)
+        if interface is None:
+            self._deferred_nav_keys.add(key)
+        else:
+            if not OFFSCREEN_FLUENT_FALLBACK:
+                interface.setProperty("isStackedTransparent", False)
+            self.stackedWidget.addWidget(interface)
+
+        if OFFSCREEN_FLUENT_FALLBACK:
+            button = PushButton(text, self.navigationInterface)
+            button.setCheckable(True)
+            button.setMinimumHeight(40)
+            button.setStyleSheet(
+                """
+                PushButton {
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 10px;
+                    color: white;
+                    text-align: left;
+                    padding-left: 12px;
+                }
+                PushButton:checked {
+                    background: rgba(255, 255, 255, 0.14);
+                }
+                """
+            )
+            self.navigationInterface.add_button(button, bottom=position == NavigationItemPosition.BOTTOM)
+            self._offscreen_nav_buttons[key] = button
+            button.clicked.connect(self._nav_click_handler(key))
+            if interface is not None and self.stackedWidget.count() == 1:
+                self.stackedWidget.setCurrentWidget(interface)
+                button.setChecked(True)
+            return
+
+        self.navigationInterface.addItem(
+            routeKey=route_key,
+            icon=icon,
+            text=text,
+            onClick=self._nav_click_handler(key),
+            position=position,
+            tooltip=text,
+        )
+        if interface is not None and self.stackedWidget.count() == 1:
+            if not self._fluent_stack_hooked:
+                self.stackedWidget.currentChanged.connect(self._onCurrentInterfaceChanged)
+                self._fluent_stack_hooked = True
+            self.navigationInterface.setCurrentItem(route_key)
+            qrouter.setDefaultRouteKey(self.stackedWidget, route_key)
+            if hasattr(self, "_updateStackedBackground"):
+                self._updateStackedBackground()
 
     def _script_entry_visible(self, visibility_key: str) -> bool:
         return bool(self.script_entry_state.get(visibility_key, True))
 
     def apply_pure_entry_mode(self):
+        """Hide non-pure nav routes. Never delete mounted real interfaces."""
         for key, show_in_pure_mode in self._script_entry_specs:
             if show_in_pure_mode:
                 continue
-            interface = getattr(self, self._attr_name_for_key(key), None)
-            stub = self._stub_by_key.get(key)
-            target = interface or stub
-            if target is None:
-                continue
             if OFFSCREEN_FLUENT_FALLBACK:
-                button = self._offscreen_nav_buttons.get(target)
+                button = self._offscreen_nav_buttons.get(key)
                 if button is not None:
                     button.hide()
             else:
                 with contextlib.suppress(Exception):
-                    self.navigationInterface.removeWidget(target.objectName())
-
-        cbg = self._materialize_interface("cbg")
-        if OFFSCREEN_FLUENT_FALLBACK:
-            self._set_offscreen_current_widget(cbg)
-        else:
-            self.switchTo(cbg)
+                    self.navigationInterface.removeWidget(self._route_key_for(key))
+        self._ensure_and_switch("cbg")
 
     def addSubInterface(self, interface, icon, text, position=NavigationItemPosition.TOP):
-        if OFFSCREEN_FLUENT_FALLBACK:
-            return self._add_offscreen_subinterface(interface, text, position)
-        return super().addSubInterface(interface, icon, text, position)
+        """Prefer _register_nav_entry / _ensure_and_switch. Kept for rare direct callers."""
+        route_key = interface.objectName()
+        key = next((entry_key for entry_key, name in self._ROUTE_KEYS.items() if name == route_key), None)
+        if key is None:
+            if OFFSCREEN_FLUENT_FALLBACK:
+                raise ValueError(f"offscreen ScriptWindow cannot add unknown interface {route_key!r}")
+            return super().addSubInterface(interface, icon, text, position)
+        self._nav_meta[key] = (icon, text, position)
+        if key not in self._mounted_keys:
+            setattr(self, self._attr_name_for_key(key), interface)
+            self._mounted_keys.add(key)
+        self._register_nav_entry(key, icon, text, position, interface=interface)
+        return interface
 
     @staticmethod
     def _normalized_window_rect(x: int, y: int, width: int, height: int) -> QRect:

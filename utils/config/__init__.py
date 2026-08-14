@@ -220,7 +220,9 @@ class ScriptConf(BaseConf):
     kemono: dict = field(default_factory=dict)
     danbooru: dict = field(default_factory=dict)
     jsoneriPalacesProbe: dict = field(default_factory=dict)
+    comfy: dict = field(default_factory=dict)
     ai: dict = field(default_factory=dict)
+    cgs_aria2: dict = field(default_factory=dict)
     proxies: list = field(default_factory=list)
     redis: dict = field(default_factory=dict)
 
@@ -258,7 +260,7 @@ class ScriptConf(BaseConf):
         with open(self.file, 'r', encoding='utf-8') as fp:
             cfg = fp.read()
         yml_config = yaml.load(cfg, Loader=yaml.FullLoader) or {}
-        for section_name in ("danbooru", "jsoneriPalacesProbe", "ai"):
+        for section_name in ("danbooru", "jsoneriPalacesProbe", "comfy", "ai", "cgs_aria2"):
             yml_config = self._merge_section_defaults(yml_config, sample_config, section_name)
         for k, v in yml_config.items():
             setattr(self, k, v if v is not None else getattr(self, k, None))
