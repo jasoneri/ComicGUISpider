@@ -121,11 +121,23 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.finish_setup()
 
     def finish_setup(self):
-        self.generation_bind()
+        # Splash must always be scheduled even if P2 bind fails (conf/schema).
+        # Otherwise a single ValueError in generation_bind leaves CustomSplashScreen stuck.
+        try:
+            self.generation_bind()
+        except Exception:
+            if not hasattr(self, "tf"):
+                self.tf = None
+            import sys
+            sys.excepthook(*sys.exc_info())
         if not getattr(self, "_startup_completed", False):
             # Start while splash still covers the window so chooseBox first-use
             # does not race an empty warmup (was gated on splash finish).
-            self._start_import_warmup()
+            try:
+                self._start_import_warmup()
+            except Exception:
+                import sys
+                sys.excepthook(*sys.exc_info())
             self.startup_only()
             self._startup_completed = True
 
@@ -189,14 +201,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.sel_mgr.skip_notified.connect(self._show_skip_info)
 
         self.sv_path = conf.sv_path
-        self.btn_logic_bind()
-        self.set_shortcut()
-        self.set_tool_win()
+        # Set before any later bind that may throw (closeEvent uses self.tf).
         self.tf = None
         self.gui_site_runtime = None
         self.BrowserWindow = None
         self.bsm = None
         self.search_ui_state = SearchUiState()
+        self.btn_logic_bind()
+        self.set_shortcut()
+        self.set_tool_win()
 
         self.preprocess_mgr = PreprocessManager(self)
         _safe_disconnect(self.chooseBox.currentIndexChanged, self._chooseBox_changed_handle)

@@ -1,152 +1,177 @@
-import importlib
-import os
-import sys
-import shutil
 import argparse
+import os
 import pathlib
+import shutil
 import subprocess
-from importlib.machinery import SourceFileLoader
-from types import ModuleType
+import sys
 
-VER = "2.11.1"
-DEFAULT_INDEX = r'https://pypi.tuna.tsinghua.edu.cn/simple/'
+DEFAULT_INDEX = "https://pypi.tuna.tsinghua.edu.cn/simple/"
+FALLBACK_LOG = "installer unavailable, fallback to uv"
+INSTALL_FAIL_HINT = (
+    r"安装失败，参考换源安装 \n"
+    r"https://cgs.101114105.xyz/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90"
+    r" \n按任意键回车退出本程序"
+)
 
 
-class CGSInstaller:
-    def __init__(self):
-        self.root = pathlib.Path(__file__).parent
-        self.runtime = self.root / 'runtime'
+def log(msg):
+    print(msg, flush=True)
+
+
+class RuntimePaths:
+    def __init__(self, root=None):
+        self.root = pathlib.Path(root) if root is not None else pathlib.Path(__file__).parent
+        self.runtime = self.root / "runtime"
         self.toolbin = self.root / "bin"
-        self.toolbin.mkdir(exist_ok=True)
         self.uv = self.runtime / "uv.exe"
         self.installer = self.runtime / "installer.exe"
         self.cgs = self.toolbin / "cgs.exe"
-        self.env = self._build_env()
-        self.args = None
 
-    def _build_env(self):
+    def ensure_layout(self):
+        self.toolbin.mkdir(exist_ok=True)
+        return self
+
+    def build_env(self):
         env = os.environ.copy()
-        env['UV_TOOL_DIR'] = str(self.root)
-        env['UV_TOOL_BIN_DIR'] = str(self.toolbin)
-        env['PATH'] = str(self.runtime) + os.pathsep + env.get('PATH', '')
-        env['UV_NO_MANAGED_PYTHON'] = '1'
-        env['VIRTUAL_ENV'] = str(self.runtime)
+        env["UV_TOOL_DIR"] = str(self.root)
+        env["UV_TOOL_BIN_DIR"] = str(self.toolbin)
+        env["PATH"] = str(self.runtime) + os.pathsep + env.get("PATH", "")
+        env["UV_NO_MANAGED_PYTHON"] = "1"
+        env["VIRTUAL_ENV"] = str(self.runtime)
         return env
 
-    @staticmethod
-    def _split_argv(argv):
-        if "--" not in argv:
-            return argv, []
-        sep = argv.index("--")
-        return argv[:sep], argv[sep + 1:]
 
-    @classmethod
-    def _parse_args(cls):
-        cgs_args, uv_args = cls._split_argv(sys.argv[1:])
-        parser = argparse.ArgumentParser(
-            description="cgs",
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="uv passthrough: append '-- <uv tool install args>' after CGS.exe args.",
-        )
-        parser.add_argument('-i', '--index', type=str, nargs='?', default=None, help=f'pypi source (default: {DEFAULT_INDEX})')
-        parser.add_argument('-v', '--version', type=str, default=None, help='specify ComicGUISpider version to install, e.g. 2.8.0')
-        parser.add_argument('-c', '--conf', type=str, default=None, help='uv.toml')
-        args = parser.parse_args(cgs_args)
-        args.uv_args = uv_args
-        return args
+def split_argv(argv):
+    if "--" not in argv:
+        return argv, []
+    separator_index = argv.index("--")
+    return argv[:separator_index], argv[separator_index + 1:]
 
-    def clean(self):
-        for p in (self.toolbin, self.root / "comicguispider"):
-            if p.exists() and p.is_dir():
-                shutil.rmtree(p)
 
-    def run(self):
-        subprocess.Popen([str(self.cgs)], env=self.env, text=True)
+def parse_args(argv=None):
+    raw = list(sys.argv[1:] if argv is None else argv)
+    cgs_args, uv_args = split_argv(raw)
+    parser = argparse.ArgumentParser(
+        description="cgs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="uv passthrough: append '-- <uv tool install args>' after CGS.exe args.",
+    )
+    parser.add_argument("-i", "--index", type=str, nargs="?", default=None, help=f"pypi source (default: {DEFAULT_INDEX})")
+    parser.add_argument("-v", "--version", type=str, default=None, help="ComicGUISpider version, e.g. 2.8.0")
+    parser.add_argument("-c", "--conf", type=str, default=None, help="uv.toml")
+    args = parser.parse_args(cgs_args)
+    args.uv_args = uv_args
+    return args
 
-    def _build_direct_install_cmd(self, pkg_spec, uv_args):
-        if self.args.conf:
-            return [
-                str(self.uv), "--config-file", str(self.root / self.args.conf),
-                "tool", "install", pkg_spec, "--force", "--reinstall",
-                *uv_args,
-            ]
+
+def build_installer_cmd(paths, install_args):
+    command = [
+        str(paths.installer),
+        "--cgs-ver", install_args.version,
+        "--uv-exc", str(paths.uv),
+        "--index-url", install_args.index or DEFAULT_INDEX,
+        "--uv-tool-dir", str(paths.root),
+        "--uv-tool-bin-dir", str(paths.toolbin),
+    ]
+    if install_args.uv_args:
+        command.extend(["--", *install_args.uv_args])
+    return command
+
+
+def build_uv_cmd(paths, install_args):
+    package_spec = (
+        "ComicGUISpider" if install_args.version is None
+        else f"ComicGUISpider=={install_args.version}"
+    )
+    if install_args.conf:
         return [
-            str(self.uv), "tool", "install", pkg_spec, "--force", "--reinstall",
-            "--index-url", self.args.index or DEFAULT_INDEX,
-            *uv_args,
+            str(paths.uv), "--config-file", str(paths.root / install_args.conf),
+            "tool", "install", package_spec, "--force", "--reinstall", *install_args.uv_args,
         ]
-
-    def _build_installer_cmd(self, uv_args):
-        cmd = [
-            str(self.installer),
-            "--cgs-ver", self.args.version,
-            "--uv-exc", str(self.uv),
-            "--index-url", self.args.index or DEFAULT_INDEX,
-            "--uv-tool-dir", str(self.root), "--uv-tool-bin-dir", str(self.toolbin),
-        ]
-        if uv_args:
-            cmd.extend(["--", *uv_args])
-        return cmd
-
-    def _build_install_cmd(self):
-        # Omitting --version keeps the historical "install latest stable" semantics.
-        pkg_spec = "ComicGUISpider" if self.args.version is None else f"ComicGUISpider=={self.args.version}"
-        uv_args = list(self.args.uv_args)
-        if self.args.version is None or self.args.conf:
-            return self._build_direct_install_cmd(pkg_spec, uv_args), False
-        if not self.installer.exists():
-            raise RuntimeError(f"installer missing: {self.installer}")
-        return self._build_installer_cmd(uv_args), True
-
-    def _update_int(self):
-        new_int = self.root / "comicguispider/Lib/site-packages/assets/_pystand_static.int"
-        if not new_int.exists():
-            return
-        loader = SourceFileLoader("cgs_new_pystand_static_int", str(new_int))
-        new_int_module = ModuleType(loader.name)
-        new_int_module.__file__ = str(new_int)
-        loader.exec_module(new_int_module)
-        new_ver = getattr(new_int_module, "VER", None)
-        if new_ver is None:
-            return
-        site_packages = new_int.parents[1]
-        site_packages_str = str(site_packages)
-        added_site_packages = site_packages_str not in sys.path
-        if added_site_packages:
-            sys.path.insert(0, site_packages_str)
-        try:
-            parse = importlib.import_module("packaging.version").parse
-        finally:
-            if added_site_packages:
-                sys.path.remove(site_packages_str)
-        if parse(new_ver) < parse(VER):
-            return
-        shutil.copy2(new_int, self.root / "_pystand_static.int")
-
-    def install(self):
-        self.clean()
-        cmd, uses_installer = self._build_install_cmd()
-        print(cmd)
-        exit_code = subprocess.Popen(cmd, env=self.env, text=True).wait()
-        self._update_int()
-        if self.cgs.exists():
-            if not uses_installer or exit_code != 0:
-                self.run()
-            return
-        self.clean()
-        input(r"安装失败，参考换源安装 \n https://cgs.101114105.xyz/faq/#i-%E5%88%9D%E6%AC%A1%E9%83%A8%E7%BD%B2%E6%8D%A2%E6%BA%90 \n按任意键回车退出本程序")
-
-    def main(self):
-        # Fast path: no args, cgs exists → skip argparse entirely
-        if not sys.argv[1:] and self.cgs.exists():
-            return self.run()
-        self.args = self._parse_args()
-        a = self.args
-        if not self.cgs.exists() or a.index is not None or a.version is not None or a.conf or a.uv_args:
-            self.install()
-        else:
-            self.run()
+    return [
+        str(paths.uv), "tool", "install", package_spec, "--force", "--reinstall",
+        "--index-url", install_args.index or DEFAULT_INDEX, *install_args.uv_args,
+    ]
 
 
-if __name__ == '__main__':
-    CGSInstaller().main()
+def run_cmd(command, env):
+    print(command, flush=True)
+    return subprocess.Popen(command, env=env, text=True).wait()
+
+
+def run_uv(paths, install_args, env, as_fallback=False):
+    if as_fallback:
+        log(FALLBACK_LOG)
+    return run_cmd(build_uv_cmd(paths, install_args), env)
+
+
+def try_installer(paths, install_args, env):
+    """Return True if installer completed and cgs exists (installer restarts app)."""
+    if not paths.installer.exists():
+        return False
+    if install_args.version is None or install_args.conf:
+        return False
+    try:
+        exit_code = run_cmd(build_installer_cmd(paths, install_args), env)
+    except OSError as err:
+        log(f"installer spawn failed: {err!s}")
+        return False
+    if paths.cgs.exists() and exit_code == 0:
+        return True
+    log(f"installer did not complete install (exit {exit_code})")
+    return False
+
+
+def clean_install_trees(paths):
+    for path in (paths.toolbin, paths.root / "comicguispider"):
+        if path.is_dir():
+            shutil.rmtree(path)
+
+
+def run_cgs(paths, env):
+    subprocess.Popen([str(paths.cgs)], env=env, text=True)
+
+
+def needs_install(paths, install_args):
+    return (
+        not paths.cgs.exists()
+        or install_args.index is not None
+        or install_args.version is not None
+        or install_args.conf
+        or install_args.uv_args
+    )
+
+
+def install(paths, install_args, env):
+    clean_install_trees(paths)
+    installer_ok = False
+    if install_args.version is not None and not install_args.conf:
+        had_installer = paths.installer.exists()
+        installer_ok = try_installer(paths, install_args, env)
+        if not installer_ok:
+            # fallback log only when we actually attempted installer UX
+            run_uv(paths, install_args, env, as_fallback=had_installer)
+    else:
+        run_uv(paths, install_args, env, as_fallback=False)
+    if paths.cgs.exists():
+        if not installer_ok:
+            run_cgs(paths, env)
+        return
+    clean_install_trees(paths)
+    input(INSTALL_FAIL_HINT)
+
+
+def main(argv=None, paths=None):
+    runtime_paths = (paths or RuntimePaths()).ensure_layout()
+    env = runtime_paths.build_env()
+    if argv is None and not sys.argv[1:] and runtime_paths.cgs.exists():
+        return run_cgs(runtime_paths, env)
+    install_args = parse_args(argv)
+    if needs_install(runtime_paths, install_args):
+        install(runtime_paths, install_args, env)
+    else:
+        run_cgs(runtime_paths, env)
+
+
+if __name__ == "__main__":
+    main()

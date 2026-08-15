@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """Subscription binding persistence.
 
-Architecture (dev-stage, no dual-shape compat debt):
+Architecture:
 
 - ``BindingRepository`` — pure YAML file gateway (paths + raw dict I/O only).
-- ``SchemaCodec`` — single decode/encode owner; future schema evolution is an
-  ordered transform pipeline *here*, never ``store._migrate_v*`` free functions.
+- ``SchemaCodec`` — single decode/encode owner for the **current flat** document.
+  No permanent dual-shape→flat migrate: 2.11.x subscribe was trial-level; trial
+  dual-shape files are disposable (fail loud / recreate). Future *mass-shipped*
+  schema bumps may add ordered ``RawTransform`` steps here only when provenance
+  + field adoption justify the debt.
 - ``SubscriptionStore`` — document session / aggregate handle for one binding
   profile (load → edit ``SubscriptionConfig`` → validate → save).
 - ``BindingProfileCatalog`` — profile name list + active profile (qconfig).
@@ -41,20 +44,14 @@ def require_customname(value: str) -> str:
 
 
 class RawTransform(Protocol):
-    """Optional pre-decode rewrite of a raw mapping (future schema evolution only)."""
+    """Optional pre-decode rewrite (only for future mass-shipped schema bumps)."""
 
     def apply(self, raw: dict[str, Any]) -> dict[str, Any]:
         ...
 
 
 class SchemaCodec:
-    """Typed codec for the *current* binding document.
-
-    Development stage: empty transform pipeline. Unknown shapes fail in
-    ``SubscriptionConfig.from_mapping``. When a real schema bump is required,
-    register one ordered ``RawTransform`` here — do not scatter ``_migrate_*``
-    helpers onto the repository or session.
-    """
+    """Typed codec for the current flat binding document only."""
 
     def __init__(self, transforms: list[RawTransform] | None = None) -> None:
         self._transforms = list(transforms or [])

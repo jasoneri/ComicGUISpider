@@ -46,7 +46,7 @@ uv tool install ComicGUISpider==2.8.0 --force
 ```
 
 + or win-portable-exe install specified version such as `2.8.0`  
-need `_pystand_static.int` first-line version of `v1`
+need a current green package (root `_pystand_static.int` is a frozen thin launcher; app version is inside the installed package, not the int file)
 
 ```cmd
 .\CGS.exe -v 2.9.11
