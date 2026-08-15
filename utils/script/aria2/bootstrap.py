@@ -18,11 +18,20 @@ from utils.preset_assets import managed_asset_sources
 
 ARIA2_MANIFEST_NAME = "aria2-manifest.json"
 SUPPORTED_PLATFORM_IDS = frozenset({"win-amd64", "macos-arm"})
-DOWNLOAD_TIMEOUT_S = 120
+# Binary payload may be multi‑MB; keep a longer ceiling.
+BINARY_DOWNLOAD_TIMEOUT_S = 120
+# Manifest is tiny JSON. MUST NOT reuse binary timeout — a hung GitHub TCP
+# with 120s would freeze Script preprocess for ~2 minutes even when local
+# aria2c.exe already exists (installer path / prior bootstrap).
+# Industry fail-fast control plane: 2.5–4s (VS Code / Electron bootstrap UX);
+# hard ceiling 5s so multi-source failover still finishes under human notice.
+MANIFEST_FETCH_TIMEOUT_S = 3
 DOWNLOAD_CHUNK_SIZE = 8192
 ARIA2_BINARY_PROGRESS_LABEL = "aria2"
 # Optional comma-separated full URLs for manifest only (download sim / mirror).
 PRESET_BASE_ENV = "CGS_ARIA2_PRESET_BASE"
+# Back-compat alias for tests / external callers.
+DOWNLOAD_TIMEOUT_S = BINARY_DOWNLOAD_TIMEOUT_S
 
 
 class UnsupportedAria2PlatformError(RuntimeError):
@@ -82,10 +91,18 @@ def resolve_preset_asset_sources(logical_name: str) -> list[dict[str, str]]:
     return [dict(item) for item in managed_asset_sources(logical_name)]
 
 
-def _http_get_bytes(url: str) -> bytes:
+def _emit_progress_status(progress_callback, message: str) -> None:
+    """Push a plain status line into AsyncTask tooltip (callable or __call__)."""
+    if progress_callback is None:
+        return
+    if callable(progress_callback):
+        progress_callback(message)
+
+
+def _http_get_bytes(url: str, *, timeout_s: float = MANIFEST_FETCH_TIMEOUT_S) -> bytes:
     """Tiny metadata GET (manifest JSON). MUST stay whole-body; no AsyncTask progress (CGS011)."""
     request = urllib.request.Request(url, headers={"User-Agent": "ComicGUISpider-aira2-bootstrap"})
-    with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_S) as response:
+    with urllib.request.urlopen(request, timeout=timeout_s) as response:
         return response.read()
 
 
@@ -104,7 +121,7 @@ def _download_url_to_path(url: str, staging_path: Path, *, progress_callback=Non
     progress_finish = getattr(progress_callback, "download_finish", None)
     if callable(progress_reset):
         progress_reset(label=label)
-    with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_S) as response:
+    with urllib.request.urlopen(request, timeout=BINARY_DOWNLOAD_TIMEOUT_S) as response:
         total_header = (response.headers.get("Content-Length") or "").strip()
         # 0 = unknown size (no/invalid Content-Length). AsyncTaskProgressReporter
         # treats total_bytes <= 0 the same as missing length (byte-count mode).
@@ -209,11 +226,24 @@ def local_binary_matches_manifest(target_path: Path, expected_sha256: str) -> bo
     return file_sha256(target_path) == expected_sha256.lower()
 
 
-def ensure_aira2_binary(*, progress_callback=None) -> Path:
-    """Ensure curr_os.aira2 exists and matches preset manifest. No PATH/uv/runtime fallback.
+def local_binary_present(target_path: Path | None = None) -> bool:
+    """True when managed aria2c already sits on disk (installer / prior bootstrap)."""
+    path = target_path if target_path is not None else resolve_aira2_target_path()
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
 
-    If preset network is unavailable but ``curr_os.aira2`` already exists (prior install),
-    reuse that binary instead of failing closed on manifest 404.
+
+def ensure_aira2_binary(*, progress_callback=None, force_refresh: bool = False) -> Path:
+    """Ensure curr_os.aira2 exists. No PATH/uv/runtime fallback.
+
+    Local-first (critical for Script preprocess latency):
+    - If ``curr_os.aira2`` already exists and ``force_refresh`` is false, return it
+      immediately with **zero** network. Installer trees and second opens must not
+      block on GitHub/ImgBed manifest (previously hung up to BINARY timeout ≈ 2min).
+    - Only when the binary is missing (or ``force_refresh``) fetch manifest + payload.
+      Manifest uses ``MANIFEST_FETCH_TIMEOUT_S`` (short); binary uses long timeout.
 
     Binary payload download uses AsyncTask progress protocol (CGS011). Manifest is
     tiny metadata (whole-body, no progress theater).
@@ -228,10 +258,16 @@ def ensure_aira2_binary(*, progress_callback=None) -> Path:
         raise UnsupportedAria2PlatformError(f"unsupported platform_id={platform_id!r}")
 
     target_path = resolve_aira2_target_path()
+    if not force_refresh and local_binary_present(target_path):
+        _ensure_executable(target_path)
+        logger.debug(f"[CgsAria2] reusing local binary (skip network): {target_path}")
+        return target_path
+
+    _emit_progress_status(progress_callback, f"{ARIA2_BINARY_PROGRESS_LABEL} checking...")
     try:
         manifest = fetch_aria2_manifest()
     except Aria2BinaryBootstrapError:
-        if target_path.is_file() and target_path.stat().st_size > 0:
+        if local_binary_present(target_path):
             _ensure_executable(target_path)
             logger.warning(
                 f"[CgsAria2] preset manifest unavailable; reusing existing binary at {target_path}"
