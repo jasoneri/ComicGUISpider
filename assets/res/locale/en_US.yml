@@ -1,6 +1,5 @@
 Vars:
   ua_accept_language: "en-US,en;q=0.9"
-  hitomiDb_tmp_url: "https://github.com/jasoneri/imgur/releases/download/preset/hitomi.db"
 Terms:
   index: &term_index "index"
   popular: &term_popular "popular"
