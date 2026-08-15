@@ -602,8 +602,28 @@ def _check_script_services(*, progress_callback=None) -> ScriptServiceStatus:
     try:
         ensure_engine(progress_callback=progress_callback)
         return ScriptServiceStatus(aria2_ready=True, redis_server_running=redis_server_running)
-    except (Aria2BinaryBootstrapError, UnsupportedAria2PlatformError, OSError, RuntimeError) as exc:
-        logger.warning(f"[ScriptPreprocess] cgs-aria2 ensure soft-failed: {exc}")
+    except (
+        Aria2BinaryBootstrapError,
+        UnsupportedAria2PlatformError,
+        OSError,
+        RuntimeError,
+    ) as exc:
+        logger.warning(
+            "[ScriptPreprocess] cgs-aria2 ensure soft-failed ({}): {}",
+            type(exc).__name__,
+            exc,
+        )
+        return ScriptServiceStatus(aria2_ready=False, redis_server_running=redis_server_running)
+    except Exception as exc:  # pragma: no cover - defensive catch-all keeps Script open
+        # Soft-fail contract: any unexpected ensure_engine failure must not abort
+        # preprocess. Known types are logged above; this branch catches TimeoutError,
+        # ValueError, library-specific errors, etc. without hard-crashing the task.
+        logger.exception(
+            "[ScriptPreprocess] unexpected cgs-aria2 ensure failure; "
+            "soft-disabling aria2 to keep Script usable ({}): {}",
+            type(exc).__name__,
+            exc,
+        )
         return ScriptServiceStatus(aria2_ready=False, redis_server_running=redis_server_running)
 
 

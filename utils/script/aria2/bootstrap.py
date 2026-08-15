@@ -106,7 +106,10 @@ def _download_url_to_path(url: str, staging_path: Path, *, progress_callback=Non
         progress_reset(label=label)
     with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_S) as response:
         total_header = (response.headers.get("Content-Length") or "").strip()
-        total_bytes = int(total_header) if total_header.isdigit() else None
+        # 0 = unknown size (no/invalid Content-Length). AsyncTaskProgressReporter
+        # treats total_bytes <= 0 the same as missing length (byte-count mode).
+        # Prefer 0 over None so naive int-only callbacks do not TypeError.
+        total_bytes = int(total_header) if total_header.isdigit() else 0
         if callable(progress_start):
             progress_start(label=label, total_bytes=total_bytes)
         with staging_path.open("wb") as file_handle:
