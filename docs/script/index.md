@@ -1,28 +1,20 @@
 
 # 🚧 ScriptTool
 
-kemono / danbooru / cbg / saucenao
+danbooru / kemono / cbg / saucenao
 
 ## ⚠️ 通用前置须知
 
-::: warning 🔔 脚本集通用前置安装( v2.11.0 改为 `按需` )
+::: tip 🔔 v2.12.0 起，选择 script 时会自动下载 aira2 二进制执行文件 [link](https://github.com/jasoneri/ComicGUISpider/releases/tag/preset)
+Script 设置中 aira2 有单独代理设置
+:::
+::: info 脚本集通用前置安装( v2.11.0 改为 `按需` )
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
-下载引擎：**CGS 托管 aria2**（首次使用从 `releases/download/preset` 拉到本地 `__temp/aira2`；仅 **win-amd64 / macos-arm**）  
 > [!tip] 指引
 > Redis-windows: 下载 *-cygwin-with-Service.zip  
 > 查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
 
-Script 设置里两个代理分列：**代理/Proxy** = httpx；**Aria2 下载引擎** 卡片中的下载代理 = 引擎（yaml `cgs_aria2.proxy`，空=直连）。
-:::
-
-| 前置矩阵 | redis-service |
-| --- |  :---: | :---: |
-| Kemono | ⭕️ |
-| Danbooru | ➖ |
-| Cbg | ➖ |
-| jsoneriPalaces | ➖ |
-
-::: tip 参考 `前置矩阵`：Danbooru 一般只需引擎就绪（进入 Script 时自动启动）；Kemono 另需 Redis
+当前仅 Kemono 需要（ k 目前处于一只脚踏进棺材板状态中）
 :::
 
 ::: details 脚本目录树: `script`目录 (非 GUI 相关)

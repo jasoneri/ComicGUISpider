@@ -15,7 +15,6 @@
 ### 配置
 
 进 scriptWin 前 / 进 scriptWin 后搜索之前，设置 doh 即可免代理访问，空词进首页过 cf 盾即可  
-Comfy host / imgPalace token / ai provider：设置面板填了，Tag 导出才出对应行
 
 ### 主界面
 
