@@ -64,6 +64,7 @@ class CgsAria2Engine:
         proxy: object | None = None,
         dns_server: object | None = None,
         force_restart: bool = False,
+        progress_callback=None,
     ) -> RuntimeEndpoint:
         with self._lock:
             ensure_motrix_proxy_seed()
@@ -72,7 +73,7 @@ class CgsAria2Engine:
             if not force_restart and self._endpoint is not None and self._process_alive() and self._rpc_ping_sync(self._endpoint):
                 return self._endpoint
             self._stop_locked()
-            binary = ensure_aira2_binary()
+            binary = ensure_aira2_binary(progress_callback=progress_callback)
             work_dir = ARIA2_WORK_DIR
             work_dir.mkdir(parents=True, exist_ok=True)
             conf_path = work_dir / ARIA2_CONF_NAME
@@ -221,9 +222,9 @@ def pick_free_port(host: str = "127.0.0.1") -> int:
         return int(sock.getsockname()[1])
 
 
-def resolve_aria2_binary() -> p.Path:
+def resolve_aria2_binary(*, progress_callback=None) -> p.Path:
     """Resolve managed binary only via preset → temp_p/aira2 (no PATH/uv/runtime fallback)."""
-    return ensure_aira2_binary()
+    return ensure_aira2_binary(progress_callback=progress_callback)
 
 
 def ping_endpoint_sync(endpoint: RuntimeEndpoint, *, timeout_s: float = 2.0) -> bool:

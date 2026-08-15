@@ -1,6 +1,5 @@
 Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
-  hitomiDb_tmp_url: "https://gitee.com/json_eri/ComicGUISpider/releases/download/v2.0.0/hitomi.db"
 Terms:
   index: &term_index "首页"
   popular: &term_popular "热门"
@@ -59,6 +58,8 @@ GUI:
   reboot_tip2: "⛺️ 正在重置搜索生命周期状态..."
   ui_lang_need_reboot: "⚠️ui语言设置需保存配置并关闭程序后重启才生效"
   local_fav: "本地收藏"
+  online_fav: "线上收藏"
+  menu_fetch_online_fav: "拉取线上收藏"
   SearchInputStatusTip:
     common: '直接输入关键词搜索 或 预设'
     manga_copy: '搜索规则补充：排名+日/周/月/总+轻小说/男/女，例如"排名轻小说月"'

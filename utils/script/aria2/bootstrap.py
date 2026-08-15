@@ -14,23 +14,14 @@ from typing import Any
 from loguru import logger
 
 from deploy import curr_os
+from utils.preset_assets import managed_asset_sources
 
 ARIA2_MANIFEST_NAME = "aria2-manifest.json"
 SUPPORTED_PLATFORM_IDS = frozenset({"win-amd64", "macos-arm"})
-DEFAULT_MANIFEST_SOURCES: tuple[dict[str, Any], ...] = (
-    {
-        "id": "github",
-        "priority": 10,
-        "base_url": "https://github.com/jasoneri/ComicGUISpider/releases/download/preset",
-    },
-    {
-        "id": "gitee",
-        "priority": 20,
-        "base_url": "https://gitee.com/json_eri/ComicGUISpider/releases/download/preset",
-    },
-)
 DOWNLOAD_TIMEOUT_S = 120
-# Optional comma-separated preset base URLs (download sim / mirror only; not a binary PATH fallback).
+DOWNLOAD_CHUNK_SIZE = 8192
+ARIA2_BINARY_PROGRESS_LABEL = "aria2"
+# Optional comma-separated full URLs for manifest only (download sim / mirror).
 PRESET_BASE_ENV = "CGS_ARIA2_PRESET_BASE"
 
 
@@ -70,50 +61,81 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def default_manifest_sources() -> list[dict[str, Any]]:
+def resolve_preset_asset_sources(logical_name: str) -> list[dict[str, str]]:
+    """Ordered download sources: GitHub preset primary, ImgBed ASSETS_FALLBACK secondary.
+
+    Env ``CGS_ARIA2_PRESET_BASE`` may supply comma-separated absolute URLs that
+    replace the default chain (download sim / offline mirror only).
+    """
     env_bases = (os.environ.get(PRESET_BASE_ENV) or "").strip()
     if env_bases:
-        sources: list[dict[str, Any]] = []
-        base_urls = [part.strip() for part in env_bases.split(",") if part.strip()]
-        for index, base_url in enumerate(base_urls):
-            sources.append({"id": f"env-{index}", "priority": index + 1, "base_url": base_url})
+        sources: list[dict[str, str]] = []
+        raw_parts = [part.strip() for part in env_bases.split(",") if part.strip()]
+        for index, part in enumerate(raw_parts):
+            # Absolute file URL, or base URL that still needs the logical name joined.
+            if part.rstrip("/").endswith((".json", ".exe")) or part.endswith(logical_name):
+                url = part
+            else:
+                url = f"{part.rstrip('/')}/{logical_name.lstrip('/')}"
+            sources.append({"id": f"env-{index}", "url": url})
         return sources
-    return [dict(item) for item in DEFAULT_MANIFEST_SOURCES]
-
-
-def _sorted_sources(manifest: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    if manifest and manifest.get("sources"):
-        sources = list(manifest["sources"])
-    else:
-        sources = default_manifest_sources()
-    return sorted(sources, key=lambda item: int(item.get("priority") or 100))
-
-
-def _join_preset_url(base_url: str, file_name: str) -> str:
-    return f"{base_url.rstrip('/')}/{file_name.lstrip('/')}"
+    return [dict(item) for item in managed_asset_sources(logical_name)]
 
 
 def _http_get_bytes(url: str) -> bytes:
+    """Tiny metadata GET (manifest JSON). MUST stay whole-body; no AsyncTask progress (CGS011)."""
     request = urllib.request.Request(url, headers={"User-Agent": "ComicGUISpider-aira2-bootstrap"})
     with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_S) as response:
         return response.read()
 
 
+def _emit_legacy_download_start(progress_callback, *, label: str) -> None:
+    progress_start = getattr(progress_callback, "download_start", None)
+    if callable(progress_callback) and not callable(progress_start):
+        progress_callback(f"{label} dling...")
+
+
+def _download_url_to_path(url: str, staging_path: Path, *, progress_callback=None, label: str = ARIA2_BINARY_PROGRESS_LABEL) -> None:
+    """Stream one HTTP GET into staging_path; optional AsyncTask-compatible progress hooks."""
+    request = urllib.request.Request(url, headers={"User-Agent": "ComicGUISpider-aira2-bootstrap"})
+    progress_reset = getattr(progress_callback, "download_reset", None)
+    progress_start = getattr(progress_callback, "download_start", None)
+    progress_advance = getattr(progress_callback, "download_advance", None)
+    progress_finish = getattr(progress_callback, "download_finish", None)
+    if callable(progress_reset):
+        progress_reset(label=label)
+    with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_S) as response:
+        total_header = (response.headers.get("Content-Length") or "").strip()
+        # 0 = unknown size (no/invalid Content-Length). AsyncTaskProgressReporter
+        # treats total_bytes <= 0 the same as missing length (byte-count mode).
+        # Prefer 0 over None so naive int-only callbacks do not TypeError.
+        total_bytes = int(total_header) if total_header.isdigit() else 0
+        if callable(progress_start):
+            progress_start(label=label, total_bytes=total_bytes)
+        with staging_path.open("wb") as file_handle:
+            while True:
+                chunk = response.read(DOWNLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+                file_handle.write(chunk)
+                if callable(progress_advance):
+                    progress_advance(len(chunk), label=label, total_bytes=total_bytes)
+    if callable(progress_finish):
+        progress_finish(label=label)
+
+
 def fetch_aria2_manifest() -> dict[str, Any]:
     errors: list[str] = []
-    bootstrap_sources = default_manifest_sources()
-    for source in _sorted_sources({"sources": bootstrap_sources}):
-        base_url = str(source.get("base_url") or "").strip()
-        if not base_url:
+    for source in resolve_preset_asset_sources(ARIA2_MANIFEST_NAME):
+        manifest_url = str(source.get("url") or "").strip()
+        if not manifest_url:
             continue
-        manifest_url = _join_preset_url(base_url, ARIA2_MANIFEST_NAME)
         try:
             payload = _http_get_bytes(manifest_url)
             manifest = json.loads(payload.decode("utf-8"))
             if not isinstance(manifest, dict):
                 raise Aria2BinaryBootstrapError(f"invalid manifest JSON at {manifest_url}")
-            # Prefer live bootstrap sources (env / defaults) over stale absolute URLs inside manifest.
-            manifest["sources"] = bootstrap_sources
+            # Live source chain owns failover; ignore stale sources inside remote JSON.
             return manifest
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, OSError) as exc:
             errors.append(f"{source.get('id')}: {exc}")
@@ -135,18 +157,24 @@ def _platform_entry(manifest: dict[str, Any], platform_id: str) -> dict[str, Any
     return entry
 
 
-def _download_asset_to(target_path: Path, file_name: str, expected_sha256: str, manifest: dict[str, Any]) -> None:
+def _download_asset_to(
+    target_path: Path,
+    file_name: str,
+    expected_sha256: str,
+    *,
+    progress_callback=None,
+    label: str = ARIA2_BINARY_PROGRESS_LABEL,
+) -> None:
     target_path.parent.mkdir(parents=True, exist_ok=True)
     staging_path = target_path.with_suffix(target_path.suffix + ".part")
     errors: list[str] = []
-    for source in _sorted_sources(manifest):
-        base_url = str(source.get("base_url") or "").strip()
-        if not base_url:
+    _emit_legacy_download_start(progress_callback, label=label)
+    for source in resolve_preset_asset_sources(file_name):
+        asset_url = str(source.get("url") or "").strip()
+        if not asset_url:
             continue
-        asset_url = _join_preset_url(base_url, file_name)
         try:
-            payload = _http_get_bytes(asset_url)
-            staging_path.write_bytes(payload)
+            _download_url_to_path(asset_url, staging_path, progress_callback=progress_callback, label=label)
             actual_sha256 = file_sha256(staging_path)
             if actual_sha256 != expected_sha256.lower():
                 staging_path.unlink(missing_ok=True)
@@ -181,11 +209,14 @@ def local_binary_matches_manifest(target_path: Path, expected_sha256: str) -> bo
     return file_sha256(target_path) == expected_sha256.lower()
 
 
-def ensure_aira2_binary() -> Path:
+def ensure_aira2_binary(*, progress_callback=None) -> Path:
     """Ensure curr_os.aira2 exists and matches preset manifest. No PATH/uv/runtime fallback.
 
     If preset network is unavailable but ``curr_os.aira2`` already exists (prior install),
     reuse that binary instead of failing closed on manifest 404.
+
+    Binary payload download uses AsyncTask progress protocol (CGS011). Manifest is
+    tiny metadata (whole-body, no progress theater).
     """
     platform_id = detect_aira2_platform_id()
     env_platform_id = getattr(curr_os, "aira2_platform_id", None)
@@ -216,7 +247,9 @@ def ensure_aira2_binary() -> Path:
         _ensure_executable(target_path)
         return target_path
 
-    _download_asset_to(target_path, asset_name, expected_sha256, manifest)
+    _download_asset_to(
+        target_path, asset_name, expected_sha256, progress_callback=progress_callback,
+    )
     if not local_binary_matches_manifest(target_path, expected_sha256):
         raise Aria2BinaryBootstrapError(f"post-download verify failed: {target_path}")
     return target_path

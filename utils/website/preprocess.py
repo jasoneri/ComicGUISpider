@@ -12,6 +12,7 @@ import httpx
 from assets import res
 from utils import conf, ori_path
 from utils.network.doh import build_http_transport
+from utils.preset_assets import managed_asset_urls
 from variables import CGS_DOC, Spider
 
 from .contracts import PreprocessResult
@@ -27,9 +28,10 @@ SCRIPT_SERVICE_PROBE_TIMEOUT_S = 0.15
 # Redis 约定见 conf_sample_script.yml；aria2 由 CGS 托管引擎动态端口
 SCRIPT_REDIS_DEFAULT_HOST = "127.0.0.1"
 SCRIPT_REDIS_DEFAULT_PORT = 6379
-KEMONO_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/kemono.db"
-NHENTAI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/nhentai.db"
-HITOMI_ASSET_URL = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset/hitomi.db"
+# GitHub preset primary; ImgBed ASSETS_FALLBACK when mapped in variables.IMGBED_ASSET_OBJECTS.
+KEMONO_ASSET_URLS = managed_asset_urls("kemono.db")
+NHENTAI_ASSET_URLS = managed_asset_urls("nhentai.db")
+HITOMI_ASSET_URLS = managed_asset_urls("hitomi.db")
 
 
 async def run_site_preprocess(
@@ -141,15 +143,18 @@ class ScriptServiceStatus:
 
     @property
     def all_required_services_running(self) -> bool:
-        # Soft gate only covers external Redis. aria2 is CGS-managed and must
-        # already have been ensured (hard fail) before this status is built.
-        return self.redis_server_running
+        # Soft gates: Redis is external; cgs-aria2 may fail bootstrap (network /
+        # missing binary) without aborting the whole Script preprocess task.
+        return self.aria2_ready and self.redis_server_running
 
     @property
     def missing_services(self) -> tuple[str, ...]:
-        if self.redis_server_running:
-            return ()
-        return ("redis-server",)
+        missing_services: list[str] = []
+        if not self.aria2_ready:
+            missing_services.append("cgs-aria2")
+        if not self.redis_server_running:
+            missing_services.append("redis-server")
+        return tuple(missing_services)
 
     def to_payload(self) -> dict[str, bool]:
         return {
@@ -467,14 +472,14 @@ class SiteDatabasePreprocess:
 
 class HitomiDatabasePreprocess(SiteDatabasePreprocess):
     name = "hitomi"
-    download_urls = (HITOMI_ASSET_URL, res.Vars.hitomiDb_tmp_url,)
+    download_urls = HITOMI_ASSET_URLS
     data_required = False
     data_ready_action = "add_hitomi_tool"
 
 
 class NhentaiDatabasePreprocess(SiteDatabasePreprocess):
     name = "nhentai"
-    download_urls = (NHENTAI_ASSET_URL,)
+    download_urls = NHENTAI_ASSET_URLS
 
     async def after_data_ready(self) -> bool:
         from .nhentai import NhentaiUtils
@@ -491,7 +496,7 @@ class NhentaiDatabasePreprocess(SiteDatabasePreprocess):
 class KemonoReleaseAsset(ReleaseAssetCache):
     def __init__(self, data_client: httpx.AsyncClient, progress_callback=None):
         super().__init__(
-            name="kemono", db_path=ori_path.joinpath("__temp/kemono.db"), download_urls=(KEMONO_ASSET_URL,),
+            name="kemono", db_path=ori_path.joinpath("__temp/kemono.db"), download_urls=KEMONO_ASSET_URLS,
             data_client=data_client, progress_callback=progress_callback, label="kemono db", timeout=60,
         )
 
@@ -519,7 +524,7 @@ async def _preprocess_script(
     progress_callback=None,
 ) -> PreprocessResult:
     script_res = res.GUI.Script
-    service_status = _check_script_services()
+    service_status = _check_script_services(progress_callback=progress_callback)
     script_entry_state = ScriptEntryState(service_status=service_status)
     dependencies_result = _check_script_dependencies()
     dependencies_ready = dependencies_result is True
@@ -583,16 +588,43 @@ def _probe_local_port(host: str, port: int, *, timeout_s: float = SCRIPT_SERVICE
         return False
 
 
-def _check_script_services() -> ScriptServiceStatus:
-    # aria2 is CGS-managed: ensure or raise (no soft "engine failed" product path).
-    # Redis remains an external service → soft probe for Kemono entry only.
-    from utils.script.aria2 import ensure_engine
+def _check_script_services(*, progress_callback=None) -> ScriptServiceStatus:
+    # cgs-aria2 is CGS-managed. Binary payload download may report AsyncTask
+    # progress (CGS011). Manifest / tiny metadata stays silent whole-body.
+    # Bootstrap or engine start failure MUST soft-fail here so Script still
+    # opens (CBG / Jsoneri / settings); Danbooru/Kemono hide via aria2_ready.
+    # Redis remains an external soft probe for Kemono entry only.
+    from loguru import logger
 
-    ensure_engine()
-    return ScriptServiceStatus(
-        aria2_ready=True,
-        redis_server_running=_probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT),
-    )
+    from utils.script.aria2 import Aria2BinaryBootstrapError, UnsupportedAria2PlatformError, ensure_engine
+
+    redis_server_running = _probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT)
+    try:
+        ensure_engine(progress_callback=progress_callback)
+        return ScriptServiceStatus(aria2_ready=True, redis_server_running=redis_server_running)
+    except (
+        Aria2BinaryBootstrapError,
+        UnsupportedAria2PlatformError,
+        OSError,
+        RuntimeError,
+    ) as exc:
+        logger.warning(
+            "[ScriptPreprocess] cgs-aria2 ensure soft-failed ({}): {}",
+            type(exc).__name__,
+            exc,
+        )
+        return ScriptServiceStatus(aria2_ready=False, redis_server_running=redis_server_running)
+    except Exception as exc:  # pragma: no cover - defensive catch-all keeps Script open
+        # Soft-fail contract: any unexpected ensure_engine failure must not abort
+        # preprocess. Known types are logged above; this branch catches TimeoutError,
+        # ValueError, library-specific errors, etc. without hard-crashing the task.
+        logger.exception(
+            "[ScriptPreprocess] unexpected cgs-aria2 ensure failure; "
+            "soft-disabling aria2 to keep Script usable ({}): {}",
+            type(exc).__name__,
+            exc,
+        )
+        return ScriptServiceStatus(aria2_ready=False, redis_server_running=redis_server_running)
 
 
 def _check_script_dependencies() -> bool | list[str]:

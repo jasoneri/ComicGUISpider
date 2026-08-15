@@ -3,7 +3,7 @@
 from enum import IntEnum
 from assets import res
 
-VER = "v2.12.0-beta.2"
+VER = "v2.12.0-beta.3"
 
 LANG = {
     "en_US": "English",
@@ -139,5 +139,16 @@ CGS_DOC = "https://cgs.101114105.xyz"
 CGS_DISCORD_SHARE_API = "https://cgs-share.101114105.xyz"
 CGS_WORKER_ENDPOINT = "https://cgs-share.101114105.xyz"
 CGS_TIMELINE_API = "https://notice.101114105.xyz/v1/boards/cgs"
+GITHUB_PRESET_BASE = "https://github.com/jasoneri/ComicGUISpider/releases/download/preset"
+ASSETS_FALLBACK = "https://img-cgs.101114105.xyz/file/assets"
+IMGBED_ASSET_OBJECTS = {
+    "aria2-manifest.json": "1786799417488_aria2-manifest.json",
+    "aria2c-win-amd64.exe": "1786799424964_aria2c-win-amd64.exe",
+    "aria2c-macos-arm64": "1786799422383_aria2c-macos-arm64",
+    # GitHub preset dbs re-uploaded via docs-screenshot ImgBed (channel=huggingface, folder=assets).
+    "kemono.db": "1786803426234_kemono.db",
+    "nhentai.db": "1786803548247_nhentai.db",
+    "hitomi.db": "1786803609153_hitomi.db",
+}
 CGS_METADATA_CHANNEL_ID = ""
 JSONERI_PALACES_PROBE_API_URL = "https://jps.101114105.xyz"
