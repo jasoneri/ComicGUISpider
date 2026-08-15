@@ -141,15 +141,18 @@ class ScriptServiceStatus:
 
     @property
     def all_required_services_running(self) -> bool:
-        # Soft gate only covers external Redis. aria2 is CGS-managed and must
-        # already have been ensured (hard fail) before this status is built.
-        return self.redis_server_running
+        # Soft gates: Redis is external; cgs-aria2 may fail bootstrap (network /
+        # missing binary) without aborting the whole Script preprocess task.
+        return self.aria2_ready and self.redis_server_running
 
     @property
     def missing_services(self) -> tuple[str, ...]:
-        if self.redis_server_running:
-            return ()
-        return ("redis-server",)
+        missing_services: list[str] = []
+        if not self.aria2_ready:
+            missing_services.append("cgs-aria2")
+        if not self.redis_server_running:
+            missing_services.append("redis-server")
+        return tuple(missing_services)
 
     def to_payload(self) -> dict[str, bool]:
         return {
@@ -519,7 +522,7 @@ async def _preprocess_script(
     progress_callback=None,
 ) -> PreprocessResult:
     script_res = res.GUI.Script
-    service_status = _check_script_services()
+    service_status = _check_script_services(progress_callback=progress_callback)
     script_entry_state = ScriptEntryState(service_status=service_status)
     dependencies_result = _check_script_dependencies()
     dependencies_ready = dependencies_result is True
@@ -583,16 +586,23 @@ def _probe_local_port(host: str, port: int, *, timeout_s: float = SCRIPT_SERVICE
         return False
 
 
-def _check_script_services() -> ScriptServiceStatus:
-    # aria2 is CGS-managed: ensure or raise (no soft "engine failed" product path).
-    # Redis remains an external service → soft probe for Kemono entry only.
-    from utils.script.aria2 import ensure_engine
+def _check_script_services(*, progress_callback=None) -> ScriptServiceStatus:
+    # cgs-aria2 is CGS-managed. Binary payload download may report AsyncTask
+    # progress (CGS011). Manifest / tiny metadata stays silent whole-body.
+    # Bootstrap or engine start failure MUST soft-fail here so Script still
+    # opens (CBG / Jsoneri / settings); Danbooru/Kemono hide via aria2_ready.
+    # Redis remains an external soft probe for Kemono entry only.
+    from loguru import logger
 
-    ensure_engine()
-    return ScriptServiceStatus(
-        aria2_ready=True,
-        redis_server_running=_probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT),
-    )
+    from utils.script.aria2 import Aria2BinaryBootstrapError, UnsupportedAria2PlatformError, ensure_engine
+
+    redis_server_running = _probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT)
+    try:
+        ensure_engine(progress_callback=progress_callback)
+        return ScriptServiceStatus(aria2_ready=True, redis_server_running=redis_server_running)
+    except (Aria2BinaryBootstrapError, UnsupportedAria2PlatformError, OSError, RuntimeError) as exc:
+        logger.warning(f"[ScriptPreprocess] cgs-aria2 ensure soft-failed: {exc}")
+        return ScriptServiceStatus(aria2_ready=False, redis_server_running=redis_server_running)
 
 
 def _check_script_dependencies() -> bool | list[str]:

@@ -49,24 +49,34 @@ def is_compiled(current_lang):
         return hashlib.sha256(yml_path.read_bytes()).hexdigest() == f.read()
 
 
-class TranslationNamespace(types.SimpleNamespace):
-    """动态加载翻译项的命名空间"""
-    def __init__(self, prefix, **kwargs):
-        self._prefix = prefix
-        super().__init__(**kwargs)
-        
-    def __getattr__(self, name):
-        # 动态创建嵌套命名空间
-        if name.startswith('_'):
-            return super().__getattr__(name)
-            
-        nested_prefix = f"{self._prefix}.{name}" if self._prefix else name
+class TranslationNamespace(str):
+    """gettext-backed attribute path (e.g. res.GUI.Uic.menu_show_completer).
+
+    Contract (stable since locale easily / must not regress):
+    - Hit: return plain translated ``str``.
+    - Miss: gettext returns the msgid; we still return a ``TranslationNamespace``
+      so nested paths keep working (``GUI.Uic.xxx``), **and** the object itself
+      is a ``str`` (the msgid). Call sites may pass it to ``QObject.tr`` / menus
+      without TypeError — missing yml keys degrade to raw key text, not crash.
+
+    Historically this was ``SimpleNamespace`` and miss returned a non-str object;
+    that only exploded once GUI started doing ``widget.tr(self.res.some_new_key)``
+    on chooseBox / search context menu (C2 online-fav path).
+    """
+
+    def __new__(cls, prefix: str):
+        return str.__new__(cls, str(prefix or ""))
+
+    def __getattr__(self, name: str):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        # ``self`` is already the dotted prefix string.
+        nested_prefix = f"{self}.{name}" if self else name
         value = _(nested_prefix)
-        
-        # 如果返回的是原始键（未翻译），尝试创建嵌套命名空间
         if value == nested_prefix:
             return TranslationNamespace(nested_prefix)
         return value
+
 
 # 自动创建所有翻译命名空间
 def create_translation_namespaces():
