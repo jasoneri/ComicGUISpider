@@ -24,7 +24,7 @@ GUI:
   Script:
     site_name: "Script"
     service_check_success: "✅ Service check"
-    service_check_failed_content: "Redis or Motrix is not running.<br>Open the guide and complete the prerequisite service setup."
+    service_check_failed_content: "Redis is not running.<br>Open the guide (Kemono needs Redis; the download engine is managed by CGS)."
     service_check_failed_title: "Service check failed"
     dependency_check_success: "✅ Dependency check"
     dependency_check_failed_content: "Open the guide and run the `uv` install command for script dependencies after fully closing CGS."
@@ -35,7 +35,7 @@ GUI:
     danbooru_save_mode: "Save Mode"
     danbooru_save_mode_desc: "Save to the root directory or create subfolders by search tag"
     danbooru_download_concurrency: "Download Concurrency"
-    danbooru_download_concurrency_desc: "Motrix polling concurrency for Danbooru downloads"
+    danbooru_download_concurrency_desc: "Download task concurrency"
     danbooru_view_ratio: "Display Scale"
     danbooru_view_ratio_desc: "Control preview viewer area"
     danbooru_save_type_default: "Default"
