@@ -26,6 +26,11 @@ class CgsConfig(QConfig):
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
     searchHistory = ConfigItem("Search", "History", [], restart=False)
     scriptWinRect = ConfigItem("ScriptWindow", "Rect", [], restart=False)
+    subscribeWinRect = ConfigItem("SubscribeWindow", "Rect", [], restart=False)
+    # Active subscription binding profile (subscription_{name}.yml); tray + GUI share this.
+    activeSubscriptionCustomname = ConfigItem("Subscription", "ActiveCustomname", "default", restart=False)
+    # Global catch-up (后巡查) cadence for tray Schedule — off|12h|daily|2d|weekly.
+    subscriptionCatchupPreset = ConfigItem("Subscription", "CatchupPreset", "off", restart=False)
     hiddenSiteChoices = ConfigItem("MainWindow", "HiddenSiteChoices", [], restart=False)
     doh: "CgsConfig.DoH"
     search: "CgsConfig.Search"

@@ -4,7 +4,6 @@ import pathlib as p
 import typing as t
 from datetime import datetime
 
-import httpx
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
 from PySide6.QtCore import Qt, QUrl, Signal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer, QByteArray, QBuffer, QIODevice
@@ -22,13 +21,23 @@ from qframelesswindow import FramelessWindow
 from variables import CGS_DOC
 from deploy import curr_os
 from utils import ori_path, temp_p
-from utils.script.image.kemono import kemono_topic, conf
 from utils.config.qc import kemono_cfg
-from utils.website.kemono.db import KemonoAuthor, load_kemono_authors
+from utils.website.kemono.db import AuthorQuery, KemonoAuthor, KemonoAuthorsDb
 from GUI.core.font import font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.script.kemono.avatar_cache import AvatarCache
+
+_KEMONO_SORT_COLUMNS = ("name", "service", "updated", "favorited")
+_KEMONO_WINDOW_SIZE = 384
+_KEMONO_FTS_TASK_ID = "kemono_authors_fts_ensure"
+
+# Keep banner local: importing utils.script.image.kemono pulls pandas/DoH/motrix (~10s+) on the GUI thread.
+KEMONO_TOPIC = """
+  ┏┓┏┓┏┓  ┓            
+  ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
+  ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
+"""
 
 
 class FilterView(FlyoutViewBase):
@@ -73,31 +82,38 @@ class FilterView(FlyoutViewBase):
 
 
 class VirtualKemonoTableModel(QAbstractTableModel):
-    """虚拟化Kemono表格模型，用于高性能处理大量数据"""
+    """SQL-backed Kemono table model: count + window cache, no full load_all."""
 
-    def __init__(self, data_dict):
+    def __init__(self, authors_db: KemonoAuthorsDb):
         super().__init__()
-        # 按收藏数降序排序，与原有逻辑保持一致
-        self.authors_list = sorted(data_dict.values(), key=lambda x: x.favorited, reverse=True)
-        self.filtered_indices = list(range(len(self.authors_list)))  # 用于搜索过滤
+        self.authors_db = authors_db
         self.headers = ["作者", "平台", "更新时间", "收藏数"]
         self.favorite_headers = ["头像", "作者", "平台", "更新时间", "收藏数"]
-        self.current_row_author = None  # 存储当前选中行的作者数据
+        self.current_row_author = None
         self.favorites_only_mode = False
-        self.favorite_ids = []
+        self._query = AuthorQuery()
+        self._row_count = 0
+        self._window_offset = 0
+        self._window_authors: list[KemonoAuthor] = []
+        self._reload_count()
 
     def rowCount(self, parent=QModelIndex()):
-        return len(self.filtered_indices)
+        if parent.isValid():
+            return 0
+        return self._row_count
 
     def columnCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
         return 5 if self.favorites_only_mode else 4
 
     def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid() or index.row() >= len(self.filtered_indices):
+        if not index.isValid() or index.row() < 0 or index.row() >= self._row_count:
             return None
 
-        actual_row = self.filtered_indices[index.row()]
-        author = self.authors_list[actual_row]
+        author = self.get_author_at_row(index.row())
+        if author is None:
+            return None
         col = index.column()
 
         if self.favorites_only_mode:
@@ -108,16 +124,16 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         if role == Qt.DisplayRole:
             if col == 0:
                 return author.name
-            elif col == 1:
+            if col == 1:
                 return author.service
-            elif col == 2:
+            if col == 2:
                 return datetime.fromtimestamp(author.updated).strftime(r'%Y-%m-%d')
-            elif col == 3:
+            if col == 3:
                 return str(author.favorited)
-        elif role == Qt.UserRole:  # 存储原始数据用于排序，与原有逻辑保持一致
+        elif role == Qt.UserRole:
             if col == 2:
                 return author.updated
-            elif col == 3:
+            if col == 3:
                 return author.favorited
         return None
 
@@ -129,96 +145,108 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         return None
 
     def sort(self, column, order):
-        self.layoutAboutToBeChanged.emit()
-
-        reverse = (order == Qt.DescendingOrder)
-
+        logical_column = column
         if self.favorites_only_mode:
             if column == 0:
-                self.layoutChanged.emit()
                 return
-            column -= 1
+            logical_column = column - 1
+        if logical_column < 0 or logical_column >= len(_KEMONO_SORT_COLUMNS):
+            return
+        sort_column = _KEMONO_SORT_COLUMNS[logical_column]
+        sort_desc = order == Qt.DescendingOrder
+        if self._query.sort_column == sort_column and self._query.sort_desc == sort_desc:
+            return
+        self._query = AuthorQuery(
+            text=self._query.text,
+            favorite_ids=self._query.favorite_ids,
+            sort_column=sort_column,
+            sort_desc=sort_desc,
+        )
+        self._reload_count(reset_window=True)
 
-        if column == 0:  # 作者名
-            self.authors_list.sort(key=lambda x: x.name, reverse=reverse)
-        elif column == 1:  # 平台
-            self.authors_list.sort(key=lambda x: x.service, reverse=reverse)
-        elif column == 2:  # 更新时间
-            self.authors_list.sort(key=lambda x: x.updated, reverse=reverse)
-        elif column == 3:  # 收藏数
-            self.authors_list.sort(key=lambda x: x.favorited, reverse=reverse)
-
-        # 重新构建过滤索引
-        self.update_filtered_indices()
-        self.layoutChanged.emit()
-
-    def apply_filter(self, filter_text):
+    def apply_filter(self, filter_text: str):
         if self.favorites_only_mode:
             return
-        self.beginResetModel()
-
-        if not filter_text:
-            self.filtered_indices = list(range(len(self.authors_list)))
-        else:
-            self.filtered_indices = []
-            filter_lower = filter_text.lower()
-
-            for i, author in enumerate(self.authors_list):
-                # 搜索所有列，与原有逻辑保持一致
-                if (filter_lower in author.name.lower() or
-                    filter_lower in author.service.lower() or
-                    filter_lower in datetime.fromtimestamp(author.updated).strftime(r'%Y-%m-%d').lower() or
-                    filter_lower in str(author.favorited)):
-                    self.filtered_indices.append(i)
-        self.endResetModel()
-
-    def update_filtered_indices(self):
-        if self.favorites_only_mode:
-            self.filtered_indices = [
-                i for i, author in enumerate(self.authors_list)
-                if author.id in self.favorite_ids
-            ]
+        text = (filter_text or "").strip()
+        if text == self._query.text:
             return
-        if len(self.filtered_indices) != len(self.authors_list):
-            # 这里需要重新应用当前的过滤条件
-            # 暂时重置为显示所有数据，实际使用时会通过apply_filter重新设置
-            self.filtered_indices = list(range(len(self.authors_list)))
+        self._query = AuthorQuery(
+            text=text,
+            favorite_ids=None,
+            sort_column=self._query.sort_column,
+            sort_desc=self._query.sort_desc,
+        )
+        self._reload_count(reset_window=True)
 
-    def get_author_at_row(self, row):
-        if 0 <= row < len(self.filtered_indices):
-            actual_row = self.filtered_indices[row]
-            return self.authors_list[actual_row]
-        return None
+    def get_author_at_row(self, row: int) -> KemonoAuthor | None:
+        if row < 0 or row >= self._row_count:
+            return None
+        if not (
+            self._window_offset <= row < self._window_offset + len(self._window_authors)
+        ):
+            self._load_window(row)
+        window_index = row - self._window_offset
+        if window_index < 0 or window_index >= len(self._window_authors):
+            return None
+        return self._window_authors[window_index]
 
     def show_favorites_only(self, favorite_ids):
+        favorite_tuple = tuple(str(item) for item in favorite_ids)
         self.beginResetModel()
         self.favorites_only_mode = True
-        self.favorite_ids = favorite_ids
-        self.filtered_indices = []
-        for i, author in enumerate(self.authors_list):
-            if author.id in self.favorite_ids:
-                self.filtered_indices.append(i)
+        self._query = AuthorQuery(
+            text="",
+            favorite_ids=favorite_tuple,
+            sort_column=self._query.sort_column,
+            sort_desc=self._query.sort_desc,
+        )
+        self._row_count = self.authors_db.count(self._query)
+        self._window_offset = 0
+        self._window_authors = []
         self.endResetModel()
 
     def show_all_authors(self):
         self.beginResetModel()
         self.favorites_only_mode = False
-        self.favorite_ids = []
-
-        # 恢复显示所有作者
-        self.filtered_indices = list(range(len(self.authors_list)))
+        self._query = AuthorQuery(
+            text="",
+            favorite_ids=None,
+            sort_column=self._query.sort_column,
+            sort_desc=self._query.sort_desc,
+        )
+        self._row_count = self.authors_db.count(self._query)
+        self._window_offset = 0
+        self._window_authors = []
         self.endResetModel()
+
+    def _reload_count(self, *, reset_window: bool = False):
+        self.beginResetModel()
+        self._row_count = self.authors_db.count(self._query)
+        if reset_window:
+            self._window_offset = 0
+            self._window_authors = []
+        self.endResetModel()
+
+    def _load_window(self, focus_row: int):
+        half_window = _KEMONO_WINDOW_SIZE // 2
+        offset = max(0, focus_row - half_window)
+        authors = self.authors_db.fetch(
+            self._query, offset=offset, limit=_KEMONO_WINDOW_SIZE
+        )
+        self._window_offset = offset
+        self._window_authors = authors
 
 
 class KemonoTableView(FramelessWindow):
     """Kemono作者表格视图"""
     closed = Signal()
 
-    def __init__(self, data: t.Dict[str, KemonoAuthor], parent):
+    def __init__(self, authors_db: KemonoAuthorsDb, parent):
         super().__init__()
         self.interface = parent
         self.gui = parent.parent_window.gui
-        self._table_initialized = False  # 标记表格是否已初始化
+        self.authors_db = authors_db
+        self._table_initialized = False
 
         self._avatar_size = 32
         self._avatar_col_width = 44
@@ -229,6 +257,8 @@ class KemonoTableView(FramelessWindow):
         self._avatar_widgets: t.Dict[int, ImageLabel] = {}
         self._avatar_pending: t.List[t.Tuple[KemonoAuthor, ImageLabel]] = []
         self._avatar_max_concurrent = 12
+        import httpx
+
         self._avatar_http_cli = httpx.Client(
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -246,18 +276,20 @@ class KemonoTableView(FramelessWindow):
         self._avatar_save_timer = QTimer(self)
         self._avatar_save_timer.setSingleShot(True)
         self._avatar_save_timer.timeout.connect(self._avatar_cache.save)
+        self._search_debounce = QTimer(self)
+        self._search_debounce.setSingleShot(True)
+        self._search_debounce.setInterval(200)
+        self._search_debounce.timeout.connect(self._apply_pending_search)
+        self._pending_search_text = ""
 
-        # 隐藏标题栏按钮
         self.titleBar.minBtn.hide()
         self.titleBar.maxBtn.hide()
         self.titleBar.closeBtn.hide()
 
-        # 计算窗口大小
-        p_width = parent.width()
-        p_height = parent.height()
-
-        window_width = int(p_width * 0.9)
-        window_height = int(p_height * 0.7)
+        parent_width = parent.width()
+        parent_height = parent.height()
+        window_width = int(parent_width * 0.9)
+        window_height = int(parent_height * 0.7)
 
         self.resize(window_width, window_height)
         screen = QGuiApplication.primaryScreen()
@@ -270,10 +302,7 @@ class KemonoTableView(FramelessWindow):
         self.layout = VBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
-        authors_list = sorted(data.values(), key=lambda x: x.favorited, reverse=True)
-        self.data = {i: author for i, author in enumerate(authors_list)}
-
-        self.virtual_model = VirtualKemonoTableModel(data)
+        self.virtual_model = VirtualKemonoTableModel(authors_db)
 
         self.set_table()
         self.setupUi()
@@ -288,7 +317,7 @@ class KemonoTableView(FramelessWindow):
         self.closeBtn.clicked.connect(self.hide)
         self.searchEdit = LineEdit(self)
         self.searchEdit.setPlaceholderText("搜索...")
-        self.searchEdit.textChanged.connect(self.filter_table)
+        self.searchEdit.textChanged.connect(self._on_search_text_changed)
         self.searchEdit.setClearButtonEnabled(True)
         self.favBtn = TransparentTogglePushButton(FIF.HEART, "查看本地收藏", self)
         self.favBtn.clicked.connect(self.toggle_favorites_view)
@@ -304,20 +333,17 @@ class KemonoTableView(FramelessWindow):
         self.tableView = TableView(self)
         self.tableView.setBorderRadius(15)
         self.tableView.setWordWrap(False)
-        tb_width = self.width()
-        tb_height = self.height() - 60  # 为搜索框留出空间
-        self.tableView.setFixedSize(tb_width, tb_height)
+        table_width = self.width()
+        table_height = self.height() - 60
+        self.tableView.setFixedSize(table_width, table_height)
         self.tableView.verticalHeader().hide()
 
-        # 使用虚拟化模型，大幅提升性能
         self.tableView.setModel(self.virtual_model)
         self.tableView.horizontalHeader().setStretchLastSection(True)
 
-        # 启用排序功能
         self.tableView.setSortingEnabled(True)
         self.tableView.horizontalHeader().setSortIndicatorShown(True)
-
-        self.virtual_model.sort(3, Qt.DescendingOrder)
+        self.tableView.horizontalHeader().setSortIndicator(3, Qt.DescendingOrder)
 
         self.virtual_model.layoutChanged.connect(self._schedule_avatar_sync)
         self.virtual_model.modelReset.connect(self._schedule_avatar_sync)
@@ -327,9 +353,15 @@ class KemonoTableView(FramelessWindow):
         self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.tableView.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
-        # 启用右键菜单
         self.tableView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tableView.customContextMenuRequested.connect(self.on_right_click)
+
+    def _on_search_text_changed(self, text: str):
+        self._pending_search_text = text
+        self._search_debounce.start()
+
+    def _apply_pending_search(self):
+        self.virtual_model.apply_filter(self._pending_search_text)
 
     def filter_table(self, text):
         self.virtual_model.apply_filter(text)
@@ -587,6 +619,8 @@ class KemonoInterface(QFrame):
         self.parent_window = parent
         self.backend_thread = None
         self.table_inited = False
+        self.table_window = None
+        self._table_task_mgr = AsyncTaskManager(parent.gui, self) if parent is not None else None
         self.selected = []
         self.setObjectName("KemonoInterface")
         self.setupUi()
@@ -633,7 +667,9 @@ class KemonoInterface(QFrame):
         self.runBtn.clicked.connect(self.run_kemono)
         self.openBtn = TransparentToolButton(FIF.FOLDER, self)
         def open_sv_path():
-            curr_os.open_folder(p.Path(conf.kemono.get('sv_path')))
+            from utils.script import conf as script_conf
+
+            curr_os.open_folder(p.Path(script_conf.kemono.get('sv_path')))
         self.openBtn.clicked.connect(open_sv_path)
         third_row.addWidget(self.runBtn)
         third_row.addWidget(self.openBtn)
@@ -657,7 +693,7 @@ class KemonoInterface(QFrame):
     
     def reset_browser(self):
         self.textBrowser.clear()
-        self.say(kemono_topic)
+        self.say(KEMONO_TOPIC)
         self.say(font_color(
             "当前仅支持作者作品集层面下载（不支持下载单个post的小操作）<br> discord 注意现阶段默认下载该作者所有频道，建议略过上百个频道的作者等后续支持单频道id下载",      
             cls='theme-tip'))
@@ -704,18 +740,81 @@ class KemonoInterface(QFrame):
         )
 
     def show_kemono_table(self):
-        if not self.table_inited:
-            self._set_kemono_table()
-            self.table_inited = True
-        p = self.parent_window.pos()
-        self.table_window.move(p.x(), p.y()+10)
-        self.table_window.show()
+        if self.table_inited and self.table_window is not None:
+            self._present_table_window()
+            return
 
-    def _set_kemono_table(self):
-        data = load_kemono_authors(temp_p.joinpath("kemono.db"))
-        self.table_window = KemonoTableView(data, self)
+        db_path = temp_p.joinpath("kemono.db")
+        if not db_path.exists():
+            InfoBar.error(
+                title="",
+                content=f"kemono 作者库不存在: {db_path}",
+                orient=Qt.Horizontal,
+                position=InfoBarPosition.TOP,
+                duration=5000,
+                parent=self,
+            )
+            return
+
+        authors_db = KemonoAuthorsDb(db_path)
+        if authors_db.fts_ready():
+            self._open_table_window(authors_db)
+            return
+
+        if self._table_task_mgr is None:
+            authors_db.ensure_fts(force=True)
+            self._open_table_window(authors_db)
+            return
+
+        if self._table_task_mgr.is_task_running(_KEMONO_FTS_TASK_ID):
+            return
+
+        self.showTbBtn.setDisabled(True)
+
+        def _build_fts(_db: KemonoAuthorsDb = authors_db):
+            _db.ensure_fts(force=True)
+            return _db
+
+        config = TaskConfig(
+            task_func=_build_fts,
+            success_callback=self._on_fts_ready,
+            error_callback=self._on_fts_failed,
+            tooltip_title="准备作者库",
+            tooltip_content="正在建立全文索引（仅首次）…",
+            show_success_info=False,
+            show_error_info=True,
+            tooltip_parent=self,
+        )
+        self._table_task_mgr.execute_task(_KEMONO_FTS_TASK_ID, config)
+
+    def _on_fts_ready(self, authors_db: KemonoAuthorsDb):
+        self.showTbBtn.setDisabled(False)
+        self._open_table_window(authors_db)
+
+    def _on_fts_failed(self, error_message: str):
+        self.showTbBtn.setDisabled(False)
+        InfoBar.error(
+            title="",
+            content=f"作者库索引准备失败: {error_message}",
+            orient=Qt.Horizontal,
+            position=InfoBarPosition.TOP,
+            duration=6000,
+            parent=self,
+        )
+
+    def _open_table_window(self, authors_db: KemonoAuthorsDb):
+        self.table_window = KemonoTableView(authors_db, self)
         self.table_window.closeBtn.clicked.connect(self.table_window.close)
         self.table_window.closed.connect(self.table_window.hide)
+        self.table_inited = True
+        self._present_table_window()
+
+    def _present_table_window(self):
+        window_pos = self.parent_window.pos()
+        self.table_window.move(window_pos.x(), window_pos.y() + 10)
+        self.table_window.show()
+        self.table_window.raise_()
+        self.table_window.activateWindow()
 
 
 class KemonoBackendThread(QThread):

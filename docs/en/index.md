@@ -20,7 +20,7 @@ hero:
 
 <table><tbody>  
   <tr>
-    <td><div align="center"><a href="https://www.2025copy.com/" target="_blank">
+    <td><div align="center"><a href="https://www.2026copy.com/" target="_blank">
       <img src="../assets/img/icons/website/copy.png" alt="logo" style="max-height: 80px">
       </a></div></td>
     <td><div align="center"><a href="https://mangabz.com" target="_blank">
@@ -38,14 +38,26 @@ hero:
     <td><div align="center"><a href="https://hitomi.la/" target="_blank">
       <img src="../assets/img/icons/website/hitomi.png" alt="logo" style="max-height: 80px">
       </a></div></td>
+    <td><div align="center"><a href="https://h-comic.com/" target="_blank">
+      <img src="../assets/img/icons/website/hcomic.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
   </tr>
   <tr>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_kaobei.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_mangabz.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_jm.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_wnacg.json"></td>
-    <td><img src="https://img.shields.io/endpoint?url=https://cgs-status-badges.pages.dev/status_ehentai.json"></td>
-    <td></td>
+    <td><div align="center"><a href="https://nhentai.net/" target="_blank">
+      <img src="../assets/img/icons/website/nhentai.svg" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://jestful.net/" target="_blank">
+      <img src="../assets/img/icons/website/jf.svg" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://www.manhuagui.com/" target="_blank">
+      <img src="../assets/img/icons/website/mhg.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+    <td><div align="center"><a href="https://tel.dm5.com/" target="_blank">
+      <img src="../assets/img/icons/website/dm5.png" alt="logo" style="max-height: 80px">
+      </a></div></td>
+  </tr>
+  <tr>
+    <td colspan="7" style="width:100%;height:100%;text-align:center;vertical-align:middle;"><a href="/deploy/monitor/">Site Status</a></td>
   </tr>
 </tbody></table>
 

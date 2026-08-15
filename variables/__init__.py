@@ -91,9 +91,9 @@ COOKIES_PLACEHOLDER = {
 DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
     **_map_spider_values({
         Spider.MANGA_COPY: ['更新', '排名日', '排名周', '排名月', '排名总'],
-        Spider.JM: ['C107', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
-        Spider.WNACG: ['C107', '更新', '汉化'],
-        Spider.EHENTAI: [res.SPIDER.Completer.popular, res.SPIDER.Completer.index, 'C107'],
+        Spider.JM: ['C108', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
+        Spider.WNACG: ['C108', '更新', '汉化'],
+        Spider.EHENTAI: [res.SPIDER.Completer.popular, res.SPIDER.Completer.index, 'C108'],
         Spider.MANGABZ: ['更新', '人气'],
         Spider.HITOMI: ['index-all', 'popular/week-all', 'popular/month-all'],
         Spider.H_COMIC: ['更新'],

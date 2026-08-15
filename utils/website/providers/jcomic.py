@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import base64
+import binascii
 import re
 from pathlib import Path
 from urllib.parse import quote
@@ -162,11 +164,32 @@ class JComicParser(_JComicContract, Previewer):
         return links
 
     @classmethod
+    def _decode_locked_image_url(cls, value: str) -> str:
+        encoded = str(value or "").strip()
+        prefix = "JCOMIC_TRAP_"
+        if not encoded.startswith(prefix):
+            raise JComicParseError("jcomic 图片保护字段前缀无效")
+        try:
+            payload = encoded.removeprefix(prefix)[::-1]
+            return base64.b64decode(payload, validate=True).decode("utf-8")
+        except (binascii.Error, UnicodeDecodeError) as exc:
+            raise JComicParseError("jcomic 图片保护字段解码失败") from exc
+
+    @classmethod
     def parse_page_urls_from_html(cls, html_text: str) -> list[str]:
         doc = cls._selector(html_text)
-        image_srcs = doc.xpath("//div[contains(@class, 'container')]//img[contains(@class, 'comic-thumb')]/@src").getall()
-        urls = [url.strip() for url in image_srcs if url.strip()]
-        urls = [url for url in urls if cls._is_comic_image_url(url)]
+        image_nodes = doc.xpath(
+            "//div[contains(@class, 'container')]//img["
+            "contains(concat(' ', normalize-space(@class), ' '), ' comic-thumb ')"
+            "]"
+        )
+        urls = []
+        for image_node in image_nodes:
+            locked_value = image_node.xpath("./@data-locked").get()
+            image_url = cls._decode_locked_image_url(locked_value) if locked_value else image_node.xpath("./@src").get()
+            image_url = image_url.strip() if image_url else image_url
+            if image_url and cls._is_comic_image_url(image_url):
+                urls.append(image_url)
         if not urls:
             raise JComicParseError("jcomic 图片页未解析到图片 URL")
         return urls
