@@ -23,7 +23,9 @@ if t.TYPE_CHECKING:
 
 
 DB_CACHE_TTL_HOURS = 480
-SCRIPT_SERVICE_WARNING_DELAY_MS = 7000
+# Soft-fail UX only: let the user read the missing-service banner before open.
+# Must stay short — this is NOT a substitute for fixing bootstrap hangs.
+SCRIPT_SERVICE_WARNING_DELAY_MS = 2500
 SCRIPT_SERVICE_PROBE_TIMEOUT_S = 0.15
 # Redis 约定见 conf_sample_script.yml；aria2 由 CGS 托管引擎动态端口
 SCRIPT_REDIS_DEFAULT_HOST = "127.0.0.1"
@@ -598,6 +600,10 @@ def _check_script_services(*, progress_callback=None) -> ScriptServiceStatus:
 
     from utils.script.aria2 import Aria2BinaryBootstrapError, UnsupportedAria2PlatformError, ensure_engine
 
+    if callable(progress_callback):
+        progress_callback("checking services...")
+    # Redis probe is local TCP only (~150ms). Missing redis MUST NOT delay open
+    # beyond SCRIPT_SERVICE_WARNING_DELAY_MS after this returns.
     redis_server_running = _probe_local_port(SCRIPT_REDIS_DEFAULT_HOST, SCRIPT_REDIS_DEFAULT_PORT)
     try:
         ensure_engine(progress_callback=progress_callback)

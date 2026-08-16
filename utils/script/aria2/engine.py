@@ -25,8 +25,10 @@ ARIA2_WORK_DIR = conf_dir.joinpath("cgs-aria2")
 ARIA2_CONF_NAME = "aria2.conf"
 ARIA2_SESSION_NAME = "download.session"
 ARIA2_PID_NAME = "engine.pid"
-ENSURE_TIMEOUT_S = 12.0
-PING_INTERVAL_S = 0.2
+ENSURE_TIMEOUT_S = 8.0
+PING_INTERVAL_S = 0.15
+# Per-attempt RPC ping during startup wait; keep short so a dead port fails fast.
+STARTUP_PING_TIMEOUT_S = 0.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +76,7 @@ class CgsAria2Engine:
                 return self._endpoint
             self._stop_locked()
             binary = ensure_aira2_binary(progress_callback=progress_callback)
+            _emit_engine_progress(progress_callback, "aria2 starting...")
             work_dir = ARIA2_WORK_DIR
             work_dir.mkdir(parents=True, exist_ok=True)
             conf_path = work_dir / ARIA2_CONF_NAME
@@ -124,6 +127,7 @@ class CgsAria2Engine:
                     self._process = process
                     self._endpoint = endpoint
                     (work_dir / ARIA2_PID_NAME).write_text(str(process.pid), encoding="utf-8")
+                    _emit_engine_progress(progress_callback, "aria2 ready")
                     logger.info(f"[CgsAria2] ensure ready port={port} pid={process.pid} binary={binary}")
                     return endpoint
                 exit_code = process.poll()
@@ -178,7 +182,7 @@ class CgsAria2Engine:
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 return False
-            if self._rpc_ping_sync(endpoint):
+            if ping_endpoint_sync(endpoint, timeout_s=STARTUP_PING_TIMEOUT_S):
                 return True
             time.sleep(PING_INTERVAL_S)
         return False
@@ -200,6 +204,14 @@ class CgsAria2Engine:
                 process.kill()
             except Exception:
                 pass
+
+
+def _emit_engine_progress(progress_callback, message: str) -> None:
+    """Advance AsyncTask tooltip after binary download (download_finish freezes otherwise)."""
+    if progress_callback is None:
+        return
+    if callable(progress_callback):
+        progress_callback(message)
 
 
 def normalize_proxy_arg(proxy: object | None) -> str:
