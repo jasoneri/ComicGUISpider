@@ -955,6 +955,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preprocess_mgr.cleanup()
         if getattr(self, "preview_mgr", None):
             self.preview_mgr.shutdown()
+        with contextlib.suppress(Exception):
+            from utils.script.aria2 import stop_engine
+            stop_engine()
         event.accept()
         self.destroy()  # 窗口关闭销毁
         if self.dl_mgr is not None:

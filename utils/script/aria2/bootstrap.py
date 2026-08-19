@@ -14,10 +14,14 @@ from typing import Any
 from loguru import logger
 
 from deploy import curr_os
+from utils.config import conf_dir
 from utils.preset_assets import managed_asset_sources
 
 ARIA2_MANIFEST_NAME = "aria2-manifest.json"
 SUPPORTED_PLATFORM_IDS = frozenset({"win-amd64", "macos-arm"})
+# Runtime binary is user data (conf_dir), not package content (site-packages/__temp).
+# Separates "app install replace" from "engine binary lifetime" — Single Owner.
+ARIA2_BIN_DIRNAME = "bin"
 # Binary payload may be multi‑MB; keep a longer ceiling.
 BINARY_DOWNLOAD_TIMEOUT_S = 120
 # Manifest is tiny JSON. MUST NOT reuse binary timeout — a hung GitHub TCP
@@ -55,11 +59,11 @@ def detect_aira2_platform_id() -> str:
 
 
 def aira2_install_dir() -> Path:
-    return Path(curr_os.aira2).parent
+    return conf_dir.joinpath("cgs-aria2", ARIA2_BIN_DIRNAME)
 
 
 def resolve_aira2_target_path() -> Path:
-    return Path(curr_os.aira2)
+    return aira2_install_dir().joinpath(curr_os.aira2_binary_name)
 
 
 def file_sha256(path: Path) -> str:
@@ -236,10 +240,10 @@ def local_binary_present(target_path: Path | None = None) -> bool:
 
 
 def ensure_aira2_binary(*, progress_callback=None, force_refresh: bool = False) -> Path:
-    """Ensure curr_os.aira2 exists. No PATH/uv/runtime fallback.
+    """Ensure managed aria2c under conf_dir/cgs-aria2/bin. No PATH/uv/runtime fallback.
 
     Local-first (critical for Script preprocess latency):
-    - If ``curr_os.aira2`` already exists and ``force_refresh`` is false, return it
+    - If the managed binary already exists and ``force_refresh`` is false, return it
       immediately with **zero** network. Installer trees and second opens must not
       block on GitHub/ImgBed manifest (previously hung up to BINARY timeout ≈ 2min).
     - Only when the binary is missing (or ``force_refresh``) fetch manifest + payload.
@@ -292,7 +296,7 @@ def ensure_aira2_binary(*, progress_callback=None, force_refresh: bool = False) 
 
 
 def copy_local_preset_asset_into_tree(source_binary: Path, *, platform_id: str | None = None) -> Path:
-    """Dev/CI helper: place a pre-fetched binary at curr_os.aira2 without network (still no PATH)."""
+    """Dev/CI helper: place a pre-fetched binary at conf_dir/cgs-aria2/bin without network."""
     resolved_platform = platform_id or detect_aira2_platform_id()
     if resolved_platform not in SUPPORTED_PLATFORM_IDS:
         raise UnsupportedAria2PlatformError(resolved_platform)
