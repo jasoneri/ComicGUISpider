@@ -632,18 +632,27 @@ class JestfulReqer(_JestfulContract, Req):
         self.preview_requests = PreviewRequestSession(self)
 
     async def _enrich_book_from_pop(self, book: JestfulBookInfo):
+        """Best-effort metadata pop. Must not block episode list / download path."""
         book_id = str(book.id or "").strip()
         if not book_id:
             return book
-        owner = self._require_preview_owner()
-        session = self.preview_requests
-        pop_resp = await self.ensure_preview_client().get(
-            session.controller_url("cont.pop", action="pop", id=book_id),
-            headers=session.headers(xhr=True), follow_redirects=True, timeout=12,
-        )
-        pop_resp.raise_for_status()
-        pop_fields = await asyncio.to_thread(owner.parser.parse_book_pop_fields, pop_resp.text, request_url=str(pop_resp.url))
-        owner.parser.apply_pop_fields(book, pop_fields)
+        try:
+            owner = self._require_preview_owner()
+            session = self.preview_requests
+            pop_resp = await self.ensure_preview_client().get(
+                session.controller_url("cont.pop", action="pop", id=book_id),
+                headers=session.headers(xhr=True), follow_redirects=True, timeout=12,
+            )
+            pop_resp.raise_for_status()
+            pop_fields = await asyncio.to_thread(
+                owner.parser.parse_book_pop_fields,
+                pop_resp.text,
+                request_url=str(pop_resp.url),
+            )
+            owner.parser.apply_pop_fields(book, pop_fields)
+        except Exception:
+            # Pop payload is cosmetic (title/cover). Chapter list uses lstc separately.
+            return book
         return book
 
     async def _enrich_books_from_pop(self, books: list[JestfulBookInfo]):
@@ -709,8 +718,10 @@ class JestfulReqer(_JestfulContract, Req):
         book.manga_id = owner_state["manga_id"]
         if owner_state.get("latest_sec"):
             owner.parser.apply_latest_chapter(book, owner_state["latest_sec"])
-        if owner_state.get("cover_url") and not book.img_preview:
-            book.img_preview = owner.parser.normalize_site_resource(owner_state["cover_url"])
+        # Library/yml shells may be bare BookInfo without Manga.img_preview declared.
+        cover_url = owner_state.get("cover_url")
+        if cover_url and not getattr(book, "img_preview", None):
+            book.img_preview = owner.parser.normalize_site_resource(cover_url)
         if owner_state.get("preferred_title"):
             owner.parser.apply_pop_fields(
                 book,
