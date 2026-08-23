@@ -9,7 +9,6 @@ from typing import Any, Iterable, Optional
 from utils import temp_p
 from utils.share.serializer import deserialize_books, serialize_books
 from utils.subscription.schema import BookEntry, FeatureEntry, FollowEntry, SubscriptionConfig
-from utils.subscription.library import LocalLibraryStore
 from utils.tray.feature_search import feature_status, supported_features, unsupported_feature_summary, unsupported_features
 
 SCHEDULE_PRESENTATION_SCHEMA = 1
@@ -55,6 +54,8 @@ class SchedulePendingItemRow:
     message: str = ""
     cover_url: str = ""
     source_url: str = ""
+    local_path: str = ""
+    local_cover_path: str = ""
 
 
 @dataclass(frozen=True)
@@ -216,8 +217,8 @@ def build_schedule_presentation(
         config_owner = f"subscription binding «{profile}» (tray executes)"
     schedule_cache = cache or ScheduleCache()
     plan = _build_plan(cfg, status=status, blocker=blocker, config_owner=config_owner)
-    sources = _source_rows(cfg)
     pending_items = _pending_rows(cache_summary)
+    sources = _source_rows(cfg, pending_items=pending_items)
     history = [_history_row(event) for event in events]
     cache_state = schedule_cache.state_from_summary(cache_summary)
     run_view = run or _run_from_summary(cache_summary)
@@ -235,6 +236,8 @@ def build_schedule_presentation(
             "cache": asdict(cache_state),
             "run": asdict(run_view),
             "summary": cache_summary or {},
+            "binding_books": len(cfg.books),
+            "binding_enabled_books": len([entry for entry in cfg.books if entry.enabled]),
         },
     )
 
@@ -242,7 +245,8 @@ def build_schedule_presentation(
 def _build_plan(cfg: SubscriptionConfig, *, status, blocker: str, config_owner: str) -> SchedulePlanView:
     next_run = getattr(status, "next_run_at", None)
     next_run_at = next_run.isoformat(timespec="minutes") if next_run is not None else "-"
-    enabled_books = len(LocalLibraryStore().book_entries())
+    # Counts must match the active subscription_*.yml binding, not whole-library bookmarks.
+    enabled_books = len([entry for entry in cfg.books if entry.enabled])
     enabled_features = len([entry for entry in cfg.features if entry.enabled])
     follows = len(cfg.follows)
     config_blocker, blocker_action = _config_blocker(cfg)
@@ -290,10 +294,23 @@ def _format_plan_timing(cfg: SubscriptionConfig) -> str:
     )
 
 
-def _source_rows(cfg: SubscriptionConfig) -> list[ScheduleSourceRow]:
+def _source_rows(
+    cfg: SubscriptionConfig,
+    *,
+    pending_items: Optional[list[SchedulePendingItemRow]] = None,
+) -> list[ScheduleSourceRow]:
+    """Schedule objects = active binding yaml books/features/follows only."""
     rows: list[ScheduleSourceRow] = []
-    for index, entry in enumerate(LocalLibraryStore().book_entries(), start=1):
-        rows.append(_book_source_row(index, entry))
+    pending_by_source = _pending_count_by_source(pending_items or [])
+    for index, entry in enumerate(cfg.books, start=1):
+        rows.append(
+            _book_source_row(
+                index,
+                entry,
+                profile_check=cfg.check,
+                pending_by_source=pending_by_source,
+            )
+        )
     for index, entry in enumerate(cfg.features, start=1):
         rows.append(_feature_source_row(index, entry))
     for index, entry in enumerate(cfg.follows, start=1):
@@ -301,15 +318,55 @@ def _source_rows(cfg: SubscriptionConfig) -> list[ScheduleSourceRow]:
     return rows
 
 
-def _book_source_row(index: int, entry: BookEntry) -> ScheduleSourceRow:
+def _pending_count_by_source(pending_items: list[SchedulePendingItemRow]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in pending_items:
+        key = str(item.source_id or "").strip()
+        if not key:
+            site = str(item.site or "").strip()
+            title = str(item.title or "").strip()
+            key = f"title:{site}:{title}" if site or title else ""
+        if not key:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _book_source_row(
+    index: int,
+    entry: BookEntry,
+    *,
+    profile_check,
+    pending_by_source: Optional[dict[str, int]] = None,
+) -> ScheduleSourceRow:
+    source_id = f"book:{entry.site}:{entry.url}"
+    # Always surface the effective CheckSlot (card override or profile default).
+    # ``latest`` is reserved for 刊期 fingerprint — not pending-chapter counts.
+    try:
+        slot = entry.effective_slot(profile_check)
+        latest = slot.fingerprint() if slot is not None else ""
+    except Exception:
+        latest = ""
+    pending_count = 0
+    if pending_by_source:
+        pending_count = int(pending_by_source.get(source_id, 0))
+        if pending_count <= 0:
+            pending_count = int(
+                pending_by_source.get(
+                    f"title:{str(entry.site or '').strip()}:{str(entry.title or '').strip()}",
+                    0,
+                )
+            )
     return ScheduleSourceRow(
-        source_id=f"book:{index}:{entry.site}:{entry.url}",
+        source_id=source_id or f"book:{index}:{entry.site}:{entry.url}",
         kind="book",
         site=str(entry.site or ""),
         title=str(entry.title or ""),
         enabled=bool(entry.enabled),
         locator=_tail(str(entry.url or "")),
         status="enabled" if entry.enabled else "disabled",
+        latest=latest,
+        pending_count=pending_count,
     )
 
 
@@ -348,21 +405,113 @@ def _pending_rows(summary: Optional[dict[str, Any]]) -> list[SchedulePendingItem
     for item in raw_items:
         if not isinstance(item, dict):
             raise ScheduleCacheError("schedule summary pending item must be a mapping")
+        # Runner historically wrote ``book``; presentation reads ``title``.
+        title = str(item.get("title") or item.get("book") or "")
+        site = str(item.get("site") or "")
+        source_url = str(item.get("source_url") or item.get("url") or "")
+        source_id = str(item.get("source_id") or "")
+        if not source_id and site and source_url:
+            source_id = f"book:{site}:{source_url}"
+        episode = str(item.get("episode") or "")
+        local_path = str(item.get("local_path") or "").strip()
+        # Prefer live chapter-dir resolve; drop stale book-root paths from old runs.
+        resolved = _resolve_download_local_path(title, episode)
+        if resolved:
+            local_path = resolved
+        elif local_path and not _is_chapter_local_path(local_path, title, episode):
+            local_path = ""
+        # Disk chapter dir is the only authority for "已下载". Stale summary
+        # status/local_path must not keep items finished without a chapter folder.
+        if local_path and Path(local_path).is_dir():
+            status = "finished"
+        else:
+            status = "queued"
+        local_cover = str(item.get("local_cover_path") or item.get("cover_path") or "").strip()
+        if not local_cover and local_path:
+            local_cover = _first_local_cover_file(local_path)
+        cover_url = str(item.get("cover_url") or item.get("img_preview") or "").strip()
         rows.append(
             SchedulePendingItemRow(
                 item_id=str(item.get("item_id") or ""),
-                source_id=str(item.get("source_id") or ""),
-                site=str(item.get("site") or ""),
-                title=str(item.get("title") or ""),
-                episode=str(item.get("episode") or ""),
-                status=str(item.get("status") or "pending"),
+                source_id=source_id,
+                site=site,
+                title=title,
+                episode=episode,
+                status=status,
                 stage=str(item.get("stage") or ""),
                 message=str(item.get("message") or ""),
-                cover_url=str(item.get("cover_url") or ""),
-                source_url=str(item.get("source_url") or ""),
+                cover_url=local_cover or cover_url,
+                source_url=source_url,
+                local_path=local_path,
+                local_cover_path=local_cover,
             )
         )
     return rows
+
+
+def _resolve_download_local_path(title: str, episode: str) -> str:
+    """Map book+episode onto conf.sv_path chapter folder only.
+
+    Returns empty when the chapter directory is missing. Never returns the book
+    root alone — that falsely marks every episode as downloaded.
+    """
+    from utils import conf
+    from utils.core import sanitize_for_path
+
+    book_title = str(title or "").strip()
+    episode_name = str(episode or "").strip()
+    if not book_title or not episode_name:
+        return ""
+    root = Path(getattr(conf, "sv_path", "") or "")
+    if not root:
+        return ""
+    episode_dir = root.joinpath(sanitize_for_path(book_title), sanitize_for_path(episode_name))
+    if episode_dir.is_dir():
+        return str(episode_dir)
+    return ""
+
+
+def _is_chapter_local_path(local_path: str, title: str, episode: str) -> bool:
+    """True only when path looks like .../<book>/<episode>, not the book root."""
+    path = Path(str(local_path or "").strip())
+    if not path.is_dir():
+        return False
+    episode_name = str(episode or "").strip()
+    if not episode_name:
+        return False
+    from utils.core import sanitize_for_path
+
+    return path.name == sanitize_for_path(episode_name) or path.name == episode_name
+
+
+def _first_local_cover_file(local_path: str) -> str:
+    root = Path(local_path)
+    if not root.is_dir():
+        return ""
+    suffixes = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".bmp"}
+    preferred_names = (
+        "1.jpg",
+        "1.jpeg",
+        "1.png",
+        "01.jpg",
+        "001.jpg",
+        "cover.jpg",
+        "cover.png",
+        "front.jpg",
+    )
+    for name in preferred_names:
+        candidate = root / name
+        if candidate.is_file():
+            return str(candidate)
+    try:
+        files = sorted(
+            path
+            for path in root.iterdir()
+            if path.is_file() and path.suffix.lower() in suffixes
+        )
+    except OSError:
+        return ""
+    return str(files[0]) if files else ""
 
 
 def _run_from_summary(summary: Optional[dict[str, Any]]) -> ScheduleRunView:
@@ -414,10 +563,14 @@ def _config_blocker(cfg: SubscriptionConfig) -> tuple[str, str]:
     unsupported = unsupported_features(cfg.features)
     if unsupported:
         return f"有暂不支持后台扫描的作者/标签特征：{unsupported_feature_summary(unsupported)}", "停用这些特征，或改为添加明确作品追更。"
-    enabled_books = len(LocalLibraryStore().book_entries())
+    enabled_books = len([entry for entry in cfg.books if entry.enabled])
     supported = supported_features(cfg.features)
     if enabled_books <= 0 and not supported and not cfg.follows:
-        return "没有启用的追更对象", "从预览页勾选作品加入追更，或在主窗口追更配置里启用已有对象。"
+        return (
+            "当前 binding 的 yml 没有启用书",
+            "在追更工作台 SidePanel 启用作品并保存周期到 subscription_*.yml；"
+            "tray 只执行 yml 绑定，不会扫描整库收藏。",
+        )
     return "", ""
 
 

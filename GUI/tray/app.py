@@ -22,7 +22,13 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import Action, FluentIcon as FIF
 
 from utils.tray.event_log import TrayEventLog
-from utils.tray.subscription_scheduler import ScheduleDecision, ScheduleStatus, SubscriptionScheduler, default_scheduler_state_path
+from utils.tray.subscription_scheduler import (
+    ScheduleDecision,
+    ScheduleStatus,
+    SubscriptionScheduler,
+    default_scheduler_state_path,
+    schedule_run_scope,
+)
 from utils.tray.subscription_runner import SubscriptionRunner, SubscriptionRunSummary
 
 
@@ -145,9 +151,12 @@ class TrayApp(QObject):
         if self._run_thread is not None and self._run_thread.is_alive():
             self.event_log.append("subscription", result="skip", detail="subscription run already in progress")
             return False
-        trigger = "schedule" if decision is not None else "manual"
+        trigger, selected_books = schedule_run_scope(detail, decision)
         self._run_thread = threading.Thread(
-            target=self._run_subscription_once, args=(trigger,), name="CGSSubscriptionRunNow", daemon=True
+            target=self._run_subscription_once,
+            args=(trigger, selected_books),
+            name="CGSSubscriptionRunNow",
+            daemon=True,
         )
         try:
             self._run_thread.start()
@@ -175,9 +184,16 @@ class TrayApp(QObject):
             return
         self._update_tray_tooltip()
 
-    def _run_subscription_once(self, trigger: str = "schedule") -> None:
+    def _run_subscription_once(
+        self,
+        trigger: str = "schedule",
+        selected_books: Optional[tuple] = None,
+    ) -> None:
         try:
-            summary = self._runner.run_once(trigger=trigger)
+            summary = self._runner.run_once(
+                trigger=trigger,
+                selected_books=selected_books,
+            )
         except Exception as exc:
             self._run_failed.emit(exc)
             return

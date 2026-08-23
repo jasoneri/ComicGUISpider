@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import Action, FluentIcon as FIF
 
+from GUI.core.theme import theme_mgr
 from utils.server_control import (
     DEFAULT_SERVER_BIND_HOST,
     DEFAULT_SERVER_MCP_PATH,
@@ -52,11 +53,18 @@ from utils.tray.notification_policy import (
     notification_for_schedule_result,
 )
 from utils.tray.schedule_presentation import ScheduleCache, SchedulePresentation, build_schedule_presentation
-from utils.tray.subscription_scheduler import ScheduleDecision, ScheduleStatus, SubscriptionScheduler, default_scheduler_state_path
+from utils.tray.subscription_scheduler import (
+    ScheduleDecision,
+    ScheduleStatus,
+    SubscriptionScheduler,
+    default_scheduler_state_path,
+    schedule_run_scope,
+)
 from server.tray.dialog import ManageDialogController
 from server.tray.mcp_panel import McpPanel
 from server.tray.schedule_panel import SchedulePanel
 from server.tray.server_panel import ServerPanel
+from server.tray.style import apply_tray_context_menu_theme
 from server.tray.ui_common import (
     ServerManageDialog,
     TrayUiContext,
@@ -166,6 +174,7 @@ class ServerTrayHost(QObject):
         self.schedule_finished.connect(self._on_schedule_finished)
         self.schedule_failed.connect(self._on_schedule_failed)
         self.schedule_progress.connect(self._on_schedule_progress)
+        theme_mgr.subscribe(self._apply_tray_theme)
 
     @property
     def manage_dialog(self) -> ServerManageDialog | None:
@@ -274,19 +283,46 @@ class ServerTrayHost(QObject):
         self._on_schedule_tick()
 
     def _build_menu(self) -> QMenu:
+        # Native QMenu only (see tray-menu-notification-probe). RoundMenu uses
+        # WA_TranslucentBackground + outer margins for shadow → ghost chrome ring
+        # on the system-tray surface. Day/night is applied by the tray style owner.
         self.menu = QMenu("CGS Server")
-        manage_action = Action(FIF.APPLICATION, text="管理面板", parent=self, triggered=lambda _checked=False: self.show_manage_dialog())
+        self.menu.setObjectName("TrayContextMenu")
+        self.menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+
+        manage_action = Action(
+            FIF.APPLICATION,
+            text="管理面板",
+            parent=self,
+            triggered=lambda _checked=False: self.show_manage_dialog(),
+        )
         self.menu.addAction(manage_action)
 
         schedule_menu = QMenu("Schedule", self.menu)
-        run_now = Action(FIF.PLAY, text="立刻执行", parent=self, triggered=lambda _checked=False: self.run_schedule_now())
+        schedule_menu.setObjectName("TrayContextSubMenu")
+        schedule_menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        run_now = Action(
+            FIF.PLAY,
+            text="立刻执行",
+            parent=self,
+            triggered=lambda _checked=False: self.run_schedule_now(),
+        )
         schedule_menu.addAction(run_now)
         self.menu.addMenu(schedule_menu)
 
         self.menu.addSeparator()
-        quit_action = Action(FIF.POWER_BUTTON, text="退出", parent=self, triggered=lambda _checked=False: self.shutdown())
+        quit_action = Action(
+            FIF.POWER_BUTTON,
+            text="退出",
+            parent=self,
+            triggered=lambda _checked=False: self.shutdown(),
+        )
         self.menu.addAction(quit_action)
+        apply_tray_context_menu_theme(self.menu)
         return self.menu
+
+    def _apply_tray_theme(self, _theme=None) -> None:
+        apply_tray_context_menu_theme(self.menu)
 
     @Slot(QSystemTrayIcon.ActivationReason)
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
@@ -486,9 +522,12 @@ class ServerTrayHost(QObject):
             self._show_schedule_notification(notification_for_schedule_blocker(blocker, trigger=detail))
             self.refresh_status(schedule_full=True)
             return False
-        trigger = "schedule" if decision is not None else "manual"
+        trigger, selected_books = schedule_run_scope(detail, decision)
         self.schedule.run_thread = threading.Thread(
-            target=self._run_schedule_once, args=(detail, trigger), name="CGSServerScheduleRun", daemon=True
+            target=self._run_schedule_once,
+            args=(detail, trigger, selected_books),
+            name="CGSServerScheduleRun",
+            daemon=True,
         )
         try:
             self.schedule.run_thread.start()
@@ -515,7 +554,12 @@ class ServerTrayHost(QObject):
             return self.ui.redact("CGS Server runtime is unavailable")
         return ""
 
-    def _run_schedule_once(self, detail: str, trigger: str) -> None:
+    def _run_schedule_once(
+        self,
+        detail: str,
+        trigger: str,
+        selected_books: tuple | None = None,
+    ) -> None:
         try:
             from utils.subscription import get_active_subscription_customname
             from utils.tray.subscription_runner import SubscriptionRunner
@@ -530,7 +574,10 @@ class ServerTrayHost(QObject):
                 progress_callback=self.schedule_progress.emit,
             )
             try:
-                summary = runner.run_once(trigger=trigger)
+                summary = runner.run_once(
+                    trigger=trigger,
+                    selected_books=selected_books,
+                )
                 summary.trigger = detail
             finally:
                 runner.shutdown()
@@ -580,6 +627,7 @@ class ServerTrayHost(QObject):
         if self.shutdown_requested:
             return
         self.shutdown_requested = True
+        theme_mgr.unsubscribe(self._apply_tray_theme)
         self._restore_exception_hooks()
         if self.status_timer is not None:
             self.status_timer.stop()

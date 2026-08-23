@@ -1,4 +1,10 @@
-/* CGS Server tray manage dialog — theme tokens + QSS sections */
+/* CGS Server tray manage dialog — theme tokens + QSS sections
+ *
+ * CRITICAL: Never use broad descendants like `QDialog#ServerManageDialog QLabel`.
+ * qfluent ToolTip / RoundMenu / ComboBoxMenu are parented under the dialog tree
+ * and will inherit those rules → broken day/night flyouts with ghost borders.
+ * Scope every rule to tray-owned objectNames only.
+ */
 
 /* @tokens light */
 PANEL_BG = #ffffff;
@@ -97,9 +103,7 @@ QDialog#ServerManageDialog {
     background: ${PANEL_BG_ALT};
     color: ${TEXT};
 }
-QDialog#ServerManageDialog QLabel {
-    color: ${TEXT};
-}
+/* Named tray labels only — never bare QLabel under the dialog. */
 QLabel#TrayMutedLabel {
     color: ${MUTED};
 }
@@ -240,6 +244,53 @@ QFrame#SchedulePendingCard:hover {
 QFrame#SchedulePendingCard[selected="true"] {
     background: ${CARD_BG_SEL};
 }
+/* Closed ComboBox body only — never style RoundMenu/ComboBoxMenu here. */
+ComboBox#ScheduleBindingCombo,
+ComboBox#ScheduleCatchupCombo {
+    background: ${PANEL_BG};
+    color: ${TEXT};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+    padding: 2px 8px;
+}
+/* @endsection */
+
+/* @section tray_context_menu */
+/* Opaque native tray icon menu (QMenu). Must not use RoundMenu translucent shell. */
+QMenu#TrayContextMenu,
+QMenu#TrayContextSubMenu {
+    background-color: ${PANEL_BG};
+    color: ${TEXT};
+    border: 1px solid ${BORDER};
+    border-radius: 6px;
+    padding: 4px;
+}
+QMenu#TrayContextMenu::item,
+QMenu#TrayContextSubMenu::item {
+    background-color: transparent;
+    color: ${TEXT};
+    padding: 6px 28px 6px 12px;
+    border-radius: 4px;
+}
+QMenu#TrayContextMenu::item:selected,
+QMenu#TrayContextSubMenu::item:selected {
+    background-color: ${CARD_BG_SEL};
+    color: ${TEXT};
+}
+QMenu#TrayContextMenu::item:disabled,
+QMenu#TrayContextSubMenu::item:disabled {
+    color: ${MUTED};
+}
+QMenu#TrayContextMenu::separator,
+QMenu#TrayContextSubMenu::separator {
+    height: 1px;
+    background: ${BORDER};
+    margin: 4px 8px;
+}
+QMenu#TrayContextMenu::icon,
+QMenu#TrayContextSubMenu::icon {
+    padding-left: 8px;
+}
 /* @endsection */
 
 /* @section server */
@@ -247,9 +298,6 @@ QFrame#ServerActiveJobPanel {
     background: ${PANEL_BG};
     border: 1px solid ${BORDER};
     border-radius: 6px;
-}
-QFrame#ServerActiveJobPanel QLabel {
-    color: ${TEXT};
 }
 QFrame#ServerTasksPanel,
 QFrame#ServerDiagnosticsPanel {
@@ -262,9 +310,6 @@ QFrame#ServerTaskProgressRow {
     border: 1px solid ${BORDER};
     border-radius: 6px;
 }
-QFrame#ServerTaskProgressRow QLabel {
-    color: ${TEXT};
-}
 QLabel#ServerJobErrorLabel {
     color: ${ERROR_TEXT};
 }
@@ -273,9 +318,6 @@ QLabel#ServerJobErrorLabel {
 /* @section mcp */
 QWidget#McpMonitorTab {
     background: ${MCP_BG};
-}
-QWidget#McpMonitorTab QLabel {
-    color: ${MCP_TEXT};
 }
 QFrame#McpStatusCard {
     background: ${MCP_PANEL_BG_ALT};

@@ -19,7 +19,7 @@ from qfluentwidgets import (
 )
 
 from server.tray.style import chip_stylesheet, mcp_heading_stylesheet, mcp_muted_label_stylesheet
-from server.tray.ui_common import tray_mono_font
+from server.tray.ui_common import install_tray_fluent_tooltip, tray_mono_font
 from utils.server_control import DEFAULT_SERVER_MCP_PATH, server_launch_log_path
 from GUI.uic.qfluent.components.icons import CgsIcon
 
@@ -179,6 +179,7 @@ class McpPanel:
             for column in range(self.tools_table.columnCount()):
                 item = self.tools_table.item(row, column)
                 if item is not None:
+                    # QTableWidgetItem tooltip is native Qt; full name is also on the line edit.
                     item.setToolTip(name)
         if rows and self.capability_name_line is not None and not self.capability_name_line.text():
             self._set_capability_name(rows[0][0])
@@ -220,7 +221,7 @@ class McpPanel:
         clear_button.setObjectName("McpCallLogClearButton")
         clear_button.clicked.connect(lambda _checked=False: self._clear_call_log())
         restart_button = TransparentToolButton(CgsIcon.REBOOT, band)
-        restart_button.setToolTip("重启")
+        install_tray_fluent_tooltip(restart_button, "重启")
         restart_button.clicked.connect(lambda _checked=False: self.host.restart_server_surface())
         layout.addWidget(debug_label)
         layout.addWidget(self.debug_switch)
@@ -295,7 +296,7 @@ class McpPanel:
         text.setStyleSheet(mcp_muted_label_stylesheet())
         button = TransparentToolButton(FIF.COPY, row)
         button.setFixedSize(24, 24)
-        button.setToolTip(f"复制 {label}")
+        install_tray_fluent_tooltip(button, f"复制 {label}")
         button.clicked.connect(lambda _checked=False, value=copy_value: self.host.ui.copy_to_clipboard(value))
         layout.addWidget(text, 1)
         layout.addWidget(button)
@@ -334,7 +335,7 @@ class McpPanel:
         self.capability_name_line.setPlaceholderText("Select a capability to view the full name")
         self.capability_copy_button = TransparentToolButton(FIF.COPY, selected)
         self.capability_copy_button.setObjectName("McpCapabilityNameCopyButton")
-        self.capability_copy_button.setToolTip("复制完整 Name")
+        install_tray_fluent_tooltip(self.capability_copy_button, "复制完整 Name")
         self.capability_copy_button.clicked.connect(lambda _checked=False: self._copy_capability_name())
         selected_layout.addWidget(self.capability_name_line, 1)
         selected_layout.addWidget(self.capability_copy_button)
@@ -393,7 +394,7 @@ class McpPanel:
         header.addStretch(1)
         copy_button = TransparentToolButton(FIF.COPY, drawer)
         copy_button.setObjectName("McpDebugCopyButton")
-        copy_button.setToolTip("复制已脱敏 MCP debug 内容")
+        install_tray_fluent_tooltip(copy_button, "复制已脱敏 MCP debug 内容")
         copy_button.clicked.connect(lambda _checked=False: self._copy_debug_text())
         header.addWidget(copy_button)
         layout.addLayout(header)
@@ -418,7 +419,7 @@ class McpPanel:
         self.auth_line.setViewPasswordButtonVisible(True)
         self.auth_copy_button = TransparentToolButton(FIF.COPY, widget)
         self.auth_copy_button.setObjectName("McpAuthCopyButton")
-        self.auth_copy_button.setToolTip("复制 Auth token")
+        install_tray_fluent_tooltip(self.auth_copy_button, "复制 Auth token")
         self.auth_copy_button.clicked.connect(lambda _checked=False: self.host.ui.copy_to_clipboard(self.host.record.token))
         layout.addWidget(self.auth_line, 1)
         layout.addWidget(self.auth_copy_button)
@@ -456,7 +457,7 @@ class McpPanel:
     def _set_capability_name(self, name: str) -> None:
         if self.capability_name_line is not None:
             self.capability_name_line.setText(name)
-            self.capability_name_line.setToolTip(name)
+            install_tray_fluent_tooltip(self.capability_name_line, name)
 
     def _copy_capability_name(self) -> None:
         if self.capability_name_line is not None:

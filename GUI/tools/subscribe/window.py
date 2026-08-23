@@ -40,6 +40,7 @@ from utils.subscription import (
     ShareCard,
     SubscriptionStore,
     get_active_subscription_customname,
+    remove_yaml_book,
     set_active_subscription_customname,
 )
 from utils.subscription.library import LocalLibraryStore
@@ -738,7 +739,7 @@ class SubscribeWindow(FramelessWindow):
         self._sync_card_conf_panel(key)
 
     def _on_card_delete_requested(self, card_key: str) -> None:
-        """delBtn: drop library favorite (library SSoT) + remove card from waterfall."""
+        """Delete the yml schedule row and library join, then drop the card."""
         key = str(card_key or "")
         board = self.library_board
         if board is None:
@@ -746,14 +747,31 @@ class SubscribeWindow(FramelessWindow):
         card = board.cards_by_key.get(key)
         if card is None:
             return
+        site_index = int(card.site_index)
         book_url = LocalLibraryStore.book_unique_url(card.book)
+        site_name = LocalLibraryStore.book_site(card.book, site_index=site_index)
         title = LocalLibraryStore.book_title(card.book) or key
-        try:
-            if book_url:
-                self.library.remove_url(int(card.site_index), book_url)
-        except Exception as exc:
-            self._show_error(str(exc))
+        if not book_url:
+            self._show_error(f"无法删除订阅：缺少书目 URL · {title}")
             return
+
+        try:
+            yaml_removed = remove_yaml_book(self.config, site_name, book_url)
+            if yaml_removed:
+                self.store.save(self.config)
+            library_removed = self.library.remove_url(site_index, book_url)
+        except Exception as error:
+            self._show_error(f"删除订阅失败 · {error}")
+            return
+        if not yaml_removed and not library_removed:
+            # Stale card only: no persistence row claimed this delete.
+            if self._selected_card_key == key:
+                self._selected_card_key = None
+                self._sync_card_conf_panel(None)
+            board.remove_card(key)
+            board.show_empty_after_delete(self.library_count_label)
+            return
+
         if self._selected_card_key == key:
             self._selected_card_key = None
             self._sync_card_conf_panel(None)
@@ -761,7 +779,7 @@ class SubscribeWindow(FramelessWindow):
         board.show_empty_after_delete(self.library_count_label)
         InfoBar.success(
             title="",
-            content=f"已取消订阅 · {title}",
+            content=f"已删除订阅 · {title}",
             orient=Qt.Horizontal,
             position=InfoBarPosition.BOTTOM,
             duration=2200,
@@ -776,17 +794,14 @@ class SubscribeWindow(FramelessWindow):
             self._show_error(str(exc))
 
     def _show_error(self, message: str) -> None:
-        try:
-            InfoBar.error(
-                title="",
-                content=message,
-                orient=Qt.Horizontal,
-                position=InfoBarPosition.BOTTOM,
-                duration=5000,
-                parent=self,
-            )
-        except Exception:
-            pass
+        InfoBar.error(
+            title="",
+            content=message,
+            orient=Qt.Horizontal,
+            position=InfoBarPosition.BOTTOM,
+            duration=5000,
+            parent=self,
+        )
 
     def _import_preview_books_from_button(self) -> None:
         def action() -> None:

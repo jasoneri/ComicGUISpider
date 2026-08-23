@@ -20,10 +20,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import CaptionLabel, TableWidget
+from qfluentwidgets import CaptionLabel, TableWidget, ToolTip, ToolTipFilter, ToolTipPosition
 
 from server.tray.style import (
     chip_stylesheet,
+    harden_tray_tooltip,
     stage_dot_stylesheet,
     stage_rail_line_stylesheet,
     stage_text_stylesheet,
@@ -284,6 +285,49 @@ class ServerManageDialog(QDialog):
     def closeEvent(self, event) -> None:
         event.ignore()
         self.hide()
+
+
+class TrayFluentToolTipFilter(ToolTipFilter):
+    """ToolTipFilter that does **not** parent the bubble under ManageDialog.
+
+    qfluent default: ``ToolTip(..., parent=widget.window())``. That puts the
+    tooltip in the dialog widget tree, so dialog ``setStyleSheet`` descendants
+    (even accidental ones) paint ghost borders / wrong day-night colors on
+    ToolTip QLabel/QFrame. Parent ``None`` keeps FluentStyleSheet.TOOL_TIP only.
+    """
+
+    def _createToolTip(self):
+        parent_widget = self.parent()
+        text = parent_widget.toolTip() if parent_widget is not None else ""
+        # parent=None: avoid ManageDialog stylesheet tree. Collapse shadow shell
+        # before first show — same Windows translucent-margin ghost as RoundMenu.
+        tip = ToolTip(text, None)
+        harden_tray_tooltip(tip)
+        return tip
+
+
+def install_tray_fluent_tooltip(
+    widget: QWidget | None,
+    text: str = "",
+    *,
+    show_delay_ms: int = 300,
+    position: ToolTipPosition = ToolTipPosition.TOP,
+) -> None:
+    """Theme-aware tooltip for tray surfaces (Manage dialog + cards)."""
+    if widget is None:
+        return
+    tip = str(text or "").strip()
+    widget.setToolTip(tip)
+    for event_filter in list(getattr(widget, "_cgs_fluent_tooltip_filters", []) or []):
+        widget.removeEventFilter(event_filter)
+    widget._cgs_fluent_tooltip_filters = []
+    if not tip:
+        return
+    tooltip_filter = TrayFluentToolTipFilter(
+        widget, showDelay=int(show_delay_ms), position=position
+    )
+    widget.installEventFilter(tooltip_filter)
+    widget._cgs_fluent_tooltip_filters = [tooltip_filter]
 
 
 def configure_tray_qt_fonts(app: QApplication) -> None:

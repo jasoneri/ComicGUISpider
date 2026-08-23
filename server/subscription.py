@@ -19,8 +19,9 @@ from utils.subscription import (
     SubscriptionConfig,
     SubscriptionStore,
     normalize_tz_offset,
+    remove_yaml_book,
 )
-from utils.subscription.library import LocalLibraryStore
+from utils.subscription.library import LibraryBookView, LocalLibraryStore
 from utils.subscription.site_proxy import normalize_site_proxy_map
 from variables import CGS_DISCORD_SHARE_API, CGS_METADATA_CHANNEL_ID
 
@@ -38,43 +39,50 @@ def save_subscription_config(store: SubscriptionStore, payload: dict[str, Any]) 
 def add_book(store: SubscriptionStore, payload: dict[str, Any]) -> dict[str, Any]:
     entry = _book_from_payload(payload)
     library = LocalLibraryStore()
-    site_index = library.site_index_for_name(entry.site)
-    if site_index is None:
+    if library.site_index_for_name(entry.site) is None:
         raise ValueError(f"unknown subscription book site: {entry.site}")
-    from utils.website.info import BookInfo
-    book = BookInfo(id=entry.url, source=entry.site, url=entry.url, preview_url=entry.url, name=entry.title)
-    if not library.add_book(site_index, book):
+    config = store.load()
+    if any((book.site, book.url) == (entry.site, entry.url) for book in config.books):
         raise ValueError(f"subscription book already exists: {entry.url}")
+    config.books.append(entry)
+    store.save(config)
     return subscription_config_payload(store.load())
 
 
 def update_book(store: SubscriptionStore, index: int, payload: dict[str, Any]) -> dict[str, Any]:
     library = LocalLibraryStore()
-    entries = library.book_entries()
-    book = _indexed(entries, index, "subscription book")
+    config = store.load()
+    book = _indexed(config.books, index, "subscription book")
     next_book = BookEntry(
         site=_optional_text(payload, "site", book.site),
         url=_optional_text(payload, "url", book.url),
         title=_optional_text(payload, "title", book.title),
-        enabled=True,
+        enabled=_optional_bool(payload, "enabled", book.enabled),
+        check=book.check.copy() if book.check is not None else None,
     )
     _validate_book(next_book)
-    library.remove_entry(book)
-    site_index = library.site_index_for_name(next_book.site)
-    if site_index is None:
+    if library.site_index_for_name(next_book.site) is None:
         raise ValueError(f"unknown subscription book site: {next_book.site}")
-    from utils.website.info import BookInfo
-    info = BookInfo(id=next_book.url, source=next_book.site, url=next_book.url, preview_url=next_book.url, name=next_book.title)
-    if not library.add_book(site_index, info):
+    if any(
+        item_index != index and (item.site, item.url) == (next_book.site, next_book.url)
+        for item_index, item in enumerate(config.books)
+    ):
         raise ValueError(f"subscription book already exists: {next_book.url}")
+    config.books[index] = next_book
+    store.save(config)
     return subscription_config_payload(store.load())
 
 
 def remove_book(store: SubscriptionStore, index: int) -> dict[str, Any]:
     library = LocalLibraryStore()
-    entries = library.book_entries()
-    entry = _indexed(entries, index, "subscription book")
-    library.remove_entry(entry)
+    config = store.load()
+    entry = _indexed(config.books, index, "subscription book")
+    if not remove_yaml_book(config, entry.site, entry.url):
+        raise RuntimeError(f"yaml books[] remove failed: {entry.url}")
+    store.save(config)
+    site_index = library.site_index_for_name(entry.site)
+    if site_index is not None:
+        library.remove_entry(entry)
     return subscription_config_payload(store.load())
 
 
@@ -110,7 +118,7 @@ async def publish_subscription_share_card(store: SubscriptionStore) -> dict[str,
     cfg = store.load()
     if cfg.publish is not None and cfg.publish.share_card and cfg.publish.share_card.posted_at:
         raise ValueError("share_card already published")
-    enabled_books = LocalLibraryStore().book_entries()
+    enabled_books = [entry for entry in cfg.books if entry.enabled]
     if not enabled_books:
         raise ValueError("at least one enabled subscription book is required before publishing share_card")
 
@@ -148,7 +156,19 @@ async def publish_subscription_share_card(store: SubscriptionStore) -> dict[str,
 
 
 def subscription_config_payload(cfg: SubscriptionConfig) -> dict[str, Any]:
-    library_books = LocalLibraryStore().book_entries(yaml_books=cfg.books)
+    library = LocalLibraryStore()
+    joined_entries = library.book_entries(yaml_books=cfg.books)
+    joined_by_key = {
+        LibraryBookView.entry_key(entry.site, entry.url): entry
+        for entry in joined_entries
+    }
+    library_books = [
+        joined_by_key.get(
+            LibraryBookView.entry_key(book.site, book.url),
+            book,
+        )
+        for book in cfg.books
+    ]
     return {
         "customname": cfg.customname,
         "books": [asdict(book) for book in library_books],
