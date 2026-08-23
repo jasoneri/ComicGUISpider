@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
-"""D2 — Episode Diff (Lane D filter, mode-agnostic).
+"""D2 — Episode Diff (Lane D filter, HWM-forward update).
 
-Honors invariant I5 — broadcaster and subscriber share identical diff semantics;
-mode difference lives only in HOW BookInfo enters the lane (B/C skip strategy).
+Honors invariant I5-R — source-agnostic HWM-forward 追更 filter.
+Own books and follow-pulled books share identical semantics; only HOW BookInfo
+enters the lane differs.
 
-Pure filter primitive `filter_undownloaded` is exposed for unit-testing without
+Pure filter primitive `filter_hwm_forward` is exposed for unit-testing without
 GUI/SQL dependencies; the `D2EpisodeDiff` middleware is a thin context shim that
 mutates `ctx.eps` in place and returns no Action (so downstream selectors like
 AutoSelectLatest see the narrowed set).
+
+Product meaning: schedule 追更 keeps only episodes newer than local HWM
+(`dl_max`), not every undownloaded chapter under the mark. See
+`.trellis/spec/cgs-subscribe/update-semantics.md`.
 """
 from __future__ import annotations
 
@@ -41,34 +46,38 @@ def _section_num(name: t.Optional[str]) -> t.Optional[float]:
         return None
 
 
-def filter_undownloaded(
+def filter_hwm_forward(
     site_episodes: t.Iterable,
     dl_max: str = "",
     downloaded_md5s: t.Optional[t.Set[str]] = None,
 ) -> list:
-    """Return site episodes not yet downloaded locally.
+    """Return site episodes strictly newer than local HWM (schedule 追更 set).
 
-    Pipeline (I5 semantics):
+    Pipeline (I5-R / update-semantics):
       1. Drop episodes whose md5 already lives in `downloaded_md5s` (exact dedup).
-      2. Drop episodes whose section number <= `dl_max`'s section number (ordinal cut).
+      2. Drop episodes whose section number <= `dl_max`'s section number (HWM cut).
       3. Episodes without a parseable section number are kept conservatively
          (better to re-fetch than silently miss a new ep with an unusual name).
       4. Ordering of the input iterable is preserved in the output.
 
-    Edge cases (I5 Validation Matrix):
+    This is **not** a completeness diff: holes under HWM stay out of the result
+    even when those files are absent on disk (e.g. local 9–10, site 1–12 → 11–12).
+
+    Edge cases:
       - Empty input -> [].
-      - Empty/None dl_max -> ordinal cut is skipped; only md5 dedup applies.
-      - dl_max parses but is >= every site section -> [] (treated as fully local).
-      - dl_max is unparseable -> log warn and skip ordinal cut (do not crash).
+      - Empty/None dl_max -> HWM cut is skipped; only md5 dedup applies.
+      - dl_max parses but is >= every site section -> [] (nothing newer than HWM).
+      - dl_max is unparseable -> log warn and skip HWM cut (do not crash).
 
     Args:
         site_episodes: iterable of objects with `.name` (str) and ideally
             `.id_and_md5() -> (uid, md5)` for the dedup step.
-        dl_max: highest locally-downloaded section name for the book.
+        dl_max: highest locally-downloaded section name for the book (HWM label).
         downloaded_md5s: optional precomputed md5 set; if None, dedup is skipped.
 
     Returns:
-        Filtered list preserving original order.
+        Filtered list preserving original order (forward-of-HWM candidates only
+        when `dl_max` parses).
     """
     eps = [ep for ep in site_episodes if ep is not None]
     if not eps:
@@ -89,7 +98,7 @@ def filter_undownloaded(
     if dl_max:
         cutoff = _section_num(dl_max)
         if cutoff is None:
-            _log.warning("D2: dl_max=%r has no parseable section number; ordinal cut skipped", dl_max)
+            _log.warning("D2: dl_max=%r has no parseable section number; HWM cut skipped", dl_max)
 
     kept: list = []
     for ep in eps:
@@ -104,10 +113,14 @@ def filter_undownloaded(
     return kept
 
 
-class D2EpisodeDiff:
-    """Lane D middleware: filters `ctx.eps` to undownloaded episodes only.
+# Legacy alias — do not use in new code; name implied completeness-diff / gap-fill.
+filter_undownloaded = filter_hwm_forward
 
-    Mode-agnostic (I5). Mutates `ctx.eps` in place and returns no Action so the
+
+class D2EpisodeDiff:
+    """Lane D middleware: filters `ctx.eps` to HWM-forward update episodes.
+
+    Source-agnostic (I5-R). Mutates `ctx.eps` in place and returns no Action so the
     chain continues (downstream auto-selectors see the narrowed dict).
 
     Providers are injected to keep this preset GUI/SQL-free:
@@ -143,7 +156,7 @@ class D2EpisodeDiff:
         md5s_iter = self._md5s_provider(ctx, ordered_eps) if self._md5s_provider else ()
         md5_set = set(md5s_iter or ())
 
-        kept_eps = filter_undownloaded(ordered_eps, dl_max=dl_max or "", downloaded_md5s=md5_set)
+        kept_eps = filter_hwm_forward(ordered_eps, dl_max=dl_max or "", downloaded_md5s=md5_set)
         if len(kept_eps) == len(ordered_eps):
             return None  # nothing to drop; do not mutate ctx
 

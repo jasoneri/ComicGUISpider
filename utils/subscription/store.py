@@ -118,8 +118,14 @@ class BindingRepository:
             raise ValueError("subscription payload must be a mapping")
         path = self.path_for(customname)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as handle:
-            yaml.safe_dump(payload, handle, allow_unicode=True, sort_keys=False)
+        temporary_path = path.with_name(f"{path.name}.tmp")
+        try:
+            with open(temporary_path, "w", encoding="utf-8") as handle:
+                yaml.safe_dump(payload, handle, allow_unicode=True, sort_keys=False)
+            temporary_path.replace(path)
+        except Exception:
+            temporary_path.unlink(missing_ok=True)
+            raise
 
 
 class SubscriptionStore:
@@ -192,6 +198,33 @@ class SubscriptionStore:
         self._repository.write_mapping(self.customname, self._codec.encode(config))
 
 
+def remove_yaml_book(config: SubscriptionConfig, site: str, url: str) -> bool:
+    """Drop the first ``books[]`` row matching site+url.
+
+    Mutates ``config.books`` in place. Returns True when a row was removed.
+    Does not persist — caller owns ``SubscriptionStore.save``.
+    """
+    if config is None:
+        raise TypeError("remove_yaml_book requires a SubscriptionConfig")
+    site_key = str(site or "").strip()
+    url_key = str(url or "").strip()
+    if not url_key:
+        return False
+    match_index = next(
+        (
+            index
+            for index, entry in enumerate(config.books or [])
+            if str(getattr(entry, "url", "") or "").strip() == url_key
+            and str(getattr(entry, "site", "") or "").strip() == site_key
+        ),
+        None,
+    )
+    if match_index is None:
+        return False
+    del config.books[match_index]
+    return True
+
+
 class BindingProfileCatalog:
     """Profile names under the binding directory + active profile pointer."""
 
@@ -262,13 +295,19 @@ class CatchupPresetSetting:
         self._writer = writer or self._write_to_qconfig
 
     def get(self) -> str:
+        from utils.subscription.schema import CATCHUP_PRESET_LEGACY_ALIASES, VALID_CATCHUP_PRESETS
+
         raw = str(self._reader() or "off").strip() or "off"
+        raw = CATCHUP_PRESET_LEGACY_ALIASES.get(raw, raw)
         if raw not in VALID_CATCHUP_PRESETS:
             return "off"
         return raw
 
     def set(self, preset: str) -> str:
+        from utils.subscription.schema import CATCHUP_PRESET_LEGACY_ALIASES, VALID_CATCHUP_PRESETS
+
         name = str(preset or "off").strip() or "off"
+        name = CATCHUP_PRESET_LEGACY_ALIASES.get(name, name)
         if name not in VALID_CATCHUP_PRESETS:
             raise ValueError(f"invalid catchup preset: {preset!r}")
         self._writer(name)

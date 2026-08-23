@@ -208,6 +208,33 @@ class BookTypeRegistry:
             book, site=site, entry_url=url, reconstruct=True
         )
 
+    @classmethod
+    def upgrade_library_shell(cls, shell: BookInfo, entry: BookEntry) -> BookInfo:
+        """Rebuild a bare BookInfo pickle as the site type, preserving runtime fields.
+
+        Bare ``BookInfo`` shells are only seeded while the site type is unknown;
+        the typed object owns provider fields (``img_preview``, ``episodes``, ...).
+        Identity fields come from the entry when the shell has no value, and
+        runtime fields are carried over as a single constructor payload.
+        """
+        if type(shell) is not BookInfo:
+            return shell
+        site = str(entry.site or "").strip()
+        book_type = cls.book_type_for(site)
+        if book_type is BookInfo:
+            return shell
+        payload = {
+            "id": getattr(shell, "id", "") or extract_book_id(site, entry.url) or str(entry.url or "").strip(),
+            "source": None,
+            "url": getattr(shell, "url", "") or str(entry.url or "").strip(),
+            "preview_url": getattr(shell, "preview_url", "") or str(entry.url or "").strip(),
+            "name": getattr(shell, "name", "") or str(entry.title or "").strip(),
+            "img_preview": getattr(shell, "img_preview", None),
+            "latest_sec": getattr(shell, "latest_sec", None),
+            "episodes": getattr(shell, "episodes", None) or [],
+        }
+        return book_type(**payload)
+
 
 class BookInfoResolver:
     """Resolve BookEntry → BookInfo: local library pickle, else yaml construct."""
@@ -244,6 +271,7 @@ class BookInfoResolver:
 
     def _hydrate_library_book(self, book: BookInfo, entry: BookEntry, target_url: str) -> BookInfo:
         site = str(entry.site or "").strip()
+        book = BookTypeRegistry.upgrade_library_shell(book, entry)
         if not str(getattr(book, "source", "") or "").strip():
             setattr(book, "source", site)
         if not str(getattr(book, "name", "") or "").strip() and entry.title:

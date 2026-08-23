@@ -21,10 +21,6 @@ class macOS:
     def __init__(self, _p):
         self.proj_p = _p
 
-    @property
-    def aira2(self) -> pathlib.Path:
-        # Same tree as utils.temp_p; avoid importing utils (deploy ↔ utils cycle).
-        return pathlib.Path(self.proj_p).joinpath("__temp", "aira2", self.aira2_binary_name)
 
     @staticmethod
     def open_folder(_p):

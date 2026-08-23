@@ -194,7 +194,7 @@ def create_app(surfaces: Iterable[ServerSurface] = (), *, auth_token: str | None
         require_auth(authorization)
         try:
             return load_subscription_config(SubscriptionStore(customname))
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, RuntimeError) as exc:
             _raise_subscription_error(exc)
 
     @app.put("/subscription/config")

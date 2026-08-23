@@ -27,6 +27,7 @@ from server.tray.style import cover_placeholder_stylesheet, error_label_styleshe
 from server.tray.ui_common import (
     CompactKeyValueTable,
     configure_tray_qt_fonts,
+    install_tray_fluent_tooltip,
     tray_mono_font,
 )
 from utils import conf, temp_p
@@ -93,7 +94,7 @@ class ServerTaskRow(QFrame):
         percent = host.ui.coerce_percent(item.get("percent"))
         title_text = str(item.get("task_title") or item.get("task_id") or "-")
         self._title.setText(title_text)
-        self._title.setToolTip(title_text)
+        install_tray_fluent_tooltip(self._title, title_text)
         self._page_label.setText(f"{downloaded}/{total}P" if total else f"{downloaded}P")
         self._percent_label.setText(f"{percent}%")
         host.ui.set_chip(self._status_chip, str(item.get("status") or "running"))
@@ -105,17 +106,17 @@ class ServerTaskRow(QFrame):
         latest = str(item.get("error") or item.get("latest_message") or item.get("url") or "-")
         meta_text = f"stage: {stage}    latest: {host.ui.strip_html(latest)}"
         self._meta.setText(meta_text)
-        self._meta.setToolTip(meta_text)
+        install_tray_fluent_tooltip(self._meta, meta_text)
         self._local_path = str(item.get("local_path") or "")
         self._source_url = str(item.get("source_url") or item.get("url") or "")
-        self._folder.setToolTip(self._local_path or "no local path")
+        install_tray_fluent_tooltip(self._folder, self._local_path or "no local path")
         self._folder.setEnabled(bool(self._local_path))
-        self._link.setToolTip(self._source_url or "no source url")
+        install_tray_fluent_tooltip(self._link, self._source_url or "no source url")
         self._link.setEnabled(bool(self._source_url))
         cover_path = self._panel.task_cover_path(item)
         if cover_path and cover_path != self._cover_path:
             self._cover_path = cover_path
-            self._cover.setToolTip(cover_path)
+            install_tray_fluent_tooltip(self._cover, cover_path)
             self._panel.apply_cover(self._cover, cover_path)
 
 
@@ -346,9 +347,10 @@ class ServerPanel:
         clear_button.setObjectName("ServerRuntimeClearButton")
         clear_button.clicked.connect(lambda _checked=False: self.clear_runtime_history())
         restart_server = TransparentToolButton(CgsIcon.REBOOT, band)
-        restart_server.setToolTip("重启")
+        install_tray_fluent_tooltip(restart_server, "重启")
         restart_server.clicked.connect(lambda _checked=False: self.host.restart_server_surface())
         quit_server = TransparentToolButton(FIF.POWER_BUTTON, band)
+        install_tray_fluent_tooltip(quit_server, "退出 CGS Server")
         quit_server.clicked.connect(lambda _checked=False: self.host.shutdown())
         layout.addWidget(debug_label)
         layout.addWidget(self.debug_switch)

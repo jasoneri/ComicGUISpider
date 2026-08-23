@@ -221,6 +221,7 @@ class Updater:
 
     def to_update(self, ver):
         _UpdateLauncher(ver, installer_manifest=self.proj.installer_manifest).run()
+        # closeEvent is the single lifecycle owner for stop_engine (and other cleanup).
         self.gui.close()
 
 
@@ -263,17 +264,27 @@ class _UpdateLauncher:
 
     def _run_windows_fallback(self):
         ps1_path = exc_p / "updater.ps1"
+        # Same parent-wait contract as deploy/installer (package tree must not be
+        # replaced while this Python process still maps site-packages).
         script = r"""param(
     [Parameter(Mandatory = $true)][string]$UvExe,
     [Parameter(Mandatory = $true)][string]$InstallSpec,
     [Parameter(Mandatory = $true)][string]$IndexUrl,
     [Parameter(Mandatory = $true)][string]$LogPath,
+    [Parameter(Mandatory = $true)][int]$ParentPid,
     [string]$UvToolDir = "",
     [string]$UvToolBinDir = ""
 )
 
 if ($UvToolDir) { $env:UV_TOOL_DIR = $UvToolDir }
 if ($UvToolBinDir) { $env:UV_TOOL_BIN_DIR = $UvToolBinDir }
+
+if ($ParentPid -gt 0) {
+    try {
+        Wait-Process -Id $ParentPid -Timeout 30 -ErrorAction SilentlyContinue
+    } catch {}
+    Start-Sleep -Seconds 1
+}
 
 & $UvExe tool install $InstallSpec --force --index-url $IndexUrl 2>&1 |
     Tee-Object -FilePath $LogPath
@@ -293,6 +304,7 @@ Read-Host "Press Enter to close"
                 "-InstallSpec", self.install_spec,
                 "-IndexUrl", self.index_url,
                 "-LogPath", str(self.log_path),
+                "-ParentPid", str(os.getpid()),
                 "-UvToolDir", os.environ.get("UV_TOOL_DIR", ""),
                 "-UvToolBinDir", os.environ.get("UV_TOOL_BIN_DIR", ""),
             ],

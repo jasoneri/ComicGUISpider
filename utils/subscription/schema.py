@@ -15,6 +15,7 @@ VALID_INTERVAL_PRESETS = frozenset({"never", "12h", "daily", "2d", "weekly", "ma
 PRESET_INTERVAL_HOURS: dict[str, Optional[int]] = {
     "never": None,
     "off": None,
+    "3h": 3,
     "12h": 12,
     "daily": 24,
     "2d": 48,
@@ -23,14 +24,19 @@ PRESET_INTERVAL_HOURS: dict[str, Optional[int]] = {
 }
 DAY_ALIGNED_PRESETS = frozenset({"daily", "2d", "weekly"})
 
-VALID_CATCHUP_PRESETS = frozenset({"off", "12h", "daily", "2d", "weekly"})
+# Tray-global 后巡查 only (not SidePanel interval). No weekly — too sparse for catch-up.
+VALID_CATCHUP_PRESETS = frozenset({"off", "3h", "12h", "daily", "2d"})
 CATCHUP_PRESET_ITEMS = (
     ("off", "关闭"),
+    ("3h", "每3小时"),
     ("12h", "每12小时"),
     ("daily", "每天"),
     ("2d", "每2天"),
-    ("weekly", "每周"),
 )
+# Legacy qconfig values map into the current catch-up set.
+CATCHUP_PRESET_LEGACY_ALIASES = {
+    "weekly": "2d",
+}
 
 VALID_WEEKDAY_IDS = frozenset({"1", "2", "3", "4", "5", "6", "7"})
 ALL_WEEKDAYS = ("1", "2", "3", "4", "5", "6", "7")

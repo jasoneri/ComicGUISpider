@@ -5,8 +5,8 @@ danbooru / kemono / cbg / saucenao
 
 ## ⚠️ 通用前置须知
 
-::: tip 🔔 v2.12.0 起，选择 script 时会自动下载 aira2 二进制执行文件 [link](https://github.com/jasoneri/ComicGUISpider/releases/tag/preset)
-Script 设置中 aira2 有单独代理设置
+::: tip 🔔 v2.12.0 起，选择 script 时会自动下载 aria2 二进制执行文件 [link](https://github.com/jasoneri/ComicGUISpider/releases/tag/preset)
+Script 设置中 aria2 有单独代理设置
 :::
 ::: info 脚本集通用前置安装( v2.11.0 改为 `按需` )
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  

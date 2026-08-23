@@ -300,14 +300,26 @@ class ServerLauncher:
                 time.sleep(0.1)
 
     def _launch_and_wait(self) -> ServerEndpoint:
-        from utils.config import env, exc_p
+        from utils.config import exc_p
         from variables import VER
 
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Truncate boot log so failure messages never surface a previous run's
+        # "No module named server.main" as if it belonged to this spawn.
+        try:
+            self.boot_log_path.write_bytes(b"")
+        except OSError:
+            pass
+        child_env = _server_child_env()
         try:
             with open(self.boot_log_path, "wb") as log_file:
                 self.process = subprocess.Popen(
-                    self.command, cwd=str(exc_p), env=env, stdout=log_file, stderr=subprocess.STDOUT, **_popen_kwargs()
+                    self.command,
+                    cwd=str(exc_p),
+                    env=child_env,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    **_popen_kwargs(),
                 )
         except OSError as exc:
             raise ServerLaunchError(self._failure_message("cgs-server launch failed")) from exc
@@ -317,7 +329,10 @@ class ServerLauncher:
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
                 raise ServerLaunchError(
-                    self._failure_message(f"cgs-server exited with code {self.process.returncode}", timeout=self.timeout)
+                    self._failure_message(
+                        f"cgs-server exited with code {self.process.returncode}",
+                        timeout=self.timeout,
+                    )
                 )
             try:
                 endpoint = resolve_server_endpoint(
@@ -500,6 +515,41 @@ def _server_python() -> Path:
         if venv_python.exists():
             return venv_python
     return Path(sys.executable)
+
+
+def _server_child_env() -> dict[str, str]:
+    """Env for the tray-host child process.
+
+    - Pins ``PYTHONPATH`` to the repo root so ``python -m server.main`` works even
+      when editable-install metadata is broken or the parent shell polluted path.
+    - Sets ``CGS_SERVER_FORCE_HOST=1`` so the child always hosts tray/HTTP instead
+      of resolving a peer endpoint and exiting 0 (parent would then report
+      "exited with code 0 / no tray-hosted discovery").
+    - Drops test-only env vars that must not leak into the long-lived server.
+    """
+    from utils.config import env, exc_p
+
+    child: dict[str, str] = {str(key): str(value) for key, value in env.items() if value is not None}
+    repo_root = str(Path(exc_p).resolve())
+    path_parts: list[str] = [repo_root]
+    existing_pythonpath = str(child.get("PYTHONPATH") or "").strip()
+    if existing_pythonpath:
+        for fragment in existing_pythonpath.split(os.pathsep):
+            cleaned = str(fragment or "").strip()
+            if cleaned and cleaned not in path_parts:
+                path_parts.append(cleaned)
+    child["PYTHONPATH"] = os.pathsep.join(path_parts)
+    child["CGS_SERVER_FORCE_HOST"] = "1"
+    for key in list(child.keys()):
+        upper = key.upper()
+        if upper.startswith("CGS_TEST") or upper in {
+            "CGS_TEST_AUTORUN",
+            "CGS_TT_TRAY_WORKER",
+            "CGS_TT_YML_TRAY_WORKER",
+            "CGS_REAL_SUBSCRIPTION_YML",
+        }:
+            child.pop(key, None)
+    return child
 
 
 def _popen_kwargs() -> dict:

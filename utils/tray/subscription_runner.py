@@ -108,9 +108,24 @@ class SubscriptionRunSummary:
 
     @property
     def message(self) -> str:
+        # ``pending_episodes`` is D2 raw length; banner must distinguish still-queued
+        # vs already-on-disk so "已下载" items are not reported as pending forever.
+        queued = sum(
+            1
+            for item in self.pending_items
+            if str(item.get("status") or "").strip().casefold() in {"", "queued", "pending", "diff"}
+        )
+        finished = sum(
+            1
+            for item in self.pending_items
+            if str(item.get("status") or "").strip().casefold()
+            in {"finished", "done", "complete", "completed", "ok", "submitted"}
+            or bool(str(item.get("local_path") or "").strip())
+        )
         parts = [
             f"books={self.scanned_books}",
-            f"pending={self.pending_episodes}",
+            f"queued={queued}",
+            f"downloaded={finished}",
             f"jobs={self.submitted_jobs}",
         ]
         if self.follow_books:
@@ -221,8 +236,15 @@ class SubscriptionRunner:
             return set(self._md5s_provider(entry, books) or set())
         return set(self._download_state.downloaded_md5s(books))
 
-    def run_once(self, *, trigger: str = "schedule") -> SubscriptionRunSummary:
-        return asyncio.run(self.run_once_async(trigger=trigger))
+    def run_once(
+        self,
+        *,
+        trigger: str = "schedule",
+        selected_books: Optional[list[BookEntry] | tuple[BookEntry, ...]] = None,
+    ) -> SubscriptionRunSummary:
+        return asyncio.run(
+            self.run_once_async(trigger=trigger, selected_books=selected_books)
+        )
 
     def load_config(self) -> SubscriptionConfig:
         if self._config_loader is not None:
@@ -234,12 +256,19 @@ class SubscriptionRunner:
         if callable(close):
             close()
 
-    async def run_once_async(self, *, trigger: str = "schedule") -> SubscriptionRunSummary:
+    async def run_once_async(
+        self,
+        *,
+        trigger: str = "schedule",
+        selected_books: Optional[list[BookEntry] | tuple[BookEntry, ...]] = None,
+    ) -> SubscriptionRunSummary:
         started_at = _utc_ts()
         started = time.monotonic()
         cfg = self.load_config()
         cfg.validate()
-        summary = await _RunSession(self, cfg, trigger).execute()
+        summary = await _RunSession(
+            self, cfg, trigger, selected_books=selected_books
+        ).execute()
         summary.started_at = started_at
         summary.finished_at = _utc_ts()
         summary.elapsed_sec = round(time.monotonic() - started, 3)
@@ -283,11 +312,21 @@ class SubscriptionRunner:
 class _RunSession:
     """One subscription cycle: ordered stages over shared mutable context."""
 
-    def __init__(self, runner: SubscriptionRunner, cfg: SubscriptionConfig, trigger: str) -> None:
+    def __init__(
+        self,
+        runner: SubscriptionRunner,
+        cfg: SubscriptionConfig,
+        trigger: str,
+        *,
+        selected_books: Optional[list[BookEntry] | tuple[BookEntry, ...]] = None,
+    ) -> None:
         self.runner = runner
         self.cfg = cfg
         self.trigger = trigger
         self.manual = trigger == "manual"
+        self.selected_books = (
+            tuple(selected_books) if selected_books is not None else None
+        )
         self.now = runner._now_provider()
         self.summary = SubscriptionRunSummary(trigger=trigger, stage="Config")
         self.book_entries: list[BookEntry] = []
@@ -322,18 +361,23 @@ class _RunSession:
                 f"unsupported feature tracking: {unsupported_feature_summary(unsupported)}"
             )
         if self.cfg.books:
+            # Keep library pkl in sync for covers / resolve, but scan scope is binding yaml.
             self.runner._library_store.ensure_books_from_yaml(self.cfg.books)
+        # Schedule scan SSoT = active subscription_*.yml books[], not whole local library.
+        from utils.tray.subscription_scheduler import schedule_binding_book_entries
+
         enabled = [
-            entry
-            for entry in self.runner._library_store.book_entries(yaml_books=self.cfg.books)
-            if entry.enabled
+            entry for entry in schedule_binding_book_entries(self.cfg) if entry.enabled
         ]
         # D-w6: Layer C is_due is NOT the primary due gate. State still loads for writeback.
         self.states = self.runner._check_state_store.load()
-        self.book_entries = (
-            enabled
-            if self.manual
-            else _filter_books_for_trigger(enabled, self.cfg, self.now, trigger=self.trigger)
+        self.book_entries = _resolve_scan_book_entries(
+            enabled,
+            self.cfg,
+            self.now,
+            trigger=self.trigger,
+            selected_books=self.selected_books,
+            manual=self.manual,
         )
         self.feature_entries = supported_features(self.cfg.features)
         self.checkin_states = self.runner._checkin_state_store.load()
@@ -831,6 +875,58 @@ def _follow_seen_key(book: BookInfo) -> str:
     return f"follow-book:{_book_site_key(book)}:{getattr(book, 'url', '')}"
 
 
+def _book_entry_identity(entry: BookEntry) -> str:
+    return f"{str(entry.site or '').strip()}:{str(entry.url or '').strip()}"
+
+
+def _resolve_scan_book_entries(
+    enabled_entries: list[BookEntry],
+    cfg: SubscriptionConfig,
+    now: datetime,
+    *,
+    trigger: str,
+    selected_books: Optional[tuple[BookEntry, ...]],
+    manual: bool,
+) -> list[BookEntry]:
+    """Pick this-run own books.
+
+    Priority:
+    1. explicit ``selected_books`` from ScheduleDecision.matched_books (primary path)
+    2. manual / catchup / generic schedule → all enabled
+    3. primary-like trigger text → enabled ∩ effective_slot.matches (legacy / tests)
+    """
+    if selected_books is not None:
+        return _intersect_selected_with_enabled(enabled_entries, selected_books)
+    if manual:
+        return list(enabled_entries)
+    return _filter_books_for_trigger(
+        enabled_entries, cfg, now, trigger=trigger
+    )
+
+
+def _intersect_selected_with_enabled(
+    enabled_entries: list[BookEntry],
+    selected_books: tuple[BookEntry, ...],
+) -> list[BookEntry]:
+    """Keep scheduler order; only scan books still enabled in the live yaml binding."""
+    enabled_by_key = {
+        _book_entry_identity(entry): entry for entry in enabled_entries
+    }
+    resolved: list[BookEntry] = []
+    seen: set[str] = set()
+    for selected in selected_books:
+        key = _book_entry_identity(selected)
+        if not key or key == ":" or key in seen:
+            continue
+        live = enabled_by_key.get(key)
+        if live is None:
+            continue
+        seen.add(key)
+        # Prefer live merge row (yaml check overlay) over the snapshot from evaluate().
+        resolved.append(live)
+    return resolved
+
+
 def _filter_books_for_trigger(
     book_entries: list[BookEntry],
     cfg: SubscriptionConfig,
@@ -838,9 +934,11 @@ def _filter_books_for_trigger(
     *,
     trigger: str,
 ) -> list[BookEntry]:
-    """Primary: enabled ∩ effective_slot.matches. Catchup/schedule-generic: all enabled.
+    """Primary-like trigger text → slot match. Catchup / generic schedule → all enabled.
 
     Layer C ``is_due`` is intentionally not consulted (D-w6).
+    Hosts should pass ``selected_books`` for primary decisions; this path remains
+    for catchup, manual-adjacent triggers, and unit tests that only set trigger text.
     """
     trigger_text = str(trigger or "").strip().lower()
     primary_like = (
@@ -936,18 +1034,52 @@ def _metadata_book(book: BookInfo, site_episodes: list) -> BookInfo:
 
 
 def _pending_item_rows(pending: _PendingBook) -> list[dict[str, str | int | bool]]:
+    from pathlib import Path
+
+    from utils import conf
+    from utils.core import sanitize_for_path
+
     book = pending.book
+    site = _book_site_key(book)
+    title = str(getattr(book, "name", "") or "")
+    source_url = str(
+        getattr(book, "url", "") or getattr(book, "preview_url", "") or ""
+    ).strip()
+    source_id = f"book:{site}:{source_url}" if site and source_url else ""
+    cover_url = str(getattr(book, "img_preview", "") or "").strip()
+    book_local = str(getattr(book, "local_path", "") or "").strip()
+    if not book_local and title:
+        candidate = Path(conf.sv_path).joinpath(sanitize_for_path(title))
+        if candidate.is_dir():
+            book_local = str(candidate)
     rows = []
     for episode in pending.pending_episodes:
         item_id = str(getattr(episode, "id", "") or getattr(episode, "name", "") or "")
+        episode_name = str(getattr(episode, "name", "") or item_id)
+        local_path = str(getattr(episode, "local_path", "") or "").strip()
+        if not local_path and book_local and episode_name:
+            # Only accept a *chapter* directory. Never fall back to the book root —
+            # that would mark every episode "finished" when any chapter exists.
+            episode_dir = Path(book_local).joinpath(sanitize_for_path(episode_name))
+            if episode_dir.is_dir():
+                local_path = str(episode_dir)
+        status = "finished" if local_path and Path(local_path).is_dir() else "queued"
         rows.append(
             {
                 "item_id": item_id,
-                "book": str(getattr(book, "name", "") or ""),
-                "site": _book_site_key(book),
-                "episode": str(getattr(episode, "name", "") or item_id),
+                # Dual keys: presentation historically read ``title``; keep ``book`` for old readers.
+                "title": title,
+                "book": title,
+                "site": site,
+                "source_id": source_id,
+                "source_url": source_url,
+                "cover_url": cover_url,
+                "episode": episode_name,
                 "pages": int(getattr(episode, "pages", 0) or 0),
-                "submitted": False,
+                "status": status,
+                "stage": "Diff" if status == "queued" else "Submit",
+                "submitted": status == "finished",
+                "local_path": local_path,
             }
         )
     return rows

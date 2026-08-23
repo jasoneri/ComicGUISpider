@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QApplication, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import SegmentedWidget, qconfig
 
 from GUI.core.theme import theme_mgr
-from server.tray.style import build_dialog_stylesheet
+from server.tray.style import apply_manage_dialog_theme
 from server.tray.ui_common import ServerManageDialog, configure_tray_qt_fonts
 from utils.config import qconfig_dir
 from utils.config.qc import cgs_cfg
@@ -87,7 +87,7 @@ class ManageDialogController:
         from GUI.core.theme.qss_template import load_templated_qss_document
 
         load_templated_qss_document.cache_clear()
-        self.dialog.setStyleSheet(build_dialog_stylesheet())
+        apply_manage_dialog_theme(self.dialog)
         if self.is_visible():
             self.refresh(rebuild_lists=True)
 

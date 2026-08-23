@@ -93,6 +93,10 @@ class _NhentaiContract:
     tag_db_path = ori_path.joinpath("__temp/nhentai.db")
     gallery_url_template = f"{index}g/%s/"
     gallery_api_url_template = f"{api_index}/galleries/%s?include=comments%%2Crelated"
+    # Access probe must hit API v2 JSON, not HTML index: homepage is CF-challenged for bare httpx
+    # while /api/v2/* stays open (live matrix + Tsuk1ko nhentai-helper / CGS search path).
+    # Prefer list page used by completer mapping over fixed gallery id (177013 is 404 on v2).
+    access_probe_url = f"{api_index}/galleries?page=1"
 
     @classmethod
     def build_search_url(cls, keyword: str, *, page: int = 1, sort: str = "date") -> str:
@@ -288,12 +292,21 @@ class NhentaiReqer(_NhentaiContract, Cookies, Req):
         return cli
 
     def test_index(self):
+        """Probe crawler-reachable API v2, not browser homepage HTML.
+
+        Competitor paths (Zekfad/Enma/archivist legacy ``/api/gallery/*``) return 403 under
+        current CF; CGS + Tsuk1ko use ``/api/v2/galleries*``. Homepage stays 403 for httpx.
+        """
         try:
-            resp = self.cli.get(self.index, follow_redirects=True, timeout=3.5)
+            resp = self.cli.get(self.access_probe_url, follow_redirects=True, timeout=3.5)
             resp.raise_for_status()
-        except httpx.HTTPError:
+            payload = resp.json()
+        except (httpx.HTTPError, ValueError, TypeError):
             return False
-        return bool(resp.text)
+        if not isinstance(payload, dict):
+            return False
+        result = payload.get("result")
+        return isinstance(result, list)
 
     def _headers(self, *, referer: str | None = None) -> dict:
         return self.with_referer(referer)

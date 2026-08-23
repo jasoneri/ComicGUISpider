@@ -7,7 +7,8 @@ from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QScrollArea, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtGui import QFontMetrics
+from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (
     BodyLabel,
     CaptionLabel,
@@ -30,6 +31,7 @@ from server.tray.style import (
     body_text_stylesheet,
     cover_placeholder_stylesheet,
     detail_title_stylesheet,
+    install_tray_combo_menu_hardening,
     latest_banner_stylesheet,
     muted_label_stylesheet,
     pending_card_stylesheet,
@@ -43,6 +45,7 @@ from server.tray.ui_common import (
     ClickableFrame,
     StageRail,
     clear_layout,
+    install_tray_fluent_tooltip,
     tray_mono_font,
 )
 from utils.tray.schedule_presentation import SchedulePresentation
@@ -81,6 +84,9 @@ class SchedulePanel:
         self.debug_enabled = False
         self.plan_layout: QGridLayout | None = None
         self.cache_chip: QLabel | None = None
+        self.binding_combo: ComboBox | None = None
+        self.catchup_combo: ComboBox | None = None
+        self._binding_combo_guard = False
         self.sources_segment: SegmentedWidget | None = None
         self.sources_stack: QStackedWidget | None = None
         self.sources_layout: QVBoxLayout | None = None
@@ -95,16 +101,25 @@ class SchedulePanel:
         self.run_meta_label: QLabel | None = None
         self.stage_rail: StageRail | None = None
         self.latest_banner: QLabel | None = None
-        self.pending_layout: QVBoxLayout | None = None
+        self.work_segment: SegmentedWidget | None = None
+        self.work_stack: QStackedWidget | None = None
+        self.queue_layout: QVBoxLayout | None = None
+        self.finish_layout: QVBoxLayout | None = None
+        self.queue_count_label: QLabel | None = None
+        self.finish_count_label: QLabel | None = None
+        self.pending_layout: QVBoxLayout | None = None  # active list (queue or finish)
         self.pending_count_label: QLabel | None = None
+        self.work_bucket: str = "queue"
         self.detail_title: QLabel | None = None
-        self.detail_source: QLabel | None = None
-        self.detail_stage_chip: QLabel | None = None
-        self.detail_status_chip: QLabel | None = None
-        self.detail_pkl_label: QLabel | None = None
-        self.detail_message: QLabel | None = None
+        self.detail_episode: QLabel | None = None
         self.detail_open_source_btn: PushButton | None = None
         self.detail_open_folder_btn: PushButton | None = None
+        # Kept as None aliases so older refresh paths / tests never AttributeError.
+        self.detail_status_chip: QLabel | None = None
+        self.detail_source: QLabel | None = None
+        self.detail_stage_chip: QLabel | None = None
+        self.detail_pkl_label: QLabel | None = None
+        self.detail_message: QLabel | None = None
         self.debug_drawer: QFrame | None = None
         self.debug_text: TextEdit | None = None
         self.detail_entries: list[dict[str, str]] = []
@@ -139,7 +154,11 @@ class SchedulePanel:
             ("状态", presentation.plan.automation_label),
             ("缓存", f"{presentation.cache.status} ({presentation.cache.book_count})"),
             ("对象", len(presentation.sources)),
-            ("待处理", len(presentation.pending_items)),
+            (
+                "章节",
+                f"待下载 {sum(1 for item in presentation.pending_items if self._item_bucket(item) == 'queue')} / "
+                f"已下载 {sum(1 for item in presentation.pending_items if self._item_bucket(item) == 'finish')}",
+            ),
             ("运行", presentation.run.status),
             ("阶段", presentation.run.stage or "-"),
             ("最近结果", host.ui.redact(host.schedule.last_result)),
@@ -225,13 +244,13 @@ class SchedulePanel:
         self.run_button = PrimaryPushButton(FIF.PLAY, "立刻执行", band)
         self.run_button.clicked.connect(lambda _checked=False: self.host.run_schedule_now())
         subscribe_button = PushButton(FIF.LINK, "打开追更配置", band)
-        subscribe_button.setToolTip("订阅配置由 SpiderGUI 主窗口管理")
+        self._set_fluent_tooltip(subscribe_button, "订阅配置由 SpiderGUI 主窗口管理")
         subscribe_button.clicked.connect(lambda _checked=False: self.open_subscribe_guidance())
         refresh_button = TransparentToolButton(FIF.SYNC, band)
-        refresh_button.setToolTip("刷新订阅运行状态")
+        self._set_fluent_tooltip(refresh_button, "刷新订阅运行状态")
         refresh_button.clicked.connect(lambda _checked=False: self.host.refresh_status(schedule_full=True))
         clear_button = TransparentToolButton(FIF.BROOM, band)
-        clear_button.setToolTip("清空订阅运行历史（确认后执行）")
+        self._set_fluent_tooltip(clear_button, "清空订阅运行历史（确认后执行）")
         clear_button.clicked.connect(lambda _checked=False: self.clear_history())
         self.debug_switch = SwitchButton(band)
         self.debug_switch.setText("Debug")
@@ -298,6 +317,23 @@ class SchedulePanel:
         self.plan_layout.setVerticalSpacing(4)
         plan_layout.addWidget(grid_host)
 
+        # Binding profile = which subscription_*.yml tray executes.
+        binding_row = QHBoxLayout()
+        binding_row.setContentsMargins(0, 4, 0, 0)
+        binding_row.setSpacing(8)
+        binding_label = CaptionLabel("绑定", plan_frame)
+        binding_label.setObjectName("TrayMutedLabel")
+        binding_label.setStyleSheet(muted_label_stylesheet())
+        self.binding_combo = ComboBox(plan_frame)
+        self.binding_combo.setMinimumWidth(140)
+        self.binding_combo.setObjectName("ScheduleBindingCombo")
+        install_tray_combo_menu_hardening(self.binding_combo)
+        self._set_fluent_tooltip(self.binding_combo, "切换要执行的 subscription_*.yml")
+        self.binding_combo.currentIndexChanged.connect(self._on_binding_changed)
+        binding_row.addWidget(binding_label)
+        binding_row.addWidget(self.binding_combo, 1)
+        plan_layout.addLayout(binding_row)
+
         # 后巡查 = tray-global catch-up (not SidePanel, not per-book).
         catchup_row = QHBoxLayout()
         catchup_row.setContentsMargins(0, 4, 0, 0)
@@ -307,6 +343,9 @@ class SchedulePanel:
         catchup_label.setStyleSheet(muted_label_stylesheet())
         self.catchup_combo = ComboBox(plan_frame)
         self.catchup_combo.setMinimumWidth(120)
+        self.catchup_combo.setObjectName("ScheduleCatchupCombo")
+        install_tray_combo_menu_hardening(self.catchup_combo)
+        self._set_fluent_tooltip(self.catchup_combo, "后巡查间隔（托盘全局，非单本）")
         from utils.subscription.schema import CATCHUP_PRESET_ITEMS
         from utils.subscription.store import get_subscription_catchup_preset
 
@@ -411,66 +450,77 @@ class SchedulePanel:
         run_layout.addWidget(self.latest_banner)
         layout.addWidget(run_frame)
 
-        pending_frame, pending_layout = self._panel(panel, "SchedulePendingPanel", alt=True)
-        pending_header = QHBoxLayout()
-        pending_header.setContentsMargins(0, 0, 0, 0)
-        pending_header.addWidget(StrongBodyLabel("待处理条目", pending_frame))
-        pending_header.addStretch(1)
-        self.pending_count_label = CaptionLabel("0 个", pending_frame)
-        self.pending_count_label.setObjectName("TrayMutedLabel")
-        self.pending_count_label.setStyleSheet(muted_label_stylesheet())
-        pending_header.addWidget(self.pending_count_label)
-        pending_layout.addLayout(pending_header)
-        pending_scroll, self.pending_layout = self._scroll_host(pending_frame)
-        pending_layout.addWidget(pending_scroll, 1)
-        layout.addWidget(pending_frame, 1)
+        work_frame, work_layout = self._panel(panel, "SchedulePendingPanel", alt=True)
+        self.work_segment = SegmentedWidget(work_frame)
+        self.work_stack = QStackedWidget(work_frame)
+
+        queue_page = QWidget()
+        queue_box = QVBoxLayout(queue_page)
+        queue_box.setContentsMargins(0, 0, 0, 0)
+        queue_box.setSpacing(4)
+        # Count only — bucket name is already the Segmented label (no "N 个已落地" echo).
+        self.queue_count_label = CaptionLabel("0", queue_page)
+        self.queue_count_label.setObjectName("TrayMutedLabel")
+        self.queue_count_label.setStyleSheet(muted_label_stylesheet())
+        queue_scroll, self.queue_layout = self._scroll_host(queue_page)
+        queue_box.addWidget(self.queue_count_label)
+        queue_box.addWidget(queue_scroll, 1)
+
+        finish_page = QWidget()
+        finish_box = QVBoxLayout(finish_page)
+        finish_box.setContentsMargins(0, 0, 0, 0)
+        finish_box.setSpacing(4)
+        self.finish_count_label = CaptionLabel("0", finish_page)
+        self.finish_count_label.setObjectName("TrayMutedLabel")
+        self.finish_count_label.setStyleSheet(muted_label_stylesheet())
+        finish_scroll, self.finish_layout = self._scroll_host(finish_page)
+        finish_box.addWidget(self.finish_count_label)
+        finish_box.addWidget(finish_scroll, 1)
+
+        self.work_stack.addWidget(queue_page)
+        self.work_stack.addWidget(finish_page)
+        self.work_segment.addItem(
+            "queue",
+            "待下载",
+            onClick=lambda _checked=False: self._select_work_bucket("queue"),
+        )
+        self.work_segment.addItem(
+            "finish",
+            "已下载",
+            onClick=lambda _checked=False: self._select_work_bucket("finish"),
+        )
+        self.work_segment.setCurrentItem("queue")
+        self.pending_layout = self.queue_layout
+        self.pending_count_label = self.queue_count_label
+        work_layout.addWidget(self.work_segment)
+        work_layout.addWidget(self.work_stack, 1)
+        layout.addWidget(work_frame, 1)
         return panel
 
     def _build_detail_panel(self, parent) -> QWidget:
+        """Right rail: identity + actions. Bucket (待下载/已下载) already owns status."""
         frame, layout = self._panel(parent, "ScheduleDetailPanel")
-        layout.addWidget(StrongBodyLabel("条目详情", frame))
+        layout.addWidget(StrongBodyLabel("详情", frame))
         self.detail_title = BodyLabel("-", frame)
         self.detail_title.setWordWrap(True)
         self.detail_title.setStyleSheet(detail_title_stylesheet())
-        self.detail_source = CaptionLabel("-", frame)
-        self.detail_source.setObjectName("TrayMutedLabel")
-        self.detail_source.setWordWrap(True)
-        self.detail_source.setFont(tray_mono_font(8))
-        self.detail_source.setStyleSheet(muted_label_stylesheet())
-        chips = QHBoxLayout()
-        chips.setContentsMargins(0, 0, 0, 0)
-        chips.setSpacing(4)
-        self.detail_stage_chip = QLabel(frame)
-        self.detail_status_chip = QLabel(frame)
-        chips.addWidget(self.detail_stage_chip)
-        chips.addWidget(self.detail_status_chip)
-        chips.addStretch(1)
-        pkl_title = CaptionLabel("PKL BOOKINFO", frame)
-        pkl_title.setObjectName("TrayMutedLabel")
-        pkl_title.setStyleSheet(section_heading_stylesheet())
-        self.detail_pkl_label = CaptionLabel("-", frame)
-        self.detail_pkl_label.setObjectName("TrayPklDetail")
-        self.detail_pkl_label.setWordWrap(True)
-        self.detail_pkl_label.setFont(tray_mono_font(8))
-        self.detail_pkl_label.setStyleSheet(pkl_detail_stylesheet())
+        self.detail_episode = CaptionLabel("", frame)
+        self.detail_episode.setObjectName("TrayMutedLabel")
+        self.detail_episode.setStyleSheet(muted_label_stylesheet())
+        self.detail_episode.setVisible(False)
+        self.detail_status_chip = None
         self.detail_open_source_btn = PushButton(FIF.LINK, "打开来源", frame)
         self.detail_open_source_btn.setEnabled(False)
         self.detail_open_source_btn.clicked.connect(lambda _checked=False: self.open_detail_source())
         self.detail_open_folder_btn = PushButton(FIF.FOLDER, "打开本地目录", frame)
         self.detail_open_folder_btn.setEnabled(False)
-        self.detail_open_folder_btn.setToolTip("下载完成后可打开目录")
-        self.detail_message = CaptionLabel("选择一个待处理条目查看 BookInfo 派生字段。", frame)
-        self.detail_message.setObjectName("TrayMutedLabel")
-        self.detail_message.setWordWrap(True)
-        self.detail_message.setStyleSheet(muted_label_stylesheet())
+        self.detail_open_folder_btn.clicked.connect(lambda _checked=False: self.open_detail_folder())
+        self._set_fluent_tooltip(self.detail_open_source_btn, "在浏览器打开来源页")
+        self._set_fluent_tooltip(self.detail_open_folder_btn, "打开本地章节目录")
         layout.addWidget(self.detail_title)
-        layout.addWidget(self.detail_source)
-        layout.addLayout(chips)
-        layout.addWidget(pkl_title)
-        layout.addWidget(self.detail_pkl_label)
+        layout.addWidget(self.detail_episode)
         layout.addWidget(self.detail_open_source_btn)
         layout.addWidget(self.detail_open_folder_btn)
-        layout.addWidget(self.detail_message)
         layout.addStretch(1)
         return frame
 
@@ -481,7 +531,7 @@ class SchedulePanel:
         header.addWidget(StrongBodyLabel("原始 Schedule Payload", drawer))
         header.addStretch(1)
         copy_button = TransparentToolButton(FIF.COPY, drawer)
-        copy_button.setToolTip("复制已脱敏 Schedule debug 内容")
+        self._set_fluent_tooltip(copy_button, "复制已脱敏 Schedule debug 内容")
         copy_button.clicked.connect(
             lambda _checked=False: self.host.ui.copy_to_clipboard(self.debug_text.toPlainText() if self.debug_text is not None else "")
         )
@@ -510,7 +560,7 @@ class SchedulePanel:
         host.ui.set_label(self.run_trigger_label, f"触发: {trigger or '-'}")
         host.ui.set_label(self.run_elapsed_label, host.ui.duration_label(float(elapsed_sec) * 1000))
         host.ui.set_label(self.run_scanned_label, f"扫描 {scanned}")
-        host.ui.set_label(self.run_pending_label, f"待处理 {pending}")
+        host.ui.set_label(self.run_pending_label, f"章节 {pending}")
         host.ui.set_label(self.run_jobs_label, f"任务 {jobs}")
         host.ui.set_label(self.run_meta_label, "元数据 ✓" if meta else "元数据 -")
         if self.stage_rail is not None:
@@ -522,7 +572,7 @@ class SchedulePanel:
         host.ui.set_label(self.latest_banner, latest or "-")
 
     def _on_catchup_changed(self, *_args) -> None:
-        if not hasattr(self, "catchup_combo") or self.catchup_combo is None:
+        if self.catchup_combo is None:
             return
         preset = self.catchup_combo.currentData()
         if preset is None:
@@ -533,7 +583,60 @@ class SchedulePanel:
         set_subscription_catchup_preset(str(preset))
         self.host.refresh_status(schedule_full=True)
 
+    def _on_binding_changed(self, *_args) -> None:
+        if self._binding_combo_guard or self.binding_combo is None:
+            return
+        name = self.binding_combo.currentData()
+        if name is None:
+            return
+        from utils.subscription import (
+            get_active_subscription_customname,
+            set_active_subscription_customname,
+        )
+
+        wanted = str(name).strip()
+        if not wanted or wanted == get_active_subscription_customname():
+            return
+        set_active_subscription_customname(wanted)
+        self.host.schedule.rebind_active_store()
+        self.host.refresh_status(schedule_full=True)
+
+    def _sync_binding_combo(self, presentation: SchedulePresentation) -> None:
+        if self.binding_combo is None:
+            return
+        from utils.subscription import (
+            get_active_subscription_customname,
+            list_subscription_customnames,
+        )
+
+        names = list(list_subscription_customnames(include_default=True))
+        active = get_active_subscription_customname()
+        # Prefer active name even if list is momentarily empty (cold dir).
+        if active and active not in names:
+            names.insert(0, active)
+        current_data = [
+            str(self.binding_combo.itemData(index) or "")
+            for index in range(self.binding_combo.count())
+        ]
+        self._binding_combo_guard = True
+        try:
+            if current_data != names:
+                self.binding_combo.clear()
+                for name in names:
+                    # Display short profile id; full yml name is obvious from convention.
+                    self.binding_combo.addItem(name, userData=name)
+            target_index = 0
+            for index in range(self.binding_combo.count()):
+                if str(self.binding_combo.itemData(index) or "") == active:
+                    target_index = index
+                    break
+            if self.binding_combo.currentIndex() != target_index:
+                self.binding_combo.setCurrentIndex(target_index)
+        finally:
+            self._binding_combo_guard = False
+
     def _render_plan(self, presentation: SchedulePresentation) -> None:
+        self._sync_binding_combo(presentation)
         if self.plan_layout is None:
             return
         clear_layout(self.plan_layout)
@@ -600,9 +703,27 @@ class SchedulePanel:
         self.sources_layout.addStretch(1)
 
     def _sources_empty_text(self, presentation: SchedulePresentation) -> str:
-        return "还没有追更对象。请从预览页勾选作品加入追更，或在主窗口订阅配置里添加 follow bid。"
+        profile = ""
+        owner = str(presentation.plan.config_owner or "")
+        if "«" in owner and "»" in owner:
+            profile = owner.split("«", 1)[1].split("»", 1)[0]
+        if profile:
+            return (
+                f"绑定 «{profile}» 的 subscription_*.yml 没有启用书目。"
+                "请在追更工作台选中卡片，用 SidePanel 启用并保存周期（写入 yml）；"
+                "tray 只执行 yml，不会扫描整库收藏。"
+            )
+        return (
+            "当前 binding 的 yml 没有启用书。"
+            "请打开追更工作台 SidePanel 配置并保存到 subscription_*.yml。"
+        )
 
     def _source_card(self, source) -> QWidget:
+        # Left column is narrow (~1/4 dialog). Elide budgets stay tight and fixed.
+        _SOURCE_TITLE_ELIDE = 112
+        _SOURCE_LOCATOR_ELIDE = 96
+        _SOURCE_SLOT_ELIDE = 72
+
         card = QFrame()
         card.setObjectName("ScheduleSourceCard")
         card.setStyleSheet(source_card_stylesheet())
@@ -613,8 +734,14 @@ class SchedulePanel:
         top.setContentsMargins(0, 0, 0, 0)
         top.setSpacing(6)
         top.addWidget(self._site_badge(source.site, card))
-        title = BodyLabel(source.title or source.locator or "-", card)
+        title = BodyLabel("-", card)
         title.setStyleSheet(body_text_stylesheet())
+        title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._set_elided_label(
+            title,
+            source.title or source.locator or "-",
+            max_width=_SOURCE_TITLE_ELIDE,
+        )
         top.addWidget(title, 1)
         enabled = CaptionLabel(self._source_status_label(source.status), card)
         enabled.setStyleSheet(accent_ok_label_stylesheet() if source.enabled else muted_label_stylesheet())
@@ -623,20 +750,31 @@ class SchedulePanel:
         bottom = QHBoxLayout()
         bottom.setContentsMargins(0, 0, 0, 0)
         bottom.setSpacing(6)
-        locator = CaptionLabel(source.locator or "-", card)
+        locator = CaptionLabel("-", card)
         locator.setObjectName("TrayMutedLabel")
         locator.setStyleSheet(muted_label_stylesheet())
         locator.setFont(tray_mono_font(8))
+        locator.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._set_elided_label(
+            locator,
+            source.locator or "-",
+            max_width=_SOURCE_LOCATOR_ELIDE,
+        )
         bottom.addWidget(locator, 1)
-        if source.pending_count:
-            pending = CaptionLabel(f"{source.pending_count} 个待处理", card)
-            pending.setObjectName("TrayAccentInfoLabel")
-            pending.setStyleSheet(accent_info_label_stylesheet())
-        else:
-            pending = CaptionLabel(source.latest or "最近记录", card)
-            pending.setObjectName("TrayMutedLabel")
-            pending.setStyleSheet(muted_label_stylesheet())
-        bottom.addWidget(pending)
+        # Right meta is the CheckSlot fingerprint (刊期), never a pending-count rewrite.
+        slot_text = str(source.latest or "").strip() or "—"
+        slot_label = CaptionLabel(slot_text, card)
+        slot_label.setObjectName("TrayMutedLabel")
+        slot_label.setFont(tray_mono_font(8))
+        slot_label.setStyleSheet(muted_label_stylesheet())
+        slot_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._set_fluent_tooltip(slot_label, slot_text)
+        # Fixed-ish budget so long fingerprints elide without eating the title column.
+        metrics = QFontMetrics(slot_label.font())
+        slot_label.setText(
+            metrics.elidedText(slot_text, Qt.TextElideMode.ElideRight, _SOURCE_SLOT_ELIDE)
+        )
+        bottom.addWidget(slot_label)
         box.addLayout(bottom)
         return card
 
@@ -649,50 +787,119 @@ class SchedulePanel:
         }
         return labels.get(str(status or ""), str(status or "-"))
 
+    def _select_work_bucket(self, bucket: str) -> None:
+        name = "finish" if str(bucket or "") == "finish" else "queue"
+        self.work_bucket = name
+        if self.work_stack is not None:
+            self.work_stack.setCurrentIndex(1 if name == "finish" else 0)
+        if self.work_segment is not None:
+            self.work_segment.setCurrentItem(name)
+        self.pending_layout = self.finish_layout if name == "finish" else self.queue_layout
+        self.pending_count_label = (
+            self.finish_count_label if name == "finish" else self.queue_count_label
+        )
+        if self.latest_presentation is not None:
+            self._render_pending(self.latest_presentation)
+
     def _render_pending(self, presentation: SchedulePresentation) -> None:
-        if self.pending_layout is None:
+        if self.queue_layout is None or self.finish_layout is None:
             return
-        clear_layout(self.pending_layout)
-        items = presentation.pending_items
-        self.detail_entries = [self._detail_entry(item) for item in items]
-        self.host.ui.set_label(self.pending_count_label, f"{len(items)} 个")
-        if not items:
+        all_items = list(presentation.pending_items or [])
+        queue_items = [item for item in all_items if self._item_bucket(item) == "queue"]
+        finish_items = [item for item in all_items if self._item_bucket(item) == "finish"]
+        self.host.ui.set_label(self.queue_count_label, str(len(queue_items)))
+        self.host.ui.set_label(self.finish_count_label, str(len(finish_items)))
+
+        active_items = finish_items if self.work_bucket == "finish" else queue_items
+        self.detail_entries = [self._detail_entry(item) for item in active_items]
+        self.pending_layout = self.finish_layout if self.work_bucket == "finish" else self.queue_layout
+        self.pending_count_label = (
+            self.finish_count_label if self.work_bucket == "finish" else self.queue_count_label
+        )
+
+        for layout in (self.queue_layout, self.finish_layout):
+            clear_layout(layout)
+
+        self._fill_work_list(
+            self.queue_layout,
+            queue_items,
+            empty_text="空",
+            bucket="queue",
+        )
+        self._fill_work_list(
+            self.finish_layout,
+            finish_items,
+            empty_text="空",
+            bucket="finish",
+        )
+
+        if not active_items:
             self.selected_index = -1
-            empty = CaptionLabel("暂无待处理条目。可以手动执行一次检查，或等待下一次自动检查。")
-            empty.setObjectName("TrayMutedLabel")
-            empty.setStyleSheet(muted_label_stylesheet())
-            empty.setWordWrap(True)
-            self.pending_layout.addWidget(empty)
-            self.pending_layout.addStretch(1)
             self._render_detail(None)
             return
-        for index, item in enumerate(items):
-            self.pending_layout.addWidget(self._pending_card(item, index))
-        self.pending_layout.addStretch(1)
-        if not 0 <= self.selected_index < len(items):
+        if not 0 <= self.selected_index < len(active_items):
             self.selected_index = 0
         self._render_detail(self.detail_entries[self.selected_index])
 
+    def _item_bucket(self, item) -> str:
+        status = str(getattr(item, "status", "") or "").strip().casefold()
+        local_path = str(getattr(item, "local_path", "") or "").strip()
+        if status in {"finished", "done", "complete", "completed", "ok", "submitted"} or local_path:
+            return "finish"
+        return "queue"
+
+    def _fill_work_list(self, layout, items, *, empty_text: str, bucket: str) -> None:
+        if layout is None:
+            return
+        if not items:
+            empty = CaptionLabel(empty_text)
+            empty.setObjectName("TrayMutedLabel")
+            empty.setStyleSheet(muted_label_stylesheet())
+            empty.setWordWrap(True)
+            layout.addWidget(empty)
+            layout.addStretch(1)
+            return
+        for index, item in enumerate(items):
+            # Cards only selectable when their bucket is active.
+            card_index = index if bucket == self.work_bucket else -1
+            layout.addWidget(self._pending_card(item, card_index))
+        layout.addStretch(1)
+
     def _detail_entry(self, item) -> dict[str, str]:
+        local_path = str(getattr(item, "local_path", "") or "").strip()
+        cover = str(
+            getattr(item, "local_cover_path", "")
+            or getattr(item, "cover_url", "")
+            or ""
+        ).strip()
+        status = str(item.status or "queued")
+        if local_path:
+            status = "finished"
         return {
             "title": item.title or "-",
             "episode": item.episode or "-",
             "site": item.site or "-",
-            "status": item.status or "pending",
+            "status": status,
             "stage": item.stage or "-",
             "message": item.message or "-",
             "source_id": item.source_id or "-",
             "source_url": item.source_url or "",
-            "cover_url": item.cover_url or "",
+            "cover_url": cover,
+            "local_path": local_path,
         }
 
     def _pending_card(self, item, index: int) -> QWidget:
-        selected = index == self.selected_index
+        # Center column is wider than left objects list — use a looser elide budget.
+        _WORK_TITLE_ELIDE = 220
+        _WORK_EPISODE_ELIDE = 180
+
+        selected = index >= 0 and index == self.selected_index
         card = ClickableFrame()
         card.setObjectName("SchedulePendingCard")
         card.setStyleSheet(pending_card_stylesheet(selected=selected))
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card._on_click = lambda i=index: self.select_pending(i)
+        if index >= 0:
+            card._on_click = lambda i=index: self.select_pending(i)
         row = QHBoxLayout(card)
         row.setContentsMargins(6, 6, 6, 6)
         row.setSpacing(8)
@@ -701,8 +908,11 @@ class SchedulePanel:
         cover.setFixedSize(36, 50)
         cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cover.setStyleSheet(cover_placeholder_stylesheet(small=True))
-        if item.cover_url:
-            self.host.server_panel.apply_cover(cover, item.cover_url)
+        cover_ref = str(
+            getattr(item, "local_cover_path", "") or getattr(item, "cover_url", "") or ""
+        ).strip()
+        if cover_ref:
+            self.host.server_panel.apply_cover(cover, cover_ref)
         row.addWidget(cover)
         body = QVBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
@@ -713,35 +923,27 @@ class SchedulePanel:
         title_box = QVBoxLayout()
         title_box.setContentsMargins(0, 0, 0, 0)
         title_box.setSpacing(0)
-        title = BodyLabel(item.title or "-", card)
+        book_title = str(item.title or "").strip()
+        episode_name = str(item.episode or "").strip()
+        primary_text = book_title or episode_name or "-"
+        secondary_text = (
+            episode_name if book_title and episode_name and episode_name != book_title else ""
+        )
+        title = BodyLabel("-", card)
         title.setStyleSheet(body_text_stylesheet())
-        episode = CaptionLabel(item.episode or "-", card)
-        episode.setObjectName("TrayAccentInfoLabel")
-        episode.setStyleSheet(accent_info_label_stylesheet())
+        title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._set_elided_label(title, primary_text, max_width=_WORK_TITLE_ELIDE)
         title_box.addWidget(title)
-        title_box.addWidget(episode)
+        if secondary_text:
+            episode = CaptionLabel("-", card)
+            episode.setObjectName("TrayAccentInfoLabel")
+            episode.setStyleSheet(accent_info_label_stylesheet())
+            episode.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            self._set_elided_label(episode, secondary_text, max_width=_WORK_EPISODE_ELIDE)
+            title_box.addWidget(episode)
         head.addLayout(title_box, 1)
         head.addWidget(self._site_badge(item.site, card))
         body.addLayout(head)
-        bottom = QHBoxLayout()
-        bottom.setContentsMargins(0, 0, 0, 0)
-        bottom.setSpacing(6)
-        message = CaptionLabel(item.message or item.stage or "-", card)
-        message.setObjectName("TrayMutedLabel")
-        message.setStyleSheet(muted_label_stylesheet())
-        bottom.addWidget(message, 1)
-        open_button = TransparentToolButton(FIF.LINK, card)
-        open_button.setFixedSize(22, 22)
-        open_button.setToolTip("打开来源")
-        open_button.setEnabled(bool(item.source_url))
-        open_button.clicked.connect(lambda _checked=False, url=item.source_url: self.host.server_panel.open_url(url))
-        details_button = TransparentToolButton(FIF.VIEW, card)
-        details_button.setFixedSize(22, 22)
-        details_button.setToolTip("查看详情")
-        details_button.clicked.connect(lambda _checked=False, i=index: self.select_pending(i))
-        bottom.addWidget(open_button)
-        bottom.addWidget(details_button)
-        body.addLayout(bottom)
         row.addLayout(body, 1)
         return card
 
@@ -753,53 +955,85 @@ class SchedulePanel:
         self._render_detail(self.detail_entries[index])
 
     def _restyle_pending_cards(self, selected_index: int) -> None:
-        if self.pending_layout is None:
+        layout = self.pending_layout
+        if layout is None:
             return
         card_index = 0
-        for i in range(self.pending_layout.count()):
-            item = self.pending_layout.itemAt(i)
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
             widget = item.widget() if item is not None else None
             if widget is None or widget.objectName() != "SchedulePendingCard":
                 continue
             widget.setStyleSheet(pending_card_stylesheet(selected=card_index == selected_index))
             card_index += 1
 
+    def _set_fluent_tooltip(self, widget, text: str) -> None:
+        """Theme-aware Fluent tooltip; bubble is not parented under ManageDialog."""
+        install_tray_fluent_tooltip(widget, text)
+
+    def _set_elided_label(self, label: QLabel, full_text: str, *, max_width: int | None = None) -> None:
+        """Elide with an explicit pixel budget.
+
+        Callers must pass different ``max_width`` for left objects vs center work
+        lists — the two columns are not the same width.
+        """
+        text = str(full_text or "").strip() or "-"
+        self._set_fluent_tooltip(label, text)
+        width = int(max_width or 0)
+        if width <= 0:
+            raise ValueError("_set_elided_label requires max_width (column-specific budget)")
+        metrics = QFontMetrics(label.font())
+        label.setText(metrics.elidedText(text, Qt.TextElideMode.ElideRight, width))
+
     def _render_detail(self, entry) -> None:
+        """Identity + actions only. Status is the Segmented bucket, not a badge."""
         host = self.host
         if self.detail_title is None:
             return
         if not entry:
-            host.ui.set_label(self.detail_title, "-")
-            host.ui.set_label(self.detail_source, "-")
-            self.detail_stage_chip.setText("")
-            self.detail_stage_chip.setStyleSheet("")
-            self.detail_status_chip.setText("")
-            self.detail_status_chip.setStyleSheet("")
-            host.ui.set_label(self.detail_pkl_label, "-")
-            self.detail_open_source_btn.setEnabled(False)
-            host.ui.set_label(self.detail_message, "选择一个待处理条目查看 BookInfo 派生字段。")
+            host.ui.set_label(self.detail_title, "未选择")
+            if self.detail_episode is not None:
+                self.detail_episode.setVisible(False)
+                host.ui.set_label(self.detail_episode, "")
+            if self.detail_open_source_btn is not None:
+                self.detail_open_source_btn.setEnabled(False)
+                self._set_fluent_tooltip(self.detail_open_source_btn, "")
+            if self.detail_open_folder_btn is not None:
+                self.detail_open_folder_btn.setEnabled(False)
+                self._set_fluent_tooltip(self.detail_open_folder_btn, "")
             return
-        host.ui.set_label(self.detail_title, entry.get("title") or "-")
-        host.ui.set_label(self.detail_source, entry.get("source_id") or "-")
-        host.ui.set_chip(self.detail_stage_chip, entry.get("stage") or "-")
-        host.ui.set_chip(self.detail_status_chip, entry.get("status") or "pending")
-        host.ui.set_label(
-            self.detail_pkl_label,
-            "\n".join(
-                [
-                    f"episode: {entry.get('episode') or '-'}",
-                    f"site: {entry.get('site') or '-'}",
-                    f"cover_ref: {entry.get('cover_url') or '-'}",
-                    f"source: {entry.get('source_url') or '-'}",
-                ]
-            ),
-        )
-        self.detail_open_source_btn.setEnabled(bool(entry.get("source_url")))
-        host.ui.set_label(self.detail_message, entry.get("message") or "-")
+
+        book_title = str(entry.get("title") or "").strip() or "-"
+        episode_text = str(entry.get("episode") or "").strip()
+        host.ui.set_label(self.detail_title, book_title)
+        if self.detail_episode is not None:
+            if episode_text and episode_text != book_title:
+                host.ui.set_label(self.detail_episode, episode_text)
+                self.detail_episode.setVisible(True)
+            else:
+                host.ui.set_label(self.detail_episode, "")
+                self.detail_episode.setVisible(False)
+
+        local_path = str(entry.get("local_path") or "").strip()
+        source_url = str(entry.get("source_url") or "").strip()
+
+        if self.detail_open_source_btn is not None:
+            self.detail_open_source_btn.setEnabled(bool(source_url))
+            self._set_fluent_tooltip(self.detail_open_source_btn, source_url)
+        if self.detail_open_folder_btn is not None:
+            self.detail_open_folder_btn.setEnabled(bool(local_path))
+            self._set_fluent_tooltip(self.detail_open_folder_btn, local_path)
 
     def open_detail_source(self) -> None:
         if 0 <= self.selected_index < len(self.detail_entries):
             self.host.server_panel.open_url(self.detail_entries[self.selected_index].get("source_url") or "")
+
+    def open_detail_folder(self) -> None:
+        if not 0 <= self.selected_index < len(self.detail_entries):
+            return
+        local_path = str(self.detail_entries[self.selected_index].get("local_path") or "").strip()
+        if local_path:
+            self.host.server_panel.open_path(local_path)
 
     def open_subscribe_guidance(self) -> None:
         box = MessageBox(

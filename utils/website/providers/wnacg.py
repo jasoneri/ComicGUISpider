@@ -222,6 +222,23 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
         self.parser = self.__class__.parser
 
     @classmethod
+    def _proxy_uses_static_domain(cls) -> bool:
+        """Proxy reaches the canonical origin; publish-page cache must not bind runtime."""
+        return bool(getattr(conf, "proxies", None))
+
+    @classmethod
+    def peek_cached_domain(cls):
+        if cls._proxy_uses_static_domain():
+            return None
+        return super().peek_cached_domain()
+
+    @classmethod
+    def get_domain(cls):
+        if cls._proxy_uses_static_domain():
+            return cls.domain
+        return super().get_domain()
+
+    @classmethod
     async def parse_publish_(cls, html_text):
         candidates = cls.parser.extract_publish_domains(html_text)
         hosts = await asyncio.gather(*[cls.test_aviable_domain(domain) for domain in candidates])

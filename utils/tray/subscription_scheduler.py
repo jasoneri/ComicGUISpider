@@ -18,7 +18,6 @@ from typing import Callable, Optional
 from utils import temp_p
 from utils.subscription import PRESET_INTERVAL_HOURS, SubscriptionConfig
 from utils.subscription.check_slot import effective_slot
-from utils.subscription.library import LocalLibraryStore
 from utils.subscription.schema import BookEntry, CheckSlot, format_tz_offset_label, format_weekdays_label
 from utils.subscription.store import get_subscription_catchup_preset
 from utils.tray.feature_search import supported_features
@@ -26,7 +25,10 @@ from utils.tray.feature_search import supported_features
 ConfigLoader = Callable[[], SubscriptionConfig]
 NowProvider = Callable[[], datetime]
 CatchupLoader = Callable[[], str]
-LibraryLoader = Callable[[SubscriptionConfig], list[BookEntry]]
+# Binding book loader: MUST return subscription_*.yml books only (not LocalLibraryStore).
+BindingBookLoader = Callable[[SubscriptionConfig], list[BookEntry]]
+# Backward-compatible alias (name is historical; default is yaml binding, not pkl library).
+LibraryLoader = BindingBookLoader
 
 _STATE_ALLOWED_KEYS = frozenset({"last_run_at", "last_primary_slot_key"})
 
@@ -94,7 +96,11 @@ class SchedulerRunState:
     def remember(self, decision: ScheduleDecision) -> None:
         self.last_run_at = decision.triggered_at
         if decision.slot_key.startswith("primary:"):
-            self.last_primary_slot_key = decision.slot_key
+            # Merge same-day fingerprints so a later card slot (00:43) is not
+            # erased from memory after an earlier fire (00:07), and vice versa.
+            self.last_primary_slot_key = _merge_primary_slot_keys(
+                self.last_primary_slot_key, decision.slot_key
+            )
         self.save()
 
 
@@ -112,7 +118,11 @@ class PrimarySlotPlan:
         last_primary_slot_key: str,
         last_run_at: Optional[datetime],
     ) -> Optional[ScheduleDecision]:
-        matched = self._collect_matches(now)
+        matched = self._collect_matches(
+            now,
+            last_primary_slot_key=last_primary_slot_key,
+            last_run_at=last_run_at,
+        )
         if matched is None:
             return None
         if not self._may_fire(matched, now, last_primary_slot_key, last_run_at):
@@ -147,12 +157,28 @@ class PrimarySlotPlan:
             return None
         return min(candidates)
 
-    def _collect_matches(self, now: datetime) -> Optional[_MatchedPrimary]:
+    def _collect_matches(
+        self,
+        now: datetime,
+        *,
+        last_primary_slot_key: str,
+        last_run_at: Optional[datetime],
+    ) -> Optional[_MatchedPrimary]:
+        """Match due slots that have not already fired today.
+
+        Important: ``CheckSlot.matches`` is cumulative (``>= wall clock``), so at
+        00:43 a 00:07 card still matches. Already-fired fingerprints must be
+        excluded or a later same-day card is blocked by the earlier fire.
+        """
         matched_books: list[BookEntry] = []
         matched_slots: list[CheckSlot] = []
         for entry in self.enabled_entries:
             slot = effective_slot(entry, self.cfg.check)
             if not slot.matches(now):
+                continue
+            if self._same_day_already_fired(
+                slot, now, last_primary_slot_key, last_run_at
+            ):
                 continue
             matched_books.append(entry)
             matched_slots.append(slot)
@@ -162,9 +188,8 @@ class PrimarySlotPlan:
         local_now = anchor.as_local(now)
         fingerprints = sorted({slot.fingerprint() for slot in matched_slots})
         tz_label = format_tz_offset_label(anchor.tz_offset)
-        slot_key = (
-            f"primary:{local_now.date().isoformat()}"
-            f"@{anchor.time}{tz_label}#{'|'.join(fingerprints)}"
+        slot_key = _compose_primary_slot_key(
+            local_now.date().isoformat(), fingerprints, anchor=anchor
         )
         reason = f"primary_card_slots n={len(matched_books)} @ {anchor.time}{tz_label}"
         return _MatchedPrimary(
@@ -182,17 +207,23 @@ class PrimarySlotPlan:
         last_primary_slot_key: str,
         last_run_at: Optional[datetime],
     ) -> bool:
+        # Matched set is already filtered to unfired fingerprints for today.
+        if not matched.books:
+            return False
+        memory_day, memory_fps = _parse_primary_memory(last_primary_slot_key)
+        if not memory_day:
+            return True
+        anchor_day = matched.anchor_slot.as_local(now).date().isoformat()
+        if memory_day != anchor_day:
+            return True
+        matched_fps = {slot.fingerprint() for slot in matched.slots}
+        # Exact same fire payload already recorded.
         if matched.slot_key == last_primary_slot_key:
             return False
-        if last_run_at is None:
-            return True
-        anchor = matched.anchor_slot
-        local_now = anchor.as_local(now)
-        last_local = anchor.as_local(last_run_at)
-        if last_local.date() != local_now.date():
-            return True
-        hour, minute = _parse_time(anchor.time)
-        return (last_local.hour, last_local.minute) < (hour, minute)
+        # Every fingerprint in this decision already counted today.
+        if matched_fps and matched_fps.issubset(memory_fps):
+            return False
+        return True
 
     @staticmethod
     def _same_day_already_fired(
@@ -201,13 +232,19 @@ class PrimarySlotPlan:
         last_primary_slot_key: str,
         last_run_at: Optional[datetime],
     ) -> bool:
-        if last_run_at is None or not last_primary_slot_key:
+        if not last_primary_slot_key:
+            return False
+        memory_day, memory_fps = _parse_primary_memory(last_primary_slot_key)
+        if not memory_day or not memory_fps:
             return False
         local_now = slot.as_local(now)
-        last_local = slot.as_local(last_run_at)
-        if last_local.date() != local_now.date():
+        if memory_day != local_now.date().isoformat():
             return False
-        return slot.fingerprint() in last_primary_slot_key
+        if last_run_at is not None:
+            last_local = slot.as_local(last_run_at)
+            if last_local.date() != local_now.date() and slot.fingerprint() not in memory_fps:
+                return False
+        return slot.fingerprint() in memory_fps
 
 
 class CatchupPlan:
@@ -244,7 +281,12 @@ class CatchupPlan:
 
 
 class SubscriptionScheduler:
-    """Primary = any enabled book whose effective CheckSlot matches; catchup = tray qconfig."""
+    """Primary = any enabled binding book whose effective CheckSlot matches; catchup = tray qconfig.
+
+    Schedule targets always come from ``subscription_*.yml`` via
+    ``schedule_binding_book_entries`` (or an injected binding loader). Never scan
+    whole ``LocalLibraryStore`` bookmarks as the schedule set.
+    """
 
     def __init__(
         self,
@@ -254,11 +296,15 @@ class SubscriptionScheduler:
         state_path: Optional[Path] = None,
         catchup_loader: Optional[CatchupLoader] = None,
         library_loader: Optional[LibraryLoader] = None,
+        binding_loader: Optional[BindingBookLoader] = None,
     ) -> None:
         self._config_loader = config_loader
         self._now_provider = now_provider or datetime.now
         self._catchup_loader = catchup_loader or get_subscription_catchup_preset
-        self._library_loader = library_loader or _default_library_entries
+        # Prefer binding_loader; library_loader kept as legacy kwarg name.
+        self._binding_loader = (
+            binding_loader or library_loader or schedule_binding_book_entries
+        )
         self._state = SchedulerRunState(state_path)
 
     @property
@@ -283,7 +329,8 @@ class SubscriptionScheduler:
         cfg.validate()
         if not cfg.check.auto_download:
             return None
-        enabled = [entry for entry in self._library_loader(cfg) if entry.enabled]
+        # enabled filter stays at call site — binding loader returns full yml books[].
+        enabled = [entry for entry in self._binding_loader(cfg) if entry.enabled]
         primary = PrimarySlotPlan(cfg, enabled).decision_if_due(
             current,
             last_primary_slot_key=self._state.last_primary_slot_key,
@@ -302,7 +349,7 @@ class SubscriptionScheduler:
         current = now if now is not None else self._now_provider()
         cfg = self._config_loader()
         cfg.validate()
-        entries = self._library_loader(cfg)
+        entries = self._binding_loader(cfg)
         enabled = [entry for entry in entries if entry.enabled]
         features = len(supported_features(cfg.features))
         catchup = self._catchup_loader()
@@ -342,8 +389,88 @@ def default_scheduler_state_path() -> Path:
     return temp_p / "subscription_scheduler_state.json"
 
 
-def _default_library_entries(cfg: SubscriptionConfig) -> list[BookEntry]:
-    return LocalLibraryStore().book_entries(yaml_books=cfg.books)
+def schedule_run_scope(
+    detail: str,
+    decision: Optional[ScheduleDecision],
+) -> tuple[str, Optional[tuple[BookEntry, ...]]]:
+    """Map a tray schedule kickoff into runner ``trigger`` + optional book scope.
+
+    - manual (no decision) → full enabled binding books
+    - primary decision with matched_books → only those books
+    - catchup / empty matched_books → full enabled binding; trigger keeps decision reason
+    """
+    if decision is None:
+        return "manual", None
+    trigger = str(decision.reason or detail or "schedule").strip() or "schedule"
+    if decision.matched_books:
+        return trigger, tuple(decision.matched_books)
+    return trigger, None
+
+
+def schedule_binding_book_entries(cfg: SubscriptionConfig) -> list[BookEntry]:
+    """Return ``cfg.books`` from the active ``subscription_*.yml`` binding only.
+
+    Contract (three-surface model):
+    - **SSoT**: yaml ``books[]`` is the sole schedule-target set.
+    - **Not filtered here**: includes disabled rows; callers apply
+      ``if entry.enabled`` (scheduler.evaluate / runner._prepare_entries).
+    - **Never** call ``LocalLibraryStore.book_entries()`` / whole pkl library
+      as a substitute — pkl is display join (cover/title) only.
+    - Empty ``cfg.books`` → ``[]`` (cold binding; do not invent targets).
+    """
+    return list(cfg.books or ())
+
+
+def _compose_primary_slot_key(
+    day_iso: str,
+    fingerprints: list[str] | set[str],
+    *,
+    anchor: Optional[CheckSlot] = None,
+) -> str:
+    fps = sorted({str(item) for item in fingerprints if item})
+    joined = "|".join(fps)
+    if anchor is not None:
+        tz_label = format_tz_offset_label(anchor.tz_offset)
+        return f"primary:{day_iso}@{anchor.time}{tz_label}#{joined}"
+    return f"primary:{day_iso}#{joined}"
+
+
+def _parse_primary_memory(slot_key: str) -> tuple[str, set[str]]:
+    """Extract calendar day + fingerprints from a primary slot_key / memory blob."""
+    text = str(slot_key or "").strip()
+    if not text.startswith("primary:"):
+        return "", set()
+    body = text[len("primary:") :]
+    day = ""
+    fingerprint_blob = ""
+    if "#" in body:
+        head, fingerprint_blob = body.split("#", 1)
+    else:
+        head = body
+    if "@" in head:
+        day = head.split("@", 1)[0].strip()
+    else:
+        day = head.strip()
+    fingerprints = {
+        part.strip() for part in fingerprint_blob.split("|") if part.strip()
+    }
+    return day, fingerprints
+
+
+def _merge_primary_slot_keys(previous: str, incoming: str) -> str:
+    prev_day, prev_fps = _parse_primary_memory(previous)
+    next_day, next_fps = _parse_primary_memory(incoming)
+    if not next_day:
+        return incoming or previous or ""
+    if prev_day and prev_day == next_day:
+        merged = sorted(prev_fps | next_fps)
+    else:
+        merged = sorted(next_fps)
+    # Keep incoming head (time label) for readability; fingerprints are cumulative.
+    if incoming.startswith("primary:") and "#" in incoming:
+        head = incoming.split("#", 1)[0]
+        return f"{head}#{'|'.join(merged)}"
+    return _compose_primary_slot_key(next_day, merged)
 
 
 def _earliest_wall_clock_slot(slots: list[CheckSlot]) -> CheckSlot:

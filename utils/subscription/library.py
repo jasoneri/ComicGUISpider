@@ -69,12 +69,10 @@ class LibraryBookView:
 
     @staticmethod
     def book_from_entry(entry: BookEntry):
-        from utils.website.info import BookInfo
+        # Site-typed BookInfo (Manga/Ero) so tray providers can set img_preview etc.
+        from utils.tray.subscription_book_resolve import book_from_entry as construct_site_book
 
-        site = str(entry.site or "").strip()
-        url = str(entry.url or "").strip()
-        title = str(entry.title or "").strip() or url
-        book = BookInfo(id=url, source=site, url=url, preview_url=url, name=title)
+        book = construct_site_book(entry)
         setattr(book, "subscribe_enabled", bool(entry.enabled))
         return book
 
@@ -171,6 +169,8 @@ class YamlBookOverlay:
             seen.add(key)
             yaml_entry = yaml_by_key.get(key)
             if yaml_entry is not None:
+                if yaml_entry.title:
+                    entry.title = str(yaml_entry.title).strip()
                 entry.enabled = bool(yaml_entry.enabled)
                 if yaml_entry.check is not None:
                     entry.check = yaml_entry.check.copy()

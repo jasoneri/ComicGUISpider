@@ -235,7 +235,7 @@ def pick_free_port(host: str = "127.0.0.1") -> int:
 
 
 def resolve_aria2_binary(*, progress_callback=None) -> p.Path:
-    """Resolve managed binary only via preset → temp_p/aira2 (no PATH/uv/runtime fallback)."""
+    """Resolve managed binary only via preset → conf_dir/cgs-aria2/bin (no PATH/uv fallback)."""
     return ensure_aira2_binary(progress_callback=progress_callback)
 
 

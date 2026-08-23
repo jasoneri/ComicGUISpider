@@ -60,6 +60,7 @@ from utils.subscription.store import (
     get_subscription_catchup_preset,
     list_subscription_customnames,
     open_active_subscription_store,
+    remove_yaml_book,
     set_active_subscription_customname,
     set_subscription_catchup_preset,
 )
@@ -110,6 +111,7 @@ __all__ = [
     "list_subscription_customnames",
     "normalize_tz_offset",
     "open_active_subscription_store",
+    "remove_yaml_book",
     "resolve_default_weekdays",
     "set_active_subscription_customname",
     "set_subscription_catchup_preset",

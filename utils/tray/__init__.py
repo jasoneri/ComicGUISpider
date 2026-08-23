@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from utils.tray.event_log import TrayEventLog
-from utils.tray.subscription_scheduler import ScheduleDecision, ScheduleStatus, SubscriptionScheduler
+from utils.tray.subscription_scheduler import (
+    ScheduleDecision,
+    ScheduleStatus,
+    SubscriptionScheduler,
+    schedule_run_scope,
+)
 
 __all__ = [
     "TrayEventLog",
     "ScheduleDecision",
     "ScheduleStatus",
     "SubscriptionScheduler",
+    "schedule_run_scope",
     "SubscriptionRunner",
     "SubscriptionRunSummary",
 ]

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+import inspect
 import os
-import re
 import pathlib
+import re
+import threading
 from io import BytesIO
 from time import sleep
 
@@ -12,10 +14,11 @@ from scrapy import signals
 from scrapy.http import Request, Response
 from scrapy.http.request import NO_CALLBACK
 from scrapy.pipelines.images import ImagesPipeline, ImageException
+from scrapy.utils.defer import deferred_from_coro
 from twisted.internet.defer import maybeDeferred
 from twisted.internet.threads import deferToThread
 
-from utils import conf, TaskObj
+from utils import conf, TaskObj, TasksObj
 from utils.core import sanitize_for_path
 from utils.chore import set_author_ahead
 from utils.website.providers.jm import JmUtils
@@ -112,10 +115,13 @@ class ComicPipeline(ImagesPipeline):
         if tasks_obj and getattr(tasks_obj, 'meta_info', None):
             tasks_obj.meta_info.sv_meta_in(path)
         tasks_obj.local_path = str(path)
-        spider.emit(TasksObjEvent(job_id=getattr(spider, '_job_id', None), task_obj=tasks_obj, is_new=True))
+        self._emit_task(spider, tasks_obj)
         # cache file_folder
         spider.tasks_path[uuid_md5] = path
         return path
+
+    def _emit_task(self, spider, tasks_obj):
+        spider.emit(TasksObjEvent(job_id=getattr(spider, '_job_id', None), task_obj=tasks_obj, is_new=True))
 
     @staticmethod
     def _processed_file_count(stats):
@@ -156,7 +162,13 @@ class ComicPipeline(ImagesPipeline):
 
 
 class CurlComicPipeline(ComicPipeline):
-    """Download uncached images with curl_cffi while retaining ImagesPipeline storage."""
+    """Download uncached images with curl_cffi while retaining ImagesPipeline storage.
+
+    curl_cffi.Session is not safe for concurrent use across deferToThread workers.
+    Scrapy CONCURRENT_REQUESTS fans out many media_to_download calls; a shared
+    session serializes/corrupts completions so ProgressCard jumps in batches.
+    Use one Session per worker thread.
+    """
 
     curl_image_impersonate = "chrome146"
     curl_image_impersonate_fallbacks = ("chrome", "chrome131")
@@ -170,21 +182,66 @@ class CurlComicPipeline(ComicPipeline):
     @classmethod
     def from_crawler(cls, crawler):
         pipe = super().from_crawler(crawler)
-        pipe._curl_session = None
-        pipe._curl_session_config = None
-        crawler.signals.connect(pipe._close_curl_session, signal=signals.spider_closed)
+        pipe._curl_thread_local = threading.local()
+        pipe._curl_sessions_lock = threading.Lock()
+        pipe._curl_all_sessions: list = []
+        pipe._curl_session_identity = None
+        crawler.signals.connect(pipe._close_curl_sessions, signal=signals.spider_closed)
         return pipe
 
     def get_media_requests(self, item, info):
         urls = ItemAdapter(item).get(self.images_urls_field, [])
         return [Request(url, callback=NO_CALLBACK) for url in urls]
 
-    def _close_curl_session(self, spider=None, reason=None):
-        if getattr(self, "_curl_session", None) is None:
-            return
-        self._curl_session.close()
-        self._curl_session = None
-        self._curl_session_config = None
+    @staticmethod
+    def _progress_card_tasks_snapshot(tasks_obj: TasksObj) -> TasksObj:
+        """Metadata-only TasksObj for is_new ProgressCard mount.
+
+        Emitting the live spider.tasks entry shares its downloaded list with the
+        GUI; concurrent curl completions then look like an N-page jump. Snapshot
+        keeps identity/path/cover fields and an empty downloaded list.
+        """
+        snapshot = TasksObj(
+            tasks_obj.taskid,
+            tasks_obj.title,
+            tasks_obj.tasks_count,
+            title_url=getattr(tasks_obj, "title_url", None),
+            episode_name=getattr(tasks_obj, "episode_name", None),
+            cover_url=getattr(tasks_obj, "cover_url", None),
+            meta_info=getattr(tasks_obj, "meta_info", None),
+            source=getattr(tasks_obj, "source", None),
+        )
+        snapshot.local_path = getattr(tasks_obj, "local_path", None)
+        snapshot.cover_bytes = getattr(tasks_obj, "cover_bytes", None)
+        page_name_count = getattr(tasks_obj, "page_name_count", None)
+        if page_name_count is not None:
+            snapshot.page_name_count = page_name_count
+        download_pages = getattr(tasks_obj, "download_pages", None)
+        if download_pages is not None:
+            snapshot.download_pages = download_pages
+        return snapshot
+
+    def _emit_task(self, spider, tasks_obj):
+        spider.emit(TasksObjEvent(
+            job_id=getattr(spider, '_job_id', None),
+            task_obj=self._progress_card_tasks_snapshot(tasks_obj),
+            is_new=True,
+        ))
+
+    def _close_curl_sessions(self, spider=None, reason=None):
+        with self._curl_sessions_lock:
+            sessions = list(self._curl_all_sessions)
+            self._curl_all_sessions.clear()
+            self._curl_session_identity = None
+        for session in sessions:
+            try:
+                session.close()
+            except Exception:
+                pass
+        local = getattr(self, "_curl_thread_local", None)
+        if local is not None:
+            local.session = None
+            local.identity = None
 
     def _resolve_impersonate_candidates(self, spider):
         preferred = getattr(spider, "image_impersonate", None) or self.curl_image_impersonate
@@ -211,23 +268,23 @@ class CurlComicPipeline(ComicPipeline):
             f"expected 'follow_conf', 'proxy', or 'direct'"
         )
 
-    def _get_curl_session(self, spider):
+    def _build_session_identity(self, spider):
         timeout = getattr(spider, "image_download_timeout", self.curl_image_timeout)
         proxy_url = self._resolve_curl_proxy_url(spider)
+        return {
+            "impersonate_candidates": tuple(self._resolve_impersonate_candidates(spider)),
+            "timeout": timeout,
+            "proxy": proxy_url,
+        }
 
-        session_identity = {"impersonate_candidates": self._resolve_impersonate_candidates(spider), "timeout": timeout, "proxy": proxy_url}
-        if getattr(self, "_curl_session_config", None) == session_identity and self._curl_session is not None:
-            return self._curl_session
-
-        self._close_curl_session()
+    def _open_curl_session(self, spider, session_identity):
         last_error = None
         for impersonate_profile in session_identity["impersonate_candidates"]:
-            session_kwargs = {"impersonate": impersonate_profile, "timeout": timeout}
-            if proxy_url:
-                session_kwargs["proxy"] = proxy_url
+            session_kwargs = {"impersonate": impersonate_profile, "timeout": session_identity["timeout"]}
+            if session_identity["proxy"]:
+                session_kwargs["proxy"] = session_identity["proxy"]
             try:
-                self._curl_session = curl_requests.Session(**session_kwargs)
-                self._curl_session_config = session_identity
+                session = curl_requests.Session(**session_kwargs)
                 if impersonate_profile != session_identity["impersonate_candidates"][0]:
                     spider.logger.warning(
                         "%s image curl impersonate fallback | preferred=%s | active=%s",
@@ -235,7 +292,7 @@ class CurlComicPipeline(ComicPipeline):
                         session_identity["impersonate_candidates"][0],
                         impersonate_profile,
                     )
-                return self._curl_session
+                return session
             except Exception as session_error:
                 last_error = session_error
                 spider.logger.warning(
@@ -249,6 +306,31 @@ class CurlComicPipeline(ComicPipeline):
             f"{type(self).__name__} could not create curl session with candidates "
             f"{session_identity['impersonate_candidates']}: {last_error}"
         )
+
+    def _get_curl_session(self, spider):
+        """Per-worker-thread Session; never share across concurrent curl gets."""
+        session_identity = self._build_session_identity(spider)
+        local = self._curl_thread_local
+        if getattr(local, "session", None) is not None and getattr(local, "identity", None) == session_identity:
+            return local.session
+
+        old_session = getattr(local, "session", None)
+        if old_session is not None:
+            with self._curl_sessions_lock:
+                if old_session in self._curl_all_sessions:
+                    self._curl_all_sessions.remove(old_session)
+            try:
+                old_session.close()
+            except Exception:
+                pass
+
+        session = self._open_curl_session(spider, session_identity)
+        local.session = session
+        local.identity = session_identity
+        with self._curl_sessions_lock:
+            self._curl_session_identity = session_identity
+            self._curl_all_sessions.append(session)
+        return session
 
     @property
     def _curl_image_label(self):
@@ -294,6 +376,13 @@ class CurlComicPipeline(ComicPipeline):
             return int(status_code) in retryable_codes
         # Transport / timeout / connection failures have no HTTP status.
         return True
+
+    def _media_downloaded_deferred(self, response, request, info, *, item=None):
+        """Scrapy 2.15 media_downloaded is async; schedule via deferred_from_coro."""
+        result = self.media_downloaded(response, request, info, item=item)
+        if inspect.isawaitable(result):
+            return deferred_from_coro(result)
+        return maybeDeferred(lambda: result)
 
     def media_to_download(self, request: Request, info, *, item=None):
         # super(): local uptodate only (None => need bytes). Never rewrite request.url.
@@ -342,8 +431,7 @@ class CurlComicPipeline(ComicPipeline):
 
             def _handle_curl_result(result):
                 status_code, content = result
-                return maybeDeferred(
-                    self.media_downloaded,
+                return self._media_downloaded_deferred(
                     Response(url=image_url, status=status_code, body=content, request=request),
                     request,
                     info,
