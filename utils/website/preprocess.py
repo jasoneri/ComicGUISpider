@@ -280,7 +280,9 @@ class ReleaseAssetCache:
                     async with self.data_client.stream("GET", url, follow_redirects=True, timeout=self.timeout) as resp:
                         resp.raise_for_status()
                         total_header = resp.headers.get("Content-Length", "").strip()
-                        total_bytes = int(total_header) if total_header.isdigit() else None
+                        # Use 0 for unknown size so every progress reporter receives
+                        # the same integer-only byte-count contract.
+                        total_bytes = int(total_header) if total_header.isdigit() else 0
                         if callable(progress_start):
                             progress_start(label=self.label, total_bytes=total_bytes)
                         with open(tmp_path, "wb") as file_obj:
