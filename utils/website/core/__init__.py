@@ -379,6 +379,7 @@ class Previewer:
     preview_html_impersonate: str | None = None
     preview_html_proxy_policy: str | None = None
     preview_html_verify: bool | None = None
+    preview_impersonate_forwarded_headers: tuple[str, ...] = ("Cookie", "Referer")
 
     @classmethod
     def preview_client_config(cls, **context) -> dict:
@@ -591,7 +592,16 @@ class Previewer:
         proxy_url = cls._resolve_preview_html_proxy_url(proxies)
         if proxy_url:
             request_kw["proxy"] = proxy_url
-        # Impersonate owns TLS/JA3 and default browser headers; do not merge site Firefox UA bags.
+        # Impersonate owns the browser header bag (UA/Accept*/Sec-Fetch-*), so site
+        # Firefox templates are not merged. Cookie/Referer carry the site session and
+        # must survive, otherwise authenticated pages are fetched anonymously.
+        forwarded = {
+            header_name: header_value
+            for header_name, header_value in dict(spec.headers or {}).items()
+            if header_name.casefold() in {name.casefold() for name in cls.preview_impersonate_forwarded_headers}
+        }
+        if forwarded:
+            request_kw["headers"] = forwarded
         if method == "GET":
             raw_resp = curl_requests.get(request_url, **request_kw)
         else:

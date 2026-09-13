@@ -5,18 +5,16 @@ import re
 import typing as t
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode, urlsplit
 
-import httpx
+from curl_cffi import requests as curl_requests
 from PIL import Image
 from lxml import etree
 from scrapy import Selector
 
 from assets import res
 from utils import conf, convert_punctuation, ori_path
-from utils.config.qc import cgs_cfg
-from utils.network.doh import build_http_transport
-from utils.website.core import Cookies, DomainUtils, EroUtils, Previewer, Req
+from utils.website.core import Cookies, DomainUtils, EroUtils, Previewer, PreviewRequestSpec, Req
 from utils.website.info import Episode, JmBookInfo
 from variables import COOKIES_SUPPORT
 
@@ -81,6 +79,12 @@ class _JmContract:
     cover_preload_transport = "curl_cffi"
     cover_preload_proxy_policy = "direct"
     cover_preload_impersonate = "chrome146"
+    # jm's publish redirector and site edge RST bare Python TLS (httpx and plain curl);
+    # align preview HTML with the Chrome TLS profile cover preload already uses.
+    preview_html_transport = "curl_cffi"
+    preview_html_impersonate = "chrome146"
+    preview_html_proxy_policy = "direct"
+    preview_html_verify = False
 
     class JmImage:
         regex = re.compile(r"(\d+)/(\d+)")
@@ -349,6 +353,17 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
             cookie_serializer=cls.to_str_,
         )
 
+    async def _perform_preview_html_request(self, url: str, headers: dict[str, str]):
+        """Route jm preview HTML through the shared preview transport dispatch.
+
+        proxy_policy is direct, so `perform_preview_request` ignores the httpx
+        client and fetches via curl_cffi with the Chrome TLS profile that jm's
+        edge accepts.
+        """
+        owner = self._require_preview_owner()
+        spec = PreviewRequestSpec(url=url, headers=dict(headers or {}))
+        return await type(owner).perform_preview_request(self.ensure_preview_client(), spec)
+
     @classmethod
     def build_preview_search_url(cls, keyword: str, *, domain: str, custom_map: dict | None = None, page: int = 1) -> str:
         keyword = convert_punctuation(keyword).replace(" ", "")
@@ -386,8 +401,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
             raise ValueError("preview domain is required for jm")
         headers = self.preview_headers(domain, site_kw.get("cookies"))
         url = self.build_preview_search_url(keyword, domain=domain, custom_map=site_kw.get("custom_map"), page=max(1, int(page or 1)))
-        resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
+        resp = await self._perform_preview_html_request(url, headers)
         return await asyncio.to_thread(owner.parser.parse_preview_search_response, resp.text, domain)
 
     async def preview_feature_search(self, *, kind: str, value: str, page: int = 1):
@@ -398,8 +412,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
             raise ValueError("preview domain is required for jm")
         headers = self.preview_headers(domain, site_kw.get("cookies"))
         url = self.build_preview_feature_search_url(kind=kind, value=value, domain=domain, page=max(1, int(page or 1)))
-        resp = await self.ensure_preview_client().get(url, headers=headers, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
+        resp = await self._perform_preview_html_request(url, headers)
         return await asyncio.to_thread(owner.parser.parse_preview_search_response, resp.text, domain)
 
     async def preview_fetch_episodes(self, book):
@@ -412,8 +425,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
         target_url = owner.normalize_preview_resource(book.preview_url or book.url, domain=domain)
         if not target_url:
             raise ValueError("jm book preview url is required for preview_fetch_episodes")
-        resp = await self.ensure_preview_client().get(target_url, headers=headers, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
+        resp = await self._perform_preview_html_request(target_url, headers)
         return await asyncio.to_thread(owner.parser.parse_book_episodes, resp.text, book, domain)
 
     async def preview_fetch_pages(self, item):
@@ -431,8 +443,7 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
             target_url = owner.normalize_preview_resource(item.url or (f"/photo/{item.id}" if item.id else None), domain=domain)
             if not target_url:
                 raise ValueError("jm episode url is required for preview_fetch_pages")
-        resp = await self.ensure_preview_client().get(target_url, headers=headers, follow_redirects=True, timeout=12)
-        resp.raise_for_status()
+        resp = await self._perform_preview_html_request(target_url, headers)
         urls = await asyncio.to_thread(owner.parser.parse_page_urls_from_html, resp.text)
         item.url = str(resp.url)
         item.pages = len(urls)
@@ -448,31 +459,44 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
         self.parser = self.__class__.parser
 
     @classmethod
-    async def by_publish(cls):
-        transport, trust_env = build_http_transport(
-            cls.proxy_policy,
-            conf.proxies,
-            doh_url=cgs_cfg.doh.get_url(),
-            is_async=True,
-            http2=True,
-            retries=2,
+    def _curl_get(cls, url: str, *, headers: dict | None = None, timeout: float = 15):
+        """GET through the Chrome TLS profile that jm's edge requires."""
+        return curl_requests.get(
+            url,
+            headers=dict(headers or cls.publish_headers),
+            impersonate=cls.preview_html_impersonate,
+            timeout=timeout,
+            verify=False,
+            allow_redirects=True,
         )
-        async with httpx.AsyncClient(headers=cls.publish_headers, transport=transport, trust_env=trust_env) as sess:
-            resp = await sess.get(cls.publish_url)
-            error = None
-            while True:
-                try:
-                    if str(resp.status_code).startswith("3") and resp.headers.get("location"):
-                        resp = await sess.get(resp.headers.get("location"))
-                    elif str(resp.status_code).startswith("2"):
-                        return await cls.parse_publish(resp.text)
-                except Exception as exc:
-                    error = exc
-                    break
-            cls.status_publish = False
-            raise error or ConnectionError(
-                res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f"__temp/{cls.name}_domain.txt")))
-            )
+
+    @classmethod
+    async def by_publish(cls):
+        def _fetch():
+            return cls._curl_get(cls.publish_url)
+
+        resp = await asyncio.to_thread(_fetch)
+        if str(resp.status_code).startswith("2"):
+            return await cls.parse_publish(resp.text)
+        cls.status_publish = False
+        raise ConnectionError(
+            res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f"__temp/{cls.name}_domain.txt")))
+        )
+
+    @classmethod
+    async def test_aviable_domain(cls, domain):
+        url = f"https://{domain}"
+
+        def _probe():
+            try:
+                resp = cls._curl_get(url, headers={**cls.headers, "Referer": url}, timeout=6)
+            except Exception:
+                return None
+            if str(resp.status_code).startswith("2"):
+                return urlsplit(str(getattr(resp, "url", url) or url)).hostname
+            return None
+
+        return await asyncio.to_thread(_probe)
 
     @classmethod
     async def parse_publish_(cls, html_text):
