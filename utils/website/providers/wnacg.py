@@ -97,7 +97,161 @@ class _WnacgContract:
         preview_html_verify = False
 
 
+class WnacgGallerySource:
+    """A wnacg gallery page decoded out of its `document.writeln(...)` envelope.
+
+    The gallery ships as `document.writeln("<js source>")` — JS source escaped inside
+    another JS string, so url literal boundaries are only unambiguous once the envelope
+    is decoded. Reads here are literal-level (string literals + bracket pairing) over
+    that decoded source, never character-class guesses over the raw wire text.
+
+    The signed `?verify=<expires>-<signature>` query is part of the url literal, so it
+    survives by construction. `/themes/...` entries are site chrome, not gallery art.
+    """
+
+    _WRITELN_PAYLOAD_RE = re.compile(r'document\.writeln\(\s*"((?:\\.|[^"\\])*)"\s*\)')
+    _IMGLIST_ARRAY_RE = re.compile(r"\bvar\s+imglist\s*=\s*\[")
+    _VAR_STRING_RE = re.compile(r"""\bvar\s+(\w+)\s*=\s*(["'])((?:\\.|(?!\2).)*)\2""")
+    _URL_FIELD_RE = re.compile(r"""\burl\s*:\s*((?:\w+\s*\+\s*)?(["'])(?:\\.|(?!\2).)*\2)""")
+    _SITE_ASSET_MARKER = "/themes/"
+    _IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif")
+    _CHAR_ESCAPES = {"n": "\n", "t": "\t", "r": "\r"}
+
+    def __init__(self, html_text: str):
+        self.html_text = html_text or ""
+        if "var imglist" not in self.html_text:
+            raise ValueError(
+                "wnacg gallery HTML missing var imglist "
+                f"| body_len={len(self.html_text)}"
+            )
+        self.js_source = self.decode_writeln_payload(self.html_text)
+        self.host_variables = {
+            name: self._unescape(body) for name, _quote, body in self._VAR_STRING_RE.findall(self.js_source)
+        }
+
+    @classmethod
+    def decode_writeln_payload(cls, html_text: str) -> str:
+        """Rejoin every `document.writeln("...")` body into the JS source it emits."""
+        bodies = cls._WRITELN_PAYLOAD_RE.findall(html_text or "")
+        if not bodies:
+            raise ValueError(
+                "wnacg gallery HTML has var imglist but no document.writeln block "
+                f"| body_len={len(html_text or '')}"
+            )
+        return "\n".join(cls._unescape(body) for body in bodies)
+
+    def image_urls(self) -> list[str]:
+        """Ordered gallery image urls, one per page."""
+        urls: list[str] = []
+        for expression, _quote in self._URL_FIELD_RE.findall(self._imglist_array_source()):
+            resolved = self._resolve_expression(expression, self.host_variables)
+            if not resolved:
+                continue
+            url = f"https:{resolved}" if resolved.startswith("//") else resolved
+            if self._is_gallery_image(url):
+                urls.append(url)
+        if not urls:
+            raise ValueError(
+                "wnacg gallery imglist produced zero image urls "
+                f"| body_len={len(self.html_text)}"
+            )
+        return list(dict.fromkeys(urls))
+
+    def _imglist_array_source(self) -> str:
+        """The `[...]` slice of the `var imglist = [...]` assignment, brackets paired."""
+        array_match = self._IMGLIST_ARRAY_RE.search(self.js_source)
+        if not array_match:
+            raise ValueError(
+                "wnacg gallery page has no `var imglist = [` assignment after decoding writeln payload "
+                f"| body_len={len(self.html_text)}"
+            )
+        array_start = self.js_source.index("[", array_match.start())
+        array_end = self._matching_bracket_end(self.js_source, array_start, "[", "]")
+        return self.js_source[array_start:array_end + 1]
+
+    @classmethod
+    def _resolve_expression(cls, expression: str, host_variables: dict[str, str]) -> str | None:
+        """Evaluate a static `host + "literal"` chain; None when any fragment is dynamic."""
+        resolved, index = "", 0
+        while index < len(expression):
+            char = expression[index]
+            if char in " \t\r\n+":
+                index += 1
+                continue
+            if char in "\"'":
+                end = cls._string_end(expression, index)
+                resolved += cls._unescape(expression[index + 1:end - 1])
+                index = end
+                continue
+            if char.isalpha() or char in "_$":
+                end = index
+                while end < len(expression) and (expression[end].isalnum() or expression[end] in "_$"):
+                    end += 1
+                name = expression[index:end]
+                if name not in host_variables:
+                    return None
+                resolved += host_variables[name]
+                index = end
+                continue
+            return None
+        return resolved
+
+    @classmethod
+    def _matching_bracket_end(cls, source: str, start: int, open_char: str, close_char: str) -> int:
+        """Index of the bracket closing the one at `start`, skipping string literals."""
+        depth, index = 0, start
+        while index < len(source):
+            if source[index] in "\"'":
+                index = cls._string_end(source, index)
+                continue
+            if source[index] == open_char:
+                depth += 1
+            elif source[index] == close_char:
+                depth -= 1
+                if depth == 0:
+                    return index
+            index += 1
+        raise ValueError(f"unbalanced {open_char}{close_char} while locating the imglist array")
+
+    @classmethod
+    def _string_end(cls, source: str, start: int) -> int:
+        """Index just past the string literal that opens at `start`."""
+        quote, index = source[start], start + 1
+        while index < len(source):
+            if source[index] == "\\" and index + 1 < len(source):
+                index += 2
+                continue
+            if source[index] == quote:
+                return index + 1
+            index += 1
+        raise ValueError("unterminated string literal while locating the imglist array")
+
+    @classmethod
+    def _unescape(cls, raw: str) -> str:
+        """Resolve JS string escapes (`\\/`, `\\"`, `\\n`, ...) inside a literal body."""
+        out, index = [], 0
+        while index < len(raw):
+            char = raw[index]
+            if char == "\\" and index + 1 < len(raw):
+                out.append(cls._CHAR_ESCAPES.get(raw[index + 1], raw[index + 1]))
+                index += 2
+                continue
+            out.append(char)
+            index += 1
+        return "".join(out)
+
+    @classmethod
+    def _is_gallery_image(cls, url: str) -> bool:
+        path = url.split("?", 1)[0].casefold()
+        return cls._SITE_ASSET_MARKER not in path and path.endswith(cls._IMAGE_SUFFIXES)
+
+
 class WnacgParser(_WnacgContract, Previewer):
+    @classmethod
+    def parse_gallery_images(cls, html_text) -> list[str]:
+        """Ordered gallery image urls for a wnacg book page."""
+        return WnacgGallerySource(html_text).image_urls()
+
     @classmethod
     def extract_publish_domains(cls, html_text) -> list[str]:
         html_doc = etree.HTML(html_text)

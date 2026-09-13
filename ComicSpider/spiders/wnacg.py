@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import re
-
 from utils.chore import correct_domain
 from .basecomicspider import BaseComicSpider2, font_color
 
@@ -32,26 +30,7 @@ class WnacgSpider(BaseComicSpider2):
         return provider.build_site_headers(self.domain, provider.book_hea)
 
     def frame_section(self, response):
-        text = response.text or ""
-        if "var imglist" not in text:
-            raise ValueError(
-                f"wnacg gallery HTML missing var imglist | url={getattr(response, 'url', None)} "
-                f"status={getattr(response, 'status', None)} body_len={len(text)}"
-            )
-        doc_wlns = re.split(r';[\n\s]+?document\.writeln', text)
-        selected_doc = next(filter(lambda _: "var imglist" in _, doc_wlns), None)
-        if not selected_doc:
-            raise ValueError(
-                f"wnacg gallery HTML has imglist token but no document.writeln block | url={getattr(response, 'url', None)}"
-            )
-        targets = re.findall(r"(//.*?(jp[e]?g|png|webp))", selected_doc)
-        if not targets:
-            raise ValueError(
-                f"wnacg gallery imglist produced zero image urls | url={getattr(response, 'url', None)}"
-            )
-        frame_results = {}
-        for x, target in enumerate(targets):
-            img_url = f"https:{target[0]}"
-            frame_results[x + 1] = img_url
+        image_urls = self.spider_site_runtime.parser.parse_gallery_images(response.text)
+        frame_results = {page: url for page, url in enumerate(image_urls, start=1)}
         self.say("📢" + font_color(" 这本已经扔进任务了", cls="theme-tip"))
         return frame_results
