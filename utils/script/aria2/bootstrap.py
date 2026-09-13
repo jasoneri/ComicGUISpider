@@ -8,6 +8,7 @@ import shutil
 import stat
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -18,24 +19,23 @@ from utils.config import conf_dir
 from utils.preset_assets import managed_asset_sources
 
 ARIA2_MANIFEST_NAME = "aria2-manifest.json"
-SUPPORTED_PLATFORM_IDS = frozenset({"win-amd64", "macos-arm"})
-# Runtime binary is user data (conf_dir), not package content (site-packages/__temp).
-# Separates "app install replace" from "engine binary lifetime" — Single Owner.
+# Single aria2 home for every mode/OS (source tree, green package, win, mac).
+ARIA2_DIRNAME = "cgs-aria2"
+# The managed aria2c lives one level down so work files stay separate from payload.
 ARIA2_BIN_DIRNAME = "bin"
+ARIA2_CONF_NAME = "aria2.conf"
+ARIA2_SESSION_NAME = "download.session"
+ARIA2_PID_NAME = "engine.pid"
 # Binary payload may be multi‑MB; keep a longer ceiling.
 BINARY_DOWNLOAD_TIMEOUT_S = 120
 # Manifest is tiny JSON. MUST NOT reuse binary timeout — a hung GitHub TCP
-# with 120s would freeze Script preprocess for ~2 minutes even when local
-# aria2c.exe already exists (installer path / prior bootstrap).
-# Industry fail-fast control plane: 2.5–4s (VS Code / Electron bootstrap UX);
-# hard ceiling 5s so multi-source failover still finishes under human notice.
+# with 120s would freeze Script preprocess for the binary ceiling when the
+# manifest alone is unreadable.
 MANIFEST_FETCH_TIMEOUT_S = 3
 DOWNLOAD_CHUNK_SIZE = 8192
 ARIA2_BINARY_PROGRESS_LABEL = "aria2"
 # Optional comma-separated full URLs for manifest only (download sim / mirror).
 PRESET_BASE_ENV = "CGS_ARIA2_PRESET_BASE"
-# Back-compat alias for tests / external callers.
-DOWNLOAD_TIMEOUT_S = BINARY_DOWNLOAD_TIMEOUT_S
 
 
 class UnsupportedAria2PlatformError(RuntimeError):
@@ -58,12 +58,50 @@ def detect_aira2_platform_id() -> str:
     )
 
 
-def aira2_install_dir() -> Path:
-    return conf_dir.joinpath("cgs-aria2", ARIA2_BIN_DIRNAME)
+@dataclass(frozen=True, slots=True)
+class Aria2Layout:
+    """The one filesystem layout for managed aria2 (conf_dir/cgs-aria2).
+
+    Every consumer reads its paths from here, so "where does aria2 live" is
+    answered in exactly one place: this object. Source tree, green package,
+    Windows and macOS all resolve to the same shape.
+    """
+
+    work_dir: Path
+    bin_dir: Path
+
+    @property
+    def binary_path(self) -> Path:
+        return self.bin_dir.joinpath(curr_os.aira2_binary_name)
+
+    @property
+    def conf_path(self) -> Path:
+        return self.work_dir.joinpath(ARIA2_CONF_NAME)
+
+    @property
+    def session_path(self) -> Path:
+        return self.work_dir.joinpath(ARIA2_SESSION_NAME)
+
+    @property
+    def pid_path(self) -> Path:
+        return self.work_dir.joinpath(ARIA2_PID_NAME)
 
 
-def resolve_aira2_target_path() -> Path:
-    return aira2_install_dir().joinpath(curr_os.aira2_binary_name)
+def resolve_aria2_layout() -> Aria2Layout:
+    """Pure path resolution — no platform probing, safe at import time."""
+    aria2_root = conf_dir.joinpath(ARIA2_DIRNAME)
+    return Aria2Layout(work_dir=aria2_root, bin_dir=aria2_root.joinpath(ARIA2_BIN_DIRNAME))
+
+
+def verify_aria2_host_platform() -> str:
+    """Return the host platform id, rejecting unsupported or mismatched hosts."""
+    host_platform_id = detect_aira2_platform_id()
+    declared_platform_id = getattr(curr_os, "aira2_platform_id", None)
+    if declared_platform_id and declared_platform_id != host_platform_id:
+        raise UnsupportedAria2PlatformError(
+            f"curr_os.aira2_platform_id={declared_platform_id!r} does not match host {host_platform_id!r}"
+        )
+    return host_platform_id
 
 
 def file_sha256(path: Path) -> str:
@@ -178,45 +216,6 @@ def _platform_entry(manifest: dict[str, Any], platform_id: str) -> dict[str, Any
     return entry
 
 
-def _download_asset_to(
-    target_path: Path,
-    file_name: str,
-    expected_sha256: str,
-    *,
-    progress_callback=None,
-    label: str = ARIA2_BINARY_PROGRESS_LABEL,
-) -> None:
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    staging_path = target_path.with_suffix(target_path.suffix + ".part")
-    errors: list[str] = []
-    _emit_legacy_download_start(progress_callback, label=label)
-    for source in resolve_preset_asset_sources(file_name):
-        asset_url = str(source.get("url") or "").strip()
-        if not asset_url:
-            continue
-        try:
-            _download_url_to_path(asset_url, staging_path, progress_callback=progress_callback, label=label)
-            actual_sha256 = file_sha256(staging_path)
-            if actual_sha256 != expected_sha256.lower():
-                staging_path.unlink(missing_ok=True)
-                raise Aria2BinaryBootstrapError(
-                    f"sha256 mismatch for {file_name}: expected {expected_sha256}, got {actual_sha256}"
-                )
-            if target_path.exists():
-                target_path.unlink()
-            staging_path.replace(target_path)
-            _ensure_executable(target_path)
-            logger.info(f"[CgsAria2] installed binary from {source.get('id')} → {target_path}")
-            return
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, Aria2BinaryBootstrapError) as exc:
-            errors.append(f"{source.get('id')}: {exc}")
-            staging_path.unlink(missing_ok=True)
-            logger.warning(f"[CgsAria2] asset fetch failed {asset_url}: {exc}")
-    raise Aria2BinaryBootstrapError(
-        f"failed to download {file_name} from preset sources: " + "; ".join(errors)
-    )
-
-
 def _ensure_executable(path: Path) -> None:
     if os.name == "nt":
         return
@@ -224,86 +223,118 @@ def _ensure_executable(path: Path) -> None:
     path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def local_binary_matches_manifest(target_path: Path, expected_sha256: str) -> bool:
-    if not target_path.is_file():
-        return False
-    return file_sha256(target_path) == expected_sha256.lower()
+@dataclass(frozen=True, slots=True)
+class ManagedAria2Binary:
+    """The managed aria2c payload and everything about its on-disk state.
 
+    Owns "is it present", "does it match the manifest digest", and "install it".
+    Callers hand over no paths: they ask this object, which answers against the
+    layout it was built from.
+    """
 
-def local_binary_present(target_path: Path | None = None) -> bool:
-    """True when managed aria2c already sits on disk (installer / prior bootstrap)."""
-    path = target_path if target_path is not None else resolve_aira2_target_path()
-    try:
-        return path.is_file() and path.stat().st_size > 0
-    except OSError:
-        return False
+    layout: Aria2Layout
+
+    @property
+    def path(self) -> Path:
+        return self.layout.binary_path
+
+    def is_present(self) -> bool:
+        """Cheap on-disk presence check. No hashing, no network, no chmod."""
+        try:
+            return self.path.stat().st_size > 0
+        except OSError:
+            return False
+
+    def matches_manifest(self, expected_sha256: str) -> bool:
+        if not self.is_present():
+            return False
+        return file_sha256(self.path) == expected_sha256.lower()
+
+    def reuse_or_install(self, *, progress_callback=None, force_refresh: bool = False) -> Path:
+        """Return the managed binary path, downloading only when it is absent.
+
+        Local-first (critical for Script preprocess latency): an existing file is
+        returned with **zero** network, so the second Script open never waits on
+        the GitHub/ImgBed manifest. The manifest digest is enforced at download
+        time; it is not re-verified on every start.
+        """
+        if not force_refresh and self.is_present():
+            _ensure_executable(self.path)
+            logger.debug(f"[CgsAria2] reusing local binary (skip network): {self.path}")
+            return self.path
+
+        platform_id = verify_aria2_host_platform()
+        _emit_progress_status(progress_callback, f"{ARIA2_BINARY_PROGRESS_LABEL} checking...")
+        try:
+            manifest = fetch_aria2_manifest()
+        except Aria2BinaryBootstrapError:
+            if self.is_present():
+                _ensure_executable(self.path)
+                logger.warning(
+                    f"[CgsAria2] preset manifest unavailable; reusing existing binary at {self.path}"
+                )
+                return self.path
+            raise
+
+        platform_entry = _platform_entry(manifest, platform_id)
+        expected_sha256 = str(platform_entry["sha256"]).strip().lower()
+        asset_name = str(platform_entry["name"]).strip()
+
+        if self.matches_manifest(expected_sha256):
+            _ensure_executable(self.path)
+            return self.path
+
+        self._download_asset(asset_name, expected_sha256, progress_callback=progress_callback)
+        if not self.matches_manifest(expected_sha256):
+            raise Aria2BinaryBootstrapError(f"post-download verify failed: {self.path}")
+        return self.path
+
+    def copy_from(self, source_binary: Path) -> Path:
+        """Dev/CI helper: place a pre-fetched binary without touching the network."""
+        if not source_binary.is_file():
+            raise FileNotFoundError(source_binary)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_binary, self.path)
+        _ensure_executable(self.path)
+        return self.path
+
+    def _download_asset(self, file_name: str, expected_sha256: str, *, progress_callback=None) -> None:
+        target_path = self.path
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        staging_path = target_path.with_suffix(target_path.suffix + ".part")
+        errors: list[str] = []
+        _emit_legacy_download_start(progress_callback, label=ARIA2_BINARY_PROGRESS_LABEL)
+        for source in resolve_preset_asset_sources(file_name):
+            asset_url = str(source.get("url") or "").strip()
+            if not asset_url:
+                continue
+            try:
+                _download_url_to_path(asset_url, staging_path, progress_callback=progress_callback)
+                actual_sha256 = file_sha256(staging_path)
+                if actual_sha256 != expected_sha256.lower():
+                    staging_path.unlink(missing_ok=True)
+                    raise Aria2BinaryBootstrapError(
+                        f"sha256 mismatch for {file_name}: expected {expected_sha256}, got {actual_sha256}"
+                    )
+                staging_path.replace(target_path)
+                _ensure_executable(target_path)
+                logger.info(f"[CgsAria2] installed binary from {source.get('id')} → {target_path}")
+                return
+            except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, Aria2BinaryBootstrapError) as exc:
+                errors.append(f"{source.get('id')}: {exc}")
+                staging_path.unlink(missing_ok=True)
+                logger.warning(f"[CgsAria2] asset fetch failed {asset_url}: {exc}")
+        raise Aria2BinaryBootstrapError(
+            f"failed to download {file_name} from preset sources: " + "; ".join(errors)
+        )
 
 
 def ensure_aira2_binary(*, progress_callback=None, force_refresh: bool = False) -> Path:
-    """Ensure managed aria2c under conf_dir/cgs-aria2/bin. No PATH/uv/runtime fallback.
-
-    Local-first (critical for Script preprocess latency):
-    - If the managed binary already exists and ``force_refresh`` is false, return it
-      immediately with **zero** network. Installer trees and second opens must not
-      block on GitHub/ImgBed manifest (previously hung up to BINARY timeout ≈ 2min).
-    - Only when the binary is missing (or ``force_refresh``) fetch manifest + payload.
-      Manifest uses ``MANIFEST_FETCH_TIMEOUT_S`` (short); binary uses long timeout.
-
-    Binary payload download uses AsyncTask progress protocol (CGS011). Manifest is
-    tiny metadata (whole-body, no progress theater).
-    """
-    platform_id = detect_aira2_platform_id()
-    env_platform_id = getattr(curr_os, "aira2_platform_id", None)
-    if env_platform_id and env_platform_id != platform_id:
-        raise UnsupportedAria2PlatformError(
-            f"curr_os.aira2_platform_id={env_platform_id!r} does not match host {platform_id!r}"
-        )
-    if platform_id not in SUPPORTED_PLATFORM_IDS:
-        raise UnsupportedAria2PlatformError(f"unsupported platform_id={platform_id!r}")
-
-    target_path = resolve_aira2_target_path()
-    if not force_refresh and local_binary_present(target_path):
-        _ensure_executable(target_path)
-        logger.debug(f"[CgsAria2] reusing local binary (skip network): {target_path}")
-        return target_path
-
-    _emit_progress_status(progress_callback, f"{ARIA2_BINARY_PROGRESS_LABEL} checking...")
-    try:
-        manifest = fetch_aria2_manifest()
-    except Aria2BinaryBootstrapError:
-        if local_binary_present(target_path):
-            _ensure_executable(target_path)
-            logger.warning(
-                f"[CgsAria2] preset manifest unavailable; reusing existing binary at {target_path}"
-            )
-            return target_path
-        raise
-
-    platform_entry = _platform_entry(manifest, platform_id)
-    expected_sha256 = str(platform_entry["sha256"]).strip().lower()
-    asset_name = str(platform_entry["name"]).strip()
-
-    if local_binary_matches_manifest(target_path, expected_sha256):
-        _ensure_executable(target_path)
-        return target_path
-
-    _download_asset_to(
-        target_path, asset_name, expected_sha256, progress_callback=progress_callback,
-    )
-    if not local_binary_matches_manifest(target_path, expected_sha256):
-        raise Aria2BinaryBootstrapError(f"post-download verify failed: {target_path}")
-    return target_path
+    """Public entry: ensure the managed aria2c exists, downloading only if missing."""
+    managed_binary = ManagedAria2Binary(resolve_aria2_layout())
+    return managed_binary.reuse_or_install(progress_callback=progress_callback, force_refresh=force_refresh)
 
 
-def copy_local_preset_asset_into_tree(source_binary: Path, *, platform_id: str | None = None) -> Path:
+def copy_local_preset_asset_into_tree(source_binary: Path) -> Path:
     """Dev/CI helper: place a pre-fetched binary at conf_dir/cgs-aria2/bin without network."""
-    resolved_platform = platform_id or detect_aira2_platform_id()
-    if resolved_platform not in SUPPORTED_PLATFORM_IDS:
-        raise UnsupportedAria2PlatformError(resolved_platform)
-    if not source_binary.is_file():
-        raise FileNotFoundError(source_binary)
-    target_path = resolve_aira2_target_path()
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_binary, target_path)
-    _ensure_executable(target_path)
-    return target_path
+    return ManagedAria2Binary(resolve_aria2_layout()).copy_from(source_binary)
