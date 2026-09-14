@@ -111,8 +111,8 @@ class WnacgGallerySource:
 
     _WRITELN_PAYLOAD_RE = re.compile(r'document\.writeln\(\s*"((?:\\.|[^"\\])*)"\s*\)')
     _IMGLIST_ARRAY_RE = re.compile(r"\bvar\s+imglist\s*=\s*\[")
-    _VAR_STRING_RE = re.compile(r"""\bvar\s+(\w+)\s*=\s*(["'])((?:\\.|(?!\2).)*)\2""")
-    _URL_FIELD_RE = re.compile(r"""\burl\s*:\s*((?:\w+\s*\+\s*)?(["'])(?:\\.|(?!\2).)*\2)""")
+    _VAR_STRING_RE = re.compile(r"""\bvar\s+(\w+)\s*=\s*(["'])((?:\\.|(?!\2)[^\\\n])*)\2""")
+    _URL_FIELD_RE = re.compile(r"""\burl\s*:\s*((?:\w+\s*\+\s*)?(["'])(?:\\.|(?!\2)[^\\\n])*\2)""")
     _SITE_ASSET_MARKER = "/themes/"
     _IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif")
     _CHAR_ESCAPES = {"n": "\n", "t": "\t", "r": "\r"}

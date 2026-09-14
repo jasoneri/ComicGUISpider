@@ -110,7 +110,7 @@ class Handler:
 
     def _list_entries(self, root: pathlib.Path) -> t.List[DirEntryInfo]:
         with os.scandir(root) as entries:
-            return [DirEntryInfo(entry.name, entry.is_dir(follow_symlinks=False)) for entry in entries]
+            return [DirEntryInfo(entry.name, entry.is_dir()) for entry in entries]
 
     def _list_subdir_names(self, root: pathlib.Path) -> t.List[str]:
         return [entry.name for entry in self._list_entries(root) if entry.is_dir and accpect_dir(entry.name)]
