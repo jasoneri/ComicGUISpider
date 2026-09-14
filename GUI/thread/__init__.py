@@ -240,21 +240,20 @@ class ProjUpdateThread(QThread):
 class RvThread(QThread):
     scan_completed = Signal(int)
     scan_progress = Signal(str)
-    
+
     def __init__(self, gui, show_progress: bool = False):
         super().__init__(gui)
         self.gui = gui
         self.show_progress = show_progress
-        
+
     def run(self):
         try:
-            if self.show_progress:
-                self.scan_progress.emit("backend scaning local...")
+            # 信号只汇报事实,是否弹 InfoBar 由 RVManager 决定
+            self.scan_progress.emit("backend scaning local...")
             self.gui.log.info(f"RvThread started, show_progress={self.show_progress}")
             total = self.gui.rv_tools.scan(conf, init=False)
             self.gui.log.info(f"RvThread completed: scanned {total} books/episodes")
-            if self.show_progress:
-                self.scan_completed.emit(total)
+            self.scan_completed.emit(total)
         except Exception as e:
             self.gui.log.exception(f"RvThread error: {e}")
             self.gui.say(f"scan err: {str(e)}")

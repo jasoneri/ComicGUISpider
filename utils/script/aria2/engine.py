@@ -13,18 +13,19 @@ from dataclasses import dataclass
 
 from loguru import logger
 
-from utils.config import conf_dir
 from utils.config.qc import cgs_cfg
 from utils.network.doh import dns_stub_server
-from utils.script.aria2.bootstrap import ensure_aira2_binary
+from utils.script.aria2.bootstrap import ensure_aira2_binary, resolve_aria2_layout
 from utils.script.aria2.conf import build_aria2_option_map, write_aria2_conf
 from utils.script.aria2.rpc import Aria2RpcClient
 from utils.script.aria2.settings import ensure_motrix_proxy_seed, get_proxy
 
-ARIA2_WORK_DIR = conf_dir.joinpath("cgs-aria2")
-ARIA2_CONF_NAME = "aria2.conf"
-ARIA2_SESSION_NAME = "download.session"
-ARIA2_PID_NAME = "engine.pid"
+# One layout object owns every managed path (work dir, binary, conf, session, pid).
+ARIA2_LAYOUT = resolve_aria2_layout()
+# Startup budget is shared across both attempts (bounds worst case below the old
+# 2 x per-attempt shape) but stays at the historical per-attempt ceiling: shaving
+# it turns a cold spawn (fresh file cache / AV scan of the 5MB binary) into a
+# false failure. Measured steady-state start is well under 1s.
 ENSURE_TIMEOUT_S = 8.0
 PING_INTERVAL_S = 0.15
 # Per-attempt RPC ping during startup wait; keep short so a dead port fails fast.
@@ -76,16 +77,20 @@ class CgsAria2Engine:
                 return self._endpoint
             self._stop_locked()
             binary = ensure_aira2_binary(progress_callback=progress_callback)
+            startup_deadline = time.monotonic() + ENSURE_TIMEOUT_S
             _emit_engine_progress(progress_callback, "aria2 starting...")
-            work_dir = ARIA2_WORK_DIR
+            work_dir = ARIA2_LAYOUT.work_dir
             work_dir.mkdir(parents=True, exist_ok=True)
-            conf_path = work_dir / ARIA2_CONF_NAME
-            session_path = work_dir / ARIA2_SESSION_NAME
+            conf_path = ARIA2_LAYOUT.conf_path
+            session_path = ARIA2_LAYOUT.session_path
             if not session_path.exists():
                 session_path.write_text("", encoding="utf-8")
 
             last_error: Exception | None = None
             for _attempt in range(2):
+                if time.monotonic() >= startup_deadline:
+                    last_error = RuntimeError("aria2 startup deadline elapsed before process launch")
+                    break
                 port = pick_free_port()
                 options = build_aria2_option_map(
                     rpc_port=port,
@@ -123,15 +128,16 @@ class CgsAria2Engine:
                     binary_path=binary,
                     pid=process.pid,
                 )
-                if self._wait_rpc_ready(endpoint, process):
+                if self._wait_rpc_ready(endpoint, process, deadline=startup_deadline):
                     self._process = process
                     self._endpoint = endpoint
-                    (work_dir / ARIA2_PID_NAME).write_text(str(process.pid), encoding="utf-8")
+                    ARIA2_LAYOUT.pid_path.write_text(str(process.pid), encoding="utf-8")
                     _emit_engine_progress(progress_callback, "aria2 ready")
                     logger.info(f"[CgsAria2] ensure ready port={port} pid={process.pid} binary={binary}")
                     return endpoint
                 exit_code = process.poll()
-                self._terminate_process(process)
+                remaining_timeout = max(0.0, startup_deadline - time.monotonic())
+                self._terminate_process(process, timeout_s=remaining_timeout)
                 if exit_code is not None:
                     last_error = RuntimeError(
                         f"aria2 exited before RPC ready on port {port} (exit={exit_code}); "
@@ -164,12 +170,8 @@ class CgsAria2Engine:
             self._terminate_process(self._process)
             self._process = None
         self._endpoint = None
-        pid_path = ARIA2_WORK_DIR / ARIA2_PID_NAME
-        if pid_path.exists():
-            try:
-                pid_path.unlink()
-            except OSError:
-                pass
+        pid_path = ARIA2_LAYOUT.pid_path
+        pid_path.unlink(missing_ok=True)
 
     def _process_alive(self) -> bool:
         process = self._process
@@ -177,14 +179,26 @@ class CgsAria2Engine:
             return False
         return process.poll() is None
 
-    def _wait_rpc_ready(self, endpoint: RuntimeEndpoint, process: subprocess.Popen) -> bool:
-        deadline = time.monotonic() + ENSURE_TIMEOUT_S
-        while time.monotonic() < deadline:
+    def _wait_rpc_ready(
+        self,
+        endpoint: RuntimeEndpoint,
+        process: subprocess.Popen,
+        *,
+        deadline: float | None = None,
+    ) -> bool:
+        startup_deadline = deadline if deadline is not None else time.monotonic() + ENSURE_TIMEOUT_S
+        while time.monotonic() < startup_deadline:
             if process.poll() is not None:
                 return False
-            if ping_endpoint_sync(endpoint, timeout_s=STARTUP_PING_TIMEOUT_S):
+            remaining_timeout = startup_deadline - time.monotonic()
+            if ping_endpoint_sync(
+                endpoint,
+                timeout_s=min(STARTUP_PING_TIMEOUT_S, max(0.01, remaining_timeout)),
+            ):
                 return True
-            time.sleep(PING_INTERVAL_S)
+            remaining_timeout = startup_deadline - time.monotonic()
+            if remaining_timeout > 0:
+                time.sleep(min(PING_INTERVAL_S, remaining_timeout))
         return False
 
     @staticmethod
@@ -193,12 +207,12 @@ class CgsAria2Engine:
         return ping_endpoint_sync(endpoint)
 
     @staticmethod
-    def _terminate_process(process: subprocess.Popen) -> None:
+    def _terminate_process(process: subprocess.Popen, *, timeout_s: float = 3.0) -> None:
         if process.poll() is not None:
             return
         try:
             process.terminate()
-            process.wait(timeout=3)
+            process.wait(timeout=max(0.0, timeout_s))
         except Exception:
             try:
                 process.kill()
@@ -235,7 +249,7 @@ def pick_free_port(host: str = "127.0.0.1") -> int:
 
 
 def resolve_aria2_binary(*, progress_callback=None) -> p.Path:
-    """Resolve managed binary only via preset → conf_dir/cgs-aria2/bin (no PATH/uv fallback)."""
+    """Return the managed aria2c at conf_dir/cgs-aria2/bin (preset download only)."""
     return ensure_aira2_binary(progress_callback=progress_callback)
 
 

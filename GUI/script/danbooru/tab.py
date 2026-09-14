@@ -24,6 +24,35 @@ from .tag import build_favorite_groups_state
 from .style import DanbooruCardMetrics, DanbooruUiPalette, DEFAULT_CARD_METRICS, build_tab_stylesheet
 
 
+class _DanbooruCompleterReturnFilter(QtCore.QObject):
+    """Select a highlighted completion before QFluentWidgets forwards Return."""
+
+    def __init__(self, menu: CompleterMenu):
+        super().__init__(menu)
+        self._menu = menu
+
+    def eventFilter(self, watched, event):
+        is_return_key = (
+            event.type() == QtCore.QEvent.KeyPress
+            and event.key() in (Qt.Key_Enter, Qt.Key_Return)
+        )
+        if not is_return_key:
+            return super().eventFilter(watched, event)
+
+        return self._select_current_completion()
+
+    def _select_current_completion(self) -> bool:
+        current_row = self._menu.view.currentRow()
+        current_item = self._menu.view.currentItem()
+        if current_row < 0 or current_item is None:
+            return False
+
+        self._menu._onCompletionItemSelected(current_item.text(), current_row)
+        self._menu.close()
+        self._menu.lineEdit.search()
+        return True
+
+
 class DanbooruTabWidget(QFrame):
     selection_count_changed = Signal(int)
     request_search = Signal(str)
@@ -49,6 +78,7 @@ class DanbooruTabWidget(QFrame):
         self._completer_origin_by_label: dict[str, str] = {}
         self._completer_model: t.Optional[QStandardItemModel] = None
         self._completer: t.Optional[QCompleter] = None
+        self._completer_return_filter: t.Optional[_DanbooruCompleterReturnFilter] = None
         self._favorites_dirty = False
         self._downloads_dirty: set[str] = set()
         self.zoom_mgr = self._InnerZoomMgr(self)
@@ -508,11 +538,18 @@ class DanbooruTabWidget(QFrame):
         if menu is None:
             menu = CompleterMenu(self.search_edit)
             self.search_edit.setCompleterMenu(menu)
-        # CompleterMenu inserts label text; rewrite to origin search key immediately after.
-        if getattr(menu, "_cgs_origin_activated_bound", None) is not self:
-            menu.activated.connect(self._on_completer_label_activated)
-            menu._cgs_origin_activated_bound = self  # type: ignore[attr-defined]
+        self._configure_completer_menu(menu)
         return completer
+
+    def _configure_completer_menu(self, menu: CompleterMenu):
+        if self._completer_return_filter is None:
+            self._completer_return_filter = _DanbooruCompleterReturnFilter(menu)
+            menu.installEventFilter(self._completer_return_filter)
+        if getattr(menu, "_cgs_origin_activated_bound", None) is self:
+            return
+        # CompleterMenu inserts labels; rewrite them to origin search keys.
+        menu.activated.connect(self._on_completer_label_activated)
+        menu._cgs_origin_activated_bound = self  # type: ignore[attr-defined]
 
     def completer_labels(self) -> list[str]:
         return list(self._completer_origin_by_label.keys())
@@ -529,9 +566,7 @@ class DanbooruTabWidget(QFrame):
         if menu is None:
             self.search_edit.setCompleterMenu(CompleterMenu(self.search_edit))
             menu = self.search_edit._completerMenu
-            if getattr(menu, "_cgs_origin_activated_bound", None) is not self:
-                menu.activated.connect(self._on_completer_label_activated)
-                menu._cgs_origin_activated_bound = self  # type: ignore[attr-defined]
+        self._configure_completer_menu(menu)
         changed = menu.setCompletion(completer.completionModel(), completer.completionColumn())
         menu.setMaxVisibleItems(max(completer.maxVisibleItems(),10))
         if changed:

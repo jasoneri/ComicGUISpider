@@ -115,6 +115,9 @@ class AsyncTaskProgressReporter:
         return f"{downloaded_bytes / 1024 / 1024:.1f}/{total_bytes / 1024 / 1024:.1f}M"
 
 
+_ORPHANED_TASK_THREADS: set["AsyncTaskThread"] = set()  # CGS015 IRON-2
+
+
 class AsyncTaskThread(QThread):
     success_signal = Signal(object)
     error_signal = Signal(str)
@@ -148,9 +151,8 @@ class AsyncTaskThread(QThread):
             self.progress_signal.emit(message)
 
     def cancel(self):
+        # CGS015 IRON-1:只置标志,不 join。
         self.is_cancelled = True
-        self.quit()
-        self.wait()
 
 
 @dataclass(slots=True)
@@ -299,6 +301,8 @@ class AsyncTaskManager(QObject):
     def __init__(self, gui, parent: QWidget):
         super().__init__(parent)
         self.current_tasks: Dict[str, AsyncTaskThread] = {}
+        # 模块级注册表,非实例属性 —— CGS015 IRON-2。
+        self._zombies: set[AsyncTaskThread] = _ORPHANED_TASK_THREADS
         self._tooltip_stack = TaskTooltipStack(parent)
         self._infobar_center = TaskInfoBarCenter(gui, parent)
         self.current_tooltips = self._tooltip_stack.tooltips
@@ -313,10 +317,17 @@ class AsyncTaskManager(QObject):
         try:
             thread = AsyncTaskThread(config.task_func, *config.args, **config.kwargs)
             self.current_tasks[task_id] = thread
-            thread.success_signal.connect(lambda result, tid=task_id, task_config=config: self._handle_success(tid, result, task_config))
-            thread.error_signal.connect(lambda error, tid=task_id, task_config=config: self._handle_error(tid, error, task_config))
+            thread.success_signal.connect(
+                lambda result, tid=task_id, task_config=config, worker=thread:
+                    self._handle_success(tid, result, task_config, thread=worker)
+            )
+            thread.error_signal.connect(
+                lambda error, tid=task_id, task_config=config, worker=thread:
+                    self._handle_error(tid, error, task_config, thread=worker)
+            )
             thread.progress_signal.connect(
-                lambda progress, tid=task_id, task_config=config: self._handle_progress(tid, progress, task_config)
+                lambda progress, tid=task_id, task_config=config, worker=thread:
+                    self._handle_progress(tid, progress, task_config, thread=worker)
             )
             if config.show_tooltip:
                 self._tooltip_stack.show(
@@ -363,15 +374,29 @@ class AsyncTaskManager(QObject):
         )
 
     def cancel_task(self, task_id: str) -> bool:
-        thread = self.current_tasks.get(task_id)
-        if thread is None or not thread.isRunning():
+        thread = self.current_tasks.pop(task_id, None)
+        if thread is None:
+            return False
+        if not thread.isRunning():
+            # 未运行:交回既有 GC 路径,保持「不主动清理已结束项」的既有语义。
+            self.current_tasks[task_id] = thread
             return False
 
         thread.cancel()
+        self._retire_thread(thread)
         self._tooltip_stack.complete(task_id, auto_hide=True)
         self._infobar_center.info("任务已取消")
-        self._cleanup_task(task_id)
         return True
+
+    def _retire_thread(self, thread: AsyncTaskThread):
+        """解绑运行中的线程:移入注册表保活,并挂回收槽。见 CGS015 IRON-2/IRON-3。"""
+        self._zombies.add(thread)
+        thread.finished.connect(lambda t=thread: self._reap_zombie(t))
+
+    def _reap_zombie(self, thread: AsyncTaskThread):
+        # CGS015 IRON-3:只做跨线程安全的 set 操作 + deleteLater,不触碰 current_tasks/tooltip。
+        self._zombies.discard(thread)
+        thread.deleteLater()
 
     def cancel_all_tasks(self):
         for task_id in list(self.current_tasks.keys()):
@@ -389,13 +414,18 @@ class AsyncTaskManager(QObject):
         self.cancel_all_tasks()
         self._tooltip_stack.cleanup()
         self._infobar_center.cleanup()
+        # CGS015 IRON-4:只清活动表,不得清 _zombies。
         self.current_tasks.clear()
 
     def reset(self):
         self.cleanup()
         self._active = True
 
-    def _handle_success(self, task_id: str, result: Any, config: TaskConfig):
+    def _handle_success(self, task_id: str, result: Any, config: TaskConfig, *, thread: Optional[AsyncTaskThread] = None):
+        if thread is not None and thread.is_cancelled:
+            # 取消前已入队、取消后才投递的信号:静默丢弃,不驱动 UI。
+            self._cleanup_task(task_id)
+            return
         if not self._active:
             self._cleanup_task(task_id)
             return
@@ -409,7 +439,10 @@ class AsyncTaskManager(QObject):
         finally:
             self._cleanup_task(task_id)
 
-    def _handle_error(self, task_id: str, error: str, config: TaskConfig):
+    def _handle_error(self, task_id: str, error: str, config: TaskConfig, *, thread: Optional[AsyncTaskThread] = None):
+        if thread is not None and thread.is_cancelled:
+            self._cleanup_task(task_id)
+            return
         if not self._active:
             self._cleanup_task(task_id)
             return
@@ -422,7 +455,9 @@ class AsyncTaskManager(QObject):
         finally:
             self._cleanup_task(task_id)
 
-    def _handle_progress(self, task_id: str, progress: str, config: TaskConfig):
+    def _handle_progress(self, task_id: str, progress: str, config: TaskConfig, *, thread: Optional[AsyncTaskThread] = None):
+        if thread is not None and thread.is_cancelled:
+            return
         if not self._active:
             return
 

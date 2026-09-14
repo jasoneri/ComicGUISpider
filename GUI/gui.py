@@ -115,7 +115,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.task_mgr.init_native_panel()
         self.rv_tools = rVtools()
         self.rv_mgr = RVManager(self)
-        self.rv_mgr.start_scan(show_progress=False)
+        # CGS016: 不在启动关键路径上同步扫描 —— 与导入风暴重叠会因 GIL 争用拖出秒级卡顿
+        self.rv_mgr.schedule_startup_scan()
         self.browser_zoom_factor = 1.0  # WebEngine 用户缩放率，生命周期同 SpiderGUI
         self.textBrowser.clear()
         self.finish_setup()
