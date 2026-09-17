@@ -307,7 +307,6 @@ class PreprocessRuntimeProbe:
         self.gui_site_runtime = gui_site_runtime
 
     async def manga_copy_cache_hit(self) -> bool:
-        """Daily-valid AES key on disk, no request (same shape as the jm/wnacg domain cache)."""
         runtime = self.gui_site_runtime.create_thread_site_runtime()
         try:
             return runtime.reqer.aes_cache_hit()
@@ -315,7 +314,6 @@ class PreprocessRuntimeProbe:
             await runtime.aclose()
 
     async def manga_copy_access(self) -> tuple[bool, str]:
-        """Live fetch for the cache-miss path; returns (ready, classified detail)."""
         runtime = self.gui_site_runtime.create_thread_site_runtime()
         try:
             return await runtime.reqer.probe_access()
@@ -348,20 +346,11 @@ class PreprocessRuntimeProbe:
 
 
 def _domain_cache_hit(gui_site_runtime: "GuiSiteRuntime") -> bool:
+    # CGS018: site preprocess daily-cache gate (manga_copy/jm/wnacg).
     return bool(gui_site_runtime.peek_cached_domain())
 
 
 async def _preprocess_manga_copy(gui_site_runtime: "GuiSiteRuntime") -> PreprocessResult:
-    """拷贝预处理与 jm/wnacg 同形：daily AES key 缓存命中即放行，命中才跳过请求。
-
-    缓存命中说明今日已成功取过 key，直接返回"缓存处于有效期内，跳过测试"，
-    不发任何请求——这正是域名缓存对 jm/wnacg 的作用。仅在缓存过期/缺失时
-    才走 manga_copy_access 现取 key，该请求本身就是可达性检测，其分类失败
-    （transport / short body / app ban）原样透出，而不是退化成通用解析错误。
-
-    key 轮换的安全阀在解密层：decrypt_chapter_data 失败会 clear_aes_key，
-    所以缓存 key 即使过期，下一次实战下载也会立即失效重取。
-    """
     probe = PreprocessRuntimeProbe(gui_site_runtime)
     if await probe.manga_copy_cache_hit():
         return PreprocessResult(ready=True, runtime_ready=True,

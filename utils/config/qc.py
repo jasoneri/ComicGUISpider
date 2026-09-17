@@ -32,9 +32,12 @@ class CgsConfig(QConfig):
     # Global catch-up (后巡查) cadence for tray Schedule — off|3h|12h|daily|2d.
     subscriptionCatchupPreset = ConfigItem("Subscription", "CatchupPreset", "off", restart=False)
     hiddenSiteChoices = ConfigItem("MainWindow", "HiddenSiteChoices", [], restart=False)
+    # Per-site publish-page URL overrides set from the publish helper page (key = provider name).
+    publishUrls = ConfigItem("Publish", "Urls", {}, restart=False)
     doh: "CgsConfig.DoH"
     search: "CgsConfig.Search"
     site_choices: "CgsConfig.SiteChoices"
+    publish: "CgsConfig.Publish"
 
     class SiteChoices:
         def __init__(self, cfg: "CgsConfig"):
@@ -133,12 +136,34 @@ class CgsConfig(QConfig):
             self._cfg.save()
             return self.get_history()
 
+    class Publish:
+        """Per-site publish-page URL overrides (set from the publish helper page)."""
+
+        def __init__(self, cfg: "CgsConfig"):
+            self._cfg = cfg
+
+        def get_url(self, provider_name: str) -> str:
+            urls = self._cfg.publishUrls.value or {}
+            return str(urls.get(provider_name) or "").strip()
+
+        def set_url(self, provider_name: str, value: object) -> str:
+            normalized = str(value or "").strip()
+            urls = dict(self._cfg.publishUrls.value or {})
+            if normalized:
+                urls[provider_name] = normalized
+            else:
+                urls.pop(provider_name, None)
+            self._cfg.publishUrls.value = urls
+            self._cfg.save()
+            return normalized
+
 
 cgs_cfg = CgsConfig()
 qconfig.load(_qconfig_path("qc.json"), cgs_cfg)
 cgs_cfg.site_choices = CgsConfig.SiteChoices(cgs_cfg)
 cgs_cfg.doh = CgsConfig.DoH(cgs_cfg)
 cgs_cfg.search = CgsConfig.Search(cgs_cfg)
+cgs_cfg.publish = CgsConfig.Publish(cgs_cfg)
 
 
 class CbgConfig(QConfig):

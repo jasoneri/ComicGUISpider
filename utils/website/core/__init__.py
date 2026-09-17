@@ -17,6 +17,7 @@ from curl_cffi import requests as curl_requests
 from assets import res
 from utils.network.doh import build_http_transport
 from utils import temp_p, get_loop, ori_path, conf
+from utils.config.qc import cgs_cfg
 from utils.website.contracts import BrowserCookiePayload
 from utils.website.runtime_context import PreviewTransportConfig
 
@@ -527,7 +528,16 @@ class Previewer:
         if page <= 1 or not page_info:
             return str(url)
         from utils.processed_class import Url
-        return str(Url(str(url)).set_next(*page_info).jump(page))
+        paged_url = Url(str(url)).set_next(*page_info)
+        # step==1 的页码是绝对值（jm/wnacg 的 page=N、jcomic 的 /N 后缀），直接把
+        # 目标页写进去；step>1 是条目偏移分页（拷贝 offset=(page-1)*limit，基址恒为
+        # offset=0），必须逐页累加 (page-1) 次——对偏移用 jump 会把第 2 页写成 offset=2
+        # 而不是 offset=30，对已烧入页码的绝对 URL 逐页累加则会重复计数。
+        if paged_url.step == 1:
+            return str(paged_url.jump(page))
+        for _ in range(page - 1):
+            paged_url = paged_url.next
+        return str(paged_url)
 
     @classmethod
     def build_basic_search_request(
@@ -659,11 +669,39 @@ class EroUtils(Utils):
 class DomainUtils(Utils):
     domain = None
     forever_url = ""
-    publish_url = ""
+    publish_urls: tuple[str, ...] = ()
     status_forever = True
     status_publish = True
     publish_headers = {}
     EXPIRE = 168
+    publish_stagger_seconds = 0.25
+    publish_race_timeout = 20.0
+
+    @classmethod
+    def candidate_publish_urls(cls) -> tuple[str, ...]:
+        """发布页候选：用户设置 > 远端清单（预留）> 静态默认，保序去重的一维序列。"""
+        return tuple(dict.fromkeys(filter(None, (
+            cgs_cfg.publish.get_url(cls.name), *cls._peek_remote_publish_urls(), *cls.publish_urls,
+        ))))
+
+    @classmethod
+    def _peek_remote_publish_urls(cls) -> tuple[str, ...]:
+        """远端发布页清单（R3 预留）：信源策略定案前恒为空序列。"""
+        return ()
+
+    @classmethod
+    async def _probe_publish_candidate(cls, url: str) -> str | None:
+        """单个发布页候选的抓取+解析+探测；失败返回 None 交给竞速兜底。"""
+        try:
+            transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies, http2=True, retries=5)
+            async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, transport=transport, trust_env=trust_env) as cli:
+                resp = await cli.get(url)
+                resp.raise_for_status()
+                if str(resp.status_code).startswith('2'):
+                    return await cls.parse_publish(resp.text)
+        except Exception:
+            return None
+        return None
 
     @classmethod
     async def by_forever(cls):
@@ -681,22 +719,30 @@ class DomainUtils(Utils):
 
     @classmethod
     async def by_publish(cls):
-        e = None
-        if not cls.publish_url:
+        candidates = cls.candidate_publish_urls()
+        if not candidates:
             return None
-        transport, trust_env = build_proxy_transport(cls.proxy_policy, conf.proxies, http2=True, retries=5)
-        async with httpx.AsyncClient(headers=cls.publish_headers or cls.headers, transport=transport, trust_env=trust_env) as cli:
-            try:
-                resp = await cli.get(cls.publish_url)
-                resp.raise_for_status()
-                if str(resp.status_code).startswith('2'):
-                    return await cls.parse_publish(resp.text)
-            except httpx.HTTPError as _e:
-                e = _e
-            cls.status_publish = False
-            raise e or ConnectionError(
-                res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
-            )
+        tasks = []
+        for index, url in enumerate(candidates):
+            if index:
+                await asyncio.sleep(cls.publish_stagger_seconds)
+            tasks.append(asyncio.create_task(cls._probe_publish_candidate(url)))
+        try:
+            async for finished in asyncio.as_completed(tasks, timeout=cls.publish_race_timeout):
+                domain = await finished
+                if domain:
+                    return domain
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        cls.status_publish = False
+        raise ConnectionError(
+            res.SPIDER.PUBLISH_INVALID % (candidates[0], str(ori_path.joinpath(f'__temp/{cls.name}_domain.txt')))
+        )
 
     @classmethod
     def peek_cached_domain(cls):

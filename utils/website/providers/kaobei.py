@@ -354,7 +354,6 @@ class KaobeiReqer(_KaobeiContract, Req):
         return url, frame
 
     def _read_cached_key(self):
-        """CGS018 daily read: pure disk, no request."""
         if self._aes_key:
             return self._aes_key
         cached = self._aes_cache.run(lambda: None, "daily")
@@ -370,14 +369,12 @@ class KaobeiReqer(_KaobeiContract, Req):
         return key
 
     def clear_aes_key(self):
-        """CGS018 rotation valve: the decrypt seam invalidates a cached key, not the cache layer."""
         self._aes_key = None
         self._aes_cache.flag = "new"
         self._aes_cache.val = None
         self._aes_cache_path.unlink(missing_ok=True)
 
     def aes_cache_hit(self) -> bool:
-        """CGS018 hit gate: daily-valid AES key on disk; hit means zero-request green at preprocess."""
         if self._aes_cache.flag is None:
             self._read_cached_key()
         return self._aes_cache.flag != "new"
@@ -487,8 +484,6 @@ class KaobeiReqer(_KaobeiContract, Req):
             return await self._fetch_aes_key()
 
     async def probe_access(self) -> tuple[bool, str]:
-        """CGS018 miss probe: one live fetch that doubles as the reachability check,
-        returning (ready, classified detail) — never a generic parse error."""
         try:
             async with self._preview_client_scope():
                 await self._fetch_aes_key()

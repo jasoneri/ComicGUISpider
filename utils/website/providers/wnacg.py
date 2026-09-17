@@ -23,7 +23,7 @@ class _WnacgContract:
     domain = "wnacg.com"  # REMARK(CGS001): GUI runtime needs this static fallback when wnacg_domain.txt is absent; do not delete.
     publish_domain = "wnacg01.link"
     publish_domain_old = ["wnacg.date", "wn01.link"]
-    publish_url = f"https://{publish_domain}"
+    publish_urls = (f"https://{publish_domain}", *(f"https://{d}" for d in publish_domain_old))
     status_publish = True
     publish_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0",
@@ -377,7 +377,6 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
 
     @classmethod
     def _proxy_uses_static_domain(cls) -> bool:
-        """Proxy reaches the canonical origin; publish-page cache must not bind runtime."""
         return bool(getattr(conf, "proxies", None))
 
     @classmethod
@@ -400,8 +399,9 @@ class WnacgUtils(_WnacgContract, EroUtils, DomainUtils, Previewer):
             if host:
                 return host
         cls.status_publish = False
+        publish_candidates = cls.candidate_publish_urls()
         raise ConnectionError(
-            res.SPIDER.DOMAINS_INVALID % (cls.publish_url, candidates, ori_path.joinpath(f"__temp/{cls.name}_domain.txt"))
+            res.SPIDER.DOMAINS_INVALID % (publish_candidates[0] if publish_candidates else "", candidates, ori_path.joinpath(f"__temp/{cls.name}_domain.txt"))
         )
 
     @staticmethod

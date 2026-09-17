@@ -985,8 +985,19 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if gui_site_runtime is None:
             raise RuntimeError("gui_site_runtime unavailable for publish flow")
         cached = gui_site_runtime.peek_cached_domain() or ""
-        publish_url = getattr(gui_site_runtime.provider_cls, "publish_url", "")
-        self.tf = TmpFormatHtml.created_temp_html("publish", bs_theme=bs_theme(), publish_url=publish_url, __cached_domain__=cached)
+        provider_cls = gui_site_runtime.provider_cls
+        publish_candidates = provider_cls.candidate_publish_urls()
+        static_first = publish_candidates[0] if publish_candidates else ""
+        # 发布页地址写入输入框：用户设置优先，回退静态候选首位。
+        publish_addr = cgs_cfg.publish.get_url(gui_site_runtime.name) or static_first
+        self.tf = TmpFormatHtml.created_temp_html(
+            "publish",
+            bs_theme=bs_theme(),
+            __cached_domain__=cached,
+            __user_publish_addr__=publish_addr,
+            # 下拉候选只喂静态默认（publish_urls）；用户自己的设置已在输入框里，不重复列出。
+            publish_candidates=list(provider_cls.publish_urls),
+        )
         provider_domain = getattr(gui_site_runtime.provider_cls, "domain", None)
         self.set_preview(skip_env_mode=not bool(cached or provider_domain))
         self.publish_mgr.setup_channel(self.BrowserWindow.view.page())
