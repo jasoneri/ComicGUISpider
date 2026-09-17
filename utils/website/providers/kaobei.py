@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import re
 from urllib.parse import urlencode
@@ -16,11 +17,128 @@ from utils.website.core import Cache, Previewer, Req, Utils, build_proxy_transpo
 from utils.website.info import Episode, KbBookInfo
 
 
+class KaobeiResponseError(Exception):
+    """Provider-owned classified response failure.
+
+    `category` is one of the stable contract categories; `__str__` is the only
+    serialization point consumed by LogEvent / preview error signals, and it
+    carries stage, URL, status, body length, and a bounded snippet — never
+    cookies, tokens, or full response bodies.
+    """
+
+    def __init__(self, category: str, *, stage: str, url: str, status=None, body_len=None, snippet=None):
+        self.category = category
+        self.stage = stage
+        self.url = url
+        self.status = status
+        self.body_len = body_len
+        self.snippet = snippet
+        super().__init__(self.__str__())
+
+    def __str__(self) -> str:
+        status = self.status if self.status is not None else "-"
+        body_len = self.body_len if self.body_len is not None else "-"
+        snippet = self.snippet if self.snippet else "<empty>"
+        return (
+            f"kaobei {self.stage} response {self.category}: "
+            f"status={status} url={self.url} body_len={body_len} body={snippet}"
+        )
+
+
+class KaobeiEmptyContentKeyError(ValueError):
+    """Chapter page rendered the site's degraded shell (empty contentKey).
+
+    The site serves this shell per-request with a jittering TTL (observed:
+    chapter 1 of a run succeeded while chapter 2 hit the shell seconds later),
+    so the failure is retryable at the transport level. Kept as a ValueError
+    because existing parser consumers classify it that way.
+    """
+
+
+
+_COPYMANGA_APP_BAN_CODE = 210
+# Verbatim marker from the code:210 body. Kept as a substring test so the
+# category survives minor wording drift around this sentence, but it MUST stay
+# the distinctive clause — a generic "請下載" would misclassify real migration
+# notices. The ban is a ~1 hour account/exit penalty (see the message itself),
+# so it is NOT a transient backoff case: retrying inside a run cannot clear it.
+_COPYMANGA_APP_BAN_MARKER = "破解版本"
+_COPYMANGA_ALERT_CODES = {_COPYMANGA_APP_BAN_CODE}
+
+
+def _detect_alert_envelope(body: "str | dict") -> tuple[int | None, str]:
+    """Return (alert_code, message) when a JSON body is a CopyManga alert envelope.
+
+    CopyManga reports risk/limit conditions as HTTP 200 with a `code` field
+    instead of a payload. `code:210` is the app-integrity ban:
+
+        {"code":210,"message":"請到官網更新最新APP(...), 您或您身邊的人曾經下載過
+         破解版本的拷貝漫畫,請下載安裝正版之後等待1小時,限制會自動解除。"}
+
+    Treating this as a payload is what produced a false success: the body is
+    valid JSON, so the shape check passes, `results` just lacks the expected key,
+    and callers degrade to "no results". Only envelopes whose code is known (or
+    that carry the ban marker) are reported, so an ordinary payload that happens
+    to include a `code` field is not misread. Accepts raw text or an already
+    parsed dict so both the body-classification seam and the JSON seam reuse it.
+    """
+    if isinstance(body, dict):
+        payload = body
+    elif isinstance(body, str) and body.startswith("{"):
+        try:
+            payload = json.loads(body)
+        except (ValueError, TypeError):
+            return None, ""
+    else:
+        return None, ""
+    if not isinstance(payload, dict):
+        return None, ""
+    code = payload.get("code")
+    message = str(payload.get("message") or "")
+    is_alert_code = isinstance(code, int) and code in _COPYMANGA_ALERT_CODES
+    if is_alert_code or _COPYMANGA_APP_BAN_MARKER in message:
+        return (code if isinstance(code, int) else None), message
+    return None, ""
+
+
+def _classify_body_text(stage: str, url: str, text: str, *, status=None, expect_json: bool = False) -> str:
+    """Classify a transport-succeeded body; raise KaobeiResponseError on failure categories.
+
+    JSON stages must start with an object/array (otherwise non_json_or_html);
+    HTML/page stages apply the tested 16-byte minimum. A JSON error envelope such
+    as `{"code":210,...}` is structurally valid JSON but is NOT a payload, so the
+    alert-code check runs BEFORE the JSON shape check — otherwise the risk body
+    passes through, `results` simply lacks the expected key, and callers degrade
+    into "no results" instead of surfacing the ban.
+    """
+    raw_text = str(text or "")
+    normalized = " ".join(raw_text.split())
+    snippet = normalized[:160] if normalized else "<empty>"
+    if not raw_text:
+        raise KaobeiResponseError("empty_body", stage=stage, url=url, status=status, body_len=0, snippet=snippet)
+    if normalized.casefold() == "error":
+        raise KaobeiResponseError("literal_error", stage=stage, url=url, status=status, body_len=len(raw_text), snippet=snippet)
+    alert_code, alert_message = _detect_alert_envelope(normalized)
+    if alert_code is not None:
+        raise KaobeiResponseError(
+            "app_ban_alert", stage=stage, url=url, status=status, body_len=len(raw_text),
+            snippet=f"code={alert_code} {alert_message}",
+        )
+    if expect_json:
+        if not normalized.startswith(("{", "[")):
+            raise KaobeiResponseError("non_json_or_html", stage=stage, url=url, status=status, body_len=len(raw_text), snippet=snippet)
+        return normalized
+    if len(normalized) < 16:
+        raise KaobeiResponseError("short_body", stage=stage, url=url, status=status, body_len=len(raw_text), snippet=snippet)
+    return normalized
+
+
 class _KaobeiContract:
     name = "manga_copy"
     proxy_policy = "proxy"
     preview_batch_limits = {"episodes": 1, "pages": 1}
     preview_transport_retries = 2
+    _JSON_PREVIEW_STAGES = frozenset({"preview_search", "preview_fetch_episodes", "preview_fetch_pages"})
     uuid_regex = re.compile(r"(\d+)$")
     pc_domain = "www.2026copy.com"
     api_domain = "api.2026copy.com"
@@ -121,9 +239,9 @@ class KaobeiParser(_KaobeiContract):
                 if isinstance(group, dict):
                     chapters_data.extend(group.get("chapters") or [])
         if not chapters_data:
-            raise ValueError(
-                f"kaobei chapters payload returned no chapters: url={url} "
-                f"path_word={comic_path_word} group_keys={list(groups)}"
+            raise KaobeiResponseError(
+                "empty_chapter_data", stage="preview_fetch_episodes", url=url,
+                snippet=f"path_word={comic_path_word} group_keys={list(groups)}",
             )
         return [
             self.parse_ep_item(chapter_datum, comic_path_word, book, idx + 1)
@@ -144,15 +262,23 @@ class KaobeiParser(_KaobeiContract):
 
     def decrypt_chapter_data(self, ret: str, **meta_info):
         aes_key = self.reqer.get_aes_key()
+        stage = str(meta_info.get("stage") or "decrypt_chapter_data")
+        url = str(meta_info.get("url") or "-")
         if not isinstance(ret, str):
             raise TypeError(f"kaobei encrypted payload must be str: got {type(ret).__name__} {meta_info=}")
         if len(ret) <= 16:
-            raise ValueError(f"kaobei encrypted payload is empty or too short: len={len(ret)} {meta_info=}")
+            raise KaobeiResponseError(
+                "invalid_encrypted_payload", stage=stage, url=url,
+                body_len=len(ret), snippet="<encrypted payload too short>",
+            )
         try:
             return self._decrypt(ret[16:], aes_key=aes_key, iv=ret[:16])
         except Exception as exc:
             self.reqer.clear_aes_key()
-            raise RuntimeError(f"kaobei decrypt failed, aes_key cache cleared: len={len(ret)} {meta_info=}") from exc
+            raise KaobeiResponseError(
+                "invalid_encrypted_payload", stage=stage, url=url,
+                body_len=len(ret), snippet="<decrypt failed, aes_key cache cleared>",
+            ) from exc
 
     @staticmethod
     def extract_page_content_key(html_text: str, *, url: str) -> str:
@@ -166,12 +292,28 @@ class KaobeiParser(_KaobeiContract):
             raise ValueError("拷贝更改了contentKey 格式")
         content_key = content_key_match.group(1)
         if not content_key:
-            raise ValueError(f"kaobei chapter page returned empty contentKey: url={url}")
+            raise KaobeiEmptyContentKeyError(f"kaobei chapter page returned empty contentKey: url={url}")
         return content_key
 
     def parse_page_urls_from_html(self, html_text: str, *, url: str) -> list[dict]:
         content_key = self.extract_page_content_key(html_text, url=url)
         return self.decrypt_chapter_data(content_key, url=url)
+
+    def parse_page_urls_from_chapter_json(self, payload: dict, *, url: str) -> list[dict]:
+        """Image list from the api v3 `chapter` route (plain JSON, no contentKey).
+
+        The route returns the same list the web chapter page's contentKey
+        decrypts to (46/46 match measured 2026-09-15), so an empty `contents`
+        here is the degraded-shell equivalent and carries the same category.
+        """
+        chapter = (payload.get("results") or {}).get("chapter") or {}
+        contents = chapter.get("contents")
+        if not isinstance(contents, list) or not contents:
+            raise KaobeiResponseError(
+                "empty_chapter_data", stage="preview_fetch_pages", url=url,
+                snippet=f"chapter_keys={sorted(chapter)} size={chapter.get('size')}",
+            )
+        return contents
 
 
 class KaobeiReqer(_KaobeiContract, Req):
@@ -212,6 +354,7 @@ class KaobeiReqer(_KaobeiContract, Req):
         return url, frame
 
     def _read_cached_key(self):
+        """CGS018 daily read: pure disk, no request."""
         if self._aes_key:
             return self._aes_key
         cached = self._aes_cache.run(lambda: None, "daily")
@@ -227,12 +370,14 @@ class KaobeiReqer(_KaobeiContract, Req):
         return key
 
     def clear_aes_key(self):
+        """CGS018 rotation valve: the decrypt seam invalidates a cached key, not the cache layer."""
         self._aes_key = None
         self._aes_cache.flag = "new"
         self._aes_cache.val = None
         self._aes_cache_path.unlink(missing_ok=True)
 
     def aes_cache_hit(self) -> bool:
+        """CGS018 hit gate: daily-valid AES key on disk; hit means zero-request green at preprocess."""
         if self._aes_cache.flag is None:
             self._read_cached_key()
         return self._aes_cache.flag != "new"
@@ -256,16 +401,41 @@ class KaobeiReqer(_KaobeiContract, Req):
             return self._owned_preview_client
         raise RuntimeError("kaobei preview client is required for preview requests")
 
-    @staticmethod
-    def _parse_preview_json(resp, *, stage: str, request_url: str) -> dict:
+    @classmethod
+    def _stage_expects_json(cls, stage: str) -> bool:
+        return stage in cls._JSON_PREVIEW_STAGES
+
+    @classmethod
+    def _parse_preview_json(cls, resp, *, stage: str, request_url: str) -> dict:
+        status = getattr(resp, "status_code", None)
+        text = str(getattr(resp, "text", "") or "")
+        _classify_body_text(stage, request_url, text, status=status, expect_json=cls._stage_expects_json(stage))
         try:
             payload = resp.json()
         except json.JSONDecodeError as exc:
-            snippet = " ".join(resp.text.split())
+            snippet = " ".join(text.split())
             snippet = snippet[:160] if snippet else "<empty>"
-            raise ValueError(f"kaobei {stage} expected JSON: status={resp.status_code} url={request_url} body={snippet}") from exc
+            raise KaobeiResponseError(
+                "non_json_or_html", stage=stage, url=request_url, status=status,
+                body_len=len(text), snippet=snippet,
+            ) from exc
         if not isinstance(payload, dict):
-            raise ValueError(f"kaobei {stage} expected object payload: got {type(payload).__name__} url={request_url}")
+            snippet = " ".join(text.split())[:160] if text else "<empty>"
+            raise KaobeiResponseError(
+                "non_json_or_html", stage=stage, url=request_url, status=status,
+                body_len=len(text), snippet=f"payload_type={type(payload).__name__} {snippet}",
+            )
+        # Envelope guard at the seam most callers read raw: `results` may be
+        # absent under a code:210 alert even though the body is valid JSON.
+        # Without this, callers that pull `results` themselves would see an
+        # empty dict and degrade to "no results" (the original false success).
+        alert_code, alert_message = _detect_alert_envelope(payload)
+        if alert_code is not None or "results" not in payload:
+            raise KaobeiResponseError(
+                "app_ban_alert" if alert_code is not None else "missing_results",
+                stage=stage, url=request_url, status=status, body_len=len(text),
+                snippet=f"code={alert_code} keys={sorted(payload)} {alert_message}",
+            )
         return payload
 
     async def _preview_get(self, url: str, *, stage: str, headers: dict | None = None, **kwargs):
@@ -274,16 +444,18 @@ class KaobeiReqer(_KaobeiContract, Req):
             try:
                 resp = await self._active_preview_client().get(url, headers=headers, **kwargs)
                 resp.raise_for_status()
-                if str(resp.text or "").strip().casefold() == "error":
-                    snippet = " ".join((resp.text or "").split())[:160] if resp.text else "<empty>"
-                    raise ValueError(
-                        f"kaobei {stage} expected content instead of error body: "
-                        f"status={getattr(resp, 'status_code', '?')} url={url} body={snippet}"
-                    )
+                status = getattr(resp, "status_code", None)
+                text = str(getattr(resp, "text", "") or "")
+                _classify_body_text(stage, url, text, status=status, expect_json=self._stage_expects_json(stage))
                 return resp
-            except (httpx.HTTPError, ValueError) as exc:
+            except (httpx.HTTPError, KaobeiResponseError) as exc:
                 last_exc = exc
-                if attempt >= self.preview_transport_retries:
+                category = getattr(exc, "category", None)
+                # `app_ban_alert` is deliberately NOT retryable: the ban message
+                # states a ~1 hour wait, so a sub-minute backoff loop cannot
+                # clear it and only burns the remaining account headroom.
+                retryable = isinstance(exc, httpx.HTTPError) or category in {"empty_body", "short_body", "literal_error"}
+                if attempt >= self.preview_transport_retries or not retryable:
                     raise
                 await asyncio.sleep(0.4)
         raise RuntimeError(f"kaobei {stage} preview request exhausted retries without result: url={url}") from last_exc
@@ -294,18 +466,41 @@ class KaobeiReqer(_KaobeiContract, Req):
         )
         return self._write_cached_key(self.extract_aes_key(resp.text))
 
-    async def ensure_preview_aes_key(self) -> str:
-        if cached := self._read_cached_key():
-            return cached
-        if self.preview_client is not None:
-            return await self._fetch_aes_key()
+    @contextlib.asynccontextmanager
+    async def _preview_client_scope(self):
+        """Yield a usable preview client, owning one only when none is attached."""
+        if self.preview_client is not None or self._owned_preview_client is not None:
+            yield self._active_preview_client()
+            return
         transport, trust_env = build_proxy_transport(self.proxy_policy, self.conf.proxies)
         async with httpx.AsyncClient(headers=self.headers, transport=transport, trust_env=trust_env) as cli:
             self._owned_preview_client = cli
             try:
-                return await self._fetch_aes_key()
+                yield cli
             finally:
                 self._owned_preview_client = None
+
+    async def ensure_preview_aes_key(self) -> str:
+        if cached := self._read_cached_key():
+            return cached
+        async with self._preview_client_scope():
+            return await self._fetch_aes_key()
+
+    async def probe_access(self) -> tuple[bool, str]:
+        """CGS018 miss probe: one live fetch that doubles as the reachability check,
+        returning (ready, classified detail) — never a generic parse error."""
+        try:
+            async with self._preview_client_scope():
+                await self._fetch_aes_key()
+        except KaobeiResponseError as exc:
+            return False, str(exc)
+        except httpx.HTTPError as exc:
+            # httpx stringifies to its message only; the class name is the part
+            # that tells a connect timeout apart from a proxy refusal.
+            return False, f"kaobei access probe transport {type(exc).__name__}: {exc}"
+        except ValueError as exc:
+            return False, f"kaobei access probe aes key unusable: {exc}"
+        return True, ""
 
     def get_aes_key(self) -> str:
         if cached := self._read_cached_key():
@@ -338,21 +533,35 @@ class KaobeiReqer(_KaobeiContract, Req):
                 return await asyncio.to_thread(
                     self.parser.parse_episodes, payload["results"], book, url=book.url, show_dhb=parser_show_dhb,
                 )
-            except ValueError as exc:
+            except KaobeiResponseError as exc:
                 last_exc = exc
-                if "kaobei chapters payload returned no chapters" not in str(exc) or attempt >= self.preview_transport_retries:
+                if exc.category != "empty_chapter_data" or attempt >= self.preview_transport_retries:
                     raise
                 self.clear_aes_key()
-                await asyncio.sleep(0.4)
+                # The empty-chapter shell decays on a jittering TTL measured in
+                # tens of seconds; a sub-minute backoff cannot outlive it.
+                await asyncio.sleep(8.0 * (attempt + 1))
         raise RuntimeError(f"kaobei preview_fetch_episodes exhausted retries without chapters: url={book.url}") from last_exc
 
     async def preview_fetch_pages(self, episode) -> list[str]:
         self._active_preview_client()
-        await self.ensure_preview_aes_key()
-        resp = await self._preview_get(episode.url, headers=self.headers, stage="preview_fetch_pages", follow_redirects=True, timeout=12)
-        image_data = await asyncio.to_thread(self.parser.parse_page_urls_from_html, resp.text, url=str(resp.url))
-        episode.pages = len(image_data)
-        return [item["url"] for item in image_data]
+        # The api v3 `chapter` route returns the same image list the web chapter
+        # page's contentKey decrypts to (46/46 measured against the decrypted
+        # web list, 2026-09-15), as plain JSON on the un-walled api resource
+        # family — the web chapter page is the risk-marked family (empty
+        # contentKey shell), so this route is the stable path and needs no
+        # contentKey/AES round trip. Evidence: test/__temp/kaobei_chapter_api_shape.py
+        path_word = episode.url.rstrip("/").split("/")[-3]
+        api_url = f"https://{self.api_domain}/api/v3/comic/{path_word}/chapter/{episode.id}?platform=1"
+        resp = await self._preview_get(
+            api_url, headers=self.ua_mapi, stage="preview_fetch_pages", follow_redirects=True, timeout=12,
+        )
+        payload = self._parse_preview_json(resp, stage="preview_fetch_pages", request_url=api_url)
+        contents = await asyncio.to_thread(
+            self.parser.parse_page_urls_from_chapter_json, payload, url=str(resp.url),
+        )
+        episode.pages = len(contents)
+        return [item["url"] for item in contents]
 
 
 class KaobeiUtils(_KaobeiContract, Utils, Previewer):
