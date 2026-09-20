@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import inspect
 import os
 import pathlib
@@ -159,6 +160,165 @@ class ComicPipeline(ImagesPipeline):
             return completed_item
         self._sync_item_progress(info.spider, info.spider.crawler.stats, item)
         return completed_item
+
+
+class EHentaiComicPipeline(ComicPipeline):
+    """H@H 图片失败转移。行为契约见 CGS019"""
+
+    eh_node_switch_max = 3
+    eh_view_page_timeout = 15
+    eh_node_reroll_max = 1
+    eh_transient_retry_max = 1
+    eh_transient_backoff_base = 1.5
+    eh_transient_backoff_max = 6.0
+    _TRANSIENT_ERROR_NAMES = frozenset(
+        {"ConnectionLost", "ConnectionDone", "ConnectionAborted", "ConnectionReset", "IndexError"}
+    )
+
+    async def _check_media_to_download(self, request, info, item):
+        spider = info.spider
+
+        result, failure = await self._attempt_with_transient_retry(
+            request, info, item, spider.hath_image_download_timeout_fast, spider
+        )
+        if failure is None:
+            return result
+        return await self._download_via_node_switch(request, info, item, spider)
+
+    async def _download_via_node_switch(self, request, info, item, spider):
+        view_page_url = request.meta.get("view_page_url")
+        if not view_page_url:
+            raise ImageException(
+                f"ehentai image failed fast-probe and no /s/ page context to switch node: {request.url}"
+            )
+
+        page = item.get("page")
+        nl_token = request.meta.get("nl_token")
+        failed_hosts = {self._host_of(request.url)}
+        for attempt in range(1, self.eh_node_switch_max + 1):
+            try:
+                image_url, nl_token = await self._switch_to_fresh_host(
+                    view_page_url, nl_token, spider, failed_hosts, page
+                )
+            except Exception as exc:
+                spider.logger.warning(
+                    "[eh] view-page reload failed (attempt %s/%s) | url=%s | error=%s: %s",
+                    attempt, self.eh_node_switch_max, view_page_url, type(exc).__name__, exc,
+                )
+                break
+
+            host = self._host_of(image_url)
+            timeout = (
+                spider.hath_image_download_timeout_fast
+                if host in failed_hosts
+                else self._switch_timeout(attempt, spider)
+            )
+            spider.logger.info(
+                "[eh] switch hath node %s/%s | page=%s | new_url=%s",
+                attempt, self.eh_node_switch_max, page, image_url,
+            )
+            retry_request = Request(image_url, callback=NO_CALLBACK, meta={
+                "download_timeout": timeout,
+                "max_retry_times": 0,
+                "view_page_url": view_page_url,
+                "nl_token": nl_token,
+            })
+            result, failure = await self._attempt_with_transient_retry(retry_request, info, item, timeout, spider)
+            if failure is None:
+                return result
+            failed_hosts.add(host)
+
+        raise ImageException(
+            f"ehentai image failed after fast-probe and {self.eh_node_switch_max} node switches: {request.url}"
+        )
+
+    async def _switch_to_fresh_host(self, view_page_url, nl_token, spider, failed_hosts, page):
+        image_url, nl_token = await self._reload_view_page(view_page_url, nl_token, spider)
+        for _ in range(self.eh_node_reroll_max):
+            host = self._host_of(image_url)
+            if host not in failed_hosts:
+                break
+            spider.logger.info(
+                "[eh] reload handed back a host that already failed, reloading again | page=%s | host=%s",
+                page, host,
+            )
+            image_url, nl_token = await self._reload_view_page(view_page_url, nl_token, spider)
+        return image_url, nl_token
+
+    @staticmethod
+    def _host_of(url):
+        from urllib.parse import urlparse
+
+        return (urlparse(url).hostname or "").lower()
+
+    async def _attempt_with_transient_retry(self, request, info, item, timeout, spider):
+        result, failure = await self._attempt_once(request, info, item, timeout)
+        if failure is None:
+            return result, None
+        for index in range(1, self.eh_transient_retry_max + 1):
+            if not self._is_transient(failure):
+                return None, failure
+            delay = self._transient_backoff(index)
+            spider.logger.info(
+                "[eh] transient link error, backoff %.1fs then retry same node (%s/%s) | url=%s",
+                delay, index, self.eh_transient_retry_max, request.url,
+            )
+            await asyncio.sleep(delay)
+            result, failure = await self._attempt_once(request, info, item, timeout)
+            if failure is None:
+                return result, None
+        return None, failure
+
+    async def _attempt_once(self, request, info, item, timeout):
+        try:
+            return await super()._check_media_to_download(self._retimed(request, timeout), info, item), None
+        except Exception as exc:
+            return None, exc
+
+    @classmethod
+    def _is_transient(cls, failure):
+        if failure is None:
+            return False
+        exc = getattr(failure, "value", failure)
+        return type(exc).__name__ in cls._TRANSIENT_ERROR_NAMES
+
+    def _transient_backoff(self, index):
+        delay = self.eh_transient_backoff_base * (2 ** (index - 1))
+        return min(delay, self.eh_transient_backoff_max)
+
+    @staticmethod
+    def _retimed(request, timeout):
+        new_meta = dict(request.meta)
+        new_meta["download_timeout"] = timeout
+        new_meta["max_retry_times"] = 0
+        return request.replace(meta=new_meta)
+
+    def _switch_timeout(self, attempt, spider):
+        fast = spider.hath_image_download_timeout_fast
+        long_timeout = spider.hath_image_download_timeout
+        span = self.eh_node_switch_max
+        if span <= 1 or attempt >= span:
+            return long_timeout
+        if attempt == 1:
+            return fast
+        step = (long_timeout - fast) / (span - 1)
+        return fast + round(step * (attempt - 1))
+
+    async def _reload_view_page(self, view_page_url, nl_token, spider):
+        url = f"{view_page_url}?nl={nl_token}" if nl_token else view_page_url
+        view_request = Request(
+            url, callback=NO_CALLBACK,
+            headers=dict(getattr(spider, "ua", {}) or {}),
+            meta={"download_timeout": self.eh_view_page_timeout, "handle_httpstatus_all": True},
+        )
+        response = await self.crawler.engine.download_async(view_request)
+        image_url = response.xpath('//img[@id="img"]/@src').get()
+        if not image_url or image_url.endswith("509.gif"):
+            raise ImageException(
+                f"view page returned no usable image | status={response.status} | url={url}"
+            )
+        match = re.search(r"return nl\('([^']*)'\)", response.text)
+        return image_url, (match.group(1) if match else None)
 
 
 class CurlComicPipeline(ComicPipeline):
