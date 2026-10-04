@@ -156,7 +156,9 @@ class Aria2RpcClient:
             )
             return gid, result.json()
         except Exception as exc:
-            return gid, {"error": str(exc)}
+            # str(exc) can be empty (httpx wraps httpcore's bare TimeoutError);
+            # keep the exception type so the failure is never a black box.
+            return gid, {"error": f"{type(exc).__name__}: {exc}"}
 
 
 # Backward-compatible alias used by existing call sites.

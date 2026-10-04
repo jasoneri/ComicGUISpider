@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 
 import httpx
 
 from assets import res
 from utils import temp_p
 from utils.website.kemono.db import build_kemono_db_from_creators_bytes
+from utils.website.kemono import *
 
 
-KEMONO_CREATORS_API_URL = "https://kemono.cr/api/v1/creators"
-HEADERS = {
+KEMONO_CREATORS_API_URL = creators_txt
+HEADERS = deepcopy(headers)
+HEADERS.update({
     "accept": "application/json",
     "accept-language": res.Vars.ua_accept_language,
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0",
-    "referer": "https://kemono.cr/",
-}
+    "referer": f"https://{domain}",
+})
 
 
 def _build_data_client() -> httpx.AsyncClient:

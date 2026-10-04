@@ -3,6 +3,7 @@ import subprocess
 import pathlib as p
 import typing as t
 from datetime import datetime
+from copy import deepcopy
 
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
@@ -18,12 +19,14 @@ from qfluentwidgets import (
 )
 from qframelesswindow import FramelessWindow
 
+from assets import res
 from variables import CGS_DOC
 from deploy import curr_os
 from utils import ori_path, temp_p
 from utils.config.qc import kemono_cfg
 from utils.website.kemono.db import AuthorQuery, KemonoAuthor, KemonoAuthorsDb
-from GUI.core.font import font_color
+from utils.website.kemono import *
+from GUI.core.font import ansi_to_html, font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.script.kemono.avatar_cache import AvatarCache
@@ -31,14 +34,12 @@ from GUI.script.kemono.avatar_cache import AvatarCache
 _KEMONO_SORT_COLUMNS = ("name", "service", "updated", "favorited")
 _KEMONO_WINDOW_SIZE = 384
 _KEMONO_FTS_TASK_ID = "kemono_authors_fts_ensure"
-
-# Keep banner local: importing utils.script.image.kemono pulls pandas/DoH/motrix (~10s+) on the GUI thread.
-KEMONO_TOPIC = """
-  ┏┓┏┓┏┓  ┓            
-  ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
-  ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
-"""
-
+HEADERS = deepcopy(headers)
+HEADERS.update({
+    "accept": "application/json",
+    "accept-language": res.Vars.ua_accept_language,
+    "referer": f"https://{domain}",
+})
 
 class FilterView(FlyoutViewBase):
     closed = Signal()  # 添加closed信号
@@ -260,11 +261,7 @@ class KemonoTableView(FramelessWindow):
         import httpx
 
         self._avatar_http_cli = httpx.Client(
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                "Accept": "image/*",
-                "Referer": "https://kemono.cr/",
-            },
+            headers=HEADERS,
             follow_redirects=True,
             timeout=15,
             limits=httpx.Limits(
@@ -597,7 +594,7 @@ class KemonoTableView(FramelessWindow):
 
     def open_author_link(self, author):
         """打开作者链接"""
-        author_url = f"https://kemono.cr/{author.service}/user/{author.id}"
+        author_url = f"https://{domain}/{author.service}/user/{author.id}"
         QDesktopServices.openUrl(QUrl(author_url))
 
     def fav_author(self, author):
@@ -850,12 +847,12 @@ class KemonoBackendThread(QThread):
                     break  # 进程结束且无输出时退出
                 continue
             line = line.strip()
-            self.print(line)
+            self.print(ansi_to_html(line) if "\x1b" in line else line)
         remaining = process.stdout.read()
         if remaining:
             for line in remaining.splitlines():
                 cleaned_line = line.strip()
-                self.print(cleaned_line)
+                self.print(ansi_to_html(cleaned_line) if "\x1b" in cleaned_line else cleaned_line)
         exit_code = process.wait()
         if exit_code == 0:
             self.print(font_color("✅ done! 运行键已恢复，可继续接下一轮任务 ヾ(￣▽￣ )~~", cls='theme-success'))

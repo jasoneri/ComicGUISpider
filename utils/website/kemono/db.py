@@ -8,6 +8,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
+from utils.website.kemono import *
+
+
 _SORT_COLUMNS = frozenset({"name", "service", "updated", "favorited"})
 _FTS_SPECIAL_RE = re.compile(r'["\'\*\^\~\(\)\:\{\}\[\]\\]')
 
@@ -21,8 +24,8 @@ class KemonoAuthor:
     favorited: int
 
     @property
-    def avatar(self) -> str:
-        return f"https://img.kemono.cr/icons/{self.service}/{self.id}"
+    def avatar(self) -> str:    # todo[0](261004) 头像下载后文件名需要转换为 jpg 
+        return f"https://{domain}/icons/{self.service}/{self.id}"
 
     def to_payload(self) -> dict[str, str | int]:
         return asdict(self)
@@ -147,8 +150,6 @@ class KemonoAuthorsDb:
             return ready
 
     def ensure_fts(self, *, force: bool = False) -> None:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
         self.ensure_schema()
         if not force and self.fts_ready():
             return
@@ -202,8 +203,6 @@ class KemonoAuthorsDb:
         return len(authors)
 
     def load_all(self) -> dict[str, KemonoAuthor]:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
         with closing(self._connect()) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT id, name, service, updated, favorited FROM authors")
@@ -254,8 +253,6 @@ class KemonoAuthorsDb:
         return " AND ".join(clauses), params
 
     def count(self, query: AuthorQuery) -> int:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
         where_sql, params = self._build_where(query)
         with closing(self._connect()) as conn:
             row = conn.execute(
@@ -265,8 +262,6 @@ class KemonoAuthorsDb:
         return int(row[0])
 
     def fetch(self, query: AuthorQuery, *, offset: int, limit: int) -> list[KemonoAuthor]:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
         if limit <= 0:
             return []
         safe_offset = max(0, int(offset))

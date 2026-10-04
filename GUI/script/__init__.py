@@ -143,7 +143,7 @@ class BaseServiceGroupCard(GroupHeaderCardWidget):
 class KemonoGroupCard(BaseServiceGroupCard):
     """Kemono配置组卡片"""
     def __init__(self, parent=None):
-        super().__init__(parent, "Kemono", "kemono", "D:/pic/kemono")
+        super().__init__(parent, "Kemono", "kemono", "D:/pic/kemono")  # FIX[0](260103) 理应从配置中读取默认路径
 
 
 class DanbooruGroupCard(GroupHeaderCardWidget):

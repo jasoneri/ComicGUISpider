@@ -43,13 +43,13 @@
 
 | 网站 | 适用区域 | 补充说明 |
 |:---|:---:|:---:|
-| [拷贝漫画](https://www.2026copy.com/) | :cn: | |
+| [拷贝漫画](https://www.2026copy.com/) | :cn: | 代理 |
 | [Māngabz](https://mangabz.com) | :cn: | |
 | [禁漫天堂](https://18comic.vip/) | :cn: |
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
 | [ExHentai](https://exhentai.org/) | 🌏 | 代理 |
 | [Hitomi](https://hitomi.la/) | 🌏 | |
-| Script | 🌏 | [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) |
+| Script | 🌏 | [~~Kemono~~](https://pawchive.pw)<br>[Danbooru](https://danbooru.donmai.us/) |
 | [HComic](https://h-comic.com/) | 🌏 | 代理 |
 | [Nhentai](https://nhentai.net/) | 🌏 | 代理 |
 | [jestful](https://jestful.net/) | 🌏 | 表漫/生肉 |

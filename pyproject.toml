@@ -39,6 +39,7 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "mcp>=1.27.1,<2",
+    "rich>=14.3.3",
 ]
 authors = [
     {name = "jsoneri", email = "jsoneri@outlook.com"},

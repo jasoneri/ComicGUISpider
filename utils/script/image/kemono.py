@@ -1,5 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import datetime
 import argparse
 import json
@@ -14,6 +16,7 @@ from dataclasses import dataclass, asdict
 import yaml
 import httpx
 import pandas as pd
+from colorama import just_fix_windows_console
 from loguru import logger
 import tqdm
 
@@ -24,27 +27,29 @@ from utils.config.qc import cgs_cfg, kemono_cfg
 from utils.network.doh import build_http_transport, dns_stub_server
 from utils.script import conf as script_conf, AioRClient, BlackList, folder_sub
 from utils.script.aria2 import create_managed_rpc_client
-from utils.script.motrix import MotrixRPC, build_motrix_dns_options
+from utils.script.motrix import build_motrix_dns_options
 from utils.script.image.expander import FilterMgr, format_naming
 from utils.website.kemono.db import load_kemono_authors
+from utils.website.kemono import *
 
 conf = script_conf
+
+
+def _stream_isatty(stream) -> bool:
+    # loguru 自动着色检测（should_colorize）在 Windows 上只要 TERM 环境变量存在就强制输出 ANSI，
+    # GUI 以管道接管子进程输出时这些转义符就变成乱码，因此显式按 TTY 判定
+    try:
+        return bool(stream.isatty())
+    except Exception:
+        return False
+
+
+just_fix_windows_console()
+logger.remove()
+logger.add(sys.stderr, colorize=_stream_isatty(sys.stderr))
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
 kemono_db_path = temp_p.joinpath("kemono.db")
-
-
-kemono_topic = """
-  ┏┓┏┓┏┓  ┓            
-  ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
-  ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
-"""
-domain = "kemono.cr"
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
-    "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-    'Accept': 'text/css',
-}
 
 
 class OverSizeErr(Exception):
@@ -98,14 +103,21 @@ class ListArtistsInfo:
 
 
 class Api:
-    base = f"https://{domain}/api/v1"
-    creator_posts = base + "/{service}/user/{creator_id}/posts"
-    discord_info = base + "/discord/{kind}/{_id}"
-    post = base + "/{service}/user/{creator_id}/post/{post_id}"
-    favorites = base + "/account/favorites"
-    file_prefix = "https://n3.kemono.cr"
-    file_redirect_prefix = "https://kemono.cr"
-    creators_txt = base + "/creators"
+    base = base 
+    creator_posts = creator_posts 
+    discord_info = discord_info
+    post = post 
+    favorites = favorites 
+    img_domain = img_domain 
+    file_domain = file_domain 
+    creators_txt = creators_txt 
+
+    # preview_only files live on the thumbnail server (/thumbnail/data, direct OK);
+    # the rest on the file server (/data, proxy required)
+    def data_url(self, path, name, *, preview_only: bool = False) -> str:
+        if preview_only:
+            return f"https://{self.img_domain}/thumbnail/data{path}?f={name}"
+        return f"https://{self.file_domain}/data{path}?f={name}"
 
     def __init__(self, conf):
         transport, trust_env = build_http_transport(
@@ -188,10 +200,12 @@ class Kemono:
         self.blacklist = self.blacklist_obj.read()
 
     @staticmethod
-    def motrix_add_uri_options() -> dict[str, str]:
-        return build_motrix_dns_options(
-            dns_server=dns_stub_server(cgs_cfg.doh.get_url()),
-        )
+    def aria2_add_uri_options() -> dict[str, str | list[str]]:
+        # 镜像站会拒绝默认 UA（aria2 报错 22），下载必须沿用 API 侧的浏览器 headers
+        return {
+            **build_motrix_dns_options(dns_server=dns_stub_server(cgs_cfg.doh.get_url())),
+            "header": [f"{key}: {value}" for key, value in headers.items()],
+        }
 
     class Creator:
         db_path = kemono_db_path
@@ -210,13 +224,10 @@ class Kemono:
             meta = asdict(_task_meta)
             tasks = post.get("attachments", [])
             file = post.get("file")
-            preview_post = await self.k.api.get_post(post.get("user"), post.get("service"), post.get("id"))
-            preview = preview_post.get("previews", [])
-            server_map = {_['name']: _['server'] for _ in preview}
             if file and file not in tasks:
                 tasks = [file, *tasks]
             post_tasks = [
-                {"url": f'''{server_map.get(task["name"], self.k.api.file_prefix)}/data{task.get("path")}?f={task.get("name")}''',
+                {"url": self.k.api.data_url(task.get("path"), task.get("name"), preview_only=bool(task.get("preview_only"))),
                     "file_name": task.get("name")} 
                 for task in tqdm.tqdm(tasks, ncols=100, desc=f"[{published}]{title}")
                 if self.k.fm.file(task.get("name"))
@@ -247,7 +258,7 @@ class Kemono:
                 if self.k.fm.file(task.get("name")):
                     fname = task.get("name") if task.get("name") != "image.png" else \
                         task.get("path").rsplit("/", 1)[-1]
-                    _ = {"url": f'''{self.k.api.file_redirect_prefix}/data{task.get("path")}?f={fname}''',
+                    _ = {"url": self.k.api.data_url(task.get("path"), fname, preview_only=bool(task.get("preview_only"))),
                         "file_name": fname} 
                     post_tasks.append(_)
             redis_task = {
@@ -392,32 +403,46 @@ class Kemono:
     async def step2_run_task(self, _sem, _tasks):
         async def run_rpc_task(_path, _tasks, _id=None):
             # 事实上只支持单个任务单个文件，uris列表可以塞的是其他镜像源而不是兄弟任务的文件
-            # todo[5]: rpc有个问题是当同一post发出不同类型的下载时（例如图片与MP4混杂），mortix会报错22，headers的问题
+            # todo[5]: rpc有个问题是当同一post发出不同类型的下载时（例如图片与MP4混杂），mortix会报错22，headers的问题，未测试过不得撤走此 todo
             async with _sem:
                 gids = {}
+                errors = []
                 for task in _tasks:
-                    _data = [[task["url"]], {"dir": str(_path), **self.motrix_add_uri_options()}]
-                    resp = await self.rpc.sess.request(
-                        "POST", self.rpc.url, headers={"Content-Type": "application/json"},
-                        json=MotrixRPC.format_data(_data, _id=f"{_id}/{task['file_name']}"))
-                    add_result = resp.json()
-                    gid = add_result.get('result')
+                    try:
+                        gid = await self.rpc.add_uri(
+                            task["url"],
+                            target_dir=_path,
+                            options=self.aria2_add_uri_options(),
+                            task_id=f"{_id}/{task['file_name']}",
+                        )
+                    except Exception as exc:
+                        errors.append(f"{task['file_name']} 提交失败：{type(exc).__name__}: {exc}")
+                        continue
                     gids[gid] = task['file_name']
                 
-                errors = []
                 completed = []
+                query_failures = {}
                 while gids:
                     status_tasks = [self.rpc.check_gid_status(gid) for gid in gids.keys()]
                     results = await asyncio.gather(*status_tasks)
                     for gid, result in results:
                         if 'error' in result:
-                            errors.append(f"GID {gids.pop(gid)} 查询失败：{result['error']}")
+                            # 瞬时 RPC 抖动（ConnectTimeout 的 str 为空）不丢任务，连续失败才放弃
+                            failures = query_failures.get(gid, 0) + 1
+                            query_failures[gid] = failures
+                            if failures >= 5:
+                                errors.append(f"GID {gids.pop(gid)} 查询失败×{failures}：{result['error']}")
+                                query_failures.pop(gid, None)
                             continue
-                        status = result.get('result', {}).get('status')
+                        query_failures.pop(gid, None)
+                        status_detail = result.get('result', {})
+                        status = status_detail.get('status')
                         if status == 'complete':
                             completed.append(gids.pop(gid))
                         elif status == 'error':
-                            errors.append(f"任务 {gids.pop(gid)} 错误")
+                            error_code = status_detail.get('errorCode')
+                            error_message = status_detail.get('errorMessage')
+                            errors.append(f"任务 {gids.pop(gid)} 错误[{error_code}]: {error_message}")
                     await asyncio.sleep(1.5)
                 return {"t": _path.name, "complete": completed, "error": errors}
 
@@ -509,7 +534,7 @@ class Process:
     
     def run(self, **rkw):
         # 2 处理/执行任务
-        logger.debug("\n\n📢 留意 motrix 任务\n")
+        logger.debug("\n\n📢 留意 aria2 任务\n")
         self.loop.run_until_complete(self.k.temp_copy_vals(restore=True))
 
         tasks = self.loop.run_until_complete(self.k.step2_get_tasks())
@@ -538,12 +563,12 @@ class Process:
     async def _cleanup(self):
         await self.k.redis.aclose()
         await self.k.api.sess.aclose()
-        await self.k.rpc.sess.aclose()
+        await self.k.rpc.aclose()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description=kemono_topic,
+        description=KEMONO_TOPIC,
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-p', '--process', type=str, nargs='?', default='main', help='optinal: create/run')

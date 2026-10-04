@@ -33,6 +33,20 @@ def get_proxy(config_data: dict[str, Any] | None = None) -> str:
     return _section_proxy_value(get_cgs_aria2_section(config_data))
 
 
+def script_proxy_fallback() -> str:
+    """cgs_aria2.proxy empty → follow the script httpx proxies (danbooru approach).
+
+    Keeps engine proxy and conf.proxies linked: mirror sites unreachable direct
+    stay downloadable without pinning a value into cgs_aria2.proxy.
+    """
+    proxies = getattr(script_conf, "proxies", None) or []
+    for proxy in proxies:
+        normalized = normalize_proxy(proxy)
+        if normalized:
+            return normalized
+    return ""
+
+
 def ensure_motrix_proxy_seed(config_data: dict[str, Any] | None = None) -> tuple[dict[str, Any], bool]:
     data = dict(config_data) if config_data is not None else load_script_yaml()
     section = get_cgs_aria2_section(data)
