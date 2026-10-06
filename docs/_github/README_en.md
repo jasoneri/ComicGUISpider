@@ -53,13 +53,13 @@
 | [Māngabz](https://mangabz.com) | :cn: | |
 | [18comic](https://18comic.vip/) | :cn: | 🔞 |
 | [wnacg](https://www.wnacg.com/) | :cn: | 🔞 |
-| [ExHentai](https://exhentai.org/) | 🌏 | 🔞 proxy |
+| [ExHentai](https://exhentai.org/) | 🌏 | 🔞 |
 | [Hitomi](https://hitomi.la/) | 🌏 | 🔞 |
 | Script | 🌏 | [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) |
-| [HComic](https://h-comic.com/) | 🌏 | 🔞 proxy |
-| [Nhentai](https://nhentai.net/) | 🌏 | 🔞 proxy |
+| [HComic](https://h-comic.com/) | 🌏 | 🔞 |
+| [Nhentai](https://nhentai.net/) | 🌏 | 🔞 |
 | [jestful](https://jestful.net/) | 🌏 | manga / raw |
-| [Manhuagui](https://www.manhuagui.com/) | :cn: | proxy |
+| [Manhuagui](https://www.manhuagui.com/) | :cn: | |
 | [dm5](https://tel.dm5.com/) | :cn: | proxy? |
 | [comicabc](https://www.8comic.com/) | :cn: | proxy? |
 | [mh1234](https://m.wmh1234.com/) | :cn: | proxy? |

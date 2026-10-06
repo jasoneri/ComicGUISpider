@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from deploy import Env
+
+
+# Deploy only owns the environment anchor; the site sub-path belongs to the kemono module.
+DEFAULT_SV_PATH = str(Env.default_acggr_path.joinpath("pawchive"))
 
 # Keep banner local: importing utils.script.image.kemono pulls pandas/DoH/motrix (~10s+) on the GUI thread.
 KEMONO_TOPIC = """
-  ┏┓┏┓┏┓  ┓            
+  ┏┓┏┓┏┓  ┓
   ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
   ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
 """

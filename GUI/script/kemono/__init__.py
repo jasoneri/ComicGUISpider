@@ -1,13 +1,13 @@
+import os
 import sys
 import subprocess
 import pathlib as p
 import typing as t
 from datetime import datetime
-from copy import deepcopy
 
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
-from PySide6.QtCore import Qt, QUrl, Signal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer, QByteArray, QBuffer, QIODevice
+from PySide6.QtCore import Qt, QUrl, Signal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer
 from GUI.core.timer import safe_single_shot
 from PySide6.QtGui import QFont, QGuiApplication, QDesktopServices, QPixmap, QColor
 from qfluentwidgets import (
@@ -29,17 +29,11 @@ from utils.website.kemono import *
 from GUI.core.font import ansi_to_html, font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
-from GUI.script.kemono.avatar_cache import AvatarCache
+from GUI.script.kemono.avatar import AvatarCache, close_client, fetch_avatar_bytes, is_jpeg, to_avatar_jpeg
 
 _KEMONO_SORT_COLUMNS = ("name", "service", "updated", "favorited")
 _KEMONO_WINDOW_SIZE = 384
 _KEMONO_FTS_TASK_ID = "kemono_authors_fts_ensure"
-HEADERS = deepcopy(headers)
-HEADERS.update({
-    "accept": "application/json",
-    "accept-language": res.Vars.ua_accept_language,
-    "referer": f"https://{domain}",
-})
 
 class FilterView(FlyoutViewBase):
     closed = Signal()  # 添加closed信号
@@ -253,22 +247,13 @@ class KemonoTableView(FramelessWindow):
         self._avatar_col_width = 44
         self._avatar_row_height = 40
         self._avatar_task_mgr = AsyncTaskManager(self.gui, self)
-        self._avatar_cache = AvatarCache(temp_p.joinpath("kemono_avatars.pkl"))
+        self._avatar_cache = AvatarCache(temp_p.joinpath("kemono_avatars.pkl"), accept=is_jpeg)
         self._avatar_cache.load()
         self._avatar_widgets: t.Dict[int, ImageLabel] = {}
         self._avatar_pending: t.List[t.Tuple[KemonoAuthor, ImageLabel]] = []
         self._avatar_max_concurrent = 12
-        import httpx
-
-        self._avatar_http_cli = httpx.Client(
-            headers=HEADERS,
-            follow_redirects=True,
-            timeout=15,
-            limits=httpx.Limits(
-                max_connections=self._avatar_max_concurrent,
-                max_keepalive_connections=self._avatar_max_concurrent,
-            ),
-        )
+        self._avatar_max_attempts = 3
+        self._avatar_attempts: t.Dict[str, int] = {}
         self._avatar_sync_scheduled = False
         self._avatar_save_timer = QTimer(self)
         self._avatar_save_timer.setSingleShot(True)
@@ -435,6 +420,7 @@ class KemonoTableView(FramelessWindow):
 
     def _clear_avatar_widgets(self):
         self._avatar_pending.clear()
+        self._avatar_attempts.clear()
         for w in self._avatar_widgets.values():
             if self._widget_alive(w):
                 w.setParent(None)
@@ -451,9 +437,9 @@ class KemonoTableView(FramelessWindow):
             return
 
         config = TaskConfig(
-            task_func=lambda _url=author.avatar: self._download_bytes(_url),
+            task_func=lambda _url=author.avatar: fetch_avatar_bytes(_url),
             success_callback=lambda data, _k=key, _l=label: self._on_download_ok(_k, _l, data),
-            error_callback=lambda err, _k=key: self._drain_pending(),
+            error_callback=lambda err, _k=key, _a=author, _l=label: self._on_download_error(_k, _a, _l),
             tooltip_title="",
             show_success_info=False,
             show_error_info=False,
@@ -461,19 +447,9 @@ class KemonoTableView(FramelessWindow):
         )
         self._avatar_task_mgr.execute_task(task_id, config)
 
-    def _download_bytes(self, url: str) -> bytes:
-        resp = self._avatar_http_cli.get(url)
-        resp.raise_for_status()
-        content_length = resp.headers.get("content-length")
-        if content_length and int(content_length) > 2 * 1024 * 1024:
-            raise ValueError("invalid_avatar_response")
-        data = resp.content
-        if not data or len(data) > 2 * 1024 * 1024:
-            raise ValueError("invalid_avatar_response")
-        return data
-
     def _on_download_ok(self, key: str, label: ImageLabel, data: bytes):
-        scaled = self._scale_to_png(data)
+        self._avatar_attempts.pop(key, None)
+        scaled = to_avatar_jpeg(data, self._avatar_size)
         if not scaled:
             self._drain_pending()
             return
@@ -492,21 +468,14 @@ class KemonoTableView(FramelessWindow):
         self._apply_bytes_to_label(label, scaled)
         self._drain_pending()
 
-    def _scale_to_png(self, raw: bytes) -> t.Optional[bytes]:
-        pm = QPixmap()
-        if not pm.loadFromData(raw):
-            return None
-        scaled = pm.scaled(self._avatar_size, self._avatar_size,
-                           Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        ba = QByteArray()
-        buf = QBuffer(ba)
-        if not buf.open(QIODevice.WriteOnly):
-            return None
-        if not scaled.save(buf, "PNG"):
-            buf.close()
-            return None
-        buf.close()
-        return bytes(ba)
+    def _on_download_error(self, key: str, author: KemonoAuthor, label: ImageLabel):
+        # fetch_avatar_bytes 内部已做瞬时错误退避重试；这里再排队一轮更晚的重试，
+        # 覆盖「整段网络抖动超过单次任务重试窗口」的情况，避免头像停留在灰占位。
+        attempts = self._avatar_attempts.get(key, 0) + 1
+        self._avatar_attempts[key] = attempts
+        if attempts < self._avatar_max_attempts and self._widget_alive(label):
+            self._avatar_pending.append((author, label))
+        self._drain_pending()
 
     def _apply_bytes_to_label(self, label: ImageLabel, img_bytes: bytes):
         pm = QPixmap()
@@ -548,7 +517,7 @@ class KemonoTableView(FramelessWindow):
 
     def closeEvent(self, event):
         self._avatar_task_mgr.cancel_all_tasks()
-        self._avatar_http_cli.close()
+        close_client()
         if self._avatar_save_timer.isActive():
             self._avatar_save_timer.stop()
         self._avatar_cache.save()
@@ -674,7 +643,9 @@ class KemonoInterface(QFrame):
         fourth_row = QHBoxLayout()
         self.textBrowser = TextBrowserWithBg(self)
         font = QFont()
-        font.setFamily("Consolas, Monaco, 'Courier New', monospace")  # 等宽字体，支持Unicode
+        # 等宽字体 + Unicode box-drawing。setFamily 不解析逗号候选列表，必须 setFamilies，
+        # 否则整个字符串被当成单一字体名 → 解析失败 → 回落到应用默认字体，banner 错位。
+        font.setFamilies(["Consolas", "DejaVu Sans Mono", "Courier New", "monospace"])
         font.setPointSize(10)
         self.textBrowser.setFont(font)
         fourth_row.addWidget(self.textBrowser)
@@ -827,6 +798,9 @@ class KemonoBackendThread(QThread):
         self.output_signal.emit(*args, **kwargs)
 
     def run(self):
+        # CGS016: aria2 引导链冷导入 ~950ms，只在真正起子进程时才付。
+        from utils.script.aria2.engine import child_endpoint_env
+
         script_path = ori_path.joinpath("utils/script/image/kemono.py")
 
         args = []
@@ -836,7 +810,7 @@ class KemonoBackendThread(QThread):
         cmd = [sys.executable, str(script_path)] + args
         self.output_signal.emit(f"🎯cmd: {cmd}")
         process = subprocess.Popen(
-            cmd, cwd=ori_path,
+            cmd, cwd=ori_path, env={**os.environ, **child_endpoint_env()},
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1, universal_newlines=True
         )

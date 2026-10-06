@@ -7,6 +7,7 @@ import yaml
 from utils.script import conf as script_conf
 from utils.script.aria2.conf import normalize_proxy
 from utils.script.aria2.import_motrix import import_motrix_proxy_once
+from utils.script.aria2.lock import DEFAULT_RPC_PORT
 
 
 def load_script_yaml() -> dict[str, Any]:
@@ -33,18 +34,22 @@ def get_proxy(config_data: dict[str, Any] | None = None) -> str:
     return _section_proxy_value(get_cgs_aria2_section(config_data))
 
 
-def script_proxy_fallback() -> str:
-    """cgs_aria2.proxy empty → follow the script httpx proxies (danbooru approach).
+def get_rpc_port(config_data: dict[str, Any] | None = None) -> int:
+    """Fixed RPC port; a bad configured value is a config error, not a fallback."""
+    raw = get_cgs_aria2_section(config_data).get("rpc_port")
+    if raw in (None, ""):
+        return DEFAULT_RPC_PORT
+    try:
+        port = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"cgs_aria2.rpc_port must be an integer, got {raw!r}") from exc
+    if not 1 <= port <= 65535:
+        raise ValueError(f"cgs_aria2.rpc_port out of range: {port}")
+    return port
 
-    Keeps engine proxy and conf.proxies linked: mirror sites unreachable direct
-    stay downloadable without pinning a value into cgs_aria2.proxy.
-    """
-    proxies = getattr(script_conf, "proxies", None) or []
-    for proxy in proxies:
-        normalized = normalize_proxy(proxy)
-        if normalized:
-            return normalized
-    return ""
+
+def singleton_enabled(config_data: dict[str, Any] | None = None) -> bool:
+    return bool(get_cgs_aria2_section(config_data).get("singleton_enabled", True))
 
 
 def ensure_motrix_proxy_seed(config_data: dict[str, Any] | None = None) -> tuple[dict[str, Any], bool]:

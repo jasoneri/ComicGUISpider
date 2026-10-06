@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from deploy import Env
+
 VIEWER_VIDEO_MEDIA_EXTENSIONS = frozenset({"mp4", "webm"})
 ARCHIVE_MEDIA_EXTENSIONS = frozenset({"zip"})
 SUPPORTED_MEDIA_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
@@ -14,7 +16,8 @@ DEFAULT_DOWNLOAD_CONCURRENCY = 3
 MOTRIX_POLL_INTERVAL = 1.2
 DANBOORU_PAGE_SIZE = 30
 DANBOORU_AUTOCOMPLETE_LIMIT = 20
-DEFAULT_DANBOORU_SAVE_PATH = "D:/pic/danbooru"
+# Deploy only owns the environment anchor; the site sub-path belongs to the danbooru module.
+DEFAULT_DANBOORU_SAVE_PATH = str(Env.default_acggr_path.joinpath("danbooru"))
 DANBOORU_SAVE_TYPE_SEARCH_TAG = "search_tag"
 
 _WHITESPACE_RE = re.compile(r"\s+")

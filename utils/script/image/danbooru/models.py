@@ -8,7 +8,6 @@ from urllib.parse import urlsplit
 from utils.config.qc import cgs_cfg
 from utils.network.doh import dns_stub_endpoint, dns_stub_server, normalize_doh_url
 from utils.script import conf as script_conf, folder_sub
-from utils.script.motrix import build_motrix_dns_options
 
 from .constants import (
     DANBOORU_OFFICIAL_ORDER_VALUES,
@@ -268,6 +267,10 @@ class DanbooruRuntimeConfig:
         return bool(self.doh_url)
 
     def motrix_add_uri_options(self) -> dict[str, str]:
+        # CGS016: importing this shim pulls utils.script.aria2.engine (~950ms on the
+        # GUI import path); it is only needed when a download actually starts.
+        from utils.script.motrix import build_motrix_dns_options
+
         return build_motrix_dns_options(dns_server=self.stub_dns_server())
 
     def stub_dns_server(self) -> str:

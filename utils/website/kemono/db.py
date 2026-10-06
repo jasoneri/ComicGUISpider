@@ -24,7 +24,7 @@ class KemonoAuthor:
     favorited: int
 
     @property
-    def avatar(self) -> str:    # todo[0](261004) 头像下载后文件名需要转换为 jpg 
+    def avatar(self) -> str:
         return f"https://{domain}/icons/{self.service}/{self.id}"
 
     def to_payload(self) -> dict[str, str | int]:

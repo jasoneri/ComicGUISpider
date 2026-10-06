@@ -49,7 +49,7 @@
 | [绅士漫画(wnacg)](https://www.wnacg.com/) | :cn: |
 | [ExHentai](https://exhentai.org/) | 🌏 | 代理 |
 | [Hitomi](https://hitomi.la/) | 🌏 | |
-| Script | 🌏 | [~~Kemono~~](https://pawchive.pw)<br>[Danbooru](https://danbooru.donmai.us/) |
+| Script | 🌏 | [~~Kemono~~ pawchive](https://pawchive.pw)<br>[Danbooru](https://danbooru.donmai.us/) |
 | [HComic](https://h-comic.com/) | 🌏 | 代理 |
 | [Nhentai](https://nhentai.net/) | 🌏 | 代理 |
 | [jestful](https://jestful.net/) | 🌏 | 表漫/生肉 |

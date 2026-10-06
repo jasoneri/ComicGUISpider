@@ -194,7 +194,7 @@ class Kemono:
         self.fm = FilterMgr(filter_dict)
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
-        self.sv_path = p.Path(self.conf.get('sv_path'))
+        self.sv_path = p.Path(self.conf.get('sv_path') or DEFAULT_SV_PATH)
         self.sorted_record = self.sv_path.joinpath('__sorted_record')
         self.blacklist_obj = BlackList(self.sv_path / 'blacklist.json')
         self.blacklist = self.blacklist_obj.read()

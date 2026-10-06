@@ -26,14 +26,15 @@ from assets import res
 from utils import yaml, ori_path
 from utils.config.qc import danbooru_cfg, cgs_cfg
 from utils.script import conf as script_conf
+from utils.script.image.danbooru.constants import DEFAULT_DANBOORU_SAVE_PATH
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig
+from utils.website.kemono import DEFAULT_SV_PATH as DEFAULT_KEMONO_SV_PATH
 from GUI.core.doh_runtime import ScriptDoHStubRuntime
 from GUI.core.exception_feedback import GuiExceptionFeedbackDispatcher, InfoBarExceptionPresenter
 from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import summarize_error_message
 from GUI.uic.qfluent.components.icons import CgsIcon
-from GUI.script.settings_aria2 import Aria2GroupCard
 
 
 script_res = res.GUI.Script
@@ -143,7 +144,7 @@ class BaseServiceGroupCard(GroupHeaderCardWidget):
 class KemonoGroupCard(BaseServiceGroupCard):
     """Kemono配置组卡片"""
     def __init__(self, parent=None):
-        super().__init__(parent, "Kemono", "kemono", "D:/pic/kemono")  # FIX[0](260103) 理应从配置中读取默认路径
+        super().__init__(parent, "Kemono", "kemono", DEFAULT_KEMONO_SV_PATH)
 
 
 class DanbooruGroupCard(GroupHeaderCardWidget):
@@ -160,7 +161,7 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.setBorderRadius(8)
 
         danbooru_conf = getattr(script_conf, "danbooru", {}) or {}
-        self.current_path = danbooru_conf.get("save_path", "D:/pic/danbooru")
+        self.current_path = danbooru_conf.get("save_path", DEFAULT_DANBOORU_SAVE_PATH)
 
         self.downloadConcurrencyEdit = SpinBox(self)
         self.downloadConcurrencyEdit.setRange(1, 10)
@@ -387,6 +388,10 @@ class SettingInterface(QFrame):
         first_row.addWidget(self.dohBtn)
 
         # Cards keep SettingInterface as parent so setting_interface/saveBtn wiring stays valid.
+        # CGS016: this card pulls the aria2 bootstrap chain (~950ms) — import it inside the
+        # deferred Settings page instead of paying it during GUI.script package init.
+        from GUI.script.settings_aria2 import Aria2GroupCard
+
         self.aria2_group_card = Aria2GroupCard(self)
         # Compatibility alias for probes / existing call sites.
         self.aria2ProxyEdit = self.aria2_group_card.proxy_edit
@@ -451,28 +456,13 @@ class SettingInterface(QFrame):
 
     def show_self(self):
         """加载配置文件内容到各个编辑框"""
-        from utils.script.aria2.settings import ensure_motrix_proxy_seed, get_proxy
+        from utils.script.aria2.settings import get_proxy
 
         with open(script_conf.file, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f.read()) or {}
 
-        # Seed may write yaml; never block Settings paint if Motrix import fails.
-        imported = False
-        try:
-            config_data, imported = ensure_motrix_proxy_seed(config_data)
-        except Exception as seed_error:
-            logger = self._gui_logger()
-            if logger is not None:
-                logger.warning(f"[ScriptSettings] motrix proxy seed skipped: {seed_error}")
-
         self.imgProxiesEdit.setText(','.join(config_data.get('proxies') or []))
         self.aria2_group_card.set_proxy_text(get_proxy(config_data))
-        if imported:
-            InfoBar.info(
-                title='', content="已从 Motrix 导入下载代理",
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=3500, parent=self,
-            )
         kemono_config = config_data.get('kemono', {})
         self.kemono_group_card.setCookieText(kemono_config.get('cookie', ''))
         self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))

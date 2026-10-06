@@ -9,12 +9,13 @@ from loguru import logger
 
 from utils.script.aria2.conf import build_dns_options, normalize_dns_server
 from utils.script.aria2.engine import create_managed_rpc_client
+from utils.script.aria2.lock import DEFAULT_RPC_PORT
 from utils.script.aria2.rpc import Aria2RpcClient, HTTPX_USER_AGENT, create_aria2_http_client
 
 _MOTRIX_DNS_OPTION_KEYS = ("async-dns", "async-dns-server")
 
-# Deprecated: do not use for new code. Managed engine picks a free port at ensure().
-MOTRIX_RPC_URL = "http://127.0.0.1:0/jsonrpc"
+# Deprecated: do not use for new code. The managed engine owns a fixed port now.
+MOTRIX_RPC_URL = f"http://127.0.0.1:{DEFAULT_RPC_PORT}/jsonrpc"
 
 create_motrix_http_client = create_aria2_http_client
 normalize_motrix_dns_server = normalize_dns_server
