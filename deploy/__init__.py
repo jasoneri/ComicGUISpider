@@ -8,6 +8,7 @@ import subprocess
 
 class Env:
     default_sv_path = pathlib.Path.home().joinpath("Downloads/Comic")
+    default_acggr_path = pathlib.Path.home().joinpath("Downloads/Acggr")
     default_clip_db = pathlib.Path.home().joinpath(r"AppData\Roaming\Ditto\Ditto.db")
     clip_sql = "SELECT `mText` FROM `MAIN` order by `LID` desc"
     shell = "powershell"
@@ -18,7 +19,6 @@ class Env:
         self.proj_p = _p
         os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = str(
             proj_path.parent.joinpath(r"site-packages\PyQt5\Qt5\plugins\platforms"))
-
 
     def env_init(self):
         ...

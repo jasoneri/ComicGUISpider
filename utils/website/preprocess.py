@@ -126,20 +126,11 @@ class ScriptServiceStatus:
     aria2_ready: bool
     redis_server_running: bool
 
-    @property
-    def motrix_running(self) -> bool:
-        """Backward-compatible alias: download engine readiness (cgs-aria2)."""
-        return self.aria2_ready
-
     @classmethod
     def from_process_names(cls, process_names: t.Iterable[str]) -> "ScriptServiceStatus":
         normalized_process_names = {process_name.lower() for process_name in process_names}
         return cls(
-            aria2_ready=any(
-                name in process_name
-                for process_name in normalized_process_names
-                for name in ("aria2c", "motrix")
-            ),
+            aria2_ready=any("aria2c" in process_name for process_name in normalized_process_names),
             redis_server_running=any("redis-server" in process_name for process_name in normalized_process_names),
         )
 
@@ -161,7 +152,6 @@ class ScriptServiceStatus:
     def to_payload(self) -> dict[str, bool]:
         return {
             "aria2_ready": self.aria2_ready,
-            "motrix_running": self.motrix_running,
             "redis_server_running": self.redis_server_running,
             "all_required_services_running": self.all_required_services_running,
         }
@@ -176,11 +166,11 @@ class ScriptEntryState:
 
     @property
     def danbooru_visible(self) -> bool:
-        return self.service_status.motrix_running
+        return self.service_status.aria2_ready
 
     @property
     def kemono_service_ready(self) -> bool:
-        return self.service_status.motrix_running and self.service_status.redis_server_running
+        return self.service_status.aria2_ready and self.service_status.redis_server_running
 
     @property
     def should_check_kemono_data(self) -> bool:
@@ -220,7 +210,7 @@ class ScriptEntryState:
     def to_payload(self) -> dict[str, t.Any]:
         return {
             "services": self.service_status.to_payload(),
-            "motrix_running": self.service_status.motrix_running,
+            "aria2_ready": self.service_status.aria2_ready,
             "redis_server_running": self.service_status.redis_server_running,
             "missing_services": self.service_status.missing_services,
             "kemono_data_ready": self.kemono_data_ready,

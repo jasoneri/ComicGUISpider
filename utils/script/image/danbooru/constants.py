@@ -13,7 +13,7 @@ DANBOORU_SQL_TABLE = "danbooru_md5_table"
 DANBOORU_BASE_URL = "https://danbooru.donmai.us"
 AUTOCOMPLETE_PATH = "/autocomplete"
 DEFAULT_DOWNLOAD_CONCURRENCY = 3
-MOTRIX_POLL_INTERVAL = 1.2
+ARIA2_POLL_INTERVAL = 1.2
 DANBOORU_PAGE_SIZE = 30
 DANBOORU_AUTOCOMPLETE_LIMIT = 20
 # Deploy only owns the environment anchor; the site sub-path belongs to the danbooru module.

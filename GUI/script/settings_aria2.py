@@ -33,8 +33,7 @@ class Aria2GroupCard(GroupHeaderCardWidget):
 
         self.proxy_edit = LineEdit(self)
         self.proxy_edit.setObjectName("DownloadProxyEdit")
-        self.proxy_edit.setPlaceholderText("127.0.0.1:10809（留空=直连）")
-        self.proxy_edit.setToolTip("下载引擎专用代理（aria2 all-proxy），与顶部 httpx 代理互不影响；留空表示直连")
+        self.proxy_edit.setPlaceholderText("e.g. 127.0.0.1:10809")
         self.proxy_edit.setClearButtonEnabled(True)
         self.proxy_edit.setMinimumWidth(320)
         completer = QCompleter(["127.0.0.1:10809", "http://127.0.0.1:10809"])
@@ -62,9 +61,9 @@ class Aria2GroupCard(GroupHeaderCardWidget):
 
         rpc_row = self._build_row(self.rpc_edit, self.rpc_copy_btn)
         secret_row = self._build_row(self.secret_edit, self.secret_view_btn, self.secret_copy_btn)
-        self.addGroup(FIF.VPN, "下载代理", "仅作用于 aria2 下载任务；HTTP(S) 代理，留空=直连；不支持 SOCKS5 直连", self.proxy_edit)
-        self.addGroup(FIF.LINK, "RPC 地址", "外部下载前端（如 AriaNg）填这个地址即可接管查看下载任务", rpc_row)
-        self.addGroup(FIF.VIEW, "连接密钥", "引擎只监听本机；填进前端的密钥项后即可连接", secret_row)
+        self.addGroup(FIF.VPN, "下载代理", "仅作用于 aria2 下载任务；HTTP(S) 代理", self.proxy_edit)
+        self.addGroup(FIF.LINK, "RPC 地址", "可供外部（如 AriaNg）展示管理", rpc_row)
+        self.addGroup(FIF.VIEW, "连接密钥", "外部管理连接时需要", secret_row)
 
         self._secret = ensure_secret()
         self.secret_edit.setText(self._secret)

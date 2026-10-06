@@ -26,8 +26,7 @@ from utils import get_httpx_verify
 from utils.config.qc import cgs_cfg, kemono_cfg
 from utils.network.doh import build_http_transport, dns_stub_server
 from utils.script import conf as script_conf, AioRClient, BlackList, folder_sub
-from utils.script.aria2 import create_managed_rpc_client
-from utils.script.motrix import build_motrix_dns_options
+from utils.script.aria2 import build_dns_options, create_managed_rpc_client
 from utils.script.image.expander import FilterMgr, format_naming
 from utils.website.kemono.db import load_kemono_authors
 from utils.website.kemono import *
@@ -203,7 +202,7 @@ class Kemono:
     def aria2_add_uri_options() -> dict[str, str | list[str]]:
         # 镜像站会拒绝默认 UA（aria2 报错 22），下载必须沿用 API 侧的浏览器 headers
         return {
-            **build_motrix_dns_options(dns_server=dns_stub_server(cgs_cfg.doh.get_url())),
+            **build_dns_options(dns_server=dns_stub_server(cgs_cfg.doh.get_url())),
             "header": [f"{key}: {value}" for key, value in headers.items()],
         }
 
@@ -534,7 +533,7 @@ class Process:
     
     def run(self, **rkw):
         # 2 处理/执行任务
-        logger.debug("\n\n📢 留意 aria2 任务\n")
+        logger.debug("\n\n📢 内嵌的 aria2 任务可以使用 AriaNg 进行监控或管理，连接的 jsonrpc 地址密钥可在配置页处 Aria配置 查得\n")
         self.loop.run_until_complete(self.k.temp_copy_vals(restore=True))
 
         tasks = self.loop.run_until_complete(self.k.step2_get_tasks())

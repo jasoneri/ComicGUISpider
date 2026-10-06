@@ -30,7 +30,6 @@ ai:
 proxies: null
 cgs_aria2:
   proxy: ""
-  migrated_from_motrix: false
 redis:
   host: 127.0.0.1
   port: 6379

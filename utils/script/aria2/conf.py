@@ -4,11 +4,15 @@ import ipaddress
 import pathlib as p
 from typing import Mapping
 
+from utils.script.aria2.lock import DEFAULT_RPC_PORT
+
 FROZEN_ARIA2_OPTIONS: dict[str, str] = {
     "enable-rpc": "true",
-    "rpc-allow-origin-all": "false",
+    # Browser RPC front-ends (AriaNg) are a supported consumer; exposure stays
+    # bounded by rpc-listen-all=false plus the per-user rpc-secret.
+    "rpc-allow-origin-all": "true",
     "rpc-listen-all": "false",
-    "rpc-listen-port": "0",
+    "rpc-listen-port": str(DEFAULT_RPC_PORT),
     "check-certificate": "false",
     "max-connection-per-server": "16",
     "split": "16",
@@ -39,10 +43,6 @@ def normalize_proxy(value: object) -> str:
     if "://" not in text:
         return f"http://{text}"
     return text
-
-
-# Legacy name used only while call sites migrate.
-normalize_all_proxy = normalize_proxy
 
 
 def normalize_dns_server(value: object) -> str:
@@ -89,13 +89,11 @@ def build_aria2_option_map(
     secret: object = "",
     session_path: p.Path | None = None,
     extra: Mapping[str, str] | None = None,
-    # legacy kw for call sites mid-rename
-    all_proxy: object = "",
 ) -> dict[str, str]:
     options = dict(FROZEN_ARIA2_OPTIONS)
     options["rpc-listen-port"] = str(int(rpc_port))
     # Only aria2 conf wire uses the engine option name "all-proxy".
-    resolved_proxy = normalize_proxy(proxy if proxy not in ("", None) else all_proxy)
+    resolved_proxy = normalize_proxy(proxy)
     if resolved_proxy:
         options["all-proxy"] = resolved_proxy
     secret_text = str(secret or "").strip()

@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from utils.script.motrix import HTTPX_USER_AGENT
+from utils.script.aria2.rpc import HTTPX_USER_AGENT
 
 from .constants import DANBOORU_BASE_URL, _DANBOORU_BROWSER_HEADER_DROP
 from .debug import append_danbooru_debug_event
@@ -155,7 +155,7 @@ class DanbooruBrowserSession:
             f"source_url={self.source_url or '<unknown>'}"
         )
 
-    def motrix_headers(self, *, default_user_agent: str = HTTPX_USER_AGENT) -> list[str]:
+    def aria2_headers(self, *, default_user_agent: str = HTTPX_USER_AGENT) -> list[str]:
         headers = [
             f"User-Agent: {self.resolved_user_agent(default_user_agent)}",
             "Accept: */*",

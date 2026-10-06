@@ -9,7 +9,7 @@ from utils.script.aria2 import HTTPX_USER_AGENT, create_managed_rpc_client
 from utils.script.aria2.rpc import Aria2RpcClient
 from utils.sql import SqlRecorder
 
-from .constants import DANBOORU_SQL_TABLE, MOTRIX_POLL_INTERVAL
+from .constants import ARIA2_POLL_INTERVAL, DANBOORU_SQL_TABLE
 from .debug import append_danbooru_debug_event
 from .models import DanbooruPost, DanbooruRuntimeConfig, DownloadPlan
 from .session import danbooru_browser_session_store
@@ -39,12 +39,12 @@ class DanbooruDownloadSubmitter:
         *,
         runtime_config: Optional[DanbooruRuntimeConfig] = None,
         sql_recorder: Optional[SqlRecorder] = None,
-        motrix_client: Optional[Aria2RpcClient] = None,
+        rpc_client: Optional[Aria2RpcClient] = None,
     ):
         self.runtime_config = runtime_config or DanbooruRuntimeConfig.from_conf()
         self.planner = DanbooruDownloadPlanner(sql_recorder)
         self.sql_recorder = self.planner.sql_recorder
-        self.motrix_client = motrix_client
+        self.rpc_client = rpc_client
 
     async def submit(
         self,
@@ -59,25 +59,25 @@ class DanbooruDownloadSubmitter:
 
         submit_candidates = list(plan.to_submit)
         plan.to_submit = []
-        rpc = self.motrix_client or create_managed_rpc_client()
-        own_rpc = self.motrix_client is None
+        rpc = self.rpc_client or create_managed_rpc_client()
+        own_rpc = self.rpc_client is None
         sem = asyncio.Semaphore(self.runtime_config.download_concurrency)
         browser_session = danbooru_browser_session_store.current()
-        motrix_options = {
-            **self.runtime_config.motrix_add_uri_options(),
-            "header": browser_session.motrix_headers(),
+        aria2_options = {
+            **self.runtime_config.aria2_add_uri_options(),
+            "header": browser_session.aria2_headers(),
         }
         append_danbooru_debug_event(
-            "motrix.options",
-            header_names=[item.split(":", 1)[0].strip() for item in motrix_options.get("header", []) if ":" in item],
+            "aria2.options",
+            header_names=[item.split(":", 1)[0].strip() for item in aria2_options.get("header", []) if ":" in item],
             cookie_names=browser_session.cookie_names,
             referer=browser_session.referer(),
             user_agent=browser_session.resolved_user_agent(HTTPX_USER_AGENT),
-            dns_options=dict(self.runtime_config.motrix_add_uri_options()),
+            dns_options=dict(self.runtime_config.aria2_add_uri_options()),
         )
         lg.info(
             f"[DanbooruAria2] submit header_names="
-            f"{[item.split(':', 1)[0].strip() for item in motrix_options.get('header', []) if ':' in item]} "
+            f"{[item.split(':', 1)[0].strip() for item in aria2_options.get('header', []) if ':' in item]} "
             f"cookie_names={browser_session.cookie_names} "
             f"referer={browser_session.referer() or '<none>'}"
         )
@@ -98,7 +98,7 @@ class DanbooruDownloadSubmitter:
                         target_dir=target_path.parent,
                         out=post.filename,
                         task_id=f"danbooru-{post.post_id}",
-                        options=motrix_options,
+                        options=aria2_options,
                     )
                     while True:
                         status_payload = await rpc.tell_status(gid)
@@ -112,7 +112,7 @@ class DanbooruDownloadSubmitter:
                             return post, error
                         if progress_callback is not None:
                             progress_callback(f"等待下载完成 {post.post_id}: {status or 'unknown'}")
-                        await asyncio.sleep(MOTRIX_POLL_INTERVAL)
+                        await asyncio.sleep(ARIA2_POLL_INTERVAL)
                 except Exception as exc:
                     return post, str(exc)
 
