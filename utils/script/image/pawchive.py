@@ -23,15 +23,25 @@ import tqdm
 proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils import get_httpx_verify
-from utils.config.qc import cgs_cfg, kemono_cfg
+from utils.config.qc import cgs_cfg, pawchive_cfg
 from utils.network.doh import build_http_transport, dns_stub_server
 from utils.script import conf as script_conf, AioRClient, BlackList, folder_sub
 from utils.script.aria2 import build_dns_options, create_managed_rpc_client
 from utils.script.image.expander import FilterMgr, format_naming
-from utils.website.kemono.db import load_kemono_authors
-from utils.website.kemono import *
-
-conf = script_conf
+from utils.website.pawchive.db import load_pawchive_authors
+from utils.website.pawchive import (
+    DEFAULT_PAWCHIVE_SAVE_PATH,
+    PAWCHIVE_TOPIC,
+    base,
+    creator_posts,
+    creators_txt,
+    discord_info,
+    favorites,
+    file_domain,
+    headers,
+    img_domain,
+    post,
+)
 
 
 def _stream_isatty(stream) -> bool:
@@ -48,7 +58,7 @@ logger.remove()
 logger.add(sys.stderr, colorize=_stream_isatty(sys.stderr))
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
-kemono_db_path = temp_p.joinpath("kemono.db")
+pawchive_db_path = temp_p.joinpath("kemono.db")
 
 
 class OverSizeErr(Exception):
@@ -129,7 +139,7 @@ class Api:
             http2=True,
         )
         self.sess = httpx.AsyncClient(transport=transport, trust_env=trust_env)
-        self.conf = conf.kemono
+        self.conf = conf.pawchive
 
     async def req(self, url, method="GET", **kw):
         """post almost not use, detail for /api/schema?logged_in=yes&role=consumer"""
@@ -159,7 +169,7 @@ class Api:
         return resp.json()
 
 
-class Kemono:
+class Pawchive:
     """
     Api-service:
       patreon   # Patreon
@@ -182,10 +192,10 @@ class Kemono:
     suffixes = ['jpg', 'jpeg', 'png', 'gif', 'mp4']
 
     def __init__(self, redis_cli: AioRClient):
-        self.conf = script_conf.kemono
+        self.conf = script_conf.pawchive
         self.api = Api(script_conf)
         self.rpc = create_managed_rpc_client()
-        qconfig_text = kemono_cfg.filterText.value
+        qconfig_text = pawchive_cfg.filterText.value
         if qconfig_text.strip():
             filter_dict = yaml.safe_load(qconfig_text)
         else:
@@ -193,9 +203,9 @@ class Kemono:
         self.fm = FilterMgr(filter_dict)
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
-        self.sv_path = p.Path(self.conf.get('sv_path') or DEFAULT_SV_PATH)
-        self.sorted_record = self.sv_path.joinpath('__sorted_record')
-        self.blacklist_obj = BlackList(self.sv_path / 'blacklist.json')
+        self.save_path = p.Path(self.conf.get('sv_path') or DEFAULT_PAWCHIVE_SAVE_PATH)
+        self.sorted_record = self.save_path.joinpath('__sorted_record')
+        self.blacklist_obj = BlackList(self.save_path / 'blacklist.json')
         self.blacklist = self.blacklist_obj.read()
 
     @staticmethod
@@ -207,7 +217,7 @@ class Kemono:
         }
 
     class Creator:
-        db_path = kemono_db_path
+        db_path = pawchive_db_path
         
         def __init__(self, parent, **ckw):
             self.k = parent
@@ -276,7 +286,6 @@ class Kemono:
             valid_posts = list(filter(lambda _: 
                 self.end_date >= time_format(_.get('published')) >= self.start_date, 
                 posts))
-            """get filter from kemono_expander.Artists etc."""
             if valid_posts:
                 if _info["name"] in self.k.fm.re_f.artists_patterns:  # 【普通】标题自定义正则过滤
                     _expander = self.k.fm.re_f.do_artist_pattern(_info["name"])
@@ -341,7 +350,7 @@ class Kemono:
         @logger.catch
         async def by_creatorid(self, order_creatorids=None):
             order_creatorids = set(map(str, order_creatorids))
-            all_creators = await asyncio.to_thread(load_kemono_authors, self.db_path)
+            all_creators = await asyncio.to_thread(load_pawchive_authors, self.db_path)
 
             found_ids = set()
             for creator_id in order_creatorids:
@@ -361,7 +370,7 @@ class Kemono:
         """
         flag = False
         already = []
-        post_path = self.sv_path.joinpath(rf"{u_s}\{p_t}")
+        post_path = self.save_path.joinpath(rf"{u_s}\{p_t}")
         if post_path.exists():
             for file in post_path.iterdir():
                 if file.stat().st_size == 146:
@@ -389,7 +398,7 @@ class Kemono:
                 published_title = f"[{meta['published']}]{meta['title']}".strip()
                 if meta['service'] == "discord":
                     published_title = f"『{meta['channel_name']}』{published_title}".strip()
-                path = self.sv_path.joinpath(user_service, published_title)
+                path = self.save_path.joinpath(user_service, published_title)
                 if self.run_filter(user_service, published_title, task):
                     logger.debug(rf"[filtered] {user_service}/{published_title}")
                     continue
@@ -452,7 +461,7 @@ class Kemono:
             published_title = f"[{meta['published']}]{meta['title']}".strip()
             if meta['service'] == "discord":
                 published_title = f"『{meta['channel_name']}』{published_title}".strip()
-            path = self.sv_path.joinpath(user_service, published_title)
+            path = self.save_path.joinpath(user_service, published_title)
             path.mkdir(parents=True, exist_ok=True)
             tasks_future.append(asyncio.ensure_future(run_rpc_task(path, tasks['tasks'], _id=published_title)))
         tasks_iter = asyncio.as_completed(tasks_future)
@@ -493,10 +502,10 @@ class Kemono:
         """
         Notice! This way to delete file can let you never download again! As its blacklist system.
             Or, you can manually append blacklist to blacklist.json,
-                format refers to Kemono().filter
+                format refers to Pawchive().filter
         """
         blacklist = self.blacklist
-        len_parts = len(self.sv_path.parts)
+        len_parts = len(self.save_path.parts)
         for path in tqdm.tqdm(args):
             blacklist.append("/".join(path.parts[len_parts:]))
             if path.is_dir():
@@ -506,7 +515,7 @@ class Kemono:
         self.blacklist_obj.save(blacklist)
 
 
-class Process:
+class PawchiveProcess:
     def __init__(self) -> None:
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
@@ -545,14 +554,14 @@ class Process:
     # )
     
     async def __aenter__(self):
-        self.k = Kemono(AioRClient())
+        self.k = Pawchive(AioRClient())
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._cleanup()
     
     def __enter__(self):
-        self.k = Kemono(AioRClient())
+        self.k = Pawchive(AioRClient())
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -567,7 +576,7 @@ class Process:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description=KEMONO_TOPIC,
+        description=PAWCHIVE_TOPIC,
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-p', '--process', type=str, nargs='?', default='main', help='optinal: create/run')
@@ -594,7 +603,7 @@ if __name__ == '__main__':
     rkw = {
         "sem": args.sem
     }
-    with Process() as process:
+    with PawchiveProcess() as process:
         match args.process:
             case "create":
                 process.create(**ckw)

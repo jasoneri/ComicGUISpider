@@ -422,6 +422,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
 
     def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
         from GUI.script import ScriptWindow
+        from utils.script.entry_descriptor import SCRIPT_ENTRY_DESCRIPTORS
         if self.toolWin is not None and self.toolWin.isVisible():
             self.toolWin.close()
         # Keep main window visible until ScriptWindow is ready: import/construct can block the
@@ -434,8 +435,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
         if pure_only:
             self.script_window.apply_pure_entry_mode()
-        if self.script_window.kemonoInterface is not None:
-            setupTheme(self.script_window.kemonoInterface)
+        for descriptor in SCRIPT_ENTRY_DESCRIPTORS:
+            interface = getattr(self.script_window, descriptor.attr_name, None)
+            if interface is not None:
+                setupTheme(interface)
         self.script_window.show()
         self.script_window.raise_()
         self.script_window.activateWindow()
@@ -956,9 +959,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preprocess_mgr.cleanup()
         if getattr(self, "preview_mgr", None):
             self.preview_mgr.shutdown()
-        with contextlib.suppress(Exception):
-            from utils.script.aria2 import stop_engine
-            stop_engine()
+        from utils.script.aria2 import stop_engine
+        stop_engine()
         event.accept()
         self.destroy()  # 窗口关闭销毁
         if self.dl_mgr is not None:

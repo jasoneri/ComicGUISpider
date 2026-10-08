@@ -20,6 +20,7 @@ from .core import Cache
 
 if t.TYPE_CHECKING:
     from .site_runtime import GuiSiteRuntime
+    from utils.script.entry_descriptor import ScriptEntryDescriptor
 
 
 DB_CACHE_TTL_HOURS = 480
@@ -31,9 +32,17 @@ SCRIPT_SERVICE_PROBE_TIMEOUT_S = 0.15
 SCRIPT_REDIS_DEFAULT_HOST = "127.0.0.1"
 SCRIPT_REDIS_DEFAULT_PORT = 6379
 # GitHub preset primary; ImgBed ASSETS_FALLBACK when mapped in variables.IMGBED_ASSET_OBJECTS.
-KEMONO_ASSET_URLS = managed_asset_urls("kemono.db")
 NHENTAI_ASSET_URLS = managed_asset_urls("nhentai.db")
 HITOMI_ASSET_URLS = managed_asset_urls("hitomi.db")
+
+
+def _script_entry_descriptor(slug: str | None = None) -> "ScriptEntryDescriptor":
+    # Lazy on purpose: importing utils.script runs its package init, which
+    # instantiates ScriptConf. This module sits on the mainline site-preprocess
+    # import path, so it must not pull that in at import time.
+    from utils.script.entry_descriptor import DEFAULT_SCRIPT_ENTRY_SLUG, get_script_entry
+
+    return get_script_entry(slug or DEFAULT_SCRIPT_ENTRY_SLUG)
 
 
 async def run_site_preprocess(
@@ -160,25 +169,33 @@ class ScriptServiceStatus:
 @dataclass(frozen=True, slots=True)
 class ScriptEntryState:
     service_status: ScriptServiceStatus
-    kemono_data_ready: bool | None = None
-    kemono_data_cache_hit: bool | None = None
-    kemono_data_errors: tuple[str, ...] = ()
+    entry_slug: str | None = None
+    data_ready: bool | None = None
+    data_cache_hit: bool | None = None
+    data_errors: tuple[str, ...] = ()
+
+    @property
+    def _descriptor(self) -> "ScriptEntryDescriptor":
+        return _script_entry_descriptor(self.entry_slug)
 
     @property
     def danbooru_visible(self) -> bool:
         return self.service_status.aria2_ready
 
     @property
-    def kemono_service_ready(self) -> bool:
-        return self.service_status.aria2_ready and self.service_status.redis_server_running
+    def service_ready(self) -> bool:
+        ready = self.service_status.aria2_ready
+        if self._descriptor.requires_redis:
+            ready = ready and self.service_status.redis_server_running
+        return ready
 
     @property
-    def should_check_kemono_data(self) -> bool:
-        return self.kemono_service_ready
+    def should_check_data(self) -> bool:
+        return self.service_ready
 
     @property
-    def kemono_visible(self) -> bool:
-        return self.kemono_service_ready and self.kemono_data_ready is True
+    def visible(self) -> bool:
+        return self.service_ready and self.data_ready is True
 
     @property
     def cbg_visible(self) -> bool:
@@ -197,32 +214,33 @@ class ScriptEntryState:
         hidden_entries: list[str] = []
         if not self.danbooru_visible:
             hidden_entries.append("Danbooru")
-        if not self.kemono_visible:
-            hidden_entries.append("Kemono")
+        if not self.visible:
+            hidden_entries.append(self._descriptor.display_name)
         return tuple(hidden_entries)
 
-    def with_kemono_asset_result(self, kemono_asset: ReleaseAssetResult) -> "ScriptEntryState":
+    def with_asset_result(self, asset: ReleaseAssetResult) -> "ScriptEntryState":
         return ScriptEntryState(
-            service_status=self.service_status, kemono_data_ready=kemono_asset.ready,
-            kemono_data_cache_hit=kemono_asset.cache_hit, kemono_data_errors=kemono_asset.errors,
+            service_status=self.service_status, entry_slug=self.entry_slug, data_ready=asset.ready,
+            data_cache_hit=asset.cache_hit, data_errors=asset.errors,
         )
 
     def to_payload(self) -> dict[str, t.Any]:
+        descriptor = self._descriptor
         return {
             "services": self.service_status.to_payload(),
             "aria2_ready": self.service_status.aria2_ready,
             "redis_server_running": self.service_status.redis_server_running,
             "missing_services": self.service_status.missing_services,
-            "kemono_data_ready": self.kemono_data_ready,
-            "kemono_data_cache_hit": self.kemono_data_cache_hit,
-            "kemono_data_errors": self.kemono_data_errors,
+            f"{descriptor.slug}_data_ready": self.data_ready,
+            f"{descriptor.slug}_data_cache_hit": self.data_cache_hit,
+            f"{descriptor.slug}_data_errors": self.data_errors,
             "danbooru_visible": self.danbooru_visible,
-            "kemono_visible": self.kemono_visible,
+            descriptor.visibility_payload_key: self.visible,
             "cbg_visible": self.cbg_visible,
             "jsoneri_palaces_probe_visible": self.jsoneri_palaces_probe_visible,
             "settings_visible": self.settings_visible,
             "hidden_entries": self.hidden_entries,
-            "should_check_kemono_data": self.should_check_kemono_data,
+            f"should_check_{descriptor.slug}_data": self.should_check_data,
         }
 
 
@@ -501,11 +519,13 @@ class NhentaiDatabasePreprocess(SiteDatabasePreprocess):
         return True
 
 
-class KemonoReleaseAsset(ReleaseAssetCache):
+class ScriptEntryReleaseAsset(ReleaseAssetCache):
     def __init__(self, data_client: httpx.AsyncClient, progress_callback=None):
+        descriptor = _script_entry_descriptor()
         super().__init__(
-            name="kemono", db_path=ori_path.joinpath("__temp/kemono.db"), download_urls=KEMONO_ASSET_URLS,
-            data_client=data_client, progress_callback=progress_callback, label="kemono db", timeout=60,
+            name=descriptor.slug, db_path=ori_path.joinpath(descriptor.db_relative_path),
+            download_urls=managed_asset_urls(descriptor.asset_logical_name),
+            data_client=data_client, progress_callback=progress_callback, timeout=60,
         )
 
 
@@ -521,9 +541,9 @@ def _format_script_service_warning(script_entry_state: ScriptEntryState) -> str:
     )
 
 
-def _format_kemono_data_warning() -> str:
+def _format_script_entry_data_warning() -> str:
     script_res = res.GUI.Script
-    return f"{script_res.data_cache_check_failed}<br>⚠️ Kemono 入口已隐藏，其他脚本入口仍可使用。"
+    return f"{script_res.data_cache_check_failed}<br>⚠️ {_script_entry_descriptor().display_name} 入口已隐藏，其他脚本入口仍可使用。"
 
 
 async def _preprocess_script(
@@ -565,20 +585,21 @@ async def _preprocess_script(
         messages.append(dependency_fail_message)
         state_flags["missing_dependencies"] = missing
 
-    if script_entry_state.should_check_kemono_data:
+    descriptor = script_entry_state._descriptor
+    if script_entry_state.should_check_data:
         data_client = ensure_data_client()
-        kemono_asset = await KemonoReleaseAsset(data_client, progress_callback).ensure()
-        script_entry_state = script_entry_state.with_kemono_asset_result(kemono_asset)
-        state_flags["data_ready"] = kemono_asset.ready
-        state_flags["data_cache_hit"] = kemono_asset.cache_hit
-        if kemono_asset.errors:
-            state_flags["kemono_db_errors"] = kemono_asset.errors
-        if kemono_asset.ready:
+        entry_asset = await ScriptEntryReleaseAsset(data_client, progress_callback).ensure()
+        script_entry_state = script_entry_state.with_asset_result(entry_asset)
+        state_flags["data_ready"] = entry_asset.ready
+        state_flags["data_cache_hit"] = entry_asset.cache_hit
+        if entry_asset.errors:
+            state_flags[descriptor.db_errors_flag] = entry_asset.errors
+        if entry_asset.ready:
             messages.append(_message("success", script_res.data_cache_check_success))
         else:
-            messages.append(_message("warning", _format_kemono_data_warning()))
+            messages.append(_message("warning", _format_script_entry_data_warning()))
     else:
-        state_flags["kemono_data_check_skipped"] = True
+        state_flags[descriptor.check_skipped_flag] = True
 
     script_entry_state_payload = script_entry_state.to_payload()
     state_flags["script_entry_state"] = script_entry_state_payload
@@ -600,8 +621,8 @@ def _check_script_services(*, progress_callback=None) -> ScriptServiceStatus:
     # cgs-aria2 is CGS-managed. Binary payload download may report AsyncTask
     # progress (CGS011). Manifest / tiny metadata stays silent whole-body.
     # Bootstrap or engine start failure MUST soft-fail here so Script still
-    # opens (CBG / Jsoneri / settings); Danbooru/Kemono hide via aria2_ready.
-    # Redis remains an external soft probe for Kemono entry only.
+    # opens (CBG / Jsoneri / settings); Danbooru/entry hide via aria2_ready.
+    # Redis remains an external soft probe for the redis-backed entry only.
     from loguru import logger
 
     from utils.script.aria2 import Aria2BinaryBootstrapError, UnsupportedAria2PlatformError, ensure_engine

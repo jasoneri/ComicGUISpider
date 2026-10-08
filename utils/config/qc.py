@@ -177,14 +177,14 @@ cbg_cfg = CbgConfig()
 qconfig.load(_qconfig_path("qc_cbg.json"), cbg_cfg)
 
 
-class KemonoConfig(QConfig):
-    """Kemono配置管理，包含过滤和收藏功能"""
+class PawchiveConfig(QConfig):
+    """Pawchive配置管理，包含过滤和收藏功能"""
     filterText = ConfigItem("Filter", "FilterText", "", restart=False)
     favoriteAuthors = ConfigItem("Favorites", "Authors", [], restart=False)
-    fav: "KemonoConfig.Favorites"
+    fav: "PawchiveConfig.Favorites"
 
     class Favorites:
-        def __init__(self, cfg: "KemonoConfig"):
+        def __init__(self, cfg: "PawchiveConfig"):
             self._cfg = cfg
 
         def in_(self, author_id: str) -> bool:
@@ -209,9 +209,9 @@ class KemonoConfig(QConfig):
             return list(self._cfg.favoriteAuthors.value or [])
 
 
-kemono_cfg = KemonoConfig()
-qconfig.load(_qconfig_path("qc_kemono.json"), kemono_cfg)
-kemono_cfg.fav = KemonoConfig.Favorites(kemono_cfg)
+pawchive_cfg = PawchiveConfig()
+qconfig.load(_qconfig_path("qc_kemono.json"), pawchive_cfg)
+pawchive_cfg.fav = PawchiveConfig.Favorites(pawchive_cfg)
 
 
 class DanbooruConfig(QConfig):

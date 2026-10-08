@@ -3,9 +3,9 @@ from __future__ import annotations
 from deploy import Env
 
 
-DEFAULT_SV_PATH = str(Env.default_acggr_path.joinpath("pawchive"))
+DEFAULT_PAWCHIVE_SAVE_PATH = str(Env.default_acggr_path.joinpath("pawchive"))
 
-KEMONO_TOPIC = """
+PAWCHIVE_TOPIC = """
   ┏┓┏┓┏┓  ┓
   ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
   ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛

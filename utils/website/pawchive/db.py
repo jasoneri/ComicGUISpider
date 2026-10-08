@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
-from utils.website.kemono import *
+from utils.website.pawchive import *
 
 
 _SORT_COLUMNS = frozenset({"name", "service", "updated", "favorited"})
@@ -16,7 +16,7 @@ _FTS_SPECIAL_RE = re.compile(r'["\'\*\^\~\(\)\:\{\}\[\]\\]')
 
 
 @dataclass(frozen=True, slots=True)
-class KemonoAuthor:
+class PawchiveAuthor:
     id: str
     name: str
     service: str
@@ -39,10 +39,10 @@ class AuthorQuery:
     sort_desc: bool = True
 
 
-def _normalize_author(item: dict) -> KemonoAuthor:
+def _normalize_author(item: dict) -> PawchiveAuthor:
     if not isinstance(item, dict):
-        raise TypeError(f"invalid kemono creator row: {item!r}")
-    return KemonoAuthor(
+        raise TypeError(f"invalid pawchive creator row: {item!r}")
+    return PawchiveAuthor(
         id=str(item["id"]),
         name=str(item["name"]),
         service=str(item["service"]),
@@ -51,9 +51,9 @@ def _normalize_author(item: dict) -> KemonoAuthor:
     )
 
 
-def _author_from_row(row: tuple) -> KemonoAuthor:
+def _author_from_row(row: tuple) -> PawchiveAuthor:
     row_id, name, service, updated, favorited = row
-    return KemonoAuthor(
+    return PawchiveAuthor(
         id=str(row_id),
         name=str(name),
         service=str(service),
@@ -70,7 +70,7 @@ def _sanitize_fts_query(raw_text: str) -> str:
     return " ".join(f'"{token}"' for token in tokens)
 
 
-class KemonoAuthorsDb:
+class PawchiveAuthorsDb:
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
         self._fts_ready_cached: bool | None = None
@@ -202,7 +202,7 @@ class KemonoAuthorsDb:
         self.ensure_fts(force=True)
         return len(authors)
 
-    def load_all(self) -> dict[str, KemonoAuthor]:
+    def load_all(self) -> dict[str, PawchiveAuthor]:
         with closing(self._connect()) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT id, name, service, updated, favorited FROM authors")
@@ -261,7 +261,7 @@ class KemonoAuthorsDb:
             ).fetchone()
         return int(row[0])
 
-    def fetch(self, query: AuthorQuery, *, offset: int, limit: int) -> list[KemonoAuthor]:
+    def fetch(self, query: AuthorQuery, *, offset: int, limit: int) -> list[PawchiveAuthor]:
         if limit <= 0:
             return []
         safe_offset = max(0, int(offset))
@@ -279,10 +279,10 @@ class KemonoAuthorsDb:
         return [_author_from_row(row) for row in rows]
 
 
-def build_kemono_db_from_creators_bytes(db_path: Path, payload: bytes) -> int:
+def build_pawchive_db_from_creators_bytes(db_path: Path, payload: bytes) -> int:
     data = json.loads(payload.decode("utf-8"))
-    return KemonoAuthorsDb(db_path).replace_from_creators(data)
+    return PawchiveAuthorsDb(db_path).replace_from_creators(data)
 
 
-def load_kemono_authors(db_path: Path) -> dict[str, KemonoAuthor]:
-    return KemonoAuthorsDb(db_path).load_all()
+def load_pawchive_authors(db_path: Path) -> dict[str, PawchiveAuthor]:
+    return PawchiveAuthorsDb(db_path).load_all()

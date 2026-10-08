@@ -80,7 +80,7 @@ hero:
       <HomeDemoVideo src="{{URL_IMG}}/file/cgs/1777320602636_normal.webm" title="AGS demo"></HomeDemoVideo>
     </td>
     <td style="text-align: left;"><strong>🎮Script:<br>
-    <a href="/script/kemono/">Kemono</a><br>
+    <a href="/script/kemono/">Pawchive</a><br>
     <a href="/script/danbooru/">Danbooru</a><br>
     <a href="/script/#_3-cbg-cornerbackground">Cbg</a><br>
     </strong></td>

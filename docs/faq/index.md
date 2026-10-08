@@ -31,7 +31,7 @@
 ```
 :::
 
-#### Ⅱ. CGS更新/脚本集(kemono)额外依赖换源
+#### Ⅱ. CGS更新/脚本集(pawchive)额外依赖换源
 
 默认使用清华源，换源通过 [配置窗口点选更换](/config/#pypi%E6%BA%90-pypi-source)  
 

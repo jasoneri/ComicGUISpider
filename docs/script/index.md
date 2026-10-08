@@ -1,7 +1,7 @@
 
 # 🚧 ScriptTool
 
-danbooru / kemono / cbg / saucenao
+danbooru / pawchive / cbg / saucenao
 
 ## ⚠️ 通用前置须知
 
@@ -14,7 +14,7 @@ Script 设置中 aria2 有单独代理设置
 > Redis-windows: 下载 *-cygwin-with-Service.zip  
 > 查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
 
-当前仅 Kemono 需要（ k 目前处于一只脚踏进棺材板状态中）
+当前仅 Pawchive 需要（ k 目前处于一只脚踏进棺材板状态中）
 :::
 
 ::: details 脚本目录树: `script`目录 (非 GUI 相关)
@@ -25,14 +25,14 @@ utils
         ├── extra.py                  # 作为单个简单类爬虫使用
         ├── image  
              ├── __init__.py  
-             ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
-             ├── expander.py          # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
-             ├── nekohouse.py         # 大概就是 kemono 的克隆网站
+             ├── pawchive.py          # 网站有如右相关资源 patreon/fanbox/fantia 等
+             ├── expander.py          # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类pawchive网站共用）
+             ├── nekohouse.py         # 大概就是 pawchive 的克隆网站
              ├── saucenao.py          # saucenao 著名的二次元以图搜图网站
 ```
 :::
 
-## 1. [kemono](/script/kemono)
+## 1. [pawchive](/script/kemono)
 
 ## 2. [Danbooru](/script/danbooru)
 
@@ -57,7 +57,7 @@ utils
 
 `Danbooru`无需代理，`Yande`（这个指`yande.re`）需要代理，其他图源没做，感觉也没比`Yande`更全更高清的了，
 没代理就去掉`imgur_module`的`Yande`<br>
-有时也会搜出kemono的，知道作者名之后就用上面的kemono脚本吧
+有时也会搜出pawchive的，知道作者名之后就用上面的pawchive脚本吧
 
 saucenao限制30秒搜3张图，有它的账号也才30秒4张没什么好说的
 

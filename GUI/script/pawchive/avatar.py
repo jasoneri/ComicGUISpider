@@ -14,7 +14,7 @@ from assets import res
 from utils import get_httpx_verify
 from utils.script import conf as script_conf
 from utils.website.core import build_proxy_transport
-from utils.website.kemono import domain, headers
+from utils.website.pawchive import domain, headers
 
 
 class AvatarCache:

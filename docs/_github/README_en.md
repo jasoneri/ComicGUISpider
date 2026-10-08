@@ -55,7 +55,7 @@
 | [wnacg](https://www.wnacg.com/) | :cn: | 🔞 |
 | [ExHentai](https://exhentai.org/) | 🌏 | 🔞 |
 | [Hitomi](https://hitomi.la/) | 🌏 | 🔞 |
-| Script | 🌏 | [Kemono](https://kemono.cr)<br>[Danbooru](https://danbooru.donmai.us/) |
+| Script | 🌏 | [Pawchive](https://pawchive.pw)<br>[Danbooru](https://danbooru.donmai.us/) |
 | [HComic](https://h-comic.com/) | 🌏 | 🔞 |
 | [Nhentai](https://nhentai.net/) | 🌏 | 🔞 |
 | [jestful](https://jestful.net/) | 🌏 | manga / raw |

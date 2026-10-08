@@ -23,7 +23,7 @@ GUI:
   Script:
     site_name: "Script"
     service_check_success: "✅ Service check"
-    service_check_failed_content: "Redis is not running.<br>Open the guide (Kemono needs Redis; the download engine is managed by CGS)."
+    service_check_failed_content: "Redis is not running.<br>Open the guide (Pawchive needs Redis; the download engine is managed by CGS)."
     service_check_failed_title: "Service check failed"
     dependency_check_success: "✅ Dependency check"
     dependency_check_failed_content: "Open the guide and run the `uv` install command for script dependencies after fully closing CGS."

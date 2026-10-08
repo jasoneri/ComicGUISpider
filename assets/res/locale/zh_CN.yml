@@ -23,7 +23,7 @@ GUI:
   Script:
     site_name: "Script"
     service_check_success: "✅ 后台服务检测"
-    service_check_failed_content: "Redis 服务未运行，<br>点击指南查看`前置须知`（Kemono 需要 Redis；下载引擎由 CGS 自动托管）"
+    service_check_failed_content: "Redis 服务未运行，<br>点击指南查看`前置须知`（Pawchive 需要 Redis；下载引擎由 CGS 自动托管）"
     service_check_failed_title: "服务检测失败"
     dependency_check_success: "✅ 额外依赖检测"
     dependency_check_failed_content: "点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）"
