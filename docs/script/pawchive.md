@@ -1,7 +1,7 @@
 # Pawchive
 
-::: warning 26.08 站点下载 api 仍处于半死状态
-有状态更新可告知我
+::: warning 26.10 kemono 已废弃，换 pawchive
+过期资源可能这站没人传，所以自行上站判断有没上传者上传资源
 :::
 
 ::: warning **需已读 [⚠️ 通用前置须知](/script/)**
@@ -9,7 +9,7 @@
 
 ## 🚀 快速上手
 
-1. 启动 `redis` 服务，打开 `Motrix`
+1. 启动 `redis` 服务
 
 2. GUI 方式运行 (网站选择 Script，预检测通过即进入)
 

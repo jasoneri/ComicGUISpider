@@ -33,7 +33,7 @@ async def fetch_pawchive_creators_payload(*, data_client: httpx.AsyncClient, tim
 
 
 async def generate_pawchive_db():
-    resolved_db_path = temp_p.joinpath("kemono.db")
+    resolved_db_path = temp_p.joinpath("pawchive.db")
     resolved_db_path.parent.mkdir(parents=True, exist_ok=True)
     async with _build_data_client() as data_client:
         payload = await fetch_pawchive_creators_payload(data_client=data_client)

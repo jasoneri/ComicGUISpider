@@ -4,6 +4,7 @@ from qfluentwidgets import QConfig, ConfigItem, RangeConfigItem, RangeValidator,
 
 from utils.config import ScriptConf, conf_dir, qconfig_dir
 from utils.network.doh_policy import normalize_doh_url
+from utils.script.entry_migrate import move_entry_identity
 
 
 def _qconfig_path(name: str):
@@ -210,7 +211,8 @@ class PawchiveConfig(QConfig):
 
 
 pawchive_cfg = PawchiveConfig()
-qconfig.load(_qconfig_path("qc_kemono.json"), pawchive_cfg)
+move_entry_identity()
+qconfig.load(_qconfig_path("qc_pawchive.json"), pawchive_cfg)
 pawchive_cfg.fav = PawchiveConfig.Favorites(pawchive_cfg)
 
 

@@ -11,8 +11,8 @@ import httpx
 
 from assets import res
 from utils import conf, ori_path
+from utils.core import ManagedAsset
 from utils.network.doh import build_http_transport
-from utils.preset_assets import managed_asset_urls
 from variables import CGS_DOC, Spider
 
 from .contracts import PreprocessResult
@@ -32,8 +32,8 @@ SCRIPT_SERVICE_PROBE_TIMEOUT_S = 0.15
 SCRIPT_REDIS_DEFAULT_HOST = "127.0.0.1"
 SCRIPT_REDIS_DEFAULT_PORT = 6379
 # GitHub preset primary; ImgBed ASSETS_FALLBACK when mapped in variables.IMGBED_ASSET_OBJECTS.
-NHENTAI_ASSET_URLS = managed_asset_urls("nhentai.db")
-HITOMI_ASSET_URLS = managed_asset_urls("hitomi.db")
+NHENTAI_ASSET_URLS = ManagedAsset("nhentai.db").urls
+HITOMI_ASSET_URLS = ManagedAsset("hitomi.db").urls
 
 
 def _script_entry_descriptor(slug: str | None = None) -> "ScriptEntryDescriptor":
@@ -524,7 +524,7 @@ class ScriptEntryReleaseAsset(ReleaseAssetCache):
         descriptor = _script_entry_descriptor()
         super().__init__(
             name=descriptor.slug, db_path=ori_path.joinpath(descriptor.db_relative_path),
-            download_urls=managed_asset_urls(descriptor.asset_logical_name),
+            download_urls=ManagedAsset(descriptor.asset_logical_name).urls,
             data_client=data_client, progress_callback=progress_callback, timeout=60,
         )
 

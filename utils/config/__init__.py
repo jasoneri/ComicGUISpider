@@ -217,10 +217,6 @@ class Conf(BaseConf):
 
 @dataclass
 class ScriptConf(BaseConf):
-    # yaml section -> dataclass field. The section is frozen user identity (R2);
-    # the field follows the brand. Not read from the descriptor: ``utils.config``
-    # is imported by ``utils.config.qc``, which builds a ``ScriptConf`` at import time.
-    SECTION_TO_FIELD: t.ClassVar[dict[str, str]] = {"kemono": "pawchive"}
     pawchive: dict = field(default_factory=dict)
     danbooru: dict = field(default_factory=dict)
     jsoneriPalacesProbe: dict = field(default_factory=dict)
@@ -267,13 +263,10 @@ class ScriptConf(BaseConf):
         for section_name in ("danbooru", "jsoneriPalacesProbe", "comfy", "ai", "cgs_aria2"):
             yml_config = self._merge_section_defaults(yml_config, sample_config, section_name)
         for k, v in yml_config.items():
-            field_name = self.SECTION_TO_FIELD.get(k, k)
-            setattr(self, field_name, v if v is not None else getattr(self, field_name, None))
+            setattr(self, k, v if v is not None else getattr(self, k, None))
 
     def update(self, **kwargs):
         for k, v in kwargs.items():
-            setattr(self, self.SECTION_TO_FIELD.get(k, k), v)
+            setattr(self, k, v)
         props = asdict(self)
-        for section, field_name in self.SECTION_TO_FIELD.items():
-            props[section] = props.pop(field_name)
         yaml_update(self.file, props)

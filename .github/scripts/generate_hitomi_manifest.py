@@ -1,6 +1,6 @@
 """Generate hitomi-manifest.json for client-side download.
 
-Sources come from ``utils.preset_assets.managed_asset_sources`` (GitHub primary +
+Sources come from ``utils.core.ManagedAsset.sources`` (GitHub primary +
 ImgBed ``ASSETS_FALLBACK`` when mapped in ``variables.IMGBED_ASSET_OBJECTS``).
 No hard-coded gitee / dual-mirror list.
 """
@@ -24,10 +24,10 @@ def _managed_hitomi_sources() -> list[dict]:
     repo_root = _repo_root()
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
-    from utils.preset_assets import managed_asset_sources
+    from utils.core import ManagedAsset
 
     sources: list[dict] = []
-    for index, item in enumerate(managed_asset_sources("hitomi.db")):
+    for index, item in enumerate(ManagedAsset("hitomi.db").sources):
         priority = 10 if item["id"] == "github" else 20 + index
         sources.append({"id": item["id"], "priority": priority, "url": item["url"]})
     return sources

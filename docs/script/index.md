@@ -6,15 +6,16 @@ danbooru / pawchive / cbg / saucenao
 ## ⚠️ 通用前置须知
 
 ::: tip 🔔 v2.12.0 起，选择 script 时会自动下载 aria2 二进制执行文件 [link](https://github.com/jasoneri/ComicGUISpider/releases/tag/preset)
-Script 设置中 aria2 有单独代理设置
+Script 设置中 aria2 有单独代理设置  
+任务可用 [AriaNg](https://github.com/mayswind/AriaNg/releases) 进行过监控管理，在 `index.html#!/settings/ariang` 配置改 26800 端口和 配置页获得的秘钥即可连接
 :::
-::: info 脚本集通用前置安装( v2.11.0 改为 `按需` )
+::: info Pawchive 前置安装( `按需` )
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 > [!tip] 指引
 > Redis-windows: 下载 *-cygwin-with-Service.zip  
 > 查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
 
-当前仅 Pawchive 需要（ k 目前处于一只脚踏进棺材板状态中）
+~~kemono 有事烧纸，已全面换 paw~~
 :::
 
 ::: details 脚本目录树: `script`目录 (非 GUI 相关)
@@ -32,7 +33,7 @@ utils
 ```
 :::
 
-## 1. [pawchive](/script/kemono)
+## 1. [pawchive](/script/pawchive)
 
 ## 2. [Danbooru](/script/danbooru)
 

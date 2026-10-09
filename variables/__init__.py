@@ -146,7 +146,6 @@ IMGBED_ASSET_OBJECTS = {
     "aria2c-win-amd64.exe": "1786799424964_aria2c-win-amd64.exe",
     "aria2c-macos-arm64": "1786799422383_aria2c-macos-arm64",
     # GitHub preset dbs re-uploaded via docs-screenshot ImgBed (channel=huggingface, folder=assets).
-    "kemono.db": "1786803426234_kemono.db",
     "nhentai.db": "1786803548247_nhentai.db",
     "hitomi.db": "1786803609153_hitomi.db",
 }

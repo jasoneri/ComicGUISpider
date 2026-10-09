@@ -107,7 +107,7 @@ class PawchiveAuthorsDb:
             )
             cursor.execute(
                 """
-                CREATE TABLE IF NOT EXISTS kemono_db_meta (
+                CREATE TABLE IF NOT EXISTS pawchive_db_meta (
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
                 )
@@ -132,13 +132,13 @@ class PawchiveAuthorsDb:
                 self._fts_ready_cached = False
                 return False
             meta_exists = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='kemono_db_meta'"
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pawchive_db_meta'"
             ).fetchone()
             if meta_exists is None:
                 self._fts_ready_cached = False
                 return False
             meta = conn.execute(
-                "SELECT value FROM kemono_db_meta WHERE key='fts_built'"
+                "SELECT value FROM pawchive_db_meta WHERE key='fts_built'"
             ).fetchone()
             if meta is None or meta[0] != "1":
                 self._fts_ready_cached = False
@@ -170,7 +170,7 @@ class PawchiveAuthorsDb:
             )
             cursor.execute(
                 """
-                INSERT INTO kemono_db_meta(key, value) VALUES('fts_built', '1')
+                INSERT INTO pawchive_db_meta(key, value) VALUES('fts_built', '1')
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value
                 """
             )

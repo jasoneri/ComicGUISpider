@@ -54,7 +54,7 @@ class FilterView(FlyoutViewBase):
         first_row.addWidget(self.textEdit)
         
         second_row = QtWidgets.QHBoxLayout()
-        self.linkBtn = HyperlinkButton(FIF.LINK, f"{CGS_DOC}/script/kemono.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
+        self.linkBtn = HyperlinkButton(FIF.LINK, f"{CGS_DOC}/script/pawchive.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
         spacerItem = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.svBtn = PrimaryToolButton(FIF.SAVE, self)
         self.svBtn.clicked.connect(self.save)
@@ -247,7 +247,7 @@ class PawchiveTableView(FramelessWindow):
         self._avatar_col_width = 44
         self._avatar_row_height = 40
         self._avatar_task_mgr = AsyncTaskManager(self.gui, self)
-        self._avatar_cache = AvatarCache(temp_p.joinpath("kemono_avatars.pkl"), accept=is_jpeg)
+        self._avatar_cache = AvatarCache(temp_p.joinpath("pawchive_avatars.pkl"), accept=is_jpeg)
         self._avatar_cache.load()
         self._avatar_widgets: t.Dict[int, ImageLabel] = {}
         self._avatar_pending: t.List[t.Tuple[PawchiveAuthor, ImageLabel]] = []
@@ -712,7 +712,7 @@ class PawchiveInterface(QFrame):
             self._present_table_window()
             return
 
-        db_path = temp_p.joinpath("kemono.db")
+        db_path = temp_p.joinpath("pawchive.db")
         if not db_path.exists():
             InfoBar.error(
                 title="",

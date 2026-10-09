@@ -58,7 +58,7 @@ logger.remove()
 logger.add(sys.stderr, colorize=_stream_isatty(sys.stderr))
 temp_p = proj_p.joinpath("__temp")
 temp_p.mkdir(parents=True, exist_ok=True)
-pawchive_db_path = temp_p.joinpath("kemono.db")
+pawchive_db_path = temp_p.joinpath("pawchive.db")
 
 
 class OverSizeErr(Exception):
@@ -183,7 +183,7 @@ class Pawchive:
 
     conf of ../conf.yml
     ```yaml
-    kemono:
+    pawchive:
       sv_path: ...
       cookie: ...  # get from browser, filed 'session'
     ```

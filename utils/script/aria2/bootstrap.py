@@ -16,7 +16,7 @@ from loguru import logger
 
 from deploy import curr_os
 from utils.config import conf_dir
-from utils.preset_assets import managed_asset_sources
+from utils.core import ManagedAsset
 
 ARIA2_MANIFEST_NAME = "aria2-manifest.json"
 # Single aria2 home for every mode/OS (source tree, green package, win, mac).
@@ -152,7 +152,7 @@ def resolve_preset_asset_sources(logical_name: str) -> list[dict[str, str]]:
                 url = f"{part.rstrip('/')}/{logical_name.lstrip('/')}"
             sources.append({"id": f"env-{index}", "url": url})
         return sources
-    return [dict(item) for item in managed_asset_sources(logical_name)]
+    return [dict(item) for item in ManagedAsset(logical_name).sources]
 
 
 def _emit_progress_status(progress_callback, message: str) -> None:
