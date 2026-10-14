@@ -26,6 +26,7 @@ class Spider(IntEnum):
     MH1234 = 14        # 🇨🇳
     JCOMIC = 15        # 🌎 🔞
     RUMANHUA = 16      # 🇨🇳
+    MANGADEX = 17      # 🌎
 
     @property
     def spider_name(self): return self.name.lower()
@@ -33,7 +34,7 @@ class Spider(IntEnum):
     @classmethod
     def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.JCOMIC})
     @classmethod
-    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5, cls.COMICABC, cls.MH1234, cls.RUMANHUA})
+    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5, cls.COMICABC, cls.MH1234, cls.RUMANHUA, cls.MANGADEX})
     @classmethod
     def cn_proxy(cls):  return frozenset({
         cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI, cls.COMICABC, cls.JCOMIC,
@@ -105,6 +106,7 @@ DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[comp
         Spider.MH1234: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
         Spider.JCOMIC: [res.SPIDER.Completer.index, res.SPIDER.Completer.update, '隨機', '最近更新'],
         Spider.RUMANHUA: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
+        Spider.MANGADEX: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
     }),
     SCRIPT_SITE_INDEX: [],
 }.items()))
@@ -126,6 +128,7 @@ STATUS_TIP = dict(sorted({
         Spider.MH1234: f"mh1234: {res.GUI.SearchInputStatusTip.common}",
         Spider.JCOMIC: f"jcomic: {res.GUI.SearchInputStatusTip.common}",
         Spider.RUMANHUA: f"rumanhua: {res.GUI.SearchInputStatusTip.common}",
+        Spider.MANGADEX: f"mangadex: {res.GUI.SearchInputStatusTip.common}",
     }),
 }.items()))
 

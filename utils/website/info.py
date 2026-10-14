@@ -174,6 +174,10 @@ class Mh1234BookInfo(Manga):
 class RumanhuaBookInfo(Manga):
     source = "rumanhua"
 
+
+class MangadexBookInfo(Manga):
+    source = "mangadex"
+
 # ---
 
 class JmBookInfo(Ero):
