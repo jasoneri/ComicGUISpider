@@ -1,4 +1,4 @@
-/* SubscribeWindow QSS — follows qfluent / danbooru day-night token pattern. */
+/* ToolWorkspaceWindow QSS — follows qfluent / danbooru day-night token pattern. */
 
 /* @tokens light */
 CANVAS = #f5f5f4;
@@ -59,7 +59,7 @@ OVERLAY_BTN_BORDER = rgba(255, 255, 255, 0.22);
 /* @endtokens */
 
 /* @section window */
-#SubscribeWindow {
+#ToolWorkspaceWindow {
     background: ${CANVAS};
     color: ${TEXT};
 }
@@ -222,5 +222,24 @@ QToolButton#SubscribeCardFolderBtn:pressed,
 QToolButton#SubscribeCardLinkBtn:pressed,
 QToolButton#SubscribeCardDelBtn:pressed {
     background: ${OVERLAY_BTN_BG_HOVER};
+}
+
+/* WebDAV tab — same shell/card/status-bar language as the subscribe sections. */
+QFrame#WebdavHeaderShell {
+    background: ${SHELL};
+    border: 1px solid ${SHELL_BORDER};
+    border-radius: 12px;
+}
+
+QFrame#WebdavCard {
+    background: ${CARD_BG};
+    border: 1px solid ${CARD_BORDER};
+    border-radius: 10px;
+}
+
+QFrame#WebdavActionBar {
+    background: ${STATUS_BG};
+    border: 1px solid ${STATUS_BORDER};
+    border-radius: 10px;
 }
 /* @endsection */

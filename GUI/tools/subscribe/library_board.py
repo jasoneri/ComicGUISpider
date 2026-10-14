@@ -15,7 +15,7 @@ from .common import subscribe_site_indexes
 from .cover_session import CoverSession
 
 if TYPE_CHECKING:
-    from .window import SubscribeWindow
+    from GUI.tools.workspace import ToolWorkspaceWindow
 
 
 class LibraryBoard(QWidget):
@@ -23,7 +23,7 @@ class LibraryBoard(QWidget):
 
     def __init__(
         self,
-        host: "SubscribeWindow",
+        host: "ToolWorkspaceWindow",
         *,
         cover_session: CoverSession,
         on_card_selected: Callable[[str], None],

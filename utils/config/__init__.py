@@ -36,6 +36,16 @@ qconfig_dir = conf_dir.joinpath("qconfig")
 qconfig_dir.mkdir(parents=True, exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
 
+WEBDAV_DEFAULT_CONF = {
+    "enabled": False,
+    "endpoint": "",
+    "user": "",
+    "password": "",
+    "root": "/",
+    "batch_limit": 20,
+    "concurrency": 4,
+}
+
 
 def yaml_update(_f, dic):
     with open(_f, 'r+', encoding='utf-8') as fp:

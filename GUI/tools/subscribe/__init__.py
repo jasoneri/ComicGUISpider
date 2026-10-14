@@ -8,13 +8,10 @@ Layout:
   cover_session.py  — CoverSession (generation-gated cover/DL orchestration)
   library_board.py  — LibraryBoard (FlowLayout cards + filter paint)
   side_panel.py     — SubscribeSidePanel (card-config + binding editor)
-  window.py         — SubscribeWindow frameless shell
   __init__.py       — public package surface
 """
 from .card import SubscribeCard
-from .window import SubscribeWindow
 
 __all__ = (
     "SubscribeCard",
-    "SubscribeWindow",
 )

@@ -63,13 +63,13 @@ from .card import SubscribeCard
 from .common import WEEKDAY_IDS, subscribe_site_indexes
 
 if TYPE_CHECKING:
-    from .window import SubscribeWindow
+    from GUI.tools.workspace import ToolWorkspaceWindow
 
 
 class SubscribeSidePanel(QFrame):
     """Side rail: selected-card CheckSlot + whole-library binding editor (yml SSoT)."""
 
-    def __init__(self, host: "SubscribeWindow", parent: QWidget | None = None):
+    def __init__(self, host: "ToolWorkspaceWindow", parent: QWidget | None = None):
         super().__init__(parent)
         self._host = host
         self._loading = False

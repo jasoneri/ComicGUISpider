@@ -255,7 +255,6 @@ class SubscribeCard(QFrame):
         self._sync_card_geometry()
 
     def _apply_action_chrome(self) -> None:
-        """Solid icon tints only; chip chrome is SubscribeWindow theme QSS by objectName."""
         self.folder_btn.setIcon(FIF.FOLDER.icon(color=QColor(OVERLAY_ICON_COLORS["folder"])))
         self.link_btn.setIcon(FIF.LINK.icon(color=QColor(OVERLAY_ICON_COLORS["link"])))
         self.del_btn.setIcon(FIF.DELETE.icon(color=QColor(OVERLAY_ICON_COLORS["del"])))

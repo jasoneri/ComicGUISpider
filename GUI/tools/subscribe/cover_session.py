@@ -20,7 +20,7 @@ from .workers import (
 )
 
 if TYPE_CHECKING:
-    from .window import SubscribeWindow
+    from GUI.tools.workspace import ToolWorkspaceWindow
 
 
 class CoverSession(QObject):
@@ -28,7 +28,7 @@ class CoverSession(QObject):
 
     def __init__(
         self,
-        host: "SubscribeWindow",
+        host: "ToolWorkspaceWindow",
         *,
         cards_by_key: Callable[[], dict[str, SubscribeCard]],
         cards: Callable[[], list[SubscribeCard]],

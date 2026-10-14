@@ -2,7 +2,7 @@ import shutil
 
 from qfluentwidgets import QConfig, ConfigItem, RangeConfigItem, RangeValidator, qconfig
 
-from utils.config import ScriptConf, conf_dir, qconfig_dir
+from utils.config import WEBDAV_DEFAULT_CONF, ScriptConf, conf_dir, qconfig_dir
 from utils.network.doh_policy import normalize_doh_url
 from utils.script.entry_migrate import move_entry_identity
 
@@ -27,6 +27,8 @@ class CgsConfig(QConfig):
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
     searchHistory = ConfigItem("Search", "History", [], restart=False)
     scriptWinRect = ConfigItem("ScriptWindow", "Rect", [], restart=False)
+    toolWorkspaceWinRect = ConfigItem("ToolWorkspaceWindow", "Rect", [], restart=False)
+    # deprecated 旧键：仅保留供一次性迁移读取（新键为空时继承并落盘到 toolWorkspaceWinRect），不再写入。
     subscribeWinRect = ConfigItem("SubscribeWindow", "Rect", [], restart=False)
     # Active subscription binding profile (subscription_{name}.yml); tray + GUI share this.
     activeSubscriptionCustomname = ConfigItem("Subscription", "ActiveCustomname", "default", restart=False)
@@ -35,6 +37,8 @@ class CgsConfig(QConfig):
     hiddenSiteChoices = ConfigItem("MainWindow", "HiddenSiteChoices", [], restart=False)
     # Per-site publish-page URL overrides set from the publish helper page (key = provider name).
     publishUrls = ConfigItem("Publish", "Urls", {}, restart=False)
+    webdavConf = ConfigItem("WebDAV", "Conf", dict(WEBDAV_DEFAULT_CONF), restart=False)
+    webdavEndpointHistory = ConfigItem("WebDAV", "EndpointHistory", [], restart=False)
     doh: "CgsConfig.DoH"
     search: "CgsConfig.Search"
     site_choices: "CgsConfig.SiteChoices"
@@ -159,12 +163,61 @@ class CgsConfig(QConfig):
             return normalized
 
 
+class WebdavSetting:
+    """WebDAV 推送配置。存在 qconfig，不进 conf.yml。"""
+
+    MAX_ENDPOINT_HISTORY = 20
+
+    def __init__(self, cfg: CgsConfig):
+        self._cfg = cfg
+
+    def get(self) -> dict:
+        raw = self._cfg.get(self._cfg.webdavConf)
+        return self._normalize(raw if isinstance(raw, dict) else {})
+
+    def set(self, value: dict) -> dict:
+        stored = self._normalize({**self.get(), **dict(value or {})})
+        self._cfg.set(self._cfg.webdavConf, stored)
+        self._record_endpoint(stored["endpoint"])
+        return stored
+
+    def get_endpoint_history(self) -> list[str]:
+        """服务器地址 MRU（最近保存的排最前），供地址输入框补全。"""
+        history = []
+        for item in list(self._cfg.webdavEndpointHistory.value or []):
+            endpoint = str(item or "").strip()
+            if endpoint and endpoint not in history:
+                history.append(endpoint)
+        return history
+
+    def _record_endpoint(self, endpoint: str) -> None:
+        endpoint = str(endpoint or "").strip()
+        if not endpoint:
+            return
+        history = [item for item in self.get_endpoint_history() if item != endpoint]
+        history.insert(0, endpoint)
+        self._cfg.set(self._cfg.webdavEndpointHistory, history[: self.MAX_ENDPOINT_HISTORY])
+
+    @staticmethod
+    def _normalize(raw: dict) -> dict:
+        stored = {**WEBDAV_DEFAULT_CONF, **raw}
+        stored["enabled"] = bool(stored["enabled"])
+        for key in ("endpoint", "user", "root"):
+            stored[key] = str(stored.get(key) or "").strip()
+        stored["password"] = str(stored.get("password") or "")
+        stored["root"] = stored["root"] or "/"
+        for key in ("batch_limit", "concurrency"):
+            stored[key] = int(stored.get(key) or 0) or int(WEBDAV_DEFAULT_CONF[key])
+        return stored
+
+
 cgs_cfg = CgsConfig()
 qconfig.load(_qconfig_path("qc.json"), cgs_cfg)
 cgs_cfg.site_choices = CgsConfig.SiteChoices(cgs_cfg)
 cgs_cfg.doh = CgsConfig.DoH(cgs_cfg)
 cgs_cfg.search = CgsConfig.Search(cgs_cfg)
 cgs_cfg.publish = CgsConfig.Publish(cgs_cfg)
+cgs_cfg.webdav = WebdavSetting(cgs_cfg)
 
 
 class CbgConfig(QConfig):

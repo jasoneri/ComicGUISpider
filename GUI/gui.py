@@ -49,7 +49,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     online_favorites_ready = Signal(str, int, object)  # provider_name, site_index, books
     BrowserWindow = None  # CGS001 browser init/show flow
     toolWin = None
-    _subscribe_window = None
+    _tool_workspace_window = None
     conf_dia = None  # CGS006: construct on demand (P4)
     web_is_r18 = False
     gui_site_runtime = None  # CGS001 choose-box site flow
@@ -240,31 +240,28 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 self.toolWin.rvInterface.set_sauce_visible(self._pending_rv_sauce_visible)
         return self.toolWin
 
-    def ensure_subscribe_window(self):
-        """Singleton frameless subscribe waterfall window (manga library only)."""
-        window = getattr(self, "_subscribe_window", None)
+    def ensure_tool_workspace_window(self):
+        """Existing subscription window, shared by subscription and WebDAV routes."""
+        window = getattr(self, "_tool_workspace_window", None)
         if window is not None:
             return window
-        from GUI.tools.subscribe import SubscribeWindow
-        self._subscribe_window = SubscribeWindow(self)
-        self._subscribe_window.destroyed.connect(lambda *_args: setattr(self, "_subscribe_window", None))
-        return self._subscribe_window
+        from GUI.tools.workspace import ToolWorkspaceWindow
+        self._tool_workspace_window = ToolWorkspaceWindow(self)
+        self._tool_workspace_window.destroyed.connect(lambda *_args: setattr(self, "_tool_workspace_window", None))
+        return self._tool_workspace_window
 
     def open_subscribe_window(self) -> None:
-        window = self.ensure_subscribe_window()
-        window.show()
-        window.raise_()
-        window.activateWindow()
-        # showEvent hydrates once; only re-refresh when the window was already open.
-        if getattr(window, "_content_hydrated", False):
+        window = self.ensure_tool_workspace_window()
+        was_visible = window.isVisible()
+        window.show_subscribe()
+        if was_visible:
             window.refresh_library()
 
+    def open_webdav_window(self) -> None:
+        self.ensure_tool_workspace_window().show_webdav()
+
     def open_subscribe_with_books(self, books) -> None:
-        window = self.ensure_subscribe_window()
-        window.show()
-        window.raise_()
-        window.activateWindow()
-        window.receive_pushed_books(list(books or []))
+        self.ensure_tool_workspace_window().receive_pushed_books(list(books or []))
 
     def update_search_ui(self, *, session=_UNSET, request=_UNSET, controls_blocked=_UNSET):
         if session is not _UNSET:
@@ -366,6 +363,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
         else:
             self.sv_path = conf.sv_path
+        self.rv_mgr.sync_context()
         self.set_completer()
         self.flow_stage = GUIFlowStage.IDLE
         self.preprocess_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
@@ -408,6 +406,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     def show_toolWin(self, win_type):
         if win_type == "subscribe":
             self.open_subscribe_window()
+            return
+        if win_type == "webdav":
+            self.open_webdav_window()
             return
         _map = {"ags": "asInterface", "hitomi": "htInterface"}
         self.rvBtn.click()
@@ -477,7 +478,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         blockers.extend(self.shares.server_mode_switch_blockers())
         if self.toolWin is not None:
             blockers.extend(self.toolWin.server_mode_switch_blockers())
-        subscribe_window = getattr(self, "_subscribe_window", None)
+        subscribe_window = getattr(self, "_tool_workspace_window", None)
         if subscribe_window is not None:
             blockers.extend(subscribe_window.server_mode_switch_blockers())
         if self.script_window is not None:
@@ -840,6 +841,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.rv_tools.ero = 0
         self.bsm = None
         self.sv_path = conf.sv_path
+        self.rv_mgr.sync_context()
         self.flow_stage = GUIFlowStage.IDLE
         self.search_ui_state = SearchUiState()
         self.searchinput.clear()
@@ -942,15 +944,16 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.progressBar.setValue(i)
 
     def closeEvent(self, event):
+        subscribe_window = getattr(self, "_tool_workspace_window", None)
+        if subscribe_window is not None and not subscribe_window.close():
+            event.ignore()
+            return
         self._closing = True
         if self.script_window is not None:
             self.script_window.close()
         if self.toolWin is not None:
             self.toolWin.close()
-        subscribe_window = getattr(self, "_subscribe_window", None)
-        if subscribe_window is not None:
-            subscribe_window.close()
-            self._subscribe_window = None
+        self._tool_workspace_window = None
         if hasattr(self, 'rv_mgr'):
             self.rv_mgr.stop_scan()
         if hasattr(self, 'task_mgr'):
