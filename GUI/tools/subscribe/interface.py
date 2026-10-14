@@ -98,6 +98,7 @@ class SubscribeInterface(QWidget):
         self._closing = False
         # Re-measure after layout so tz_btn height tracks the painted TimePicker.
         self.side_panel._align_tz_btn_to_time_picker()
+        self.side_panel._align_profile_tz_btn_to_time_picker()
         # First show only: avoid open_subscribe_window + showEvent double full refresh.
         if self._content_hydrated:
             return
@@ -110,6 +111,7 @@ class SubscribeInterface(QWidget):
         self._refresh_status_bar()
         self.refresh_library()
         self.side_panel._align_tz_btn_to_time_picker()
+        self.side_panel._align_profile_tz_btn_to_time_picker()
 
     def receive_pushed_books(self, books: list) -> None:
         pushed = list(books or [])
@@ -117,12 +119,11 @@ class SubscribeInterface(QWidget):
             raise ValueError("no books were pushed from preview")
         allowed = subscribe_site_indexes()
         fallback_site_index = None
-        preview_manager = getattr(self.gui, "preview_mgr", None) if self.gui is not None else None
-        if preview_manager is not None:
-            try:
-                fallback_site_index = int(preview_manager.site_index)
-            except (TypeError, ValueError):
-                fallback_site_index = None
+        preview_manager = self.gui.preview_mgr
+        try:
+            fallback_site_index = int(preview_manager.site_index)
+        except (TypeError, ValueError):
+            fallback_site_index = None
         added = 0
         skipped = 0
         yaml_books_changed = False
@@ -166,8 +167,6 @@ class SubscribeInterface(QWidget):
         return []
 
     def import_preview_books(self) -> None:
-        if self.gui is None:
-            raise ValueError("subscribe window requires gui")
         preview_manager = self.gui.preview_mgr
         if not preview_manager.books_cache:
             raise ValueError("open a preview with books before importing")
@@ -315,17 +314,14 @@ class SubscribeInterface(QWidget):
 
     def _sync_site_filter_from_gui(self) -> None:
         """Default filter follows SpiderGUI.chooseBox when it is a manga site."""
-        if not hasattr(self, "site_filter_combo"):
-            return
         target = None
-        choose_box = getattr(self.gui, "chooseBox", None) if self.gui is not None else None
-        if choose_box is not None:
-            try:
-                current = int(choose_box.currentIndex())
-            except (TypeError, ValueError):
-                current = 0
-            if current in subscribe_site_indexes():
-                target = current
+        choose_box = self.gui.chooseBox
+        try:
+            current = int(choose_box.currentIndex())
+        except (TypeError, ValueError):
+            current = 0
+        if current in subscribe_site_indexes():
+            target = current
         self.side_panel._loading = True
         try:
             matched = False
@@ -356,8 +352,6 @@ class SubscribeInterface(QWidget):
 
     def _refresh_status_bar(self) -> None:
         """Schedule chrome from cache + scheduler. Domain errors propagate to hook_exception."""
-        if not hasattr(self, "last_run_label") or not hasattr(self, "next_run_label"):
-            return
         last_text = "上次执行：-"
         summary = self.schedule_cache.read_summary()
         if summary is not None:

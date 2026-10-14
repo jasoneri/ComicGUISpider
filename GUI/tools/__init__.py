@@ -108,9 +108,6 @@ class ToolWindow(FramelessWindow):
         self.pivot.setCurrentItem(widget.objectName())
 
     def open_subscribe_with_books(self, books):
-        """Back-compat: preview push routes through gui singleton subscribe window."""
-        if self.gui is None:
-            raise RuntimeError("ToolWindow.open_subscribe_with_books requires gui")
         self.gui.open_subscribe_with_books(books)
 
     def server_mode_switch_blockers(self) -> list[str]:

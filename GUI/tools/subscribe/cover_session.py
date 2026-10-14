@@ -157,10 +157,7 @@ class CoverSession(QObject):
         cards = self._cards()
         if not cards or self.closing:
             return
-        gui = self._host.gui
-        rv_tools = getattr(gui, "rv_tools", None) if gui is not None else None
-        if rv_tools is None:
-            return
+        rv_tools = self._host.gui.rv_tools
         titles_by_key = {
             card.card_key: LocalLibraryStore.book_title(card.book)
             for card in cards
@@ -200,9 +197,7 @@ class CoverSession(QObject):
     def _on_dl_scan_error(self, generation: int, message: str) -> None:
         if self.closing or int(generation) != int(self.dl_scan_generation):
             return
-        logger = getattr(self._host.gui, "log", None) if self._host.gui is not None else None
-        if logger is not None:
-            logger.warning(f"[subscribe.dl_scan] {message}")
+        self._host.gui.log.warning(f"[subscribe.dl_scan] {message}")
 
     @Slot()
     def _on_dl_scan_worker_finished(self) -> None:
@@ -228,9 +223,7 @@ class CoverSession(QObject):
             return
         pixmap = QPixmap()
         if not pixmap.loadFromData(data):
-            logger = getattr(self._host.gui, "log", None) if self._host.gui is not None else None
-            if logger is not None:
-                logger.warning(f"[subscribe.cover] decode failed card={key}")
+            self._host.gui.log.warning(f"[subscribe.cover] decode failed card={key}")
             return
         card.set_cover_pixmap(pixmap, source="cache")
 
@@ -252,9 +245,7 @@ class CoverSession(QObject):
         try:
             self._host.library.update_book_img_preview(int(card.site_index), book_url, cover)
         except Exception as exc:
-            logger = getattr(self._host.gui, "log", None) if self._host.gui is not None else None
-            if logger is not None:
-                logger.warning(f"[subscribe.cover] persist img_preview failed card={key}: {exc}")
+            self._host.gui.log.warning(f"[subscribe.cover] persist img_preview failed card={key}: {exc}")
 
     @Slot(int, str, str)
     def _on_cover_error(self, generation: int, card_key: str, message: str) -> None:
@@ -262,6 +253,4 @@ class CoverSession(QObject):
             return
         key = str(card_key)
         self.cover_inflight.discard(key)
-        logger = getattr(self._host.gui, "log", None) if self._host.gui is not None else None
-        if logger is not None:
-            logger.warning(f"[subscribe.cover] {key} | {message}")
+        self._host.gui.log.warning(f"[subscribe.cover] {key} | {message}")
