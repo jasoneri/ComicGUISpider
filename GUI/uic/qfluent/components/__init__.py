@@ -6,6 +6,7 @@ from .icons import *
 from .flyout_kit import *
 from .cust import *
 from .badge import *
+from .busy_ring import *
 
 # updater exports UpdaterMessageBox — deferred to avoid pulling in
 # all GUI.manager + deploy.update at import time.

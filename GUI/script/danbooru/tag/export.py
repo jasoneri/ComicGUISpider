@@ -9,13 +9,14 @@ from PySide6.QtWidgets import (
     QApplication, QHBoxLayout, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 from qfluentwidgets import (
-    BodyLabel, ComboBox, FlowLayout, FluentIcon as FIF, IndeterminateProgressRing, ProgressRing,
+    BodyLabel, ComboBox, FlowLayout, FluentIcon as FIF,
     LineEdit, PlainTextEdit, PushButton, ScrollArea, SegmentedWidget, PrimaryToolButton,
     Slider, StrongBodyLabel, TogglePushButton, ToolButton, TransparentToolButton,
     ImageLabel,
 )
 from qframelesswindow import FramelessDialog
 
+from GUI.uic.qfluent.components import BusyRingHost
 from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.config.qc import danbooru_cfg
 from utils.script import conf as script_conf
@@ -496,16 +497,10 @@ class TagExportPanel(FramelessDialog):
         # Keep the progress host as a separate layout item with the same size as
         # the send button. Busy state swaps these two items instead of overlaying
         # a spinner on top of a still-present button.
-        self.comfy_nl_indeterminate_ring_host = QWidget(self.comfy_nl_row)
-        self.comfy_nl_indeterminate_ring_host.setObjectName("ComfyNlIndeterminateRingHost")
-        self.comfy_nl_indeterminate_ring_host.setFixedSize(QtCore.QSize(32, 32))
-        self.comfy_nl_indeterminate_ring = IndeterminateProgressRing(
-            self.comfy_nl_indeterminate_ring_host, start=False
+        # 无确定进度：基形单环，busy 时取代 comfy_nl_btn 槽位。
+        self.comfy_nl_indeterminate_ring_host = BusyRingHost.make(
+            self.comfy_nl_row, self.comfy_nl_btn, size=32, object_name="ComfyNlIndeterminateRingHost"
         )
-        self.comfy_nl_indeterminate_ring.setFixedSize(QtCore.QSize(18, 18))
-        self.comfy_nl_indeterminate_ring.setStrokeWidth(3)
-        self.comfy_nl_indeterminate_ring.move(7, 7)
-        self.comfy_nl_indeterminate_ring_host.hide()
         comfy_nl_layout.addWidget(self.comfy_nl_btn)
         comfy_nl_layout.addWidget(self.comfy_nl_indeterminate_ring_host)
         root.addWidget(self.comfy_nl_row)
@@ -565,22 +560,10 @@ class TagExportPanel(FramelessDialog):
 
         # 与 comfy_nl 同模式：host 占位 = ToolButton 32×32，busy 时 swap 显隐。
         # 旧 112×32 + move(40/47) 是 PushButton「to Comfy」文案期的宽度，图标按钮会空出一截。
-        self.comfy_progress_ring_host = QWidget(self.comfy_row)
-        self.comfy_progress_ring_host.setObjectName("ComfyProgressRingHost")
-        self.comfy_progress_ring_host.setFixedSize(QtCore.QSize(32, 32))
-        self.comfy_progress_ring = ProgressRing(self.comfy_progress_ring_host)
-        self.comfy_progress_ring.setTextVisible(False)
-        self.comfy_progress_ring.setFixedSize(QtCore.QSize(32, 32))
-        self.comfy_progress_ring.setRange(0, 100)
-        self.comfy_progress_ring.move(0, 0)
-        self.comfy_indeterminate_ring = IndeterminateProgressRing(
-            self.comfy_progress_ring_host, start=False
-        )
-        self.comfy_indeterminate_ring.setFixedSize(QtCore.QSize(18, 18))
-        self.comfy_indeterminate_ring.setStrokeWidth(3)
-        self.comfy_indeterminate_ring.move(7, 7)
-        self.comfy_indeterminate_ring.raise_()
-        self.comfy_progress_ring_host.hide()
+        # 有确定进度（current/maximum）：双环变种，busy 时取代 comfy_generate_btn 槽位。
+        self.comfy_progress_ring_host = BusyRingHost.make(self.comfy_row, self.comfy_generate_btn,
+                                                          determinate=True, size=32,
+                                                          object_name="ComfyProgressRingHost")
         comfy_layout.addWidget(self.comfy_progress_ring_host)
         root.addWidget(self.comfy_row)
 
@@ -715,14 +698,7 @@ class TagExportPanel(FramelessDialog):
 
     def set_comfy_nl_busy(self, busy: bool):
         self._comfy_nl_busy = bool(busy)
-        if self._comfy_nl_busy:
-            self.comfy_nl_btn.hide()
-            self.comfy_nl_indeterminate_ring_host.show()
-            self.comfy_nl_indeterminate_ring.start()
-        else:
-            self.comfy_nl_indeterminate_ring.stop()
-            self.comfy_nl_indeterminate_ring_host.hide()
-            self.comfy_nl_btn.show()
+        self.comfy_nl_indeterminate_ring_host.set_busy(self._comfy_nl_busy)
         self._sync_comfy_nl_controls()
 
     def _populate_action_combo(self):
@@ -874,23 +850,13 @@ class TagExportPanel(FramelessDialog):
 
     def set_comfy_progress(self, current: int = 0, maximum: int = 0, node: str = ""):
         """在提交按钮原位显示确定进度环和持续运行指示。"""
-        self.comfy_generate_btn.hide()
-        self.comfy_progress_ring_host.show()
-        if maximum > 0:
-            percent = min(100, max(0, int(current * 100 / maximum)))
-            self.comfy_progress_ring.setValue(percent)
-        else:
-            self.comfy_progress_ring.setValue(0)
-        self.comfy_indeterminate_ring.show()
-        self.comfy_indeterminate_ring.start()
+        self.comfy_progress_ring_host.set_value(min(100, max(0, int(current * 100 / maximum))) if maximum > 0 else 0)
+        self.comfy_progress_ring_host.set_busy(True)
 
     def clear_comfy_progress(self):
-        self.comfy_indeterminate_ring.stop()
-        self.comfy_indeterminate_ring.hide()
-        self.comfy_progress_ring_host.hide()
-        self.comfy_progress_ring.setValue(0)
+        self.comfy_progress_ring_host.set_busy(False)
+        self.comfy_progress_ring_host.set_value(0)
         self.comfy_progress_ring_host.setToolTip("")
-        self.comfy_generate_btn.show()
         self._on_denoise_changed(self.denoise_slider.value())
 
     def _on_denoise_changed(self, value: int):

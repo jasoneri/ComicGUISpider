@@ -12,15 +12,15 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLineEdit, QPlainTextEdit, QStackedWidget, QTextEdit, QVBoxLayout, QWidget
 from qfluentwidgets import PlainTextEdit as FluentPlainTextEdit
 from qfluentwidgets import (
-    Action, ComboBox, FluentIcon as FIF, IndeterminateProgressRing, InfoBar, InfoBarPosition,
-    PrimaryToolButton, ProgressBar, ProgressRing, RoundMenu, StrongBodyLabel, SubtitleLabel, TabBar,
+    Action, ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition,
+    PrimaryToolButton, ProgressBar, RoundMenu, StrongBodyLabel, SubtitleLabel, TabBar,
     TabCloseButtonDisplayMode, TeachingTipTailPosition, ToolButton, TransparentToolButton,
 )
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
-from GUI.uic.qfluent.components import CountBadge, CustomInfoBar, CustomTeachingTip
+from GUI.uic.qfluent.components import BusyRingHost, CountBadge, CustomInfoBar, CustomTeachingTip
 from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.script.image.danbooru.client import DanbooruClient
 from utils.config.qc import danbooru_cfg
@@ -237,24 +237,10 @@ class DanbooruInterface(QFrame):
         self.favMgrBtn.setObjectName("FavMgrBtn")
         self.favMgrBtn.setIconSize(QSize(20, 20))
         self.favMgrBtn.setMinimumHeight(50)
-        self.favTranslateRingHost = QWidget(self)
-        self.favTranslateRingHost.setObjectName("FavTranslateRingHost")
-        self.favTranslateRingHost.setFixedSize(QSize(36, 36))
+        # 收藏翻译有确定进度（done/total）：双环变种，busy 时取代 favMgrBtn 槽位。
+        self.favTranslateRingHost = BusyRingHost.make(self, self.favMgrBtn, determinate=True,
+                                                      object_name="FavTranslateRingHost")
         self.favTranslateRingHost.setToolTip("翻译中")
-        self.favTranslateRing = ProgressRing(self.favTranslateRingHost)
-        self.favTranslateRing.setTextVisible(False)
-        self.favTranslateRing.setFixedSize(QSize(36, 36))
-        self.favTranslateRing.setRange(0, 100)
-        self.favTranslateRing.setValue(0)
-        self.favTranslateRing.move(0, 0)
-        self.favTranslateIndeterminateRing = IndeterminateProgressRing(
-            self.favTranslateRingHost, start=False
-        )
-        self.favTranslateIndeterminateRing.setFixedSize(QSize(18, 18))
-        self.favTranslateIndeterminateRing.setStrokeWidth(3)
-        self.favTranslateIndeterminateRing.move(9, 9)
-        self.favTranslateIndeterminateRing.raise_()
-        self.favTranslateRingHost.hide()
         self.openBtn = ToolButton(FIF.FOLDER)
         self.openBtn.setMinimumHeight(50)
         self.batch_download_btn = PrimaryToolButton(FIF.DOWNLOAD, self)

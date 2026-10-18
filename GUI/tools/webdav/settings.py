@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QCompleter, QGridLayout, QHBoxLayout, QVBoxLayout,
 from qfluentwidgets import BodyLabel, FluentIcon as FIF, InfoBar, InfoBarPosition, LineEdit, PasswordLineEdit, PrimaryToolButton, PushButton
 
 from utils.config.qc import cgs_cfg
+from GUI.uic.qfluent.components import BusyRingHost
 from GUI.uic.qfluent.components.icons import CgsIcon
 
 
@@ -23,6 +24,8 @@ class WebdavSettings(QWidget):
         self.svBtn = PrimaryToolButton(FIF.SAVE, self)
         self.svBtn.setToolTip("保存配置")
         self.svBtn.setAccessibleName("保存配置")
+        # 读写测试进行中：无确定进度，基形单环；busy 时取代 svBtn 槽位（按钮 hide、宿主 show）。
+        self.probe_ring_host = BusyRingHost.make(self, self.svBtn, object_name="WebdavProbeRingHost")
         self.test_btn = PushButton(CgsIcon.AUTH_SCAN,"测试读写", self)
         self.test_btn.setEnabled(False)
         self.test_btn.setToolTip("写入、回读并清理临时文件验证连接")
@@ -49,6 +52,8 @@ class WebdavSettings(QWidget):
         endpoint_row.addWidget(self.endpoint_edit, 1)
         endpoint_row.addWidget(self.test_btn)
         endpoint_row.addWidget(self.svBtn)
+        # 进度环宿主紧跟 svBtn 同槽位：探测时 svBtn hide、宿主 show，行内位置即原按钮位。
+        endpoint_row.addWidget(self.probe_ring_host)
         grid.addLayout(endpoint_row, 0, 0, 1, 4)
         for column, (text, edit) in enumerate((('账号', self.user_edit), ('密码', self.password_edit))):
             grid.addWidget(self._field_label(text, edit), 1, column * 2)
@@ -113,3 +118,7 @@ class WebdavSettings(QWidget):
         InfoBar.success(title='', content="配置已保存", position=InfoBarPosition.TOP, duration=2500, parent=self.window())
         self.saved.emit()
         self.changed.emit()
+
+    def set_probing(self, probing: bool):
+        """读写测试起止：进度环宿主取代 svBtn 槽位（宿主内部幂等）。"""
+        self.probe_ring_host.set_busy(probing)
