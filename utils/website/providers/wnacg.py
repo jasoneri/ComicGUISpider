@@ -247,6 +247,8 @@ class WnacgGallerySource:
 
 
 class WnacgParser(_WnacgContract, Previewer):
+    _PAGES_RE = re.compile(r"(\d+)[張张]")
+
     @classmethod
     def parse_gallery_images(cls, html_text) -> list[str]:
         """Ordered gallery image urls for a wnacg book page."""
@@ -273,11 +275,14 @@ class WnacgParser(_WnacgContract, Previewer):
         return normalized
 
     @classmethod
-    def parse_search_item(cls, target):
+    def parse_search_item(cls, target) -> WnacgBookInfo | None:
         tar_xpath = './div[contains(@class, "pic")]'
         item_elem = target.xpath(f"{tar_xpath}/a")
         pre_url = item_elem.xpath("./@href").get()
         page_text = target.xpath('.//div[contains(@class, "info_col")]/text()').get()
+        pages_match = cls._PAGES_RE.search(page_text) if page_text else None
+        if pages_match is None:
+            return None
         cate = (target.xpath(f"{tar_xpath}/@class").get() or "").split(" ")[-1]
         public_date = (
             re.search(r"\d{4}-\d{2}-\d{2}", page_text).group()
@@ -286,7 +291,7 @@ class WnacgParser(_WnacgContract, Previewer):
         )
         return WnacgBookInfo(
             name=item_elem.xpath("./@title").get(), preview_url=pre_url,
-            url=pre_url.replace("index", "gallery"), pages=re.search(r"(\d+)[張张]", page_text.strip()).group(1) if page_text else 0,
+            url=pre_url.replace("index", "gallery"), pages=pages_match.group(1),
             btype=cls.cate_mappings.get(cate, ""), img_preview=cls.normalize_preview_resource(item_elem.xpath("./img/@src").get()),
             public_date=public_date,
         ).get_id(pre_url)
@@ -298,7 +303,7 @@ class WnacgParser(_WnacgContract, Previewer):
         html_doc = Selector(text=resp_text)
         targets = html_doc.xpath('//li[contains(@class, "gallary_item")]')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(cls.parse_search_item, targets))
+            books = [book for book in executor.map(cls.parse_search_item, targets) if book is not None]
         for book in books:
             cls.normalize_preview_fields(book, domain=domain)
         return books
@@ -308,7 +313,7 @@ class WnacgParser(_WnacgContract, Previewer):
         html_doc = Selector(text=text)
         targets = html_doc.xpath('//li[contains(@class, "gallary_item")]')
         with ThreadPoolExecutor() as executor:
-            books = list(executor.map(cls.parse_search_item, targets))
+            books = [book for book in executor.map(cls.parse_search_item, targets) if book is not None]
         for idx, book in enumerate(books, start=1):
             book.idx = idx
             cls.normalize_preview_fields(book, domain=domain)
