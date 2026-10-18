@@ -22,7 +22,7 @@ def _default_danbooru_view_ratio() -> int:
 
 
 class CgsConfig(QConfig):
-    proxyHistory = ConfigItem("Proxy", "History", ["127.0.0.1:10809"], restart=False)
+    proxyHistory = ConfigItem("Proxy", "History", ["127.0.0.1:7890"], restart=False)
     dohUrl = ConfigItem("DoH", "Url", "", restart=False)
     dohHistory = ConfigItem("DoH", "History", [], restart=False)
     searchHistory = ConfigItem("Search", "History", [], restart=False)

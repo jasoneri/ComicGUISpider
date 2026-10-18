@@ -33,10 +33,10 @@ class Aria2GroupCard(GroupHeaderCardWidget):
 
         self.proxy_edit = LineEdit(self)
         self.proxy_edit.setObjectName("DownloadProxyEdit")
-        self.proxy_edit.setPlaceholderText("e.g. 127.0.0.1:10809")
+        self.proxy_edit.setPlaceholderText("e.g. 127.0.0.1:7890")
         self.proxy_edit.setClearButtonEnabled(True)
         self.proxy_edit.setMinimumWidth(320)
-        completer = QCompleter(["127.0.0.1:10809", "http://127.0.0.1:10809"])
+        completer = QCompleter(["127.0.0.1:7890", "http://127.0.0.1:7890"])
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.proxy_edit.setCompleter(completer)

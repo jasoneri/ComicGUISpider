@@ -199,5 +199,5 @@ class Ui_Dialog(object):
         self.logLevelComboBox.setItemText(3, _translate("Dialog", "ERROR"))
         self.label_4.setToolTip(_translate("Dialog", "proxies"))
         self.proxiesEdit.setToolTip(_translate("Dialog", "proxies"))
-        self.proxiesEdit.setPlaceholderText(_translate("Dialog", "e.g.(v2rayN) 127.0.0.1:10809"))
+        self.proxiesEdit.setPlaceholderText(_translate("Dialog", "e.g.(flclash) 127.0.0.1:7890"))
         self.label_completer.setToolTip(_translate("Dialog", "completer/preset"))

@@ -22,7 +22,7 @@ HEADERS.update({
 
 def _build_data_client() -> httpx.AsyncClient:
     kwargs = {"headers": HEADERS, "http2": True, "follow_redirects": True}
-    kwargs["proxy"] = "http://127.0.0.1:10809"
+    kwargs["proxy"] = "http://127.0.0.1:7890"
     return httpx.AsyncClient(**kwargs)
 
 
