@@ -3,7 +3,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtWidgets import QAbstractItemView, QHBoxLayout, QHeaderView, QTreeWidgetItem, QVBoxLayout, QWidget
-from qfluentwidgets import FluentIcon as FIF, InfoBar, InfoBarPosition, PushButton, SearchLineEdit, ToolButton, TreeWidget
+from qfluentwidgets import (FluentIcon as FIF, InfoBar, InfoBarPosition, PushButton, SearchLineEdit, TogglePushButton,
+                            ToolButton, TreeWidget)
 
 from .entries import (MODE_DOUJIN, STATUS_TOOLTIP, UploadState, UploadStatus, map_snapshot)
 
@@ -26,6 +27,11 @@ class WebdavLibraryTree(QWidget):
         self._statuses = {}
         self._checked = set()
         self._missing = set()
+        self._uploaded_groups = set()
+        self._uploaded_only = False
+        self.show_uploaded_btn = TogglePushButton(FIF.VIEW, "仅展示已上传书籍", self)
+        self.show_uploaded_btn.setToolTip("按书判定：书内有任一话上传记录，整本仍可见（含未上传章节）")
+        self.show_uploaded_btn.setAccessibleName("仅展示已上传书籍")
         self.filter_edit = SearchLineEdit(self)
         self.filter_edit.setPlaceholderText("筛选漫画 / 章节")
         self.filter_edit.setAccessibleName("筛选漫画和章节")
@@ -33,6 +39,7 @@ class WebdavLibraryTree(QWidget):
         self.clear_btn = ToolButton(FIF.CLOSE, self)
         self.clear_btn.setToolTip("清空勾选")
         self.clear_btn.setAccessibleName("清空勾选")
+        self.show_uploaded_btn.hide()
         self.select_btn.hide()
         self.clear_btn.hide()
         self.tree = TreeWidget(self)
@@ -48,6 +55,7 @@ class WebdavLibraryTree(QWidget):
         self.tree.itemChanged.connect(self._item_changed)
         self.tree.itemExpanded.connect(self._materialize_group)
         self.filter_edit.textChanged.connect(self._filter)
+        self.show_uploaded_btn.toggled.connect(self._filter_uploaded)
         self.select_btn.clicked.connect(self.select_visible)
         self.clear_btn.clicked.connect(self.clear_selection)
 
@@ -57,6 +65,7 @@ class WebdavLibraryTree(QWidget):
         layout.setSpacing(6)
         # 书库区只负责筛选与勾选：远端地址属于连接卡配置，不在此重复展示。
         row = QHBoxLayout()
+        row.addWidget(self.show_uploaded_btn)
         row.addWidget(self.filter_edit, 1)
         row.addWidget(self.select_btn)
         row.addWidget(self.clear_btn)
@@ -77,6 +86,7 @@ class WebdavLibraryTree(QWidget):
         self._statuses = {key: state for key, state in self._statuses.items() if key in self.entries}
         self._search_text = {key: f"{entry.book} {entry.ep} {key}".casefold() for key, entry in self.entries.items()}
         self._apply_history(mode)
+        self._sync_uploaded_filter()
         self._group_entries, self._group_leaves = {}, {}
         for entry in values:
             self._group_entries.setdefault(entry.group_key, []).append(entry.local_path)
@@ -120,6 +130,7 @@ class WebdavLibraryTree(QWidget):
         - 读库失败 ⇒ history_failed 信号 + 按空降级（宿主可见告知），树与上传照常。
         """
         self._missing = set()
+        self._uploaded_groups = set()
         if self.history is None or not self.entries:
             return
         keys = {(entry.relative_path, mode) for entry in self.entries.values()}
@@ -134,6 +145,9 @@ class WebdavLibraryTree(QWidget):
         missing, modified = [], []
         for key, entry in self.entries.items():
             record = records.get((entry.relative_path, mode))
+            if record is not None:
+                # C′：筛选判定单位是父级（书）——任一话有记录，整本进「已上传」集合。
+                self._uploaded_groups.add(entry.group_key)
             batch = record.batch_id if record else 0
             try:
                 exists = (Path(entry.local_path).is_file() if entry.kind == "cbz"
@@ -156,6 +170,19 @@ class WebdavLibraryTree(QWidget):
                             content=(f"{len(missing)} 项本地文件已删除 · {len(modified)} 项本地已修改（与上传记录不符），"
                                      "如为外部改动，可点右上角刷新重新扫描"),
                             position=InfoBarPosition.TOP, duration=6000, parent=self.window() or self)
+
+    def _sync_uploaded_filter(self):
+        """「仅展示已上传」入口只由 SQL 落地记录决定：无记录即收起并复位开关（不是用户偏好项）。"""
+        available = bool(self._uploaded_groups)
+        self.show_uploaded_btn.setVisible(available)
+        if not available and self.show_uploaded_btn.isChecked():
+            with QSignalBlocker(self.show_uploaded_btn):
+                self.show_uploaded_btn.setChecked(False)
+            self._uploaded_only = False
+
+    def _filter_uploaded(self, enabled):
+        self._uploaded_only = enabled
+        self._filter()
 
     def _materialize_group(self, group):
         if group.childCount() or group.parent() is not None:
@@ -205,6 +232,8 @@ class WebdavLibraryTree(QWidget):
     def _filter(self, *_args):
         term = self.filter_edit.text().casefold()
         self._visible = {key for key, text in self._search_text.items() if term in text}
+        if self._uploaded_only:
+            self._visible &= {key for key in self._visible if self.entries[key].group_key in self._uploaded_groups}
         self.select_btn.setVisible(bool(term))
         for key, item in self._items.items():
             item.setHidden(key not in self._visible)

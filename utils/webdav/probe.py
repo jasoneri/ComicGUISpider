@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import uuid4
 
-from .client import WebDavClient, WebDavError, WebDavNotFoundError
+from .client import WebDavClient, WebDavError, WebDavNotFoundError, proxy_kwargs
 
 
 class ProbeStage(StrEnum):
@@ -88,11 +88,15 @@ class _ProbeSession:
             self._read_owned()
         if self.readback != self.payload:
             raise WebDavError("测试文件已改变，未删除")
-        # GET 头常只给弱 ETag；用 PROPFIND 的 DAV:getetag 补一次，仍拿不到才放弃清理。
+        # GET 头常只给弱 ETag；用 PROPFIND 的 DAV:getetag 补一次。
         etag = self._strong_etag(self.etag) or self._strong_etag(self.client.get_etag(self.remote))
-        if etag is None:
-            raise WebDavError("服务器未提供强 ETag，无法安全确认清理目标，测试文件已保留；正常上传不受影响")
-        self.client.delete(self.remote, if_match=etag)
+        if etag is not None:
+            self.client.delete(self.remote, if_match=etag)
+        else:
+            # 服务器不提供强 ETag（实测 CloudFlare-ImgBed 的 WebDAV：GET 无 ETag 头、PROPFIND 无 DAV:getetag）
+            # 时无法做条件删除，退回普通 DELETE：探测文件名与内容都是本次现生成的 uuid，
+            # 且删除前已回读比对确认归属，该路径不会被他人复用，重放删除不会误伤他人文件。
+            self.client.delete(self.remote)
         try:
             self.client.get_bytes(self.remote)
         except WebDavNotFoundError:
@@ -107,5 +111,6 @@ class _ProbeSession:
 
 def probe_webdav(config: Mapping[str, object], *, client_factory=WebDavClient) -> ProbeResult:
     snapshot = dict(config)
-    with client_factory(snapshot["endpoint"], snapshot["user"], snapshot["password"], root=snapshot["root"]) as client:
+    kwargs = proxy_kwargs(snapshot.get("use_proxy"))
+    with client_factory(snapshot["endpoint"], snapshot["user"], snapshot["password"], root=snapshot["root"], **kwargs) as client:
         return _ProbeSession(client).run()

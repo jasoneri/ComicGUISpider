@@ -208,6 +208,7 @@ class WebdavSetting:
         stored["root"] = stored["root"] or "/"
         for key in ("batch_limit", "concurrency"):
             stored[key] = int(stored.get(key) or 0) or int(WEBDAV_DEFAULT_CONF[key])
+        stored["use_proxy"] = bool(stored.get("use_proxy"))
         return stored
 
 

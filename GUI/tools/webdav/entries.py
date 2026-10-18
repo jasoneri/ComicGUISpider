@@ -23,7 +23,7 @@ class UploadStatus(StrEnum):
 
 
 STATUS_TEXT = {
-    UploadStatus.PENDING: "待上传",
+    UploadStatus.PENDING: "",
     UploadStatus.UPLOADING: "上传中",
     UploadStatus.PUSHED: "✅️已上传",
     UploadStatus.SKIPPED: "同路径同大小，已跳过",
@@ -54,7 +54,7 @@ class UploadState:
 
     def text(self) -> str:
         if self.batch:
-            return f"「batch.{self.batch}」, {STATUS_TEXT[self.status]}"
+            return f"{STATUS_TEXT[self.status]},「batch.{self.batch}」"
         return STATUS_TEXT[self.status]
 
 

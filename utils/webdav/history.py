@@ -53,6 +53,9 @@ _UPLOADS_DDL = """CREATE TABLE IF NOT EXISTS webdav_uploads (  -- 只记落地�
 )"""
 _MATCH_INDEX_DDL = ("CREATE INDEX IF NOT EXISTS idx_webdav_uploads_match "
                     "ON webdav_uploads(relative_path, mode, batch_id)")
+# 批次明细按 (batch_id, id) 顺序取回：服务 batches_with_items 的聚合读（不改列）。
+_BATCH_INDEX_DDL = ("CREATE INDEX IF NOT EXISTS idx_webdav_uploads_batch "
+                    "ON webdav_uploads(batch_id, id)")
 
 _INSERT_UPLOAD = """INSERT INTO webdav_uploads
     (batch_id, episode_uid, book, ep, mode, kind, relative_path, size, result)
@@ -63,6 +66,10 @@ _LATEST_UPLOADS = """SELECT u.batch_id, u.relative_path, u.mode, u.book, u.ep, u
     FROM webdav_uploads u JOIN webdav_batches b ON u.batch_id = b.id
     WHERE b.state = 'done' AND u.mode = ? AND u.relative_path IN ({placeholders})"""
 _BATCH_HEADER_COLUMNS = "id, started_at, finished_at, mode, pushed, skipped, failed, state"
+# 最近 N 批的条目行：子查询定位批次，排序留给 SQL，Python 只分组（不做逐批往返）。
+_BATCH_ITEMS = """SELECT u.batch_id, u.relative_path, u.mode, u.book, u.ep, u.kind, u.size, u.result, u.episode_uid
+    FROM webdav_uploads u WHERE u.batch_id IN (SELECT id FROM webdav_batches ORDER BY id DESC LIMIT ?)
+    ORDER BY u.batch_id DESC, u.id"""
 
 
 @dataclass(frozen=True)
@@ -92,6 +99,14 @@ class BatchHeader:
     skipped: int
     failed: int
     state: str
+
+
+@dataclass(frozen=True)
+class BatchView:
+    """批次头 + 本批条目行：历史面的消费形态（一次聚合读，视图不再逐批往返）。"""
+
+    header: BatchHeader
+    items: tuple[UploadRecord, ...]
 
 
 def build_upload_rows(result: dict, mode: str) -> list[dict]:
@@ -157,6 +172,7 @@ class WebdavHistoryStore:
         cursor.execute(_BATCHES_DDL)
         cursor.execute(_UPLOADS_DDL)
         cursor.execute(_MATCH_INDEX_DDL)
+        cursor.execute(_BATCH_INDEX_DDL)
         conn.commit()
         self._conn, self._db_path = conn, path
         # 打开时把上次遗留的 running 判 aborted：崩溃/强杀不谎报完成数。
@@ -250,3 +266,16 @@ class WebdavHistoryStore:
             f"SELECT {_BATCH_HEADER_COLUMNS} FROM webdav_batches ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
         return [BatchHeader(*row) for row in rows]
+
+    def batches_with_items(self, limit: int = 50) -> list[BatchView]:
+        """最近 limit 个批次（倒序）+ 各批条目行：两次查询，排序与定位全在 SQL 侧。
+
+        Python 只按 batch_id 归组，不做逐批往返；读取侧不截断（限长是视图保护）。
+        """
+        conn = self._connect()
+        headers = [BatchHeader(*row) for row in conn.execute(
+            f"SELECT {_BATCH_HEADER_COLUMNS} FROM webdav_batches ORDER BY id DESC LIMIT ?", (limit,))]
+        grouped: dict[int, list[UploadRecord]] = {}
+        for row in conn.execute(_BATCH_ITEMS, (limit,)):
+            grouped.setdefault(row[0], []).append(UploadRecord(*row))
+        return [BatchView(header, tuple(grouped.get(header.id, ()))) for header in headers]

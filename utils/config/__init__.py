@@ -44,6 +44,7 @@ WEBDAV_DEFAULT_CONF = {
     "root": "/",
     "batch_limit": 20,
     "concurrency": 4,
+    "use_proxy": False,
 }
 
 

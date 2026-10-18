@@ -24,11 +24,13 @@ class WebdavPushThread(QThread):
 
     def run(self):
         from utils.webdav import WebDavClient, push_entries
+        from utils.webdav.client import proxy_kwargs
 
         cfg = self.config
         password = cfg["password"]
         try:
-            with WebDavClient(cfg["endpoint"], cfg["user"], password, root=cfg["root"]) as client:
+            with WebDavClient(cfg["endpoint"], cfg["user"], password, root=cfg["root"],
+                              **proxy_kwargs(cfg.get("use_proxy"))) as client:
                 result = push_entries(client, self.entries, on_progress=self.progress.emit)
         except Exception as exc:
             details = traceback.format_exc()

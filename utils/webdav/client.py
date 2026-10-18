@@ -42,6 +42,25 @@ PROPFIND_BODY = (
 )
 
 
+def current_proxy_url() -> str | None:
+    """配置(conf.proxies)里当前生效的代理地址;没配代理返回 None。"""
+    from utils import conf
+
+    proxies = [str(item) for item in (getattr(conf, "proxies", None) or []) if item]
+    if not proxies:
+        return None
+    first = proxies[0]
+    return first if "://" in first else f"http://{first}"
+
+
+def proxy_kwargs(use_proxy: object) -> dict:
+    """勾选走代理时给出 httpx 的 proxy 参数;未勾选返回空 dict(保持直连现状)。"""
+    if not use_proxy:
+        return {}
+    proxy = current_proxy_url()
+    return {"proxy": proxy} if proxy else {}
+
+
 class WebDavError(Exception):
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)

@@ -2,7 +2,7 @@ from urllib.parse import urlsplit
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QCompleter, QGridLayout, QHBoxLayout, QVBoxLayout, QWidget
-from qfluentwidgets import BodyLabel, FluentIcon as FIF, InfoBar, InfoBarPosition, LineEdit, PasswordLineEdit, PrimaryToolButton, PushButton
+from qfluentwidgets import BodyLabel, FluentIcon as FIF, InfoBar, InfoBarPosition, LineEdit, PasswordLineEdit, PrimaryToolButton, PushButton, TransparentToggleToolButton
 
 from utils.config.qc import cgs_cfg
 from GUI.uic.qfluent.components import BusyRingHost
@@ -12,6 +12,8 @@ from GUI.uic.qfluent.components.icons import CgsIcon
 class WebdavSettings(QWidget):
     changed = Signal()
     saved = Signal()
+    VPN_TIP = "激活状态下webdav相关全使用配置的代理"
+    VPN_PENDING_TIP = "上传进行中：本批仍用原配置，改动下一批生效"
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -26,6 +28,10 @@ class WebdavSettings(QWidget):
         self.svBtn.setAccessibleName("保存配置")
         # 读写测试进行中：无确定进度，基形单环；busy 时取代 svBtn 槽位（按钮 hide、宿主 show）。
         self.probe_ring_host = BusyRingHost.make(self, self.svBtn, object_name="WebdavProbeRingHost")
+        self.useVpnBtn = TransparentToggleToolButton(FIF.VPN, self)
+        self.useVpnBtn.setChecked(bool(self.saved_config.get("use_proxy")))
+        self.useVpnBtn.setToolTip(self.VPN_TIP)
+        self.useVpnBtn.setAccessibleName("走代理")
         self.test_btn = PushButton(CgsIcon.AUTH_SCAN,"测试读写", self)
         self.test_btn.setEnabled(False)
         self.test_btn.setToolTip("写入、回读并清理临时文件验证连接")
@@ -36,6 +42,7 @@ class WebdavSettings(QWidget):
         self._refresh_endpoint_history()
         for edit in (self.endpoint_edit, self.user_edit, self.password_edit):
             edit.textChanged.connect(self._edited)
+        self.useVpnBtn.toggled.connect(self._edited)
         self.svBtn.clicked.connect(self.save_config)
 
     def _build_ui(self):
@@ -50,6 +57,7 @@ class WebdavSettings(QWidget):
         endpoint_row.setSpacing(8)
         endpoint_row.addWidget(self._field_label("服务器地址", self.endpoint_edit))
         endpoint_row.addWidget(self.endpoint_edit, 1)
+        endpoint_row.addWidget(self.useVpnBtn)
         endpoint_row.addWidget(self.test_btn)
         endpoint_row.addWidget(self.svBtn)
         # 进度环宿主紧跟 svBtn 同槽位：探测时 svBtn hide、宿主 show，行内位置即原按钮位。
@@ -78,6 +86,7 @@ class WebdavSettings(QWidget):
     def draft(self) -> dict:
         return {**self.saved_config, "endpoint": self.endpoint_edit.text().strip(), "user": self.user_edit.text().strip(),
                 "password": self.password_edit.text(), "root": self._root,
+                "use_proxy": self.useVpnBtn.isChecked(),
                 "enabled": True}
 
     def set_root(self, path: str):
@@ -92,6 +101,10 @@ class WebdavSettings(QWidget):
 
     def is_dirty(self) -> bool:
         return self.draft() != self.saved_config
+
+    def set_pending(self, pending: bool):
+        """批次进行中改了配置：开关说明改报「下一批生效」，避免误以为已作用于本批。"""
+        self.useVpnBtn.setToolTip(self.VPN_PENDING_TIP if pending else self.VPN_TIP)
 
     def validated_draft(self) -> dict:
         config = self.draft()

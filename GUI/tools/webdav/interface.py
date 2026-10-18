@@ -1,17 +1,18 @@
 import sqlite3
 from enum import StrEnum
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QScrollArea, QVBoxLayout, QWidget)
+from PySide6.QtCore import QSignalBlocker, Qt
+from PySide6.QtWidgets import (QAbstractItemView, QFrame, QHBoxLayout, QHeaderView, QTreeWidgetItem, QVBoxLayout,
+                               QWidget)
 from qfluentwidgets import (
-    CaptionLabel, FluentIcon as FIF, InfoBadge, InfoBar, InfoLevel, InfoBarPosition, PrimaryPushButton, ProgressBar,
-    PushButton, SegmentedWidget, StrongBodyLabel, ToolButton
+    CaptionLabel, FluentIcon as FIF, FlyoutViewBase, InfoBadge, InfoBar, InfoLevel, InfoBarPosition,
+    PrimaryPushButton, ProgressBar, PushButton, SegmentedWidget, StrongBodyLabel, ToolButton, TreeWidget
 )
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
 from GUI.uic.qfluent.components.flyout_kit import CustomFlyout
 from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.webdav import ProbeStage, WebdavHistoryStore, build_upload_rows, probe_webdav
-from .entries import MODE_DOUJIN, MODE_MANGA, MODE_OF_SCAN, UploadState, UploadStatus
+from .entries import MODE_DOUJIN, MODE_MANGA, MODE_OF_SCAN, STATUS_TEXT, UploadState, UploadStatus
 from .push_worker import WebdavPushThread
 from .selection import WebdavLibraryTree
 from .settings import WebdavSettings
@@ -53,10 +54,12 @@ def _reason_line(text: str) -> str:
     return lines[-1] if lines else ""
 
 
-class WebdavHistoryFlyout(QWidget):
-    """上传历史快照 flyout 视图：批次倒序，只读头表计数，不展开失败条目（R-H3/R-H9）。"""
+class WebdavHistoryFlyout(FlyoutViewBase):
+    """上传历史快照 flyout：批次倒序，**最近一批常驻展开**、其余常驻折叠（点击 / 键盘展开）。"""
 
     MAX_BATCHES = 50
+    # 单批条目行的**视图**上限：读取侧一次聚合取回，超限只少建行并明示总数（非读取侧限长）。
+    MAX_ITEMS = 200
 
     def __init__(self, batches, parent=None):
         super().__init__(parent)
@@ -66,21 +69,67 @@ class WebdavHistoryFlyout(QWidget):
         if not batches:
             layout.addWidget(CaptionLabel("暂无上传记录", self))
             return
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setMaximumHeight(360)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        content = QWidget(scroll)
-        rows = QVBoxLayout(content)
-        rows.setContentsMargins(0, 0, 0, 0)
-        rows.setSpacing(6)
-        for batch in batches:
-            rows.addWidget(StrongBodyLabel(
-                f"「batch.{batch.id}」 {batch.started_at} · 上传 {batch.pushed} · 跳过 {batch.skipped} · 失败 {batch.failed}",
-                content))
-            rows.addWidget(CaptionLabel(batch.mode, content))
-        scroll.setWidget(content)
-        layout.addWidget(scroll)
+        self.tree = TreeWidget(self)
+        self.tree.setHeaderLabels(["内容", "格式", "结果"])
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tree.setUniformRowHeights(True)
+        self.tree.setMaximumHeight(360)
+        # 批次行文本较长（时间戳 + 三计数 + mode），给足最小宽度避免省略号吃掉计数。
+        self.tree.setMinimumWidth(860)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        # 末列不跟随拉伸（qfluentwidgets 树默认拉伸末列），剩余宽度全部留给批次行文本。
+        self.tree.header().setStretchLastSection(False)
+        self._pending: dict[int, object] = {}
+        with QSignalBlocker(self.tree):
+            self.tree.setUpdatesEnabled(False)
+            for index, batch in enumerate(batches):
+                header = batch.header
+                row = QTreeWidgetItem([
+                    f"「batch.{header.id}」 {header.started_at} · 上传 {header.pushed} · "
+                    f"跳过 {header.skipped} · 失败 {header.failed} · {header.mode}"])
+                row.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                row.setData(0, Qt.ItemDataRole.UserRole, header.id)
+                # 无条目无失败的批次（如中止批）不给展开箭头，避免点了什么都不出现。
+                row.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator
+                                            if batch.items or header.failed
+                                            else QTreeWidgetItem.ChildIndicatorPolicy.DontShowIndicator)
+                self.tree.addTopLevelItem(row)
+                self._pending[header.id] = batch
+                if index == 0:
+                    self._materialize(row)   # 最近一批常驻展开：打开即可见条目行
+                    row.setExpanded(True)
+            self.tree.setUpdatesEnabled(True)
+        layout.addWidget(self.tree)
+        # 其余批次常驻折叠：条目行在该批被展开时才实例化（懒建），展开回调内零 IO。
+        self.tree.itemExpanded.connect(self._materialize)
+
+    def _materialize(self, row):
+        batch = self._pending.pop(row.data(0, Qt.ItemDataRole.UserRole), None)
+        if batch is None:
+            return
+        with QSignalBlocker(self.tree):
+            for record in batch.items[:self.MAX_ITEMS]:
+                item = QTreeWidgetItem([
+                    f"{record.book} · {record.ep}" if record.ep else record.book,
+                    "CBZ" if record.kind == "cbz" else "目录",
+                    STATUS_TEXT[UploadStatus.PUSHED] if record.result == "pushed" else STATUS_TEXT[UploadStatus.SKIPPED],
+                ])
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                item.setToolTip(0, record.relative_path)
+                row.addChild(item)
+            if len(batch.items) > self.MAX_ITEMS:
+                row.addChild(self._note(f"共 {len(batch.items)} 项，仅显示前 {self.MAX_ITEMS}"))
+            if batch.header.failed:
+                row.addChild(self._note(f"失败 {batch.header.failed} 项 · 明细见日志"))
+
+    @staticmethod
+    def _note(text: str) -> QTreeWidgetItem:
+        item = QTreeWidgetItem([text])
+        item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+        return item
 
 
 class WebdavInterface(QWidget):
@@ -98,6 +147,7 @@ class WebdavInterface(QWidget):
         self._batch_mode = None
         self._history_notified = False
         self._probe_busy = False
+        self._pending_notified = False
         self._probe_config = {}
         self.probe_tasks = AsyncTaskManager(gui, self)
         # 上传历史（rV.db 两表）随界面构造打开：幂等 DDL + sweep；读写在批次开始/结束两个时点。
@@ -150,7 +200,7 @@ class WebdavInterface(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(12, 10, 12, 12)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(10)
 
         # 2) 连接卡：一次性配置，紧凑收纳在主工作区之上。
@@ -210,9 +260,10 @@ class WebdavInterface(QWidget):
     def _set_tab_order(self):
         settings, library = self.settings, self.library
         widgets = (
-            settings.endpoint_edit, settings.test_btn, settings.svBtn,
+            settings.endpoint_edit, settings.useVpnBtn, settings.test_btn, settings.svBtn,
             settings.user_edit, settings.password_edit, settings.password_edit.viewButton,
-            *self._mode_items, self.refresh_btn, library.filter_edit, library.select_btn, library.clear_btn, library.tree,
+            *self._mode_items, self.refresh_btn, library.show_uploaded_btn, library.filter_edit,
+            library.select_btn, library.clear_btn, library.tree,
             self.push_btn, self.retry_btn, self.history_btn,
         )
         for previous, following in zip(widgets, widgets[1:]):
@@ -302,7 +353,7 @@ class WebdavInterface(QWidget):
 
     def _show_history_flyout(self):
         try:
-            batches = self.history.recent_batches(WebdavHistoryFlyout.MAX_BATCHES)
+            batches = self.history.batches_with_items(WebdavHistoryFlyout.MAX_BATCHES)
         except (sqlite3.Error, OSError) as exc:
             self.gui.log.error(f"上传历史读取失败: {exc}")
             InfoBar.error(title='', content="上传历史读取失败，请查看日志", position=InfoBarPosition.TOP,
@@ -332,6 +383,16 @@ class WebdavInterface(QWidget):
         self.retry_btn.setEnabled(state == PushState.READY and same_batch)
         self.retry_btn.setToolTip("" if state == PushState.READY else PUSH_STATE_TIP[state])
         self.settings.test_btn.setEnabled(not self.has_active_work())
+        self.settings.set_probing(self._probe_busy)
+        # 批次进行中改配置：一次性告知「下一批生效」；开关 tooltip 常驻同一信息供回看。
+        pending = self._thread is not None and self.settings.is_dirty()
+        self.settings.set_pending(pending)
+        if self._thread is None:
+            self._pending_notified = False
+        elif pending and not self._pending_notified:
+            self._pending_notified = True
+            InfoBar.warning(title='', content="上传进行中，本批仍用原配置；改动将在下一批生效",
+                            position=InfoBarPosition.TOP, duration=5000, parent=self.window())
 
     def _push_state(self) -> PushState:
         if self._thread is not None:
@@ -398,6 +459,8 @@ class WebdavInterface(QWidget):
             self._update_actions()
             return
         if result.ok:
+            # 测试通过即自动保存：复用 svBtn 的保存流程与其"配置已保存"InfoBar
+            self.settings.svBtn.click()
             InfoBar.success(title='', content="读写可用 · 测试文件已清理", position=InfoBarPosition.TOP,
                             duration=3000, parent=self.window())
             self._update_actions()
