@@ -176,31 +176,20 @@ class FavoriteTagTranslateController(QtCore.QObject):
 
     def _show_progress(self, done: int = 0, total: int = 0):
         host = self.interface
-        host.favMgrBtn.hide()
-        host.favTranslateRingHost.show()
-        if total > 0:
-            percent = min(100, int((done * 100) / total))
-            host.favTranslateRing.setValue(percent)
-        else:
-            host.favTranslateRing.setValue(0)
+        host.favTranslateRingHost.set_value(min(100, int((done * 100) / total)) if total > 0 else 0)
+        host.favTranslateRingHost.set_busy(True)
         tip = f"翻译中 {done}/{total}" if total else "翻译中"
         host.favTranslateRingHost.setToolTip(tip)
-        host.favTranslateRing.setToolTip(tip)
-        host.favTranslateIndeterminateRing.setToolTip(tip)
-        if not host.favTranslateIndeterminateRing.isVisible():
-            host.favTranslateIndeterminateRing.show()
-        host.favTranslateIndeterminateRing.start()
+        host.favTranslateRingHost.ring.setToolTip(tip)
+        host.favTranslateRingHost.indeterminate_ring.setToolTip(tip)
 
     def _hide_progress(self):
         host = self.interface
-        host.favTranslateIndeterminateRing.stop()
-        host.favTranslateIndeterminateRing.hide()
-        host.favTranslateRingHost.hide()
-        host.favTranslateRing.setValue(0)
+        host.favTranslateRingHost.set_busy(False)
+        host.favTranslateRingHost.set_value(0)
         host.favTranslateRingHost.setToolTip("")
-        host.favTranslateRing.setToolTip("")
-        host.favTranslateIndeterminateRing.setToolTip("")
-        host.favMgrBtn.show()
+        host.favTranslateRingHost.ring.setToolTip("")
+        host.favTranslateRingHost.indeterminate_ring.setToolTip("")
 
 
 class FavoriteTagTranslateDialogSession(QtCore.QObject):

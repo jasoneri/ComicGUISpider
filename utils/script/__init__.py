@@ -8,7 +8,9 @@ from functools import partial
 from redis import asyncio as aioredis
 from utils.config import ScriptConf
 from utils.core import ILLEGAL_FILENAME_RE
+from utils.script.entry_migrate import move_entry_identity
 
+move_entry_identity()
 conf = ScriptConf(iname="img")
 redis_conf: dict = conf.redis
 

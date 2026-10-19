@@ -1,5 +1,4 @@
 # ruff: noqa: E402
-import contextlib
 import sys
 import pathlib
 import os
@@ -26,6 +25,10 @@ from assets import res
 from utils import yaml, ori_path
 from utils.config.qc import danbooru_cfg, cgs_cfg
 from utils.script import conf as script_conf
+from utils.script.entry_descriptor import (
+    DEFAULT_SCRIPT_ENTRY_SLUG, SCRIPT_ENTRY_DESCRIPTORS, ScriptEntryDescriptor, get_script_entry,
+)
+from utils.script.image.danbooru.constants import DEFAULT_DANBOORU_SAVE_PATH
 from utils.script.image.danbooru.models import DanbooruRuntimeConfig
 from GUI.core.doh_runtime import ScriptDoHStubRuntime
 from GUI.core.exception_feedback import GuiExceptionFeedbackDispatcher, InfoBarExceptionPresenter
@@ -33,11 +36,11 @@ from GUI.uic.qfluent.components import DoHButtonController
 from GUI.core.timer import safe_single_shot
 from GUI.manager.async_task import summarize_error_message
 from GUI.uic.qfluent.components.icons import CgsIcon
-from GUI.script.settings_aria2 import Aria2GroupCard
 
 
 script_res = res.GUI.Script
 uic_res = res.GUI.Uic
+_SCRIPT_ENTRY_DESCRIPTOR = get_script_entry(DEFAULT_SCRIPT_ENTRY_SLUG)
 
 
 OFFSCREEN_FLUENT_FALLBACK = os.environ.get("QT_QPA_PLATFORM") == "offscreen"
@@ -140,10 +143,11 @@ class BaseServiceGroupCard(GroupHeaderCardWidget):
         self.current_path = path
 
 
-class KemonoGroupCard(BaseServiceGroupCard):
-    """Kemono配置组卡片"""
-    def __init__(self, parent=None):
-        super().__init__(parent, "Kemono", "kemono", "D:/pic/kemono")
+class ScriptEntryGroupCard(BaseServiceGroupCard):
+    """ScriptEntry 配置组卡片"""
+    def __init__(self, parent=None, descriptor: ScriptEntryDescriptor | None = None):
+        descriptor = descriptor or _SCRIPT_ENTRY_DESCRIPTOR
+        super().__init__(parent, descriptor.display_name, descriptor.slug, descriptor.save_path_default)
 
 
 class DanbooruGroupCard(GroupHeaderCardWidget):
@@ -160,7 +164,7 @@ class DanbooruGroupCard(GroupHeaderCardWidget):
         self.setBorderRadius(8)
 
         danbooru_conf = getattr(script_conf, "danbooru", {}) or {}
-        self.current_path = danbooru_conf.get("save_path", "D:/pic/danbooru")
+        self.current_path = danbooru_conf.get("save_path", DEFAULT_DANBOORU_SAVE_PATH)
 
         self.downloadConcurrencyEdit = SpinBox(self)
         self.downloadConcurrencyEdit.setRange(1, 10)
@@ -372,8 +376,8 @@ class SettingInterface(QFrame):
         proxies_label = StrongBodyLabel("代理/Proxy", self.scroll_content)
         self.imgProxiesEdit = LineEdit(self.scroll_content)
         self.imgProxiesEdit.setToolTip(_translate("SettingInterface", "proxies"))
-        self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", "example-of-v2rayN 127.0.0.1:10809"))
-        completer = QCompleter(['127.0.0.1:10809'])
+        self.imgProxiesEdit.setPlaceholderText(_translate("SettingInterface", "example-of-flclash 127.0.0.1:7890"))
+        completer = QCompleter(['127.0.0.1:7890'])
         completer.setFilterMode(Qt.MatchStartsWith)
         completer.setCompletionMode(QCompleter.PopupCompletion)
         self.imgProxiesEdit.setCompleter(completer)
@@ -387,10 +391,14 @@ class SettingInterface(QFrame):
         first_row.addWidget(self.dohBtn)
 
         # Cards keep SettingInterface as parent so setting_interface/saveBtn wiring stays valid.
+        # CGS016: this card pulls the aria2 bootstrap chain (~950ms) — import it inside the
+        # deferred Settings page instead of paying it during GUI.script package init.
+        from GUI.script.settings_aria2 import Aria2GroupCard
+
         self.aria2_group_card = Aria2GroupCard(self)
         # Compatibility alias for probes / existing call sites.
         self.aria2ProxyEdit = self.aria2_group_card.proxy_edit
-        self.kemono_group_card = KemonoGroupCard(self)
+        self.script_entry_group_card = ScriptEntryGroupCard(self)
         self.danbooru_group_card = DanbooruGroupCard(self)
         self.ai_card = AiGroupCard(self)
         self.imgpalace_card = ImgPalaceGroupCard(self)
@@ -398,7 +406,7 @@ class SettingInterface(QFrame):
 
         self.main_layout.addLayout(first_row)
         self.main_layout.addWidget(self.aria2_group_card)
-        self.main_layout.addWidget(self.kemono_group_card)
+        self.main_layout.addWidget(self.script_entry_group_card)
         self.main_layout.addWidget(self.danbooru_group_card)
         self.main_layout.addWidget(self.ai_card)
         self.main_layout.addWidget(self.imgpalace_card)
@@ -451,31 +459,16 @@ class SettingInterface(QFrame):
 
     def show_self(self):
         """加载配置文件内容到各个编辑框"""
-        from utils.script.aria2.settings import ensure_motrix_proxy_seed, get_proxy
+        from utils.script.aria2.settings import get_proxy
 
         with open(script_conf.file, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f.read()) or {}
 
-        # Seed may write yaml; never block Settings paint if Motrix import fails.
-        imported = False
-        try:
-            config_data, imported = ensure_motrix_proxy_seed(config_data)
-        except Exception as seed_error:
-            logger = self._gui_logger()
-            if logger is not None:
-                logger.warning(f"[ScriptSettings] motrix proxy seed skipped: {seed_error}")
-
         self.imgProxiesEdit.setText(','.join(config_data.get('proxies') or []))
         self.aria2_group_card.set_proxy_text(get_proxy(config_data))
-        if imported:
-            InfoBar.info(
-                title='', content="已从 Motrix 导入下载代理",
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=3500, parent=self,
-            )
-        kemono_config = config_data.get('kemono', {})
-        self.kemono_group_card.setCookieText(kemono_config.get('cookie', ''))
-        self.kemono_group_card.setCurrentPath(kemono_config.get('sv_path', ''))
+        script_entry_config = config_data.get(_SCRIPT_ENTRY_DESCRIPTOR.config_section, {})
+        self.script_entry_group_card.setCookieText(script_entry_config.get('cookie', ''))
+        self.script_entry_group_card.setCurrentPath(script_entry_config.get('sv_path', ''))
         runtime_config = DanbooruRuntimeConfig.from_mapping(config_data.get('danbooru', {}), doh_url=cgs_cfg.doh.get_url())
         self.danbooru_group_card.setCurrentPath(runtime_config.save_path)
         self.danbooru_group_card.setSaveType(runtime_config.save_type)
@@ -529,12 +522,13 @@ class SettingInterface(QFrame):
 
             config_data = set_proxy(self.aria2_group_card.get_proxy_text(), config_data=config_data)
 
-            # 更新kemono配置
-            if 'kemono' not in config_data:
-                config_data['kemono'] = {}
-            config_data['kemono']['cookie'] = self.kemono_group_card.getCookieText()
-            config_data['kemono']['sv_path'] = self.kemono_group_card.getCurrentPath()
-            config_data['kemono']['redis_key'] = 'kemono'  # 固定值
+            config_section = _SCRIPT_ENTRY_DESCRIPTOR.config_section
+            # 更新脚本入口配置
+            if config_section not in config_data:
+                config_data[config_section] = {}
+            config_data[config_section]['cookie'] = self.script_entry_group_card.getCookieText()
+            config_data[config_section]['sv_path'] = self.script_entry_group_card.getCurrentPath()
+            config_data[config_section]['redis_key'] = _SCRIPT_ENTRY_DESCRIPTOR.redis_key  # 固定值
 
             if 'danbooru' not in config_data:
                 config_data['danbooru'] = {}
@@ -597,14 +591,14 @@ class ScriptWindow(ScriptWindowBase):
     # Lazy is NOT continuous unload/delete of real interfaces.
     _INTERFACE_FACTORIES = {
         "danbooru": ("GUI.script.danbooru", "DanbooruInterface"),
-        "kemono": ("GUI.script.kemono", "KemonoInterface"),
+        **{descriptor.slug: descriptor.interface_factory for descriptor in SCRIPT_ENTRY_DESCRIPTORS},
         "cbg": ("GUI.script.cbg", "CbgInterface"),
         "jsoneri": ("GUI.script.jsoneri", "JsoneriPalacesProbeInterface"),
         "settings": (None, "SettingInterface"),
     }
     _ROUTE_KEYS = {
         "danbooru": "DanbooruInterface",
-        "kemono": "KemonoInterface",
+        **{descriptor.slug: descriptor.route_key for descriptor in SCRIPT_ENTRY_DESCRIPTORS},
         "cbg": "CbgInterface",
         "jsoneri": "JsoneriPalacesProbeInterface",
         "settings": "SettingInterface",
@@ -622,16 +616,15 @@ class ScriptWindow(ScriptWindowBase):
         self.script_entry_state = script_entry_state or {}
         if OFFSCREEN_FLUENT_FALLBACK:
             self._setup_offscreen_shell()
-        self._script_entry_specs: list[tuple[str, bool]] = []
         self._mounted_keys: set[str] = set()
         self._deferred_nav_keys: set[str] = set()
-        self._nav_meta: dict[str, tuple] = {}
         self._fluent_stack_hooked = False
         self._feedback_dispatcher = feedback_dispatcher
         self._exception_feedback_scope = None
         self.doh_stub_runtime = ScriptDoHStubRuntime(self)
         self.danbooruInterface = None
-        self.kemonoInterface = None
+        for descriptor in SCRIPT_ENTRY_DESCRIPTORS:
+            setattr(self, descriptor.attr_name, None)
         self.cbgInterface = None
         self.jsoneriPalacesProbeInterface = None
         self.settingInterface = None
@@ -655,17 +648,18 @@ class ScriptWindow(ScriptWindowBase):
 
     def initNavigation(self):
         entries = (
-            ("danbooru", "danbooru_visible", ":/script/danbooru.svg", "Danbooru", NavigationItemPosition.TOP, False),
-            ("kemono", "kemono_visible", ":/script/kemono.ico", "Kemono", NavigationItemPosition.TOP, False),
-            ("cbg", "cbg_visible", ":/script/cbg.svg", "Cbg", NavigationItemPosition.TOP, True),
-            ("jsoneri", "jsoneri_palaces_probe_visible", FIF.CLOUD, "jsoneriPalacesProbe", NavigationItemPosition.TOP, True),
+            ("danbooru", "danbooru_visible", ":/script/danbooru.svg", "Danbooru", NavigationItemPosition.TOP),
+            *(
+                (descriptor.slug, descriptor.visibility_key, descriptor.icon, descriptor.display_name, NavigationItemPosition.TOP)
+                for descriptor in SCRIPT_ENTRY_DESCRIPTORS
+            ),
+            ("cbg", "cbg_visible", ":/script/cbg.svg", "Cbg", NavigationItemPosition.TOP),
+            ("jsoneri", "jsoneri_palaces_probe_visible", FIF.CLOUD, "jsoneriPalacesProbe", NavigationItemPosition.TOP),
         )
         first_key = None
-        for key, visibility_key, icon, text, position, show_in_pure_mode in entries:
+        for key, visibility_key, icon, text, position in entries:
             if not self._script_entry_visible(visibility_key):
                 continue
-            self._script_entry_specs.append((key, show_in_pure_mode))
-            self._nav_meta[key] = (icon, text, position)
             if first_key is None:
                 first_key = key
                 interface = self._construct_interface(key)
@@ -675,8 +669,6 @@ class ScriptWindow(ScriptWindowBase):
 
         if self._script_entry_visible("settings_visible"):
             self.navigationInterface.addSeparator()
-            self._script_entry_specs.append(("settings", True))
-            self._nav_meta["settings"] = (FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM)
             if first_key is None:
                 interface = self._construct_interface("settings")
                 self._register_nav_entry(
@@ -688,9 +680,11 @@ class ScriptWindow(ScriptWindowBase):
                 )
 
     def _attr_name_for_key(self, key: str) -> str:
+        for descriptor in SCRIPT_ENTRY_DESCRIPTORS:
+            if descriptor.slug == key:
+                return descriptor.attr_name
         return {
             "danbooru": "danbooruInterface",
-            "kemono": "kemonoInterface",
             "cbg": "cbgInterface",
             "jsoneri": "jsoneriPalacesProbeInterface",
             "settings": "settingInterface",
@@ -821,29 +815,14 @@ class ScriptWindow(ScriptWindowBase):
     def _script_entry_visible(self, visibility_key: str) -> bool:
         return bool(self.script_entry_state.get(visibility_key, True))
 
-    def apply_pure_entry_mode(self):
-        """Hide non-pure nav routes. Never delete mounted real interfaces."""
-        for key, show_in_pure_mode in self._script_entry_specs:
-            if show_in_pure_mode:
-                continue
-            if OFFSCREEN_FLUENT_FALLBACK:
-                button = self._offscreen_nav_buttons.get(key)
-                if button is not None:
-                    button.hide()
-            else:
-                with contextlib.suppress(Exception):
-                    self.navigationInterface.removeWidget(self._route_key_for(key))
-        self._ensure_and_switch("cbg")
-
     def addSubInterface(self, interface, icon, text, position=NavigationItemPosition.TOP):
-        """Prefer _register_nav_entry / _ensure_and_switch. Kept for rare direct callers."""
+        """弃用：零调用者（导航统一走 _register_nav_entry）；删除时机待定。"""
         route_key = interface.objectName()
         key = next((entry_key for entry_key, name in self._ROUTE_KEYS.items() if name == route_key), None)
         if key is None:
             if OFFSCREEN_FLUENT_FALLBACK:
                 raise ValueError(f"offscreen ScriptWindow cannot add unknown interface {route_key!r}")
             return super().addSubInterface(interface, icon, text, position)
-        self._nav_meta[key] = (icon, text, position)
         if key not in self._mounted_keys:
             setattr(self, self._attr_name_for_key(key), interface)
             self._mounted_keys.add(key)
@@ -909,7 +888,10 @@ class ScriptWindow(ScriptWindowBase):
 
     def server_mode_switch_blockers(self) -> list[str]:
         blockers = []
-        for interface in (self.danbooruInterface, self.kemonoInterface, self.cbgInterface):
+        script_entry_interfaces = tuple(
+            getattr(self, descriptor.attr_name, None) for descriptor in SCRIPT_ENTRY_DESCRIPTORS
+        )
+        for interface in (self.danbooruInterface, *script_entry_interfaces, self.cbgInterface):
             if interface is None:
                 continue
             blockers.extend(interface.server_mode_switch_blockers())

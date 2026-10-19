@@ -48,9 +48,9 @@
 
 ## 3. 工具视窗
 
-![toolsWin](../assets/img/feat/toolsWin.png)
+![toolWorkspace]({{URL_IMG}}/file/cgs/1792436075024_toolWorkspace.png)
 
-点击 rV 按钮触发显示，点击对应标签切换工具，常驻 rV工具
+工具视窗（ToolWorkspaceWindow）为统一窗口，由多个工具按钮触发显示，聚合搜索等工具均整合于此，点击顶部对应标签切换
 
 <table>
   <thead>
@@ -85,6 +85,14 @@
     <tr>
       <td style="text-align: center;">hitomiTool</td>
       <td style="text-align: left;"><a href="{{URL_IMG}}/file/1764957586207_hitomi-tools-usage.gif" target="_blank" rel="noopener noreferrer">📹参考用法</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">webdav</td>
+      <td style="text-align: left;">WebDAV 管理面板，与配置的储存目录绑定</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">addons</td>
+      <td style="text-align: left;">第二个按钮格为 scriptWin（danbooru / pawchive）入口，参阅 <a href="/script/">🚧ScriptTool</a><br>网站选择框内无 script 选项</td>
     </tr>
   </tbody>
 </table>

@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 WF = os.path.join(HERE, "anima_turbo_api_workflow.json")
 DEFAULT_OUT = os.path.join(HERE, "outputs")
 
-# 本机 ComfyUI 必须绕开代理。CGS 配置里有 HTTP_PROXY=127.0.0.1:10809，urllib 默认
+# 本机 ComfyUI 必须绕开代理。CGS 配置里有 HTTP_PROXY=127.0.0.1:7890，urllib 默认
 # 读环境代理，会把发往 127.0.0.1:8188 的请求也一并劫走并返回 503 —— 症状伪装成
 # 「ComfyUI 挂了」，排查时极易误判。显式声明本连接无代理，而不是在调用处兜住 503。
 _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))

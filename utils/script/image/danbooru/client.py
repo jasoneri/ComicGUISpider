@@ -8,7 +8,7 @@ from urllib.parse import quote
 import httpx
 from lxml import html as lxml_html
 
-from utils.script.motrix import HTTPX_USER_AGENT
+from utils.script.aria2.rpc import HTTPX_USER_AGENT
 
 from .constants import (
     AUTOCOMPLETE_PATH,

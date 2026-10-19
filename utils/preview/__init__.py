@@ -1,3 +1,4 @@
+import json
 import tempfile
 from utils import ori_path, temp_p, conf, bs_theme
 from utils.preview.el import El
@@ -39,10 +40,15 @@ class TmpFormatHtml:
 
     @classmethod
     def to_publish(cls, **kw):
+        # publish_candidates 是列表而非 HTML 字面占位，单独序列化注入；
+        # 用 split/join 而非 str.replace，避免 URL 里的 $ 在替换串里被特殊解释。
+        candidates = kw.pop("publish_candidates", ())
         html = _render_preview_template(
             "pubilsh_helper.html",
             {k: w for k, w in kw.items()},
         )
+        candidates_json = json.dumps([str(url) for url in candidates], ensure_ascii=False)
+        html = candidates_json.join(html.split("__publish_candidates_json__"))
         return _write_preview_temp_html(html, prefix="publish")
 
 

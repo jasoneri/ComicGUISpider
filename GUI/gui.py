@@ -48,8 +48,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     # worker threads does not reliably schedule on the GUI thread).
     online_favorites_ready = Signal(str, int, object)  # provider_name, site_index, books
     BrowserWindow = None  # CGS001 browser init/show flow
-    toolWin = None
-    _subscribe_window = None
+    toolWorkspaceWindow = None
     conf_dia = None  # CGS006: construct on demand (P4)
     web_is_r18 = False
     gui_site_runtime = None  # CGS001 choose-box site flow
@@ -74,7 +73,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._closing = False
         self.script_window = None
         self.timeline_tip_mgr = None
-        self._pending_rv_sauce_visible = False  # CGS006: apply when toolWin is ensured
+        self._pending_rv_sauce_visible = False  # CGS006: 工作区窗建窗时应用（addonsInterface.sauceCell）
+        self._pending_tool_pages: set[str] = set()
         self._conf_accept_bound = False
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         self.setupUi(self)
@@ -167,7 +167,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.warmup_thread.start()
 
     def generation_bind(self):
-        # CGS006 P2: interactive-minimum only — ConfDialog/ToolWindow are P4.
+        # CGS006 P2: interactive-minimum only — ConfDialog/ToolWorkspaceWindow are P4.
         from utils.sql.download_state import DownloadStateStore
         from GUI.tools.chore import TextUtils
         from GUI.manager.clip import ClipGUIManager
@@ -210,7 +210,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.search_ui_state = SearchUiState()
         self.btn_logic_bind()
         self.set_shortcut()
-        self.set_tool_win()
 
         self.preprocess_mgr = PreprocessManager(self)
         _safe_disconnect(self.chooseBox.currentIndexChanged, self._chooseBox_changed_handle)
@@ -231,40 +230,38 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 update_notifier.refresh_badges()
         return self.conf_dia
 
-    def ensure_tool_win(self):
-        """CGS006 P4: build ToolWindow on first tool open / rv sauce need."""
-        if self.toolWin is None:
-            from GUI.tools import ToolWindow
-            self.toolWin = ToolWindow(self)
-            if hasattr(self.toolWin, "rvInterface"):
-                self.toolWin.rvInterface.set_sauce_visible(self._pending_rv_sauce_visible)
-        return self.toolWin
-
-    def ensure_subscribe_window(self):
-        """Singleton frameless subscribe waterfall window (manga library only)."""
-        window = getattr(self, "_subscribe_window", None)
+    def ensure_toolWorkspaceWindow(self):
+        window = getattr(self, "toolWorkspaceWindow", None)
         if window is not None:
             return window
-        from GUI.tools.subscribe import SubscribeWindow
-        self._subscribe_window = SubscribeWindow(self)
-        self._subscribe_window.destroyed.connect(lambda *_args: setattr(self, "_subscribe_window", None))
-        return self._subscribe_window
+        from GUI.tools.workspace import ToolWorkspaceWindow
+        self.toolWorkspaceWindow = ToolWorkspaceWindow(self)
+        # sauce 已改由 addonsInterface 的 sauceCell 承载（按站点 R18 条件可见）。
+        self.toolWorkspaceWindow.addons_interface.set_sauce_visible(self._pending_rv_sauce_visible)
+        self.toolWorkspaceWindow.ensure_pending_pages(self._pending_tool_pages)
+        self.toolWorkspaceWindow.destroyed.connect(lambda *_args: setattr(self, "toolWorkspaceWindow", None))
+        return self.toolWorkspaceWindow
+
+    def infobar_surface(self):
+        """本窗的提示承载面：内容区 showArea（见 async_task.resolve_infobar_host）。"""
+        return self.showArea
+
+    def request_tool_page(self, page_key: str) -> None:
+        """登记工具页挂载意图：窗已存在则立刻挂页，否则等首次建窗补挂。"""
+        self._pending_tool_pages.add(page_key)
+        window = getattr(self, "toolWorkspaceWindow", None)
+        if window is not None:
+            window.ensure_pending_pages((page_key,))
 
     def open_subscribe_window(self) -> None:
-        window = self.ensure_subscribe_window()
-        window.show()
-        window.raise_()
-        window.activateWindow()
-        # showEvent hydrates once; only re-refresh when the window was already open.
-        if getattr(window, "_content_hydrated", False):
+        window = self.ensure_toolWorkspaceWindow()
+        was_visible = window.isVisible()
+        window.show_page("subscribeInterface")
+        if was_visible:
             window.refresh_library()
 
     def open_subscribe_with_books(self, books) -> None:
-        window = self.ensure_subscribe_window()
-        window.show()
-        window.raise_()
-        window.activateWindow()
-        window.receive_pushed_books(list(books or []))
+        self.ensure_toolWorkspaceWindow().receive_pushed_books(list(books or []))
 
     def update_search_ui(self, *, session=_UNSET, request=_UNSET, controls_blocked=_UNSET):
         if session is not _UNSET:
@@ -348,8 +345,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
         self._pending_rv_sauce_visible = self.web_is_r18
-        if self.toolWin is not None and hasattr(self.toolWin, "rvInterface"):
-            self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
+        # sauce 可见性走工作区窗的 addonsInterface.sauceCell。
+        tool_workspace_window = getattr(self, "toolWorkspaceWindow", None)
+        if tool_workspace_window is not None:
+            tool_workspace_window.addons_interface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
         self.sut = None
         if index in (Spider.JM, Spider.WNACG) and not conf.proxies:
@@ -366,6 +365,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.sv_path = conf.sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
         else:
             self.sv_path = conf.sv_path
+        self.rv_mgr.sync_context()
         self.set_completer()
         self.flow_stage = GUIFlowStage.IDLE
         self.preprocess_mgr.handle_choosebox_changed(index, self.gui_site_runtime)
@@ -405,25 +405,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 _safe_disconnect(shortcut.activated)
             shortcut.activated.connect(slot)
 
-    def show_toolWin(self, win_type):
-        if win_type == "subscribe":
-            self.open_subscribe_window()
-            return
-        _map = {"ags": "asInterface", "hitomi": "htInterface"}
-        self.rvBtn.click()
-
-        def _jump():
-            tool_window = self.ensure_tool_win()
-            target_widget = getattr(tool_window, _map[win_type], None)
-            if target_widget is not None:
-                tool_window.stackedWidget.setCurrentWidget(target_widget)
-
-        safe_single_shot(10, _jump)
-
-    def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
+    def open_scriptWin(self, *, script_entry_state: dict | None = None):
+        """scriptWin 唯一入口：由 PreprocessManager 的 script 入口流（acggrCell）调用。"""
         from GUI.script import ScriptWindow
-        if self.toolWin is not None and self.toolWin.isVisible():
-            self.toolWin.close()
+        from utils.script.entry_descriptor import SCRIPT_ENTRY_DESCRIPTORS
+        # 工具页都在工作区窗内，开 ScriptWindow 前先收起它。
+        tool_workspace_window = getattr(self, "toolWorkspaceWindow", None)
+        if tool_workspace_window is not None and tool_workspace_window.isVisible():
+            tool_workspace_window.close()
         # Keep main window visible until ScriptWindow is ready: import/construct can block the
         # GUI thread for seconds; hide-first looks like a total freeze with only a taskbar ghost.
         self.script_window = ScriptWindow(
@@ -432,10 +421,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             feedback_dispatcher=self.exception_feedback_dispatcher,
         )
         self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
-        if pure_only:
-            self.script_window.apply_pure_entry_mode()
-        if self.script_window.kemonoInterface is not None:
-            setupTheme(self.script_window.kemonoInterface)
+        for descriptor in SCRIPT_ENTRY_DESCRIPTORS:
+            interface = getattr(self.script_window, descriptor.attr_name, None)
+            if interface is not None:
+                setupTheme(interface)
         self.script_window.show()
         self.script_window.raise_()
         self.script_window.activateWindow()
@@ -472,31 +461,15 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             blockers.append("preview/search")
         blockers.extend(self.preprocess_mgr.server_mode_switch_blockers())
         blockers.extend(self.shares.server_mode_switch_blockers())
-        if self.toolWin is not None:
-            blockers.extend(self.toolWin.server_mode_switch_blockers())
-        subscribe_window = getattr(self, "_subscribe_window", None)
-        if subscribe_window is not None:
-            blockers.extend(subscribe_window.server_mode_switch_blockers())
+        tool_workspace_window = getattr(self, "toolWorkspaceWindow", None)
+        if tool_workspace_window is not None:
+            blockers.extend(tool_workspace_window.server_mode_switch_blockers())
         if self.script_window is not None:
             blockers.extend(self.script_window.server_mode_switch_blockers())
         blockers.extend(self.publish_mgr.server_mode_switch_blockers())
         blockers.extend(self.clip_mgr.server_mode_switch_blockers())
         blockers.extend(self.ags_mgr.server_mode_switch_blockers())
         return list(dict.fromkeys(blockers))
-
-    def set_tool_win(self):
-        # CGS006: only wire the open hook on P2; ToolWindow builds on first click (P4).
-        self.toolWin = None
-
-        def _show_toolWin():
-            tool_window = self.ensure_tool_win()
-            abs_y = self.y() + self.height()
-            screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
-            target_y = screen_height - tool_window.height() if abs_y + tool_window.height() > screen_height else abs_y
-            target_rect = QRect(self.x(), target_y, tool_window.width(), tool_window.height())
-            PopupAnimator.show(tool_window, target_rect, duration_ms=220, direction="down")
-
-        self.rvBtn.clicked.connect(_show_toolWin)
 
     def _set_search_context_menu(self):
         def show_preset_completer():
@@ -652,8 +625,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.confBtn.clicked.connect(lambda: self.ensure_conf_dialog().show_self())
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
-        self.aggrBtn.clicked.connect(lambda: self.show_toolWin("ags"))
-        self.htBtn.clicked.connect(lambda: self.show_toolWin("hitomi"))
+        self.rvBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("rvInterface"))
+        self.aggrBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("asInterface"))
+        self.htBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("htInterface"))
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
         self.shareBtn.clicked.connect(self.shares.upload)
         self.shares.changed.connect(self._sync_share_btn_visible)
@@ -837,6 +811,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.rv_tools.ero = 0
         self.bsm = None
         self.sv_path = conf.sv_path
+        self.rv_mgr.sync_context()
         self.flow_stage = GUIFlowStage.IDLE
         self.search_ui_state = SearchUiState()
         self.searchinput.clear()
@@ -939,15 +914,14 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.progressBar.setValue(i)
 
     def closeEvent(self, event):
+        tool_workspace_window = getattr(self, "toolWorkspaceWindow", None)
+        if tool_workspace_window is not None and not tool_workspace_window.close():
+            event.ignore()
+            return
         self._closing = True
         if self.script_window is not None:
             self.script_window.close()
-        if self.toolWin is not None:
-            self.toolWin.close()
-        subscribe_window = getattr(self, "_subscribe_window", None)
-        if subscribe_window is not None:
-            subscribe_window.close()
-            self._subscribe_window = None
+        self.toolWorkspaceWindow = None
         if hasattr(self, 'rv_mgr'):
             self.rv_mgr.stop_scan()
         if hasattr(self, 'task_mgr'):
@@ -956,9 +930,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             self.preprocess_mgr.cleanup()
         if getattr(self, "preview_mgr", None):
             self.preview_mgr.shutdown()
-        with contextlib.suppress(Exception):
-            from utils.script.aria2 import stop_engine
-            stop_engine()
+        from utils.script.aria2 import stop_engine
+        stop_engine()
         event.accept()
         self.destroy()  # 窗口关闭销毁
         if self.dl_mgr is not None:
@@ -985,8 +958,19 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if gui_site_runtime is None:
             raise RuntimeError("gui_site_runtime unavailable for publish flow")
         cached = gui_site_runtime.peek_cached_domain() or ""
-        publish_url = getattr(gui_site_runtime.provider_cls, "publish_url", "")
-        self.tf = TmpFormatHtml.created_temp_html("publish", bs_theme=bs_theme(), publish_url=publish_url, __cached_domain__=cached)
+        provider_cls = gui_site_runtime.provider_cls
+        publish_candidates = provider_cls.candidate_publish_urls()
+        static_first = publish_candidates[0] if publish_candidates else ""
+        # 发布页地址写入输入框：用户设置优先，回退静态候选首位。
+        publish_addr = cgs_cfg.publish.get_url(gui_site_runtime.name) or static_first
+        self.tf = TmpFormatHtml.created_temp_html(
+            "publish",
+            bs_theme=bs_theme(),
+            __cached_domain__=cached,
+            __user_publish_addr__=publish_addr,
+            # 下拉候选只喂静态默认（publish_urls）；用户自己的设置已在输入框里，不重复列出。
+            publish_candidates=list(provider_cls.publish_urls),
+        )
         provider_domain = getattr(gui_site_runtime.provider_cls, "domain", None)
         self.set_preview(skip_env_mode=not bool(cached or provider_domain))
         self.publish_mgr.setup_channel(self.BrowserWindow.view.page())

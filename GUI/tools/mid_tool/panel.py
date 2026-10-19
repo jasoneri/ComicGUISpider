@@ -2,7 +2,7 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
-    QFrame
+    QFrame, QSizePolicy
 )
 from qfluentwidgets import (
     CardWidget, TransparentToolButton, FluentIcon as FIF, BodyLabel,
@@ -24,7 +24,8 @@ class RulePanel(CardWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(300)
+        # 宽度 expanding：由 _panel_stack 的剩余宽度决定（旧 300px 定宽是宽扁窗假设）。
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.rule_rows: dict[str, QWidget] = {}
         self._lane_groups: dict[str, QVBoxLayout] = {}
         self._init_ui()
@@ -100,7 +101,11 @@ class DetailPanel(CardWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(300)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # 最小宽 200：长规则名（标题 SubtitleLabel 实测要 400+）不再把面板顶宽到整页横向滚动。
+        # 上限由 660 窗页内可用宽 600 减去画布 5 lane 合宽（≥320，有规则的 lane 各 100）反推——
+        # 再大就会顶出页头控件，超出部分交给面板内 QScrollArea 横向滚动（同旧定宽 300 的行为）。
+        self.setMinimumWidth(200)
         self._definition = None
         self._param_widgets: dict[str, QWidget] = {}
         self._init_ui()

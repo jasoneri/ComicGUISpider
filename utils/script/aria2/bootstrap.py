@@ -16,7 +16,7 @@ from loguru import logger
 
 from deploy import curr_os
 from utils.config import conf_dir
-from utils.preset_assets import managed_asset_sources
+from utils.core import ManagedAsset
 
 ARIA2_MANIFEST_NAME = "aria2-manifest.json"
 # Single aria2 home for every mode/OS (source tree, green package, win, mac).
@@ -26,6 +26,10 @@ ARIA2_BIN_DIRNAME = "bin"
 ARIA2_CONF_NAME = "aria2.conf"
 ARIA2_SESSION_NAME = "download.session"
 ARIA2_PID_NAME = "engine.pid"
+ARIA2_INSTANCE_NAME = "instance.json"
+ARIA2_SECRET_NAME = "rpc.secret"
+ARIA2_CLIENTS_DIRNAME = "clients"
+ARIA2_LOCK_NAME = ".instance.lock"
 # Binary payload may be multi‑MB; keep a longer ceiling.
 BINARY_DOWNLOAD_TIMEOUT_S = 120
 # Manifest is tiny JSON. MUST NOT reuse binary timeout — a hung GitHub TCP
@@ -86,6 +90,24 @@ class Aria2Layout:
     def pid_path(self) -> Path:
         return self.work_dir.joinpath(ARIA2_PID_NAME)
 
+    @property
+    def instance_path(self) -> Path:
+        """Cross-process singleton record: port + secret + owner pid."""
+        return self.work_dir.joinpath(ARIA2_INSTANCE_NAME)
+
+    @property
+    def secret_path(self) -> Path:
+        return self.work_dir.joinpath(ARIA2_SECRET_NAME)
+
+    @property
+    def clients_dir(self) -> Path:
+        """Heartbeat dir: one <pid>.json per attached client (owner lifecycle quorum)."""
+        return self.work_dir.joinpath(ARIA2_CLIENTS_DIRNAME)
+
+    @property
+    def lock_path(self) -> Path:
+        return self.work_dir.joinpath(ARIA2_LOCK_NAME)
+
 
 def resolve_aria2_layout() -> Aria2Layout:
     """Pure path resolution — no platform probing, safe at import time."""
@@ -130,7 +152,7 @@ def resolve_preset_asset_sources(logical_name: str) -> list[dict[str, str]]:
                 url = f"{part.rstrip('/')}/{logical_name.lstrip('/')}"
             sources.append({"id": f"env-{index}", "url": url})
         return sources
-    return [dict(item) for item in managed_asset_sources(logical_name)]
+    return [dict(item) for item in ManagedAsset(logical_name).sources]
 
 
 def _emit_progress_status(progress_callback, message: str) -> None:

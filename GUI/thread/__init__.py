@@ -4,6 +4,10 @@ import queue
 import threading
 from PySide6.QtCore import QThread, Signal
 from utils import conf, get_loop, code_env
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from utils.redViewer_tools import ScanContext
 from utils.website.info import InfoMinix
 from assets import res
 from deploy.update import Proj
@@ -240,20 +244,30 @@ class ProjUpdateThread(QThread):
 class RvThread(QThread):
     scan_completed = Signal(int)
     scan_progress = Signal(str)
+    scan_result = Signal(object)
+    scan_failed = Signal(str)
 
-    def __init__(self, gui, show_progress: bool = False):
+    def __init__(self, gui, show_progress: bool = False, *, context: "ScanContext"):
+        from utils.redViewer_tools import Handler
         super().__init__(gui)
-        self.gui = gui
+        self.log = gui.log
+        self.context = context
+        self.handler = Handler(scan_context=context)
         self.show_progress = show_progress
+        self.snapshot = None
+        self.total = None
+        self.error = ""
 
     def run(self):
         try:
             # 信号只汇报事实,是否弹 InfoBar 由 RVManager 决定
             self.scan_progress.emit("backend scaning local...")
-            self.gui.log.info(f"RvThread started, show_progress={self.show_progress}")
-            total = self.gui.rv_tools.scan(conf, init=False)
-            self.gui.log.info(f"RvThread completed: scanned {total} books/episodes")
-            self.scan_completed.emit(total)
-        except Exception as e:
-            self.gui.log.exception(f"RvThread error: {e}")
-            self.gui.say(f"scan err: {str(e)}")
+            self.log.info(f"RvThread started, show_progress={self.show_progress}")
+            self.total = self.handler.scan(conf, init=False)
+            self.snapshot = self.handler.snapshot
+            self.log.info(f"RvThread completed: scanned {self.total} books/episodes")
+            self.scan_result.emit(self.snapshot)
+            self.scan_completed.emit(self.total)
+        except Exception:
+            self.error = traceback.format_exc()
+            self.scan_failed.emit(self.error)

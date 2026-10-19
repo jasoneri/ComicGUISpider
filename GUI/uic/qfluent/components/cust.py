@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import typing as t
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtWidgets import QApplication, QSizePolicy
 from PySide6.QtCore import Qt, QUrl, Signal, QSize
 from GUI.core.timer import safe_single_shot
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QDesktopServices, QBrush, QPixmap, QImageReader, QImage, QMovie
+from PySide6.QtGui import QDesktopServices, QPixmap, QImageReader, QImage, QMovie
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QGraphicsView, QGraphicsScene, QCompleter
 
 from qfluentwidgets import (
     TransparentToolButton, HyperlinkButton, PrimaryPushButton, ToolButton,
     FluentIcon, FluentIconBase, LineEdit, LineEditButton,
-    VBoxLayout, Flyout, FlyoutAnimationType, FlyoutViewBase, TableView,
+    VBoxLayout, FlyoutViewBase,
     InfoBar, InfoBarIcon, InfoBarPosition, IndeterminateProgressBar, BodyLabel,
     TeachingTip, ImageLabel, TeachingTipView, PrimaryToolButton, TeachingTipTailPosition, 
     StrongBodyLabel, SwitchButton, ComboBox
@@ -24,10 +23,6 @@ from GUI.core.anim import ProxyRotationController, ExpandCollapseOrchestrator, C
 from utils import conf
 from utils.config.qc import cgs_cfg
 from utils.network.doh_policy import DEFAULT_DOH_URL
-
-# CGS003: keep type-only backend imports out of the first-paint dependency graph.
-if t.TYPE_CHECKING:
-    from utils.redViewer_tools import BookShow
 
 
 class DoHButtonController:
@@ -428,122 +423,3 @@ class IndeterminateBarFView(FlyoutViewBase):
         self.barLayout.addWidget(indeterminateBar)
         self.setLayout(self.barLayout)
         self.setFixedSize(int(parent.width()*0.93), 10)
-
-
-class TableFlyoutView(FlyoutViewBase):
-    closed = Signal()
-
-    def __init__(self, data, parent=None):
-        super().__init__(parent)
-        self.rvInterface = parent
-        self.gui = parent.toolWin.gui
-        p_width = parent.width()
-        p_height = parent.height()
-        self.width = int(p_width * 0.8)
-        self.height = int(p_height * 4)
-        # 必须设置布局
-        self.layout = VBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        # 创建表格视图
-        self.set_table(data)
-        first_row = QtWidgets.QHBoxLayout()
-        first_row.addWidget(self.tableView)
-        
-        second_row = QtWidgets.QHBoxLayout()
-        
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.closeBtn = TransparentToolButton(FluentIcon.CLOSE, self)
-        self.closeBtn.clicked.connect(self.closed)
-        self.delBtn = PrimaryPushButton(FluentIcon.DELETE, "删除选中记录", self)
-        self.delBtn.clicked.connect(self.delete_selected_record)
-        self.searchBtn = PrimaryPushButton(FluentIcon.SEARCH, "搜索选中记录", self)
-        self.searchBtn.clicked.connect(self.send_selected_record)
-        second_row.addWidget(self.delBtn)
-        second_row.addWidget(self.searchBtn)
-        second_row.addItem(spacerItem)
-        second_row.addWidget(self.closeBtn)
-        
-        self.layout.addLayout(first_row)
-        self.layout.addLayout(second_row)
-        # 必须设置视图尺寸
-        self.setFixedSize(self.width, self.height)
-
-    def set_table(self, data: t.Dict[str, BookShow]):
-        self.tableView = TableView(self)
-        self.tableView.setBorderRadius(15)
-        self.tableView.setWordWrap(False)
-        tb_width = self.width
-        tb_height = self.height - 30
-        self.tableView.setFixedSize(tb_width, tb_height)
-        self.tableView.verticalHeader().hide()
-        # 设置数据模型
-        model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(["漫画", "已阅最新章节", "已下载最新章节"])
-        for book in data.values():
-            row = [
-                QStandardItem(book.name),
-                QStandardItem(book.show_max),
-                QStandardItem(book.dl_max)
-            ]
-            model.appendRow(row)
-        self.tableView.setModel(model)
-        self.tableView.setSortingEnabled(True)
-        self.tableView.horizontalHeader().setSortIndicatorShown(True)
-        self.tableView.horizontalHeader().setStretchLastSection(True)
-        # 调整列宽
-        self.tableView.setColumnWidth(0, int(tb_width * 0.5))
-        self.tableView.setColumnWidth(1, int(tb_width * 0.2))
-        self.tableView.setColumnWidth(2, int(tb_width * 0.2))
-
-        self.tableView.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.tableView.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-
-    def delete_selected_record(self):
-        selection_model = self.tableView.selectionModel()
-        if not selection_model.hasSelection():
-            InfoBar.warning(
-                title='', content='请先选择要删除的记录',
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
-                duration=5000, parent=self.rvInterface
-            )
-            return
-        selected_indexes = selection_model.selectedRows()
-        row = selected_indexes[0].row()
-        model = self.tableView.model()
-        book_name = model.item(row, 0).text()
-        self.gui.rv_tools.delete_record(book_name)
-        model.removeRow(row)
-
-    def send_selected_record(self):
-        selection_model = self.tableView.selectionModel()
-        if not selection_model.hasSelection():
-            InfoBar.warning(
-                title='', content='请先选择行',
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_RIGHT,
-                duration=5000, parent=self.rvInterface.table_fv
-            )
-            return
-        elif self.gui.chooseBox.currentIndex() == 0:
-            InfoBar.warning(
-                title='', content='请先选择搜索源',
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_RIGHT,
-                duration=5000, parent=self.rvInterface.table_fv
-            )
-            return
-        selected_indexes = selection_model.selectedRows()
-        row = selected_indexes[0].row()
-        model = self.tableView.model()
-        book_name = model.item(row, 0).text()
-        def do():
-            self.gui.searchinput.setText(book_name)
-            cont = '已发至输入框，自行调整再点击搜索'
-            if self.gui.rv_tools.ero != 1:
-                # TODO[1](2026-03-05): 处理一下
-                self.gui.mpreviewBtn.click()
-                cont = f'''「{book_name}」已发至输入框进行搜索中'''
-            InfoBar.info(title='', content=cont,
-                orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
-                duration=2000, parent=self.gui.showArea)
-        safe_single_shot(10, do)
-        self.rvInterface.table_fv.close()
-        self.rvInterface.toolWin.close()

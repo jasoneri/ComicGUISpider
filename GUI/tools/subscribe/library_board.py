@@ -15,7 +15,7 @@ from .common import subscribe_site_indexes
 from .cover_session import CoverSession
 
 if TYPE_CHECKING:
-    from .window import SubscribeWindow
+    from GUI.tools.workspace import ToolWorkspaceWindow
 
 
 class LibraryBoard(QWidget):
@@ -23,7 +23,7 @@ class LibraryBoard(QWidget):
 
     def __init__(
         self,
-        host: "SubscribeWindow",
+        host: "ToolWorkspaceWindow",
         *,
         cover_session: CoverSession,
         on_card_selected: Callable[[str], None],
@@ -59,7 +59,7 @@ class LibraryBoard(QWidget):
         self.cards_host = QWidget(self.scroll)
         self.cards_host.setObjectName("SubscribeCardsHost")
         self.cards_layout = FlowLayout(self.cards_host, needAni=False)
-        self.cards_layout.setContentsMargins(2, 2, 10, 18)
+        self.cards_layout.setContentsMargins(0, 0, 10, 12)
         self.cards_layout.setHorizontalSpacing(12)
         self.cards_layout.setVerticalSpacing(12)
         self.scroll.setWidget(self.cards_host)

@@ -11,6 +11,7 @@ font = "Hiragino Sans GB"
 
 class macOS:
     default_sv_path = pathlib.Path.home().joinpath("Downloads/Comic")
+    default_acggr_path = pathlib.Path.home().joinpath("Downloads/Acggr")
     default_clip_db = pathlib.Path.home().joinpath(
         "Library/Containers/org.p0deje.Maccy/Data/Library/Application Support/Maccy/Storage.sqlite")
     clip_sql = "SELECT `ZTITLE` FROM `ZHISTORYITEM` order by `Z_PK` desc"

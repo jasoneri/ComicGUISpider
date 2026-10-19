@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from GUI.core.timer import safe_single_shot
 from PySide6.QtWidgets import QHBoxLayout
 from qfluentwidgets import (
@@ -13,11 +13,15 @@ tools_res = ori_res.GUI.Tools
 
 
 class DomainToolView(FlyoutViewBase):
+    _STAGED_CONTENT = ("正在检测可用性...", "检测到网络波动，正在尝试备用线路...", "正在为您切换最快线路...")
+
     def __init__(self, gui):
         super().__init__(gui.BrowserWindow)
         self.gui = gui
         self.browser = gui.BrowserWindow
         self._loading_tooltip = None
+        self._stage_timer = None
+        self._stage_index = 0
         self.setupUi()
 
     def setupUi(self):
@@ -29,10 +33,23 @@ class DomainToolView(FlyoutViewBase):
 
     def show_loading(self):
         self._clear_badges()
-        self._loading_tooltip = StateToolTip('域名检测中', '正在检测可用性...', self.browser)
+        self._stage_index = 0
+        self._loading_tooltip = StateToolTip('域名检测中', self._STAGED_CONTENT[0], self.browser)
         self._loading_tooltip.show()
+        self._stage_timer = QTimer(self)
+        self._stage_timer.setInterval(1500)
+        self._stage_timer.timeout.connect(self._advance_stage)
+        self._stage_timer.start()
+
+    def _advance_stage(self):
+        self._stage_index = min(self._stage_index + 1, len(self._STAGED_CONTENT) - 1)
+        if self._loading_tooltip:
+            self._loading_tooltip.setContent(self._STAGED_CONTENT[self._stage_index])
 
     def dismiss_loading(self):
+        if self._stage_timer is not None:
+            self._stage_timer.stop()
+            self._stage_timer = None
         if self._loading_tooltip:
             self._loading_tooltip.close()
             self._loading_tooltip = None

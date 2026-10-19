@@ -11,9 +11,32 @@ import traceback
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 from GUI.core.timer import safe_single_shot
 from qfluentwidgets import InfoBar, InfoBarPosition, StateToolTip
+
+
+def resolve_infobar_host(fallback: QWidget) -> QWidget:
+    """提示落点 = 前台窗自报的承载面；无前台窗、或前台非宿主窗（弹层）时回落 fallback。
+
+    触发方在哪扇窗，用户就正看着哪扇窗：acggrCell 在 ToolWorkspaceWindow 内、该窗挡在
+    SpiderGUI 前，提示若仍打 SpiderGUI，点 cell 的用户全程看不见。承载面由窗自己声明
+    （``infobar_surface``），本模块不认窗类型。落点必须是窗内子 frame 而非窗本身——
+    InfoBar 按 parent 的 rect 定位、按 parent().width() 定换行，挂窗上会压住窗头。
+    前台是 fallback 自身的窗（如页内 parent 挂在工作区窗）时返回 fallback，页内定位不变。
+    模态弹层不声明承载面，故弹层在台前时提示不挂弹层（弹层窄、且随弹层一同隐藏）。
+    """
+    active_window = QApplication.activeWindow()
+    if active_window is None:
+        return fallback
+    active_window = active_window.window()
+    if active_window is fallback.window():
+        return fallback
+    surface_getter = getattr(active_window, "infobar_surface", None)
+    if surface_getter is None:
+        return fallback
+    surface = surface_getter()
+    return surface if surface is not None else fallback
 
 
 def summarize_error_message(message: object, *, max_length: int = 180) -> str:
@@ -195,7 +218,8 @@ class TaskTooltipStack:
         self._entries: Dict[str, _TooltipEntry] = {}
 
     def show(self, task_id: str, title: str, content: str, position: Optional[Tuple[int, int]] = None, parent: Optional[QObject] = None):
-        tooltip_parent = parent if parent is not None else self._default_parent
+        # 显式 parent 优先（照搬）；否则与 infobar 同一条落点规则：loading 提示也跟当前前台窗。
+        tooltip_parent = parent if parent is not None else resolve_infobar_host(self._default_parent)
 
         tooltip = StateToolTip(title, content, tooltip_parent)
         self.tooltips[task_id] = tooltip
@@ -230,9 +254,14 @@ class TaskTooltipStack:
         if tooltip is None:
             return
 
-        tooltip.close()
-        if entry is not None:
-            self._rearrange_parent(entry.parent)
+        try:
+            tooltip.close()
+            if entry is not None:
+                self._rearrange_parent(entry.parent)
+        except RuntimeError:
+            # 宿主窗已销毁（WA_DeleteOnClose：如开 scriptWin 前关掉工作区窗），tooltip 作为
+            # 其子对象一并被删；延迟 close 打到已释放对象时静默收尾。
+            pass
 
     def cleanup(self):
         for tooltip in list(self.tooltips.values()):
@@ -282,7 +311,7 @@ class TaskInfoBarCenter:
     def _show(self, factory: Callable[..., Optional[InfoBar]], title: str, content: str, duration: int):
         infobar = factory(
             title=title, content=content, orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.TOP,
-            duration=duration, parent=self._parent,
+            duration=duration, parent=resolve_infobar_host(self._parent),
         )
         if infobar is None:
             return None

@@ -18,6 +18,7 @@ from assets import res as ori_res
 from variables import VER
 from utils import conf, get_httpx_verify
 from utils.config import conf_dir
+from utils.core import ManagedAsset
 
 
 curr_os = platform.system()
@@ -35,7 +36,7 @@ headers = {
 }
 MANIFEST_ASSET_NAME = "manifest.json"
 INSTALLER_ASSET_NAME = "installer.exe"
-INSTALLER_ASSET_URL = f"https://github.com/jasoneri/ComicGUISpider/releases/download/preset/{INSTALLER_ASSET_NAME}"
+INSTALLER_ASSET_URL = ManagedAsset(INSTALLER_ASSET_NAME).github_url
 
 updater_logger = conf.cLog(name="GUI")
 res = ori_res.Updater

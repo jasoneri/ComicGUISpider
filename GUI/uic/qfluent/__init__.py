@@ -10,7 +10,7 @@ from .components import *
 
 __all__ = [
     'MonkeyPatch',
-    'CustomFlyout', 'CustomInfoBar', 'TableFlyoutView',
+    'CustomFlyout', 'CustomInfoBar',
     'CgsIcon',
 ]
 
@@ -203,8 +203,9 @@ class MonkeyPatch:
             def close():
                 browserWindow.close()
                 gui.BrowserWindow = None
-                if gui.toolWin.isVisible():
-                    gui.toolWin.close()
+                tool_window = getattr(gui, "toolWorkspaceWindow", None)
+                if tool_window is not None and tool_window.isVisible():
+                    tool_window.close()
             safe_single_shot(20, close)
 
         def custom_context_menu(self, event):

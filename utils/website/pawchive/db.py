@@ -8,12 +8,15 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
+from utils.website.pawchive import *
+
+
 _SORT_COLUMNS = frozenset({"name", "service", "updated", "favorited"})
 _FTS_SPECIAL_RE = re.compile(r'["\'\*\^\~\(\)\:\{\}\[\]\\]')
 
 
 @dataclass(frozen=True, slots=True)
-class KemonoAuthor:
+class PawchiveAuthor:
     id: str
     name: str
     service: str
@@ -22,7 +25,7 @@ class KemonoAuthor:
 
     @property
     def avatar(self) -> str:
-        return f"https://img.kemono.cr/icons/{self.service}/{self.id}"
+        return f"https://{domain}/icons/{self.service}/{self.id}"
 
     def to_payload(self) -> dict[str, str | int]:
         return asdict(self)
@@ -36,10 +39,10 @@ class AuthorQuery:
     sort_desc: bool = True
 
 
-def _normalize_author(item: dict) -> KemonoAuthor:
+def _normalize_author(item: dict) -> PawchiveAuthor:
     if not isinstance(item, dict):
-        raise TypeError(f"invalid kemono creator row: {item!r}")
-    return KemonoAuthor(
+        raise TypeError(f"invalid pawchive creator row: {item!r}")
+    return PawchiveAuthor(
         id=str(item["id"]),
         name=str(item["name"]),
         service=str(item["service"]),
@@ -48,9 +51,9 @@ def _normalize_author(item: dict) -> KemonoAuthor:
     )
 
 
-def _author_from_row(row: tuple) -> KemonoAuthor:
+def _author_from_row(row: tuple) -> PawchiveAuthor:
     row_id, name, service, updated, favorited = row
-    return KemonoAuthor(
+    return PawchiveAuthor(
         id=str(row_id),
         name=str(name),
         service=str(service),
@@ -67,7 +70,7 @@ def _sanitize_fts_query(raw_text: str) -> str:
     return " ".join(f'"{token}"' for token in tokens)
 
 
-class KemonoAuthorsDb:
+class PawchiveAuthorsDb:
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
         self._fts_ready_cached: bool | None = None
@@ -104,7 +107,7 @@ class KemonoAuthorsDb:
             )
             cursor.execute(
                 """
-                CREATE TABLE IF NOT EXISTS kemono_db_meta (
+                CREATE TABLE IF NOT EXISTS pawchive_db_meta (
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
                 )
@@ -129,13 +132,13 @@ class KemonoAuthorsDb:
                 self._fts_ready_cached = False
                 return False
             meta_exists = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='kemono_db_meta'"
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pawchive_db_meta'"
             ).fetchone()
             if meta_exists is None:
                 self._fts_ready_cached = False
                 return False
             meta = conn.execute(
-                "SELECT value FROM kemono_db_meta WHERE key='fts_built'"
+                "SELECT value FROM pawchive_db_meta WHERE key='fts_built'"
             ).fetchone()
             if meta is None or meta[0] != "1":
                 self._fts_ready_cached = False
@@ -147,8 +150,6 @@ class KemonoAuthorsDb:
             return ready
 
     def ensure_fts(self, *, force: bool = False) -> None:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
         self.ensure_schema()
         if not force and self.fts_ready():
             return
@@ -169,7 +170,7 @@ class KemonoAuthorsDb:
             )
             cursor.execute(
                 """
-                INSERT INTO kemono_db_meta(key, value) VALUES('fts_built', '1')
+                INSERT INTO pawchive_db_meta(key, value) VALUES('fts_built', '1')
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value
                 """
             )
@@ -201,9 +202,7 @@ class KemonoAuthorsDb:
         self.ensure_fts(force=True)
         return len(authors)
 
-    def load_all(self) -> dict[str, KemonoAuthor]:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
+    def load_all(self) -> dict[str, PawchiveAuthor]:
         with closing(self._connect()) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT id, name, service, updated, favorited FROM authors")
@@ -254,8 +253,6 @@ class KemonoAuthorsDb:
         return " AND ".join(clauses), params
 
     def count(self, query: AuthorQuery) -> int:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
         where_sql, params = self._build_where(query)
         with closing(self._connect()) as conn:
             row = conn.execute(
@@ -264,9 +261,7 @@ class KemonoAuthorsDb:
             ).fetchone()
         return int(row[0])
 
-    def fetch(self, query: AuthorQuery, *, offset: int, limit: int) -> list[KemonoAuthor]:
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"kemono db not found: {self.db_path}")
+    def fetch(self, query: AuthorQuery, *, offset: int, limit: int) -> list[PawchiveAuthor]:
         if limit <= 0:
             return []
         safe_offset = max(0, int(offset))
@@ -284,10 +279,10 @@ class KemonoAuthorsDb:
         return [_author_from_row(row) for row in rows]
 
 
-def build_kemono_db_from_creators_bytes(db_path: Path, payload: bytes) -> int:
+def build_pawchive_db_from_creators_bytes(db_path: Path, payload: bytes) -> int:
     data = json.loads(payload.decode("utf-8"))
-    return KemonoAuthorsDb(db_path).replace_from_creators(data)
+    return PawchiveAuthorsDb(db_path).replace_from_creators(data)
 
 
-def load_kemono_authors(db_path: Path) -> dict[str, KemonoAuthor]:
-    return KemonoAuthorsDb(db_path).load_all()
+def load_pawchive_authors(db_path: Path) -> dict[str, PawchiveAuthor]:
+    return PawchiveAuthorsDb(db_path).load_all()

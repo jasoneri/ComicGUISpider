@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QGraphicsOpacityEffect
 from GUI.core.timer import safe_single_shot
 
 
-PopupDirection = Literal["right", "up", "down"]
+PopupDirection = Literal["right", "left", "up", "down"]
 
 
 class BreathingEffect(QObject):
@@ -434,6 +434,8 @@ class PopupAnimator:
         x, y = final_rect.x(), final_rect.y()
         if direction == "right":
             x -= offset_px
+        elif direction == "left":
+            x += offset_px
         elif direction == "up":
             y += offset_px
         elif direction == "down":

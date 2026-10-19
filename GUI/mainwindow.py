@@ -48,7 +48,13 @@ class MitmMainWindow(Ui_MainWindow):
         blocker = QtCore.QSignalBlocker(self.chooseBox)
         self.chooseBox.clear()
         self.chooseBox.addItem(_translate("MainWindow", res.chooseBoxDefault))
-        for index, label in SPIDERS_LABELS.items():
+        # chooseBox 位置 == 站点索引：SPIDERS_LABELS 的缺口（退役位）以空项补齐位次，
+        # 否则其后站点整体前移、currentIndex() 不再等于站点索引；空项由 SiteChoiceComboController 永久隐藏。
+        for index in range(1, max(SPIDERS_LABELS) + 1):
+            label = SPIDERS_LABELS.get(index)
+            if label is None:
+                self.chooseBox.insertItem(index, "")
+                continue
             if index in Spider and Spider(index) in Spider.specials():
                 label += "🔞"
             self.chooseBox.insertItem(index, _translate("MainWindow", label))

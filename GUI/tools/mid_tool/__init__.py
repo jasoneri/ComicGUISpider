@@ -2,9 +2,9 @@
 from pathlib import Path
 import contextlib
 from copy import deepcopy
-from PySide6.QtCore import Signal, QEvent
+from PySide6.QtCore import Qt, Signal, QEvent
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QStackedWidget, QApplication
+    QWidget, QHBoxLayout, QStackedWidget, QApplication, QSizePolicy
 )
 from qfluentwidgets import (
     SwitchButton, PrimaryToolButton, TransparentToolButton, PrimaryPushButton,
@@ -237,6 +237,8 @@ class MidToolInterface(QWidget):
         content = QHBoxLayout()
 
         self.canvas = WorkflowCanvas(self)
+        # 画布只做高度 expanding：宽度由 5 个 lane 的自然宽决定，剩余宽度全归规则库面板。
+        self.canvas.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         content.setContentsMargins(0, 0, 0, 0)
         content.setSpacing(0)
         self.canvas.rule_clicked.connect(self._on_rule_clicked)
@@ -248,8 +250,9 @@ class MidToolInterface(QWidget):
         self.canvas.installEventFilter(self)
 
         self._panel_stack = QStackedWidget(self)
-        self._panel_stack.setMaximumWidth(300)
-        
+        # 规则库/详情面板：宽高均 expanding，吃掉画布之外的全部剩余空间（旧 300px 定宽是宽扁窗假设）。
+        self._panel_stack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
         self.rule_panel = RulePanel(self)
         self.rule_panel.rule_selected.connect(self._on_rule_selected)
         self._panel_stack.addWidget(self.rule_panel)
@@ -259,10 +262,11 @@ class MidToolInterface(QWidget):
         self.detail_panel.param_changed.connect(self._on_param_changed)
         self._panel_stack.addWidget(self.detail_panel)
 
+        # 剩余宽度全归规则库面板：画布取 lane 自然宽，面板 stretch 1 吃余量（对齐显式置空，
+        # 避免 qfluent 系 addWidget 默认 AlignTop 让 stretch 格子不填充）。
         content.addWidget(self.canvas)
-        content.addStretch()
-        content.addWidget(self._panel_stack)
-        layout.addLayout(content)
+        content.addWidget(self._panel_stack, 1, Qt.Alignment())
+        layout.addLayout(content, 1)
 
     def _populate_rule_panel(self):
         """填充规则库面板（不影响画布）"""

@@ -8,7 +8,6 @@ from urllib.parse import urlsplit
 from utils.config.qc import cgs_cfg
 from utils.network.doh import dns_stub_endpoint, dns_stub_server, normalize_doh_url
 from utils.script import conf as script_conf, folder_sub
-from utils.script.motrix import build_motrix_dns_options
 
 from .constants import (
     DANBOORU_OFFICIAL_ORDER_VALUES,
@@ -236,7 +235,6 @@ class DanbooruRuntimeConfig:
     save_type: Optional[str] = None
     download_concurrency: int = DEFAULT_DOWNLOAD_CONCURRENCY
     doh_url: str = ""
-    motrix_aria2_conf_path: str = ""
     proxies: tuple[str, ...] = ()
 
     def __post_init__(self):
@@ -246,7 +244,6 @@ class DanbooruRuntimeConfig:
         object.__setattr__(self, "download_concurrency", int(self.download_concurrency or DEFAULT_DOWNLOAD_CONCURRENCY))
         raw_doh_url = str(self.doh_url or "").strip()
         object.__setattr__(self, "doh_url", normalize_doh_url(raw_doh_url) if raw_doh_url else "")
-        object.__setattr__(self, "motrix_aria2_conf_path", str(self.motrix_aria2_conf_path or "").strip())
         object.__setattr__(self, "proxies", _normalize_proxy_values(self.proxies))
 
     @classmethod
@@ -257,7 +254,7 @@ class DanbooruRuntimeConfig:
         return cls(
             save_path=data.get("save_path", DEFAULT_DANBOORU_SAVE_PATH), save_type=data.get("save_type"),
             download_concurrency=data.get("download_concurrency", DEFAULT_DOWNLOAD_CONCURRENCY), doh_url=resolved_doh_url,
-            motrix_aria2_conf_path=data.get("motrix_aria2_conf_path", ""), proxies=resolved_proxies,
+            proxies=resolved_proxies,
         )
 
     @classmethod
@@ -267,8 +264,12 @@ class DanbooruRuntimeConfig:
     def is_doh_enabled(self) -> bool:
         return bool(self.doh_url)
 
-    def motrix_add_uri_options(self) -> dict[str, str]:
-        return build_motrix_dns_options(dns_server=self.stub_dns_server())
+    def aria2_add_uri_options(self) -> dict[str, str]:
+        # CGS016: importing this shim pulls utils.script.aria2.engine (~950ms on the
+        # GUI import path); it is only needed when a download actually starts.
+        from utils.script.aria2.conf import build_dns_options
+
+        return build_dns_options(dns_server=self.stub_dns_server())
 
     def stub_dns_server(self) -> str:
         return dns_stub_server(self.doh_url)

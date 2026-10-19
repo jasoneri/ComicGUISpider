@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import json
+import atexit
+import os
 import pathlib as p
 import socket
 import subprocess
 import sys
 import threading
 import time
-import urllib.error
-import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from loguru import logger
 
@@ -17,8 +16,26 @@ from utils.config.qc import cgs_cfg
 from utils.network.doh import dns_stub_server
 from utils.script.aria2.bootstrap import ensure_aira2_binary, resolve_aria2_layout
 from utils.script.aria2.conf import build_aria2_option_map, write_aria2_conf
+from utils.script.aria2.lock import (
+    DEFAULT_RPC_HOST,
+    Aria2InstanceError,
+    InstanceRecord,
+    clear_instance,
+    clear_heartbeat,
+    ensure_secret,
+    exclusive_instance_lock,
+    live_other_clients,
+    pid_alive,
+    port_answering,
+    probe_instance,
+    read_instance,
+    rpc_ping,
+    rpc_shutdown,
+    write_heartbeat,
+    write_instance,
+)
 from utils.script.aria2.rpc import Aria2RpcClient
-from utils.script.aria2.settings import ensure_motrix_proxy_seed, get_proxy
+from utils.script.aria2.settings import get_proxy, get_rpc_port, singleton_enabled
 
 # One layout object owns every managed path (work dir, binary, conf, session, pid).
 ARIA2_LAYOUT = resolve_aria2_layout()
@@ -32,6 +49,14 @@ PING_INTERVAL_S = 0.15
 STARTUP_PING_TIMEOUT_S = 0.5
 
 
+ROLE_OWNER = "owner"
+ROLE_CLIENT = "client"
+# Owner hands the endpoint to spawned children so they attach instead of spawning.
+ENV_ENDPOINT = "CGS_ARIA2_ENDPOINT"
+ENV_SECRET = "CGS_ARIA2_SECRET"
+ENV_NO_SPAWN = "CGS_ARIA2_NO_SPAWN"
+
+
 @dataclass(frozen=True, slots=True)
 class RuntimeEndpoint:
     host: str
@@ -40,6 +65,7 @@ class RuntimeEndpoint:
     conf_path: p.Path
     binary_path: p.Path
     pid: int | None
+    role: str = ROLE_OWNER
 
     @property
     def jsonrpc_url(self) -> str:
@@ -59,7 +85,7 @@ class CgsAria2Engine:
 
     def is_ready(self) -> bool:
         with self._lock:
-            return self._endpoint is not None and self._process_alive() and self._rpc_ping_sync(self._endpoint)
+            return self._endpoint is not None and self._endpoint_reachable(self._endpoint)
 
     def ensure(
         self,
@@ -70,93 +96,153 @@ class CgsAria2Engine:
         progress_callback=None,
     ) -> RuntimeEndpoint:
         with self._lock:
-            ensure_motrix_proxy_seed()
             resolved_proxy = normalize_proxy_arg(proxy)
             dns = resolve_dns_server(dns_server)
-            if not force_restart and self._endpoint is not None and self._process_alive() and self._rpc_ping_sync(self._endpoint):
+            if not force_restart and self._endpoint is not None and self._endpoint_reachable(self._endpoint):
                 return self._endpoint
             self._stop_locked()
-            binary = ensure_aira2_binary(progress_callback=progress_callback)
-            startup_deadline = time.monotonic() + ENSURE_TIMEOUT_S
-            _emit_engine_progress(progress_callback, "aria2 starting...")
-            work_dir = ARIA2_LAYOUT.work_dir
-            work_dir.mkdir(parents=True, exist_ok=True)
-            conf_path = ARIA2_LAYOUT.conf_path
-            session_path = ARIA2_LAYOUT.session_path
-            if not session_path.exists():
-                session_path.write_text("", encoding="utf-8")
+            if singleton_enabled():
+                attached = self._attach_existing()
+                if attached is not None:
+                    self._endpoint = attached
+                    write_heartbeat(os.getpid())
+                    return attached
+            return self._spawn_owned(resolved_proxy, dns, progress_callback)
 
-            last_error: Exception | None = None
-            for _attempt in range(2):
-                if time.monotonic() >= startup_deadline:
-                    last_error = RuntimeError("aria2 startup deadline elapsed before process launch")
-                    break
-                port = pick_free_port()
-                options = build_aria2_option_map(
-                    rpc_port=port,
-                    proxy=resolved_proxy,
-                    dns_server=dns,
-                    session_path=session_path,
-                )
-                # input-file only when session non-empty to avoid aria2 start noise
-                if session_path.stat().st_size == 0:
-                    options.pop("input-file", None)
-                write_aria2_conf(conf_path, options)
-                try:
-                    popen_kwargs: dict = {
-                        "cwd": str(work_dir),
-                        "stdout": subprocess.DEVNULL,
-                        "stderr": subprocess.DEVNULL,
-                        "stdin": subprocess.DEVNULL,
-                    }
-                    if sys.platform == "win32":
-                        popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-                    process = subprocess.Popen(
-                        [str(binary), f"--conf-path={conf_path}"],
-                        **popen_kwargs,
-                    )
-                except OSError as exc:
-                    last_error = exc
-                    logger.warning(f"[CgsAria2] spawn failed binary={binary}: {exc}")
-                    continue
+    def _endpoint_reachable(self, endpoint: RuntimeEndpoint) -> bool:
+        """Clients and adopted owners hold no subprocess; liveness is the RPC ping."""
+        if endpoint.role == ROLE_OWNER and self._process is not None and not self._process_alive():
+            return False
+        return self._rpc_ping_sync(endpoint)
 
-                endpoint = RuntimeEndpoint(
-                    host="127.0.0.1",
-                    port=port,
-                    secret="",
-                    conf_path=conf_path,
-                    binary_path=binary,
-                    pid=process.pid,
-                )
-                if self._wait_rpc_ready(endpoint, process, deadline=startup_deadline):
-                    self._process = process
-                    self._endpoint = endpoint
-                    ARIA2_LAYOUT.pid_path.write_text(str(process.pid), encoding="utf-8")
-                    _emit_engine_progress(progress_callback, "aria2 ready")
-                    logger.info(f"[CgsAria2] ensure ready port={port} pid={process.pid} binary={binary}")
-                    return endpoint
-                exit_code = process.poll()
-                remaining_timeout = max(0.0, startup_deadline - time.monotonic())
-                self._terminate_process(process, timeout_s=remaining_timeout)
-                if exit_code is not None:
-                    last_error = RuntimeError(
-                        f"aria2 exited before RPC ready on port {port} (exit={exit_code}); "
-                        f"conf={conf_path} binary={binary}"
-                    )
-                else:
-                    last_error = RuntimeError(
-                        f"aria2 RPC not ready on port {port}; conf={conf_path} binary={binary}"
-                    )
-                logger.warning(f"[CgsAria2] {last_error}")
+    def _attach_existing(self) -> RuntimeEndpoint | None:
+        from_env = self._endpoint_from_env()
+        if from_env is not None:
+            return from_env
+        with exclusive_instance_lock():
+            try:
+                record = read_instance()
+            except Aria2InstanceError as exc:
+                logger.warning(f"[CgsAria2] discarding unusable instance record: {exc}")
+                clear_instance()
+                return None
+            if record is None:
+                return None
+            if not probe_instance(record):
+                logger.info(f"[CgsAria2] dropping stale instance record port={record.port} pid={record.pid}")
+                clear_instance()
+                return None
+        # Owner gone (crash / kill): adopt the running daemon instead of leaving
+        # it orphaned — this is the plan-B recovery path (design D4).
+        adopted = not pid_alive(record.owner_pid)
+        endpoint = RuntimeEndpoint(
+            host=DEFAULT_RPC_HOST, port=record.port, secret=record.secret,
+            conf_path=ARIA2_LAYOUT.conf_path, binary_path=ARIA2_LAYOUT.binary_path,
+            pid=record.pid, role=ROLE_OWNER if adopted else ROLE_CLIENT,
+        )
+        if adopted:
+            with exclusive_instance_lock():
+                write_instance(replace(record, owner_pid=os.getpid()))
+            logger.info(f"[CgsAria2] adopted ownerless aria2 port={endpoint.port} pid={endpoint.pid}")
+        else:
+            logger.info(f"[CgsAria2] attached to running aria2 port={endpoint.port} pid={endpoint.pid}")
+        return endpoint
 
-            message = "CGS aria2 engine failed to start"
-            if last_error is not None:
-                message = f"{message}: {last_error}"
-            raise RuntimeError(message)
+    def _endpoint_from_env(self) -> RuntimeEndpoint | None:
+        """Children spawned by the owner attach through env instead of spawning."""
+        raw_endpoint = os.environ.get(ENV_ENDPOINT)
+        if not raw_endpoint:
+            return None
+        host, _, port_text = str(raw_endpoint).rpartition(":")
+        if not host or not port_text.isdigit():
+            raise RuntimeError(f"{ENV_ENDPOINT} must be host:port, got {raw_endpoint!r}")
+        endpoint = RuntimeEndpoint(
+            host=host, port=int(port_text), secret=str(os.environ.get(ENV_SECRET) or ""),
+            conf_path=ARIA2_LAYOUT.conf_path, binary_path=ARIA2_LAYOUT.binary_path,
+            pid=None, role=ROLE_CLIENT,
+        )
+        if rpc_ping(endpoint.host, endpoint.port, endpoint.secret):
+            return endpoint
+        if os.environ.get(ENV_NO_SPAWN):
+            raise RuntimeError(f"aria2 endpoint {endpoint.jsonrpc_url} unreachable while {ENV_NO_SPAWN} is set")
+        return None
+
+    def _spawn_owned(self, proxy: str, dns: str, progress_callback) -> RuntimeEndpoint:
+        binary = ensure_aira2_binary(progress_callback=progress_callback)
+        startup_deadline = time.monotonic() + ENSURE_TIMEOUT_S
+        _emit_engine_progress(progress_callback, "aria2 starting...")
+        work_dir = ARIA2_LAYOUT.work_dir
+        work_dir.mkdir(parents=True, exist_ok=True)
+        conf_path = ARIA2_LAYOUT.conf_path
+        session_path = ARIA2_LAYOUT.session_path
+        if not session_path.exists():
+            session_path.write_text("", encoding="utf-8")
+
+        port = get_rpc_port() if singleton_enabled() else pick_free_port()
+        secret = ensure_secret()
+        if port_answering(DEFAULT_RPC_HOST, port) and not rpc_ping(DEFAULT_RPC_HOST, port, secret):
+            raise RuntimeError(
+                f"aria2 RPC port {port} is occupied by a foreign process; "
+                f"stop it or set cgs_aria2.rpc_port in the script conf"
+            )
+
+        last_error: Exception | None = None
+        for _attempt in range(2):
+            if time.monotonic() >= startup_deadline:
+                last_error = RuntimeError("aria2 startup deadline elapsed before process launch")
+                break
+            options = build_aria2_option_map(rpc_port=port, proxy=proxy, dns_server=dns, secret=secret, session_path=session_path)
+            # input-file only when session non-empty to avoid aria2 start noise
+            if session_path.stat().st_size == 0:
+                options.pop("input-file", None)
+            write_aria2_conf(conf_path, options)
+            try:
+                popen_kwargs: dict = {
+                    "cwd": str(work_dir),
+                    "stdout": subprocess.DEVNULL,
+                    "stderr": subprocess.DEVNULL,
+                    "stdin": subprocess.DEVNULL,
+                }
+                if sys.platform == "win32":
+                    popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                process = subprocess.Popen([str(binary), f"--conf-path={conf_path}"], **popen_kwargs)
+            except OSError as exc:
+                last_error = exc
+                logger.warning(f"[CgsAria2] spawn failed binary={binary}: {exc}")
+                continue
+
+            endpoint = RuntimeEndpoint(
+                host=DEFAULT_RPC_HOST, port=port, secret=secret, conf_path=conf_path,
+                binary_path=binary, pid=process.pid, role=ROLE_OWNER,
+            )
+            if self._wait_rpc_ready(endpoint, process, deadline=startup_deadline):
+                self._process = process
+                self._endpoint = endpoint
+                ARIA2_LAYOUT.pid_path.write_text(str(process.pid), encoding="utf-8")
+                write_heartbeat(os.getpid())
+                instance = InstanceRecord(port=port, secret=secret, pid=process.pid, owner_pid=os.getpid(), started_at=time.time())
+                with exclusive_instance_lock():
+                    write_instance(instance)
+                _emit_engine_progress(progress_callback, "aria2 ready")
+                logger.info(f"[CgsAria2] ensure ready port={port} pid={process.pid} role=owner binary={binary}")
+                return endpoint
+            exit_code = process.poll()
+            remaining_timeout = max(0.0, startup_deadline - time.monotonic())
+            self._terminate_process(process, timeout_s=remaining_timeout)
+            if exit_code is not None:
+                last_error = RuntimeError(f"aria2 exited before RPC ready on port {port} (exit={exit_code}); binary={binary}")
+            else:
+                last_error = RuntimeError(f"aria2 RPC not ready on port {port}; binary={binary}")
+            logger.warning(f"[CgsAria2] {last_error}")
+
+        message = "CGS aria2 engine failed to start"
+        if last_error is not None:
+            message = f"{message}: {last_error}"
+        raise RuntimeError(message)
 
     def stop(self) -> None:
-        with self._lock:
-            self._stop_locked()
+        """Owner-facing stop: graceful handoff-or-shutdown, not a bare terminate."""
+        self.release_at_exit()
 
     def restart(self, **kwargs) -> RuntimeEndpoint:
         return self.ensure(force_restart=True, **kwargs)
@@ -166,12 +252,43 @@ class CgsAria2Engine:
         return Aria2RpcClient(url=endpoint.jsonrpc_url, secret=endpoint.secret, timeout=timeout)
 
     def _stop_locked(self) -> None:
+        endpoint = self._endpoint
         if self._process is not None:
             self._terminate_process(self._process)
             self._process = None
         self._endpoint = None
-        pid_path = ARIA2_LAYOUT.pid_path
-        pid_path.unlink(missing_ok=True)
+        ARIA2_LAYOUT.pid_path.unlink(missing_ok=True)
+        clear_heartbeat(os.getpid())
+        if endpoint is not None and endpoint.role == ROLE_OWNER:
+            with exclusive_instance_lock():
+                clear_instance()
+
+    def release_at_exit(self) -> None:
+        """Owner exit policy: stop the daemon unless another client still lives."""
+        with self._lock:
+            endpoint = self._endpoint
+            clear_heartbeat(os.getpid())
+            if endpoint is None or endpoint.role != ROLE_OWNER:
+                return
+            others = live_other_clients(os.getpid())
+            if others:
+                with exclusive_instance_lock():
+                    record = read_instance()
+                    if record is not None:
+                        write_instance(replace(record, owner_pid=None))
+                logger.info(f"[CgsAria2] owner exiting, engine handed to pids={others}")
+                self._endpoint = None
+                return
+            if not rpc_shutdown(endpoint.host, endpoint.port, endpoint.secret):
+                logger.warning(f"[CgsAria2] RPC shutdown failed port={endpoint.port}; terminating process")
+            if self._process is not None:
+                self._terminate_process(self._process)
+                self._process = None
+            self._endpoint = None
+            ARIA2_LAYOUT.pid_path.unlink(missing_ok=True)
+            with exclusive_instance_lock():
+                clear_instance()
+            logger.info(f"[CgsAria2] owner exit stopped aria2 port={endpoint.port}")
 
     def _process_alive(self) -> bool:
         process = self._process
@@ -179,22 +296,13 @@ class CgsAria2Engine:
             return False
         return process.poll() is None
 
-    def _wait_rpc_ready(
-        self,
-        endpoint: RuntimeEndpoint,
-        process: subprocess.Popen,
-        *,
-        deadline: float | None = None,
-    ) -> bool:
+    def _wait_rpc_ready(self, endpoint: RuntimeEndpoint, process: subprocess.Popen, *, deadline: float | None = None) -> bool:
         startup_deadline = deadline if deadline is not None else time.monotonic() + ENSURE_TIMEOUT_S
         while time.monotonic() < startup_deadline:
             if process.poll() is not None:
                 return False
             remaining_timeout = startup_deadline - time.monotonic()
-            if ping_endpoint_sync(
-                endpoint,
-                timeout_s=min(STARTUP_PING_TIMEOUT_S, max(0.01, remaining_timeout)),
-            ):
+            if ping_endpoint_sync(endpoint, timeout_s=min(STARTUP_PING_TIMEOUT_S, max(0.01, remaining_timeout))):
                 return True
             remaining_timeout = startup_deadline - time.monotonic()
             if remaining_timeout > 0:
@@ -229,6 +337,8 @@ def _emit_engine_progress(progress_callback, message: str) -> None:
 
 
 def normalize_proxy_arg(proxy: object | None) -> str:
+    # No fallback to script httpx proxies: this field is the download engine's own proxy,
+    # empty means direct.
     if proxy is None:
         return get_proxy()
     from utils.script.aria2.conf import normalize_proxy
@@ -255,34 +365,7 @@ def resolve_aria2_binary(*, progress_callback=None) -> p.Path:
 
 def ping_endpoint_sync(endpoint: RuntimeEndpoint, *, timeout_s: float = 2.0) -> bool:
     """Blocking aria2.getVersion over HTTP. Safe from sync and async GUI threads."""
-    payload = {
-        "jsonrpc": "2.0",
-        "method": "aria2.getVersion",
-        "params": [],
-        "id": "cgs-aria2-ping",
-    }
-    if endpoint.secret:
-        payload["params"] = [f"token:{endpoint.secret}"]
-    request = urllib.request.Request(
-        endpoint.jsonrpc_url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "User-Agent": "ComicGUISpider-cgs-aria2",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout_s) as response:
-            body = json.loads(response.read().decode("utf-8"))
-        if not isinstance(body, dict):
-            return False
-        if body.get("error"):
-            return False
-        result = body.get("result")
-        return isinstance(result, dict) and bool(result)
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
-        return False
+    return rpc_ping(endpoint.host, endpoint.port, endpoint.secret, timeout_s=timeout_s)
 
 
 _ENGINE = CgsAria2Engine()
@@ -302,3 +385,24 @@ def stop_engine() -> None:
 
 def create_managed_rpc_client(*, timeout: float = 15.0) -> Aria2RpcClient:
     return get_engine().create_rpc_client(timeout=timeout)
+
+
+def child_endpoint_env() -> dict[str, str]:
+    """Env for spawned children so they attach to the running engine.
+
+    Empty when no engine is up yet — the child then falls back to normal
+    discovery and may become the owner itself (CLI mode).
+    """
+    endpoint = get_engine().endpoint
+    if endpoint is None:
+        return {}
+    return {
+        ENV_ENDPOINT: f"{endpoint.host}:{endpoint.port}",
+        ENV_SECRET: endpoint.secret,
+        ENV_NO_SPAWN: "1",
+    }
+
+
+# Normal interpreter exit stops/hands off the engine. A hard kill has no hook —
+# plan B (design D4) adopts or clears the orphan on the next ensure.
+atexit.register(get_engine().release_at_exit)

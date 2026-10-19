@@ -5,90 +5,144 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>发布页处理</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root{
-            --publish-bg:#f8fafc;
-            --publish-surface:rgba(255,255,255,.78);
-            --publish-text:#0f172a;
-            --publish-shadow:0 22px 48px rgba(15,23,42,.18);
-        }
-        html[data-preview-theme="dark"]{
-            --publish-bg:#020617;
-            --publish-surface:rgba(15,23,42,.76);
-            --publish-text:#f8fafc;
-            --publish-shadow:0 28px 64px rgba(2,6,23,.42);
-        }
-        body{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(105deg,var(--publish-bg) 45%,#ffa51eca 100%);color:var(--publish-text);overflow-y:auto;overflow-x:hidden;padding:20px 0}
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--publish-bg:#f8fafc;--publish-surface:rgba(255,255,255,.78);--publish-text:#0f172a;--publish-shadow:0 22px 48px rgba(15,23,42,.18);--input-text:#1e293b;--input-placeholder:rgba(71,85,105,0.7);--border-glass:rgba(0,0,0,0.08);--input-bg-subtle:rgba(255,255,255,0.9);--input-border-subtle:rgba(203,213,225,0.85);--pub-tag-bg:rgba(15,23,42,0.06);--pub-tag-color:#475569}
+        html[data-preview-theme="dark"]{--publish-bg:#020617;--publish-surface:rgba(15,23,42,.76);--publish-text:#f8fafc;--publish-shadow:0 28px 64px rgba(2,6,23,.42);--input-text:#f8fafc;--input-placeholder:rgba(148,163,184,0.55);--border-glass:rgba(255,255,255,0.1);--input-bg-subtle:rgba(2,6,23,0.5);--input-border-subtle:rgba(255,255,255,0.12);--pub-tag-bg:rgba(255,255,255,0.08);--pub-tag-color:#94a3b8}
+        body{min-height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;background:linear-gradient(105deg,var(--publish-bg) 45%,#ffa51eca 100%);color:var(--publish-text);overflow-y:auto;overflow-x:hidden}
         .content-wrapper{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;max-width:90vw;width:100%}
         .content-wrapper > * + *{margin-top:20px}
         .page-title{color:var(--publish-text);font-weight:600;text-align:left;text-shadow:0 2px 10px rgba(0,0,0,0.18);margin:0}
-        .image-container{flex:0 0 auto;max-width:45vw;max-height:50vh;display:flex;align-items:center;justify-content:center;border-radius:24px;padding:15px;background:var(--publish-surface);box-shadow:var(--publish-shadow);backdrop-filter:blur(10px)}
-        .image-container img{max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
-        .title-image-row{display:flex;flex-direction:row;align-items:center;justify-content:center;width:100%}
-        .titles-container{display:flex;margin-right:30px;flex-direction:column;flex:1;min-width:0}
+        .page-header{position:absolute;top:0;left:0;right:0;padding:22px 30px 0;pointer-events:none}
+        .page-header .page-title{font-size:24px;letter-spacing:.5px}
+        .image-container{flex:0 0 auto;max-width:45vw;max-height:50vh;display:flex;align-items:center;justify-content:center;border-radius:18px;padding:10px;background:var(--publish-surface);border:1px solid var(--border-glass);box-shadow:var(--publish-shadow),0 0 0 1px var(--border-glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:transform .25s ease,box-shadow .25s ease}
+        .image-container:hover{box-shadow:0 26px 54px rgba(0,0,0,0.28),0 0 0 1px rgba(255,255,255,0.18)}
+        .image-container img{max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;border-radius:10px;display:block;box-shadow:0 3px 14px rgba(0,0,0,0.25)}
+        .title-image-row{display:flex;flex-direction:row;align-items:stretch;justify-content:center;width:100%}
+        .titles-container{display:flex;margin-right:30px;flex-direction:column;flex:1;min-width:0;justify-content:flex-end}
         .titles-container > * + *{margin-top:12px}
-
-        /* ===== 按钮组样式 ===== */
-        .btn-group-bar, .btn-group-bar * {
-            font-weight: 600; font-size: inherit;
+        .titles-container .btn-group-bar.publish-bar{margin-top:8}
+        .btn-group-bar:not(.publish-bar),.btn-group-bar:not(.publish-bar) *{font-weight:600;font-size:inherit}
+        .btn-group-bar:not(.publish-bar){width:100%;height:auto;display:flex;align-items:center;border-radius:16px;padding:7px;gap:10px;background:var(--publish-surface);border:1px solid var(--border-glass);box-shadow:0 14px 34px rgba(0,0,0,0.22),0 2px 6px rgba(0,0,0,0.06);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+        .btn-group-bar .btn1{flex:1;height:44px;border-radius:11px;background:linear-gradient(135deg,#7c3aed 0%,#6d28d9 100%);border:1px solid rgba(255,255,255,0.18);color:#ffffff;cursor:pointer;box-shadow:0 3px 10px rgba(109,40,217,0.3);transition:all .2s ease;white-space:nowrap;padding:0 14px}
+        .btn-group-bar .btn1:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 5px 14px rgba(109,40,217,0.42)}
+        .btn-group-bar .btn1:active{transform:translateY(0) scale(0.98)}
+        .btn-group-bar .btn1 svg{width:15px;height:15px;vertical-align:-2px;margin-right:6px}
+        .btn-group-bar .btn2-wrap{flex:4;height:44px;display:flex;align-items:center;position:relative;background:var(--input-bg-subtle);border:1px solid var(--input-border-subtle);border-radius:11px;overflow:hidden;transition:border-color .2s ease,box-shadow .2s ease}
+        .btn-group-bar .btn2-wrap:focus-within{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,0.22)}
+        .btn-group-bar .btn2-wrap input{flex:1;height:100%;border:none;outline:none;background:transparent;padding:0 14px;color:var(--input-text);font-size:13.5px;min-width:0}
+        .btn-group-bar .btn2-wrap input::placeholder{color:var(--input-placeholder)}
+        .btn-group-bar .btn2-wrap .send-btn{height:34px;margin-right:5px;padding:0 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#ffffff;cursor:pointer;white-space:nowrap;font-size:13px;box-shadow:0 2px 6px rgba(217,119,6,0.3);transition:all .2s ease}
+        .btn-group-bar .btn2-wrap .send-btn:hover{filter:brightness(1.1);transform:translateY(-0.5px)}
+        .btn-group-bar .btn2-wrap .send-btn:active{transform:scale(0.97)}
+        .btn-group-bar .btn3{flex:3;height:44px;border-radius:11px;background:rgba(255,255,255,0.9);border:1px solid rgba(124,58,237,0.2);color:#6d28d9;cursor:pointer;transition:all .2s ease;white-space:nowrap;padding:0 16px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+        html[data-preview-theme="dark"] .btn-group-bar .btn3{background:rgba(255,255,255,0.1);color:#e9d5ff;border-color:rgba(255,255,255,0.15)}
+        .btn-group-bar .btn3:hover{background:#ede9fe;transform:translateY(-1px)}
+        html[data-preview-theme="dark"] .btn-group-bar .btn3:hover{background:rgba(255,255,255,0.18)}
+        .btn-group-bar .btn3:active{transform:translateY(0) scale(0.98)}
+        .btn-group-bar.publish-bar{width:100%;height:auto;margin-top:16px;display:flex;flex-direction:column;align-items:stretch;background:var(--publish-surface);border:1px solid var(--border-glass);box-shadow:0 10px 28px rgba(0,0,0,0.18);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:14px;padding:10px 12px 10px 12px;gap:8px}
+        .btn-group-bar.publish-bar .publish-bar-desc{margin:0;font-size:12px;font-weight:500;line-height:1.4;color:var(--publish-text);opacity:0.82;text-shadow:0 1px 2px rgba(0,0,0,0.12)}
+        .btn-group-bar.publish-bar .publish-controls-row{display:flex;align-items:center;gap:8px;width:100%}
+        .btn-group-bar.publish-bar .btn-label.disable{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;background:var(--pub-tag-bg);color:var(--pub-tag-color);font-size:12.5px;font-weight:700;user-select:none;cursor:not-allowed;white-space:nowrap}
+        .btn-group-bar.publish-bar .row-expand{position:relative;flex:1;display:flex;align-items:center;height:40px;background:var(--input-bg-subtle);border:1px solid var(--input-border-subtle);border-radius:10px;padding:0 4px 0 12px;gap:4px;min-width:0;transition:border-color .2s ease,box-shadow .2s ease}
+        .btn-group-bar.publish-bar .row-expand:focus-within{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.22)}
+        .btn-group-bar.publish-bar .publish-url-input{flex:1;height:100%;border:none;outline:none;background:transparent;color:var(--input-text);font-size:13px;min-width:0;padding:0 4px 0 0}
+        .btn-group-bar.publish-bar .publish-url-input::placeholder{color:var(--input-placeholder);font-size:12.5px}
+        .btn-group-bar.publish-bar .inner-cancel-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:none;border-radius:50%;background:transparent;color:var(--pub-tag-color);cursor:pointer;transition:all .2s ease;opacity:0.6;padding:0;flex-shrink:0}
+        .btn-group-bar.publish-bar .inner-cancel-btn:hover{opacity:1;background:rgba(148,163,184,0.25);color:#ef4444}
+        .btn-group-bar.publish-bar .link-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border:none;border-radius:8px;background:rgba(99,102,241,0.12);color:#6366f1;cursor:pointer;transition:all .2s ease;padding:0}
+        html[data-preview-theme="dark"] .btn-group-bar.publish-bar .link-btn{background:rgba(255,255,255,0.1);color:#a5b4fc}
+        .btn-group-bar.publish-bar .link-btn:hover{background:rgba(99,102,241,0.24);color:#4f46e5;transform:translateY(-0.5px)}
+        html[data-preview-theme="dark"] .btn-group-bar.publish-bar .link-btn:hover{background:rgba(255,255,255,0.2);color:#ffffff}
+        .btn-group-bar.publish-bar .link-btn:active{transform:scale(0.96)}
+        .btn-group-bar.publish-bar .link-btn svg{width:15px;height:15px;stroke-width:2.2}
+        .btn-group-bar.publish-bar .icon-only.save-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border:none;border-radius:8px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#ffffff;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.35);transition:transform .15s ease,box-shadow .2s ease,filter .2s ease;padding:0}
+        .btn-group-bar.publish-bar .icon-only.save-btn:hover{filter:brightness(1.12);box-shadow:0 4px 12px rgba(99,102,241,0.48);transform:translateY(-0.5px)}
+        .btn-group-bar.publish-bar .icon-only.save-btn:active{transform:translateY(0) scale(0.96)}
+        .btn-group-bar.publish-bar .icon-only.save-btn svg{width:15px;height:15px;stroke-width:2.2}
+        .btn-group-bar.publish-bar .btn-label.has-dropdown{cursor:pointer;transition:background .18s ease,color .18s ease}
+        .btn-group-bar.publish-bar .btn-label.has-dropdown:hover{background:rgba(99,102,241,0.14);color:#4f46e5}
+        .btn-group-bar.publish-bar .btn-label.has-dropdown.open{background:rgba(99,102,241,0.2);color:#4f46e5}
+        .btn-group-bar.publish-bar .btn-label.has-dropdown .pub-chevron{transition:transform .2s ease}
+        .btn-group-bar.publish-bar .btn-label.has-dropdown.open .pub-chevron{transform:rotate(180deg)}
+        html[data-preview-theme="dark"] .btn-group-bar.publish-bar .btn-label.has-dropdown:hover,html[data-preview-theme="dark"] .btn-group-bar.publish-bar .btn-label.has-dropdown.open{background:rgba(255,255,255,0.14);color:#c7d2fe}
+        .pub-candidate-panel{position:fixed;z-index:9999;left:12px;top:12px;min-width:300px;display:flex;flex-direction:column;padding:6px;gap:3px;max-height:220px;overflow-y:auto;background:var(--publish-surface);border:1px solid var(--border-glass);border-radius:12px;box-shadow:0 18px 40px rgba(15,23,42,0.3);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:pubPanelIn .16s ease}
+        .pub-candidate-panel[hidden]{display:none}
+        @keyframes pubPanelIn{from{opacity:0;transform:translateY(-4px) scale(0.985)}
+        to{opacity:1;transform:none}
         }
-        /* 容器：flex 2:3:5 */
-        .btn-group-bar {
-            width: 100%; display: flex; border-radius: 50px; overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,.35); height: 58px;
-        }
-        .btn-group-bar .btn1 { flex: 2; background: #764ba2; border: none; transition: background .2s; }
-        .btn-group-bar .btn1:hover { background: #5c3680; }
-        .btn-group-bar .btn2-wrap {
-            flex: 3; display: flex; border-left: 1px solid rgba(255,255,255,.15); border-right: 1px solid rgba(255,255,255,.835);
-        }
-        .btn-group-bar .btn2-wrap input {
-            flex: 2; border: none; outline: none; background: rgba(241,142,12,.235); padding: 0 14px;
-        }
-        .btn-group-bar .btn2-wrap input::placeholder { color: rgba(0,0,0,.45); }
-        .btn-group-bar .btn2-wrap .send-btn {
-            flex: 2; border: none; border-left: 1px solid rgba(255,255,255,.15); background: rgba(241,142,12,.507);
-            cursor: pointer; transition: background .2s;
-        }
-        .btn-group-bar .btn2-wrap .send-btn:hover { background: rgba(255,255,255,.3); }
-        .btn-group-bar .btn3 {
-            flex: 4; border: none; background: white; color: #764ba2; cursor: pointer; transition: background .2s;
-        }
-        .btn-group-bar .btn3:hover { background: #f0e6fa; }
+        .pub-candidate-panel .pub-candidate-item{width:100%;display:block;text-align:left;border:none;border-radius:8px;background:transparent;color:var(--input-text);font-size:12.5px;padding:8px 10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s ease,color .15s ease,transform .15s ease}
+        .pub-candidate-panel .pub-candidate-item:hover{background:rgba(99,102,241,0.14);color:#4f46e5;transform:translateX(2px)}
+        .pub-candidate-panel .pub-candidate-item.selected{background:rgba(99,102,241,0.18);color:#4f46e5;font-weight:700}
+        html[data-preview-theme="dark"] .pub-candidate-panel .pub-candidate-item:hover,html[data-preview-theme="dark"] .pub-candidate-panel .pub-candidate-item.selected{background:rgba(255,255,255,0.14);color:#c7d2fe}
 
     </style>
 </head>
 <body>
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="../GUI/src/preview_format/widget/publish_bar.js"></script>
+<header class="page-header">
+    <h2 class="page-title">域名管理</h2>
+</header>
 <div class="content-wrapper">
 
     <div class="title-image-row">
         <div class="titles-container">
-            <h2 class="page-title">CGS 域名管理，按动图手动处理下</h2>
-            <h5 class="page-title">选中多少个域名就测多少个<br>⚠️若要针对域名发问，先考虑清楚并排查你的网络究竟有没问题</h5>
-            <p class="page-title">方法2️⃣：下方输入域名点"输入检测"</p>
-            <p class="page-title">常态3️⃣：缓存可能有效，先测下本地缓存即可</p>
-            <p class="page-title">📢论外：此处进不去发布页的话，<br>用自己浏览器打开 publish_url 选个域名测好再回来输入检测</p>
+            <div class="titles-text-block">
+                <h5 class="page-title">⚠️若要针对域名发问，先考虑清楚并排查你的网络究竟有没问题</h5>
+                <p class="page-title">方法1️⃣：按动图手动处理下，选中多少个域名就测多少个</p>
+                <p class="page-title">方法2️⃣：下方"输入域名"后点"域名检测"</p>
+                <p class="page-title">常态3️⃣：缓存可能有效，先测下本地缓存即可</p>
+            </div>
+
+            <!-- 置于 titles-container 最底部的发布页工具条 -->
+            <div class="btn-group-bar publish-bar" data-publish-candidates='__publish_candidates_json__'>
+                <p class="publish-bar-desc">简易发布页管理：已预填，按钮组最右点击用本地浏览器打开</p>
+                <div class="publish-controls-row">  
+                <span class="btn-label disable" title="预设模块"></span>
+                <!-- 仿照 btn2-wrap，将输入框、清除、打开与保存整合包裹 -->
+                <div class="row-expand">
+                    <input type="text" class="publish-url-input" placeholder="✏️ 输入自定义发布页地址，优先于程序默认..." value="__user_publish_addr__">
+
+                    <button class="inner-cancel-btn" type="button" title="清除内容"></button>
+                    <button class="icon-only save-btn" type="button" title="保存并开始检测"></button>
+                    <button class="link-btn" type="button" title="直接访问发布页地址"></button>
+                </div></div>
+            </div>
         </div>
+
         <div class="image-container">
             <img src="https://img.comicguispider.nyc.mn/file/1765221404809_publisher.gif" alt="发布页面操作指引">
         </div>
     </div>
 
+    <!-- 底部主操作栏 (模块化微交互排布) -->
     <div class="btn-group-bar">
-        <button class="btn1" type="button">🚩 检测本地缓存</button>
+        <button class="btn1" type="button">检测本地缓存</button>
         <div class="btn2-wrap">
             <input type="text" placeholder="✏️ 输入域名...">
-            <button class="send-btn" type="button">✏️ 输入检测</button>
+            <button class="send-btn" type="button">域名检测</button>
         </div>
         <button class="btn3" type="button" onclick="openPublishPage()">
             🔗 打开发布页面
         </button>
     </div>
+
 </div>
 <script>
     var bridge = null;
-    function openPublishPage() {window.location.href = "publish_url";}
+    function openPublishPage() {
+        var u = document.querySelector(".publish-url-input").value.trim();
+        window.location.href = u;
+    }
+    /**
+     * 通过 Qt WebChannel 反向调用，让 Qt 侧用本机浏览器打开发布页地址。
+     * @param {string} url - 发布页地址（来自 publish-url-input）
+     */
+    function publishAccess(url) {
+        if (bridge && typeof bridge.publishAccess === "function") {
+            bridge.publishAccess(url);
+        }
+    }
 
     document.addEventListener("DOMContentLoaded", function () {
         if (window.qt && window.qt.webChannelTransport) {
@@ -96,12 +150,35 @@
                 bridge = channel.objects.bridge || null;
             });
         }
+
+        // 1. 主操作栏点击事件
         document.querySelector(".btn1").addEventListener("click", function () {
             if (bridge) bridge.tpd("__cached_domain__");
         });
         document.querySelector(".send-btn").addEventListener("click", function () {
             var text = document.querySelector(".btn2-wrap input").value.trim();
             if (bridge && text) bridge.tpd(text);
+        });
+
+        // 2. 发布页操作组事件
+        var pubInput = document.querySelector(".publish-url-input");
+
+        // 保存并检测
+        document.querySelector(".save-btn").addEventListener("click", function () {
+            var text = pubInput.value.trim();
+            if (bridge && text) bridge.tpp(text);
+        });
+
+        // 清空输入并清除用户设置
+        document.querySelector(".inner-cancel-btn").addEventListener("click", function () {
+            pubInput.value = "";
+            if (bridge) bridge.tpp("");
+        });
+
+        // 点击 link-btn 以本机浏览器打开发布页地址
+        document.querySelector(".link-btn").addEventListener("click", function () {
+            var text = pubInput.value.trim();
+            publishAccess(text);
         });
     });
 </script>
