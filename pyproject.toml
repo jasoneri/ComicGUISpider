@@ -52,12 +52,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-[project.optional-dependencies]
-script = [
-    "redis",
-    "pandas",
-]
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

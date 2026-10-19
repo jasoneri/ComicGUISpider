@@ -1,5 +1,4 @@
 # ruff: noqa: E402
-import contextlib
 import sys
 import pathlib
 import os
@@ -617,10 +616,8 @@ class ScriptWindow(ScriptWindowBase):
         self.script_entry_state = script_entry_state or {}
         if OFFSCREEN_FLUENT_FALLBACK:
             self._setup_offscreen_shell()
-        self._script_entry_specs: list[tuple[str, bool]] = []
         self._mounted_keys: set[str] = set()
         self._deferred_nav_keys: set[str] = set()
-        self._nav_meta: dict[str, tuple] = {}
         self._fluent_stack_hooked = False
         self._feedback_dispatcher = feedback_dispatcher
         self._exception_feedback_scope = None
@@ -651,20 +648,18 @@ class ScriptWindow(ScriptWindowBase):
 
     def initNavigation(self):
         entries = (
-            ("danbooru", "danbooru_visible", ":/script/danbooru.svg", "Danbooru", NavigationItemPosition.TOP, False),
+            ("danbooru", "danbooru_visible", ":/script/danbooru.svg", "Danbooru", NavigationItemPosition.TOP),
             *(
-                (descriptor.slug, descriptor.visibility_key, descriptor.icon, descriptor.display_name, NavigationItemPosition.TOP, False)
+                (descriptor.slug, descriptor.visibility_key, descriptor.icon, descriptor.display_name, NavigationItemPosition.TOP)
                 for descriptor in SCRIPT_ENTRY_DESCRIPTORS
             ),
-            ("cbg", "cbg_visible", ":/script/cbg.svg", "Cbg", NavigationItemPosition.TOP, True),
-            ("jsoneri", "jsoneri_palaces_probe_visible", FIF.CLOUD, "jsoneriPalacesProbe", NavigationItemPosition.TOP, True),
+            ("cbg", "cbg_visible", ":/script/cbg.svg", "Cbg", NavigationItemPosition.TOP),
+            ("jsoneri", "jsoneri_palaces_probe_visible", FIF.CLOUD, "jsoneriPalacesProbe", NavigationItemPosition.TOP),
         )
         first_key = None
-        for key, visibility_key, icon, text, position, show_in_pure_mode in entries:
+        for key, visibility_key, icon, text, position in entries:
             if not self._script_entry_visible(visibility_key):
                 continue
-            self._script_entry_specs.append((key, show_in_pure_mode))
-            self._nav_meta[key] = (icon, text, position)
             if first_key is None:
                 first_key = key
                 interface = self._construct_interface(key)
@@ -674,8 +669,6 @@ class ScriptWindow(ScriptWindowBase):
 
         if self._script_entry_visible("settings_visible"):
             self.navigationInterface.addSeparator()
-            self._script_entry_specs.append(("settings", True))
-            self._nav_meta["settings"] = (FIF.SETTING, "Settings", NavigationItemPosition.BOTTOM)
             if first_key is None:
                 interface = self._construct_interface("settings")
                 self._register_nav_entry(
@@ -822,29 +815,14 @@ class ScriptWindow(ScriptWindowBase):
     def _script_entry_visible(self, visibility_key: str) -> bool:
         return bool(self.script_entry_state.get(visibility_key, True))
 
-    def apply_pure_entry_mode(self):
-        """Hide non-pure nav routes. Never delete mounted real interfaces."""
-        for key, show_in_pure_mode in self._script_entry_specs:
-            if show_in_pure_mode:
-                continue
-            if OFFSCREEN_FLUENT_FALLBACK:
-                button = self._offscreen_nav_buttons.get(key)
-                if button is not None:
-                    button.hide()
-            else:
-                with contextlib.suppress(Exception):
-                    self.navigationInterface.removeWidget(self._route_key_for(key))
-        self._ensure_and_switch("cbg")
-
     def addSubInterface(self, interface, icon, text, position=NavigationItemPosition.TOP):
-        """Prefer _register_nav_entry / _ensure_and_switch. Kept for rare direct callers."""
+        """弃用：零调用者（导航统一走 _register_nav_entry）；删除时机待定。"""
         route_key = interface.objectName()
         key = next((entry_key for entry_key, name in self._ROUTE_KEYS.items() if name == route_key), None)
         if key is None:
             if OFFSCREEN_FLUENT_FALLBACK:
                 raise ValueError(f"offscreen ScriptWindow cannot add unknown interface {route_key!r}")
             return super().addSubInterface(interface, icon, text, position)
-        self._nav_meta[key] = (icon, text, position)
         if key not in self._mounted_keys:
             setattr(self, self._attr_name_for_key(key), interface)
             self._mounted_keys.add(key)

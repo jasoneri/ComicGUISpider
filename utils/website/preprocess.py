@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import importlib.util
 import os
 from pathlib import Path
 import socket
@@ -538,11 +537,11 @@ def _format_script_service_warning(script_entry_state: ScriptEntryState) -> str:
     script_res = res.GUI.Script
     missing_services = "、".join(script_entry_state.service_status.missing_services)
     hidden_entries = "、".join(script_entry_state.hidden_entries)
+    # 竖版工作区窗每行仅容 ~29 汉字（InfoBar 按 parent 宽定换行）：压两行——
+    # 首行内容+秒数、次行缺服务+受影响入口，避免折成高卡片盖住内容区。
     return (
-        f"{script_res.service_check_failed_content}"
-        f"<br>缺少服务：{missing_services}"
-        f"<br>受影响入口：{hidden_entries}"
-        f"<br>{SCRIPT_SERVICE_WARNING_DELAY_MS // 1000} 秒后将打开可用入口。"
+        f"{script_res.service_check_failed_content}（{SCRIPT_SERVICE_WARNING_DELAY_MS // 1000} 秒后打开可用入口）"
+        f"<br>缺少服务：{missing_services}｜受影响入口：{hidden_entries}"
     )
 
 
@@ -559,8 +558,6 @@ async def _preprocess_script(
     script_res = res.GUI.Script
     service_status = _check_script_services(progress_callback=progress_callback)
     script_entry_state = ScriptEntryState(service_status=service_status)
-    dependencies_result = _check_script_dependencies()
-    dependencies_ready = dependencies_result is True
 
     messages: list[dict[str, t.Any]] = []
     open_delay_ms = 0
@@ -568,7 +565,6 @@ async def _preprocess_script(
         "services_ready": service_status.all_required_services_running,
         "service_status": service_status.to_payload(),
         "missing_services": service_status.missing_services,
-        "dependencies_ready": dependencies_ready,
     }
 
     if service_status.all_required_services_running:
@@ -580,15 +576,6 @@ async def _preprocess_script(
             url=f"{CGS_DOC}/script", url_name=script_res.guide_name, duration=SCRIPT_SERVICE_WARNING_DELAY_MS,
         )
         messages.append(service_fail_message)
-
-    if not dependencies_ready:
-        missing = tuple(t.cast(list[str], dependencies_result))
-        dependency_fail_message = _message(
-            "warning", script_res.dependency_check_failed_content, channel="custom", title=script_res.dependency_check_failed_title,
-            url=f"{CGS_DOC}/script", url_name=script_res.guide_name, duration=SCRIPT_SERVICE_WARNING_DELAY_MS,
-        )
-        messages.append(dependency_fail_message)
-        state_flags["missing_dependencies"] = missing
 
     descriptor = script_entry_state._descriptor
     if script_entry_state.should_check_data:
@@ -664,11 +651,3 @@ def _check_script_services(*, progress_callback=None) -> ScriptServiceStatus:
         )
         return ScriptServiceStatus(aria2_ready=False, redis_server_running=redis_server_running)
 
-
-def _check_script_dependencies() -> bool | list[str]:
-    missing = [
-        package
-        for package in ("redis", "pandas")
-        if importlib.util.find_spec(package) is None
-    ]
-    return True if not missing else missing

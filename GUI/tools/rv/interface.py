@@ -49,7 +49,7 @@ class RvShowMaxTable(QWidget):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.rvInterface = parent
-        self.gui = parent.toolWin.gui
+        self.gui = parent.gui
         layout = VBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.set_table(data)
@@ -165,7 +165,7 @@ class RvShowMaxTable(QWidget):
                 duration=2000, parent=self.gui.showArea)
         QTimer.singleShot(10, do)
         # 发去搜索后收起工作区窗口。
-        self.rvInterface.toolWin.close()
+        self.rvInterface.host_window.close()
 
 
 class RvInterface(QWidget):
@@ -173,11 +173,11 @@ class RvInterface(QWidget):
 
     infobar_pos = InfoBarPosition.BOTTOM_LEFT
 
-    def __init__(self, gui, parent=None, *, toolWin=None):
+    def __init__(self, gui, parent=None, *, host_window=None):
         super().__init__(parent)
         self.gui = gui
-        # 宿主窗口实例自带 .gui，表经 parent.toolWin.gui 取 gui。
-        self.toolWin = toolWin or parent
+        # 动作后关窗的宿主窗口（ToolWorkspaceWindow）。
+        self.host_window = host_window or parent
         self.table_fv = None        # 常驻表：懒构造，进页/首次触发才建
         self._table_source = None   # 建表所用的 bsm 字典，失效比对用
         self.setObjectName("rvInterface")

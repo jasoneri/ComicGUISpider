@@ -10,7 +10,7 @@ from .components import *
 
 __all__ = [
     'MonkeyPatch',
-    'CustomFlyout', 'CustomInfoBar', 'TableFlyoutView',
+    'CustomFlyout', 'CustomInfoBar',
     'CgsIcon',
 ]
 

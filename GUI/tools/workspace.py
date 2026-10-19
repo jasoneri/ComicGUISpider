@@ -94,9 +94,9 @@ class ToolWorkspaceWindow(FramelessWindow):
             self.gui, self.stackedWidget, store=store, share_api_factory=share_api_factory, worker_client_factory=worker_client_factory)
         self.webdav_interface = WebdavInterface(self.gui, self.stackedWidget)
         self.webdav_interface.setObjectName("webdavInterface")
-        self.rv_interface = RvInterface(self.gui, self.stackedWidget, toolWin=self)
+        self.rv_interface = RvInterface(self.gui, self.stackedWidget, host_window=self)
         # addons 页常驻：页壳无 DB/扫描不吃启动，cell 懒构造在页内（首次 show 才建）。
-        self.addons_interface = AddonsInterface(self.gui, self.stackedWidget, toolWin=self)
+        self.addons_interface = AddonsInterface(self.gui, self.stackedWidget, host_window=self)
         for page, title in (
             (self.subscribe_interface, "订阅"),
             (self.webdav_interface, "webdav"),
@@ -134,6 +134,14 @@ class ToolWorkspaceWindow(FramelessWindow):
         self.stackedWidget.addWidget(page)
         self.pivot.insertItem(index, routeKey=route_key, text=title,
             onClick=lambda _checked=False, widget=page: self.stackedWidget.setCurrentWidget(widget))
+
+    def infobar_surface(self):
+        """本窗的提示承载面：当前 interface（见 async_task.resolve_infobar_host）。
+
+        落点须为子 frame 而非窗本身——InfoBar 按 parent 的 rect 定位、按 parent().width()
+        定换行，挂窗上会压住 pivot 头；挂当前页则与页内提示（如 addons 页 parent=self）同源。
+        """
+        return self.stackedWidget.currentWidget()
 
     def show_page(self, route_key: str) -> None:
         """显示子页统一入口：常驻页（rv / 订阅 / WebDAV）与懒挂载页（aggrSearch / hitomiTool / midTool）。
@@ -184,9 +192,8 @@ class ToolWorkspaceWindow(FramelessWindow):
         if self.as_interface is not None:
             return
         from GUI.tools.ags import AggrSearchView
-        self.as_interface = AggrSearchView(self.gui)
+        self.as_interface = AggrSearchView(self.gui, host_window=self)
         self.as_interface.setObjectName("asInterface")
-        self.as_interface.host_window = self
         # aggrSearch 页自带 9px 内缩，挂进本窗时归零，与其他页对齐。
         self.as_interface.main_layout.setContentsMargins(0, 0, 0, 0)
         self._add_pivot_page(self.as_interface, "aggrSearch")
@@ -201,7 +208,7 @@ class ToolWorkspaceWindow(FramelessWindow):
         if not HITOMI_DB_PATH.exists():
             return False
         from GUI.tools.hitomi.interface import HitomiInterface
-        self.hitomi_interface = HitomiInterface(self.gui, self.stackedWidget, toolWin=self)
+        self.hitomi_interface = HitomiInterface(self.gui, self.stackedWidget, host_window=self)
         self._add_pivot_page(self.hitomi_interface, "hitomiTool")
         return True
 

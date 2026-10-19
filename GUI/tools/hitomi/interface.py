@@ -11,6 +11,7 @@ sqlite 连接随页面 closeEvent 关闭，由宿主调 ``dispose()``。
 """
 from __future__ import annotations
 
+import sqlite3
 import urllib.parse as up
 from contextlib import closing
 
@@ -18,6 +19,7 @@ from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QButtonGroup,
     QFrame,
     QHBoxLayout,
@@ -50,7 +52,12 @@ from qfluentwidgets import (
 
 from assets import res
 from GUI.core.timer import safe_single_shot
-from GUI.tools.hitomi_tool import HitomiTools
+from utils import conf
+from utils.website.preprocess import site_db_path
+from variables import DEFAULT_COMPLETER, Spider
+
+# 与 workspace 挂页门同源（utils.website.preprocess.site_db_path 为路径单一事实源）。
+HITOMI_DB_PATH = site_db_path("hitomi")
 
 _LETTERS = ('123', *[chr(i) for i in range(97, 123)])
 _LANGUAGES = (
@@ -143,17 +150,26 @@ class _ElidedLabel(SubtitleLabel):
         return QSize(0, hint.height())
 
 
-class HitomiInterface(HitomiTools):
+class HitomiInterface(QWidget):
     """hitomiTool pivot 页（objectName ``htInterface``）。"""
 
-    def __init__(self, gui, parent=None, *, toolWin=None):
-        # 必须先于 super().__init__：父类 __init__ 内的 init_ui → set_globe_menu /
-        # update_entries 链路在 super 阶段就会读 _selected_tag。
+    def __init__(self, gui, parent=None, *, host_window=None):
+        super().__init__(parent)
+        self.gui = gui
+        # 必须先于 init_ui：init_ui → set_globe_menu / update_entries 链路在构造阶段就会读 _selected_tag。
         self._selected_tag = ""
-        super().__init__(gui)
+        self.removed_flag = False
+        self.category_type_flag = False
+        self.order_flag = False
+        self.tmp_map = {}
+        self.output_mgr = self.OutputMgr(self)
+        self.conn = sqlite3.connect(HITOMI_DB_PATH)
         self.setObjectName("htInterface")
         # 动作后关窗宿主：send 完关闭工作区壳。
-        self.toolWin = toolWin or parent
+        self.host_window = host_window or parent
+        self.init_ui()
+        self.set_dataset()
+        self.update_entries()
 
     # ------------------------------------------------------------------ ui
 
@@ -441,7 +457,29 @@ class HitomiInterface(HitomiTools):
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM,
             duration=4000, parent=self.gui.showArea
         )
-        safe_single_shot(100, self.toolWin.close)
+        safe_single_shot(100, self.host_window.close)
+
+    def copy_path(self):
+        QApplication.clipboard().setText(self.output.text())
+        InfoBar.success(
+            title='', content=res.GUI.Tools.hitomi_info_copied,
+            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+            duration=4000, parent=self
+        )
+
+    def save(self):
+        """把当前输出路径写进 hitomi 站点的补全预设（置顶去重后落盘）。"""
+        hitomi_completer = conf.completer.get(Spider.HITOMI, DEFAULT_COMPLETER.get(Spider.HITOMI))
+        if self.output_mgr.actual in hitomi_completer:
+            hitomi_completer.remove(self.output_mgr.actual)
+        hitomi_completer.insert(0, self.output_mgr.actual)
+        conf.completer[Spider.HITOMI] = hitomi_completer
+        conf.update()
+        InfoBar.success(
+            title='', content=res.GUI.Tools.hitomi_info_sved,
+            orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
+            duration=4000, parent=self
+        )
 
     def set_globe_menu(self):
         self.globe_menu.clear()

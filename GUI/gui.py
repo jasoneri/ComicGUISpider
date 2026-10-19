@@ -48,7 +48,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
     # worker threads does not reliably schedule on the GUI thread).
     online_favorites_ready = Signal(str, int, object)  # provider_name, site_index, books
     BrowserWindow = None  # CGS001 browser init/show flow
-    toolWin = None
     toolWorkspaceWindow = None
     conf_dia = None  # CGS006: construct on demand (P4)
     web_is_r18 = False
@@ -74,7 +73,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._closing = False
         self.script_window = None
         self.timeline_tip_mgr = None
-        self._pending_rv_sauce_visible = False  # CGS006: apply when toolWin is ensured
+        self._pending_rv_sauce_visible = False  # CGS006: 工作区窗建窗时应用（addonsInterface.sauceCell）
         self._pending_tool_pages: set[str] = set()
         self._conf_accept_bound = False
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
@@ -168,7 +167,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.warmup_thread.start()
 
     def generation_bind(self):
-        # CGS006 P2: interactive-minimum only — ConfDialog/ToolWindow are P4.
+        # CGS006 P2: interactive-minimum only — ConfDialog/ToolWorkspaceWindow are P4.
         from utils.sql.download_state import DownloadStateStore
         from GUI.tools.chore import TextUtils
         from GUI.manager.clip import ClipGUIManager
@@ -211,7 +210,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.search_ui_state = SearchUiState()
         self.btn_logic_bind()
         self.set_shortcut()
-        self.set_tool_win()
 
         self.preprocess_mgr = PreprocessManager(self)
         _safe_disconnect(self.chooseBox.currentIndexChanged, self._chooseBox_changed_handle)
@@ -232,13 +230,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 update_notifier.refresh_badges()
         return self.conf_dia
 
-    def ensure_tool_win(self):
-        """CGS006 P4: build ToolWindow on first tool open / rv sauce need."""
-        if self.toolWin is None:
-            from GUI.tools import ToolWindow
-            self.toolWin = ToolWindow(self)
-        return self.toolWin
-
     def ensure_toolWorkspaceWindow(self):
         window = getattr(self, "toolWorkspaceWindow", None)
         if window is not None:
@@ -250,6 +241,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.toolWorkspaceWindow.ensure_pending_pages(self._pending_tool_pages)
         self.toolWorkspaceWindow.destroyed.connect(lambda *_args: setattr(self, "toolWorkspaceWindow", None))
         return self.toolWorkspaceWindow
+
+    def infobar_surface(self):
+        """本窗的提示承载面：内容区 showArea（见 async_task.resolve_infobar_host）。"""
+        return self.showArea
 
     def request_tool_page(self, page_key: str) -> None:
         """登记工具页挂载意图：窗已存在则立刻挂页，否则等首次建窗补挂。"""
@@ -410,7 +405,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 _safe_disconnect(shortcut.activated)
             shortcut.activated.connect(slot)
 
-    def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
+    def open_scriptWin(self, *, script_entry_state: dict | None = None):
+        """scriptWin 唯一入口：由 PreprocessManager 的 script 入口流（acggrCell）调用。"""
         from GUI.script import ScriptWindow
         from utils.script.entry_descriptor import SCRIPT_ENTRY_DESCRIPTORS
         # 工具页都在工作区窗内，开 ScriptWindow 前先收起它。
@@ -425,8 +421,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             feedback_dispatcher=self.exception_feedback_dispatcher,
         )
         self.script_window.destroyed.connect(lambda *_args: setattr(self, "script_window", None))
-        if pure_only:
-            self.script_window.apply_pure_entry_mode()
         for descriptor in SCRIPT_ENTRY_DESCRIPTORS:
             interface = getattr(self.script_window, descriptor.attr_name, None)
             if interface is not None:
@@ -467,8 +461,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             blockers.append("preview/search")
         blockers.extend(self.preprocess_mgr.server_mode_switch_blockers())
         blockers.extend(self.shares.server_mode_switch_blockers())
-        if self.toolWin is not None:
-            blockers.extend(self.toolWin.server_mode_switch_blockers())
         tool_workspace_window = getattr(self, "toolWorkspaceWindow", None)
         if tool_workspace_window is not None:
             blockers.extend(tool_workspace_window.server_mode_switch_blockers())
@@ -478,11 +470,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         blockers.extend(self.clip_mgr.server_mode_switch_blockers())
         blockers.extend(self.ags_mgr.server_mode_switch_blockers())
         return list(dict.fromkeys(blockers))
-
-    def set_tool_win(self):
-        # rvBtn 直开工作区窗的 rvTool 页；toolWin 仅由 ensure_tool_win 在脚本/预处理链路按需构建。
-        self.toolWin = None
-        self.rvBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("rvInterface"))
 
     def _set_search_context_menu(self):
         def show_preset_completer():
@@ -638,6 +625,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.confBtn.clicked.connect(lambda: self.ensure_conf_dialog().show_self())
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
+        self.rvBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("rvInterface"))
         self.aggrBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("asInterface"))
         self.htBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("htInterface"))
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
@@ -933,8 +921,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self._closing = True
         if self.script_window is not None:
             self.script_window.close()
-        if self.toolWin is not None:
-            self.toolWin.close()
         self.toolWorkspaceWindow = None
         if hasattr(self, 'rv_mgr'):
             self.rv_mgr.stop_scan()

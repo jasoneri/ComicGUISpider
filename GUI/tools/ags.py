@@ -114,7 +114,7 @@ class PicMgr:
 
     def _calculate_image_size(self, pixmap: QPixmap) -> QSize:
         # 基准 = 左侧按钮组四组总高（file/clip/methodSplit/extend 的 sizeHint 合计），
-        # 不再取 tool_window.height()——竖版高窗下窗高比例会失控。
+        # 不按窗高比例——竖版高窗下窗高比例会失控。
         base_height = self.view.inputBtnLayout.sizeHint().height()
         if hasattr(self.display_cfg, "height_ratio"):
             height_ratio = self.display_cfg.height_ratio
@@ -269,9 +269,11 @@ class AgsFromClipLayout(QHBoxLayout):
 
 
 class AggrSearchView(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, host_window=None):
         QWidget.__init__(self)
         self.gui = parent
+        # 动作后关窗的宿主窗口（ToolWorkspaceWindow），由挂页方注入。
+        self.host_window = host_window
         self.pic_mgr = PicMgr(self)
         self.init_ui()
 
@@ -396,5 +398,4 @@ class AggrSearchView(QWidget):
         print(selected_items)
         self.gui.ags_mgr.extractor = self.fileLayout.extractor  # 传递 extractor 引用给 manager
         self.gui.ags_mgr.run(selected_items)
-        # 关窗宿主由挂页方注入（workspace.ensure_ags_page 设 host_window）。
-        (getattr(self, "host_window", None) or self.gui.toolWin).close()
+        self.host_window.close()

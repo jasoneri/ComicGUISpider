@@ -32,6 +32,8 @@ BTN_DANGER_HOVER = #E57373;
 BTN_DANGER_PRESSED = #E89292;
 BTN_DANGER_BORDER = #D24F4F;
 BTN_DANGER_BORDER_BOTTOM = #B03F3F;
+LOGIC_CELL_RETICLE = rgba(24, 24, 27, 0.86);
+LOGIC_CELL_RETICLE_HALO = rgba(255, 255, 255, 0.72);
 /* @endtokens */
 
 /* 夜间锚点 = SpiderGUI 原生 Dark QPalette.Window (53,53,53)。层级沿用 tray.qss 的亲和中性阶：
@@ -69,6 +71,8 @@ BTN_DANGER_HOVER = #E57373;
 BTN_DANGER_PRESSED = #E89292;
 BTN_DANGER_BORDER = #D24F4F;
 BTN_DANGER_BORDER_BOTTOM = #B03F3F;
+LOGIC_CELL_RETICLE = rgba(250, 250, 250, 0.90);
+LOGIC_CELL_RETICLE_HALO = rgba(0, 0, 0, 0.58);
 /* @endtokens */
 
 /* @section variant */
@@ -343,6 +347,12 @@ QFrame#AddonsCell {
     background: ${CARD_BG};
     border: 1px solid ${CARD_BORDER};
     border-radius: 10px;
+}
+/* 内置逻辑 cell（BuiltinLogicCell）：无卡片底、无边框、全透明——格界由取景框边角
+   （_ReticleOverlay 的 QPainter 绘制）给出，不再是闭合矩形。 */
+QFrame#AddonsLogicCell {
+    background: transparent;
+    border: none;
 }
 QScrollArea#AddonsGridScroll,
 QScrollArea#AddonsGridScroll > QWidget > QWidget {

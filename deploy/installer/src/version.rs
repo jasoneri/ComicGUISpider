@@ -12,6 +12,9 @@ pub fn normalize_version(version: &str) -> (String, bool) {
 pub fn build_install_args(
     version: &str,
     index_url: &str,
+    // Discarded: the `[script]` extra was dropped from pyproject.toml (redis/pandas
+    // became main dependencies), so both branches resolve to the same package.
+    // Kept so older launchers that still pass `--script` keep working.
     script: bool,
     uv_args: &[String],
 ) -> Vec<String> {

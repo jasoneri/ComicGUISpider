@@ -226,12 +226,10 @@ class Updater:
 
 
 class _UpdateLauncher:
-    def __init__(self, ver: str, script: bool = False, installer_manifest: dict | None = None):
+    def __init__(self, ver: str, installer_manifest: dict | None = None):
         self.ver = ver
-        self.script = script
         self.installer_manifest = installer_manifest or {}
-        pkg = "ComicGUISpider[script]" if script else "ComicGUISpider"
-        self.install_spec = f"{pkg}=={ver}"
+        self.install_spec = f"ComicGUISpider=={ver}"
         self.index_url = PYPI_SOURCE[conf.pypi_source]
         self.log_path = exc_p / "cgs_update.log"
         self.installer_exe = exc_p / "runtime" / "installer.exe"
@@ -254,8 +252,6 @@ class _UpdateLauncher:
             "--index-url", self.index_url,
             "--parent-pid", str(os.getpid()),
         ]
-        if self.script:
-            args.append("--script")
         for key in ("UV_TOOL_DIR", "UV_TOOL_BIN_DIR"):
             value = os.environ.get(key)
             if value:
