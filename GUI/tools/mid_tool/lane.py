@@ -235,6 +235,11 @@ class LaneButtonGroup(QWidget):
 class LaneNode:
     """Lane 节点封装类 - 管理单个 Lane 的所有 UI 组件"""
 
+    # 设计宽（有富余时 lane 取到此宽）与不坍塌下限：5 个 lane 的合宽 = 5×64 = 320 即画布最小宽，
+    # 规则库再 expanding 也吃不掉它；660 窗下 320 + 面板 300 = 620 ≤ 632 视口，整页不横向滚动。
+    SVG_MAX_WIDTH = 100
+    SVG_MIN_WIDTH = 64
+
     def __init__(self, config: LaneConfig, parent: QWidget):
         self.config = config
         self._scheme: LaneColorScheme = None
@@ -243,7 +248,9 @@ class LaneNode:
 
         display = config.display
         self.node_widget = SvgWidget(node_type=display.node_type, parent=parent)
-        self.node_widget.setFixedWidth(100)
+        # 宽度有上下限（不再定宽）：flow 节点仍锚画布左下角，且窄窗下不被压塌。
+        self.node_widget.setMinimumWidth(self.SVG_MIN_WIDTH)
+        self.node_widget.setMaximumWidth(self.SVG_MAX_WIDTH)
         self.node_widget.setFixedHeight(80)
         self.node_widget.set_labels(*display.labels)
 

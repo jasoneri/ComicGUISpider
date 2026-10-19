@@ -27,6 +27,7 @@ from qfluentwidgets import (
     PrimaryPushButton,
     PushButton,
     RoundMenu,
+    ScrollArea,
     StrongBodyLabel,
     TeachingTipTailPosition,
     TimePicker,
@@ -85,8 +86,22 @@ class SubscribeSidePanel(QFrame):
         self.setFixedWidth(300)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         panel_layout = QVBoxLayout(self)
-        panel_layout.setContentsMargins(10, 10, 10, 10)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(0)
+        # 轨道滚动化：面板内容最小高（599 级）不再顶高整页。否则 QStackedWidget 取四页最大
+        # 最小值把订阅页撑到 665，窗口缩到最小高度（viewport 625）时外层 ScrollArea 的
+        # overlay 滚动条出现，且与 rv 表格同缘滚动条重叠（实测都在 x=633..645），表格条不可用。
+        self.rail_scroll = ScrollArea(self)
+        self.rail_scroll.setObjectName("SubscribeSideRailScroll")
+        self.rail_scroll.setWidgetResizable(True)
+        self.rail_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.rail_host = QWidget(self.rail_scroll)
+        self.rail_host.setObjectName("SubscribeSideRailHost")
+        self.rail_scroll.setWidget(self.rail_host)
+        rail_layout = QVBoxLayout(self.rail_host)
+        rail_layout.setContentsMargins(0, 0, 0, 0)
+        rail_layout.setSpacing(10)
+        panel_layout.addWidget(self.rail_scroll, 1)
 
         # ========== CardConfFrame (TOP of SidePanel — QSS section) ==========
         self.card_conf_frame = QFrame(self)
@@ -174,7 +189,7 @@ class SubscribeSidePanel(QFrame):
         card_reset_row.addWidget(self.card_reset_check_btn)
         card_conf_layout.addLayout(card_reset_row)
 
-        panel_layout.addWidget(self.card_conf_frame, 0)
+        rail_layout.addWidget(self.card_conf_frame, 0)
 
         # ========== GlobalFrame (fills rest; owns save at bottom) ==========
         self.global_frame = QFrame(self)
@@ -353,7 +368,7 @@ class SubscribeSidePanel(QFrame):
         if save_index >= 0:
             global_layout.setStretch(save_index, 0)
 
-        panel_layout.addWidget(self.global_frame, 1)
+        rail_layout.addWidget(self.global_frame, 1)
 
         self._side_dirty = False
         self._reload_profile_combo()

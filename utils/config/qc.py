@@ -39,6 +39,8 @@ class CgsConfig(QConfig):
     publishUrls = ConfigItem("Publish", "Urls", {}, restart=False)
     webdavConf = ConfigItem("WebDAV", "Conf", dict(WEBDAV_DEFAULT_CONF), restart=False)
     webdavEndpointHistory = ConfigItem("WebDAV", "EndpointHistory", [], restart=False)
+    # addonsInterface 用户自定义 cell（模式②）：list of dict {name, icon, mode: cmd|bin, cmd, path}。
+    addonsCells = ConfigItem("Addons", "Cells", [], restart=False)
     doh: "CgsConfig.DoH"
     search: "CgsConfig.Search"
     site_choices: "CgsConfig.SiteChoices"

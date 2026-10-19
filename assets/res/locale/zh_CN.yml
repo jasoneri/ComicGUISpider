@@ -84,6 +84,8 @@ GUI:
     rv_scan_local: "扫描本地"
     rv_set_script_err: "设置rV脚本无效，点右侧先查阅rV一键部署方法"
     rv_notCgsRule: "尚未初始 .cgsRule.json\n扫描形式将跟随配置窗口当前的`后处理`所设模式"
+    rv_tip_broom: "清除已配置的rV脚本"
+    rv_tip_run: "运行rV脚本"
     hitomi_tip_search: "在网站中搜索选中的tag"
     hitomi_tip_sv: "保存到预设"
     hitomi_tip_send: "发送到输入框"

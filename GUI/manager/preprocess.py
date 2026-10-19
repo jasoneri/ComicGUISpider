@@ -9,7 +9,7 @@ from GUI.uic.qfluent.components import CustomInfoBar
 from utils import conf
 from utils.website.contracts import PreprocessResult
 from utils.website.site_runtime import GuiSiteRuntime
-from utils.website.preprocess import run_script_preprocess
+from utils.website.preprocess import run_script_preprocess, site_db_path
 from variables import SCRIPT_SITE_INDEX, SCRIPT_SITE_NAME, SPIDERS, VER, Spider
 
 
@@ -21,7 +21,6 @@ class PreprocessManager(QObject):
         self.task_manager = AsyncTaskManager(gui, gui)
         self._switch_generation = 0
         self._active_preprocess: tuple[int, int] | None = None
-        self._queued_search: tuple[int, int, str] | None = None
 
     def _next_generation(self):
         self._switch_generation += 1
@@ -31,7 +30,6 @@ class PreprocessManager(QObject):
     def handle_choosebox_changed(self, index: int, gui_site_runtime: GuiSiteRuntime | None):
         generation = self._next_generation()
         self._active_preprocess = (index, generation)
-        self._queued_search = None
         self._sync_preview_runtime(index, gui_site_runtime, runtime_ready=False)
         self._start_preprocess(index, generation)
 
@@ -80,8 +78,6 @@ class PreprocessManager(QObject):
                 self._display_message(message)
             for action in result.actions:
                 self._apply_action(action, index, generation)
-
-            self._dispatch_queued_search(index, generation, ready=bool(result.runtime_ready and not result.block_search))
         finally:
             self._clear_active_preprocess(index, generation)
 
@@ -95,7 +91,6 @@ class PreprocessManager(QObject):
             self.gui.say("<br>❌ 预处理执行失败，请查看日志")
             self.gui.log.error(error)
         finally:
-            self._clear_queued_search(index, generation)
             self._clear_active_preprocess(index, generation)
 
     def _display_message(self, message: dict):
@@ -162,34 +157,21 @@ class PreprocessManager(QObject):
         return generation == self._switch_generation and self.gui.chooseBox.currentIndex() == index
 
     def _add_hitomi_tool(self):
-        self.gui.ensure_tool_win().addHitomiTool()
+        # CGS011: hitomi.db 受管预设资产的落盘状态即挂载门；CGS006 P4: 窗按需建，页随预处理链路挂。
+        if not site_db_path("hitomi").exists():
+            return
+        self.gui.request_tool_page("htInterface")
         self.gui.htBtn.setVisible(True)
 
     def _add_aggr_search(self):
-        tool_window = self.gui.ensure_tool_win()
-        if not hasattr(tool_window, "asInterface"):
-            tool_window.addAggrSearchView()
+        # CGS006 P4: 窗按需建，页随站点选择/预处理链路挂，不等按钮点击。
+        self.gui.request_tool_page("asInterface")
         self.gui.aggrBtn.setVisible(True)
-
-    def sync_gui_site_runtime(self, gui_site_runtime: GuiSiteRuntime | None):
-        _ = gui_site_runtime
-
-    def queue_search_after_preprocess(self, index: int, keyword: str) -> bool:
-        active_preprocess = self._active_preprocess
-        if active_preprocess is None:
-            return False
-        active_index, generation = active_preprocess
-        if active_index != index or self.gui.chooseBox.currentIndex() != index:
-            return False
-        self._queued_search = (generation, index, keyword)
-        return True
 
     def server_mode_switch_blockers(self) -> list[str]:
         blockers = []
         if self._active_preprocess is not None:
             blockers.append("preprocess")
-        if self._queued_search is not None:
-            blockers.append("queued search")
         preprocess_tasks = [task_id for task_id in self.task_manager.get_running_tasks() if str(task_id).startswith("preprocess_")]
         if preprocess_tasks:
             blockers.append("preprocess task")
@@ -198,7 +180,6 @@ class PreprocessManager(QObject):
     def cleanup(self):
         self._next_generation()
         self._active_preprocess = None
-        self._queued_search = None
         self.task_manager.reset()
 
     def _refresh_runtime_domain(self, index: int, domain: str | None):
@@ -210,26 +191,6 @@ class PreprocessManager(QObject):
         self.gui.gui_site_runtime = gui_site_runtime.with_domain(domain)
         if getattr(self.gui, "BrowserWindow", None):
             self.gui.BrowserWindow.apply_standard_environment()
-
-    def _dispatch_queued_search(self, index: int, generation: int, *, ready: bool):
-        queued_search = self._queued_search
-        if queued_search is None:
-            return
-        queued_generation, queued_index, keyword = queued_search
-        if queued_generation != generation or queued_index != index:
-            return
-        self._queued_search = None
-        if not ready:
-            return
-        safe_single_shot(0, lambda kw=keyword: self.gui.start_and_search(keyword=kw))
-
-    def _clear_queued_search(self, index: int, generation: int):
-        queued_search = self._queued_search
-        if queued_search is None:
-            return
-        queued_generation, queued_index, _keyword = queued_search
-        if queued_generation == generation and queued_index == index:
-            self._queued_search = None
 
     def _clear_active_preprocess(self, index: int, generation: int):
         if self._active_preprocess == (index, generation):

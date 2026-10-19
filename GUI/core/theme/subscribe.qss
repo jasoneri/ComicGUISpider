@@ -27,36 +27,83 @@ CARD_PAUSED_OPACITY = 0.55;
 OVERLAY_BTN_BG = rgba(15, 23, 42, 0.28);
 OVERLAY_BTN_BG_HOVER = rgba(15, 23, 42, 0.35);
 OVERLAY_BTN_BORDER = rgba(255, 255, 255, 0.22);
+BTN_DANGER = #E06666;
+BTN_DANGER_HOVER = #E57373;
+BTN_DANGER_PRESSED = #E89292;
+BTN_DANGER_BORDER = #D24F4F;
+BTN_DANGER_BORDER_BOTTOM = #B03F3F;
 /* @endtokens */
 
+/* 夜间锚点 = SpiderGUI 原生 Dark QPalette.Window (53,53,53)。层级沿用 tray.qss 的亲和中性阶：
+   canvas #353535 → shell/status +10 → card +15，ΔL 压在 15 以内，杜绝近黑纯黑割裂感。
+   注意：注释不得写进 @tokens 体内（token 解析器逐行要求 KEY = VALUE）。 */
 /* @tokens dark */
-CANVAS = #09090b;
-SHELL = rgba(18, 18, 20, 0.98);
-SHELL_BORDER = rgba(244, 244, 245, 0.10);
-CARD_BG = rgba(24, 24, 27, 0.98);
-CARD_BORDER = rgba(244, 244, 245, 0.10);
-CARD_HOVER_BORDER = rgba(228, 228, 231, 0.44);
-COVER_BG = rgba(244, 244, 245, 0.06);
+CANVAS = #353535;
+SHELL = #3f3f3f;
+SHELL_BORDER = rgba(244, 244, 245, 0.14);
+CARD_BG = #454547;
+CARD_BORDER = rgba(244, 244, 245, 0.14);
+CARD_HOVER_BORDER = rgba(244, 244, 245, 0.34);
+COVER_BG = rgba(255, 255, 255, 0.10);
 TEXT = rgba(250, 250, 250, 0.97);
-MUTED_TEXT = rgba(212, 212, 216, 0.72);
-STATUS_BG = rgba(18, 18, 20, 0.96);
-STATUS_BORDER = rgba(244, 244, 245, 0.10);
-BADGE_DL_BG = rgba(39, 39, 42, 0.95);
-BADGE_DL_TEXT = rgba(212, 212, 216, 0.88);
-BADGE_DL_BORDER = rgba(148, 163, 184, 0.22);
-BADGE_NEW_BG = rgba(127, 29, 29, 0.55);
+MUTED_TEXT = rgba(212, 212, 216, 0.78);
+STATUS_BG = #3a3a3a;
+STATUS_BORDER = rgba(244, 244, 245, 0.14);
+BADGE_DL_BG = #3c3c3f;
+BADGE_DL_TEXT = rgba(226, 232, 240, 0.90);
+BADGE_DL_BORDER = rgba(148, 163, 184, 0.30);
+BADGE_NEW_BG = rgba(127, 29, 29, 0.50);
 BADGE_NEW_TEXT = rgba(254, 202, 202, 0.96);
-BADGE_NEW_BORDER = rgba(239, 68, 68, 0.32);
-BADGE_OK_BG = rgba(20, 83, 45, 0.55);
+BADGE_NEW_BORDER = rgba(239, 68, 68, 0.34);
+BADGE_OK_BG = rgba(20, 83, 45, 0.50);
 BADGE_OK_TEXT = rgba(187, 247, 208, 0.96);
-BADGE_OK_BORDER = rgba(34, 197, 94, 0.32);
-CARD_SELECTED_BORDER = rgba(96, 165, 250, 0.85);
-CARD_SELECTED_BG = rgba(30, 58, 138, 0.42);
+BADGE_OK_BORDER = rgba(34, 197, 94, 0.34);
+CARD_SELECTED_BORDER = rgba(147, 197, 253, 0.78);
+CARD_SELECTED_BG = rgba(96, 165, 250, 0.22);
 CARD_PAUSED_OPACITY = 0.50;
 OVERLAY_BTN_BG = rgba(15, 23, 42, 0.28);
 OVERLAY_BTN_BG_HOVER = rgba(15, 23, 42, 0.35);
 OVERLAY_BTN_BORDER = rgba(255, 255, 255, 0.22);
+BTN_DANGER = #E06666;
+BTN_DANGER_HOVER = #E57373;
+BTN_DANGER_PRESSED = #E89292;
+BTN_DANGER_BORDER = #D24F4F;
+BTN_DANGER_BORDER_BOTTOM = #B03F3F;
 /* @endtokens */
+
+/* @section variant */
+/* —— 按钮变种：集中色板 + 属性标记，不限按钮类型与状态 ——
+   用法：任意按钮 setProperty("variant", "<name>") 后经 apply_button_variant() 应用本段；
+   QToolButton / QPushButton 均已列出，未来 SplitDropButton 等照此追加选择器即可。
+   新增变种 = tokens 加一组色（base/hover/pressed/border）+ 本段加三条规则，py 零改动。
+   背景：qfluent 仅有 primary（ThemeColor）单变体，本项目在此之上做命名变体扩展。
+   为何 widget 级应用而非窗口级 qss：fluent 自带按钮 qss 挂 widget 自身，Qt 层级上
+   widget 自身 sheet 绝对压过祖先 sheet（实测 ID+属性 4 段特异性仍输给
+   ToggleToolButton:checked 的 2 段），窗口级盖不过；apply_button_variant 走
+   setCustomStyleSheet 组合式 API，追加声明置于 fluent 源之后，同特异性后者胜出，
+   且随主题切换整体重渲染不丢。 */
+QToolButton[variant="danger"]:checked,
+QPushButton[variant="danger"]:checked {
+    background-color: ${BTN_DANGER};
+    border-color: ${BTN_DANGER_BORDER};
+    border-bottom-color: ${BTN_DANGER_BORDER_BOTTOM};
+    color: white;
+}
+
+QToolButton[variant="danger"]:checked:hover,
+QPushButton[variant="danger"]:checked:hover {
+    background-color: ${BTN_DANGER_HOVER};
+    border-color: ${BTN_DANGER_BORDER};
+    border-bottom-color: ${BTN_DANGER_BORDER_BOTTOM};
+}
+
+QToolButton[variant="danger"]:checked:pressed,
+QPushButton[variant="danger"]:checked:pressed {
+    background-color: ${BTN_DANGER_PRESSED};
+    border-color: ${BTN_DANGER_BORDER};
+    border-bottom-color: ${BTN_DANGER_BORDER_BOTTOM};
+}
+/* @endsection */
 
 /* @section window */
 #ToolWorkspaceWindow {
@@ -64,10 +111,26 @@ OVERLAY_BTN_BORDER = rgba(255, 255, 255, 0.22);
     color: ${TEXT};
 }
 
+/* Outer workspace scroll: viewport paints palette Window (dark: 53,53,53 sheet) unless pinned. */
+ScrollArea#ToolWorkspaceScroll,
+ScrollArea#ToolWorkspaceScroll > QWidget > QWidget {
+    background: transparent;
+    border: none;
+}
+
+/* Side rail scrolls itself: keeps the subscribe page minimum small so the window-level
+   scrollbar never appears next to the rv table's own edge scrollbar (both sit at x=633..645). */
+ScrollArea#SubscribeSideRailScroll,
+ScrollArea#SubscribeSideRailScroll > QWidget > QWidget {
+    background: transparent;
+    border: none;
+}
+
 QFrame#SubscribeHeaderShell {
     background: ${SHELL};
     border: 1px solid ${SHELL_BORDER};
     border-radius: 12px;
+    min-height: 56px;
 }
 
 /* Outer SidePanel: no shell chrome — CardConfFrame / GlobalFrame own the sections. */
@@ -240,6 +303,55 @@ QFrame#WebdavCard {
 QFrame#WebdavActionBar {
     background: ${STATUS_BG};
     border: 1px solid ${STATUS_BORDER};
+    border-radius: 10px;
+}
+
+/* hitomiTool page — same card language as subscribe/webdav sections. */
+QFrame#HitomiFilterCard {
+    background: ${CARD_BG};
+    border: 1px solid ${CARD_BORDER};
+    border-radius: 10px;
+}
+QFrame#HitomiActionBar {
+    background: ${STATUS_BG};
+    border: 1px solid ${STATUS_BORDER};
+    border-radius: 10px;
+}
+QFrame#HitomiDivider {
+    background: ${SHELL_BORDER};
+    border: none;
+    max-height: 1px;
+}
+QLabel#HitomiOutputPath {
+    color: ${TEXT};
+    background: transparent;
+}
+QLabel#HitomiOutputCount {
+    color: ${MUTED_TEXT};
+    background: transparent;
+}
+QScrollArea#HitomiLetterScroll,
+QScrollArea#HitomiLetterScroll > QWidget > QWidget,
+QScrollArea#HitomiLangScroll,
+QScrollArea#HitomiLangScroll > QWidget > QWidget {
+    background: transparent;
+    border: none;
+}
+
+/* addonsInterface page — tool-cell grid; cell proportions locked in code, only placement scales. */
+QFrame#AddonsCell {
+    background: ${CARD_BG};
+    border: 1px solid ${CARD_BORDER};
+    border-radius: 10px;
+}
+QScrollArea#AddonsGridScroll,
+QScrollArea#AddonsGridScroll > QWidget > QWidget {
+    background: transparent;
+    border: none;
+}
+QFrame#AddonsMgrCell {
+    background: transparent;
+    border: 1px dashed ${CARD_BORDER};
     border-radius: 10px;
 }
 /* @endsection */

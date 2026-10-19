@@ -36,6 +36,11 @@ NHENTAI_ASSET_URLS = ManagedAsset("nhentai.db").urls
 HITOMI_ASSET_URLS = ManagedAsset("hitomi.db").urls
 
 
+def site_db_path(name: str) -> Path:
+    """站点 db 落盘路径（单一事实源）：预处理下载目标与 GUI 侧挂载门读同一路径。"""
+    return ori_path.joinpath(f"__temp/{name}.db")
+
+
 def _script_entry_descriptor(slug: str | None = None) -> "ScriptEntryDescriptor":
     # Lazy on purpose: importing utils.script runs its package init, which
     # instantiates ScriptConf. This module sits on the mainline site-preprocess

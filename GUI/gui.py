@@ -75,6 +75,7 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.script_window = None
         self.timeline_tip_mgr = None
         self._pending_rv_sauce_visible = False  # CGS006: apply when toolWin is ensured
+        self._pending_tool_pages: set[str] = set()
         self._conf_accept_bound = False
         # self.log.debug(f'-*- 主进程id {os.getpid()}')
         self.setupUi(self)
@@ -236,8 +237,6 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         if self.toolWin is None:
             from GUI.tools import ToolWindow
             self.toolWin = ToolWindow(self)
-            if hasattr(self.toolWin, "rvInterface"):
-                self.toolWin.rvInterface.set_sauce_visible(self._pending_rv_sauce_visible)
         return self.toolWin
 
     def ensure_toolWorkspaceWindow(self):
@@ -246,18 +245,25 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
             return window
         from GUI.tools.workspace import ToolWorkspaceWindow
         self.toolWorkspaceWindow = ToolWorkspaceWindow(self)
+        # sauce 已改由 addonsInterface 的 sauceCell 承载（按站点 R18 条件可见）。
+        self.toolWorkspaceWindow.addons_interface.set_sauce_visible(self._pending_rv_sauce_visible)
+        self.toolWorkspaceWindow.ensure_pending_pages(self._pending_tool_pages)
         self.toolWorkspaceWindow.destroyed.connect(lambda *_args: setattr(self, "toolWorkspaceWindow", None))
         return self.toolWorkspaceWindow
+
+    def request_tool_page(self, page_key: str) -> None:
+        """登记工具页挂载意图：窗已存在则立刻挂页，否则等首次建窗补挂。"""
+        self._pending_tool_pages.add(page_key)
+        window = getattr(self, "toolWorkspaceWindow", None)
+        if window is not None:
+            window.ensure_pending_pages((page_key,))
 
     def open_subscribe_window(self) -> None:
         window = self.ensure_toolWorkspaceWindow()
         was_visible = window.isVisible()
-        window.show_subscribe()
+        window.show_page("subscribeInterface")
         if was_visible:
             window.refresh_library()
-
-    def open_webdav_window(self) -> None:
-        self.ensure_toolWorkspaceWindow().show_webdav()
 
     def open_subscribe_with_books(self, books) -> None:
         self.ensure_toolWorkspaceWindow().receive_pushed_books(list(books or []))
@@ -344,8 +350,10 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.rv_tools.ero = 0
         self.web_is_r18 = index in Spider.specials()
         self._pending_rv_sauce_visible = self.web_is_r18
-        if self.toolWin is not None and hasattr(self.toolWin, "rvInterface"):
-            self.toolWin.rvInterface.set_sauce_visible(self.web_is_r18)
+        # sauce 可见性走工作区窗的 addonsInterface.sauceCell。
+        tool_workspace_window = getattr(self, "toolWorkspaceWindow", None)
+        if tool_workspace_window is not None:
+            tool_workspace_window.addons_interface.set_sauce_visible(self.web_is_r18)
         self.mid_mgr.set_lane_hidden("EP", self.web_is_r18)
         self.sut = None
         if index in (Spider.JM, Spider.WNACG) and not conf.proxies:
@@ -402,29 +410,13 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
                 _safe_disconnect(shortcut.activated)
             shortcut.activated.connect(slot)
 
-    def show_toolWin(self, win_type):
-        if win_type == "subscribe":
-            self.open_subscribe_window()
-            return
-        if win_type == "webdav":
-            self.open_webdav_window()
-            return
-        _map = {"ags": "asInterface", "hitomi": "htInterface"}
-        self.rvBtn.click()
-
-        def _jump():
-            tool_window = self.ensure_tool_win()
-            target_widget = getattr(tool_window, _map[win_type], None)
-            if target_widget is not None:
-                tool_window.stackedWidget.setCurrentWidget(target_widget)
-
-        safe_single_shot(10, _jump)
-
     def open_scriptWin(self, *, pure_only: bool = False, script_entry_state: dict | None = None):
         from GUI.script import ScriptWindow
         from utils.script.entry_descriptor import SCRIPT_ENTRY_DESCRIPTORS
-        if self.toolWin is not None and self.toolWin.isVisible():
-            self.toolWin.close()
+        # 工具页都在工作区窗内，开 ScriptWindow 前先收起它。
+        tool_workspace_window = getattr(self, "toolWorkspaceWindow", None)
+        if tool_workspace_window is not None and tool_workspace_window.isVisible():
+            tool_workspace_window.close()
         # Keep main window visible until ScriptWindow is ready: import/construct can block the
         # GUI thread for seconds; hide-first looks like a total freeze with only a taskbar ghost.
         self.script_window = ScriptWindow(
@@ -488,18 +480,9 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         return list(dict.fromkeys(blockers))
 
     def set_tool_win(self):
-        # CGS006: only wire the open hook on P2; ToolWindow builds on first click (P4).
+        # rvBtn 直开工作区窗的 rvTool 页；toolWin 仅由 ensure_tool_win 在脚本/预处理链路按需构建。
         self.toolWin = None
-
-        def _show_toolWin():
-            tool_window = self.ensure_tool_win()
-            abs_y = self.y() + self.height()
-            screen_height = QGuiApplication.primaryScreen().availableGeometry().height()
-            target_y = screen_height - tool_window.height() if abs_y + tool_window.height() > screen_height else abs_y
-            target_rect = QRect(self.x(), target_y, tool_window.width(), tool_window.height())
-            PopupAnimator.show(tool_window, target_rect, duration_ms=220, direction="down")
-
-        self.rvBtn.clicked.connect(_show_toolWin)
+        self.rvBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("rvInterface"))
 
     def _set_search_context_menu(self):
         def show_preset_completer():
@@ -655,8 +638,8 @@ class SpiderGUI(QMainWindow, MitmMainWindow):
         self.retrybtn.clicked.connect(self.retry_schedule)
         self.confBtn.clicked.connect(lambda: self.ensure_conf_dialog().show_self())
         self.clipBtn.clicked.connect(self.clip_mgr.read_clip)
-        self.aggrBtn.clicked.connect(lambda: self.show_toolWin("ags"))
-        self.htBtn.clicked.connect(lambda: self.show_toolWin("hitomi"))
+        self.aggrBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("asInterface"))
+        self.htBtn.clicked.connect(lambda: self.ensure_toolWorkspaceWindow().show_page("htInterface"))
         self.openPBtn.clicked.connect(lambda: curr_os.open_folder(self.sv_path))
         self.shareBtn.clicked.connect(self.shares.upload)
         self.shares.changed.connect(self._sync_share_btn_visible)
