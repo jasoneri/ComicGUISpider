@@ -46,8 +46,6 @@ class Spider(IntEnum):
 
 
 SPIDERS: dict[int, str] = {s.value: s.spider_name for s in Spider}
-SCRIPT_SITE_INDEX = 7
-SCRIPT_SITE_NAME = "Script"
 
 def _map_spider_values(values_by_spider):
     return {spider.value: values_by_spider[spider] for spider in Spider}
@@ -70,10 +68,7 @@ def _label(s: Spider) -> str:
         case _:
             return f"{s.value}、{s.spider_name}"
 
-SPIDERS_LABELS = dict(sorted({
-    **{spider.value: _label(spider) for spider in Spider},
-    SCRIPT_SITE_INDEX: f"{SCRIPT_SITE_INDEX}、{SCRIPT_SITE_NAME}",
-}.items()))
+SPIDERS_LABELS = dict(sorted({spider.value: _label(spider) for spider in Spider}.items()))
 
 COOKIES_SUPPORT = {     # only when login required
     'jm': set(),
@@ -89,8 +84,8 @@ COOKIES_PLACEHOLDER = {
     for k, v in COOKIES_SUPPORT.items()
 }
 
-DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
-    **_map_spider_values({
+# only take effect when init (mean value[completer] of conf.yml is null or not exist)
+DEFAULT_COMPLETER = dict(sorted(_map_spider_values({
         Spider.MANGA_COPY: ['更新', '排名日', '排名周', '排名月', '排名总'],
         Spider.JM: ['C108', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
         Spider.WNACG: ['C108', '更新', '汉化'],
@@ -107,9 +102,7 @@ DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[comp
         Spider.JCOMIC: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update, '隨機', '最近更新'],
         Spider.RUMANHUA: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update],
         Spider.MANGADEX: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update],
-    }),
-    SCRIPT_SITE_INDEX: [],
-}.items()))
+    }).items()))
 STATUS_TIP = dict(sorted({
     0: None,
     **_map_spider_values({
@@ -150,7 +143,7 @@ IMGBED_ASSET_OBJECTS = {
     "aria2c-macos-arm64": "1786799422383_aria2c-macos-arm64",
     # GitHub preset dbs re-uploaded via docs-screenshot ImgBed (channel=huggingface, folder=assets).
     "nhentai.db": "1786803548247_nhentai.db",
-    "hitomi.db": "1786803609153_hitomi.db",
+    "hitomi.db": "1792339446695_hitomi.db",
 }
 CGS_METADATA_CHANNEL_ID = ""
 JSONERI_PALACES_PROBE_API_URL = "https://jps.101114105.xyz"

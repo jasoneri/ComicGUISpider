@@ -44,6 +44,9 @@ class _JComicContract:
     book_id_url = f"{index}/eps/%s"
     uuid_regex = re.compile(r"/(?:eps|page)/([^/?#]+)")
     page_count_regex = re.compile(r"\((\d+)\)\s*$")
+    # 站点图片保护字段前缀。2026-10-21 实测站点取值为 JCOMIC_TRAPS_(带 S),此前写成
+    # JCOMIC_TRAP_ 会让整页图片 URL 解析失败。站点轮换前缀时只改这一行。
+    locked_image_prefix = "JCOMIC_TRAPS_"
     book_url_regex = r"^https://jcomic\.net/(?:eps|page)/.+"
     image_url_host_markers = (
         "images.jcomic.net",
@@ -166,9 +169,11 @@ class JComicParser(_JComicContract, Previewer):
     @classmethod
     def _decode_locked_image_url(cls, value: str) -> str:
         encoded = str(value or "").strip()
-        prefix = "JCOMIC_TRAP_"
+        prefix = cls.locked_image_prefix
         if not encoded.startswith(prefix):
-            raise JComicParseError("jcomic 图片保护字段前缀无效")
+            raise JComicParseError(
+                f"jcomic 图片保护字段前缀无效: expected={prefix!r} value={encoded[:32]!r}"
+            )
         try:
             payload = encoded.removeprefix(prefix)[::-1]
             return base64.b64decode(payload, validate=True).decode("utf-8")
@@ -185,7 +190,9 @@ class JComicParser(_JComicContract, Previewer):
         )
         urls = []
         for image_node in image_nodes:
-            locked_value = image_node.xpath("./@data-locked").get()
+            locked_value = str(image_node.xpath("./@data-locked").get() or "").strip()
+            # data-locked 出现即为保护字段,必须按当前前缀解码;前缀轮换时直接报错暴露实际取值,
+            # 不静默回退 src(实测该节点 src 为空,回退只会把根因伪装成"未解析到图片 URL")。
             image_url = cls._decode_locked_image_url(locked_value) if locked_value else image_node.xpath("./@src").get()
             image_url = image_url.strip() if image_url else image_url
             if image_url and cls._is_comic_image_url(image_url):

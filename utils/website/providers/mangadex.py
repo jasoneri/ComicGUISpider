@@ -298,11 +298,8 @@ class MangadexReqer(_MangadexContract, Req):
         return f"{base_url}{separator}offset={(normalized_page - 1) * cls.search_limit}"
 
     def test_index(self):
-        # 探测目标必须是 provider 实际使用的 api.mangadex.org，不是 web 主站：
-        # web 主站对 HEAD 返回 405（确定性失败，与代理无关），且它的可达性与
-        # API 业务流量无关。/ping 是无参无认证的健康检查端点，最轻量。
         try:
-            resp = self.cli.get(f"{self.api_base}/ping", timeout=3.5, headers=self.ua)
+            resp = self.cli.get(f"{self.api_base}/ping", timeout=8, headers=self.ua)
             resp.raise_for_status()
         except httpx.HTTPError:
             return False

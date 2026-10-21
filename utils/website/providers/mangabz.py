@@ -188,8 +188,8 @@ class MangabzReqer(_MangabzContract, Req, Cookies):
 
     def test_index(self):
         try:
-            resp = self.cli.head(
-                self.index, follow_redirects=True, timeout=3.5, 
+            resp = self.cli.get(
+                self.index, follow_redirects=True, timeout=6,
                 headers={ "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1" },
             )
             resp.raise_for_status()

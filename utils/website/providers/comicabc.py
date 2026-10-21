@@ -443,7 +443,7 @@ class ComicabcReqer(_ComicabcContract, Req, Cookies):
 
     def test_index(self):
         try:
-            resp = self.cli.head(self.index, headers=self.headers, follow_redirects=True, timeout=3.5)
+            resp = self.cli.get(self.index, headers=self.headers, follow_redirects=True, timeout=6)
             resp.raise_for_status()
         except httpx.HTTPError:
             return False
