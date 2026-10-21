@@ -28,7 +28,7 @@ class _EHentaiContract:
     uuid_regex = re.compile(r"/g/(\d+)/")
     cookies_field = COOKIES_SUPPORT[name]
     mappings = {
-        res.SPIDER.Completer.index: f"https://{domain}",
+        res.SPIDER.Completer.index_: f"https://{domain}",
         res.SPIDER.Completer.popular: f"https://{domain}/popular",
     }
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"

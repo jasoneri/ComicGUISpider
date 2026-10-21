@@ -130,7 +130,7 @@ class _RumanhuaContract:
     search_url = f"https://{domain}/s"
     morechapter_url = f"https://{domain}/morechapter"
     mappings = {
-        res.SPIDER.Completer.index: popular,
+        res.SPIDER.Completer.index_: popular,
         res.SPIDER.Completer.update: update,
     }
     ua = {
@@ -386,7 +386,7 @@ class RumanhuaReqer(_RumanhuaContract, Req):
             url = owner.parser.normalize_book_resource(mappings[keyword])
             resp = await client.get(url, headers=self.headers, follow_redirects=True, timeout=12)
             resp.raise_for_status()
-            parser = owner.parser.parse_index_books if keyword == res.SPIDER.Completer.index else owner.parser.parse_update_books
+            parser = owner.parser.parse_index_books if keyword == res.SPIDER.Completer.index_ else owner.parser.parse_update_books
             return await asyncio.to_thread(parser, resp.text)
         resp = await client.post(
             self.search_url,

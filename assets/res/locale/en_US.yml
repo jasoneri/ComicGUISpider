@@ -1,7 +1,7 @@
 Vars:
   ua_accept_language: "en-US,en;q=0.9"
 Terms:
-  index: &term_index "index"
+  index_: &term_index "index"
   popular: &term_popular "popular"
   update: &term_update "update"
   author: "Author"
@@ -171,7 +171,7 @@ SPIDER:
     frame_book_print_retry_tip: "No results found. Possible causes:<br>1. Server blocking 2. End of results 3. Verify URL in browser"
     frame_section_print_extra: " ←_← Click【Start Crawling!】"
   Completer:
-    index: *term_index
+    index_: *term_index
     popular: *term_popular
     update: *term_update
   sectionInput_flag: "Start Crawling"

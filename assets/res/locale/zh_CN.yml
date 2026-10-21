@@ -1,7 +1,7 @@
 Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
 Terms:
-  index: &term_index "首页"
+  index_: &term_index "首页"
   popular: &term_popular "热门"
   update: &term_update "更新"
   author: "作者"
@@ -171,7 +171,7 @@ SPIDER:
     frame_book_print_retry_tip: "什么意思？唔……就是你搜的在放✈(飞机)<br>翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没 / 重开换种姿势再搜"
     frame_section_print_extra: " ←_← 点击【开始爬取！】"
   Completer:
-    index: *term_index
+    index_: *term_index
     popular: *term_popular
     update: *term_update
   sectionInput_flag: "开始爬取"

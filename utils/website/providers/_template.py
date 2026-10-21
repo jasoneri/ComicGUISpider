@@ -68,7 +68,7 @@ class TemplateUtils(Utils, Previewer):
     search_url_head = f"https://{domain}/search?q="
     list_url = f"https://{domain}/list"
     headers = {}
-    mappings = {res.SPIDER.Completer.index: index}
+    mappings = {res.SPIDER.Completer.index_: index}
     parser = TemplateParser
     reqer_cls = TemplateReqer
 

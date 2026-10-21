@@ -218,7 +218,7 @@ class _ComicabcContract:
     update = f"{index}comic/u-1.html"
     search_url_head = f"{index}member/search.aspx?key="
     mappings = {
-        res.SPIDER.Completer.index: popular,
+        res.SPIDER.Completer.index_: popular,
         res.SPIDER.Completer.popular: popular,
         res.SPIDER.Completer.update: update,
     }

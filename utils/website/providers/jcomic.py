@@ -33,7 +33,7 @@ class _JComicContract:
     book_hea = headers
     search_url_head = f"{index}/search/"
     mappings = {
-        res.SPIDER.Completer.index: f"{index}/cat/隨機/1",
+        res.SPIDER.Completer.index_: f"{index}/cat/隨機/1",
         res.SPIDER.Completer.popular: f"{index}/cat/隨機/1",
         res.SPIDER.Completer.update: f"{index}/cat/最近更新/1",
         "隨機": f"{index}/cat/隨機/1",

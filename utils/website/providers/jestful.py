@@ -43,7 +43,7 @@ class _JestfulContract:
     _update_sort = "last_update"
     _update_sort_type = "DESC"
     update = f"{index}manga-list.html?listType=pagination&sort={_update_sort}&sort_type={_update_sort_type}"
-    mappings = {res.SPIDER.Completer.index: index, res.SPIDER.Completer.update: update}
+    mappings = {res.SPIDER.Completer.index_: index, res.SPIDER.Completer.update: update}
     _random_alphabet = string.ascii_letters + string.digits
 
 

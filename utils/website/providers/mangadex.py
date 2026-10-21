@@ -40,7 +40,7 @@ class _MangadexContract:
     feed_limit = 100
     search_limit = 20
     mappings = {
-        res.SPIDER.Completer.index: f"{api_base}/manga?limit={search_limit}&order[followedCount]=desc&includes[]=cover_art&includes[]=author",
+        res.SPIDER.Completer.index_: f"{api_base}/manga?limit={search_limit}&order[followedCount]=desc&includes[]=cover_art&includes[]=author",
         res.SPIDER.Completer.update: f"{api_base}/manga?limit={search_limit}&order[latestUploadedChapter]=desc&includes[]=cover_art&includes[]=author",
     }
     ua = {
