@@ -1,6 +1,7 @@
 import gc
 import re
 import shutil
+import time
 import typing as t
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -46,6 +47,10 @@ from .tag import (
 )
 from .video_proxy import VideoProxy
 from .viewer import DanbooruImageViewer
+
+
+# A worn middle button bounces one click into two releases (~100ms apart), closing both tabs.
+MIDDLE_CLICK_CLOSE_DEBOUNCE_MS = 400
 
 
 class DanbooruFuncs:
@@ -501,6 +506,7 @@ class DanbooruInterface(QFrame):
             self.httpx_status: dict[str, str] = {}
             self.activation_order: list[str] = []
             self._zoom_sync_generation = 0
+            self._last_close_request_at = 0.0
 
         def create(self, initial_query: str = "", auto_search: bool = False) -> str:
             self.counter += 1
@@ -542,6 +548,12 @@ class DanbooruInterface(QFrame):
             return tab_id
 
         def close_current(self):
+            # Timestamp is shared across tabs: the bounced release lands on whichever tab
+            # became current after the first close, so per-tab state cannot catch it.
+            now = time.monotonic()
+            if (now - self._last_close_request_at) * 1000.0 < MIDDLE_CLICK_CLOSE_DEBOUNCE_MS:
+                return
+            self._last_close_request_at = now
             self.close_by_id(self.active_tab_id())
 
         def close_by_id(self, tab_id: t.Optional[str]):

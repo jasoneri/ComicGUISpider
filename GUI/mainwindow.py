@@ -8,6 +8,7 @@ from qfluentwidgets import (
 )
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
+from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
 from GUI.uic.qfluent.components.icons import CgsIcon
 from GUI.uic.qfluent.components.site_choice_combo import SiteChoiceComboController
@@ -166,6 +167,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.textBrowser.setMinimumSize(QtCore.QSize(20, 140))
         self.textBrowser.setObjectName("textBrowser")
         self.tbWidgetLayout.addWidget(self.textBrowser)
+        FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, self)
 
     def preset(self):
         self.retrybtn.setIcon(CgsIcon.REBOOT.fixed_light_surface_icon())

@@ -6,6 +6,7 @@ from qfluentwidgets import (
 from GUI.core.timer import safe_single_shot
 from assets import res as ori_res
 from utils import conf
+from variables import DEFAULT_COMPLETER
 from .components import *
 
 __all__ = [
@@ -111,29 +112,40 @@ class MonkeyPatch:
         line_edit.contextMenuEvent = types.MethodType(new_context_menu, line_edit)
 
     @staticmethod
-    def rbutton_menu_textBrowser(textBrowser, cb_idx, s2c=False):
-        # TODO[2](2026-03-02): 废弃或改造
-        """cb_idx: chooseBox index
-        s2c: send to chooseinput"""
+    def rbutton_menu_textBrowser(textBrowser, gui):
+        """Right-click menu for textBrowser: COPY / Select all / add selection to the site's completer preset.
+
+        The site index is read from ``gui.chooseBox`` per click, so switching sites or
+        rebuilding the browser needs no re-patching.
+        """
+        def set_to_completer(text, idx):
+            completer_list = conf.completer.get(idx)
+            if completer_list is None:
+                completer_list = list(DEFAULT_COMPLETER.get(idx, []))
+            if text in completer_list:
+                completer_list.remove(text)
+            completer_list.insert(0, text)
+            conf.completer[idx] = completer_list
+            conf.update()
+            gui.set_completer()
+
         def custom_context_menu(self, event):
-            cursor = self.textCursor()
-            selected_text = cursor.selectedText()
+            # Qt separates paragraphs with U+2029; presets are single-line keywords.
+            selected_text = " ".join(self.textCursor().selectedText().replace('\u2029', ' ').split())
+            site_idx = gui.chooseBox.currentIndex()
             fluent_menu = RoundMenu(parent=self)
             copy_action = Action(FluentIcon.COPY, text=self.tr("COPY"), triggered=self.copy)
             select_all_action = Action(self.tr("Select all"), triggered=self.selectAll)
             fluent_menu.addAction(copy_action)
             fluent_menu.addAction(select_all_action)
-            if selected_text:
+            if selected_text and site_idx > 0:
                 fluent_menu.addSeparator()
-                custom_action = Action(text="将选中文本加进预设", 
-                    triggered=lambda: set_to_completer(selected_text))
+                custom_action = Action(text="将选中文本加进预设",
+                    triggered=lambda: set_to_completer(selected_text, site_idx))
                 fluent_menu.addAction(custom_action)
             _exec_menu(fluent_menu, event)
             event.accept()
-        def set_to_completer(text):
-            conf.completer[cb_idx].insert(0, text)
-            conf.update()
-            textBrowser.gui.set_completer()
+
         textBrowser.contextMenuEvent = types.MethodType(custom_context_menu, textBrowser)
 
     @staticmethod
