@@ -12,7 +12,6 @@ sqlite 连接随页面 closeEvent 关闭，由宿主调 ``dispose()``。
 from __future__ import annotations
 
 import sqlite3
-import urllib.parse as up
 from contextlib import closing
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
@@ -349,9 +348,10 @@ class HitomiInterface(QWidget):
             self.tmp_map = self.query_cache[table_name]
         else:
             with closing(self.conn.cursor()) as cursor:
-                cursor.execute(f"SELECT content, num FROM `{table_name}`")
-                entries = cursor.fetchall()  # content, num
-            self.tmp_map = {up.unquote(entry[0]): entry for entry in entries}
+                cursor.execute(f"SELECT content, url_key, num FROM `{table_name}`")
+                entries = cursor.fetchall()  # content, url_key, num
+            # key = 网站展示文本（表格列），value[1] = href 路径真值（output 用）。
+            self.tmp_map = {entry[0]: entry for entry in entries}
             self.query_cache[table_name] = self.tmp_map
 
         model = self._build_entry_model(self.tmp_map)
@@ -364,13 +364,15 @@ class HitomiInterface(QWidget):
 
         num 必须以整数存入 DisplayRole：点 num 列头才按数值排序（存字符串会排成
         99,974,9292,91,9）。整数型 DisplayRole 仍由委托渲染为数字文本。
+
+        tmp_map value = (content, url_key, num)，num 位于索引 2。
         """
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["tag", "num"])
         for entry in tmp_map:
             tag_item = QStandardItem(entry)
             num_item = QStandardItem()
-            num_item.setData(tmp_map[entry][1], Qt.ItemDataRole.DisplayRole)
+            num_item.setData(tmp_map[entry][2], Qt.ItemDataRole.DisplayRole)
             num_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             model.appendRow((tag_item, num_item))
         return model
@@ -460,7 +462,9 @@ class HitomiInterface(QWidget):
         safe_single_shot(100, self.host_window.close)
 
     def copy_path(self):
-        QApplication.clipboard().setText(self.output.text())
+        # 复制 output 真值全文：self.output.text() 是 _ElidedLabel 按控件宽度省略后的
+        # 显示文本，长 tag 会带省略号，复制出来不可用。
+        QApplication.clipboard().setText(self.output_mgr.actual)
         InfoBar.success(
             title='', content=res.GUI.Tools.hitomi_info_copied,
             orient=Qt.Horizontal, isClosable=True, position=InfoBarPosition.BOTTOM_LEFT,
@@ -508,17 +512,16 @@ class HitomiInterface(QWidget):
 
     def update_output(self):
         self.output_mgr.update()
-        self.output.setFullText(self.output_mgr.path)
+        self.output.setFullText(self.output_mgr.actual)
         self.set_globe_menu()
 
     # ------------------------------------------------------------- 输出组装
 
     class OutputMgr:
-        """组装输出路径与计数；tag 来源 = 表中选中行。"""
+        """组装输出路径与计数；tag 来源 = 表中选中行的 href 真值。"""
 
         def __init__(self, parent):
             self.ht = parent
-            self.path = ''
             self.actual = ''
 
         def update(self):
@@ -537,8 +540,9 @@ class HitomiInterface(QWidget):
                 return
             else:
                 entry_info = ht.tmp_map[entry]
-                badge_value = str(entry_info[1])
-                tag = entry
+                badge_value = str(entry_info[2])
+                # output 走 href 真值：表格展示的是 content（网站文本），此处取 url_key。
+                tag = entry_info[1]
 
             output_l = [area, '-'.join((tag, lang))]
             if ht.order_flag:
@@ -559,9 +563,7 @@ class HitomiInterface(QWidget):
                 else:
                     output_l = [area, orderby, orderbykey, '-'.join((tag, lang))]
 
-            self.path = '/'.join(output_l)
-            actual_tag = ht.tmp_map[tag][0] if tag in ht.tmp_map else tag
-            self.actual = '/'.join((*output_l[:-1], '-'.join((actual_tag, lang))))
+            self.actual = '/'.join(output_l)
             ht.output_count.setText(badge_value)
 
     # ------------------------------------------------------------- 生命周期

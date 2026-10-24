@@ -71,8 +71,11 @@ class HitomiReqer(_HitomiContract, Req):
 
     @classmethod
     def build_search_url(cls, key):
+        # hitomi 的 nozomi 路径对 tag 段大小写敏感，站点真值为全小写。
+        # hitomi.db 的 Convention tag（C1~C108，由 scape_dataset 大写化写入）直接请求会 404，
+        # 故在请求收口统一 lower：既有 db 无需迁移，percent-encoding 的 hex 大小写不影响解码。
         nozomi_path = key if key.endswith(".nozomi") else f"{key}.nozomi"
-        return f"https://{cls.domain}/{nozomi_path}"
+        return f"https://{cls.domain}/{nozomi_path.lower()}"
 
 
     async def preview_search(self, keyword: str, *, page: int = 1) -> list:
