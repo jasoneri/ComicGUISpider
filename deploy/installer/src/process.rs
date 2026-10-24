@@ -242,9 +242,38 @@ pub(crate) fn wait_for_parent_exit(parent_pid: u32, timeout_ms: u32) {
     }
 }
 
+/// All downloads and verification run inside `uv`, so its trust store is ours too. uv
+/// defaults to a build-time webpki-roots snapshot that keeps trusting revoked CAs; on
+/// Windows prefer the platform store, whose revocation list ships with system updates.
+#[cfg(windows)]
+fn prefer_system_trust(cmd: &mut Command) {
+    // uv renamed --native-tls to --system-certs: new versions warn on the old env, older
+    // runtimes know nothing else, so set both.
+    cmd.env("UV_SYSTEM_CERTS", "1").env("UV_NATIVE_TLS", "1");
+}
+
+#[cfg(not(windows))]
+fn prefer_system_trust(_cmd: &mut Command) {}
+
+#[cfg(windows)]
+const TRUST_LOG: &str = "TLS trust: platform store (UV_SYSTEM_CERTS/UV_NATIVE_TLS)";
+
+#[cfg(not(windows))]
+const TRUST_LOG: &str = "TLS trust: uv bundled webpki-roots";
+
+fn uv_command(config: &InstallerConfig) -> Command {
+    let mut cmd = Command::new(&config.uv_exc);
+    cmd.args(config.install_args())
+        .env("UV_TOOL_DIR", &config.uv_tool_dir)
+        .env("UV_TOOL_BIN_DIR", &config.uv_tool_bin_dir);
+    prefer_system_trust(&mut cmd);
+    cmd
+}
+
 pub(crate) fn run_update_cli(config: &InstallerConfig) -> i32 {
     let logger = open_log(&config.log_path());
     log_msg(&logger, "CLI mode started");
+    log_msg(&logger, TRUST_LOG);
 
     let args = config.install_args();
     log_msg(
@@ -252,12 +281,9 @@ pub(crate) fn run_update_cli(config: &InstallerConfig) -> i32 {
         &format!("Running: {} {}", config.uv_exc.display(), args.join(" ")),
     );
 
-    let exit_code = match Command::new(&config.uv_exc)
-        .args(&args)
+    let exit_code = match uv_command(config)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .env("UV_TOOL_DIR", &config.uv_tool_dir)
-        .env("UV_TOOL_BIN_DIR", &config.uv_tool_bin_dir)
         .status()
     {
         Ok(status) => status.code().unwrap_or(1),
@@ -304,14 +330,12 @@ fn run_update_worker(config: &InstallerConfig, tx: &Sender<InstallerEvent>) -> i
         &logger,
         &format!("GUI mode: {} {}", config.uv_exc.display(), args.join(" ")),
     );
+    log_msg(&logger, TRUST_LOG);
     let _ = tx.send(InstallerEvent::Progress(InstallerProgress::starting()));
 
-    let mut child = Command::new(&config.uv_exc)
-        .args(&args)
+    let mut child = uv_command(config)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .env("UV_TOOL_DIR", &config.uv_tool_dir)
-        .env("UV_TOOL_BIN_DIR", &config.uv_tool_bin_dir)
         .spawn()?;
 
     let stdout = child.stdout.take();
