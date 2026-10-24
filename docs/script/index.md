@@ -1,6 +1,12 @@
 
 # 🚧 ScriptTool
 
+### warning 后续版本将切离出 CGS 成单独的项目 ，代号 ↓
+
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&size=25&duration=2000&pause=2400&color=93F0F7&vCenter=true&width=100&height=35&lines=ACGGR)](https://git.io/typing-svg)
+
+---
+
 danbooru / pawchive / cbg / saucenao
 
 ## ⚠️ 通用前置须知
@@ -39,7 +45,7 @@ utils
 
 ## 3. Cbg (CornerBackground)
 
-快捷入口为 rvTool 橙色按钮 Cbg
+入口：工具工作台 addons 页的 script 格 → scriptWin 左栏 Cbg
 
 ::: details 功能为油猴脚本，让立绘资源在浏览器右下角常驻展示（当前仅本地资源，火狐暂不支持 ¹）  
 > [!Tip] 需要进扩展管理油猴权限设 `允许访问文件网址` (火狐没有所以不支持)

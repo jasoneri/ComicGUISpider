@@ -25,7 +25,8 @@
   <a href="https://cgs.101114105.xyz">🏠主页</a> | 
   <a href="https://cgs.101114105.xyz/deploy/quick-start">🚀快速上手</a> | 
   <a href="https://cgs.101114105.xyz/faq">❓常见问题</a> | 
-  <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦绿色包下载</a>
+  <a href="https://github.com/jasoneri/ComicGUISpider/releases/latest">📦下载</a> |
+  <a href="https://qm.qq.com/q/T2SONVQmiW">🐧群</a>
 </div>
 
 <br clear="all">

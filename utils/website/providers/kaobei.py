@@ -163,7 +163,7 @@ class _KaobeiContract:
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
         "Origin": f"https://{pc_domain}",
         "Connection": "keep-alive",
-        "Accept-Encoding": "gzip, compress, br",
+        "Accept-Encoding": "gzip, compress",
         "platform": "1",
         "version": "2026.02.02",
         "webp": "1",
@@ -519,8 +519,12 @@ class KaobeiReqer(_KaobeiContract, Req):
         path_word = book.url.rstrip("/").split("/")[-2]
         headers = {**self.ua, "Referer": f"https://{self.pc_domain}/comic/{path_word}"}
         parser_show_dhb = conf.kbShowDhb if show_dhb is None else show_dhb
+        # The soft-ban is IP-level and decays over minutes, so mirror the page fetcher's
+        # 60s x 12 risk-control window instead of a sub-minute backoff (09-04).
+        risk_retries = max(self.preview_transport_retries, 12)
+        risk_backoff_sec = 60
         last_exc = None
-        for attempt in range(self.preview_transport_retries + 1):
+        for attempt in range(risk_retries + 1):
             await self.ensure_preview_aes_key()
             resp = await self._preview_get(book.url, headers=headers, stage="preview_fetch_episodes", follow_redirects=True, timeout=12)
             payload = self._parse_preview_json(resp, stage="preview_fetch_episodes", request_url=book.url)
@@ -530,12 +534,12 @@ class KaobeiReqer(_KaobeiContract, Req):
                 )
             except KaobeiResponseError as exc:
                 last_exc = exc
-                if exc.category != "empty_chapter_data" or attempt >= self.preview_transport_retries:
+                if exc.category != "empty_chapter_data":
+                    raise
+                if attempt >= risk_retries:
                     raise
                 self.clear_aes_key()
-                # The empty-chapter shell decays on a jittering TTL measured in
-                # tens of seconds; a sub-minute backoff cannot outlive it.
-                await asyncio.sleep(8.0 * (attempt + 1))
+                await asyncio.sleep(risk_backoff_sec)
         raise RuntimeError(f"kaobei preview_fetch_episodes exhausted retries without chapters: url={book.url}") from last_exc
 
     async def preview_fetch_pages(self, episode) -> list[str]:

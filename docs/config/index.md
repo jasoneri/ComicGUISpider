@@ -32,7 +32,6 @@ New: **附带日志目录打开按钮**
 ### 代理 / `proxies`
 
 翻墙用  
-> [!Warning] ⚠️ 已设置 jm 无论用全局还是怎样都只走本地原生ip  
 
 > [!Info] 一个生命周期将会`重置搜索`后结束，代理更改只会在该生命周期结束后（重置搜索时）生效。  
 
@@ -176,12 +175,6 @@ maccy(macOS): [issue 搜索相关得知](https://github.com/p0deje/Maccy/issues/
 
 默认值： `jpg`  
 图片文件命名后缀  
-
-### `rv_script`
-
-默认值：  
-rV(redViewer) 绑定的启动程序，用于启动 rV  
-由 rvTool 的运行键方便地绑定锚点
 
 ### `bg_path`
 
