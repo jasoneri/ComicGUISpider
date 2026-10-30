@@ -1,7 +1,7 @@
 Vars:
   ua_accept_language: "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
 Terms:
-  index: &term_index "首页"
+  index_: &term_index "首页"
   popular: &term_popular "热门"
   update: &term_update "更新"
   author: "作者"
@@ -23,11 +23,8 @@ GUI:
   Script:
     site_name: "Script"
     service_check_success: "✅ 后台服务检测"
-    service_check_failed_content: "Redis 服务未运行，<br>点击指南查看`前置须知`（Kemono 需要 Redis；下载引擎由 CGS 自动托管）"
+    service_check_failed_content: "Redis 未运行，点指南看`前置须知`"
     service_check_failed_title: "服务检测失败"
-    dependency_check_success: "✅ 额外依赖检测"
-    dependency_check_failed_content: "点击按钮，查看`前置须知`的'uv安装脚本集依赖命令'部分（彻底关闭CGS后执行）"
-    dependency_check_failed_title: "依赖安装失败"
     data_cache_check_success: "✅ 数据缓存检测"
     data_cache_check_failed: "❌ 数据缓存检测"
     guide_name: "脚本集指南"
@@ -84,6 +81,8 @@ GUI:
     rv_scan_local: "扫描本地"
     rv_set_script_err: "设置rV脚本无效，点右侧先查阅rV一键部署方法"
     rv_notCgsRule: "尚未初始 .cgsRule.json\n扫描形式将跟随配置窗口当前的`后处理`所设模式"
+    rv_tip_broom: "清除已配置的rV脚本"
+    rv_tip_run: "运行rV脚本"
     hitomi_tip_search: "在网站中搜索选中的tag"
     hitomi_tip_sv: "保存到预设"
     hitomi_tip_send: "发送到输入框"
@@ -172,7 +171,7 @@ SPIDER:
     frame_book_print_retry_tip: "什么意思？唔……就是你搜的在放✈(飞机)<br>翻页的话就是这页之后没列表了，非翻页的话看看浏览器链接是否也没 / 重开换种姿势再搜"
     frame_section_print_extra: " ←_← 点击【开始爬取！】"
   Completer:
-    index: *term_index
+    index_: *term_index
     popular: *term_popular
     update: *term_update
   sectionInput_flag: "开始爬取"

@@ -1,7 +1,7 @@
 Vars:
   ua_accept_language: "en-US,en;q=0.9"
 Terms:
-  index: &term_index "index"
+  index_: &term_index "index"
   popular: &term_popular "popular"
   update: &term_update "update"
   author: "Author"
@@ -23,11 +23,8 @@ GUI:
   Script:
     site_name: "Script"
     service_check_success: "✅ Service check"
-    service_check_failed_content: "Redis is not running.<br>Open the guide (Kemono needs Redis; the download engine is managed by CGS)."
+    service_check_failed_content: "Redis is not running. See the guide."
     service_check_failed_title: "Service check failed"
-    dependency_check_success: "✅ Dependency check"
-    dependency_check_failed_content: "Open the guide and run the `uv` install command for script dependencies after fully closing CGS."
-    dependency_check_failed_title: "Dependency install failed"
     data_cache_check_success: "✅ Data cache check"
     data_cache_check_failed: "❌ Data cache check"
     guide_name: "Script guide"
@@ -84,6 +81,8 @@ GUI:
     rv_scan_local: "Scan Local"
     rv_set_script_err: "set rV script failed，read how to deploy rV by right-button"
     rv_notCgsRule: ".cgsRule.json not initialized\nscan mode will follow the current `dledHandle` setting in config window"
+    rv_tip_broom: "Clear the configured rV script"
+    rv_tip_run: "Run the rV script"
     hitomi_tip_search: "search selected tags in website"
     hitomi_tip_sv: "save to custom presets"
     hitomi_tip_send: "send to searchInput box"
@@ -172,7 +171,7 @@ SPIDER:
     frame_book_print_retry_tip: "No results found. Possible causes:<br>1. Server blocking 2. End of results 3. Verify URL in browser"
     frame_section_print_extra: " ←_← Click【Start Crawling!】"
   Completer:
-    index: *term_index
+    index_: *term_index
     popular: *term_popular
     update: *term_update
   sectionInput_flag: "Start Crawling"
