@@ -23,8 +23,7 @@ class _JmContract:
     name = "jm"
     domain = "18comic.vip"  # REMARK(CGS001): Keep a static fallback domain so GUI/runtime can bind before jm_domain.txt is rebuilt.
     forever_url = "https://jm365.work/3YeBdF"
-    publish_url = "https://jm365.work/mJ8rWd"
-    publish_url2 = "https://jmcomicne.net/"
+    publish_urls = ("https://jmcomicws.cc", "https://jmcomicne.net")
     status_forever = True
     status_publish = True
     cookies_field = COOKIES_SUPPORT[name]
@@ -51,7 +50,7 @@ class _JmContract:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "gzip, deflate",
     }
     uuid_regex = re.compile(r"[^/]+/(\d+)")
     search_url_head = "https://18comic-zzz.xyz/search/photos?main_tag=0&search_query="
@@ -173,8 +172,9 @@ class JmParser(_JmContract, Previewer):
             if host:
                 return host
         JmUtils.status_publish = False
+        candidates = cls.candidate_publish_urls()
         raise ConnectionError(
-            res.SPIDER.DOMAINS_INVALID % (cls.publish_url, domains, str(ori_path.joinpath(f"__temp/{cls.name}_domain.txt")))
+            res.SPIDER.DOMAINS_INVALID % (candidates[0] if candidates else "", domains, str(ori_path.joinpath(f"__temp/{cls.name}_domain.txt")))
         )
 
     @classmethod
@@ -380,8 +380,12 @@ class JmReqer(_JmContract, Req, Cookies, Previewer):
                 kind_key = kind_match.group(1) if kind_match else "点击"
                 params = {**cls.expand_map[time_key], **cls.expand_map[kind_key]}
                 url = f"https://{domain}/albums?{urlencode(params)}"
-                if len(keyword) > 4:
-                    url += keyword[4:]
+                # 排行榜关键词可带 "&page=N" 后缀指定起始页。空格已在上面剥离，
+                # 按固定长度切片会漏掉 & 分隔符（"收藏总&page=2"[4:] → "page=2"
+                # 拼成 o=tfpage=2），故按字面提取页码覆盖并补回 &。
+                page_override = re.search(r"page=\d+", keyword)
+                if page_override:
+                    url += f"&{page_override.group()}"
         return cls.build_page_url(url, page, cls.turn_page_info)
 
     @classmethod
@@ -471,17 +475,15 @@ class JmUtils(_JmContract, EroUtils, DomainUtils, Cookies, Previewer):
         )
 
     @classmethod
-    async def by_publish(cls):
-        def _fetch():
-            return cls._curl_get(cls.publish_url)
-
-        resp = await asyncio.to_thread(_fetch)
-        if str(resp.status_code).startswith("2"):
-            return await cls.parse_publish(resp.text)
-        cls.status_publish = False
-        raise ConnectionError(
-            res.SPIDER.PUBLISH_INVALID % (cls.publish_url, str(ori_path.joinpath(f"__temp/{cls.name}_domain.txt")))
-        )
+    async def _probe_publish_candidate(cls, url: str) -> str | None:
+        """jm 的发布页抓取必须走 chrome146 curl_cffi，否则被边缘 RST。"""
+        try:
+            resp = await asyncio.to_thread(cls._curl_get, url)
+            if str(resp.status_code).startswith("2"):
+                return await cls.parse_publish(resp.text)
+        except Exception:
+            return None
+        return None
 
     @classmethod
     async def test_aviable_domain(cls, domain):

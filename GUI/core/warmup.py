@@ -19,12 +19,7 @@ WARMUP_MODULES = (
 
 class ImportWarmupThread(QThread):
     """Load deferred modules off the main thread so lazification does not move
-    the stall to first site selection.
-
-    Safe off-main-thread: CPython 3.3+ uses a per-module import lock; disk I/O
-    releases the GIL. Concurrent first-use on the GUI thread simply waits the
-    same import rather than double-loading.
-    """
+    the stall to first site selection. CGS016: fire, don't join."""
 
     def __init__(self, gui, modules=WARMUP_MODULES):
         super().__init__(gui)

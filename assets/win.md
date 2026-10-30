@@ -29,6 +29,6 @@ https://cgs.101114105.xyz/faq/
 > python 下载
 https://www.python.org/downloads/release/python-3138/
 
-> kemono/Script 所需环境引用链接
+> pawchive/Script 所需环境引用链接
 https://cgs.101114105.xyz/script/#%E2%9A%A0%EF%B8%8F-%E9%80%9A%E7%94%A8%E5%89%8D%E7%BD%AE%E9%A1%BB%E7%9F%A5
 ```

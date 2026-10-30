@@ -1,6 +1,6 @@
 [project]
 name = "ComicGUISpider"
-version = "2.12.1"
+version = "2.13.0"
 description = "GUI Comic Downloader"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -15,13 +15,13 @@ dependencies = [
     "PySide6>=6.11,<6.12",
     "PyYAML",
     "tqdm",
-    "brotli",
     "markdown",
     "PyExecJS",
     "PySide6-Fluent-Widgets",
     "polib",
     "pillow-avif-plugin",
-    "uv",
+    "uv>=0.13.4",
+    "certifi>=2026.10.19",
     "uncurl",
     "urllib3>=2.5.0",
     "Pillow>=11.3.0",
@@ -39,6 +39,7 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "mcp>=1.27.1,<2",
+    "rich>=14.3.3",
 ]
 authors = [
     {name = "jsoneri", email = "jsoneri@outlook.com"},
@@ -49,12 +50,6 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
-]
-
-[project.optional-dependencies]
-script = [
-    "redis",
-    "pandas",
 ]
 
 [build-system]

@@ -3,7 +3,7 @@
 from enum import IntEnum
 from assets import res
 
-VER = "v2.12.1"
+VER = "v2.13.0"
 
 LANG = {
     "en_US": "English",
@@ -26,6 +26,7 @@ class Spider(IntEnum):
     MH1234 = 14        # 🇨🇳
     JCOMIC = 15        # 🌎 🔞
     RUMANHUA = 16      # 🇨🇳
+    MANGADEX = 17      # 🌎
 
     @property
     def spider_name(self): return self.name.lower()
@@ -33,7 +34,7 @@ class Spider(IntEnum):
     @classmethod
     def specials(cls):  return frozenset({cls.JM, cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.JCOMIC})
     @classmethod
-    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5, cls.COMICABC, cls.MH1234, cls.RUMANHUA})
+    def mangas(cls):    return frozenset({cls.MANGA_COPY, cls.MANGABZ, cls.JESTFUL, cls.MANHUAGUI, cls.DM5, cls.COMICABC, cls.MH1234, cls.RUMANHUA, cls.MANGADEX})
     @classmethod
     def cn_proxy(cls):  return frozenset({
         cls.WNACG, cls.EHENTAI, cls.HITOMI, cls.H_COMIC, cls.NHENTAI, cls.MANHUAGUI, cls.COMICABC, cls.JCOMIC,
@@ -45,8 +46,6 @@ class Spider(IntEnum):
 
 
 SPIDERS: dict[int, str] = {s.value: s.spider_name for s in Spider}
-SCRIPT_SITE_INDEX = 7
-SCRIPT_SITE_NAME = "Script"
 
 def _map_spider_values(values_by_spider):
     return {spider.value: values_by_spider[spider] for spider in Spider}
@@ -69,10 +68,7 @@ def _label(s: Spider) -> str:
         case _:
             return f"{s.value}、{s.spider_name}"
 
-SPIDERS_LABELS = dict(sorted({
-    **{spider.value: _label(spider) for spider in Spider},
-    SCRIPT_SITE_INDEX: f"{SCRIPT_SITE_INDEX}、{SCRIPT_SITE_NAME}",
-}.items()))
+SPIDERS_LABELS = dict(sorted({spider.value: _label(spider) for spider in Spider}.items()))
 
 COOKIES_SUPPORT = {     # only when login required
     'jm': set(),
@@ -88,26 +84,25 @@ COOKIES_PLACEHOLDER = {
     for k, v in COOKIES_SUPPORT.items()
 }
 
-DEFAULT_COMPLETER = dict(sorted({  # only take effect when init (mean value[completer] of conf.yml is null or not exist)
-    **_map_spider_values({
+# only take effect when init (mean value[completer] of conf.yml is null or not exist)
+DEFAULT_COMPLETER = dict(sorted(_map_spider_values({
         Spider.MANGA_COPY: ['更新', '排名日', '排名周', '排名月', '排名总'],
         Spider.JM: ['C108', '更新周', '更新月', '点击周', '点击月', '评分周', '评分月', '评论周', '评论月', '收藏周', '收藏月'],
         Spider.WNACG: ['C108', '更新', '汉化'],
-        Spider.EHENTAI: [res.SPIDER.Completer.popular, res.SPIDER.Completer.index, 'C108'],
+        Spider.EHENTAI: [res.SPIDER.Completer.popular, res.SPIDER.Completer.index_, 'C108'],
         Spider.MANGABZ: ['更新', '人气'],
         Spider.HITOMI: ['index-all', 'popular/week-all', 'popular/month-all'],
         Spider.H_COMIC: ['更新'],
         Spider.NHENTAI: [res.SPIDER.Completer.update],
-        Spider.JESTFUL: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
-        Spider.MANHUAGUI: [res.SPIDER.Completer.index,res.SPIDER.Completer.update],
+        Spider.JESTFUL: [res.SPIDER.Completer.index_,res.SPIDER.Completer.update],
+        Spider.MANHUAGUI: [res.SPIDER.Completer.index_,res.SPIDER.Completer.update],
         Spider.DM5: [res.SPIDER.Completer.update],
-        Spider.COMICABC: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
-        Spider.MH1234: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
-        Spider.JCOMIC: [res.SPIDER.Completer.index, res.SPIDER.Completer.update, '隨機', '最近更新'],
-        Spider.RUMANHUA: [res.SPIDER.Completer.index, res.SPIDER.Completer.update],
-    }),
-    SCRIPT_SITE_INDEX: [],
-}.items()))
+        Spider.COMICABC: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update],
+        Spider.MH1234: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update],
+        Spider.JCOMIC: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update, '隨機', '最近更新'],
+        Spider.RUMANHUA: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update],
+        Spider.MANGADEX: [res.SPIDER.Completer.index_, res.SPIDER.Completer.update],
+    }).items()))
 STATUS_TIP = dict(sorted({
     0: None,
     **_map_spider_values({
@@ -126,6 +121,7 @@ STATUS_TIP = dict(sorted({
         Spider.MH1234: f"mh1234: {res.GUI.SearchInputStatusTip.common}",
         Spider.JCOMIC: f"jcomic: {res.GUI.SearchInputStatusTip.common}",
         Spider.RUMANHUA: f"rumanhua: {res.GUI.SearchInputStatusTip.common}",
+        Spider.MANGADEX: f"mangadex: {res.GUI.SearchInputStatusTip.common}",
     }),
 }.items()))
 
@@ -146,9 +142,8 @@ IMGBED_ASSET_OBJECTS = {
     "aria2c-win-amd64.exe": "1786799424964_aria2c-win-amd64.exe",
     "aria2c-macos-arm64": "1786799422383_aria2c-macos-arm64",
     # GitHub preset dbs re-uploaded via docs-screenshot ImgBed (channel=huggingface, folder=assets).
-    "kemono.db": "1786803426234_kemono.db",
     "nhentai.db": "1786803548247_nhentai.db",
-    "hitomi.db": "1786803609153_hitomi.db",
+    "hitomi.db": "1792339446695_hitomi.db",
 }
 CGS_METADATA_CHANNEL_ID = ""
 JSONERI_PALACES_PROBE_API_URL = "https://jps.101114105.xyz"

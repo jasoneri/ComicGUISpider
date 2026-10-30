@@ -1,19 +1,4 @@
 # -*- coding: utf-8 -*-
-"""Subscribe background workers — PreviewWorker lifecycle, not try/except seals.
-
-Architecture (project evidence: GUI/thread/preview.py + GUI/manager/preview/__init__.py):
-1. Signals live on the QThread worker itself (not on SubscribeWindow, not a global hub).
-2. Window close / refresh: disconnect slots → stop worker → wait finished → deleteLater.
-3. Stale results: generation int compared in the slot (normal discard, not exception).
-4. Domain failures (network, decode): cover_error signal → log; never sys.excepthook.
-5. QRunnable + window-parented QObject was wrong: QueuedConnection can still touch a
-   deleted signal source → RuntimeError → CGS ExceptionRouter white QMessageBox per card.
-
-Qt / industry sources for this shape:
-- Qt docs: QObject thread affinity; signals/slots across threads (QueuedConnection).
-- Qt docs: stop worker threads before destroying receivers; disconnect before delete.
-- PreviewWorker in this repo is the local gold standard for cover download lifecycle.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -68,8 +53,7 @@ class CoverFetchTask:
 
 
 class SubscribeCoverWorker(QThread):
-    """Long-lived cover fetcher owned by SubscribeWindow session.
-
+    """
     Same contract as PreviewWorker CoverTask:
     - one event loop for the thread lifetime
     - download_cover_bytes then await ThreadSiteRuntime.aclose() in that loop
@@ -83,7 +67,7 @@ class SubscribeCoverWorker(QThread):
     cover_meta = Signal(int, str, str)  # generation, card_key, cover_url
 
     def __init__(self, parent: QObject | None = None):
-        # parent must outlive stop/wait; SubscribeWindow is OK if closeEvent waits.
+        # parent must outlive stop/wait; ToolWorkspaceWindow is OK if closeEvent waits.
         super().__init__(parent)
         self._active = True
         self._task_queue: Queue[CoverFetchTask | None] = Queue()
@@ -301,7 +285,7 @@ class DlScanWorker(QThread):
         self.scan_done.emit(self._generation, matched)
 
 
-# --- lifecycle helpers used by SubscribeWindow (mirror PreviewManager) ---
+# --- lifecycle helpers used by ToolWorkspaceWindow (mirror PreviewManager) ---
 
 
 def disconnect_cover_worker(worker: SubscribeCoverWorker | None) -> None:

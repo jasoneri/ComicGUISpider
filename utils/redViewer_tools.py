@@ -7,7 +7,6 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from assets import res
 from utils import conf
 from utils.config.rule import CgsRuleMgr
 from utils.sql import SqlrV
@@ -28,6 +27,36 @@ class DirEntryInfo:
     """`os.DirEntry` 仅在 scandir 迭代期间有效,这里只保留后续需要的字段"""
     name: str
     is_dir: bool
+    is_file: bool
+
+
+@dataclass(frozen=True)
+class ScanContext:
+    root: pathlib.Path
+    mode: int | None
+    rule: str
+
+    @classmethod
+    def capture(cls, _conf, mode: int | None):
+        return cls(pathlib.Path(_conf.sv_path), mode, CgsRuleMgr.get_download_handle(_conf))
+
+
+@dataclass(frozen=True)
+class ScanEntry:
+    local_path: pathlib.Path
+    relative_path: pathlib.Path
+    mode: int
+    kind: t.Literal["dir", "cbz"]
+    book: str
+    ep: str | None
+
+
+@dataclass(frozen=True)
+class ScanSnapshot:
+    root: pathlib.Path
+    mode: int | None
+    rule: str
+    entries: tuple[ScanEntry, ...]
 
 
 @dataclass
@@ -42,84 +71,76 @@ class BookShow:
 
 
 class Handler:
-    def __init__(self, ero=None):
-        self.ero = ero
+    def __init__(self, ero=None, *, scan_context: ScanContext | None = None):
+        self.ero = ero if scan_context is None else scan_context.mode
+        self.scan_context = scan_context
         self.strategy = None
+        self.snapshot: ScanSnapshot | None = None
 
     def sql(self):
-        return SqlrV(self.ero)
+        sql = SqlrV(self.ero)
+        if self.scan_context is not None:
+            sql.db = self.scan_context.root / "rV.db"
+        return sql
 
     def scan(self, _conf, init: bool = False) -> int:
-        sv_path = _conf.sv_path
-        self.strategy = ScanStrategyFactory.create(CgsRuleMgr.get_download_handle(_conf))
-        fs_episodes = self._scan_filesystem(sv_path)
+        context = self.scan_context or ScanContext.capture(_conf, self.ero)
+        self.strategy = ScanStrategyFactory.create(context.rule)
+        entries = self._scan_filesystem(context.root)
+        fs_episodes = {(entry.book, entry.ep, entry.mode) for entry in entries}
 
-        with self.sql() as sql:
+        database = self.sql()
+        database.db = context.root / "rV.db"
+        with database as sql:
             if init:
                 sql.reset_exist()
             sql.sync_episodes(fs_episodes)
 
+        self.snapshot = ScanSnapshot(context.root, context.mode, context.rule, entries)
         return len(fs_episodes)
 
-    def _scan_filesystem(self, sv_path: pathlib.Path) -> set:
-        """扫描文件系统,返回所有章节信息
-
-        根据 self.ero 决定扫描范围:
-        - ero=0: 仅扫描普通漫画
-        - ero=1: 仅扫描同人本
-        - ero=None: 扫描所有类型
-
-        Returns:
-            {(book, ep, ero), ...}
-        """
-        fs_episodes = set()
-        # ero=1 只扫同人本,ero=0 只扫普通漫画,None(及其它)=两者都扫
+    def _scan_filesystem(self, sv_path: pathlib.Path) -> tuple[ScanEntry, ...]:
+        entries = []
+        roots = self._list_entries(sv_path)
         if self.ero != 1:
-            fs_episodes.update(self._scan_normal_comics(sv_path))
+            entries.extend(self._scan_normal_comics(sv_path, roots))
         if self.ero != 0:
-            fs_episodes.update(self._scan_ero_books(sv_path))
-        return fs_episodes
+            for root in roots:
+                if root.is_dir and root.name in ("_本子", "_Doujinshi"):
+                    entries.extend(self._scan_ero_books(sv_path / root.name))
+        return tuple(entries)
 
-    def _scan_normal_comics(self, sv_path: pathlib.Path) -> set:
-        fs_episodes = set()
-        for book_name in self._list_subdir_names(sv_path):
-            for episode_name in self._list_episode_names(sv_path / book_name):
-                fs_episodes.add((book_name, episode_name, 0))
-        return fs_episodes
+    def _scan_normal_comics(self, sv_path: pathlib.Path, roots: list[DirEntryInfo]):
+        for book in roots:
+            if not book.is_dir or not accpect_dir(book.name):
+                continue
+            for episode in self._list_entries(sv_path / book.name):
+                if self.strategy.should_scan_as_episode(episode):
+                    relative = pathlib.Path(book.name, episode.name)
+                    yield ScanEntry(sv_path / relative, relative, 0, "dir" if episode.is_dir else "cbz",
+                        book.name, self.strategy.get_episode_name(episode))
 
-    def _scan_ero_books(self, sv_path: pathlib.Path) -> set:
-        fs_episodes = set()
-        ero_folder = sv_path.joinpath(res.SPIDER.ERO_BOOK_FOLDER)
-        if not ero_folder.is_dir():
-            return fs_episodes
+    def _scan_ero_books(self, ero_folder: pathlib.Path):
         for entry in self._list_entries(ero_folder):
             entry_path = ero_folder / entry.name
             if entry.is_dir and accpect_dir(entry.name):
                 book_name = strip_uuid(entry.name)
-                episode_names = self._list_episode_names(entry_path)
-                if episode_names:
-                    for episode_name in episode_names:
-                        episode_alias = strip_uuid(episode_name)
-                        # 单章节:章节名与书名重合时不重复展示
-                        fs_episodes.add((book_name, None if episode_alias == book_name else episode_alias, 1))
+                episodes = [ep for ep in self._list_entries(entry_path) if self.strategy.should_scan_as_episode(ep)]
+                if episodes:
+                    for episode in episodes:
+                        episode_alias = strip_uuid(self.strategy.get_episode_name(episode))
+                        relative = pathlib.Path(entry.name, episode.name)
+                        yield ScanEntry(ero_folder / relative, relative, 1, "dir" if episode.is_dir else "cbz",
+                            book_name, None if episode_alias == book_name else episode_alias)
                 else:
-                    fs_episodes.add((book_name, None, 1))
-            elif self.strategy.should_scan_as_episode(entry_path):
-                fs_episodes.add((strip_uuid(self.strategy.get_episode_name(entry_path)), None, 1))
-        return fs_episodes
+                    yield ScanEntry(entry_path, pathlib.Path(entry.name), 1, "dir", book_name, None)
+            elif self.strategy.should_scan_as_episode(entry):
+                yield ScanEntry(entry_path, pathlib.Path(entry.name), 1, "dir" if entry.is_dir else "cbz",
+                    strip_uuid(self.strategy.get_episode_name(entry)), None)
 
-    def _list_entries(self, root: pathlib.Path) -> t.List[DirEntryInfo]:
+    def _list_entries(self, root: pathlib.Path) -> list[DirEntryInfo]:
         with os.scandir(root) as entries:
-            return [DirEntryInfo(entry.name, entry.is_dir()) for entry in entries]
-
-    def _list_subdir_names(self, root: pathlib.Path) -> t.List[str]:
-        return [entry.name for entry in self._list_entries(root) if entry.is_dir and accpect_dir(entry.name)]
-
-    def _list_episode_names(self, book_path: pathlib.Path) -> t.List[str]:
-        """按当前 strategy 取出该书下所有章节名"""
-        names = [entry.name for entry in self._list_entries(book_path)]
-        paths = [book_path / name for name in names]
-        return [self.strategy.get_episode_name(path) for path in paths if self.strategy.should_scan_as_episode(path)]
+            return [DirEntryInfo(entry.name, entry.is_dir(), entry.is_file()) for entry in entries]
 
     def show_max(self) -> t.Dict[str, BookShow]:
         """从 episodes 表读取已读和已下载的最大章节信息"""
@@ -147,8 +168,7 @@ class Handler:
             for book, sections in raw_map.items():
                 if not sections:
                     continue
-                processed_map[book] = max(sections,
-                    key=lambda x: float(sec_regex.search(x).group(1)) if sec_regex.search(x) else 0)
+                processed_map[book] = max(sections, key=lambda x: float(sec_regex.search(x).group(1)) if sec_regex.search(x) else 0)
             return processed_map
 
         show_map = _get_max_sections(show_map_raw)
@@ -166,28 +186,28 @@ class Handler:
 # Strategy
 class ScanStrategy(ABC):
     @abstractmethod
-    def should_scan_as_episode(self, item: pathlib.Path) -> bool:
+    def should_scan_as_episode(self, item: DirEntryInfo) -> bool:
         pass
 
     @abstractmethod
-    def get_episode_name(self, item: pathlib.Path) -> str:
+    def get_episode_name(self, item: DirEntryInfo) -> str:
         pass
 
 
 class FolderStrategy(ScanStrategy):
-    def should_scan_as_episode(self, item: pathlib.Path) -> bool:
-        return item.is_dir()
+    def should_scan_as_episode(self, item: DirEntryInfo) -> bool:
+        return item.is_dir
 
-    def get_episode_name(self, item: pathlib.Path) -> str:
+    def get_episode_name(self, item: DirEntryInfo) -> str:
         return item.name
 
 
 class CbzStrategy(ScanStrategy):
-    def should_scan_as_episode(self, item: pathlib.Path) -> bool:
-        return item.is_file() and item.suffix.lower() == '.cbz'
+    def should_scan_as_episode(self, item: DirEntryInfo) -> bool:
+        return item.is_file and item.name.lower().endswith('.cbz')
 
-    def get_episode_name(self, item: pathlib.Path) -> str:
-        return item.stem
+    def get_episode_name(self, item: DirEntryInfo) -> str:
+        return item.name[:-4]
 
 
 class ScanStrategyFactory:

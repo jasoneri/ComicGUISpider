@@ -22,13 +22,13 @@ class _EHentaiContract:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": res.Vars.ua_accept_language,
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "gzip, deflate",
     }
     book_hea = headers
     uuid_regex = re.compile(r"/g/(\d+)/")
     cookies_field = COOKIES_SUPPORT[name]
     mappings = {
-        res.SPIDER.Completer.index: f"https://{domain}",
+        res.SPIDER.Completer.index_: f"https://{domain}",
         res.SPIDER.Completer.popular: f"https://{domain}/popular",
     }
     book_url_regex = r"^https://exhentai\.org/g/[0-9a-z]+/[0-9a-z]+"

@@ -22,7 +22,7 @@ class _ManhuaguiContract:
     domain = "www.manhuagui.com"
     index = f"https://{domain}/"
     update = f"{index}update/"
-    mappings = {res.SPIDER.Completer.index: index, res.SPIDER.Completer.update: update}
+    mappings = {res.SPIDER.Completer.index_: index, res.SPIDER.Completer.update: update}
     default_cookies = {"country": "CN"}
     browser_referer_mode = "provider_index"
     browser_cookie_set_enabled = True

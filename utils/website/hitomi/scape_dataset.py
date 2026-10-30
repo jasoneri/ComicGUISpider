@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import httpx
 from lxml import html
 from assets import res
-from utils import temp_p
+from utils import temp_p, conf
 
 
 BASE_URL = "https://hitomi.la/all{category}-{letter}.html"
@@ -24,6 +24,9 @@ HEADERS = {
 }
 count_regex = re.compile(r'\((\d+)\)\s*$')
 convention_tag_regex = re.compile(r'c\d+\Z', re.IGNORECASE)
+# db 表名（alltags/allartists/...）→ href 前缀（/tag//artist//series//character/）。
+# series 不去尾缀 s，与 GUI/tools/hitomi/interface.py 的 category 命名保持一致。
+HREF_PREFIX = {"tags": "tag", "artists": "artist", "series": "series", "characters": "character"}
 
 
 def lstrip(text):
@@ -43,9 +46,10 @@ class Db:
         CREATE TABLE IF NOT EXISTS `%s` (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             content TEXT NOT NULL UNIQUE,
+            url_key TEXT NOT NULL,
             num INTEGER NOT NULL DEFAULT 1
             );
-    """
+        """
     language_tb = """
         CREATE TABLE IF NOT EXISTS `language` (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,7 +95,17 @@ def _parse_post_item(li, category):
     if count_match is None:
         href = li.xpath("./a/@href")
         raise ValueError(f"missing trailing count in hitomi list item: {href[0] if href else content!r}")
-    return content, int(count_match.group(1))
+    hrefs = li.xpath("./a/@href")
+    if not hrefs:
+        raise ValueError(f"missing href in hitomi list item: {content!r}")
+    # content 是 hitomi 的展示文本，href 才是 nozomi 路径真值；两者语义不同（如
+    # "big breasts ♀" ↔ "female:big breasts"），必须分别落库，消费端不做符号反推。
+    prefix = f"/{HREF_PREFIX[category]}/"
+    href = hrefs[0]
+    if not href.startswith(prefix) or not href.endswith("-all.html"):
+        raise ValueError(f"unexpected hitomi list item href: {href!r} for {content!r}")
+    url_key = href[len(prefix):-len("-all.html")]
+    return content, url_key, int(count_match.group(1))
 
 
 def _parse_posts_page(page_text, category):
@@ -110,32 +124,30 @@ def _scrape_one(client, category, letter, timeout=10, max_retries=3):
     return _parse_posts_page(page_text, category)
 
 
-def _save_one(db_conn, table_name, items, rewrite_flag):
-    if rewrite_flag:
-        cursor = db_conn.cursor()
+def _save_one(db_conn, table_name, items):
+    # The page is authoritative for its letter: rebuild it in page order, or stale num
+    # counts and sparse AUTOINCREMENT ids drift away from that order.
+    with closing(db_conn.cursor()) as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS `{table_name}`")
         cursor.execute(Db.data_tb % table_name)
-        db_conn.commit()
-    with closing(db_conn.cursor()) as cursor:
-        cursor.executemany(f"INSERT OR IGNORE INTO `{table_name}` (content,num) VALUES (?,?)", items)
-        db_conn.commit()
-        print(f"[SUCCESS] {table_name} written {cursor.rowcount}")
+        cursor.executemany(
+            f"INSERT OR IGNORE INTO `{table_name}` (content,url_key,num) VALUES (?,?,?)", items)
+    db_conn.commit()
+    print(f"[SUCCESS] {table_name} rewritten {len(items)} rows")
 
 
-def scrape_and_save(db_p, workers=2, max_retries=3, timeout=10):
+def scrape_and_save(db_p, workers=2, max_retries=3, timeout=10, only_failed=False):
+    proxy = f"http://{conf.proxies[0]}" if getattr(conf, "proxies", None) else None
     client = httpx.Client(
         http2=True, headers=HEADERS,
-        # proxy="http://127.0.0.1:10809"
+        proxy=proxy,
     )
     init_err_f = temp_p.joinpath('hitomi_db_init_err.json')
-    tb_rewrite_flag = False
     tasks = []
 
-    if init_err_f.exists():
+    if only_failed and init_err_f.exists():
         with open(init_err_f, 'r', encoding='utf-8') as f:
             tasks = json.load(f)
-        if tasks:
-            tb_rewrite_flag = True
 
     if not tasks:
         tasks = [f'{category}-{letter}' for category, letter in _iter_category_letter_pairs()]
@@ -149,14 +161,14 @@ def scrape_and_save(db_p, workers=2, max_retries=3, timeout=10):
         return task_key, f"all{category}-{letter}", items
 
     # fetch concurrently, write sequentially
-    with closing(sqlite3.connect(db_p)) as db_conn:
+    with closing(sqlite3.connect(db_p, timeout=30)) as db_conn:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(fetch_task, t): t for t in tasks}
             for future in as_completed(futures):
                 task_key = futures[future]
                 try:
                     _, table_name, items = future.result()
-                    _save_one(db_conn, table_name, items, tb_rewrite_flag)
+                    _save_one(db_conn, table_name, items)
                 except Exception as e:
                     print(f"[ERROR] {task_key} {e}")
                     err.append(task_key)
@@ -169,7 +181,7 @@ def scrape_and_save(db_p, workers=2, max_retries=3, timeout=10):
     print(f"\n{'='*40}\n[DONE] {ok}/{total} succeeded, {len(err)} failed")
     if err:
         print(f"[FAILED] {err}")
-        print(f"Re-run to retry failed tasks (reads {init_err_f})")
+        print(f"Re-run with --only-failed to retry failed tasks (reads {init_err_f})")
     return len(err) == 0
 
 
@@ -183,7 +195,10 @@ def main():
 
     db_p = temp_p.joinpath("hitomi.db")
     Db.create_tables(db_p)
-    success = scrape_and_save(db_p, workers=args.workers, max_retries=args.max_retries, timeout=args.timeout)
+    success = scrape_and_save(
+        db_p, workers=args.workers, max_retries=args.max_retries,
+        timeout=args.timeout, only_failed=args.only_failed,
+    )
     exit(0 if success else 1)
 
 if __name__ == "__main__":

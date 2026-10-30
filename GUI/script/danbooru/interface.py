@@ -1,6 +1,7 @@
 import gc
 import re
 import shutil
+import time
 import typing as t
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -12,15 +13,15 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLineEdit, QPlainTextEdit, QStackedWidget, QTextEdit, QVBoxLayout, QWidget
 from qfluentwidgets import PlainTextEdit as FluentPlainTextEdit
 from qfluentwidgets import (
-    Action, ComboBox, FluentIcon as FIF, IndeterminateProgressRing, InfoBar, InfoBarPosition,
-    PrimaryToolButton, ProgressBar, ProgressRing, RoundMenu, StrongBodyLabel, SubtitleLabel, TabBar,
+    Action, ComboBox, FluentIcon as FIF, InfoBar, InfoBarPosition,
+    PrimaryToolButton, ProgressBar, RoundMenu, StrongBodyLabel, SubtitleLabel, TabBar,
     TabCloseButtonDisplayMode, TeachingTipTailPosition, ToolButton, TransparentToolButton,
 )
 
 from deploy import curr_os
 from GUI.core.theme import theme_mgr
 from GUI.manager.async_task import AsyncTaskManager, summarize_error_message
-from GUI.uic.qfluent.components import CountBadge, CustomInfoBar, CustomTeachingTip
+from GUI.uic.qfluent.components import BusyRingHost, CountBadge, CustomInfoBar, CustomTeachingTip
 from GUI.uic.qfluent.components.icons import CgsIcon
 from utils.script.image.danbooru.client import DanbooruClient
 from utils.config.qc import danbooru_cfg
@@ -46,6 +47,10 @@ from .tag import (
 )
 from .video_proxy import VideoProxy
 from .viewer import DanbooruImageViewer
+
+
+# A worn middle button bounces one click into two releases (~100ms apart), closing both tabs.
+MIDDLE_CLICK_CLOSE_DEBOUNCE_MS = 400
 
 
 class DanbooruFuncs:
@@ -237,24 +242,10 @@ class DanbooruInterface(QFrame):
         self.favMgrBtn.setObjectName("FavMgrBtn")
         self.favMgrBtn.setIconSize(QSize(20, 20))
         self.favMgrBtn.setMinimumHeight(50)
-        self.favTranslateRingHost = QWidget(self)
-        self.favTranslateRingHost.setObjectName("FavTranslateRingHost")
-        self.favTranslateRingHost.setFixedSize(QSize(36, 36))
+        # 收藏翻译有确定进度（done/total）：双环变种，busy 时取代 favMgrBtn 槽位。
+        self.favTranslateRingHost = BusyRingHost.make(self, self.favMgrBtn, determinate=True,
+                                                      object_name="FavTranslateRingHost")
         self.favTranslateRingHost.setToolTip("翻译中")
-        self.favTranslateRing = ProgressRing(self.favTranslateRingHost)
-        self.favTranslateRing.setTextVisible(False)
-        self.favTranslateRing.setFixedSize(QSize(36, 36))
-        self.favTranslateRing.setRange(0, 100)
-        self.favTranslateRing.setValue(0)
-        self.favTranslateRing.move(0, 0)
-        self.favTranslateIndeterminateRing = IndeterminateProgressRing(
-            self.favTranslateRingHost, start=False
-        )
-        self.favTranslateIndeterminateRing.setFixedSize(QSize(18, 18))
-        self.favTranslateIndeterminateRing.setStrokeWidth(3)
-        self.favTranslateIndeterminateRing.move(9, 9)
-        self.favTranslateIndeterminateRing.raise_()
-        self.favTranslateRingHost.hide()
         self.openBtn = ToolButton(FIF.FOLDER)
         self.openBtn.setMinimumHeight(50)
         self.batch_download_btn = PrimaryToolButton(FIF.DOWNLOAD, self)
@@ -515,6 +506,7 @@ class DanbooruInterface(QFrame):
             self.httpx_status: dict[str, str] = {}
             self.activation_order: list[str] = []
             self._zoom_sync_generation = 0
+            self._last_close_request_at = 0.0
 
         def create(self, initial_query: str = "", auto_search: bool = False) -> str:
             self.counter += 1
@@ -556,6 +548,12 @@ class DanbooruInterface(QFrame):
             return tab_id
 
         def close_current(self):
+            # Timestamp is shared across tabs: the bounced release lands on whichever tab
+            # became current after the first close, so per-tab state cannot catch it.
+            now = time.monotonic()
+            if (now - self._last_close_request_at) * 1000.0 < MIDDLE_CLICK_CLOSE_DEBOUNCE_MS:
+                return
+            self._last_close_request_at = now
             self.close_by_id(self.active_tab_id())
 
         def close_by_id(self, tab_id: t.Optional[str]):

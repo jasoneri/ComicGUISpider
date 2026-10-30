@@ -197,6 +197,11 @@ class FixPreviewFeature(MangaPreviewFeature):
         if book is not None:
             if generation == self.mgr._generation:
                 ready_book = next((item for item in items if hasattr(item, "to_tasks_obj")), book)
+                if ready_book.pages is None:
+                    # Submitting without pages trips to_tasks_obj's assertion and
+                    # turns a fetch failure into a misleading traceback.
+                    self.on_pages_error(generation, book_key, "pages fetch returned no page urls")
+                    return
                 cached_book = self.mgr.books_cache.get(book_key)
                 if self._same_book(cached_book, book):
                     self.mgr.books_cache[book_key] = ready_book

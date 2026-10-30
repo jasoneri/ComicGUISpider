@@ -1,3 +1,4 @@
+import os
 import sys
 import subprocess
 import pathlib as p
@@ -6,7 +7,7 @@ from datetime import datetime
 
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSpacerItem, QSizePolicy
-from PySide6.QtCore import Qt, QUrl, Signal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer, QByteArray, QBuffer, QIODevice
+from PySide6.QtCore import Qt, QUrl, Signal, QThread, QDate, QAbstractTableModel, QModelIndex, QTimer
 from GUI.core.timer import safe_single_shot
 from PySide6.QtGui import QFont, QGuiApplication, QDesktopServices, QPixmap, QColor
 from qfluentwidgets import (
@@ -18,27 +19,21 @@ from qfluentwidgets import (
 )
 from qframelesswindow import FramelessWindow
 
+from assets import res
 from variables import CGS_DOC
 from deploy import curr_os
 from utils import ori_path, temp_p
-from utils.config.qc import kemono_cfg
-from utils.website.kemono.db import AuthorQuery, KemonoAuthor, KemonoAuthorsDb
-from GUI.core.font import font_color
+from utils.config.qc import pawchive_cfg
+from utils.website.pawchive.db import AuthorQuery, PawchiveAuthor, PawchiveAuthorsDb
+from utils.website.pawchive import *
+from GUI.core.font import ansi_to_html, font_color
 from GUI.uic.qfluent.components import TextBrowserWithBg, BgMgr, CustomFlyout
 from GUI.manager.async_task import AsyncTaskManager, TaskConfig
-from GUI.script.kemono.avatar_cache import AvatarCache
+from GUI.script.pawchive.avatar import AvatarCache, close_client, fetch_avatar_bytes, is_jpeg, to_avatar_jpeg
 
-_KEMONO_SORT_COLUMNS = ("name", "service", "updated", "favorited")
-_KEMONO_WINDOW_SIZE = 384
-_KEMONO_FTS_TASK_ID = "kemono_authors_fts_ensure"
-
-# Keep banner local: importing utils.script.image.kemono pulls pandas/DoH/motrix (~10s+) on the GUI thread.
-KEMONO_TOPIC = """
-  ┏┓┏┓┏┓  ┓            
-  ┃ ┃┓┗┓━━┃┏┏┓┏┳┓┏┓┏┓┏┓
-  ┗┛┗┛┗┛  ┛┗┗ ┛┗┗┗┛┛┗┗┛
-"""
-
+_PAWCHIVE_SORT_COLUMNS = ("name", "service", "updated", "favorited")
+_PAWCHIVE_WINDOW_SIZE = 384
+_PAWCHIVE_FTS_TASK_ID = "pawchive_authors_fts_ensure"
 
 class FilterView(FlyoutViewBase):
     closed = Signal()  # 添加closed信号
@@ -55,11 +50,11 @@ class FilterView(FlyoutViewBase):
         first_row = QtWidgets.QHBoxLayout()
         self.textEdit = TextEdit(self)
         self.textEdit.setPlaceholderText("基于示例，格式严格遵循yml，过滤方式为正则匹配")
-        self.textEdit.setPlainText(kemono_cfg.filterText.value)
+        self.textEdit.setPlainText(pawchive_cfg.filterText.value)
         first_row.addWidget(self.textEdit)
         
         second_row = QtWidgets.QHBoxLayout()
-        self.linkBtn = HyperlinkButton(FIF.LINK, f"{CGS_DOC}/script/kemono.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
+        self.linkBtn = HyperlinkButton(FIF.LINK, f"{CGS_DOC}/script/pawchive.html#%F0%9F%9A%80-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B", "查看📏过滤规则示例", self)
         spacerItem = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.svBtn = PrimaryToolButton(FIF.SAVE, self)
         self.svBtn.clicked.connect(self.save)
@@ -76,15 +71,15 @@ class FilterView(FlyoutViewBase):
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
 
     def save(self):
-        kemono_cfg.filterText.value = self.textEdit.toPlainText()
-        kemono_cfg.save()
+        pawchive_cfg.filterText.value = self.textEdit.toPlainText()
+        pawchive_cfg.save()
         self.closeBtn.click()
 
 
-class VirtualKemonoTableModel(QAbstractTableModel):
-    """SQL-backed Kemono table model: count + window cache, no full load_all."""
+class VirtualPawchiveTableModel(QAbstractTableModel):
+    """SQL-backed Pawchive table model: count + window cache, no full load_all."""
 
-    def __init__(self, authors_db: KemonoAuthorsDb):
+    def __init__(self, authors_db: PawchiveAuthorsDb):
         super().__init__()
         self.authors_db = authors_db
         self.headers = ["作者", "平台", "更新时间", "收藏数"]
@@ -94,7 +89,7 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         self._query = AuthorQuery()
         self._row_count = 0
         self._window_offset = 0
-        self._window_authors: list[KemonoAuthor] = []
+        self._window_authors: list[PawchiveAuthor] = []
         self._reload_count()
 
     def rowCount(self, parent=QModelIndex()):
@@ -150,9 +145,9 @@ class VirtualKemonoTableModel(QAbstractTableModel):
             if column == 0:
                 return
             logical_column = column - 1
-        if logical_column < 0 or logical_column >= len(_KEMONO_SORT_COLUMNS):
+        if logical_column < 0 or logical_column >= len(_PAWCHIVE_SORT_COLUMNS):
             return
-        sort_column = _KEMONO_SORT_COLUMNS[logical_column]
+        sort_column = _PAWCHIVE_SORT_COLUMNS[logical_column]
         sort_desc = order == Qt.DescendingOrder
         if self._query.sort_column == sort_column and self._query.sort_desc == sort_desc:
             return
@@ -178,7 +173,7 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         )
         self._reload_count(reset_window=True)
 
-    def get_author_at_row(self, row: int) -> KemonoAuthor | None:
+    def get_author_at_row(self, row: int) -> PawchiveAuthor | None:
         if row < 0 or row >= self._row_count:
             return None
         if not (
@@ -228,20 +223,20 @@ class VirtualKemonoTableModel(QAbstractTableModel):
         self.endResetModel()
 
     def _load_window(self, focus_row: int):
-        half_window = _KEMONO_WINDOW_SIZE // 2
+        half_window = _PAWCHIVE_WINDOW_SIZE // 2
         offset = max(0, focus_row - half_window)
         authors = self.authors_db.fetch(
-            self._query, offset=offset, limit=_KEMONO_WINDOW_SIZE
+            self._query, offset=offset, limit=_PAWCHIVE_WINDOW_SIZE
         )
         self._window_offset = offset
         self._window_authors = authors
 
 
-class KemonoTableView(FramelessWindow):
-    """Kemono作者表格视图"""
+class PawchiveTableView(FramelessWindow):
+    """Pawchive作者表格视图"""
     closed = Signal()
 
-    def __init__(self, authors_db: KemonoAuthorsDb, parent):
+    def __init__(self, authors_db: PawchiveAuthorsDb, parent):
         super().__init__()
         self.interface = parent
         self.gui = parent.parent_window.gui
@@ -252,26 +247,13 @@ class KemonoTableView(FramelessWindow):
         self._avatar_col_width = 44
         self._avatar_row_height = 40
         self._avatar_task_mgr = AsyncTaskManager(self.gui, self)
-        self._avatar_cache = AvatarCache(temp_p.joinpath("kemono_avatars.pkl"))
+        self._avatar_cache = AvatarCache(temp_p.joinpath("pawchive_avatars.pkl"), accept=is_jpeg)
         self._avatar_cache.load()
         self._avatar_widgets: t.Dict[int, ImageLabel] = {}
-        self._avatar_pending: t.List[t.Tuple[KemonoAuthor, ImageLabel]] = []
+        self._avatar_pending: t.List[t.Tuple[PawchiveAuthor, ImageLabel]] = []
         self._avatar_max_concurrent = 12
-        import httpx
-
-        self._avatar_http_cli = httpx.Client(
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                "Accept": "image/*",
-                "Referer": "https://kemono.cr/",
-            },
-            follow_redirects=True,
-            timeout=15,
-            limits=httpx.Limits(
-                max_connections=self._avatar_max_concurrent,
-                max_keepalive_connections=self._avatar_max_concurrent,
-            ),
-        )
+        self._avatar_max_attempts = 3
+        self._avatar_attempts: t.Dict[str, int] = {}
         self._avatar_sync_scheduled = False
         self._avatar_save_timer = QTimer(self)
         self._avatar_save_timer.setSingleShot(True)
@@ -302,7 +284,7 @@ class KemonoTableView(FramelessWindow):
         self.layout = VBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
-        self.virtual_model = VirtualKemonoTableModel(authors_db)
+        self.virtual_model = VirtualPawchiveTableModel(authors_db)
 
         self.set_table()
         self.setupUi()
@@ -376,7 +358,7 @@ class KemonoTableView(FramelessWindow):
             self.show_all_authors()
 
     def show_favorites_only(self):
-        favorite_ids = kemono_cfg.fav.get_favorites()
+        favorite_ids = pawchive_cfg.fav.get_favorites()
         self.virtual_model.show_favorites_only(favorite_ids)
         self._apply_column_layout()
         self._schedule_avatar_sync()
@@ -438,13 +420,14 @@ class KemonoTableView(FramelessWindow):
 
     def _clear_avatar_widgets(self):
         self._avatar_pending.clear()
+        self._avatar_attempts.clear()
         for w in self._avatar_widgets.values():
             if self._widget_alive(w):
                 w.setParent(None)
                 w.deleteLater()
         self._avatar_widgets.clear()
 
-    def _start_download(self, author: KemonoAuthor, label: ImageLabel):
+    def _start_download(self, author: PawchiveAuthor, label: ImageLabel):
         key = self._avatar_key(author)
         task_id = f"av_{key}"
         if self._avatar_task_mgr.is_task_running(task_id):
@@ -454,9 +437,9 @@ class KemonoTableView(FramelessWindow):
             return
 
         config = TaskConfig(
-            task_func=lambda _url=author.avatar: self._download_bytes(_url),
+            task_func=lambda _url=author.avatar: fetch_avatar_bytes(_url),
             success_callback=lambda data, _k=key, _l=label: self._on_download_ok(_k, _l, data),
-            error_callback=lambda err, _k=key: self._drain_pending(),
+            error_callback=lambda err, _k=key, _a=author, _l=label: self._on_download_error(_k, _a, _l),
             tooltip_title="",
             show_success_info=False,
             show_error_info=False,
@@ -464,19 +447,9 @@ class KemonoTableView(FramelessWindow):
         )
         self._avatar_task_mgr.execute_task(task_id, config)
 
-    def _download_bytes(self, url: str) -> bytes:
-        resp = self._avatar_http_cli.get(url)
-        resp.raise_for_status()
-        content_length = resp.headers.get("content-length")
-        if content_length and int(content_length) > 2 * 1024 * 1024:
-            raise ValueError("invalid_avatar_response")
-        data = resp.content
-        if not data or len(data) > 2 * 1024 * 1024:
-            raise ValueError("invalid_avatar_response")
-        return data
-
     def _on_download_ok(self, key: str, label: ImageLabel, data: bytes):
-        scaled = self._scale_to_png(data)
+        self._avatar_attempts.pop(key, None)
+        scaled = to_avatar_jpeg(data, self._avatar_size)
         if not scaled:
             self._drain_pending()
             return
@@ -495,21 +468,14 @@ class KemonoTableView(FramelessWindow):
         self._apply_bytes_to_label(label, scaled)
         self._drain_pending()
 
-    def _scale_to_png(self, raw: bytes) -> t.Optional[bytes]:
-        pm = QPixmap()
-        if not pm.loadFromData(raw):
-            return None
-        scaled = pm.scaled(self._avatar_size, self._avatar_size,
-                           Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        ba = QByteArray()
-        buf = QBuffer(ba)
-        if not buf.open(QIODevice.WriteOnly):
-            return None
-        if not scaled.save(buf, "PNG"):
-            buf.close()
-            return None
-        buf.close()
-        return bytes(ba)
+    def _on_download_error(self, key: str, author: PawchiveAuthor, label: ImageLabel):
+        # fetch_avatar_bytes 内部已做瞬时错误退避重试；这里再排队一轮更晚的重试，
+        # 覆盖「整段网络抖动超过单次任务重试窗口」的情况，避免头像停留在灰占位。
+        attempts = self._avatar_attempts.get(key, 0) + 1
+        self._avatar_attempts[key] = attempts
+        if attempts < self._avatar_max_attempts and self._widget_alive(label):
+            self._avatar_pending.append((author, label))
+        self._drain_pending()
 
     def _apply_bytes_to_label(self, label: ImageLabel, img_bytes: bytes):
         pm = QPixmap()
@@ -525,7 +491,7 @@ class KemonoTableView(FramelessWindow):
         label.setFixedSize(self._avatar_size, self._avatar_size)
 
     @staticmethod
-    def _avatar_key(author: KemonoAuthor) -> str:
+    def _avatar_key(author: PawchiveAuthor) -> str:
         return f"{author.service}:{author.id}"
 
     @staticmethod
@@ -551,7 +517,7 @@ class KemonoTableView(FramelessWindow):
 
     def closeEvent(self, event):
         self._avatar_task_mgr.cancel_all_tasks()
-        self._avatar_http_cli.close()
+        close_client()
         if self._avatar_save_timer.isActive():
             self._avatar_save_timer.stop()
         self._avatar_cache.save()
@@ -597,11 +563,11 @@ class KemonoTableView(FramelessWindow):
 
     def open_author_link(self, author):
         """打开作者链接"""
-        author_url = f"https://kemono.cr/{author.service}/user/{author.id}"
+        author_url = f"https://{domain}/{author.service}/user/{author.id}"
         QDesktopServices.openUrl(QUrl(author_url))
 
     def fav_author(self, author):
-        is_favorited = kemono_cfg.fav.toggle_favorite(author.id)
+        is_favorited = pawchive_cfg.fav.toggle_favorite(author.id)
         action_text = "已添加收藏" if is_favorited else "已取消收藏"
         at = InfoBar.success if is_favorited else InfoBar.warning
         at(
@@ -611,8 +577,8 @@ class KemonoTableView(FramelessWindow):
         )
 
 
-class KemonoInterface(QFrame):
-    """Kemono界面Widget类"""
+class PawchiveInterface(QFrame):
+    """Pawchive界面Widget类"""
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -622,13 +588,13 @@ class KemonoInterface(QFrame):
         self.table_window = None
         self._table_task_mgr = AsyncTaskManager(parent.gui, self) if parent is not None else None
         self.selected = []
-        self.setObjectName("KemonoInterface")
+        self.setObjectName("PawchiveInterface")
         self.setupUi()
 
     def server_mode_switch_blockers(self) -> list[str]:
         thread = self.backend_thread
         if thread is not None and thread.isRunning():
-            return ["kemono script"]
+            return ["pawchive script"]
         return []
 
     def setupUi(self):
@@ -640,7 +606,7 @@ class KemonoInterface(QFrame):
         self.eraseBtn = TransparentToolButton(FIF.ERASE_TOOL, self)
         self.eraseBtn.clicked.connect(self.erase_selected)
         self.showTbBtn = PushButton(FIF.BOOK_SHELF, "作者表格", self)
-        self.showTbBtn.clicked.connect(self.show_kemono_table)
+        self.showTbBtn.clicked.connect(self.show_pawchive_table)
         first_row.addWidget(self.kwEdit)
         first_row.addWidget(self.eraseBtn)
         first_row.addWidget(self.showTbBtn)
@@ -664,12 +630,12 @@ class KemonoInterface(QFrame):
 
         third_row = QHBoxLayout()
         self.runBtn = PrimaryPushButton(FIF.PLAY, "运行", self)
-        self.runBtn.clicked.connect(self.run_kemono)
+        self.runBtn.clicked.connect(self.run_pawchive)
         self.openBtn = TransparentToolButton(FIF.FOLDER, self)
         def open_sv_path():
             from utils.script import conf as script_conf
 
-            curr_os.open_folder(p.Path(script_conf.kemono.get('sv_path')))
+            curr_os.open_folder(p.Path(script_conf.pawchive.get('sv_path')))
         self.openBtn.clicked.connect(open_sv_path)
         third_row.addWidget(self.runBtn)
         third_row.addWidget(self.openBtn)
@@ -677,7 +643,9 @@ class KemonoInterface(QFrame):
         fourth_row = QHBoxLayout()
         self.textBrowser = TextBrowserWithBg(self)
         font = QFont()
-        font.setFamily("Consolas, Monaco, 'Courier New', monospace")  # 等宽字体，支持Unicode
+        # 等宽字体 + Unicode box-drawing。setFamily 不解析逗号候选列表，必须 setFamilies，
+        # 否则整个字符串被当成单一字体名 → 解析失败 → 回落到应用默认字体，banner 错位。
+        font.setFamilies(["Consolas", "DejaVu Sans Mono", "Courier New", "monospace"])
         font.setPointSize(10)
         self.textBrowser.setFont(font)
         fourth_row.addWidget(self.textBrowser)
@@ -693,7 +661,7 @@ class KemonoInterface(QFrame):
     
     def reset_browser(self):
         self.textBrowser.clear()
-        self.say(KEMONO_TOPIC)
+        self.say(PAWCHIVE_TOPIC)
         self.say(font_color(
             "当前仅支持作者作品集层面下载（不支持下载单个post的小操作）<br> discord 注意现阶段默认下载该作者所有频道，建议略过上百个频道的作者等后续支持单频道id下载",      
             cls='theme-tip'))
@@ -709,19 +677,19 @@ class KemonoInterface(QFrame):
         backend_kw = {**{"creatorid": self.selected}, **filter_ckw}
         return backend_kw
 
-    def run_kemono(self):
+    def run_pawchive(self):
         backend_kw = self._get_backend_kw()
         if not backend_kw:
             self.say("input empty")
             return
         
-        self.backend_thread = KemonoBackendThread(backend_kw, self)
+        self.backend_thread = PawchiveBackendThread(backend_kw, self)
         self.backend_thread.output_signal.connect(self.say)
-        self.backend_thread.finished_signal.connect(self._on_kemono_finished)
+        self.backend_thread.finished_signal.connect(self._on_pawchive_finished)
         self.backend_thread.start()
         self.runBtn.setDisabled(True)
 
-    def _on_kemono_finished(self, exit_code):
+    def _on_pawchive_finished(self, exit_code):
         if exit_code != 0:
             self.say(font_color("任务执行失败，退出码: {exit_code}", cls='theme-err'))
 
@@ -739,16 +707,16 @@ class KemonoInterface(QFrame):
             aniType=FlyoutAnimationType.SLIDE_LEFT
         )
 
-    def show_kemono_table(self):
+    def show_pawchive_table(self):
         if self.table_inited and self.table_window is not None:
             self._present_table_window()
             return
 
-        db_path = temp_p.joinpath("kemono.db")
+        db_path = temp_p.joinpath("pawchive.db")
         if not db_path.exists():
             InfoBar.error(
                 title="",
-                content=f"kemono 作者库不存在: {db_path}",
+                content=f"pawchive 作者库不存在: {db_path}",
                 orient=Qt.Horizontal,
                 position=InfoBarPosition.TOP,
                 duration=5000,
@@ -756,7 +724,7 @@ class KemonoInterface(QFrame):
             )
             return
 
-        authors_db = KemonoAuthorsDb(db_path)
+        authors_db = PawchiveAuthorsDb(db_path)
         if authors_db.fts_ready():
             self._open_table_window(authors_db)
             return
@@ -766,12 +734,12 @@ class KemonoInterface(QFrame):
             self._open_table_window(authors_db)
             return
 
-        if self._table_task_mgr.is_task_running(_KEMONO_FTS_TASK_ID):
+        if self._table_task_mgr.is_task_running(_PAWCHIVE_FTS_TASK_ID):
             return
 
         self.showTbBtn.setDisabled(True)
 
-        def _build_fts(_db: KemonoAuthorsDb = authors_db):
+        def _build_fts(_db: PawchiveAuthorsDb = authors_db):
             _db.ensure_fts(force=True)
             return _db
 
@@ -785,9 +753,9 @@ class KemonoInterface(QFrame):
             show_error_info=True,
             tooltip_parent=self,
         )
-        self._table_task_mgr.execute_task(_KEMONO_FTS_TASK_ID, config)
+        self._table_task_mgr.execute_task(_PAWCHIVE_FTS_TASK_ID, config)
 
-    def _on_fts_ready(self, authors_db: KemonoAuthorsDb):
+    def _on_fts_ready(self, authors_db: PawchiveAuthorsDb):
         self.showTbBtn.setDisabled(False)
         self._open_table_window(authors_db)
 
@@ -802,8 +770,8 @@ class KemonoInterface(QFrame):
             parent=self,
         )
 
-    def _open_table_window(self, authors_db: KemonoAuthorsDb):
-        self.table_window = KemonoTableView(authors_db, self)
+    def _open_table_window(self, authors_db: PawchiveAuthorsDb):
+        self.table_window = PawchiveTableView(authors_db, self)
         self.table_window.closeBtn.clicked.connect(self.table_window.close)
         self.table_window.closed.connect(self.table_window.hide)
         self.table_inited = True
@@ -817,7 +785,7 @@ class KemonoInterface(QFrame):
         self.table_window.activateWindow()
 
 
-class KemonoBackendThread(QThread):
+class PawchiveBackendThread(QThread):
     output_signal = Signal(str)
     finished_signal = Signal(int)  # 添加完成信号，传递退出码
 
@@ -830,7 +798,10 @@ class KemonoBackendThread(QThread):
         self.output_signal.emit(*args, **kwargs)
 
     def run(self):
-        script_path = ori_path.joinpath("utils/script/image/kemono.py")
+        # CGS016: aria2 引导链冷导入 ~950ms，只在真正起子进程时才付。
+        from utils.script.aria2.engine import child_endpoint_env
+
+        script_path = ori_path.joinpath("utils/script/image/pawchive.py")
 
         args = []
         args.extend(["-c", f"creatorid={self.backend_kw['creatorid']}".replace("'", '"')])
@@ -839,7 +810,7 @@ class KemonoBackendThread(QThread):
         cmd = [sys.executable, str(script_path)] + args
         self.output_signal.emit(f"🎯cmd: {cmd}")
         process = subprocess.Popen(
-            cmd, cwd=ori_path,
+            cmd, cwd=ori_path, env={**os.environ, **child_endpoint_env()},
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1, universal_newlines=True
         )
@@ -850,12 +821,12 @@ class KemonoBackendThread(QThread):
                     break  # 进程结束且无输出时退出
                 continue
             line = line.strip()
-            self.print(line)
+            self.print(ansi_to_html(line) if "\x1b" in line else line)
         remaining = process.stdout.read()
         if remaining:
             for line in remaining.splitlines():
                 cleaned_line = line.strip()
-                self.print(cleaned_line)
+                self.print(ansi_to_html(cleaned_line) if "\x1b" in cleaned_line else cleaned_line)
         exit_code = process.wait()
         if exit_code == 0:
             self.print(font_color("✅ done! 运行键已恢复，可继续接下一轮任务 ヾ(￣▽￣ )~~", cls='theme-success'))

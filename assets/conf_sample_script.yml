@@ -1,15 +1,12 @@
-kemono:
-  sv_path: D:\pic\kemono
-  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://kemono.su/api/schema, F12打开控制台查看cookies, 字段名为 `session`
-  redis_key: kemono
-  
+pawchive:
+  cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx
+  redis_key: pawchive
+
 nekohouse:
-  sv_path: D:\pic\nekohouse
   cookie: eyJfcGVybWaabbbW50Ijxxxxxxxxxxxxxxxxxxxxx   # 需要登录的账号 https://nekohouse.su, F12打开控制台查看cookies, 字段名为 `session`
   redis_key: nekohouse
 
 danbooru:
-  save_path: D:\pic\danbooru
   save_type: null
   download_concurrency: 5
   view_ratio: 60
@@ -30,7 +27,6 @@ ai:
 proxies: null
 cgs_aria2:
   proxy: ""
-  migrated_from_motrix: false
 redis:
   host: 127.0.0.1
   port: 6379

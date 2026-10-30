@@ -20,6 +20,9 @@ proj_p = p.Path(__file__).parent.parent.parent.parent
 sys.path.append(str(proj_p))
 from utils.script import conf, AioRClient, BlackList
 from utils.core import sanitize_for_path
+from deploy import Env
+
+DEFAULT_NEKOHOUSE_SAVE_PATH = str(Env.default_acggr_path.joinpath("nekohouse"))
 
 domain = "nekohouse.su"
 headers = {
@@ -142,7 +145,7 @@ class Nekohouse:
         self.conf = conf.nekohouse
         self.redis = redis_cli
         self.redis_key = self.conf['redis_key']
-        self.sv_path = p.Path(self.conf.get('sv_path'))
+        self.sv_path = p.Path(self.conf.get('sv_path') or DEFAULT_NEKOHOUSE_SAVE_PATH)
         self.sorted_record = self.sv_path.joinpath('__sorted_record')
         self.blacklist_obj = BlackList(self.sv_path / 'blacklist.json')
         self.blacklist = self.blacklist_obj.read()
@@ -196,7 +199,6 @@ class Nekohouse:
 
         async def _filter(posts):
             valid_posts = list(filter(lambda _: time_format(_.get('published')) >= interrupt, posts))
-            """get filter from kemono_expander.Artists etc."""
             from utils.script.image.expander import Artists
             valid_posts = Artists.base_process(valid_posts)
             flag = True if not valid_posts and all(map(lambda _: time_format(_.get('published')) < interrupt, posts)) \

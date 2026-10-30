@@ -24,6 +24,7 @@ pub struct CliArgs {
     #[arg(long = "no-gui")]
     pub no_gui: bool,
 
+    // Discarded: `[script]` extra no longer exists; accepted for older launchers only.
     #[arg(long)]
     pub script: bool,
 

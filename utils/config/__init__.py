@@ -36,6 +36,17 @@ qconfig_dir = conf_dir.joinpath("qconfig")
 qconfig_dir.mkdir(parents=True, exist_ok=True)
 yaml.warnings({'YAMLLoadWarning': False})
 
+WEBDAV_DEFAULT_CONF = {
+    "enabled": False,
+    "endpoint": "",
+    "user": "",
+    "password": "",
+    "root": "/",
+    "batch_limit": 20,
+    "concurrency": 4,
+    "use_proxy": False,
+}
+
 
 def yaml_update(_f, dic):
     with open(_f, 'r+', encoding='utf-8') as fp:
@@ -217,7 +228,7 @@ class Conf(BaseConf):
 
 @dataclass
 class ScriptConf(BaseConf):
-    kemono: dict = field(default_factory=dict)
+    pawchive: dict = field(default_factory=dict)
     danbooru: dict = field(default_factory=dict)
     jsoneriPalacesProbe: dict = field(default_factory=dict)
     comfy: dict = field(default_factory=dict)

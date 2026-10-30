@@ -27,6 +27,7 @@ from qfluentwidgets import (
     PrimaryPushButton,
     PushButton,
     RoundMenu,
+    ScrollArea,
     StrongBodyLabel,
     TeachingTipTailPosition,
     TimePicker,
@@ -63,13 +64,13 @@ from .card import SubscribeCard
 from .common import WEEKDAY_IDS, subscribe_site_indexes
 
 if TYPE_CHECKING:
-    from .window import SubscribeWindow
+    from GUI.tools.workspace import ToolWorkspaceWindow
 
 
 class SubscribeSidePanel(QFrame):
     """Side rail: selected-card CheckSlot + whole-library binding editor (yml SSoT)."""
 
-    def __init__(self, host: "SubscribeWindow", parent: QWidget | None = None):
+    def __init__(self, host: "ToolWorkspaceWindow", parent: QWidget | None = None):
         super().__init__(parent)
         self._host = host
         self._loading = False
@@ -85,8 +86,22 @@ class SubscribeSidePanel(QFrame):
         self.setFixedWidth(300)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         panel_layout = QVBoxLayout(self)
-        panel_layout.setContentsMargins(10, 10, 10, 10)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(0)
+        # 轨道滚动化：面板内容最小高（599 级）不再顶高整页。否则 QStackedWidget 取四页最大
+        # 最小值把订阅页撑到 665，窗口缩到最小高度（viewport 625）时外层 ScrollArea 的
+        # overlay 滚动条出现，且与 rv 表格同缘滚动条重叠（实测都在 x=633..645），表格条不可用。
+        self.rail_scroll = ScrollArea(self)
+        self.rail_scroll.setObjectName("SubscribeSideRailScroll")
+        self.rail_scroll.setWidgetResizable(True)
+        self.rail_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.rail_host = QWidget(self.rail_scroll)
+        self.rail_host.setObjectName("SubscribeSideRailHost")
+        self.rail_scroll.setWidget(self.rail_host)
+        rail_layout = QVBoxLayout(self.rail_host)
+        rail_layout.setContentsMargins(0, 0, 0, 0)
+        rail_layout.setSpacing(10)
+        panel_layout.addWidget(self.rail_scroll, 1)
 
         # ========== CardConfFrame (TOP of SidePanel — QSS section) ==========
         self.card_conf_frame = QFrame(self)
@@ -174,7 +189,7 @@ class SubscribeSidePanel(QFrame):
         card_reset_row.addWidget(self.card_reset_check_btn)
         card_conf_layout.addLayout(card_reset_row)
 
-        panel_layout.addWidget(self.card_conf_frame, 0)
+        rail_layout.addWidget(self.card_conf_frame, 0)
 
         # ========== GlobalFrame (fills rest; owns save at bottom) ==========
         self.global_frame = QFrame(self)
@@ -353,7 +368,7 @@ class SubscribeSidePanel(QFrame):
         if save_index >= 0:
             global_layout.setStretch(save_index, 0)
 
-        panel_layout.addWidget(self.global_frame, 1)
+        rail_layout.addWidget(self.global_frame, 1)
 
         self._side_dirty = False
         self._reload_profile_combo()
@@ -372,8 +387,7 @@ class SubscribeSidePanel(QFrame):
         if self._loading:
             return
         self._side_dirty = True
-        if hasattr(self, "side_save_btn"):
-            self.side_save_btn.setText("保存配置 *")
+        self.side_save_btn.setText("保存配置 *")
 
     def _site_key_for_index(self, site_index: int) -> str:
         return normalize_site_proxy_key(str(SPIDERS.get(int(site_index)) or ""))
@@ -459,19 +473,18 @@ class SubscribeSidePanel(QFrame):
 
     def _collect_check_section_into_config(self) -> None:
         """Collect profile default CheckSlot from secondary controls into cfg.check."""
-        if hasattr(self, "profile_weekday_buttons"):
-            weekdays = [
-                weekday_id
-                for weekday_id, button in self.profile_weekday_buttons.items()
-                if button.isChecked()
-            ]
-            self._host.config.check.weekdays = weekdays
-            picker_time = self.profile_time_picker.time
-            time_text = picker_time.toString("HH:mm") if picker_time.isValid() else "03:00"
-            if not time_text:
-                time_text = "03:00"
-            self._host.config.check.time = time_text
-            self._host.config.check.tz_offset = normalize_tz_offset(self.profile_tz_offset)
+        weekdays = [
+            weekday_id
+            for weekday_id, button in self.profile_weekday_buttons.items()
+            if button.isChecked()
+        ]
+        self._host.config.check.weekdays = weekdays
+        picker_time = self.profile_time_picker.time
+        time_text = picker_time.toString("HH:mm") if picker_time.isValid() else "03:00"
+        if not time_text:
+            time_text = "03:00"
+        self._host.config.check.time = time_text
+        self._host.config.check.tz_offset = normalize_tz_offset(self.profile_tz_offset)
         # Subscription = detect updates and download; always on (no UI knob).
         self._host.config.check.auto_download = True
 
@@ -514,15 +527,11 @@ class SubscribeSidePanel(QFrame):
         return self._host.config.check.as_slot()
 
     def _sync_tz_offset_button(self) -> None:
-        if not hasattr(self, "tz_btn"):
-            return
         label = format_tz_offset_label(self.tz_offset)
         self.tz_btn.setText(label)
         self._align_tz_btn_to_time_picker()
 
     def _sync_profile_tz_offset_button(self) -> None:
-        if not hasattr(self, "profile_tz_btn"):
-            return
         label = format_tz_offset_label(self.profile_tz_offset)
         self.profile_tz_btn.setText(label)
         self._align_profile_tz_btn_to_time_picker()
@@ -530,12 +539,8 @@ class SubscribeSidePanel(QFrame):
     def _align_tz_btn_to_time_picker(self) -> None:
         """Match card tz ToolButton height to the painted TimePicker; width fits ±HH text."""
         self._align_tz_tool_button(self.tz_btn, self.time_picker)
-        if hasattr(self, "profile_tz_btn") and hasattr(self, "profile_time_picker"):
-            self._align_profile_tz_btn_to_time_picker()
 
     def _align_profile_tz_btn_to_time_picker(self) -> None:
-        if not hasattr(self, "profile_tz_btn") or not hasattr(self, "profile_time_picker"):
-            return
         self._align_tz_tool_button(self.profile_tz_btn, self.profile_time_picker)
 
     @staticmethod
@@ -598,11 +603,9 @@ class SubscribeSidePanel(QFrame):
 
     def _toggle_profile_default_section(self) -> None:
         self._profile_default_expanded = not bool(getattr(self, "_profile_default_expanded", False))
-        if hasattr(self, "profile_default_body"):
-            self.profile_default_body.setVisible(self._profile_default_expanded)
-        if hasattr(self, "profile_default_toggle_btn"):
-            icon = FIF.CHEVRON_DOWN_MED if self._profile_default_expanded else FIF.CHEVRON_RIGHT_MED
-            self.profile_default_toggle_btn.setIcon(icon)
+        self.profile_default_body.setVisible(self._profile_default_expanded)
+        icon = FIF.CHEVRON_DOWN_MED if self._profile_default_expanded else FIF.CHEVRON_RIGHT_MED
+        self.profile_default_toggle_btn.setIcon(icon)
         if self._profile_default_expanded:
             self._align_profile_tz_btn_to_time_picker()
 
@@ -643,14 +646,11 @@ class SubscribeSidePanel(QFrame):
 
     def _set_card_conf_title(self, title: str) -> None:
         """Single-line elided title so long names cannot stretch CardConfFrame."""
-        if not hasattr(self, "card_conf_title"):
-            return
         full = str(title or "").strip() or "—"
         self.card_conf_title.setToolTip(full if full != "—" else "")
         # Width available ≈ side panel 300 − margins − join btn − spacing.
         join_width = 0
-        if hasattr(self, "bookJoinBtn") and self.bookJoinBtn is not None:
-            join_width = max(self.bookJoinBtn.sizeHint().width(), self.bookJoinBtn.width(), 30)
+        join_width = max(self.bookJoinBtn.sizeHint().width(), self.bookJoinBtn.width(), 30)
         max_width = max(80, self.card_conf_frame.width() - 20 - join_width - 12)
         if max_width < 120:
             max_width = 200
@@ -660,8 +660,6 @@ class SubscribeSidePanel(QFrame):
         self.card_conf_title.setText(elided)
 
     def _sync_card_conf_panel(self, card_key: str | None) -> None:
-        if not hasattr(self, "card_conf_title"):
-            return
         card = self._host._cards_by_key.get(str(card_key or "")) if card_key else None
         self._loading = True
         try:
@@ -670,8 +668,7 @@ class SubscribeSidePanel(QFrame):
                 self.bookJoinBtn.setEnabled(False)
                 self.bookJoinBtn.setChecked(False)
                 self._set_card_slot_widgets_enabled(False)
-                if hasattr(self, "card_reset_check_btn"):
-                    self.card_reset_check_btn.setEnabled(False)
+                self.card_reset_check_btn.setEnabled(False)
                 self._card_check_inherits = True
                 self._card_check_draft = None
                 # Keep card widgets showing profile defaults as a neutral preview.
@@ -691,14 +688,12 @@ class SubscribeSidePanel(QFrame):
                 self._card_check_inherits = False
                 self._card_check_draft = self._clone_check_slot(stored_slot)
                 self._apply_slot_to_card_widgets(self._card_check_draft)
-                if hasattr(self, "card_reset_check_btn"):
-                    self.card_reset_check_btn.setEnabled(True)
+                self.card_reset_check_btn.setEnabled(True)
             else:
                 self._card_check_inherits = True
                 self._card_check_draft = None
                 self._apply_slot_to_card_widgets(self._profile_check_as_slot())
-                if hasattr(self, "card_reset_check_btn"):
-                    self.card_reset_check_btn.setEnabled(False)
+                self.card_reset_check_btn.setEnabled(False)
         finally:
             self._loading = False
 
@@ -718,8 +713,7 @@ class SubscribeSidePanel(QFrame):
             # Start from effective (profile) then accept the just-edited widgets as override.
             self._card_check_inherits = False
             self._card_check_draft = self._read_card_slot_from_widgets()
-            if hasattr(self, "card_reset_check_btn"):
-                self.card_reset_check_btn.setEnabled(True)
+            self.card_reset_check_btn.setEnabled(True)
         else:
             self._card_check_draft = self._read_card_slot_from_widgets()
         self._mark_side_dirty()
@@ -732,8 +726,7 @@ class SubscribeSidePanel(QFrame):
         self._loading = True
         try:
             self._apply_slot_to_card_widgets(self._profile_check_as_slot())
-            if hasattr(self, "card_reset_check_btn"):
-                self.card_reset_check_btn.setEnabled(False)
+            self.card_reset_check_btn.setEnabled(False)
         finally:
             self._loading = False
         self._mark_side_dirty()
@@ -870,8 +863,6 @@ class SubscribeSidePanel(QFrame):
         card.apply_subscribe_conf(enabled=enabled)
 
     def _reload_profile_combo(self) -> None:
-        if not hasattr(self, "profile_combo"):
-            return
         current = self._host.store.customname
         names = list_subscription_customnames(include_default=True)
         self.profile_combo.blockSignals(True)
@@ -978,8 +969,6 @@ class SubscribeSidePanel(QFrame):
 
     def _sync_follow_list_height(self) -> None:
         """Keep follow_list content-sized so an empty list does not open a mid-panel void."""
-        if not hasattr(self, "follow_list"):
-            return
         count = self.follow_list.count()
         if count <= 0:
             self.follow_list.setFixedHeight(0)
@@ -1009,8 +998,6 @@ class SubscribeSidePanel(QFrame):
 
     def _set_follow_mode_input(self) -> None:
         """Default: show bid input, hide detail output."""
-        if not hasattr(self, "follow_input_host"):
-            return
         self.follow_list.clearSelection()
         self.follow_detail_label.hide()
         self.follow_detail_label.clear()
@@ -1045,15 +1032,12 @@ class SubscribeSidePanel(QFrame):
             self._render_follows()
             self._sync_card_conf_panel(self._host._selected_card_key)
             self._side_dirty = False
-            if hasattr(self, "side_save_btn"):
-                self.side_save_btn.setText("保存配置")
+            self.side_save_btn.setText("保存配置")
         finally:
             self._loading = False
 
     def _load_profile_check_into_widgets(self) -> None:
         """Bind profile default CheckSlot into secondary controls (not card widgets)."""
-        if not hasattr(self, "profile_weekday_buttons"):
-            return
         selected = set(str(item) for item in (self._host.config.check.weekdays or []))
         for weekday_id, button in self.profile_weekday_buttons.items():
             button.setChecked(weekday_id in selected)

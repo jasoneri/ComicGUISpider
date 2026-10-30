@@ -8,6 +8,7 @@ from qfluentwidgets import (
 )
 
 from GUI.uic.ui_mainwindow import Ui_MainWindow
+from GUI.uic.qfluent import MonkeyPatch as FluentMonkeyPatch
 from GUI.uic.qfluent.components import TextBrowserLite, FlexImageLabel, ExpandButton
 from GUI.uic.qfluent.components.icons import CgsIcon
 from GUI.uic.qfluent.components.site_choice_combo import SiteChoiceComboController
@@ -48,7 +49,13 @@ class MitmMainWindow(Ui_MainWindow):
         blocker = QtCore.QSignalBlocker(self.chooseBox)
         self.chooseBox.clear()
         self.chooseBox.addItem(_translate("MainWindow", res.chooseBoxDefault))
-        for index, label in SPIDERS_LABELS.items():
+        # chooseBox 位置 == 站点索引：SPIDERS_LABELS 的缺口（退役位）以空项补齐位次，
+        # 否则其后站点整体前移、currentIndex() 不再等于站点索引；空项由 SiteChoiceComboController 永久隐藏。
+        for index in range(1, max(SPIDERS_LABELS) + 1):
+            label = SPIDERS_LABELS.get(index)
+            if label is None:
+                self.chooseBox.insertItem(index, "")
+                continue
             if index in Spider and Spider(index) in Spider.specials():
                 label += "🔞"
             self.chooseBox.insertItem(index, _translate("MainWindow", label))
@@ -160,6 +167,7 @@ class MitmMainWindow(Ui_MainWindow):
         self.textBrowser.setMinimumSize(QtCore.QSize(20, 140))
         self.textBrowser.setObjectName("textBrowser")
         self.tbWidgetLayout.addWidget(self.textBrowser)
+        FluentMonkeyPatch.rbutton_menu_textBrowser(self.textBrowser, self)
 
     def preset(self):
         self.retrybtn.setIcon(CgsIcon.REBOOT.fixed_light_surface_icon())

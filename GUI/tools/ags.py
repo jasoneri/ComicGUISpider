@@ -6,7 +6,7 @@ from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QPixmap
 from GUI.core.timer import safe_single_shot
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QWidget, QFileDialog
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QSizePolicy, QWidget, QFileDialog
 from qfluentwidgets import (
     VBoxLayout, PrimaryPushButton, PushButton, PrimaryToolButton,
     SmoothScrollArea,TeachingTip,TeachingTipTailPosition,
@@ -34,7 +34,8 @@ class DisplayConfig:
 
 
 class PicMgr:
-    IMAGE_HEIGHT_RATIO = 0.35  # 图片高度占窗口高度的比例
+    # 图像高度锚定左侧按钮组总高，不按窗高：按窗高比例在竖版高窗下会让 guide.png 异常巨大。
+    IMAGE_HEIGHT_RATIO = 0.75  # 空态图高度占按钮组总高的比例
     TEXT_MARGIN = 10  # 文字与图片的间距
     
     def __init__(self, view):
@@ -57,7 +58,8 @@ class PicMgr:
         cfg = DisplayConfig(
             image_path=":/ags/guide.png", is_centered=False, text=ags_res.guide_message
         )
-        cfg.height_ratio = 0.45
+        # 引导图高度 = 按钮组总高
+        cfg.height_ratio = 1.0
         self.display_cfg = cfg
         self._show_display()
 
@@ -111,12 +113,14 @@ class PicMgr:
         return label
 
     def _calculate_image_size(self, pixmap: QPixmap) -> QSize:
-        tool_window = self.view.window()
+        # 基准 = 左侧按钮组四组总高（file/clip/methodSplit/extend 的 sizeHint 合计），
+        # 不按窗高比例——竖版高窗下窗高比例会失控。
+        base_height = self.view.inputBtnLayout.sizeHint().height()
         if hasattr(self.display_cfg, "height_ratio"):
             height_ratio = self.display_cfg.height_ratio
         else:
             height_ratio = self.IMAGE_HEIGHT_RATIO
-        target_height = int(tool_window.height() * height_ratio)
+        target_height = int(base_height * height_ratio)
         target_width = int(target_height * pixmap.width() / pixmap.height())
         return QSize(target_width, target_height)
 
@@ -265,9 +269,11 @@ class AgsFromClipLayout(QHBoxLayout):
 
 
 class AggrSearchView(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, host_window=None):
         QWidget.__init__(self)
         self.gui = parent
+        # 动作后关窗的宿主窗口（ToolWorkspaceWindow），由挂页方注入。
+        self.host_window = host_window
         self.pic_mgr = PicMgr(self)
         self.init_ui()
 
@@ -282,7 +288,9 @@ class AggrSearchView(QWidget):
         selectLayout = QtWidgets.QVBoxLayout()
         self.selectScrollingRegion = SmoothScrollArea()
         self.selectScrollingRegion.setWidgetResizable(True)
-        selectLayout.addWidget(self.selectScrollingRegion)
+        # 竖窗：右列撑满高度（expanding + stretch 1），壁纸因此锚定区域左上。
+        self.selectScrollingRegion.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        selectLayout.addWidget(self.selectScrollingRegion, 1)
         
         first_row.addLayout(self.inputBtnLayout)
         first_row.addLayout(selectLayout)
@@ -293,8 +301,9 @@ class AggrSearchView(QWidget):
         self.runBtn.setDisabled(1)
         second_row.addWidget(self.runBtn)
 
-        for row in (first_row, second_row):
-            self.main_layout.addLayout(row)
+        # first_row 占 stretch：左右两列撑满窗口高度；runBtn 行不占。
+        self.main_layout.addLayout(first_row, 1)
+        self.main_layout.addLayout(second_row)
         self.setLayout(self.main_layout)
         self.pic_mgr.set_guide()
 
@@ -358,6 +367,7 @@ class AggrSearchView(QWidget):
             edit.group_idx = search_key.group_idx
             edit.setText(parse(search_key))
             edit.setClearButtonEnabled(True)
+            edit.setMinimumWidth(160)
             resetBtn.clicked.connect(lambda: edit.setText(search_key))
             for _ in (toggleBtn, edit, resetBtn):
                 row.addWidget(_)
@@ -388,4 +398,4 @@ class AggrSearchView(QWidget):
         print(selected_items)
         self.gui.ags_mgr.extractor = self.fileLayout.extractor  # 传递 extractor 引用给 manager
         self.gui.ags_mgr.run(selected_items)
-        self.gui.toolWin.close()
+        self.host_window.close()

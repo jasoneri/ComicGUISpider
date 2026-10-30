@@ -1,20 +1,27 @@
 
 # 🚧 ScriptTool
 
-danbooru / kemono / cbg / saucenao
+### warning 后续版本将切离出 CGS 成单独的项目 ，代号 ↓
+
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&size=25&duration=2000&pause=2400&color=93F0F7&vCenter=true&width=100&height=35&lines=ACGGR)](https://git.io/typing-svg)
+
+---
+
+danbooru / pawchive / cbg / saucenao
 
 ## ⚠️ 通用前置须知
 
 ::: tip 🔔 v2.12.0 起，选择 script 时会自动下载 aria2 二进制执行文件 [link](https://github.com/jasoneri/ComicGUISpider/releases/tag/preset)
-Script 设置中 aria2 有单独代理设置
+Script 设置中 aria2 有单独代理设置  
+任务可用 [AriaNg](https://github.com/mayswind/AriaNg/releases) 进行过监控管理，在 `index.html#!/settings/ariang` 配置改 26800 端口和 配置页获得的秘钥即可连接
 :::
-::: info 脚本集通用前置安装( v2.11.0 改为 `按需` )
+::: info Pawchive 前置安装( `按需` )
 任务模块：[Redis-windows](https://github.com/redis-windows/redis-windows/releases) | mac:`brew install redis`  
 > [!tip] 指引
 > Redis-windows: 下载 *-cygwin-with-Service.zip  
 > 查看 [文档](https://github.com/redis-windows/redis-windows/blob/main/README.zh_CN.md) 安装为 Windows 服务
 
-当前仅 Kemono 需要（ k 目前处于一只脚踏进棺材板状态中）
+~~kemono 有事烧纸，已全面换 paw~~
 :::
 
 ::: details 脚本目录树: `script`目录 (非 GUI 相关)
@@ -25,20 +32,20 @@ utils
         ├── extra.py                  # 作为单个简单类爬虫使用
         ├── image  
              ├── __init__.py  
-             ├── kemono.py            # 网站有如右相关资源 patreon/fanbox/fantia 等
-             ├── expander.py          # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类kemono网站共用）
-             ├── nekohouse.py         # 大概就是 kemono 的克隆网站
+             ├── pawchive.py          # 网站有如右相关资源 patreon/fanbox/fantia 等
+             ├── expander.py          # 基于每个作者对作品集取名习惯(标题是颜文字表情之类的见怪不怪了)进行筛选（类pawchive网站共用）
+             ├── nekohouse.py         # 大概就是 pawchive 的克隆网站
              ├── saucenao.py          # saucenao 著名的二次元以图搜图网站
 ```
 :::
 
-## 1. [kemono](/script/kemono)
+## 1. [pawchive](/script/pawchive)
 
 ## 2. [Danbooru](/script/danbooru)
 
 ## 3. Cbg (CornerBackground)
 
-快捷入口为 rvTool 橙色按钮 Cbg
+入口：工具工作台 addons 页的 script 格 → scriptWin 左栏 Cbg
 
 ::: details 功能为油猴脚本，让立绘资源在浏览器右下角常驻展示（当前仅本地资源，火狐暂不支持 ¹）  
 > [!Tip] 需要进扩展管理油猴权限设 `允许访问文件网址` (火狐没有所以不支持)
@@ -57,7 +64,7 @@ utils
 
 `Danbooru`无需代理，`Yande`（这个指`yande.re`）需要代理，其他图源没做，感觉也没比`Yande`更全更高清的了，
 没代理就去掉`imgur_module`的`Yande`<br>
-有时也会搜出kemono的，知道作者名之后就用上面的kemono脚本吧
+有时也会搜出pawchive的，知道作者名之后就用上面的pawchive脚本吧
 
 saucenao限制30秒搜3张图，有它的账号也才30秒4张没什么好说的
 

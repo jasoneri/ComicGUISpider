@@ -21,7 +21,7 @@ class _Mh1234Contract:
     update = f"{index}/category/order/addtime"
     search_url_head = f"{index}/search/"
     mappings = {
-        res.SPIDER.Completer.index: popular,
+        res.SPIDER.Completer.index_: popular,
         res.SPIDER.Completer.popular: popular,
         res.SPIDER.Completer.update: update,
     }

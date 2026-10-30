@@ -1,130 +1,13 @@
-from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QLabel, QApplication
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication
+# -*- coding: utf-8 -*-
+"""GUI.tools 包：工具页与工作区窗口壳。
+
+窗口壳见 ``GUI.tools.workspace.ToolWorkspaceWindow``；工具页为平级业务包
+（``addons/`` / ``hitomi/`` / ``mid_tool/`` / ``rv/`` / ``subscribe/`` / ``webdav/``）。
+"""
 from utils import install_qfluentwidgets_notice_filter
 
 install_qfluentwidgets_notice_filter()
 
-from qfluentwidgets import Pivot
-from qframelesswindow import FramelessWindow
-from qfluentwidgets import TransparentToolButton, FluentIcon as FIF, VBoxLayout
+from .chore import CopyUnfinished, TextUtils  # noqa: E402  (notice filter 须先装)
 
-from GUI.tools.hitomi_tool import HitomiTools, hitomi_db_path
-from GUI.tools.rv_tool import rvTool
-from GUI.tools.domain import DomainToolView
-from GUI.tools.ags import AggrSearchView
-from GUI.tools.mid_tool import MidToolInterface
-from GUI.tools.chore import *
-
-
-class ToolWindow(FramelessWindow):
-    def __init__(self, parent=None):
-        super().__init__()
-        self.gui = parent
-        self.titleBar.minBtn.hide()
-        self.titleBar.maxBtn.hide()
-        self.titleBar.closeBtn.hide()
-        screen = QGuiApplication.primaryScreen()
-        screen_geo = screen.geometry()
-        if parent:
-            self.window_width = int(parent.width() * 0.8)
-        else:
-            self.window_width = int(screen_geo.width() * 0.4)
-        window_height = int(screen_geo.height() * 0.22)
-        self.setMinimumSize(self.window_width, window_height)
-        self.default_height = 120
-        self.resize(self.window_width, self.default_height)
-        self.move(
-            int((screen_geo.width() - self.window_width) / 2),
-            int((screen_geo.height() - window_height) / 2)
-        )
-        self.init_ui()
-
-    def init_ui(self):
-        self.pivot = Pivot(self)
-        self.stackedWidget = QStackedWidget(self)
-        self.main_layout = VBoxLayout(self)
-
-        first_row = QHBoxLayout()
-        self.rvInterface = rvTool(self)
-        self.addSubInterface(self.rvInterface, 'rvInterface', 'rvTool')
-
-        self.stackedWidget.currentChanged.connect(self.onCurrentIndexChanged)
-        self.stackedWidget.setCurrentWidget(self.rvInterface)
-        self.pivot.setCurrentItem(self.rvInterface.objectName())
-
-        first_row.addWidget(self.pivot, alignment=Qt.AlignCenter)
-        self.cancelBtn = TransparentToolButton(FIF.CLOSE, self)
-        self.cancelBtn.clicked.connect(self.close)
-        first_row.addWidget(self.cancelBtn, alignment=Qt.AlignRight)
-
-        second_row = QHBoxLayout()
-        second_row.addWidget(self.stackedWidget)
-
-        self.main_layout.addLayout(first_row)
-        self.main_layout.addLayout(second_row)
-
-    def addAggrSearchView(self):
-        self.asInterface = AggrSearchView(self.gui)
-        self.addSubInterface(self.asInterface, 'asInterface', 'aggrSearch')
-
-    def addHitomiTool(self):
-        if hitomi_db_path.exists():
-            self.htInterface = HitomiTools(self.gui)
-            self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
-
-    def addMidTool(self):
-        self.midInterface = MidToolInterface(self.gui)
-        self.addSubInterface(self.midInterface, 'midInterface', 'midTool')
-
-    def addSubInterface(self, widget: QWidget, objectName: str, text: str, *, add_pivot: bool = True):
-        widget.setObjectName(objectName)
-        if isinstance(widget, QLabel):
-            widget.setAlignment(Qt.AlignCenter)
-        self.stackedWidget.addWidget(widget)
-
-        if add_pivot:
-            self.pivot.addItem(
-                routeKey=objectName,
-                text=text,
-                onClick=lambda: self.stackedWidget.setCurrentWidget(widget)
-            )
-
-    def onCurrentIndexChanged(self, index):
-        widget = self.stackedWidget.widget(index)
-        if widget is None:
-            return
-        if widget.objectName() == "htInterface" and hitomi_db_path.exists():
-            self.pivot.removeWidget("htInterface")
-            self.htInterface = HitomiTools(self.gui)
-            self.addSubInterface(self.htInterface, 'htInterface', 'hitomiTool')
-        if widget.objectName() == "asInterface":
-            new_height = min(int(self.gui.height() * 0.85), 300)
-            self.resize(self.gui.width(), new_height)
-        elif widget.objectName() == "midInterface":
-            self.resize(self.gui.width(), min(370, self.gui.height()))
-        else:
-            self.resize(self.window_width, self.default_height)
-        self.pivot.setCurrentItem(widget.objectName())
-
-    def open_subscribe_with_books(self, books):
-        """Back-compat: preview push routes through gui singleton subscribe window."""
-        if self.gui is None:
-            raise RuntimeError("ToolWindow.open_subscribe_with_books requires gui")
-        self.gui.open_subscribe_with_books(books)
-
-    def server_mode_switch_blockers(self) -> list[str]:
-        return []
-
-
-def main():
-    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QApplication([])
-    window = ToolWindow()
-    window.show()
-    app.exec()
-
-
-if __name__ == '__main__':
-    import GUI.src.material_ct
-    main()
+__all__ = ["CopyUnfinished", "TextUtils"]

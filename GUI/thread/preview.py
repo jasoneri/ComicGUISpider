@@ -49,6 +49,7 @@ class PreviewWorker(QThread):
     episodes_done = Signal(int, int, str, object)
     episodes_error = Signal(int, int, str, str)
     pages_done = Signal(int, str, object)
+    pages_error = Signal(int, str, str)
     cover_done = Signal(int, str, object)
     cover_error = Signal(int, str, str)
 
@@ -98,18 +99,31 @@ class PreviewWorker(QThread):
 
         async def _fetch_one(book_key, item):
             async with semaphore:
-                page_urls = await self.thread_site_runtime.preview_fetch_pages(item)
+                try:
+                    page_urls = await self.thread_site_runtime.preview_fetch_pages(item)
+                except Exception as exc:
+                    # A risk-controlled chapter page must not take the whole
+                    # batch down. Without this the failure escapes
+                    # asyncio.gather, kills the preview worker thread, and the
+                    # GUI surfaces only a generic "never loaded" timeout with no
+                    # category - the multi-chapter batch is invisible by design.
+                    self.pages_error.emit(
+                        self._generation, book_key,
+                        f"{getattr(item, 'name', '') or getattr(item, 'id', '')}: {exc}",
+                    )
+                    return None
                 if isinstance(page_urls, list):
                     item.pages = len(page_urls)
                     item.page_urls = list(page_urls)
+                return item
 
         grouped = {}
         for book_key, episode in items:
             grouped.setdefault(book_key, []).append(episode)
 
         async def _fetch_book(book_key, episodes):
-            await asyncio.gather(*[_fetch_one(book_key, ep) for ep in episodes])
-            self.pages_done.emit(self._generation, book_key, episodes)
+            resolved = await asyncio.gather(*[_fetch_one(book_key, ep) for ep in episodes])
+            self.pages_done.emit(self._generation, book_key, [ep for ep in resolved if ep is not None])
 
         await asyncio.gather(*[_fetch_book(bk, eps) for bk, eps in grouped.items()])
 

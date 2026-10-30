@@ -26,6 +26,7 @@ _PROVIDER_REFS = {
     Spider.MH1234: "utils.website.providers.mh1234:Mh1234Utils",
     Spider.JCOMIC: "utils.website.providers.jcomic:JComicUtils",
     Spider.RUMANHUA: "utils.website.providers.rumanhua:RumanhuaUtils",
+    Spider.MANGADEX: "utils.website.providers.mangadex:MangadexUtils",
 }
 _PROVIDER_ALIASES = {
     Spider.MANGA_COPY: ("kaobei",), Spider.JESTFUL: ("jf",), Spider.DM5: ("dm",),

@@ -218,7 +218,7 @@ class _ComicabcContract:
     update = f"{index}comic/u-1.html"
     search_url_head = f"{index}member/search.aspx?key="
     mappings = {
-        res.SPIDER.Completer.index: popular,
+        res.SPIDER.Completer.index_: popular,
         res.SPIDER.Completer.popular: popular,
         res.SPIDER.Completer.update: update,
     }
@@ -443,7 +443,7 @@ class ComicabcReqer(_ComicabcContract, Req, Cookies):
 
     def test_index(self):
         try:
-            resp = self.cli.head(self.index, headers=self.headers, follow_redirects=True, timeout=3.5)
+            resp = self.cli.get(self.index, headers=self.headers, follow_redirects=True, timeout=6)
             resp.raise_for_status()
         except httpx.HTTPError:
             return False

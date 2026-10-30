@@ -58,6 +58,17 @@ def check(db_path):
         except sqlite3.OperationalError:
             errors.append("language table missing")
 
+        # url_key column: 每行必须同时带 href 路径真值，缺列即旧 schema，客户端会直接 OperationalError
+        try:
+            empty_key = cursor.execute(
+                "SELECT COUNT(*) FROM `alltags-c` WHERE url_key IS NULL OR url_key = ''"
+            ).fetchone()[0]
+        except sqlite3.OperationalError as exc:
+            errors.append(f"url_key column missing (stale schema): {exc}")
+        else:
+            if empty_key:
+                errors.append(f"alltags-c has {empty_key} rows with empty url_key")
+
     if errors:
         print("[FAIL] Quality gate errors:")
         for e in errors:

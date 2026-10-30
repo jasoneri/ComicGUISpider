@@ -1,59 +1,14 @@
 # ❓ 常见问题
 
-## 1. GUI
-
-::: warning 鉴于还是有人不看快速上手，再次声明启动出现各种异常的万恶之源！  
-⚠️ 解压路径不能含有中文/中标 ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️  
-:::
-
-### 预览窗口页面显示异常/页面空白/图片加载等
-
-刷新一下页面，  
-属于对方服务器响应的问题  
-
-### pypi换源指引
-
-先选出当前网络环境能打开的（[清华源](https://pypi.tuna.tsinghua.edu.cn/simple/)
- / [阿里源](https://mirrors.aliyun.com/pypi/simple/)
- / [华为源](https://repo.huaweicloud.com/repository/pypi/simple/)，后缀加上 comicguispider 检测
-）
-
-::: warning 不限于以上三个常用国内源，可以网上搜索`pypi国内源`用你能连上的即可
-除以下两种形式外，所有文档的所有涉及pypi源命令因网络问题出错的都是更换源网址这样去处理  
-:::
-
-#### Ⅰ. 绿色包部署换源
-
-::: tip 默认是清华源，以下是切换至阿里源命令示例，在解压目录开终端
-
-```cmd
-.\CGS.exe -i https://mirrors.aliyun.com/pypi/simple
-```
-:::
-
-#### Ⅱ. CGS更新/脚本集(kemono)额外依赖换源
-
-默认使用清华源，换源通过 [配置窗口点选更换](/config/#pypi%E6%BA%90-pypi-source)  
-
-## 2. 爬虫
-
-### 拷贝访问相关
-
-拷贝墙内风控难以复现, 只能设如下规则：  
-设代理时流程正常, 非代理却流程出错的问题（类似如下）不再受理, 参照首页对应`状态标签`
-```
-ValueError: 加密信息过短疑似风控变化
-```
-
-## 3. 其他
-
-### 遇到带报错信息的小窗警告时
-
-截图并带上脱敏 `cgs_fatal.log` 发到下方评论，或提交 [issue](
+截图并带上脱敏 log 日志片段发到下方评论，或提交 [issue](
   https://github.com/jasoneri/ComicGUISpider/issues/new?template=bug-report.yml
 )
 
-### 更新失败后程序无法打开
+或[进群](https://qm.qq.com/q/T2SONVQmiW) 问, 自备 uu远程 / VPN 等, 问题描述清晰。  
+如果你的问题仅是 `怎么运行不了` 这种的话建议你下个本地 ai-agent 去问，  
+但是解决了并带上下文和环境来反馈的话倒要感谢你参与开源贡献了👍
+
+## 更新失败后程序无法打开
 
 ::: tip 两种方式可选  
 

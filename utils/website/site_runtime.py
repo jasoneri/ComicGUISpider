@@ -48,7 +48,7 @@ class ProviderDescriptor:
     independent of its own registrants -- the pattern used by setuptools entry
     points and Django's INSTALLED_APPS.
 
-    Static config like publish_url, book_url_regex should be read directly
+    Static config like publish_urls, book_url_regex should be read directly
     from provider_cls when needed, not cached as forwarding properties.
     """
     provider_ref: str
